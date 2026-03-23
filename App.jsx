@@ -8,6 +8,7 @@ const defaultDrivers = [
   { id: 4, name: "HOLDEN2DX4EV3R", number: "81", team: "JA MOTORSPORTS", points: 0, wins: 0, top5: 0, top10: 0 },
   { id: 5, name: "SILVEREYEAC", number: "19", team: "SILVER RACING GROUP", points: 0, wins: 0, top5: 0, top10: 0 },
   { id: 6, name: "KEVDINHO7", number: "24", team: "KEVIN HO MOTORSPORTS", points: 0, wins: 0, top5: 0, top10: 0 },
+  { id: 7, name: "TEST DRIVER", number: "04", team: "RFK RACING", points: 0, wins: 0, top5: 0, top10: 0 },
 ];
 
 const races = [
@@ -279,8 +280,8 @@ function PublicStandings({ drivers, teams }) {
 
 function TickerOverlay({ drivers, teams, raceHistory, preview = false }) {
   const sortedDrivers = [...drivers].sort((a, b) => b.points - a.points);
-  const topDrivers = sortedDrivers.slice(0, 5);
-  const topTeams = teams.slice(0, 3);
+  const topDrivers = sortedDrivers;
+  const topTeams = teams;
   const latestRace = raceHistory.length > 0 ? raceHistory[raceHistory.length - 1] : null;
 
   const tickerItems = [
