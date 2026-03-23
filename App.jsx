@@ -279,7 +279,7 @@ function PublicStandings({ drivers, teams }) {
 }
 
 function TickerOverlay({ drivers, teams, raceHistory, preview = false }) {
-  const sortedDrivers = [...drivers].sort((a, b) => b.points - a.points);
+  const sortedDrivers = [...drivers];
   const topDrivers = sortedDrivers;
   const topTeams = teams;
   const latestRace = raceHistory.length > 0 ? raceHistory[raceHistory.length - 1] : null;
