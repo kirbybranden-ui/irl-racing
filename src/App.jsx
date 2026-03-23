@@ -52,6 +52,99 @@ const pointsTable = [
 
 const stagePointsTable = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
 
+const appShellStyle = {
+  minHeight: "100vh",
+  background: "#0b0b0d",
+  color: "white",
+  fontFamily: "Arial, sans-serif",
+};
+
+const pageContainerStyle = {
+  maxWidth: 1400,
+  margin: "0 auto",
+  padding: 24,
+};
+
+const sectionCardStyle = {
+  background: "#16181d",
+  border: "1px solid #2b2f36",
+  borderRadius: 16,
+  padding: 18,
+  boxShadow: "0 10px 30px rgba(0,0,0,0.22)",
+};
+
+const toolbarButtonStyle = {
+  padding: "10px 16px",
+  borderRadius: 10,
+  border: "1px solid #3a404a",
+  background: "#20242b",
+  color: "white",
+  cursor: "pointer",
+  fontWeight: 700,
+};
+
+const primaryButtonStyle = {
+  padding: "12px 18px",
+  borderRadius: 10,
+  border: "1px solid #d4af37",
+  background: "#d4af37",
+  color: "#111",
+  cursor: "pointer",
+  fontWeight: 700,
+};
+
+const secondaryButtonStyle = {
+  padding: "12px 18px",
+  borderRadius: 10,
+  border: "1px solid #4a515d",
+  background: "#22262d",
+  color: "white",
+  cursor: "pointer",
+  fontWeight: 700,
+};
+
+const dangerButtonStyle = {
+  padding: "12px 18px",
+  borderRadius: 10,
+  border: "1px solid #7a2e2e",
+  background: "#4b1f1f",
+  color: "white",
+  cursor: "pointer",
+  fontWeight: 700,
+};
+
+const tableHeaderStyle = {
+  padding: "12px 10px",
+  borderBottom: "1px solid #3a404a",
+  textAlign: "left",
+  background: "#20242b",
+  fontSize: 14,
+};
+
+const tableCellStyle = {
+  padding: "12px 10px",
+  borderBottom: "1px solid #2f343c",
+  fontSize: 14,
+};
+
+const labelStyle = {
+  display: "block",
+  fontSize: 13,
+  fontWeight: 700,
+  color: "#cfd5df",
+  marginBottom: 6,
+};
+
+const inputStyle = {
+  width: "100%",
+  padding: "10px 12px",
+  borderRadius: 10,
+  border: "1px solid #3a404a",
+  background: "#111418",
+  color: "white",
+  boxSizing: "border-box",
+};
+
 function LeaderboardOverlay({ drivers }) {
   const sorted = [...drivers].sort((a, b) => b.points - a.points);
 
@@ -210,7 +303,7 @@ function PublicStandings({ drivers, teams }) {
     >
       <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 8 }}>
         <img src={logo} alt="League Logo" style={{ height: 64, width: "auto" }} />
-        <h1 style={{ margin: 0 }}>IRL Racing League Standings</h1>
+        <h1 style={{ margin: 0, color: "lime" }}>IRL Racing League TEST 123</h1>
       </div>
 
       <h2 style={{ marginTop: 20 }}>Driver Standings</h2>
@@ -296,6 +389,7 @@ function TickerOverlay({ drivers, teams, raceHistory, preview = false }) {
   ];
 
   const tickerText = tickerItems.join("   •   ");
+
   return (
     <div
       style={{
@@ -368,18 +462,6 @@ function TickerOverlay({ drivers, teams, raceHistory, preview = false }) {
     </div>
   );
 }
-
-const tableHeaderStyle = {
-  padding: "10px",
-  borderBottom: "1px solid #444",
-  textAlign: "left",
-  background: "#222",
-};
-
-const tableCellStyle = {
-  padding: "10px",
-  borderBottom: "1px solid #333",
-};
 
 export default function App() {
   const [drivers, setDrivers] = useState(() => {
@@ -480,6 +562,8 @@ export default function App() {
     }
     return Object.values(teams).sort((a, b) => b.points - a.points);
   }, [drivers]);
+
+  const sortedDrivers = [...drivers].sort((a, b) => b.points - a.points);
 
   const handlePositionChange = (driverId, value) =>
     setPositions({ ...positions, [driverId]: Number(value) });
@@ -667,219 +751,413 @@ export default function App() {
   }
 
   return (
-    <div style={{ padding: "24px", fontFamily: "Arial, sans-serif" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 18 }}>
-        <img src={logo} alt="League Logo" style={{ height: 60, width: "auto" }} />
-        <h1 style={{ margin: 0 }}>IRL Racing League</h1>
-      </div>
-
-      <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap" }}>
-        <button onClick={() => setViewMode("admin")} style={{ padding: "10px 16px", cursor: "pointer" }}>
-          Admin View
-        </button>
-        <button onClick={() => setViewMode("overlay-drivers")} style={{ padding: "10px 16px", cursor: "pointer" }}>
-          Driver Overlay Preview
-        </button>
-        <button onClick={() => setViewMode("overlay-teams")} style={{ padding: "10px 16px", cursor: "pointer" }}>
-          Team Overlay Preview
-        </button>
-        <button onClick={() => setViewMode("overlay-ticker")} style={{ padding: "10px 16px", cursor: "pointer" }}>
-          Ticker Overlay Preview
-        </button>
-      </div>
-
-      <h2>Season Standings</h2>
-      <ul>
-        {[...drivers].sort((a, b) => b.points - a.points).map((driver, index) => (
-          <li key={driver.id}>
-            {index + 1}. #{driver.number} {driver.name} ({driver.team}) - {driver.points} pts | Wins: {driver.wins} | Top 5s: {driver.top5} | Top 10s: {driver.top10}
-          </li>
-        ))}
-      </ul>
-
-      <h2 style={{ marginTop: "24px" }}>Team Standings</h2>
-      <ul>
-        {teamStandings.map((team, index) => (
-          <li key={team.team}>
-            {index + 1}. {team.team} - {team.points} pts | Wins: {team.wins} | Top 5s: {team.top5} | Top 10s: {team.top10} | Drivers: {team.drivers}
-          </li>
-        ))}
-      </ul>
-
-      <h2 style={{ marginTop: "24px" }}>Enter Race Results</h2>
-
-      <div style={{ marginBottom: "16px" }}>
-        <label>
-          Select Race:
-          <select
-            value={selectedRace}
-            onChange={(e) => setSelectedRace(e.target.value)}
-            style={{ marginLeft: "8px", padding: "4px" }}
-          >
-            <option value="">-- Choose a Race --</option>
-            {races.map((race) => (
-              <option key={race.id} value={race.name}>
-                {race.name}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-
-      {selectedRace && <p style={{ fontWeight: "bold" }}>Stages for {selectedRace}: {stageCount}</p>}
-
-      <div>
-        {drivers.map((driver) => (
+    <div style={appShellStyle}>
+      <div style={pageContainerStyle}>
+        <div
+          style={{
+            ...sectionCardStyle,
+            marginBottom: 20,
+            padding: 20,
+            background: "linear-gradient(135deg, #17191f 0%, #101216 100%)",
+            border: "1px solid #353b45",
+          }}
+        >
           <div
-            key={driver.id}
             style={{
-              marginBottom: "16px",
-              padding: "12px",
-              border: "1px solid #ccc",
-              borderRadius: "8px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 18,
+              flexWrap: "wrap",
             }}
           >
-            <div style={{ marginBottom: "8px", fontWeight: "bold" }}>
-              #{driver.number} {driver.name}
+            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+              <img src={logo} alt="League Logo" style={{ height: 64, width: "auto" }} />
+              <div>
+                <h1 style={{ margin: 0, fontSize: 32 }}>IRL Racing League</h1>
+                <p style={{ margin: "6px 0 0 0", color: "#c7ced8" }}>
+                  Admin dashboard for standings, race entry, overlays, and penalties
+                </p>
+              </div>
             </div>
 
-            <div style={{ marginBottom: "8px" }}>
-              <label>
-                Finish Position:
-                <input
-                  type="number"
-                  value={positions[driver.id] ?? ""}
-                  onChange={(e) => handlePositionChange(driver.id, e.target.value)}
-                  style={{ marginLeft: "8px", padding: "4px", width: "70px" }}
-                />
-              </label>
+            <div
+              style={{
+                display: "flex",
+                gap: 10,
+                flexWrap: "wrap",
+              }}
+            >
+              <button onClick={() => setViewMode("admin")} style={toolbarButtonStyle}>
+                Admin View
+              </button>
+              <button onClick={() => setViewMode("overlay-drivers")} style={toolbarButtonStyle}>
+                Driver Overlay Preview
+              </button>
+              <button onClick={() => setViewMode("overlay-teams")} style={toolbarButtonStyle}>
+                Team Overlay Preview
+              </button>
+              <button onClick={() => setViewMode("overlay-ticker")} style={toolbarButtonStyle}>
+                Ticker Overlay Preview
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1.5fr 1fr",
+            gap: 20,
+            alignItems: "start",
+            marginBottom: 20,
+          }}
+        >
+          <div style={sectionCardStyle}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <h2 style={{ margin: 0 }}>Driver Standings</h2>
+              <span style={{ color: "#c7ced8", fontSize: 14 }}>{sortedDrivers.length} drivers</span>
             </div>
 
-            <div style={{ marginBottom: "8px" }}>
-              <label>
-                Stage 1 Finish:
-                <input
-                  type="number"
-                  value={stage1[driver.id] ?? ""}
-                  onChange={(e) => handleStage1Change(driver.id, e.target.value)}
-                  style={{ marginLeft: "8px", padding: "4px", width: "70px" }}
-                />
-              </label>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr>
+                    <th style={tableHeaderStyle}>Pos</th>
+                    <th style={tableHeaderStyle}>#</th>
+                    <th style={tableHeaderStyle}>Driver</th>
+                    <th style={tableHeaderStyle}>Team</th>
+                    <th style={tableHeaderStyle}>Pts</th>
+                    <th style={tableHeaderStyle}>Wins</th>
+                    <th style={tableHeaderStyle}>Top 5</th>
+                    <th style={tableHeaderStyle}>Top 10</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedDrivers.map((driver, index) => (
+                    <tr key={driver.id}>
+                      <td style={tableCellStyle}>{index + 1}</td>
+                      <td style={tableCellStyle}>#{driver.number}</td>
+                      <td style={tableCellStyle}>{driver.name}</td>
+                      <td style={tableCellStyle}>{driver.team}</td>
+                      <td style={{ ...tableCellStyle, fontWeight: 700 }}>{driver.points}</td>
+                      <td style={tableCellStyle}>{driver.wins}</td>
+                      <td style={tableCellStyle}>{driver.top5}</td>
+                      <td style={tableCellStyle}>{driver.top10}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div style={sectionCardStyle}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <h2 style={{ margin: 0 }}>Team Standings</h2>
+              <span style={{ color: "#c7ced8", fontSize: 14 }}>{teamStandings.length} teams</span>
             </div>
 
-            <div style={{ marginBottom: "8px" }}>
-              <label>
-                Stage 2 Finish:
-                <input
-                  type="number"
-                  value={stage2[driver.id] ?? ""}
-                  onChange={(e) => handleStage2Change(driver.id, e.target.value)}
-                  style={{ marginLeft: "8px", padding: "4px", width: "70px" }}
-                />
-              </label>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr>
+                    <th style={tableHeaderStyle}>Pos</th>
+                    <th style={tableHeaderStyle}>Team</th>
+                    <th style={tableHeaderStyle}>Pts</th>
+                    <th style={tableHeaderStyle}>Wins</th>
+                    <th style={tableHeaderStyle}>Top 5</th>
+                    <th style={tableHeaderStyle}>Top 10</th>
+                    <th style={tableHeaderStyle}>Drivers</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {teamStandings.map((team, index) => (
+                    <tr key={team.team}>
+                      <td style={tableCellStyle}>{index + 1}</td>
+                      <td style={tableCellStyle}>{team.team}</td>
+                      <td style={{ ...tableCellStyle, fontWeight: 700 }}>{team.points}</td>
+                      <td style={tableCellStyle}>{team.wins}</td>
+                      <td style={tableCellStyle}>{team.top5}</td>
+                      <td style={tableCellStyle}>{team.top10}</td>
+                      <td style={tableCellStyle}>{team.drivers}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
+          </div>
+        </div>
 
-            <div style={{ marginBottom: "8px" }}>
-              <label>
-                Stage 3 Finish:
-                <input
-                  type="number"
-                  value={stage3[driver.id] ?? ""}
-                  onChange={(e) => handleStage3Change(driver.id, e.target.value)}
-                  style={{ marginLeft: "8px", padding: "4px", width: "70px" }}
-                />
-              </label>
+        <div style={{ ...sectionCardStyle, marginBottom: 20 }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 12,
+              flexWrap: "wrap",
+              marginBottom: 16,
+            }}
+          >
+            <h2 style={{ margin: 0 }}>Enter Race Results</h2>
+            <div style={{ color: "#c7ced8", fontSize: 14 }}>
+              {selectedRace ? `Stages for ${selectedRace}: ${stageCount}` : "Choose a race to begin"}
             </div>
+          </div>
 
-            {stageCount === 4 && (
-              <div style={{ marginBottom: "8px" }}>
-                <label>
-                  Stage 4 Finish:
-                  <input
-                    type="number"
-                    value={stage4[driver.id] ?? ""}
-                    onChange={(e) => handleStage4Change(driver.id, e.target.value)}
-                    style={{ marginLeft: "8px", padding: "4px", width: "70px" }}
-                  />
-                </label>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "minmax(220px, 320px)",
+              gap: 16,
+              marginBottom: 20,
+            }}
+          >
+            <div>
+              <label style={labelStyle}>Select Race</label>
+              <select
+                value={selectedRace}
+                onChange={(e) => setSelectedRace(e.target.value)}
+                style={inputStyle}
+              >
+                <option value="">-- Choose a Race --</option>
+                {races.map((race) => (
+                  <option key={race.id} value={race.name}>
+                    {race.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+              gap: 16,
+            }}
+          >
+            {drivers.map((driver) => (
+              <div
+                key={driver.id}
+                style={{
+                  background: "#111418",
+                  border: "1px solid #2f343c",
+                  borderRadius: 14,
+                  padding: 16,
+                }}
+              >
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontWeight: 700, fontSize: 18 }}>
+                    #{driver.number} {driver.name}
+                  </div>
+                  <div style={{ color: "#b7bfca", fontSize: 13, marginTop: 4 }}>{driver.team}</div>
+                </div>
+
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: stageCount === 4 ? "repeat(2, 1fr)" : "repeat(2, 1fr)",
+                    gap: 12,
+                  }}
+                >
+                  <div>
+                    <label style={labelStyle}>Finish Position</label>
+                    <input
+                      type="number"
+                      value={positions[driver.id] ?? ""}
+                      onChange={(e) => handlePositionChange(driver.id, e.target.value)}
+                      style={inputStyle}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={labelStyle}>Stage 1 Finish</label>
+                    <input
+                      type="number"
+                      value={stage1[driver.id] ?? ""}
+                      onChange={(e) => handleStage1Change(driver.id, e.target.value)}
+                      style={inputStyle}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={labelStyle}>Stage 2 Finish</label>
+                    <input
+                      type="number"
+                      value={stage2[driver.id] ?? ""}
+                      onChange={(e) => handleStage2Change(driver.id, e.target.value)}
+                      style={inputStyle}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={labelStyle}>Stage 3 Finish</label>
+                    <input
+                      type="number"
+                      value={stage3[driver.id] ?? ""}
+                      onChange={(e) => handleStage3Change(driver.id, e.target.value)}
+                      style={inputStyle}
+                    />
+                  </div>
+
+                  {stageCount === 4 && (
+                    <div>
+                      <label style={labelStyle}>Stage 4 Finish</label>
+                      <input
+                        type="number"
+                        value={stage4[driver.id] ?? ""}
+                        onChange={(e) => handleStage4Change(driver.id, e.target.value)}
+                        style={inputStyle}
+                      />
+                    </div>
+                  )}
+
+                  <div style={{ gridColumn: "1 / -1" }}>
+                    <label style={labelStyle}>Penalty Preset</label>
+                    <select
+                      value={penalties[driver.id]?.label ?? "No Penalty"}
+                      onChange={(e) => handlePenaltyPresetChange(driver.id, e.target.value)}
+                      style={inputStyle}
+                    >
+                      {penaltyOptions.map((option) => (
+                        <option key={option.label} value={option.label}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              gap: 12,
+              flexWrap: "wrap",
+              marginTop: 20,
+            }}
+          >
+            <button onClick={submitResults} style={primaryButtonStyle}>
+              Submit Race
+            </button>
+            <button onClick={clearInputs} style={secondaryButtonStyle}>
+              Clear Inputs
+            </button>
+            <button onClick={resetSeason} style={dangerButtonStyle}>
+              Reset Season
+            </button>
+          </div>
+        </div>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1.4fr 1fr",
+            gap: 20,
+            alignItems: "start",
+          }}
+        >
+          <div style={sectionCardStyle}>
+            <h2 style={{ marginTop: 0 }}>Race History</h2>
+
+            {raceHistory.length === 0 ? (
+              <p style={{ color: "#c7ced8", marginBottom: 0 }}>No races entered yet.</p>
+            ) : (
+              <div style={{ display: "grid", gap: 16 }}>
+                {raceHistory.map((race, index) => (
+                  <div
+                    key={index}
+                    style={{
+                      background: "#111418",
+                      border: "1px solid #2f343c",
+                      borderRadius: 14,
+                      padding: 16,
+                    }}
+                  >
+                    <h3 style={{ marginTop: 0, marginBottom: 12 }}>
+                      {race.raceName} ({race.stageCount} stages)
+                    </h3>
+
+                    <div style={{ overflowX: "auto" }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                        <thead>
+                          <tr>
+                            <th style={tableHeaderStyle}>Fin</th>
+                            <th style={tableHeaderStyle}>Driver</th>
+                            <th style={tableHeaderStyle}>Team</th>
+                            <th style={tableHeaderStyle}>S1</th>
+                            <th style={tableHeaderStyle}>S2</th>
+                            <th style={tableHeaderStyle}>S3</th>
+                            {race.stageCount === 4 ? <th style={tableHeaderStyle}>S4</th> : null}
+                            <th style={tableHeaderStyle}>Penalty</th>
+                            <th style={tableHeaderStyle}>Earned</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {race.results.map((result, i) => (
+                            <tr key={i}>
+                              <td style={tableCellStyle}>P{result.finishPos ?? "-"}</td>
+                              <td style={tableCellStyle}>
+                                #{result.number} {result.name}
+                              </td>
+                              <td style={tableCellStyle}>{result.team}</td>
+                              <td style={tableCellStyle}>{result.stage1Pos ?? "-"}</td>
+                              <td style={tableCellStyle}>{result.stage2Pos ?? "-"}</td>
+                              <td style={tableCellStyle}>{result.stage3Pos ?? "-"}</td>
+                              {race.stageCount === 4 ? (
+                                <td style={tableCellStyle}>{result.stage4Pos ?? "-"}</td>
+                              ) : null}
+                              <td style={tableCellStyle}>
+                                -{result.penaltyPoints || 0}
+                                {result.penaltyReason ? ` (${result.penaltyReason})` : ""}
+                              </td>
+                              <td style={{ ...tableCellStyle, fontWeight: 700 }}>{result.totalRacePoints}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
-
-            <div>
-              <label>
-                Penalty Preset:
-                <select
-                  value={penalties[driver.id]?.label ?? "No Penalty"}
-                  onChange={(e) => handlePenaltyPresetChange(driver.id, e.target.value)}
-                  style={{ marginLeft: "8px", padding: "4px", width: "260px" }}
-                >
-                  {penaltyOptions.map((option) => (
-                    <option key={option.label} value={option.label}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
           </div>
-        ))}
+
+          <div style={sectionCardStyle}>
+            <h2 style={{ marginTop: 0 }}>Penalty Log</h2>
+
+            {totalPenaltyLog.length === 0 ? (
+              <p style={{ color: "#c7ced8", marginBottom: 0 }}>No penalties recorded yet.</p>
+            ) : (
+              <div style={{ display: "grid", gap: 12 }}>
+                {totalPenaltyLog.map((penalty, index) => (
+                  <div
+                    key={index}
+                    style={{
+                      background: "#111418",
+                      border: "1px solid #2f343c",
+                      borderRadius: 12,
+                      padding: 14,
+                    }}
+                  >
+                    <div style={{ fontWeight: 700, marginBottom: 4 }}>{penalty.raceName}</div>
+                    <div style={{ color: "#d9e0ea" }}>
+                      #{penalty.number} {penalty.name}
+                    </div>
+                    <div style={{ color: "#ffb7b7", marginTop: 6 }}>
+                      -{penalty.penaltyPoints} pts
+                      {penalty.penaltyReason ? ` (${penalty.penaltyReason})` : ""}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
-
-      <button onClick={submitResults} style={{ marginTop: "16px", padding: "10px 16px", cursor: "pointer" }}>
-        Submit Race
-      </button>
-      <button onClick={clearInputs} style={{ marginLeft: "10px", padding: "10px 16px", cursor: "pointer" }}>
-        Clear Inputs
-      </button>
-      <button onClick={resetSeason} style={{ marginLeft: "10px", padding: "10px 16px", cursor: "pointer" }}>
-        Reset Season
-      </button>
-
-      <h2 style={{ marginTop: "32px" }}>Race History</h2>
-      {raceHistory.length === 0 ? (
-        <p>No races entered yet.</p>
-      ) : (
-        raceHistory.map((race, index) => (
-          <div
-            key={index}
-            style={{
-              marginBottom: "24px",
-              padding: "12px",
-              border: "1px solid #aaa",
-              borderRadius: "8px",
-            }}
-          >
-            <h3>
-              {race.raceName} ({race.stageCount} stages)
-            </h3>
-            <ul>
-              {race.results.map((result, i) => (
-                <li key={i}>
-                  P{result.finishPos ?? "-"} - #{result.number} {result.name} ({result.team}) | S1: {result.stage1Pos ?? "-"} | S2: {result.stage2Pos ?? "-"} | S3: {result.stage3Pos ?? "-"}
-                  {race.stageCount === 4 ? ` | S4: ${result.stage4Pos ?? "-"}` : ""}
-                  {" | "}Penalty: -{result.penaltyPoints || 0}
-                  {result.penaltyReason ? ` (${result.penaltyReason})` : ""}
-                  {" | "}Earned: {result.totalRacePoints} pts
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))
-      )}
-
-      <h2 style={{ marginTop: "32px" }}>Penalty Log</h2>
-      {totalPenaltyLog.length === 0 ? (
-        <p>No penalties recorded yet.</p>
-      ) : (
-        <ul>
-          {totalPenaltyLog.map((penalty, index) => (
-            <li key={index}>
-              {penalty.raceName} - #{penalty.number} {penalty.name}: -{penalty.penaltyPoints} pts
-              {penalty.penaltyReason ? ` (${penalty.penaltyReason})` : ""}
-            </li>
-          ))}
-        </ul>
-      )}
     </div>
   );
 }
