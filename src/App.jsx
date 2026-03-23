@@ -12,21 +12,21 @@ const defaultDrivers = [
 ];
 
 const races = [
-  { id: 1, name: "Daytona", stageCount: 3 },
-  { id: 2, name: "Las Vegas", stageCount: 3 },
-  { id: 3, name: "Richmond", stageCount: 3 },
-  { id: 4, name: "Charlotte", stageCount: 4 },
-  { id: 5, name: "Talladega", stageCount: 3 },
-  { id: 6, name: "Texas", stageCount: 3 },
-  { id: 7, name: "Michigan", stageCount: 3 },
-  { id: 8, name: "Phoenix", stageCount: 3 },
-  { id: 9, name: "Nashville", stageCount: 3 },
-  { id: 10, name: "Pocono", stageCount: 3 },
-  { id: 11, name: "Indianapolis Oval", stageCount: 3 },
-  { id: 12, name: "Dover", stageCount: 3 },
-  { id: 13, name: "Iowa", stageCount: 3 },
-  { id: 14, name: "Daytona 2", stageCount: 3 },
-  { id: 15, name: "Homestead", stageCount: 3 },
+  { id: 1, name: "Daytona", stageCount: 2 },
+  { id: 2, name: "Las Vegas", stageCount: 2 },
+  { id: 3, name: "Richmond", stageCount: 2 },
+  { id: 4, name: "Charlotte", stageCount: 3 },
+  { id: 5, name: "Talladega", stageCount: 2 },
+  { id: 6, name: "Texas", stageCount: 2 },
+  { id: 7, name: "Michigan", stageCount: 2 },
+  { id: 8, name: "Phoenix", stageCount: 2 },
+  { id: 9, name: "Nashville", stageCount: 2 },
+  { id: 10, name: "Pocono", stageCount: 2 },
+  { id: 11, name: "Indianapolis Oval", stageCount: 2 },
+  { id: 12, name: "Dover", stageCount: 2 },
+  { id: 13, name: "Iowa", stageCount: 2 },
+  { id: 14, name: "Daytona 2", stageCount: 2 },
+  { id: 15, name: "Homestead", stageCount: 2 },
 ];
 
 const penaltyOptions = [
@@ -147,12 +147,6 @@ const inputStyle = {
 
 function LeaderboardOverlay({ drivers }) {
   const sorted = [...drivers].sort((a, b) => b.points - a.points);
-  const currentLeader = sortedDrivers[0] || null;
-const totalDrivers = drivers.length;
-const totalRacesEntered = raceHistory.length;
-const latestRace = raceHistory.length > 0 ? raceHistory[raceHistory.length - 1] : null;
-const latestWinner =
-  latestRace?.results?.find((result) => result.finishPos === 1) || null;
 
   return (
     <div
@@ -769,78 +763,6 @@ export default function App() {
           }}
         >
           <div
-  style={{
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-    gap: 16,
-    marginBottom: 20,
-  }}
->
-  <div
-    style={{
-      ...sectionCardStyle,
-      padding: 16,
-      background: "#151922",
-    }}
-  >
-    <div style={{ fontSize: 12, color: "#aeb6c2", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>
-      Current Leader
-    </div>
-    <div style={{ fontSize: 22, fontWeight: 700 }}>
-      {currentLeader ? `#${currentLeader.number} ${currentLeader.name}` : "—"}
-    </div>
-    <div style={{ marginTop: 6, color: "#d4af37", fontWeight: 700 }}>
-      {currentLeader ? `${currentLeader.points} pts` : ""}
-    </div>
-  </div>
-
-  <div
-    style={{
-      ...sectionCardStyle,
-      padding: 16,
-      background: "#151922",
-    }}
-  >
-    <div style={{ fontSize: 12, color: "#aeb6c2", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>
-      Total Drivers
-    </div>
-    <div style={{ fontSize: 22, fontWeight: 700 }}>{totalDrivers}</div>
-    <div style={{ marginTop: 6, color: "#c7ced8" }}>Active this season</div>
-  </div>
-
-  <div
-    style={{
-      ...sectionCardStyle,
-      padding: 16,
-      background: "#151922",
-    }}
-  >
-    <div style={{ fontSize: 12, color: "#aeb6c2", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>
-      Races Entered
-    </div>
-    <div style={{ fontSize: 22, fontWeight: 700 }}>{totalRacesEntered}</div>
-    <div style={{ marginTop: 6, color: "#c7ced8" }}>Saved to race history</div>
-  </div>
-
-  <div
-    style={{
-      ...sectionCardStyle,
-      padding: 16,
-      background: "#151922",
-    }}
-  >
-    <div style={{ fontSize: 12, color: "#aeb6c2", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>
-      Latest Winner
-    </div>
-    <div style={{ fontSize: 22, fontWeight: 700 }}>
-      {latestWinner ? `#${latestWinner.number} ${latestWinner.name}` : "No winner yet"}
-    </div>
-    <div style={{ marginTop: 6, color: "#c7ced8" }}>
-      {latestRace ? latestRace.raceName : "No races entered"}
-    </div>
-  </div>
-</div>
-          <div
             style={{
               display: "flex",
               alignItems: "center",
@@ -1065,16 +987,6 @@ export default function App() {
                       type="number"
                       value={stage2[driver.id] ?? ""}
                       onChange={(e) => handleStage2Change(driver.id, e.target.value)}
-                      style={inputStyle}
-                    />
-                  </div>
-
-                  <div>
-                    <label style={labelStyle}>Stage 3 Finish</label>
-                    <input
-                      type="number"
-                      value={stage3[driver.id] ?? ""}
-                      onChange={(e) => handleStage3Change(driver.id, e.target.value)}
                       style={inputStyle}
                     />
                   </div>
