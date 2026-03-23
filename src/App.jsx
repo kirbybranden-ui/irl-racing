@@ -147,6 +147,12 @@ const inputStyle = {
 
 function LeaderboardOverlay({ drivers }) {
   const sorted = [...drivers].sort((a, b) => b.points - a.points);
+  const currentLeader = sortedDrivers[0] || null;
+const totalDrivers = drivers.length;
+const totalRacesEntered = raceHistory.length;
+const latestRace = raceHistory.length > 0 ? raceHistory[raceHistory.length - 1] : null;
+const latestWinner =
+  latestRace?.results?.find((result) => result.finishPos === 1) || null;
 
   return (
     <div
@@ -762,6 +768,78 @@ export default function App() {
             border: "1px solid #353b45",
           }}
         >
+          <div
+  style={{
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+    gap: 16,
+    marginBottom: 20,
+  }}
+>
+  <div
+    style={{
+      ...sectionCardStyle,
+      padding: 16,
+      background: "#151922",
+    }}
+  >
+    <div style={{ fontSize: 12, color: "#aeb6c2", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>
+      Current Leader
+    </div>
+    <div style={{ fontSize: 22, fontWeight: 700 }}>
+      {currentLeader ? `#${currentLeader.number} ${currentLeader.name}` : "—"}
+    </div>
+    <div style={{ marginTop: 6, color: "#d4af37", fontWeight: 700 }}>
+      {currentLeader ? `${currentLeader.points} pts` : ""}
+    </div>
+  </div>
+
+  <div
+    style={{
+      ...sectionCardStyle,
+      padding: 16,
+      background: "#151922",
+    }}
+  >
+    <div style={{ fontSize: 12, color: "#aeb6c2", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>
+      Total Drivers
+    </div>
+    <div style={{ fontSize: 22, fontWeight: 700 }}>{totalDrivers}</div>
+    <div style={{ marginTop: 6, color: "#c7ced8" }}>Active this season</div>
+  </div>
+
+  <div
+    style={{
+      ...sectionCardStyle,
+      padding: 16,
+      background: "#151922",
+    }}
+  >
+    <div style={{ fontSize: 12, color: "#aeb6c2", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>
+      Races Entered
+    </div>
+    <div style={{ fontSize: 22, fontWeight: 700 }}>{totalRacesEntered}</div>
+    <div style={{ marginTop: 6, color: "#c7ced8" }}>Saved to race history</div>
+  </div>
+
+  <div
+    style={{
+      ...sectionCardStyle,
+      padding: 16,
+      background: "#151922",
+    }}
+  >
+    <div style={{ fontSize: 12, color: "#aeb6c2", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>
+      Latest Winner
+    </div>
+    <div style={{ fontSize: 22, fontWeight: 700 }}>
+      {latestWinner ? `#${latestWinner.number} ${latestWinner.name}` : "No winner yet"}
+    </div>
+    <div style={{ marginTop: 6, color: "#c7ced8" }}>
+      {latestRace ? latestRace.raceName : "No races entered"}
+    </div>
+  </div>
+</div>
           <div
             style={{
               display: "flex",
