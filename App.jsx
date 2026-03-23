@@ -296,7 +296,6 @@ function TickerOverlay({ drivers, teams, raceHistory, preview = false }) {
   ];
 
   const tickerText = tickerItems.join("   •   ");
-
   return (
     <div
       style={{
@@ -330,7 +329,7 @@ function TickerOverlay({ drivers, teams, raceHistory, preview = false }) {
           align-items: center;
           white-space: nowrap;
           min-width: max-content;
-          animation: tickerScroll 25s linear infinite;
+          animation: tickerScroll 45s linear infinite;
         }
 
         .ticker-logo {
