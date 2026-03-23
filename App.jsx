@@ -279,7 +279,7 @@ function PublicStandings({ drivers, teams }) {
 }
 
 function TickerOverlay({ drivers, teams, raceHistory, preview = false }) {
-  const sortedDrivers = [...drivers];
+  const sortedDrivers = [...drivers].sort((a, b) => b.points - a.points);
   const topDrivers = sortedDrivers;
   const topTeams = teams;
   const latestRace = raceHistory.length > 0 ? raceHistory[raceHistory.length - 1] : null;
@@ -670,7 +670,10 @@ export default function App() {
     <div style={{ padding: "24px", fontFamily: "Arial, sans-serif" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 18 }}>
         <img src={logo} alt="League Logo" style={{ height: 60, width: "auto" }} />
-        <h1 style={{ margin: 0 }}>IRL Racing League</h1>
+       <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+  <img src={logo} alt="League Logo" style={{ height: 60, width: "auto" }} />
+  <h1 style={{ margin: 0 }}>IRL Racing League</h1>
+</div> 
       </div>
 
       <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap" }}>
