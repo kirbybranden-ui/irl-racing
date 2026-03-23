@@ -303,7 +303,7 @@ function PublicStandings({ drivers, teams }) {
     >
       <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 8 }}>
         <img src={logo} alt="League Logo" style={{ height: 64, width: "auto" }} />
-        <h1 style={{ margin: 0 }}>IRL Racing League Standings</h1>
+        <h1 style={{ margin: 0, color: "lime" }}>IRL Racing League TEST 123</h1>
       </div>
 
       <h2 style={{ marginTop: 20 }}>Driver Standings</h2>
