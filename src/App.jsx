@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import logo from "./assets/logo.png";
 
 const defaultDrivers = [
   { id: 1, name: "AMP-GHOSTRIDER", number: "42", team: "JA MOTORSPORTS", points: 0, wins: 0, top5: 0, top10: 0 },
@@ -7,6 +8,7 @@ const defaultDrivers = [
   { id: 4, name: "HOLDEN2DX4EV3R", number: "81", team: "JA MOTORSPORTS", points: 0, wins: 0, top5: 0, top10: 0 },
   { id: 5, name: "SILVEREYEAC", number: "19", team: "SILVER RACING GROUP", points: 0, wins: 0, top5: 0, top10: 0 },
   { id: 6, name: "KEVDINHO7", number: "24", team: "KEVIN HO MOTORSPORTS", points: 0, wins: 0, top5: 0, top10: 0 },
+  { id: 7, name: "TEST DRIVER", number: "04", team: "RFK RACING", points: 0, wins: 0, top5: 0, top10: 0 },
 ];
 
 const races = [
@@ -81,9 +83,13 @@ function LeaderboardOverlay({ drivers }) {
             fontWeight: 700,
             fontSize: 24,
             letterSpacing: 0.5,
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
           }}
         >
-          IRL Racing League Standings
+          <img src={logo} alt="League Logo" style={{ height: 38, width: "auto" }} />
+          <span>IRL Racing League Standings</span>
         </div>
 
         <div style={{ background: "rgba(255,255,255,0.06)", padding: "10px 18px", fontWeight: 700 }}>
@@ -141,9 +147,21 @@ function TeamOverlay({ teams }) {
           boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
         }}
       >
-        <div style={{ background: "linear-gradient(90deg, #111 0%, #222 100%)", padding: "14px 18px", fontWeight: 700, fontSize: 24 }}>
-          IRL Team Standings
+        <div
+          style={{
+            background: "linear-gradient(90deg, #111 0%, #222 100%)",
+            padding: "14px 18px",
+            fontWeight: 700,
+            fontSize: 24,
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+          }}
+        >
+          <img src={logo} alt="League Logo" style={{ height: 38, width: "auto" }} />
+          <span>IRL Team Standings</span>
         </div>
+
         <div style={{ background: "rgba(255,255,255,0.06)", padding: "10px 18px", fontWeight: 700 }}>
           <div style={{ display: "grid", gridTemplateColumns: "56px 1fr 90px 72px", gap: 12 }}>
             <span>POS</span>
@@ -152,6 +170,7 @@ function TeamOverlay({ teams }) {
             <span>WINS</span>
           </div>
         </div>
+
         {teams.map((team, index) => (
           <div
             key={team.team}
@@ -189,7 +208,10 @@ function PublicStandings({ drivers, teams }) {
         minHeight: "100vh",
       }}
     >
-      <h1>IRL Racing League Standings</h1>
+      <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 8 }}>
+        <img src={logo} alt="League Logo" style={{ height: 64, width: "auto" }} />
+        <h1 style={{ margin: 0 }}>IRL Racing League Standings</h1>
+      </div>
 
       <h2 style={{ marginTop: 20 }}>Driver Standings</h2>
       <div style={{ overflowX: "auto" }}>
@@ -258,8 +280,8 @@ function PublicStandings({ drivers, teams }) {
 
 function TickerOverlay({ drivers, teams, raceHistory, preview = false }) {
   const sortedDrivers = [...drivers].sort((a, b) => b.points - a.points);
-  const topDrivers = sortedDrivers.slice(0, 5);
-  const topTeams = teams.slice(0, 3);
+  const topDrivers = sortedDrivers;
+  const topTeams = teams;
   const latestRace = raceHistory.length > 0 ? raceHistory[raceHistory.length - 1] : null;
 
   const tickerItems = [
@@ -274,7 +296,6 @@ function TickerOverlay({ drivers, teams, raceHistory, preview = false }) {
   ];
 
   const tickerText = tickerItems.join("   •   ");
-
   return (
     <div
       style={{
@@ -305,9 +326,17 @@ function TickerOverlay({ drivers, teams, raceHistory, preview = false }) {
 
         .ticker-track {
           display: inline-flex;
+          align-items: center;
           white-space: nowrap;
           min-width: max-content;
-          animation: tickerScroll 25s linear infinite;
+          animation: tickerScroll 45s linear infinite;
+        }
+
+        .ticker-logo {
+          height: 30px;
+          width: auto;
+          margin-right: 28px;
+          vertical-align: middle;
         }
 
         .ticker-text {
@@ -330,7 +359,9 @@ function TickerOverlay({ drivers, teams, raceHistory, preview = false }) {
 
       <div className="ticker-bar">
         <div className="ticker-track">
+          <img src={logo} alt="League Logo" className="ticker-logo" />
           <span className="ticker-text">{tickerText}</span>
+          <img src={logo} alt="League Logo" className="ticker-logo" />
           <span className="ticker-text">{tickerText}</span>
         </div>
       </div>
@@ -637,7 +668,10 @@ export default function App() {
 
   return (
     <div style={{ padding: "24px", fontFamily: "Arial, sans-serif" }}>
-      <h1>IRL Racing League</h1>
+      <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 18 }}>
+        <img src={logo} alt="League Logo" style={{ height: 60, width: "auto" }} />
+        <h1 style={{ margin: 0 }}>IRL Racing League</h1>
+      </div>
 
       <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap" }}>
         <button onClick={() => setViewMode("admin")} style={{ padding: "10px 16px", cursor: "pointer" }}>
