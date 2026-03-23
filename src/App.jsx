@@ -12,21 +12,21 @@ const defaultDrivers = [
 ];
 
 const races = [
-  { id: 1, name: "Daytona", stageCount: 2 },
-  { id: 2, name: "Las Vegas", stageCount: 2 },
-  { id: 3, name: "Richmond", stageCount: 2 },
-  { id: 4, name: "Charlotte", stageCount: 3 },
-  { id: 5, name: "Talladega", stageCount: 2 },
-  { id: 6, name: "Texas", stageCount: 2 },
-  { id: 7, name: "Michigan", stageCount: 2 },
-  { id: 8, name: "Phoenix", stageCount: 2 },
-  { id: 9, name: "Nashville", stageCount: 2 },
-  { id: 10, name: "Pocono", stageCount: 2 },
-  { id: 11, name: "Indianapolis Oval", stageCount: 2 },
-  { id: 12, name: "Dover", stageCount: 2 },
-  { id: 13, name: "Iowa", stageCount: 2 },
-  { id: 14, name: "Daytona 2", stageCount: 2 },
-  { id: 15, name: "Homestead", stageCount: 2 },
+  { id: 1, name: "Daytona", stageCount: 3 },
+  { id: 2, name: "Las Vegas", stageCount: 3 },
+  { id: 3, name: "Richmond", stageCount: 3 },
+  { id: 4, name: "Charlotte", stageCount: 4 },
+  { id: 5, name: "Talladega", stageCount: 3 },
+  { id: 6, name: "Texas", stageCount: 3 },
+  { id: 7, name: "Michigan", stageCount: 3 },
+  { id: 8, name: "Phoenix", stageCount: 3 },
+  { id: 9, name: "Nashville", stageCount: 3 },
+  { id: 10, name: "Pocono", stageCount: 3 },
+  { id: 11, name: "Indianapolis Oval", stageCount: 3 },
+  { id: 12, name: "Dover", stageCount: 3 },
+  { id: 13, name: "Iowa", stageCount: 3 },
+  { id: 14, name: "Daytona 2", stageCount: 3 },
+  { id: 15, name: "Homestead", stageCount: 3 },
 ];
 
 const penaltyOptions = [
@@ -303,7 +303,7 @@ function PublicStandings({ drivers, teams }) {
     >
       <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 8 }}>
         <img src={logo} alt="League Logo" style={{ height: 64, width: "auto" }} />
-        <h1 style={{ margin: 0, color: "lime" }}>IRL Racing League</h1>
+        <h1 style={{ margin: 0 }}>IRL Racing League Standings</h1>
       </div>
 
       <h2 style={{ marginTop: 20 }}>Driver Standings</h2>
@@ -373,17 +373,15 @@ function PublicStandings({ drivers, teams }) {
 
 function TickerOverlay({ drivers, teams, raceHistory, preview = false }) {
   const sortedDrivers = [...drivers].sort((a, b) => b.points - a.points);
-  const topDrivers = sortedDrivers;
-  const topTeams = teams;
   const latestRace = raceHistory.length > 0 ? raceHistory[raceHistory.length - 1] : null;
 
   const tickerItems = [
     "IRL Racing League",
     latestRace ? `Latest Race: ${latestRace.raceName}` : "No race results yet",
-    ...topDrivers.map(
+    ...sortedDrivers.map(
       (driver, index) => `P${index + 1} #${driver.number} ${driver.name} - ${driver.points} pts`
     ),
-    ...topTeams.map(
+    ...teams.map(
       (team, index) => `Team P${index + 1} ${team.team} - ${team.points} pts`
     ),
   ];
@@ -564,6 +562,11 @@ export default function App() {
   }, [drivers]);
 
   const sortedDrivers = [...drivers].sort((a, b) => b.points - a.points);
+  const currentLeader = sortedDrivers[0] || null;
+  const totalDrivers = drivers.length;
+  const totalRacesEntered = raceHistory.length;
+  const latestRace = raceHistory.length > 0 ? raceHistory[raceHistory.length - 1] : null;
+  const latestWinner = latestRace?.results?.find((result) => result.finishPos === 1) || null;
 
   const handlePositionChange = (driverId, value) =>
     setPositions({ ...positions, [driverId]: Number(value) });
@@ -781,13 +784,7 @@ export default function App() {
               </div>
             </div>
 
-            <div
-              style={{
-                display: "flex",
-                gap: 10,
-                flexWrap: "wrap",
-              }}
-            >
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
               <button onClick={() => setViewMode("admin")} style={toolbarButtonStyle}>
                 Admin View
               </button>
@@ -800,6 +797,55 @@ export default function App() {
               <button onClick={() => setViewMode("overlay-ticker")} style={toolbarButtonStyle}>
                 Ticker Overlay Preview
               </button>
+            </div>
+          </div>
+        </div>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            gap: 16,
+            marginBottom: 20,
+          }}
+        >
+          <div style={{ ...sectionCardStyle, padding: 16, background: "#151922" }}>
+            <div style={{ fontSize: 12, color: "#aeb6c2", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>
+              Current Leader
+            </div>
+            <div style={{ fontSize: 22, fontWeight: 700 }}>
+              {currentLeader ? `#${currentLeader.number} ${currentLeader.name}` : "—"}
+            </div>
+            <div style={{ marginTop: 6, color: "#d4af37", fontWeight: 700 }}>
+              {currentLeader ? `${currentLeader.points} pts` : ""}
+            </div>
+          </div>
+
+          <div style={{ ...sectionCardStyle, padding: 16, background: "#151922" }}>
+            <div style={{ fontSize: 12, color: "#aeb6c2", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>
+              Total Drivers
+            </div>
+            <div style={{ fontSize: 22, fontWeight: 700 }}>{totalDrivers}</div>
+            <div style={{ marginTop: 6, color: "#c7ced8" }}>Active this season</div>
+          </div>
+
+          <div style={{ ...sectionCardStyle, padding: 16, background: "#151922" }}>
+            <div style={{ fontSize: 12, color: "#aeb6c2", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>
+              Races Entered
+            </div>
+            <div style={{ fontSize: 22, fontWeight: 700 }}>{totalRacesEntered}</div>
+            <div style={{ marginTop: 6, color: "#c7ced8" }}>Saved to race history</div>
+          </div>
+
+          <div style={{ ...sectionCardStyle, padding: 16, background: "#151922" }}>
+            <div style={{ fontSize: 12, color: "#aeb6c2", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>
+              Latest Winner
+            </div>
+            <div style={{ fontSize: 22, fontWeight: 700 }}>
+              {latestWinner ? `#${latestWinner.number} ${latestWinner.name}` : "No winner yet"}
+            </div>
+            <div style={{ marginTop: 6, color: "#c7ced8" }}>
+              {latestRace ? latestRace.raceName : "No races entered"}
             </div>
           </div>
         </div>
@@ -957,7 +1003,7 @@ export default function App() {
                 <div
                   style={{
                     display: "grid",
-                    gridTemplateColumns: stageCount === 4 ? "repeat(2, 1fr)" : "repeat(2, 1fr)",
+                    gridTemplateColumns: "repeat(2, 1fr)",
                     gap: 12,
                   }}
                 >
@@ -987,6 +1033,16 @@ export default function App() {
                       type="number"
                       value={stage2[driver.id] ?? ""}
                       onChange={(e) => handleStage2Change(driver.id, e.target.value)}
+                      style={inputStyle}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={labelStyle}>Stage 3 Finish</label>
+                    <input
+                      type="number"
+                      value={stage3[driver.id] ?? ""}
+                      onChange={(e) => handleStage3Change(driver.id, e.target.value)}
                       style={inputStyle}
                     />
                   </div>
