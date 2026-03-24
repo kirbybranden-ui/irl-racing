@@ -196,7 +196,8 @@ function getTeamBranding(teamName) {
 function makeDriverWithStats(driver) {
   return {
     ...driver,
-    points: 0,
+    startingPoints: Number(driver.startingPoints) || 0,
+    points: Number(driver.startingPoints) || 0,
     wins: 0,
     top5: 0,
     top10: 0,
@@ -215,7 +216,7 @@ function getStagePoints(stageFinish) {
 
 function rebuildDriversFromHistory(history, driverRoster) {
   return driverRoster.map((baseDriver) => {
-    let points = 0;
+    let points = Number(baseDriver.startingPoints) || 0;
     let wins = 0;
     let top5 = 0;
     let top10 = 0;
@@ -234,6 +235,7 @@ function rebuildDriversFromHistory(history, driverRoster) {
 
     return {
       ...baseDriver,
+      startingPoints: Number(baseDriver.startingPoints) || 0,
       points,
       wins,
       top5,
@@ -253,6 +255,7 @@ function createEmptySeason(name, roster = getDefaultRoster()) {
     number: driver.number,
     name: driver.name,
     team: driver.team,
+    startingPoints: Number(driver.startingPoints) || 0,
   }));
 
   return {
@@ -282,6 +285,7 @@ function sanitizeSeason(season, fallbackName = "Season") {
     number: Number(driver.number),
     name: driver.name,
     team: driver.team,
+    startingPoints: Number(driver.startingPoints) || 0,
   }));
 
   const history = Array.isArray(season?.raceHistory) ? season.raceHistory : [];
@@ -1115,6 +1119,7 @@ export default function App() {
     number: "",
     team: "",
   });
+  const [startingPointsInputs, setStartingPointsInputs] = useState({});
 
   const importFileRef = useRef(null);
 
@@ -1132,6 +1137,14 @@ export default function App() {
   const dnfMap = activeSeason?.dnfMap || {};
   const penalties = activeSeason?.penalties || {};
   const raceHistory = activeSeason?.raceHistory || [];
+
+  useEffect(() => {
+    const nextInputs = {};
+    drivers.forEach((driver) => {
+      nextInputs[driver.id] = String(Number(driver.startingPoints) || 0);
+    });
+    setStartingPointsInputs(nextInputs);
+  }, [activeSeasonId, drivers.length]);
 
   const selectedRaceData = races.find((race) => race.name === selectedRace);
   const stageCount = selectedRaceData ? selectedRaceData.stageCount : 2;
@@ -1249,6 +1262,7 @@ export default function App() {
       number: driver.number,
       name: driver.name,
       team: driver.team,
+      startingPoints: Number(driver.startingPoints) || 0,
     }));
 
     const season = createEmptySeason(trimmedName, rosterOnly);
@@ -1451,6 +1465,7 @@ export default function App() {
       number: driver.number,
       name: driver.name,
       team: driver.team,
+      startingPoints: 0,
       points: 0,
       wins: 0,
       top5: 0,
@@ -1569,6 +1584,46 @@ export default function App() {
     });
   };
 
+  const handleStartingPointsInputChange = (driverId, value) => {
+    setStartingPointsInputs((prev) => ({
+      ...prev,
+      [driverId]: value,
+    }));
+  };
+
+  const applyStartingPointsAdjustments = () => {
+    if (!activeSeason) return;
+
+    const updatedRoster = drivers.map((driver) => {
+      const rawValue = startingPointsInputs[driver.id];
+      const parsedValue =
+        rawValue === "" || rawValue === undefined ? 0 : Number(rawValue);
+
+      return {
+        id: driver.id,
+        number: driver.number,
+        name: driver.name,
+        team: driver.team,
+        startingPoints: Number.isNaN(parsedValue) ? 0 : parsedValue,
+      };
+    });
+
+    replaceActiveSeason({
+      ...activeSeason,
+      drivers: rebuildDriversFromHistory(raceHistory, updatedRoster),
+    });
+
+    alert("Season starting points updated.");
+  };
+
+  const clearStartingPointsAdjustments = () => {
+    const cleared = {};
+    drivers.forEach((driver) => {
+      cleared[driver.id] = "0";
+    });
+    setStartingPointsInputs(cleared);
+  };
+
   const addDriver = () => {
     const trimmedName = newDriverName.trim();
     const trimmedTeam = newDriverTeam.trim();
@@ -1600,6 +1655,7 @@ export default function App() {
       number: Number(driverNumber),
       name: trimmedName,
       team: trimmedTeam,
+      startingPoints: 0,
     };
 
     const newRoster = [
@@ -1608,6 +1664,7 @@ export default function App() {
         number: driver.number,
         name: driver.name,
         team: driver.team,
+        startingPoints: Number(driver.startingPoints) || 0,
       })),
       rosterDriver,
     ];
@@ -1678,6 +1735,7 @@ export default function App() {
             name: trimmedName,
             number: Number(trimmedNumber),
             team: trimmedTeam,
+            startingPoints: Number(driver.startingPoints) || 0,
           }
         : driver
     );
@@ -1701,6 +1759,7 @@ export default function App() {
       number: driver.number,
       name: driver.name,
       team: driver.team,
+      startingPoints: Number(driver.startingPoints) || 0,
     }));
 
     replaceActiveSeason({
@@ -1730,6 +1789,7 @@ export default function App() {
         number: driver.number,
         name: driver.name,
         team: driver.team,
+        startingPoints: Number(driver.startingPoints) || 0,
       }));
 
     const newHistory = raceHistory.map((race) => ({
@@ -1874,6 +1934,7 @@ export default function App() {
       number: driver.number,
       name: driver.name,
       team: driver.team,
+      startingPoints: Number(driver.startingPoints) || 0,
     }));
 
     replaceActiveSeason({
@@ -1951,6 +2012,7 @@ export default function App() {
       number: driver.number,
       name: driver.name,
       team: driver.team,
+      startingPoints: Number(driver.startingPoints) || 0,
     }));
 
     replaceActiveSeason({
@@ -2244,6 +2306,68 @@ export default function App() {
               onChange={handleImportBackup}
               style={{ display: "none" }}
             />
+          </div>
+        </div>
+
+
+        <div style={sectionCardStyle}>
+          <h2 style={{ marginTop: 0 }}>Season Starting Points</h2>
+          <div style={{ opacity: 0.78, marginBottom: 14 }}>
+            Use this if you are starting the app mid-season. Enter each
+            driver&apos;s current total points before the next race. Future race
+            entries will add on top of these values automatically.
+          </div>
+
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
+            <button
+              onClick={applyStartingPointsAdjustments}
+              style={primaryButtonStyle}
+            >
+              Save Starting Points
+            </button>
+
+            <button
+              onClick={clearStartingPointsAdjustments}
+              style={secondaryButtonStyle}
+            >
+              Clear to Zero
+            </button>
+          </div>
+
+          <div style={{ overflowX: "auto" }}>
+            <table style={tableStyle}>
+              <thead>
+                <tr>
+                  <th style={thStyle}>#</th>
+                  <th style={thStyle}>Driver</th>
+                  <th style={thStyle}>Team</th>
+                  <th style={thStyle}>Starting Points</th>
+                  <th style={thStyle}>Current Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {drivers.map((driver) => (
+                  <tr key={driver.id}>
+                    <td style={tdStyle}>{driver.number}</td>
+                    <td style={tdStyle}>{driver.name}</td>
+                    <td style={tdStyle}>{driver.team}</td>
+                    <td style={tdStyle}>
+                      <input
+                        type="number"
+                        style={inputStyle}
+                        value={startingPointsInputs[driver.id] ?? "0"}
+                        onChange={(e) =>
+                          handleStartingPointsInputChange(driver.id, e.target.value)
+                        }
+                      />
+                    </td>
+                    <td style={{ ...tdStyle, fontWeight: 800 }}>
+                      {driver.points}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
 
