@@ -14,15 +14,22 @@ const defaultDrivers = [
 
 const races = [
   { name: "Daytona", stageCount: 2 },
-  { name: "Atlanta", stageCount: 2 },
+  { name: "Echopark", stageCount: 2 },
   { name: "Las Vegas", stageCount: 2 },
-  { name: "Phoenix", stageCount: 2 },
+  { name: "Dover", stageCount: 2 },
   { name: "Talladega", stageCount: 2 },
+  { name: "Texas", stageCount: 2 },
   { name: "Charlotte", stageCount: 3 },
-  { name: "Nashville", stageCount: 2 },
-  { name: "Bristol", stageCount: 2 },
+  { name: "Michigan", stageCount: 2 },
+  { name: "Homestead Miami", stageCount: 2 },
+  { name: "Indianapolis", stageCount: 2 },
+  { name: "Daytona", stageCount: 2 },
+  { name: "Dover", stageCount: 2 },
+  { name: "New Hampshire", stageCount: 2 },
   { name: "Kansas", stageCount: 2 },
-  { name: "Homestead", stageCount: 2 },
+  { name: "Las Vegas", stageCount: 2 },
+  { name: "Talladega", stageCount: 2 },
+  { name: "Phoenix", stageCount: 2 },
 ];
 
 const pointsTable = [
