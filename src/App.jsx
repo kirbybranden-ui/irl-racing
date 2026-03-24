@@ -1,60 +1,48 @@
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import logo from "./assets/logo.png";
 
 const defaultDrivers = [
-  { id: 1, name: "AMP-GHOSTRIDER", number: "42", team: "JA MOTORSPORTS", points: 0, wins: 0, top5: 0, top10: 0 },
-  { id: 2, name: "ROOKIEVET99", number: "99", team: "JA MOTORSPORTS", points: 0, wins: 0, top5: 0, top10: 0 },
-  { id: 3, name: "BOWHUNTER6758", number: "18", team: "JA MOTORSPORTS", points: 0, wins: 0, top5: 0, top10: 0 },
-  { id: 4, name: "HOLDEN2DX4EV3R", number: "81", team: "JA MOTORSPORTS", points: 0, wins: 0, top5: 0, top10: 0 },
-  { id: 5, name: "SILVEREYEAC", number: "19", team: "SILVER RACING GROUP", points: 0, wins: 0, top5: 0, top10: 0 },
-  { id: 6, name: "KEVDINHO7", number: "24", team: "KEVIN HO MOTORSPORTS", points: 0, wins: 0, top5: 0, top10: 0 },
-  { id: 7, name: "TEST DRIVER", number: "04", team: "RFK RACING", points: 0, wins: 0, top5: 0, top10: 0 },
+  { id: 1, number: 1, name: "Driver 1", team: "Team A" },
+  { id: 2, number: 2, name: "Driver 2", team: "Team A" },
+  { id: 3, number: 3, name: "Driver 3", team: "Team B" },
+  { id: 4, number: 4, name: "Driver 4", team: "Team B" },
+  { id: 5, number: 5, name: "Driver 5", team: "Team C" },
+  { id: 6, number: 6, name: "Driver 6", team: "Team C" },
+  { id: 7, number: 7, name: "Driver 7", team: "Team D" },
+  { id: 8, number: 8, name: "Driver 8", team: "Team D" },
 ];
 
 const races = [
-  { id: 1, name: "Daytona", stageCount: 3 },
-  { id: 2, name: "Las Vegas", stageCount: 3 },
-  { id: 3, name: "Richmond", stageCount: 3 },
-  { id: 4, name: "Charlotte", stageCount: 4 },
-  { id: 5, name: "Talladega", stageCount: 3 },
-  { id: 6, name: "Texas", stageCount: 3 },
-  { id: 7, name: "Michigan", stageCount: 3 },
-  { id: 8, name: "Phoenix", stageCount: 3 },
-  { id: 9, name: "Nashville", stageCount: 3 },
-  { id: 10, name: "Pocono", stageCount: 3 },
-  { id: 11, name: "Indianapolis Oval", stageCount: 3 },
-  { id: 12, name: "Dover", stageCount: 3 },
-  { id: 13, name: "Iowa", stageCount: 3 },
-  { id: 14, name: "Daytona 2", stageCount: 3 },
-  { id: 15, name: "Homestead", stageCount: 3 },
-];
-
-const penaltyOptions = [
-  { label: "No Penalty", points: 0, reason: "" },
-  { label: "Jump Start", points: 5, reason: "Jump Start" },
-  { label: "Passing Under Caution", points: 10, reason: "Passing Under Caution" },
-  { label: "Avoidable Contact", points: 15, reason: "Avoidable Contact" },
-  { label: "Brake-Checking", points: 15, reason: "Brake-Checking" },
-  { label: "Blocking Causing Wreck", points: 15, reason: "Blocking Causing Wreck" },
-  { label: "Fall-Back Restart Violation", points: 10, reason: "Fall-Back Restart Violation" },
-  { label: "Ignoring Black Flag", points: 25, reason: "Ignoring Black Flag" },
-  { label: "Intentional Wrecking", points: 25, reason: "Intentional Wrecking" },
-  { label: "Other Minor Penalty", points: 5, reason: "Other Minor Penalty" },
-  { label: "Other Major Penalty", points: 15, reason: "Other Major Penalty" },
+  { name: "Daytona", stageCount: 2 },
+  { name: "Atlanta", stageCount: 2 },
+  { name: "Las Vegas", stageCount: 2 },
+  { name: "Phoenix", stageCount: 2 },
+  { name: "Talladega", stageCount: 2 },
+  { name: "Charlotte", stageCount: 3 },
+  { name: "Nashville", stageCount: 2 },
+  { name: "Bristol", stageCount: 2 },
+  { name: "Kansas", stageCount: 2 },
+  { name: "Homestead", stageCount: 2 },
 ];
 
 const pointsTable = [
-  40, 35, 33, 31, 29,
-  27, 25, 23, 21, 20,
-  19, 18, 17, 16, 15,
-  14, 13, 12, 11, 10,
+  40, 35, 34, 33, 32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18,
+  17,
 ];
 
 const stagePointsTable = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
 
+const penaltyOptions = [
+  { label: "No Penalty", points: 0, reason: "" },
+  { label: "Tail End", points: 5, reason: "Tail end of longest line" },
+  { label: "Pass Through", points: 10, reason: "Pass through penalty" },
+  { label: "Stop and Go", points: 15, reason: "Stop and go penalty" },
+  { label: "Lap Penalty", points: 20, reason: "One lap penalty" },
+];
+
 const appShellStyle = {
   minHeight: "100vh",
-  background: "#0b0b0d",
+  background: "#0c0f14",
   color: "white",
   fontFamily: "Arial, sans-serif",
 };
@@ -62,358 +50,991 @@ const appShellStyle = {
 const pageContainerStyle = {
   maxWidth: 1400,
   margin: "0 auto",
-  padding: 24,
+  padding: 20,
 };
 
 const sectionCardStyle = {
-  background: "#16181d",
-  border: "1px solid #2b2f36",
+  background: "#171b22",
+  border: "1px solid #2c3440",
   borderRadius: 16,
   padding: 18,
-  boxShadow: "0 10px 30px rgba(0,0,0,0.22)",
+  marginBottom: 20,
+  boxShadow: "0 8px 24px rgba(0,0,0,0.22)",
 };
 
-const toolbarButtonStyle = {
-  padding: "10px 16px",
-  borderRadius: 10,
-  border: "1px solid #3a404a",
-  background: "#20242b",
+const headerButtonStyle = {
+  background: "#222936",
   color: "white",
-  cursor: "pointer",
+  border: "1px solid #3a4453",
+  borderRadius: 10,
+  padding: "10px 14px",
   fontWeight: 700,
+  cursor: "pointer",
+};
+
+const activeHeaderButtonStyle = {
+  ...headerButtonStyle,
+  background: "#d4af37",
+  color: "#111",
+  border: "1px solid #d4af37",
 };
 
 const primaryButtonStyle = {
-  padding: "12px 18px",
-  borderRadius: 10,
-  border: "1px solid #d4af37",
   background: "#d4af37",
   color: "#111",
-  cursor: "pointer",
+  border: "none",
+  borderRadius: 10,
+  padding: "10px 16px",
   fontWeight: 700,
+  cursor: "pointer",
 };
 
 const secondaryButtonStyle = {
-  padding: "12px 18px",
-  borderRadius: 10,
-  border: "1px solid #4a515d",
-  background: "#22262d",
+  background: "#2a3140",
   color: "white",
-  cursor: "pointer",
+  border: "1px solid #3d4859",
+  borderRadius: 10,
+  padding: "10px 16px",
   fontWeight: 700,
+  cursor: "pointer",
 };
 
 const dangerButtonStyle = {
-  padding: "12px 18px",
-  borderRadius: 10,
-  border: "1px solid #7a2e2e",
-  background: "#4b1f1f",
+  background: "#b42318",
   color: "white",
+  border: "none",
+  borderRadius: 10,
+  padding: "10px 16px",
+  fontWeight: 700,
   cursor: "pointer",
-  fontWeight: 700,
-};
-
-const tableHeaderStyle = {
-  padding: "12px 10px",
-  borderBottom: "1px solid #3a404a",
-  textAlign: "left",
-  background: "#20242b",
-  fontSize: 14,
-};
-
-const tableCellStyle = {
-  padding: "12px 10px",
-  borderBottom: "1px solid #2f343c",
-  fontSize: 14,
-};
-
-const labelStyle = {
-  display: "block",
-  fontSize: 13,
-  fontWeight: 700,
-  color: "#cfd5df",
-  marginBottom: 6,
 };
 
 const inputStyle = {
   width: "100%",
-  padding: "10px 12px",
-  borderRadius: 10,
-  border: "1px solid #3a404a",
-  background: "#111418",
+  background: "#0f1319",
   color: "white",
+  border: "1px solid #313947",
+  borderRadius: 10,
+  padding: "10px 12px",
   boxSizing: "border-box",
 };
 
-function LeaderboardOverlay({ drivers }) {
-  const sorted = [...drivers].sort((a, b) => b.points - a.points);
+const tableStyle = {
+  width: "100%",
+  borderCollapse: "collapse",
+};
+
+const thStyle = {
+  textAlign: "left",
+  padding: 10,
+  borderBottom: "1px solid #313947",
+  background: "#10141b",
+  fontSize: 13,
+};
+
+const tdStyle = {
+  padding: 10,
+  borderBottom: "1px solid #252c38",
+  verticalAlign: "top",
+  fontSize: 14,
+};
+
+const statBoxStyle = {
+  background: "#11161d",
+  border: "1px solid #2a3240",
+  borderRadius: 14,
+  padding: 16,
+  flex: "1 1 220px",
+};
+
+const teamBranding = {
+  "Team A": {
+    logo: "A",
+    accent: "#d4af37",
+    dark: "#1b1b1b",
+  },
+  "Team B": {
+    logo: "B",
+    accent: "#3b82f6",
+    dark: "#111827",
+  },
+  "Team C": {
+    logo: "C",
+    accent: "#ef4444",
+    dark: "#1f1315",
+  },
+  "Team D": {
+    logo: "D",
+    accent: "#22c55e",
+    dark: "#0f1b14",
+  },
+};
+
+function getTeamBranding(teamName) {
+  return (
+    teamBranding[teamName] || {
+      logo: teamName?.charAt(0)?.toUpperCase() || "?",
+      accent: "#d4af37",
+      dark: "#161a20",
+    }
+  );
+}
+
+function makeDriverWithStats(driver) {
+  return {
+    ...driver,
+    points: 0,
+    wins: 0,
+    top5: 0,
+    top10: 0,
+    dnfs: 0,
+  };
+}
+
+function getDefaultRoster() {
+  return defaultDrivers.map(makeDriverWithStats);
+}
+
+function getStagePoints(stageFinish) {
+  if (!stageFinish || stageFinish < 1 || stageFinish > 10) return 0;
+  return stagePointsTable[stageFinish - 1];
+}
+
+function rebuildDriversFromHistory(history, driverRoster) {
+  return driverRoster.map((baseDriver) => {
+    let points = 0;
+    let wins = 0;
+    let top5 = 0;
+    let top10 = 0;
+    let dnfs = 0;
+
+    history.forEach((race) => {
+      const result = race.results?.find((r) => r.driverId === baseDriver.id);
+      if (!result) return;
+
+      points += result.totalRacePoints || 0;
+      wins += result.isWin ? 1 : 0;
+      top5 += result.isTop5 ? 1 : 0;
+      top10 += result.isTop10 ? 1 : 0;
+      dnfs += result.dnf ? 1 : 0;
+    });
+
+    return {
+      ...baseDriver,
+      points,
+      wins,
+      top5,
+      top10,
+      dnfs,
+    };
+  });
+}
+
+function makeSeasonId() {
+  return `season-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function createEmptySeason(name, roster = getDefaultRoster()) {
+  const cleanRoster = roster.map((driver) => ({
+    id: driver.id,
+    number: driver.number,
+    name: driver.name,
+    team: driver.team,
+  }));
+
+  return {
+    id: makeSeasonId(),
+    name: name || "New Season",
+    createdAt: new Date().toISOString(),
+    drivers: rebuildDriversFromHistory([], cleanRoster),
+    selectedRace: "",
+    positions: {},
+    stage1: {},
+    stage2: {},
+    stage3: {},
+    dnfMap: {},
+    penalties: {},
+    raceHistory: [],
+  };
+}
+
+function sanitizeSeason(season, fallbackName = "Season") {
+  const rosterSource =
+    Array.isArray(season?.drivers) && season.drivers.length > 0
+      ? season.drivers
+      : getDefaultRoster();
+
+  const rosterOnly = rosterSource.map((driver) => ({
+    id: driver.id,
+    number: Number(driver.number),
+    name: driver.name,
+    team: driver.team,
+  }));
+
+  const history = Array.isArray(season?.raceHistory) ? season.raceHistory : [];
+
+  return {
+    id: season?.id || makeSeasonId(),
+    name: season?.name || fallbackName,
+    createdAt: season?.createdAt || new Date().toISOString(),
+    drivers: rebuildDriversFromHistory(history, rosterOnly),
+    selectedRace: season?.selectedRace || "",
+    positions: season?.positions || {},
+    stage1: season?.stage1 || {},
+    stage2: season?.stage2 || {},
+    stage3: season?.stage3 || {},
+    dnfMap: season?.dnfMap || {},
+    penalties: season?.penalties || {},
+    raceHistory: history,
+  };
+}
+
+function buildLegacySeasonFromLocalStorage() {
+  const savedDrivers = localStorage.getItem("irl-drivers");
+  const savedRaceHistory = localStorage.getItem("irl-raceHistory");
+  const savedSelectedRace = localStorage.getItem("irl-selectedRace");
+  const savedPositions = localStorage.getItem("irl-positions");
+  const savedStage1 = localStorage.getItem("irl-stage1");
+  const savedStage2 = localStorage.getItem("irl-stage2");
+  const savedStage3 = localStorage.getItem("irl-stage3");
+  const savedDnfMap = localStorage.getItem("irl-dnfMap");
+  const savedPenalties = localStorage.getItem("irl-penalties");
+
+  const hasLegacyData =
+    savedDrivers ||
+    savedRaceHistory ||
+    savedSelectedRace ||
+    savedPositions ||
+    savedStage1 ||
+    savedStage2 ||
+    savedStage3 ||
+    savedDnfMap ||
+    savedPenalties;
+
+  if (!hasLegacyData) {
+    return createEmptySeason("Season 1");
+  }
+
+  let drivers = getDefaultRoster();
+  let raceHistory = [];
+  let selectedRace = "";
+  let positions = {};
+  let stage1 = {};
+  let stage2 = {};
+  let stage3 = {};
+  let dnfMap = {};
+  let penalties = {};
+
+  try {
+    drivers = savedDrivers ? JSON.parse(savedDrivers) : getDefaultRoster();
+    raceHistory = savedRaceHistory ? JSON.parse(savedRaceHistory) : [];
+    selectedRace = savedSelectedRace || "";
+    positions = savedPositions ? JSON.parse(savedPositions) : {};
+    stage1 = savedStage1 ? JSON.parse(savedStage1) : {};
+    stage2 = savedStage2 ? JSON.parse(savedStage2) : {};
+    stage3 = savedStage3 ? JSON.parse(savedStage3) : {};
+    dnfMap = savedDnfMap ? JSON.parse(savedDnfMap) : {};
+    penalties = savedPenalties ? JSON.parse(savedPenalties) : {};
+  } catch (error) {
+    return createEmptySeason("Season 1");
+  }
+
+  return sanitizeSeason({
+    id: makeSeasonId(),
+    name: "Season 1",
+    createdAt: new Date().toISOString(),
+    drivers,
+    raceHistory,
+    selectedRace,
+    positions,
+    stage1,
+    stage2,
+    stage3,
+    dnfMap,
+    penalties,
+  });
+}
+
+function loadInitialLeagueState() {
+  try {
+    const savedSeasons = localStorage.getItem("irl-seasons");
+    const savedActiveSeasonId = localStorage.getItem("irl-activeSeasonId");
+
+    if (savedSeasons) {
+      const parsed = JSON.parse(savedSeasons);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        const cleanSeasons = parsed.map((season, index) =>
+          sanitizeSeason(season, `Season ${index + 1}`)
+        );
+
+        const activeExists = cleanSeasons.some(
+          (season) => season.id === savedActiveSeasonId
+        );
+
+        return {
+          seasons: cleanSeasons,
+          activeSeasonId: activeExists
+            ? savedActiveSeasonId
+            : cleanSeasons[0].id,
+        };
+      }
+    }
+  } catch (error) {
+    // fall through
+  }
+
+  const legacySeason = buildLegacySeasonFromLocalStorage();
+  return {
+    seasons: [legacySeason],
+    activeSeasonId: legacySeason.id,
+  };
+}
+
+function LeaderboardOverlay({ drivers, preview = false, seasonName = "" }) {
+  const sortedDrivers = [...drivers].sort((a, b) => {
+    if (b.points !== a.points) return b.points - a.points;
+    if (b.wins !== a.wins) return b.wins - a.wins;
+    if (b.top5 !== a.top5) return b.top5 - a.top5;
+    return a.name.localeCompare(b.name);
+  });
 
   return (
     <div
       style={{
-        background: "transparent",
-        color: "white",
         minHeight: "100vh",
-        padding: 24,
+        background: preview ? "#111" : "transparent",
+        color: "white",
+        padding: 20,
+        boxSizing: "border-box",
         fontFamily: "Arial, sans-serif",
       }}
     >
       <div
         style={{
-          width: 520,
-          background: "rgba(0, 0, 0, 0.78)",
+          maxWidth: 1000,
+          background: "rgba(10,10,10,0.84)",
           border: "2px solid #d4af37",
           borderRadius: 16,
           overflow: "hidden",
-          boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
         }}
       >
         <div
           style={{
-            background: "linear-gradient(90deg, #111 0%, #222 100%)",
             padding: "14px 18px",
-            borderBottom: "1px solid rgba(255,255,255,0.12)",
-            fontWeight: 700,
-            fontSize: 24,
-            letterSpacing: 0.5,
+            background: "#0f1218",
             display: "flex",
             alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            flexWrap: "wrap",
+            fontSize: 28,
+            fontWeight: 800,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <img src={logo} alt="League Logo" style={{ height: 42 }} />
+            Driver Standings
+          </div>
+          <div style={{ fontSize: 14, opacity: 0.78 }}>{seasonName}</div>
+        </div>
+
+        <table style={tableStyle}>
+          <thead>
+            <tr>
+              <th style={thStyle}>Pos</th>
+              <th style={thStyle}>#</th>
+              <th style={thStyle}>Driver</th>
+              <th style={thStyle}>Team</th>
+              <th style={thStyle}>Points</th>
+              <th style={thStyle}>Wins</th>
+              <th style={thStyle}>Top 5</th>
+              <th style={thStyle}>Top 10</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sortedDrivers.map((driver, index) => (
+              <tr key={driver.id}>
+                <td style={tdStyle}>{index + 1}</td>
+                <td style={tdStyle}>{driver.number}</td>
+                <td style={tdStyle}>{driver.name}</td>
+                <td style={tdStyle}>{driver.team}</td>
+                <td style={tdStyle}>{driver.points}</td>
+                <td style={tdStyle}>{driver.wins}</td>
+                <td style={tdStyle}>{driver.top5}</td>
+                <td style={tdStyle}>{driver.top10}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function TeamOverlay({ teams, preview = false, seasonName = "" }) {
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        background: preview ? "#111" : "transparent",
+        color: "white",
+        padding: 20,
+        boxSizing: "border-box",
+        fontFamily: "Arial, sans-serif",
+      }}
+    >
+      <div
+        style={{
+          maxWidth: 900,
+          background: "rgba(10,10,10,0.84)",
+          border: "2px solid #d4af37",
+          borderRadius: 16,
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            padding: "14px 18px",
+            background: "#0f1218",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            flexWrap: "wrap",
+            fontSize: 28,
+            fontWeight: 800,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <img src={logo} alt="League Logo" style={{ height: 42 }} />
+            Team Standings
+          </div>
+          <div style={{ fontSize: 14, opacity: 0.78 }}>{seasonName}</div>
+        </div>
+
+        <table style={tableStyle}>
+          <thead>
+            <tr>
+              <th style={thStyle}>Pos</th>
+              <th style={thStyle}>Team</th>
+              <th style={thStyle}>Points</th>
+              <th style={thStyle}>Wins</th>
+              <th style={thStyle}>Top 5</th>
+              <th style={thStyle}>Top 10</th>
+            </tr>
+          </thead>
+          <tbody>
+            {teams.map((team, index) => (
+              <tr key={team.team}>
+                <td style={tdStyle}>{index + 1}</td>
+                <td style={tdStyle}>{team.team}</td>
+                <td style={tdStyle}>{team.points}</td>
+                <td style={tdStyle}>{team.wins}</td>
+                <td style={tdStyle}>{team.top5}</td>
+                <td style={tdStyle}>{team.top10}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function PublicStandings({ drivers, teams, seasonName = "" }) {
+  const sortedDrivers = [...drivers].sort((a, b) => {
+    if (b.points !== a.points) return b.points - a.points;
+    if (b.wins !== a.wins) return b.wins - a.wins;
+    if (b.top5 !== a.top5) return b.top5 - a.top5;
+    return a.name.localeCompare(b.name);
+  });
+
+  const leader = sortedDrivers[0];
+  const second = sortedDrivers[1];
+  const third = sortedDrivers[2];
+
+  const totalPoints = sortedDrivers.reduce(
+    (sum, driver) => sum + (driver.points || 0),
+    0
+  );
+  const totalWins = sortedDrivers.reduce(
+    (sum, driver) => sum + (driver.wins || 0),
+    0
+  );
+  const totalDnfs = sortedDrivers.reduce(
+    (sum, driver) => sum + (driver.dnfs || 0),
+    0
+  );
+
+  const renderTeamBadge = (teamName, size = 44) => {
+    const brand = getTeamBranding(teamName);
+
+    return (
+      <div
+        style={{
+          width: size,
+          height: size,
+          minWidth: size,
+          borderRadius: "50%",
+          background: `linear-gradient(135deg, ${brand.accent} 0%, ${brand.dark} 100%)`,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontWeight: 900,
+          color: "white",
+          border: "2px solid rgba(255,255,255,0.15)",
+          boxShadow: "0 6px 16px rgba(0,0,0,0.25)",
+          fontSize: size * 0.38,
+        }}
+      >
+        {brand.logo}
+      </div>
+    );
+  };
+
+  const podiumCard = (driver, place) => {
+    if (!driver) return null;
+
+    const brand = getTeamBranding(driver.team);
+    const isLeader = place === 1;
+
+    return (
+      <div
+        style={{
+          flex: "1 1 280px",
+          background: isLeader
+            ? `linear-gradient(135deg, ${brand.accent} 0%, ${brand.dark} 100%)`
+            : "linear-gradient(135deg, #1a1f27 0%, #10141b 100%)",
+          color: "white",
+          border: isLeader
+            ? `1px solid ${brand.accent}`
+            : "1px solid #313947",
+          borderRadius: 22,
+          padding: 22,
+          boxShadow: "0 12px 28px rgba(0,0,0,0.28)",
+          position: "relative",
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            top: -24,
+            right: -24,
+            width: 120,
+            height: 120,
+            borderRadius: "50%",
+            background: "rgba(255,255,255,0.07)",
+          }}
+        />
+
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: 14,
             gap: 12,
           }}
         >
-          <img src={logo} alt="League Logo" style={{ height: 38, width: "auto" }} />
-          <span>IRL Racing League Standings</span>
+          <div>
+            <div
+              style={{
+                fontSize: 12,
+                fontWeight: 900,
+                letterSpacing: 1,
+                opacity: 0.85,
+                marginBottom: 6,
+              }}
+            >
+              {isLeader ? "POINTS LEADER" : `P${place}`}
+            </div>
+            <div style={{ fontSize: 36, fontWeight: 900, lineHeight: 1 }}>
+              #{driver.number}
+            </div>
+          </div>
+          {renderTeamBadge(driver.team, 54)}
         </div>
 
-        <div style={{ background: "rgba(255,255,255,0.06)", padding: "10px 18px", fontWeight: 700 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "56px 70px 1fr 86px", gap: 12 }}>
-            <span>POS</span>
-            <span>NO.</span>
-            <span>DRIVER</span>
-            <span>PTS</span>
+        <div style={{ fontSize: 24, fontWeight: 900, marginBottom: 4 }}>
+          {driver.name}
+        </div>
+        <div style={{ fontSize: 14, opacity: 0.85, marginBottom: 18 }}>
+          {driver.team}
+        </div>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(2, 1fr)",
+            gap: 10,
+          }}
+        >
+          <div
+            style={{
+              background: "rgba(0,0,0,0.22)",
+              borderRadius: 14,
+              padding: 12,
+            }}
+          >
+            <div style={{ fontSize: 11, opacity: 0.8 }}>POINTS</div>
+            <div style={{ fontSize: 22, fontWeight: 900 }}>{driver.points}</div>
+          </div>
+          <div
+            style={{
+              background: "rgba(0,0,0,0.22)",
+              borderRadius: 14,
+              padding: 12,
+            }}
+          >
+            <div style={{ fontSize: 11, opacity: 0.8 }}>WINS</div>
+            <div style={{ fontSize: 22, fontWeight: 900 }}>{driver.wins}</div>
+          </div>
+          <div
+            style={{
+              background: "rgba(0,0,0,0.22)",
+              borderRadius: 14,
+              padding: 12,
+            }}
+          >
+            <div style={{ fontSize: 11, opacity: 0.8 }}>TOP 5</div>
+            <div style={{ fontSize: 22, fontWeight: 900 }}>{driver.top5}</div>
+          </div>
+          <div
+            style={{
+              background: "rgba(0,0,0,0.22)",
+              borderRadius: 14,
+              padding: 12,
+            }}
+          >
+            <div style={{ fontSize: 11, opacity: 0.8 }}>TOP 10</div>
+            <div style={{ fontSize: 22, fontWeight: 900 }}>{driver.top10}</div>
           </div>
         </div>
+      </div>
+    );
+  };
 
-        {sorted.map((driver, index) => (
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        background:
+          "radial-gradient(circle at top, #18202b 0%, #0d1117 38%, #090c11 100%)",
+        color: "white",
+        fontFamily: "Arial, sans-serif",
+      }}
+    >
+      <div style={{ maxWidth: 1520, margin: "0 auto", padding: 24 }}>
+        <div
+          style={{
+            background: "linear-gradient(135deg, #1a1f27 0%, #10141b 100%)",
+            border: "1px solid #313947",
+            borderRadius: 24,
+            padding: 26,
+            marginBottom: 22,
+            boxShadow: "0 14px 34px rgba(0,0,0,0.28)",
+            overflow: "hidden",
+            position: "relative",
+          }}
+        >
           <div
-            key={driver.id}
             style={{
-              display: "grid",
-              gridTemplateColumns: "56px 70px 1fr 86px",
-              gap: 12,
-              padding: "12px 18px",
-              borderTop: "1px solid rgba(255,255,255,0.08)",
-              background: index % 2 === 0 ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.02)",
-              fontSize: 18,
+              position: "absolute",
+              right: -60,
+              top: -60,
+              width: 220,
+              height: 220,
+              borderRadius: "50%",
+              background: "rgba(212,175,55,0.08)",
+            }}
+          />
+
+          <div
+            style={{
+              display: "flex",
               alignItems: "center",
+              justifyContent: "space-between",
+              gap: 18,
+              flexWrap: "wrap",
             }}
           >
-            <span style={{ fontWeight: 700 }}>{index + 1}</span>
-            <span>#{driver.number}</span>
-            <span style={{ fontWeight: 700 }}>{driver.name}</span>
-            <span style={{ fontWeight: 700 }}>{driver.points}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
+            <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+              <img
+                src={logo}
+                alt="League Logo"
+                style={{
+                  height: 64,
+                  filter: "drop-shadow(0 6px 16px rgba(0,0,0,0.35))",
+                }}
+              />
+              <div>
+                <div
+                  style={{
+                    fontSize: 38,
+                    fontWeight: 900,
+                    letterSpacing: 0.6,
+                    lineHeight: 1.05,
+                  }}
+                >
+                  IRL RACING LEAGUE
+                </div>
+                <div style={{ fontSize: 16, opacity: 0.76, marginTop: 6 }}>
+                  Broadcast Standings
+                </div>
+              </div>
+            </div>
 
-function TeamOverlay({ teams }) {
-  return (
-    <div
-      style={{
-        background: "transparent",
-        color: "white",
-        minHeight: "100vh",
-        padding: 24,
-        fontFamily: "Arial, sans-serif",
-      }}
-    >
-      <div
-        style={{
-          width: 620,
-          background: "rgba(0, 0, 0, 0.78)",
-          border: "2px solid #d4af37",
-          borderRadius: 16,
-          overflow: "hidden",
-          boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
-        }}
-      >
+            <div
+              style={{
+                background: "#0f1319",
+                border: "1px solid #2a3240",
+                borderRadius: 16,
+                padding: "14px 18px",
+                minWidth: 240,
+              }}
+            >
+              <div style={{ fontSize: 12, opacity: 0.72, marginBottom: 4 }}>
+                ACTIVE SEASON
+              </div>
+              <div style={{ fontSize: 22, fontWeight: 900 }}>
+                {seasonName || "—"}
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div
           style={{
-            background: "linear-gradient(90deg, #111 0%, #222 100%)",
-            padding: "14px 18px",
-            fontWeight: 700,
-            fontSize: 24,
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
+            gap: 14,
+            marginBottom: 24,
           }}
         >
-          <img src={logo} alt="League Logo" style={{ height: 38, width: "auto" }} />
-          <span>IRL Team Standings</span>
+          {[
+            { label: "DRIVERS", value: sortedDrivers.length },
+            { label: "TEAMS", value: teams.length },
+            { label: "TOTAL WINS", value: totalWins },
+            { label: "TOTAL DNFS", value: totalDnfs },
+            { label: "POINTS AWARDED", value: totalPoints },
+          ].map((item) => (
+            <div
+              key={item.label}
+              style={{
+                background: "linear-gradient(135deg, #131922 0%, #0f141b 100%)",
+                border: "1px solid #2d3643",
+                borderRadius: 18,
+                padding: 18,
+                boxShadow: "0 10px 24px rgba(0,0,0,0.18)",
+              }}
+            >
+              <div style={{ fontSize: 12, opacity: 0.72, marginBottom: 8 }}>
+                {item.label}
+              </div>
+              <div style={{ fontSize: 30, fontWeight: 900 }}>{item.value}</div>
+            </div>
+          ))}
         </div>
 
-        <div style={{ background: "rgba(255,255,255,0.06)", padding: "10px 18px", fontWeight: 700 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "56px 1fr 90px 72px", gap: 12 }}>
-            <span>POS</span>
-            <span>TEAM</span>
-            <span>PTS</span>
-            <span>WINS</span>
-          </div>
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 16,
+            marginBottom: 24,
+          }}
+        >
+          {podiumCard(leader, 1)}
+          {podiumCard(second, 2)}
+          {podiumCard(third, 3)}
         </div>
 
-        {teams.map((team, index) => (
+        <div
+          style={{
+            background: "#151a22",
+            border: "1px solid #2d3643",
+            borderRadius: 22,
+            padding: 18,
+            marginBottom: 22,
+            boxShadow: "0 10px 28px rgba(0,0,0,0.22)",
+          }}
+        >
           <div
-            key={team.team}
             style={{
-              display: "grid",
-              gridTemplateColumns: "56px 1fr 90px 72px",
-              gap: 12,
-              padding: "12px 18px",
-              borderTop: "1px solid rgba(255,255,255,0.08)",
-              background: index % 2 === 0 ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.02)",
-              fontSize: 18,
+              fontSize: 26,
+              fontWeight: 900,
+              marginBottom: 14,
             }}
           >
-            <span style={{ fontWeight: 700 }}>{index + 1}</span>
-            <span style={{ fontWeight: 700 }}>{team.team}</span>
-            <span style={{ fontWeight: 700 }}>{team.points}</span>
-            <span>{team.wins}</span>
+            Driver Standings
           </div>
-        ))}
+
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr>
+                  <th style={thStyle}>Pos</th>
+                  <th style={thStyle}>Team</th>
+                  <th style={thStyle}>#</th>
+                  <th style={thStyle}>Driver</th>
+                  <th style={thStyle}>Team Name</th>
+                  <th style={thStyle}>Points</th>
+                  <th style={thStyle}>Wins</th>
+                  <th style={thStyle}>Top 5</th>
+                  <th style={thStyle}>Top 10</th>
+                  <th style={thStyle}>DNFs</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedDrivers.map((driver, index) => {
+                  const isLeader = index === 0;
+
+                  return (
+                    <tr
+                      key={driver.id}
+                      style={{
+                        background: isLeader
+                          ? "rgba(212, 175, 55, 0.10)"
+                          : "transparent",
+                      }}
+                    >
+                      <td
+                        style={{
+                          ...tdStyle,
+                          fontWeight: 900,
+                          color: isLeader ? "#f3d36a" : "white",
+                          fontSize: 16,
+                        }}
+                      >
+                        {index + 1}
+                      </td>
+                      <td style={tdStyle}>{renderTeamBadge(driver.team, 38)}</td>
+                      <td style={{ ...tdStyle, fontWeight: 800 }}>
+                        {driver.number}
+                      </td>
+                      <td style={{ ...tdStyle, fontWeight: 800 }}>
+                        {driver.name}
+                      </td>
+                      <td style={tdStyle}>{driver.team}</td>
+                      <td style={{ ...tdStyle, fontWeight: 900 }}>
+                        {driver.points}
+                      </td>
+                      <td style={tdStyle}>{driver.wins}</td>
+                      <td style={tdStyle}>{driver.top5}</td>
+                      <td style={tdStyle}>{driver.top10}</td>
+                      <td style={tdStyle}>{driver.dnfs || 0}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div
+          style={{
+            background: "#151a22",
+            border: "1px solid #2d3643",
+            borderRadius: 22,
+            padding: 18,
+            boxShadow: "0 10px 28px rgba(0,0,0,0.22)",
+          }}
+        >
+          <div
+            style={{
+              fontSize: 26,
+              fontWeight: 900,
+              marginBottom: 14,
+            }}
+          >
+            Team Standings
+          </div>
+
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr>
+                  <th style={thStyle}>Pos</th>
+                  <th style={thStyle}>Logo</th>
+                  <th style={thStyle}>Team</th>
+                  <th style={thStyle}>Points</th>
+                  <th style={thStyle}>Wins</th>
+                  <th style={thStyle}>Top 5</th>
+                  <th style={thStyle}>Top 10</th>
+                </tr>
+              </thead>
+              <tbody>
+                {teams.map((team, index) => (
+                  <tr key={team.team}>
+                    <td style={{ ...tdStyle, fontWeight: 900 }}>{index + 1}</td>
+                    <td style={tdStyle}>{renderTeamBadge(team.team, 42)}</td>
+                    <td style={{ ...tdStyle, fontWeight: 800 }}>{team.team}</td>
+                    <td style={{ ...tdStyle, fontWeight: 900 }}>
+                      {team.points}
+                    </td>
+                    <td style={tdStyle}>{team.wins}</td>
+                    <td style={tdStyle}>{team.top5}</td>
+                    <td style={tdStyle}>{team.top10}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
-function PublicStandings({ drivers, teams }) {
+function TickerOverlay({
+  drivers,
+  teams,
+  raceHistory,
+  preview = false,
+  seasonName = "",
+}) {
   const sortedDrivers = [...drivers].sort((a, b) => b.points - a.points);
+  const latestRace = raceHistory[raceHistory.length - 1];
+  const winner = latestRace?.results?.find((r) => r.finishPos === 1);
 
-  return (
-    <div
-      style={{
-        padding: 24,
-        fontFamily: "Arial, sans-serif",
-        background: "#111",
-        color: "white",
-        minHeight: "100vh",
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 8 }}>
-        <img src={logo} alt="League Logo" style={{ height: 64, width: "auto" }} />
-        <h1 style={{ margin: 0 }}>IRL Racing League Standings</h1>
-      </div>
-
-      <h2 style={{ marginTop: 20 }}>Driver Standings</h2>
-      <div style={{ overflowX: "auto" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", background: "#1a1a1a" }}>
-          <thead>
-            <tr>
-              <th style={tableHeaderStyle}>Pos</th>
-              <th style={tableHeaderStyle}>#</th>
-              <th style={tableHeaderStyle}>Name</th>
-              <th style={tableHeaderStyle}>Team</th>
-              <th style={tableHeaderStyle}>Points</th>
-              <th style={tableHeaderStyle}>Wins</th>
-              <th style={tableHeaderStyle}>Top 5</th>
-              <th style={tableHeaderStyle}>Top 10</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sortedDrivers.map((d, i) => (
-              <tr key={d.id}>
-                <td style={tableCellStyle}>{i + 1}</td>
-                <td style={tableCellStyle}>#{d.number}</td>
-                <td style={tableCellStyle}>{d.name}</td>
-                <td style={tableCellStyle}>{d.team}</td>
-                <td style={tableCellStyle}>{d.points}</td>
-                <td style={tableCellStyle}>{d.wins}</td>
-                <td style={tableCellStyle}>{d.top5}</td>
-                <td style={tableCellStyle}>{d.top10}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <h2 style={{ marginTop: 30 }}>Team Standings</h2>
-      <div style={{ overflowX: "auto" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", background: "#1a1a1a" }}>
-          <thead>
-            <tr>
-              <th style={tableHeaderStyle}>Pos</th>
-              <th style={tableHeaderStyle}>Team</th>
-              <th style={tableHeaderStyle}>Points</th>
-              <th style={tableHeaderStyle}>Wins</th>
-              <th style={tableHeaderStyle}>Top 5</th>
-              <th style={tableHeaderStyle}>Top 10</th>
-              <th style={tableHeaderStyle}>Drivers</th>
-            </tr>
-          </thead>
-          <tbody>
-            {teams.map((t, i) => (
-              <tr key={t.team}>
-                <td style={tableCellStyle}>{i + 1}</td>
-                <td style={tableCellStyle}>{t.team}</td>
-                <td style={tableCellStyle}>{t.points}</td>
-                <td style={tableCellStyle}>{t.wins}</td>
-                <td style={tableCellStyle}>{t.top5}</td>
-                <td style={tableCellStyle}>{t.top10}</td>
-                <td style={tableCellStyle}>{t.drivers}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-function TickerOverlay({ drivers, teams, raceHistory, preview = false }) {
-  const sortedDrivers = [...drivers].sort((a, b) => b.points - a.points);
-  const latestRace = raceHistory.length > 0 ? raceHistory[raceHistory.length - 1] : null;
-
-  const tickerItems = [
-    "IRL Racing League",
-    latestRace ? `Latest Race: ${latestRace.raceName}` : "No race results yet",
+  const tickerText = [
+    seasonName ? `Season: ${seasonName}` : "IRL Racing League",
+    winner
+      ? `Latest Winner: #${winner.number} ${winner.name} (${latestRace.raceName})`
+      : "No race winner yet",
     ...sortedDrivers.map(
-      (driver, index) => `P${index + 1} #${driver.number} ${driver.name} - ${driver.points} pts`
+      (driver, index) =>
+        `${index + 1}. #${driver.number} ${driver.name} - ${driver.points} pts`
     ),
     ...teams.map(
-      (team, index) => `Team P${index + 1} ${team.team} - ${team.points} pts`
+      (team, index) => `Team ${index + 1}: ${team.team} - ${team.points} pts`
     ),
-  ];
-
-  const tickerText = tickerItems.join("   •   ");
+  ].join("   •   ");
 
   return (
     <div
       style={{
-        width: "100vw",
-        height: "100vh",
+        width: "100%",
+        minHeight: preview ? "100vh" : "80px",
         background: preview ? "#111" : "transparent",
         display: "flex",
-        alignItems: "flex-end",
-        fontFamily: "Arial, sans-serif",
-        overflow: "hidden",
+        alignItems: preview ? "center" : "flex-start",
+        justifyContent: "center",
+        paddingTop: preview ? 20 : 0,
+        boxSizing: "border-box",
       }}
     >
       <style>{`
-        body {
-          margin: 0;
-          overflow: hidden;
-        }
-
         .ticker-bar {
           width: 100%;
           overflow: hidden;
-          background: rgba(0, 0, 0, 0.88);
+          background: rgba(0, 0, 0, 0.82);
           border-top: 2px solid #d4af37;
           border-bottom: 2px solid #d4af37;
-          padding: 12px 0;
-          white-space: nowrap;
+          height: 80px;
+          display: flex;
+          align-items: center;
         }
 
         .ticker-track {
@@ -440,12 +1061,8 @@ function TickerOverlay({ drivers, teams, raceHistory, preview = false }) {
         }
 
         @keyframes tickerScroll {
-          0% {
-            transform: translateX(0);
-          }
-          100% {
-            transform: translateX(-50%);
-          }
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
         }
       `}</style>
 
@@ -462,82 +1079,387 @@ function TickerOverlay({ drivers, teams, raceHistory, preview = false }) {
 }
 
 export default function App() {
-  const [drivers, setDrivers] = useState(() => {
-    const saved = localStorage.getItem("irl-drivers");
-    return saved ? JSON.parse(saved) : defaultDrivers;
+  const initialLeagueState = loadInitialLeagueState();
+
+  const [seasons, setSeasons] = useState(initialLeagueState.seasons);
+  const [activeSeasonId, setActiveSeasonId] = useState(
+    initialLeagueState.activeSeasonId
+  );
+
+  const [viewMode, setViewMode] = useState("admin");
+  const [editingRaceName, setEditingRaceName] = useState(null);
+
+  const [newSeasonName, setNewSeasonName] = useState("");
+  const [renameSeasonName, setRenameSeasonName] = useState("");
+
+  const [newDriverName, setNewDriverName] = useState("");
+  const [newDriverNumber, setNewDriverNumber] = useState("");
+  const [newDriverTeam, setNewDriverTeam] = useState("");
+
+  const [editingDriverId, setEditingDriverId] = useState(null);
+  const [editDriverForm, setEditDriverForm] = useState({
+    name: "",
+    number: "",
+    team: "",
   });
 
-  const [selectedRace, setSelectedRace] = useState(() => localStorage.getItem("irl-selectedRace") || "");
-  const [positions, setPositions] = useState(() => {
-    const saved = localStorage.getItem("irl-positions");
-    return saved ? JSON.parse(saved) : {};
-  });
-  const [stage1, setStage1] = useState(() => {
-    const saved = localStorage.getItem("irl-stage1");
-    return saved ? JSON.parse(saved) : {};
-  });
-  const [stage2, setStage2] = useState(() => {
-    const saved = localStorage.getItem("irl-stage2");
-    return saved ? JSON.parse(saved) : {};
-  });
-  const [stage3, setStage3] = useState(() => {
-    const saved = localStorage.getItem("irl-stage3");
-    return saved ? JSON.parse(saved) : {};
-  });
-  const [stage4, setStage4] = useState(() => {
-    const saved = localStorage.getItem("irl-stage4");
-    return saved ? JSON.parse(saved) : {};
-  });
-  const [penalties, setPenalties] = useState(() => {
-    const saved = localStorage.getItem("irl-penalties");
-    return saved ? JSON.parse(saved) : {};
-  });
-  const [raceHistory, setRaceHistory] = useState(() => {
-    const saved = localStorage.getItem("irl-raceHistory");
-    return saved ? JSON.parse(saved) : [];
-  });
-  const [viewMode, setViewMode] = useState("admin");
+  const importFileRef = useRef(null);
 
   const path = window.location.pathname.toLowerCase();
 
+  const activeSeason =
+    seasons.find((season) => season.id === activeSeasonId) || seasons[0];
+
+  const drivers = activeSeason?.drivers || [];
+  const selectedRace = activeSeason?.selectedRace || "";
+  const positions = activeSeason?.positions || {};
+  const stage1 = activeSeason?.stage1 || {};
+  const stage2 = activeSeason?.stage2 || {};
+  const stage3 = activeSeason?.stage3 || {};
+  const dnfMap = activeSeason?.dnfMap || {};
+  const penalties = activeSeason?.penalties || {};
+  const raceHistory = activeSeason?.raceHistory || [];
+
   const selectedRaceData = races.find((race) => race.name === selectedRace);
-  const stageCount = selectedRaceData ? selectedRaceData.stageCount : 3;
+  const stageCount = selectedRaceData ? selectedRaceData.stageCount : 2;
 
   useEffect(() => {
-    localStorage.setItem("irl-drivers", JSON.stringify(drivers));
-  }, [drivers]);
+    localStorage.setItem("irl-seasons", JSON.stringify(seasons));
+  }, [seasons]);
 
   useEffect(() => {
-    localStorage.setItem("irl-selectedRace", selectedRace);
-  }, [selectedRace]);
+    if (activeSeasonId) {
+      localStorage.setItem("irl-activeSeasonId", activeSeasonId);
+    }
+  }, [activeSeasonId]);
+
+  const replaceActiveSeason = (nextSeason) => {
+    setSeasons((prev) =>
+      prev.map((season) => (season.id === activeSeasonId ? nextSeason : season))
+    );
+  };
+
+  const patchActiveSeason = (patch) => {
+    setSeasons((prev) =>
+      prev.map((season) =>
+        season.id === activeSeasonId ? { ...season, ...patch } : season
+      )
+    );
+  };
+
+  const clearInputs = () => {
+    patchActiveSeason({
+      selectedRace: "",
+      positions: {},
+      stage1: {},
+      stage2: {},
+      stage3: {},
+      dnfMap: {},
+      penalties: {},
+    });
+    setEditingRaceName(null);
+  };
+
+  const resetEditorStates = () => {
+    setEditingRaceName(null);
+    setEditingDriverId(null);
+    setEditDriverForm({ name: "", number: "", team: "" });
+  };
+
+  const downloadBackupObject = (payload, filePrefix = "irl-racing-backup") => {
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: "application/json",
+    });
+
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const date = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = `${filePrefix}-${date}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  };
+
+  const buildSeasonBackup = (season) => ({
+    app: "IRL Racing League",
+    version: 2,
+    exportedAt: new Date().toISOString(),
+    type: "single-season-backup",
+    season: {
+      ...season,
+      drivers: season.drivers,
+      raceHistory: season.raceHistory,
+    },
+  });
+
+  const exportBackup = () => {
+    if (!activeSeason) return;
+    downloadBackupObject(
+      buildSeasonBackup(activeSeason),
+      `irl-racing-${activeSeason.name.replace(/\s+/g, "-").toLowerCase()}`
+    );
+  };
+
+  const exportAllSeasonsBackup = () => {
+    const payload = {
+      app: "IRL Racing League",
+      version: 2,
+      exportedAt: new Date().toISOString(),
+      type: "full-league-backup",
+      activeSeasonId,
+      seasons,
+    };
+
+    downloadBackupObject(payload, "irl-racing-all-seasons-backup");
+  };
+
+  const createSeason = () => {
+    const trimmedName = newSeasonName.trim();
+
+    if (!trimmedName) {
+      alert("Please enter a season name.");
+      return;
+    }
+
+    const nameExists = seasons.some(
+      (season) => season.name.toLowerCase() === trimmedName.toLowerCase()
+    );
+    if (nameExists) {
+      alert("A season with that name already exists.");
+      return;
+    }
+
+    const rosterOnly = drivers.map((driver) => ({
+      id: driver.id,
+      number: driver.number,
+      name: driver.name,
+      team: driver.team,
+    }));
+
+    const season = createEmptySeason(trimmedName, rosterOnly);
+    setSeasons((prev) => [...prev, season]);
+    setActiveSeasonId(season.id);
+    setNewSeasonName("");
+    setRenameSeasonName(trimmedName);
+    resetEditorStates();
+  };
+
+  const renameActiveSeason = () => {
+    if (!activeSeason) return;
+
+    const trimmedName = renameSeasonName.trim();
+    if (!trimmedName) {
+      alert("Please enter a season name.");
+      return;
+    }
+
+    const duplicate = seasons.some(
+      (season) =>
+        season.id !== activeSeason.id &&
+        season.name.toLowerCase() === trimmedName.toLowerCase()
+    );
+    if (duplicate) {
+      alert("Another season already has that name.");
+      return;
+    }
+
+    patchActiveSeason({ name: trimmedName });
+  };
+
+  const switchSeason = (seasonId) => {
+    setActiveSeasonId(seasonId);
+    resetEditorStates();
+  };
+
+  const deleteActiveSeason = () => {
+    if (!activeSeason) return;
+
+    if (seasons.length <= 1) {
+      alert("You must keep at least one season.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Delete season "${activeSeason.name}"? This cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    const remaining = seasons.filter((season) => season.id !== activeSeason.id);
+    setSeasons(remaining);
+    setActiveSeasonId(remaining[0].id);
+    setRenameSeasonName(remaining[0].name);
+    resetEditorStates();
+  };
 
   useEffect(() => {
-    localStorage.setItem("irl-positions", JSON.stringify(positions));
-  }, [positions]);
+    if (activeSeason?.name) {
+      setRenameSeasonName(activeSeason.name);
+    }
+  }, [activeSeasonId, activeSeason?.name]);
 
-  useEffect(() => {
-    localStorage.setItem("irl-stage1", JSON.stringify(stage1));
-  }, [stage1]);
+  const handleImportBackup = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
 
-  useEffect(() => {
-    localStorage.setItem("irl-stage2", JSON.stringify(stage2));
-  }, [stage2]);
+    const reader = new FileReader();
 
-  useEffect(() => {
-    localStorage.setItem("irl-stage3", JSON.stringify(stage3));
-  }, [stage3]);
+    reader.onload = (e) => {
+      try {
+        const parsed = JSON.parse(e.target.result);
 
-  useEffect(() => {
-    localStorage.setItem("irl-stage4", JSON.stringify(stage4));
-  }, [stage4]);
+        if (Array.isArray(parsed?.seasons)) {
+          const confirmed = window.confirm(
+            "Import all seasons from this backup? This will replace your current saved league data."
+          );
+          if (!confirmed) return;
 
-  useEffect(() => {
-    localStorage.setItem("irl-penalties", JSON.stringify(penalties));
-  }, [penalties]);
+          const importedSeasons = parsed.seasons.map((season, index) =>
+            sanitizeSeason(season, `Season ${index + 1}`)
+          );
 
-  useEffect(() => {
-    localStorage.setItem("irl-raceHistory", JSON.stringify(raceHistory));
-  }, [raceHistory]);
+          if (importedSeasons.length === 0) {
+            alert("That backup does not contain any seasons.");
+            return;
+          }
+
+          const nextActiveId = importedSeasons.some(
+            (season) => season.id === parsed.activeSeasonId
+          )
+            ? parsed.activeSeasonId
+            : importedSeasons[0].id;
+
+          setSeasons(importedSeasons);
+          setActiveSeasonId(nextActiveId);
+          resetEditorStates();
+          alert("All seasons imported successfully.");
+          return;
+        }
+
+        if (parsed?.season) {
+          const importedSeason = sanitizeSeason(
+            parsed.season,
+            parsed.season?.name || "Imported Season"
+          );
+
+          const confirmed = window.confirm(
+            `Import season "${importedSeason.name}"? This will add it to your saved seasons.`
+          );
+          if (!confirmed) return;
+
+          const finalSeason = seasons.some(
+            (season) =>
+              season.name.toLowerCase() === importedSeason.name.toLowerCase()
+          )
+            ? {
+                ...importedSeason,
+                id: makeSeasonId(),
+                name: `${importedSeason.name} Copy`,
+              }
+            : { ...importedSeason, id: makeSeasonId() };
+
+          setSeasons((prev) => [...prev, finalSeason]);
+          setActiveSeasonId(finalSeason.id);
+          resetEditorStates();
+          alert("Season imported successfully.");
+          return;
+        }
+
+        const importedData = parsed?.data || parsed;
+
+        if (!importedData.drivers || !Array.isArray(importedData.drivers)) {
+          alert("Invalid backup file: drivers missing.");
+          return;
+        }
+
+        if (!importedData.raceHistory || !Array.isArray(importedData.raceHistory)) {
+          alert("Invalid backup file: race history missing.");
+          return;
+        }
+
+        const confirmed = window.confirm(
+          "Import this backup into the current season? This will replace the active season data."
+        );
+        if (!confirmed) return;
+
+        const importedSeason = sanitizeSeason(
+          {
+            ...activeSeason,
+            drivers: importedData.drivers,
+            raceHistory: importedData.raceHistory,
+            selectedRace: importedData.selectedRace || "",
+            positions: importedData.positions || {},
+            stage1: importedData.stage1 || {},
+            stage2: importedData.stage2 || {},
+            stage3: importedData.stage3 || {},
+            dnfMap: importedData.dnfMap || {},
+            penalties: importedData.penalties || {},
+          },
+          activeSeason.name
+        );
+
+        replaceActiveSeason(importedSeason);
+        resetEditorStates();
+        alert("Backup imported successfully.");
+      } catch (error) {
+        alert("Could not import that backup file.");
+      } finally {
+        event.target.value = "";
+      }
+    };
+
+    reader.readAsText(file);
+  };
+
+  const resetSeason = () => {
+    if (!activeSeason) return;
+
+    const confirmed = window.confirm(
+      `Archive and reset "${activeSeason.name}"? A backup file will download first, then standings, race history, penalties, and stats will be cleared.`
+    );
+    if (!confirmed) return;
+
+    const archive = {
+      app: "IRL Racing League",
+      version: 2,
+      archiveType: "season-reset-archive",
+      archivedAt: new Date().toISOString(),
+      season: activeSeason,
+    };
+
+    downloadBackupObject(
+      archive,
+      `irl-racing-${activeSeason.name.replace(/\s+/g, "-").toLowerCase()}-archive`
+    );
+
+    const resetDrivers = activeSeason.drivers.map((driver) => ({
+      id: driver.id,
+      number: driver.number,
+      name: driver.name,
+      team: driver.team,
+      points: 0,
+      wins: 0,
+      top5: 0,
+      top10: 0,
+      dnfs: 0,
+    }));
+
+    replaceActiveSeason({
+      ...activeSeason,
+      drivers: resetDrivers,
+      raceHistory: [],
+      selectedRace: "",
+      positions: {},
+      stage1: {},
+      stage2: {},
+      stage3: {},
+      dnfMap: {},
+      penalties: {},
+    });
+
+    resetEditorStates();
+  };
 
   const teamStandings = useMemo(() => {
     const teams = {};
@@ -552,170 +1474,481 @@ export default function App() {
           drivers: 0,
         };
       }
-      teams[driver.team].points += driver.points;
-      teams[driver.team].wins += driver.wins;
-      teams[driver.team].top5 += driver.top5;
-      teams[driver.team].top10 += driver.top10;
+
+      teams[driver.team].points += driver.points || 0;
+      teams[driver.team].wins += driver.wins || 0;
+      teams[driver.team].top5 += driver.top5 || 0;
+      teams[driver.team].top10 += driver.top10 || 0;
       teams[driver.team].drivers += 1;
     }
-    return Object.values(teams).sort((a, b) => b.points - a.points);
+
+    return Object.values(teams).sort((a, b) => {
+      if (b.points !== a.points) return b.points - a.points;
+      if (b.wins !== a.wins) return b.wins - a.wins;
+      if (b.top5 !== a.top5) return b.top5 - a.top5;
+      return a.team.localeCompare(b.team);
+    });
   }, [drivers]);
 
-  const sortedDrivers = [...drivers].sort((a, b) => b.points - a.points);
+  const sortedDrivers = [...drivers].sort((a, b) => {
+    if (b.points !== a.points) return b.points - a.points;
+    if (b.wins !== a.wins) return b.wins - a.wins;
+    if (b.top5 !== a.top5) return b.top5 - a.top5;
+    return a.name.localeCompare(b.name);
+  });
+
   const currentLeader = sortedDrivers[0] || null;
   const totalDrivers = drivers.length;
   const totalRacesEntered = raceHistory.length;
-  const latestRace = raceHistory.length > 0 ? raceHistory[raceHistory.length - 1] : null;
-  const latestWinner = latestRace?.results?.find((result) => result.finishPos === 1) || null;
+  const latestRace =
+    raceHistory.length > 0 ? raceHistory[raceHistory.length - 1] : null;
+  const latestWinner =
+    latestRace?.results?.find((result) => result.finishPos === 1) || null;
 
   const handlePositionChange = (driverId, value) =>
-    setPositions({ ...positions, [driverId]: Number(value) });
+    patchActiveSeason({
+      positions: {
+        ...positions,
+        [driverId]: value === "" ? "" : Number(value),
+      },
+    });
 
   const handleStage1Change = (driverId, value) =>
-    setStage1({ ...stage1, [driverId]: Number(value) });
+    patchActiveSeason({
+      stage1: {
+        ...stage1,
+        [driverId]: value === "" ? "" : Number(value),
+      },
+    });
 
   const handleStage2Change = (driverId, value) =>
-    setStage2({ ...stage2, [driverId]: Number(value) });
+    patchActiveSeason({
+      stage2: {
+        ...stage2,
+        [driverId]: value === "" ? "" : Number(value),
+      },
+    });
 
   const handleStage3Change = (driverId, value) =>
-    setStage3({ ...stage3, [driverId]: Number(value) });
+    patchActiveSeason({
+      stage3: {
+        ...stage3,
+        [driverId]: value === "" ? "" : Number(value),
+      },
+    });
 
-  const handleStage4Change = (driverId, value) =>
-    setStage4({ ...stage4, [driverId]: Number(value) });
+  const handleDnfChange = (driverId, checked) =>
+    patchActiveSeason({
+      dnfMap: { ...dnfMap, [driverId]: checked },
+    });
 
   const handlePenaltyPresetChange = (driverId, selectedLabel) => {
-    const selectedPenalty = penaltyOptions.find((option) => option.label === selectedLabel);
-    setPenalties({
-      ...penalties,
-      [driverId]: selectedPenalty || { label: "No Penalty", points: 0, reason: "" },
+    const selectedPenalty = penaltyOptions.find(
+      (option) => option.label === selectedLabel
+    );
+
+    patchActiveSeason({
+      penalties: {
+        ...penalties,
+        [driverId]:
+          selectedPenalty || { label: "No Penalty", points: 0, reason: "" },
+      },
     });
   };
 
-  const getStagePoints = (stageFinish) => {
-    if (!stageFinish || stageFinish < 1 || stageFinish > 10) return 0;
-    return stagePointsTable[stageFinish - 1];
+  const addDriver = () => {
+    const trimmedName = newDriverName.trim();
+    const trimmedTeam = newDriverTeam.trim();
+    const driverNumber = String(newDriverNumber).trim();
+
+    if (!trimmedName || !trimmedTeam || !driverNumber) {
+      alert("Please enter a driver name, number, and team.");
+      return;
+    }
+
+    const nameExists = drivers.some(
+      (driver) => driver.name.toLowerCase() === trimmedName.toLowerCase()
+    );
+    if (nameExists) {
+      alert("A driver with that name already exists.");
+      return;
+    }
+
+    const numberExists = drivers.some(
+      (driver) => String(driver.number) === driverNumber
+    );
+    if (numberExists) {
+      alert("A driver with that number already exists.");
+      return;
+    }
+
+    const rosterDriver = {
+      id: Date.now(),
+      number: Number(driverNumber),
+      name: trimmedName,
+      team: trimmedTeam,
+    };
+
+    const newRoster = [
+      ...drivers.map((driver) => ({
+        id: driver.id,
+        number: driver.number,
+        name: driver.name,
+        team: driver.team,
+      })),
+      rosterDriver,
+    ];
+
+    const rebuilt = rebuildDriversFromHistory(raceHistory, newRoster);
+
+    patchActiveSeason({ drivers: rebuilt });
+
+    setNewDriverName("");
+    setNewDriverNumber("");
+    setNewDriverTeam("");
   };
 
-  const clearInputs = () => {
-    setSelectedRace("");
-    setPositions({});
-    setStage1({});
-    setStage2({});
-    setStage3({});
-    setStage4({});
-    setPenalties({});
+  const openEditDriver = (driver) => {
+    setEditingDriverId(driver.id);
+    setEditDriverForm({
+      name: driver.name,
+      number: driver.number,
+      team: driver.team,
+    });
   };
 
-  const resetSeason = () => {
+  const cancelEditDriver = () => {
+    setEditingDriverId(null);
+    setEditDriverForm({
+      name: "",
+      number: "",
+      team: "",
+    });
+  };
+
+  const saveDriverEdit = () => {
+    if (!editingDriverId || !activeSeason) return;
+
+    const trimmedName = editDriverForm.name.trim();
+    const trimmedNumber = String(editDriverForm.number).trim();
+    const trimmedTeam = editDriverForm.team.trim();
+
+    if (!trimmedName || !trimmedNumber || !trimmedTeam) {
+      alert("Please enter a driver name, number, and team.");
+      return;
+    }
+
+    const duplicateName = drivers.some(
+      (driver) =>
+        driver.id !== editingDriverId &&
+        driver.name.toLowerCase() === trimmedName.toLowerCase()
+    );
+    if (duplicateName) {
+      alert("A driver with that name already exists.");
+      return;
+    }
+
+    const duplicateNumber = drivers.some(
+      (driver) =>
+        driver.id !== editingDriverId &&
+        String(driver.number) === trimmedNumber
+    );
+    if (duplicateNumber) {
+      alert("A driver with that number already exists.");
+      return;
+    }
+
+    const updatedRoster = drivers.map((driver) =>
+      driver.id === editingDriverId
+        ? {
+            ...driver,
+            name: trimmedName,
+            number: Number(trimmedNumber),
+            team: trimmedTeam,
+          }
+        : driver
+    );
+
+    const updatedHistory = raceHistory.map((race) => ({
+      ...race,
+      results: (race.results || []).map((result) =>
+        result.driverId === editingDriverId
+          ? {
+              ...result,
+              name: trimmedName,
+              number: Number(trimmedNumber),
+              team: trimmedTeam,
+            }
+          : result
+      ),
+    }));
+
+    const rosterOnly = updatedRoster.map((driver) => ({
+      id: driver.id,
+      number: driver.number,
+      name: driver.name,
+      team: driver.team,
+    }));
+
+    replaceActiveSeason({
+      ...activeSeason,
+      drivers: rebuildDriversFromHistory(updatedHistory, rosterOnly),
+      raceHistory: updatedHistory,
+    });
+
+    cancelEditDriver();
+  };
+
+  const removeDriver = (driverId) => {
+    if (!activeSeason) return;
+
+    const driverToRemove = drivers.find((driver) => driver.id === driverId);
+    if (!driverToRemove) return;
+
     const confirmed = window.confirm(
-      "Are you sure you want to reset the full season? This will erase standings, race history, penalties, and stats."
+      `Remove ${driverToRemove.name}? This will also remove their results from race history.`
     );
     if (!confirmed) return;
 
-    setDrivers(defaultDrivers);
-    setRaceHistory([]);
-    clearInputs();
+    const newRoster = drivers
+      .filter((driver) => driver.id !== driverId)
+      .map((driver) => ({
+        id: driver.id,
+        number: driver.number,
+        name: driver.name,
+        team: driver.team,
+      }));
 
-    localStorage.removeItem("irl-drivers");
-    localStorage.removeItem("irl-selectedRace");
-    localStorage.removeItem("irl-positions");
-    localStorage.removeItem("irl-stage1");
-    localStorage.removeItem("irl-stage2");
-    localStorage.removeItem("irl-stage3");
-    localStorage.removeItem("irl-stage4");
-    localStorage.removeItem("irl-penalties");
-    localStorage.removeItem("irl-raceHistory");
+    const newHistory = raceHistory.map((race) => ({
+      ...race,
+      results: (race.results || []).filter(
+        (result) => result.driverId !== driverId
+      ),
+    }));
+
+    const nextPositions = { ...positions };
+    const nextStage1 = { ...stage1 };
+    const nextStage2 = { ...stage2 };
+    const nextStage3 = { ...stage3 };
+    const nextDnfMap = { ...dnfMap };
+    const nextPenalties = { ...penalties };
+
+    delete nextPositions[driverId];
+    delete nextStage1[driverId];
+    delete nextStage2[driverId];
+    delete nextStage3[driverId];
+    delete nextDnfMap[driverId];
+    delete nextPenalties[driverId];
+
+    replaceActiveSeason({
+      ...activeSeason,
+      drivers: rebuildDriversFromHistory(newHistory, newRoster),
+      raceHistory: newHistory,
+      positions: nextPositions,
+      stage1: nextStage1,
+      stage2: nextStage2,
+      stage3: nextStage3,
+      dnfMap: nextDnfMap,
+      penalties: nextPenalties,
+    });
+
+    if (editingDriverId === driverId) {
+      cancelEditDriver();
+    }
   };
 
   const submitResults = () => {
+    if (!activeSeason) return;
+
     if (!selectedRace.trim()) {
       alert("Please select a race.");
       return;
     }
 
-    const raceAlreadyExists = raceHistory.some((race) => race.raceName === selectedRace);
+    const raceAlreadyExists = raceHistory.some(
+      (race) => race.raceName === selectedRace && race.raceName !== editingRaceName
+    );
+
     if (raceAlreadyExists) {
       alert("That race has already been entered.");
       return;
     }
 
-    const raceResults = [];
+    const raceResults = drivers
+      .map((driver) => {
+        const finishPos = positions[driver.id];
+        const stage1Pos = stage1[driver.id];
+        const stage2Pos = stage2[driver.id];
+        const stage3Pos = stage3[driver.id];
+        const dnf = !!dnfMap[driver.id];
 
-    const updatedDrivers = drivers.map((driver) => {
-      const finishPos = positions[driver.id];
-      const stage1Pos = stage1[driver.id];
-      const stage2Pos = stage2[driver.id];
-      const stage3Pos = stage3[driver.id];
-      const stage4Pos = stage4[driver.id];
+        const finishPoints =
+          finishPos && finishPos >= 1 && finishPos <= pointsTable.length
+            ? pointsTable[finishPos - 1]
+            : 0;
 
-      const finishPoints =
-        finishPos && finishPos >= 1 && finishPos <= pointsTable.length
-          ? pointsTable[finishPos - 1]
-          : 0;
+        const stage1Points = getStagePoints(stage1Pos);
+        const stage2Points = getStagePoints(stage2Pos);
+        const stage3Points =
+          stageCount === 3 ? getStagePoints(stage3Pos) : 0;
 
-      const stage1Points = getStagePoints(stage1Pos);
-      const stage2Points = getStagePoints(stage2Pos);
-      const stage3Points = getStagePoints(stage3Pos);
-      const stage4Points = stageCount === 4 ? getStagePoints(stage4Pos) : 0;
+        const selectedPenalty = penalties[driver.id] || {
+          label: "No Penalty",
+          points: 0,
+          reason: "",
+        };
 
-      const selectedPenalty = penalties[driver.id] || { label: "No Penalty", points: 0, reason: "" };
-      const penaltyPoints = selectedPenalty.points || 0;
-      const penaltyReason = selectedPenalty.reason || "";
+        const penaltyPoints = selectedPenalty.points || 0;
+        const penaltyReason = selectedPenalty.reason || "";
 
-      const totalRacePoints =
-        finishPoints + stage1Points + stage2Points + stage3Points + stage4Points - penaltyPoints;
+        const totalRacePoints =
+          finishPoints +
+          stage1Points +
+          stage2Points +
+          stage3Points -
+          penaltyPoints;
 
-      const isWin = finishPos === 1;
-      const isTop5 = finishPos >= 1 && finishPos <= 5;
-      const isTop10 = finishPos >= 1 && finishPos <= 10;
+        const isWin = finishPos === 1;
+        const isTop5 = finishPos >= 1 && finishPos <= 5;
+        const isTop10 = finishPos >= 1 && finishPos <= 10;
 
-      raceResults.push({
-        driverId: driver.id,
-        name: driver.name,
-        number: driver.number,
-        team: driver.team,
-        finishPos: finishPos || null,
-        stage1Pos: stage1Pos || null,
-        stage2Pos: stage2Pos || null,
-        stage3Pos: stage3Pos || null,
-        stage4Pos: stageCount === 4 ? stage4Pos || null : null,
-        finishPoints,
-        stage1Points,
-        stage2Points,
-        stage3Points,
-        stage4Points,
-        penaltyPoints,
-        penaltyReason,
-        totalRacePoints,
-        isWin,
-        isTop5,
-        isTop10,
+        return {
+          driverId: driver.id,
+          name: driver.name,
+          number: driver.number,
+          team: driver.team,
+          finishPos: finishPos || null,
+          stage1Pos: stage1Pos || null,
+          stage2Pos: stage2Pos || null,
+          stage3Pos: stageCount === 3 ? stage3Pos || null : null,
+          finishPoints,
+          stage1Points,
+          stage2Points,
+          stage3Points,
+          penaltyPoints,
+          penaltyReason,
+          totalRacePoints,
+          isWin,
+          isTop5,
+          isTop10,
+          dnf,
+        };
+      })
+      .sort((a, b) => {
+        if (a.finishPos === null) return 1;
+        if (b.finishPos === null) return -1;
+        return a.finishPos - b.finishPos;
       });
 
-      return {
-        ...driver,
-        points: driver.points + totalRacePoints,
-        wins: driver.wins + (isWin ? 1 : 0),
-        top5: driver.top5 + (isTop5 ? 1 : 0),
-        top10: driver.top10 + (isTop10 ? 1 : 0),
-      };
+    const updatedRace = {
+      raceName: selectedRace,
+      stageCount,
+      results: raceResults,
+    };
+
+    let newHistory;
+
+    if (editingRaceName) {
+      newHistory = raceHistory.map((race) =>
+        race.raceName === editingRaceName ? updatedRace : race
+      );
+    } else {
+      newHistory = [...raceHistory, updatedRace];
+    }
+
+    const rosterOnly = drivers.map((driver) => ({
+      id: driver.id,
+      number: driver.number,
+      name: driver.name,
+      team: driver.team,
+    }));
+
+    replaceActiveSeason({
+      ...activeSeason,
+      raceHistory: newHistory,
+      drivers: rebuildDriversFromHistory(newHistory, rosterOnly),
+      selectedRace: "",
+      positions: {},
+      stage1: {},
+      stage2: {},
+      stage3: {},
+      dnfMap: {},
+      penalties: {},
     });
 
-    setDrivers(updatedDrivers);
-    setRaceHistory([
-      ...raceHistory,
-      {
-        raceName: selectedRace,
-        stageCount,
-        results: raceResults.sort((a, b) => {
-          if (a.finishPos === null) return 1;
-          if (b.finishPos === null) return -1;
-          return a.finishPos - b.finishPos;
-        }),
-      },
-    ]);
+    setEditingRaceName(null);
+  };
 
-    clearInputs();
+  const handleEditRace = (race) => {
+    const newPositions = {};
+    const newStage1 = {};
+    const newStage2 = {};
+    const newStage3 = {};
+    const newDnfMap = {};
+    const newPenalties = {};
+
+    race.results.forEach((result) => {
+      newPositions[result.driverId] = result.finishPos || "";
+      newStage1[result.driverId] = result.stage1Pos || "";
+      newStage2[result.driverId] = result.stage2Pos || "";
+      newStage3[result.driverId] = result.stage3Pos || "";
+      newDnfMap[result.driverId] = !!result.dnf;
+
+      if (result.penaltyPoints && result.penaltyPoints > 0) {
+        const matchingPenalty =
+          penaltyOptions.find(
+            (option) => option.points === result.penaltyPoints
+          ) || {
+            label: "Custom Penalty",
+            points: result.penaltyPoints,
+            reason: result.penaltyReason || "",
+          };
+
+        newPenalties[result.driverId] = matchingPenalty;
+      }
+    });
+
+    patchActiveSeason({
+      selectedRace: race.raceName,
+      positions: newPositions,
+      stage1: newStage1,
+      stage2: newStage2,
+      stage3: newStage3,
+      dnfMap: newDnfMap,
+      penalties: newPenalties,
+    });
+
+    setEditingRaceName(race.raceName);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleDeleteRace = (raceName) => {
+    if (!activeSeason) return;
+
+    const confirmed = window.confirm(
+      `Delete ${raceName}? This will recalculate the standings.`
+    );
+    if (!confirmed) return;
+
+    const newHistory = raceHistory.filter(
+      (race) => race.raceName !== raceName
+    );
+    const rosterOnly = drivers.map((driver) => ({
+      id: driver.id,
+      number: driver.number,
+      name: driver.name,
+      team: driver.team,
+    }));
+
+    replaceActiveSeason({
+      ...activeSeason,
+      raceHistory: newHistory,
+      drivers: rebuildDriversFromHistory(newHistory, rosterOnly),
+    });
+
+    if (editingRaceName === raceName) {
+      clearInputs();
+    }
   };
 
   const totalPenaltyLog = raceHistory.flatMap((race) =>
@@ -731,15 +1964,33 @@ export default function App() {
   );
 
   if (path === "/overlay/drivers" || viewMode === "overlay-drivers") {
-    return <LeaderboardOverlay drivers={drivers} />;
+    return (
+      <LeaderboardOverlay
+        drivers={drivers}
+        preview={viewMode === "overlay-drivers"}
+        seasonName={activeSeason?.name || ""}
+      />
+    );
   }
 
   if (path === "/overlay/teams" || viewMode === "overlay-teams") {
-    return <TeamOverlay teams={teamStandings} />;
+    return (
+      <TeamOverlay
+        teams={teamStandings}
+        preview={viewMode === "overlay-teams"}
+        seasonName={activeSeason?.name || ""}
+      />
+    );
   }
 
   if (path === "/standings") {
-    return <PublicStandings drivers={drivers} teams={teamStandings} />;
+    return (
+      <PublicStandings
+        drivers={drivers}
+        teams={teamStandings}
+        seasonName={activeSeason?.name || ""}
+      />
+    );
   }
 
   if (path === "/overlay/ticker" || viewMode === "overlay-ticker") {
@@ -749,6 +2000,7 @@ export default function App() {
         teams={teamStandings}
         raceHistory={raceHistory}
         preview={viewMode === "overlay-ticker"}
+        seasonName={activeSeason?.name || ""}
       />
     );
   }
@@ -774,434 +2026,797 @@ export default function App() {
               flexWrap: "wrap",
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-              <img src={logo} alt="League Logo" style={{ height: 64, width: "auto" }} />
+            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              <img src={logo} alt="League Logo" style={{ height: 54 }} />
               <div>
-                <h1 style={{ margin: 0, fontSize: 32 }}>IRL Racing League</h1>
-                <p style={{ margin: "6px 0 0 0", color: "#c7ced8" }}>
-                  Admin dashboard for standings, race entry, overlays, and penalties
-                </p>
+                <div style={{ fontSize: 30, fontWeight: 800 }}>
+                  IRL Racing League
+                </div>
+                <div style={{ opacity: 0.72 }}>Admin Dashboard</div>
               </div>
             </div>
 
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <button onClick={() => setViewMode("admin")} style={toolbarButtonStyle}>
-                Admin View
+              <button
+                style={
+                  viewMode === "admin"
+                    ? activeHeaderButtonStyle
+                    : headerButtonStyle
+                }
+                onClick={() => setViewMode("admin")}
+              >
+                Admin
               </button>
-              <button onClick={() => setViewMode("overlay-drivers")} style={toolbarButtonStyle}>
-                Driver Overlay Preview
+              <button
+                style={
+                  viewMode === "overlay-drivers"
+                    ? activeHeaderButtonStyle
+                    : headerButtonStyle
+                }
+                onClick={() => setViewMode("overlay-drivers")}
+              >
+                Driver Overlay
               </button>
-              <button onClick={() => setViewMode("overlay-teams")} style={toolbarButtonStyle}>
-                Team Overlay Preview
+              <button
+                style={
+                  viewMode === "overlay-teams"
+                    ? activeHeaderButtonStyle
+                    : headerButtonStyle
+                }
+                onClick={() => setViewMode("overlay-teams")}
+              >
+                Team Overlay
               </button>
-              <button onClick={() => setViewMode("overlay-ticker")} style={toolbarButtonStyle}>
-                Ticker Overlay Preview
+              <button
+                style={
+                  viewMode === "overlay-ticker"
+                    ? activeHeaderButtonStyle
+                    : headerButtonStyle
+                }
+                onClick={() => setViewMode("overlay-ticker")}
+              >
+                Ticker Overlay
               </button>
             </div>
           </div>
         </div>
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-            gap: 16,
-            marginBottom: 20,
-          }}
-        >
-          <div style={{ ...sectionCardStyle, padding: 16, background: "#151922" }}>
-            <div style={{ fontSize: 12, color: "#aeb6c2", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>
-              Current Leader
-            </div>
-            <div style={{ fontSize: 22, fontWeight: 700 }}>
-              {currentLeader ? `#${currentLeader.number} ${currentLeader.name}` : "—"}
-            </div>
-            <div style={{ marginTop: 6, color: "#d4af37", fontWeight: 700 }}>
-              {currentLeader ? `${currentLeader.points} pts` : ""}
-            </div>
-          </div>
-
-          <div style={{ ...sectionCardStyle, padding: 16, background: "#151922" }}>
-            <div style={{ fontSize: 12, color: "#aeb6c2", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>
-              Total Drivers
-            </div>
-            <div style={{ fontSize: 22, fontWeight: 700 }}>{totalDrivers}</div>
-            <div style={{ marginTop: 6, color: "#c7ced8" }}>Active this season</div>
-          </div>
-
-          <div style={{ ...sectionCardStyle, padding: 16, background: "#151922" }}>
-            <div style={{ fontSize: 12, color: "#aeb6c2", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>
-              Races Entered
-            </div>
-            <div style={{ fontSize: 22, fontWeight: 700 }}>{totalRacesEntered}</div>
-            <div style={{ marginTop: 6, color: "#c7ced8" }}>Saved to race history</div>
-          </div>
-
-          <div style={{ ...sectionCardStyle, padding: 16, background: "#151922" }}>
-            <div style={{ fontSize: 12, color: "#aeb6c2", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>
-              Latest Winner
-            </div>
-            <div style={{ fontSize: 22, fontWeight: 700 }}>
-              {latestWinner ? `#${latestWinner.number} ${latestWinner.name}` : "No winner yet"}
-            </div>
-            <div style={{ marginTop: 6, color: "#c7ced8" }}>
-              {latestRace ? latestRace.raceName : "No races entered"}
-            </div>
-          </div>
-        </div>
-
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1.5fr 1fr",
-            gap: 20,
-            alignItems: "start",
-            marginBottom: 20,
-          }}
-        >
-          <div style={sectionCardStyle}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-              <h2 style={{ margin: 0 }}>Driver Standings</h2>
-              <span style={{ color: "#c7ced8", fontSize: 14 }}>{sortedDrivers.length} drivers</span>
-            </div>
-
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr>
-                    <th style={tableHeaderStyle}>Pos</th>
-                    <th style={tableHeaderStyle}>#</th>
-                    <th style={tableHeaderStyle}>Driver</th>
-                    <th style={tableHeaderStyle}>Team</th>
-                    <th style={tableHeaderStyle}>Pts</th>
-                    <th style={tableHeaderStyle}>Wins</th>
-                    <th style={tableHeaderStyle}>Top 5</th>
-                    <th style={tableHeaderStyle}>Top 10</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedDrivers.map((driver, index) => (
-                    <tr key={driver.id}>
-                      <td style={tableCellStyle}>{index + 1}</td>
-                      <td style={tableCellStyle}>#{driver.number}</td>
-                      <td style={tableCellStyle}>{driver.name}</td>
-                      <td style={tableCellStyle}>{driver.team}</td>
-                      <td style={{ ...tableCellStyle, fontWeight: 700 }}>{driver.points}</td>
-                      <td style={tableCellStyle}>{driver.wins}</td>
-                      <td style={tableCellStyle}>{driver.top5}</td>
-                      <td style={tableCellStyle}>{driver.top10}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div style={sectionCardStyle}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-              <h2 style={{ margin: 0 }}>Team Standings</h2>
-              <span style={{ color: "#c7ced8", fontSize: 14 }}>{teamStandings.length} teams</span>
-            </div>
-
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr>
-                    <th style={tableHeaderStyle}>Pos</th>
-                    <th style={tableHeaderStyle}>Team</th>
-                    <th style={tableHeaderStyle}>Pts</th>
-                    <th style={tableHeaderStyle}>Wins</th>
-                    <th style={tableHeaderStyle}>Top 5</th>
-                    <th style={tableHeaderStyle}>Top 10</th>
-                    <th style={tableHeaderStyle}>Drivers</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {teamStandings.map((team, index) => (
-                    <tr key={team.team}>
-                      <td style={tableCellStyle}>{index + 1}</td>
-                      <td style={tableCellStyle}>{team.team}</td>
-                      <td style={{ ...tableCellStyle, fontWeight: 700 }}>{team.points}</td>
-                      <td style={tableCellStyle}>{team.wins}</td>
-                      <td style={tableCellStyle}>{team.top5}</td>
-                      <td style={tableCellStyle}>{team.top10}</td>
-                      <td style={tableCellStyle}>{team.drivers}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        <div style={{ ...sectionCardStyle, marginBottom: 20 }}>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              gap: 12,
-              flexWrap: "wrap",
-              marginBottom: 16,
-            }}
-          >
-            <h2 style={{ margin: 0 }}>Enter Race Results</h2>
-            <div style={{ color: "#c7ced8", fontSize: 14 }}>
-              {selectedRace ? `Stages for ${selectedRace}: ${stageCount}` : "Choose a race to begin"}
-            </div>
-          </div>
+        <div style={sectionCardStyle}>
+          <h2 style={{ marginTop: 0 }}>Season Manager</h2>
 
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "minmax(220px, 320px)",
-              gap: 16,
-              marginBottom: 20,
+              gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+              gap: 12,
+              marginBottom: 16,
             }}
           >
             <div>
-              <label style={labelStyle}>Select Race</label>
+              <div style={{ marginBottom: 6, fontWeight: 700 }}>
+                Active Season
+              </div>
               <select
-                value={selectedRace}
-                onChange={(e) => setSelectedRace(e.target.value)}
                 style={inputStyle}
+                value={activeSeasonId}
+                onChange={(e) => switchSeason(e.target.value)}
               >
-                <option value="">-- Choose a Race --</option>
+                {seasons.map((season) => (
+                  <option key={season.id} value={season.id}>
+                    {season.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <div style={{ marginBottom: 6, fontWeight: 700 }}>
+                Create New Season
+              </div>
+              <input
+                style={inputStyle}
+                value={newSeasonName}
+                onChange={(e) => setNewSeasonName(e.target.value)}
+                placeholder="Example: 2026 Regular Season"
+              />
+            </div>
+
+            <div>
+              <div style={{ marginBottom: 6, fontWeight: 700 }}>
+                Rename Active Season
+              </div>
+              <input
+                style={inputStyle}
+                value={renameSeasonName}
+                onChange={(e) => setRenameSeasonName(e.target.value)}
+                placeholder="Rename current season"
+              />
+            </div>
+          </div>
+
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <button onClick={createSeason} style={primaryButtonStyle}>
+              Create Season
+            </button>
+            <button onClick={renameActiveSeason} style={secondaryButtonStyle}>
+              Save Season Name
+            </button>
+            <button onClick={deleteActiveSeason} style={dangerButtonStyle}>
+              Delete Active Season
+            </button>
+          </div>
+        </div>
+
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 16,
+            marginBottom: 20,
+          }}
+        >
+          <div style={statBoxStyle}>
+            <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 6 }}>
+              ACTIVE SEASON
+            </div>
+            <div style={{ fontSize: 24, fontWeight: 800 }}>
+              {activeSeason?.name || "—"}
+            </div>
+          </div>
+          <div style={statBoxStyle}>
+            <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 6 }}>
+              CURRENT LEADER
+            </div>
+            <div style={{ fontSize: 24, fontWeight: 800 }}>
+              {currentLeader
+                ? `#${currentLeader.number} ${currentLeader.name}`
+                : "—"}
+            </div>
+          </div>
+          <div style={statBoxStyle}>
+            <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 6 }}>
+              TOTAL DRIVERS
+            </div>
+            <div style={{ fontSize: 24, fontWeight: 800 }}>
+              {totalDrivers}
+            </div>
+          </div>
+          <div style={statBoxStyle}>
+            <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 6 }}>
+              RACES ENTERED
+            </div>
+            <div style={{ fontSize: 24, fontWeight: 800 }}>
+              {totalRacesEntered}
+            </div>
+          </div>
+          <div style={statBoxStyle}>
+            <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 6 }}>
+              LATEST WINNER
+            </div>
+            <div style={{ fontSize: 24, fontWeight: 800 }}>
+              {latestWinner
+                ? `#${latestWinner.number} ${latestWinner.name}`
+                : "—"}
+            </div>
+          </div>
+        </div>
+
+        <div style={sectionCardStyle}>
+          <h2 style={{ marginTop: 0 }}>Backup & Restore</h2>
+          <div style={{ opacity: 0.78, marginBottom: 14 }}>
+            Export the active season, export all seasons, import a backup, or
+            archive and reset the active season.
+          </div>
+
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <button onClick={exportBackup} style={primaryButtonStyle}>
+              Export Active Season
+            </button>
+
+            <button onClick={exportAllSeasonsBackup} style={secondaryButtonStyle}>
+              Export All Seasons
+            </button>
+
+            <button
+              onClick={() => importFileRef.current?.click()}
+              style={secondaryButtonStyle}
+            >
+              Import Backup
+            </button>
+
+            <input
+              ref={importFileRef}
+              type="file"
+              accept=".json,application/json"
+              onChange={handleImportBackup}
+              style={{ display: "none" }}
+            />
+          </div>
+        </div>
+
+        <div style={sectionCardStyle}>
+          <h2 style={{ marginTop: 0 }}>Driver Management</h2>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+              gap: 12,
+              marginBottom: 16,
+            }}
+          >
+            <div>
+              <div style={{ marginBottom: 6, fontWeight: 700 }}>
+                Driver Name
+              </div>
+              <input
+                style={inputStyle}
+                value={newDriverName}
+                onChange={(e) => setNewDriverName(e.target.value)}
+                placeholder="Enter driver name"
+              />
+            </div>
+
+            <div>
+              <div style={{ marginBottom: 6, fontWeight: 700 }}>Number</div>
+              <input
+                style={inputStyle}
+                value={newDriverNumber}
+                onChange={(e) => setNewDriverNumber(e.target.value)}
+                placeholder="Enter car number"
+                type="number"
+              />
+            </div>
+
+            <div>
+              <div style={{ marginBottom: 6, fontWeight: 700 }}>Team</div>
+              <input
+                style={inputStyle}
+                value={newDriverTeam}
+                onChange={(e) => setNewDriverTeam(e.target.value)}
+                placeholder="Enter team name"
+              />
+            </div>
+          </div>
+
+          <div style={{ marginBottom: 18 }}>
+            <button onClick={addDriver} style={primaryButtonStyle}>
+              Add Driver
+            </button>
+          </div>
+
+          <div style={{ overflowX: "auto" }}>
+            <table style={tableStyle}>
+              <thead>
+                <tr>
+                  <th style={thStyle}>#</th>
+                  <th style={thStyle}>Driver</th>
+                  <th style={thStyle}>Team</th>
+                  <th style={thStyle}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {drivers.map((driver) => (
+                  <tr key={driver.id}>
+                    <td style={tdStyle}>{driver.number}</td>
+                    <td style={tdStyle}>{driver.name}</td>
+                    <td style={tdStyle}>{driver.team}</td>
+                    <td style={tdStyle}>
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: 8,
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        <button
+                          onClick={() => openEditDriver(driver)}
+                          style={secondaryButtonStyle}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => removeDriver(driver.id)}
+                          style={dangerButtonStyle}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {editingDriverId && (
+            <div
+              style={{
+                marginTop: 20,
+                paddingTop: 18,
+                borderTop: "1px solid #313947",
+              }}
+            >
+              <h3 style={{ marginTop: 0 }}>Edit Driver</h3>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                  gap: 12,
+                  marginBottom: 12,
+                }}
+              >
+                <div>
+                  <div style={{ marginBottom: 6, fontWeight: 700 }}>
+                    Driver Name
+                  </div>
+                  <input
+                    style={inputStyle}
+                    value={editDriverForm.name}
+                    onChange={(e) =>
+                      setEditDriverForm({
+                        ...editDriverForm,
+                        name: e.target.value,
+                      })
+                    }
+                    placeholder="Driver name"
+                  />
+                </div>
+
+                <div>
+                  <div style={{ marginBottom: 6, fontWeight: 700 }}>
+                    Number
+                  </div>
+                  <input
+                    style={inputStyle}
+                    value={editDriverForm.number}
+                    onChange={(e) =>
+                      setEditDriverForm({
+                        ...editDriverForm,
+                        number: e.target.value,
+                      })
+                    }
+                    placeholder="Car number"
+                    type="number"
+                  />
+                </div>
+
+                <div>
+                  <div style={{ marginBottom: 6, fontWeight: 700 }}>Team</div>
+                  <input
+                    style={inputStyle}
+                    value={editDriverForm.team}
+                    onChange={(e) =>
+                      setEditDriverForm({
+                        ...editDriverForm,
+                        team: e.target.value,
+                      })
+                    }
+                    placeholder="Team name"
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <button onClick={saveDriverEdit} style={primaryButtonStyle}>
+                  Save Changes
+                </button>
+                <button
+                  onClick={cancelEditDriver}
+                  style={secondaryButtonStyle}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div style={sectionCardStyle}>
+          <h2 style={{ marginTop: 0 }}>
+            {editingRaceName
+              ? `Edit Race: ${editingRaceName}`
+              : "Enter Race Results"}
+          </h2>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+              gap: 14,
+              marginBottom: 18,
+            }}
+          >
+            <div>
+              <label
+                style={{ display: "block", marginBottom: 6, fontWeight: 700 }}
+              >
+                Race
+              </label>
+              <select
+                style={inputStyle}
+                value={selectedRace}
+                onChange={(e) =>
+                  patchActiveSeason({ selectedRace: e.target.value })
+                }
+              >
+                <option value="">Select a race</option>
                 {races.map((race) => (
-                  <option key={race.id} value={race.name}>
+                  <option key={race.name} value={race.name}>
                     {race.name}
                   </option>
                 ))}
               </select>
             </div>
-          </div>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
-              gap: 16,
-            }}
-          >
-            {drivers.map((driver) => (
+            <div>
+              <label
+                style={{ display: "block", marginBottom: 6, fontWeight: 700 }}
+              >
+                Stage Setup
+              </label>
               <div
-                key={driver.id}
                 style={{
-                  background: "#111418",
-                  border: "1px solid #2f343c",
-                  borderRadius: 14,
-                  padding: 16,
+                  ...inputStyle,
+                  display: "flex",
+                  alignItems: "center",
+                  minHeight: 42,
                 }}
               >
-                <div style={{ marginBottom: 14 }}>
-                  <div style={{ fontWeight: 700, fontSize: 18 }}>
-                    #{driver.number} {driver.name}
-                  </div>
-                  <div style={{ color: "#b7bfca", fontSize: 13, marginTop: 4 }}>{driver.team}</div>
-                </div>
+                {selectedRace
+                  ? `${stageCount} scoring stages`
+                  : "Select a race to view stage count"}
+              </div>
+            </div>
+          </div>
 
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(2, 1fr)",
-                    gap: 12,
-                  }}
-                >
-                  <div>
-                    <label style={labelStyle}>Finish Position</label>
-                    <input
-                      type="number"
-                      value={positions[driver.id] ?? ""}
-                      onChange={(e) => handlePositionChange(driver.id, e.target.value)}
-                      style={inputStyle}
-                    />
-                  </div>
-
-                  <div>
-                    <label style={labelStyle}>Stage 1 Finish</label>
-                    <input
-                      type="number"
-                      value={stage1[driver.id] ?? ""}
-                      onChange={(e) => handleStage1Change(driver.id, e.target.value)}
-                      style={inputStyle}
-                    />
-                  </div>
-
-                  <div>
-                    <label style={labelStyle}>Stage 2 Finish</label>
-                    <input
-                      type="number"
-                      value={stage2[driver.id] ?? ""}
-                      onChange={(e) => handleStage2Change(driver.id, e.target.value)}
-                      style={inputStyle}
-                    />
-                  </div>
-
-                  <div>
-                    <label style={labelStyle}>Stage 3 Finish</label>
-                    <input
-                      type="number"
-                      value={stage3[driver.id] ?? ""}
-                      onChange={(e) => handleStage3Change(driver.id, e.target.value)}
-                      style={inputStyle}
-                    />
-                  </div>
-
-                  {stageCount === 4 && (
-                    <div>
-                      <label style={labelStyle}>Stage 4 Finish</label>
+          <div style={{ overflowX: "auto" }}>
+            <table style={tableStyle}>
+              <thead>
+                <tr>
+                  <th style={thStyle}>#</th>
+                  <th style={thStyle}>Driver</th>
+                  <th style={thStyle}>Team</th>
+                  <th style={thStyle}>Finish</th>
+                  <th style={thStyle}>Stage 1</th>
+                  <th style={thStyle}>Stage 2</th>
+                  {stageCount === 3 && <th style={thStyle}>Stage 3</th>}
+                  <th style={thStyle}>DNF</th>
+                  <th style={thStyle}>Penalty</th>
+                </tr>
+              </thead>
+              <tbody>
+                {drivers.map((driver) => (
+                  <tr key={driver.id}>
+                    <td style={tdStyle}>{driver.number}</td>
+                    <td style={tdStyle}>{driver.name}</td>
+                    <td style={tdStyle}>{driver.team}</td>
+                    <td style={tdStyle}>
                       <input
                         type="number"
-                        value={stage4[driver.id] ?? ""}
-                        onChange={(e) => handleStage4Change(driver.id, e.target.value)}
+                        min="1"
+                        max="40"
                         style={inputStyle}
+                        value={positions[driver.id] || ""}
+                        onChange={(e) =>
+                          handlePositionChange(driver.id, e.target.value)
+                        }
                       />
-                    </div>
-                  )}
-
-                  <div style={{ gridColumn: "1 / -1" }}>
-                    <label style={labelStyle}>Penalty Preset</label>
-                    <select
-                      value={penalties[driver.id]?.label ?? "No Penalty"}
-                      onChange={(e) => handlePenaltyPresetChange(driver.id, e.target.value)}
-                      style={inputStyle}
-                    >
-                      {penaltyOptions.map((option) => (
-                        <option key={option.label} value={option.label}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </div>
-            ))}
+                    </td>
+                    <td style={tdStyle}>
+                      <input
+                        type="number"
+                        min="1"
+                        max="10"
+                        style={inputStyle}
+                        value={stage1[driver.id] || ""}
+                        onChange={(e) =>
+                          handleStage1Change(driver.id, e.target.value)
+                        }
+                      />
+                    </td>
+                    <td style={tdStyle}>
+                      <input
+                        type="number"
+                        min="1"
+                        max="10"
+                        style={inputStyle}
+                        value={stage2[driver.id] || ""}
+                        onChange={(e) =>
+                          handleStage2Change(driver.id, e.target.value)
+                        }
+                      />
+                    </td>
+                    {stageCount === 3 && (
+                      <td style={tdStyle}>
+                        <input
+                          type="number"
+                          min="1"
+                          max="10"
+                          style={inputStyle}
+                          value={stage3[driver.id] || ""}
+                          onChange={(e) =>
+                            handleStage3Change(driver.id, e.target.value)
+                          }
+                        />
+                      </td>
+                    )}
+                    <td style={tdStyle}>
+                      <label
+                        style={{ display: "flex", alignItems: "center", gap: 8 }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={!!dnfMap[driver.id]}
+                          onChange={(e) =>
+                            handleDnfChange(driver.id, e.target.checked)
+                          }
+                        />
+                        DNF
+                      </label>
+                    </td>
+                    <td style={tdStyle}>
+                      <select
+                        style={inputStyle}
+                        value={penalties[driver.id]?.label || "No Penalty"}
+                        onChange={(e) =>
+                          handlePenaltyPresetChange(driver.id, e.target.value)
+                        }
+                      >
+                        {penaltyOptions.map((option) => (
+                          <option key={option.label} value={option.label}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
 
           <div
             style={{
               display: "flex",
-              gap: 12,
+              gap: 10,
               flexWrap: "wrap",
-              marginTop: 20,
+              marginTop: 18,
             }}
           >
             <button onClick={submitResults} style={primaryButtonStyle}>
-              Submit Race
+              {editingRaceName ? "Update Race" : "Submit Results"}
             </button>
+
+            {editingRaceName && (
+              <button onClick={clearInputs} style={secondaryButtonStyle}>
+                Cancel Edit
+              </button>
+            )}
+
             <button onClick={clearInputs} style={secondaryButtonStyle}>
               Clear Inputs
             </button>
+
             <button onClick={resetSeason} style={dangerButtonStyle}>
-              Reset Season
+              Archive + Reset Active Season
             </button>
           </div>
         </div>
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1.4fr 1fr",
-            gap: 20,
-            alignItems: "start",
-          }}
-        >
-          <div style={sectionCardStyle}>
-            <h2 style={{ marginTop: 0 }}>Race History</h2>
+        <div style={sectionCardStyle}>
+          <h2 style={{ marginTop: 0 }}>Driver Standings</h2>
+          <div style={{ overflowX: "auto" }}>
+            <table style={tableStyle}>
+              <thead>
+                <tr>
+                  <th style={thStyle}>Pos</th>
+                  <th style={thStyle}>#</th>
+                  <th style={thStyle}>Driver</th>
+                  <th style={thStyle}>Team</th>
+                  <th style={thStyle}>Points</th>
+                  <th style={thStyle}>Wins</th>
+                  <th style={thStyle}>Top 5</th>
+                  <th style={thStyle}>Top 10</th>
+                  <th style={thStyle}>DNFs</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedDrivers.map((driver, index) => (
+                  <tr key={driver.id}>
+                    <td style={tdStyle}>{index + 1}</td>
+                    <td style={tdStyle}>{driver.number}</td>
+                    <td style={tdStyle}>{driver.name}</td>
+                    <td style={tdStyle}>{driver.team}</td>
+                    <td style={tdStyle}>{driver.points}</td>
+                    <td style={tdStyle}>{driver.wins}</td>
+                    <td style={tdStyle}>{driver.top5}</td>
+                    <td style={tdStyle}>{driver.top10}</td>
+                    <td style={tdStyle}>{driver.dnfs || 0}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
 
-            {raceHistory.length === 0 ? (
-              <p style={{ color: "#c7ced8", marginBottom: 0 }}>No races entered yet.</p>
-            ) : (
-              <div style={{ display: "grid", gap: 16 }}>
-                {raceHistory.map((race, index) => (
+        <div style={sectionCardStyle}>
+          <h2 style={{ marginTop: 0 }}>Team Standings</h2>
+          <div style={{ overflowX: "auto" }}>
+            <table style={tableStyle}>
+              <thead>
+                <tr>
+                  <th style={thStyle}>Pos</th>
+                  <th style={thStyle}>Team</th>
+                  <th style={thStyle}>Points</th>
+                  <th style={thStyle}>Wins</th>
+                  <th style={thStyle}>Top 5</th>
+                  <th style={thStyle}>Top 10</th>
+                  <th style={thStyle}>Drivers</th>
+                </tr>
+              </thead>
+              <tbody>
+                {teamStandings.map((team, index) => (
+                  <tr key={team.team}>
+                    <td style={tdStyle}>{index + 1}</td>
+                    <td style={tdStyle}>{team.team}</td>
+                    <td style={tdStyle}>{team.points}</td>
+                    <td style={tdStyle}>{team.wins}</td>
+                    <td style={tdStyle}>{team.top5}</td>
+                    <td style={tdStyle}>{team.top10}</td>
+                    <td style={tdStyle}>{team.drivers}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div style={sectionCardStyle}>
+          <h2 style={{ marginTop: 0 }}>Race History</h2>
+
+          {raceHistory.length === 0 ? (
+            <div style={{ opacity: 0.75 }}>No races entered yet.</div>
+          ) : (
+            <div style={{ display: "grid", gap: 16 }}>
+              {raceHistory.map((race) => {
+                const winner = race.results?.find(
+                  (result) => result.finishPos === 1
+                );
+
+                return (
                   <div
-                    key={index}
+                    key={race.raceName}
                     style={{
-                      background: "#111418",
-                      border: "1px solid #2f343c",
+                      background: "#10141b",
+                      border: "1px solid #2b3441",
                       borderRadius: 14,
                       padding: 16,
                     }}
                   >
-                    <h3 style={{ marginTop: 0, marginBottom: 12 }}>
-                      {race.raceName} ({race.stageCount} stages)
-                    </h3>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        gap: 12,
+                        flexWrap: "wrap",
+                        marginBottom: 10,
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontSize: 20, fontWeight: 800 }}>
+                          {race.raceName}
+                        </div>
+                        <div style={{ opacity: 0.75 }}>
+                          {race.stageCount} scoring stages
+                          {winner
+                            ? ` • Winner: #${winner.number} ${winner.name}`
+                            : ""}
+                        </div>
+                      </div>
+
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <button
+                          onClick={() => handleEditRace(race)}
+                          style={secondaryButtonStyle}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDeleteRace(race.raceName)}
+                          style={dangerButtonStyle}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
 
                     <div style={{ overflowX: "auto" }}>
-                      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                      <table style={tableStyle}>
                         <thead>
                           <tr>
-                            <th style={tableHeaderStyle}>Fin</th>
-                            <th style={tableHeaderStyle}>Driver</th>
-                            <th style={tableHeaderStyle}>Team</th>
-                            <th style={tableHeaderStyle}>S1</th>
-                            <th style={tableHeaderStyle}>S2</th>
-                            <th style={tableHeaderStyle}>S3</th>
-                            {race.stageCount === 4 ? <th style={tableHeaderStyle}>S4</th> : null}
-                            <th style={tableHeaderStyle}>Penalty</th>
-                            <th style={tableHeaderStyle}>Earned</th>
+                            <th style={thStyle}>Finish</th>
+                            <th style={thStyle}>#</th>
+                            <th style={thStyle}>Driver</th>
+                            <th style={thStyle}>Team</th>
+                            <th style={thStyle}>Race Pts</th>
+                            <th style={thStyle}>Stage 1</th>
+                            <th style={thStyle}>Stage 2</th>
+                            {race.stageCount === 3 && (
+                              <th style={thStyle}>Stage 3</th>
+                            )}
+                            <th style={thStyle}>DNF</th>
+                            <th style={thStyle}>Penalty</th>
+                            <th style={thStyle}>Total</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {race.results.map((result, i) => (
-                            <tr key={i}>
-                              <td style={tableCellStyle}>P{result.finishPos ?? "-"}</td>
-                              <td style={tableCellStyle}>
-                                #{result.number} {result.name}
+                          {race.results.map((result) => (
+                            <tr key={result.driverId}>
+                              <td style={tdStyle}>{result.finishPos ?? "—"}</td>
+                              <td style={tdStyle}>{result.number}</td>
+                              <td style={tdStyle}>{result.name}</td>
+                              <td style={tdStyle}>{result.team}</td>
+                              <td style={tdStyle}>{result.finishPoints}</td>
+                              <td style={tdStyle}>{result.stage1Points}</td>
+                              <td style={tdStyle}>{result.stage2Points}</td>
+                              {race.stageCount === 3 && (
+                                <td style={tdStyle}>{result.stage3Points}</td>
+                              )}
+                              <td style={tdStyle}>
+                                {result.dnf ? "DNF" : "—"}
                               </td>
-                              <td style={tableCellStyle}>{result.team}</td>
-                              <td style={tableCellStyle}>{result.stage1Pos ?? "-"}</td>
-                              <td style={tableCellStyle}>{result.stage2Pos ?? "-"}</td>
-                              <td style={tableCellStyle}>{result.stage3Pos ?? "-"}</td>
-                              {race.stageCount === 4 ? (
-                                <td style={tableCellStyle}>{result.stage4Pos ?? "-"}</td>
-                              ) : null}
-                              <td style={tableCellStyle}>
-                                -{result.penaltyPoints || 0}
-                                {result.penaltyReason ? ` (${result.penaltyReason})` : ""}
+                              <td style={tdStyle}>
+                                {result.penaltyPoints > 0
+                                  ? `-${result.penaltyPoints}`
+                                  : "0"}
                               </td>
-                              <td style={{ ...tableCellStyle, fontWeight: 700 }}>{result.totalRacePoints}</td>
+                              <td style={tdStyle}>{result.totalRacePoints}</td>
                             </tr>
                           ))}
                         </tbody>
                       </table>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
 
-          <div style={sectionCardStyle}>
-            <h2 style={{ marginTop: 0 }}>Penalty Log</h2>
+        <div style={sectionCardStyle}>
+          <h2 style={{ marginTop: 0 }}>Penalty Log</h2>
 
-            {totalPenaltyLog.length === 0 ? (
-              <p style={{ color: "#c7ced8", marginBottom: 0 }}>No penalties recorded yet.</p>
-            ) : (
-              <div style={{ display: "grid", gap: 12 }}>
-                {totalPenaltyLog.map((penalty, index) => (
-                  <div
-                    key={index}
-                    style={{
-                      background: "#111418",
-                      border: "1px solid #2f343c",
-                      borderRadius: 12,
-                      padding: 14,
-                    }}
-                  >
-                    <div style={{ fontWeight: 700, marginBottom: 4 }}>{penalty.raceName}</div>
-                    <div style={{ color: "#d9e0ea" }}>
-                      #{penalty.number} {penalty.name}
-                    </div>
-                    <div style={{ color: "#ffb7b7", marginTop: 6 }}>
-                      -{penalty.penaltyPoints} pts
-                      {penalty.penaltyReason ? ` (${penalty.penaltyReason})` : ""}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          {totalPenaltyLog.length === 0 ? (
+            <div style={{ opacity: 0.75 }}>No penalties logged yet.</div>
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table style={tableStyle}>
+                <thead>
+                  <tr>
+                    <th style={thStyle}>Race</th>
+                    <th style={thStyle}>#</th>
+                    <th style={thStyle}>Driver</th>
+                    <th style={thStyle}>Penalty</th>
+                    <th style={thStyle}>Reason</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {totalPenaltyLog.map((entry, index) => (
+                    <tr key={`${entry.raceName}-${entry.number}-${index}`}>
+                      <td style={tdStyle}>{entry.raceName}</td>
+                      <td style={tdStyle}>{entry.number}</td>
+                      <td style={tdStyle}>{entry.name}</td>
+                      <td style={tdStyle}>-{entry.penaltyPoints}</td>
+                      <td style={tdStyle}>{entry.penaltyReason || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
     </div>
