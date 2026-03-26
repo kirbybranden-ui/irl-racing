@@ -2111,26 +2111,26 @@ export default function App() {
   };
 
   const totalPenaltyLog = raceHistory.flatMap((race) =>
-  race.results
-    .filter((result) => result.penaltyPoints > 0)
-    .map((result) => ({
-      raceName: race.raceName,
-      number: result.number,
-      name: result.name,
-      penaltyPoints: result.penaltyPoints,
-      penaltyReason: result.penaltyReason,
+    race.results
+      .filter((result) => result.penaltyPoints > 0)
+      .map((result) => ({
+        raceName: race.raceName,
+        number: result.number,
+        name: result.name,
+        penaltyPoints: result.penaltyPoints,
+        penaltyReason: result.penaltyReason,
     }))
 );
 
-if (!isHydrated) {
-  return (
-    <div style={appShellStyle}>
-      <div style={pageContainerStyle}>
-        <div style={sectionCardStyle}>Loading league data...</div>
+  if (!isHydrated) {
+    return (
+      <div style={appShellStyle}>
+        <div style={pageContainerStyle}>
+          <div style={sectionCardStyle}>Loading league data...</div>
+        </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
 
 if (path === "/overlay/drivers" || viewMode === "overlay-drivers") {
   return (
@@ -3111,18 +3111,6 @@ if (path === "/overlay/ticker" || viewMode === "overlay-ticker") {
       </div>
     </div>
   );
-  }
-  const path = window.location.pathname.toLowerCase( );
-
-  if (!isHydrated)  {
-    return (
-      <div style={appShellStyle}>
-        <div style={pageContainerStyle}>
-            <div style={sectionCardStyle}>
-            </div>
-        </div>
-     </div>
-    );
   }
 
   if (path === "/overlay/drivers" || viewMode === "overlay-drivers") {
