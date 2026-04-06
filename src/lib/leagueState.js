@@ -18,13 +18,15 @@ export async function loadLeagueState() {
 }
 
 export async function saveLeagueState(state) {
+  if (!supabase) return;
+
   const { error } = await supabase
     .from("league_state")
     .upsert({
-      season_name: SEASON_NAME,
+      season_name: ROW_KEY,
       data: state,
       updated_at: new Date().toISOString(),
-    });
+    }, { onConflict: "season_name" });  // ← add this line
 
   if (error) {
     console.error("Save error:", error);
