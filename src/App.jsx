@@ -1070,38 +1070,47 @@ export default function App() {
   const path = window.location.pathname.toLowerCase();
 
   useEffect(() => {
-    let isMounted = true;
+  let isMounted = true;
 
-    async function hydrateFromSupabase() {
-      try {
-        const savedState = await loadLeagueState();
-        if (!isMounted) return;
+  async function hydrateFromSupabase() {
+    try {
+      const savedState = await loadLeagueState();
+      if (!isMounted) return;
 
-        if (savedState?.seasons && Array.isArray(savedState.seasons)) {
-          const cleanSeasons = savedState.seasons.map((season, index) =>
-            sanitizeSeason(season, `Season ${index + 1}`)
+      if (savedState?.seasons && Array.isArray(savedState.seasons)) {
+        const cleanSeasons = savedState.seasons.map((season, index) =>
+          sanitizeSeason(season, `Season ${index + 1}`)
+        );
+        if (cleanSeasons.length > 0) {
+          setSeasons(cleanSeasons);
+          const activeExists = cleanSeasons.some(
+            (season) => season.id === savedState.activeSeasonId
           );
-
-          if (cleanSeasons.length > 0) {
-            setSeasons(cleanSeasons);
-            const activeExists = cleanSeasons.some(
-              (season) => season.id === savedState.activeSeasonId
-            );
-            setActiveSeasonId(
-              activeExists ? savedState.activeSeasonId : cleanSeasons[0].id
-            );
-          }
+          setActiveSeasonId(
+            activeExists ? savedState.activeSeasonId : cleanSeasons[0].id
+          );
         }
-      } catch (error) {
-        console.error("Supabase load failed:", error);
-      } finally {
-        if (isMounted) setIsHydrated(true);
       }
+    } catch (error) {
+      console.error("Supabase load failed:", error);
+    } finally {
+      if (isMounted) setIsHydrated(true);
     }
+  }
 
-    hydrateFromSupabase();
-    return () => { isMounted = false; };
-  }, []);
+  hydrateFromSupabase();
+
+  // Auto-refresh every 10 seconds on public pages
+  let interval = null;
+  if (path === "/standings" || path === "/overlay/drivers" || path === "/overlay/teams" || path === "/overlay/ticker") {
+    interval = setInterval(hydrateFromSupabase, 10000);
+  }
+
+  return () => {
+    isMounted = false;
+    if (interval) clearInterval(interval);
+  };
+}, []);
 
   useEffect(() => {
     if (!isHydrated) return;
