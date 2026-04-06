@@ -1,12 +1,14 @@
 import { supabase } from "./supabase";
 
-const SEASON_NAME = "2026 Season";
+const ROW_KEY = "irl-league";
 
 export async function loadLeagueState() {
+  if (!supabase) return null;
+
   const { data, error } = await supabase
     .from("league_state")
     .select("*")
-    .eq("season_name", SEASON_NAME)
+    .eq("season_name", ROW_KEY)
     .maybeSingle();
 
   if (error) {
@@ -26,7 +28,7 @@ export async function saveLeagueState(state) {
       season_name: ROW_KEY,
       data: state,
       updated_at: new Date().toISOString(),
-    }, { onConflict: "season_name" });  // ← add this line
+    }, { onConflict: "season_name" });
 
   if (error) {
     console.error("Save error:", error);
