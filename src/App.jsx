@@ -8,15 +8,16 @@ const defaultDrivers = [
   { id: 3, number: 18, name: "bowhunter6758", team: "JAM" },
   { id: 4, number: 81, name: "HOLDEN2DX4EV3R", team: "JAM" },
   { id: 5, number: 60, name: "tropicalakari", team: "PMS" },
-  { id: 6, number: 61, name: "Lamloc", team: "PMS" },
-  { id: 7, number: 14, name: "KAPSIG", team: "PMS" },
+  { id: 6, number: 61, name: "Lamloc - Quit", team: "PMS" },
+  { id: 7, number: 14, name: "KAPSIG - Quit", team: "PMS" },
   { id: 8, number: 88, name: "BLUEDREAM2YT2010", team: "PMS" },
   { id: 9, number: 10, name: "Jimmy Diimes.", team: "BNR" },
   { id: 10, number: 4, name: "segregated-Chimp", team: "BNR" },
-  { id: 11, number: 27, name: "TheCoachDan", team: "BNR" },
+  { id: 11, number: 27, name: "TheCoachDan - Quit", team: "BNR" },
   { id: 12, number: 94, name: "all-boston-sport", team: "BNR" },
-  { id: 13, number: 19, name: "Silvereyeac", team: "None" },
+  { id: 13, number: 19, name: "KING-ot-PIRATES", team: "None" },
   { id: 14, number: 24, name: "Kevdinho7", team: "None" },
+  { id: 15, number: 16, name: "YT_99KILLS", team: "None" },
 ];
 
 const races = [
