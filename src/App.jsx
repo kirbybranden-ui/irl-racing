@@ -1,5 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import logo from "./assets/logo.png";
+import teamLogoJAM from "./assets/teams/JAM.png";
+import teamLogoPMS from "./assets/teams/PMS.png";
+import teamLogoBNR from "./assets/teams/BNR.png";
+
+const teamLogos = {
+  JAM: teamLogoJAM,
+  PMS: teamLogoPMS,
+  BNR: teamLogoBNR,
+};
 import { loadLeagueState, saveLeagueState } from "./lib/leagueState";
 
 const defaultDrivers = [
@@ -95,6 +104,14 @@ function getTeamBranding(teamName) {
 
 function renderTeamBadge(teamName, size = 44) {
   const brand = getTeamBranding(teamName);
+  const logoSrc = teamLogos[teamName];
+  if (logoSrc) {
+    return (
+      <div style={{ width: size, height: size, minWidth: size, borderRadius: "50%", overflow: "hidden", border: "2px solid rgba(255,255,255,0.15)", boxShadow: "0 6px 16px rgba(0,0,0,0.25)", background: "#111" }}>
+        <img src={logoSrc} alt={teamName} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+      </div>
+    );
+  }
   return (
     <div style={{ width: size, height: size, minWidth: size, borderRadius: "50%", background: `linear-gradient(135deg, ${brand.accent} 0%, ${brand.dark} 100%)`, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, color: "white", border: "2px solid rgba(255,255,255,0.15)", boxShadow: "0 6px 16px rgba(0,0,0,0.25)", fontSize: size * 0.38 }}>
       {brand.logo}
