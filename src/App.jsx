@@ -7,7 +7,7 @@ const defaultDrivers = [
   { id: 2, number: 46, name: "RookieVet99", team: "JAM" },
   { id: 3, number: 18, name: "bowhunter6758", team: "JAM" },
   { id: 4, number: 81, name: "HOLDEN2DX4EV3R", team: "JAM" },
-  { id: 5, number: 60, name: "tropicalakari", team: "PMS" },
+  { id: 5, number: 60, name: "SimplyGwen", team: "PMS" },
   { id: 6, number: 61, name: "Lamloc - Quit", team: "PMS" },
   { id: 7, number: 14, name: "KAPSIG - Quit", team: "PMS" },
   { id: 8, number: 88, name: "BLUEDREAM2YT2010", team: "PMS" },
