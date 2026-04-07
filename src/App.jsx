@@ -124,7 +124,7 @@ function rebuildDriversFromHistory(history, driverRoster) {
       points += result.totalRacePoints || 0;
       wins += result.isWin ? 1 : 0;
       top3 += result.isTop3 ? 1 : 0;
-      top5 += result.isTop3 ? 1 : 0;
+      top5 += result.isTop5 ? 1 : 0;
       dnfs += result.dnf ? 1 : 0;
       fastestLaps += result.fastestLap ? 1 : 0;
       totalPenalties += result.penaltyPoints || 0;
@@ -291,7 +291,7 @@ function PublicStandings({ drivers, teams, seasonName = "" }) {
           <div style={{ fontSize: 26, fontWeight: 900, marginBottom: 14 }}>Driver Standings</div>
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead><tr><th style={thStyle}>Pos</th><th style={thStyle}>Team</th><th style={thStyle}>#</th><th style={thStyle}>Driver</th><th style={thStyle}>Team Name</th><th style={thStyle}>Points</th><th style={thStyle}>Wins</th><th style={thStyle}>Top 3</th><th style={thStyle}>Top 5</th><th style={thStyle}>DNFs</th></tr></thead>
+              <thead><tr><th style={thStyle}>Pos</th><th style={thStyle}>Team</th><th style={thStyle}>#</th><th style={thStyle}>Driver</th><th style={thStyle}>Team Name</th><th style={thStyle}>Points</th><th style={thStyle}>Wins</th><th style={thStyle}>Top 3</th><th style={thStyle}>Top 5</th><th style={thStyle}>DNFs</th><th style={thStyle}>FL</th><th style={thStyle}>Penalties</th></tr></thead>
               <tbody>
                 {sorted.map((driver, index) => {
                   const isLeader = index === 0;
@@ -542,7 +542,7 @@ export default function App() {
     for (const d of drivers) {
       if (!teams[d.team]) teams[d.team] = { team: d.team, points: 0, wins: 0, top3: 0, top5: 0, drivers: 0 };
       teams[d.team].points += d.points || 0; teams[d.team].wins += d.wins || 0;
-      teams[d.team].top3 += d.top3 || 0; teams[d.team].top3 += d.top3 || 0; teams[d.team].drivers += 1;
+      teams[d.team].top3 += d.top3 || 0; teams[d.team].top5 += d.top5 || 0; teams[d.team].drivers += 1;
     }
     return Object.values(teams).sort((a, b) => b.points - a.points || b.wins - a.wins || b.top3 - a.top3 || a.team.localeCompare(b.team));
   }, [drivers]);
