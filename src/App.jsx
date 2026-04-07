@@ -103,7 +103,7 @@ function renderTeamBadge(teamName, size = 44) {
 }
 
 function makeDriverWithStats(driver) {
-  return { ...driver, startingPoints: Number(driver.startingPoints) || 0, manualWins: Number(driver.manualWins) || 0, points: Number(driver.startingPoints) || 0, wins: Number(driver.manualWins) || 0, top5: 0, top10: 0, dnfs: 0 };
+  return { ...driver, startingPoints: Number(driver.startingPoints) || 0, manualWins: Number(driver.manualWins) || 0, points: Number(driver.startingPoints) || 0, wins: Number(driver.manualWins) || 0, top3: 0, top5: 0, dnfs: 0 };
 }
 
 function getDefaultRoster() { return defaultDrivers.map(makeDriverWithStats); }
@@ -117,17 +117,19 @@ function rebuildDriversFromHistory(history, driverRoster) {
   return driverRoster.map((baseDriver) => {
     let points = Number(baseDriver.startingPoints) || 0;
     let wins = Number(baseDriver.manualWins) || 0;
-    let top5 = 0, top10 = 0, dnfs = 0;
+    let top3 = 0, top5 = 0, dnfs = 0, fastestLaps = 0, totalPenalties = 0;
     history.forEach((race) => {
       const result = race.results?.find((r) => r.driverId === baseDriver.id);
       if (!result) return;
       points += result.totalRacePoints || 0;
       wins += result.isWin ? 1 : 0;
-      top5 += result.isTop5 ? 1 : 0;
-      top10 += result.isTop10 ? 1 : 0;
+      top3 += result.isTop3 ? 1 : 0;
+      top5 += result.isTop3 ? 1 : 0;
       dnfs += result.dnf ? 1 : 0;
+      fastestLaps += result.fastestLap ? 1 : 0;
+      totalPenalties += result.penaltyPoints || 0;
     });
-    return { ...baseDriver, startingPoints: Number(baseDriver.startingPoints) || 0, manualWins: Number(baseDriver.manualWins) || 0, points, wins, top5, top10, dnfs };
+    return { ...baseDriver, startingPoints: Number(baseDriver.startingPoints) || 0, manualWins: Number(baseDriver.manualWins) || 0, points, wins, top3, top5, dnfs, fastestLaps, totalPenalties };
   });
 }
 
@@ -185,7 +187,7 @@ function loadInitialLeagueState() {
 }
 
 function LeaderboardOverlay({ drivers, preview = false, seasonName = "" }) {
-  const sorted = [...drivers].sort((a, b) => b.points - a.points || b.wins - a.wins || b.top5 - a.top5 || a.name.localeCompare(b.name));
+  const sorted = [...drivers].sort((a, b) => b.points - a.points || b.wins - a.wins || b.top3 - a.top3 || a.name.localeCompare(b.name));
   return (
     <div style={{ minHeight: "100vh", background: preview ? "#111" : "transparent", color: "white", padding: 20, boxSizing: "border-box", fontFamily: "Arial, sans-serif" }}>
       <div style={{ maxWidth: 1000, background: "rgba(10,10,10,0.84)", border: "2px solid #d4af37", borderRadius: 16, overflow: "hidden" }}>
@@ -193,8 +195,8 @@ function LeaderboardOverlay({ drivers, preview = false, seasonName = "" }) {
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}><img src={logo} alt="League Logo" style={{ height: 42 }} />Driver Standings</div>
           <div style={{ fontSize: 14, opacity: 0.78 }}>{seasonName}</div>
         </div>
-        <table style={tableStyle}><thead><tr><th style={thStyle}>Pos</th><th style={thStyle}>#</th><th style={thStyle}>Driver</th><th style={thStyle}>Team</th><th style={thStyle}>Points</th><th style={thStyle}>Wins</th><th style={thStyle}>Top 5</th><th style={thStyle}>Top 10</th></tr></thead>
-          <tbody>{sorted.map((d, i) => <tr key={d.id}><td style={tdStyle}>{i+1}</td><td style={tdStyle}>{d.number}</td><td style={tdStyle}>{d.name}</td><td style={tdStyle}>{d.team}</td><td style={tdStyle}>{d.points}</td><td style={tdStyle}>{d.wins}</td><td style={tdStyle}>{d.top5}</td><td style={tdStyle}>{d.top10}</td></tr>)}</tbody>
+        <table style={tableStyle}><thead><tr><th style={thStyle}>Pos</th><th style={thStyle}>#</th><th style={thStyle}>Driver</th><th style={thStyle}>Team</th><th style={thStyle}>Points</th><th style={thStyle}>Wins</th><th style={thStyle}>Top 3</th><th style={thStyle}>Top 5</th></tr></thead>
+          <tbody>{sorted.map((d, i) => <tr key={d.id}><td style={tdStyle}>{i+1}</td><td style={tdStyle}>{d.number}</td><td style={tdStyle}>{d.name}</td><td style={tdStyle}>{d.team}</td><td style={tdStyle}>{d.points}</td><td style={tdStyle}>{d.wins}</td><td style={tdStyle}>{d.top3}</td><td style={tdStyle}>{d.top5}</td></tr>)}</tbody>
         </table>
       </div>
     </div>
@@ -209,8 +211,8 @@ function TeamOverlay({ teams, preview = false, seasonName = "" }) {
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}><img src={logo} alt="League Logo" style={{ height: 42 }} />Team Standings</div>
           <div style={{ fontSize: 14, opacity: 0.78 }}>{seasonName}</div>
         </div>
-        <table style={tableStyle}><thead><tr><th style={thStyle}>Pos</th><th style={thStyle}>Team</th><th style={thStyle}>Points</th><th style={thStyle}>Wins</th><th style={thStyle}>Top 5</th><th style={thStyle}>Top 10</th></tr></thead>
-          <tbody>{teams.map((t, i) => <tr key={t.team}><td style={tdStyle}>{i+1}</td><td style={tdStyle}>{t.team}</td><td style={tdStyle}>{t.points}</td><td style={tdStyle}>{t.wins}</td><td style={tdStyle}>{t.top5}</td><td style={tdStyle}>{t.top10}</td></tr>)}</tbody>
+        <table style={tableStyle}><thead><tr><th style={thStyle}>Pos</th><th style={thStyle}>Team</th><th style={thStyle}>Points</th><th style={thStyle}>Wins</th><th style={thStyle}>Top 3</th><th style={thStyle}>Top 5</th></tr></thead>
+          <tbody>{teams.map((t, i) => <tr key={t.team}><td style={tdStyle}>{i+1}</td><td style={tdStyle}>{t.team}</td><td style={tdStyle}>{t.points}</td><td style={tdStyle}>{t.wins}</td><td style={tdStyle}>{t.top3}</td><td style={tdStyle}>{t.top5}</td></tr>)}</tbody>
         </table>
       </div>
     </div>
@@ -218,7 +220,7 @@ function TeamOverlay({ teams, preview = false, seasonName = "" }) {
 }
 
 function PublicStandings({ drivers, teams, seasonName = "" }) {
-  const sorted = [...drivers].sort((a, b) => b.points - a.points || b.wins - a.wins || b.top5 - a.top5 || a.name.localeCompare(b.name));
+  const sorted = [...drivers].sort((a, b) => b.points - a.points || b.wins - a.wins || b.top3 - a.top3 || a.name.localeCompare(b.name));
   const [leader, second, third] = sorted;
   const totalPoints = sorted.reduce((s, d) => s + (d.points || 0), 0);
   const totalWins = sorted.reduce((s, d) => s + (d.wins || 0), 0);
@@ -241,7 +243,7 @@ function PublicStandings({ drivers, teams, seasonName = "" }) {
         <div style={{ fontSize: 24, fontWeight: 900, marginBottom: 4 }}>{driver.name}</div>
         <div style={{ fontSize: 14, opacity: 0.85, marginBottom: 18 }}>{driver.team}</div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
-          {[{label:"POINTS",value:driver.points},{label:"WINS",value:driver.wins},{label:"TOP 5",value:driver.top5},{label:"TOP 10",value:driver.top10}].map((stat) => (
+          {[{label:"POINTS",value:driver.points},{label:"WINS",value:driver.wins},{label:"TOP 3",value:driver.top3},{label:"TOP 5",value:driver.top5}].map((stat) => (
             <div key={stat.label} style={{ background: "rgba(0,0,0,0.22)", borderRadius: 14, padding: 12 }}>
               <div style={{ fontSize: 11, opacity: 0.8 }}>{stat.label}</div>
               <div style={{ fontSize: 22, fontWeight: 900 }}>{stat.value}</div>
@@ -289,7 +291,7 @@ function PublicStandings({ drivers, teams, seasonName = "" }) {
           <div style={{ fontSize: 26, fontWeight: 900, marginBottom: 14 }}>Driver Standings</div>
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead><tr><th style={thStyle}>Pos</th><th style={thStyle}>Team</th><th style={thStyle}>#</th><th style={thStyle}>Driver</th><th style={thStyle}>Team Name</th><th style={thStyle}>Points</th><th style={thStyle}>Wins</th><th style={thStyle}>Top 5</th><th style={thStyle}>Top 10</th><th style={thStyle}>DNFs</th></tr></thead>
+              <thead><tr><th style={thStyle}>Pos</th><th style={thStyle}>Team</th><th style={thStyle}>#</th><th style={thStyle}>Driver</th><th style={thStyle}>Team Name</th><th style={thStyle}>Points</th><th style={thStyle}>Wins</th><th style={thStyle}>Top 3</th><th style={thStyle}>Top 5</th><th style={thStyle}>DNFs</th></tr></thead>
               <tbody>
                 {sorted.map((driver, index) => {
                   const isLeader = index === 0;
@@ -302,9 +304,11 @@ function PublicStandings({ drivers, teams, seasonName = "" }) {
                       <td style={tdStyle}>{driver.team}</td>
                       <td style={{ ...tdStyle, fontWeight: 900 }}>{driver.points}</td>
                       <td style={tdStyle}>{driver.wins}</td>
+                      <td style={tdStyle}>{driver.top3}</td>
                       <td style={tdStyle}>{driver.top5}</td>
-                      <td style={tdStyle}>{driver.top10}</td>
                       <td style={tdStyle}>{driver.dnfs || 0}</td>
+                      <td style={tdStyle}>{driver.fastestLaps || 0}</td>
+                      <td style={{ ...tdStyle, color: (driver.totalPenalties || 0) > 0 ? "#f87171" : "inherit" }}>{driver.totalPenalties ? `-${driver.totalPenalties}` : "0"}</td>
                     </tr>
                   );
                 })}
@@ -317,7 +321,7 @@ function PublicStandings({ drivers, teams, seasonName = "" }) {
           <div style={{ fontSize: 26, fontWeight: 900, marginBottom: 14 }}>Team Standings</div>
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead><tr><th style={thStyle}>Pos</th><th style={thStyle}>Logo</th><th style={thStyle}>Team</th><th style={thStyle}>Points</th><th style={thStyle}>Wins</th><th style={thStyle}>Top 5</th><th style={thStyle}>Top 10</th></tr></thead>
+              <thead><tr><th style={thStyle}>Pos</th><th style={thStyle}>Logo</th><th style={thStyle}>Team</th><th style={thStyle}>Points</th><th style={thStyle}>Wins</th><th style={thStyle}>Top 3</th><th style={thStyle}>Top 5</th></tr></thead>
               <tbody>
                 {teams.map((team, index) => (
                   <tr key={team.team}>
@@ -326,8 +330,8 @@ function PublicStandings({ drivers, teams, seasonName = "" }) {
                     <td style={{ ...tdStyle, fontWeight: 800 }}>{team.team}</td>
                     <td style={{ ...tdStyle, fontWeight: 900 }}>{team.points}</td>
                     <td style={tdStyle}>{team.wins}</td>
+                    <td style={tdStyle}>{team.top3}</td>
                     <td style={tdStyle}>{team.top5}</td>
-                    <td style={tdStyle}>{team.top10}</td>
                   </tr>
                 ))}
               </tbody>
@@ -528,7 +532,7 @@ export default function App() {
     if (!activeSeason) return;
     if (!window.confirm(`Archive and reset "${activeSeason.name}"? A backup will download first.`)) return;
     downloadBackupObject({ app: "Performance Cup League", version: 2, archiveType: "season-reset-archive", archivedAt: new Date().toISOString(), season: activeSeason }, `pcl-${activeSeason.name.replace(/\s+/g, "-").toLowerCase()}-archive`);
-    const resetDrivers = activeSeason.drivers.map((d) => ({ id: d.id, number: d.number, name: d.name, team: d.team, startingPoints: 0, manualWins: 0, points: 0, wins: 0, top5: 0, top10: 0, dnfs: 0 }));
+    const resetDrivers = activeSeason.drivers.map((d) => ({ id: d.id, number: d.number, name: d.name, team: d.team, startingPoints: 0, manualWins: 0, points: 0, wins: 0, top3: 0, top5: 0, dnfs: 0 }));
     replaceActiveSeason({ ...activeSeason, drivers: resetDrivers, raceHistory: [], selectedRace: "", positions: {}, stage1: {}, stage2: {}, stage3: {}, dnfMap: {}, offenseMap: {}, fastestLapMap: {} });
     resetEditorStates();
   };
@@ -536,14 +540,14 @@ export default function App() {
   const teamStandings = useMemo(() => {
     const teams = {};
     for (const d of drivers) {
-      if (!teams[d.team]) teams[d.team] = { team: d.team, points: 0, wins: 0, top5: 0, top10: 0, drivers: 0 };
+      if (!teams[d.team]) teams[d.team] = { team: d.team, points: 0, wins: 0, top3: 0, top5: 0, drivers: 0 };
       teams[d.team].points += d.points || 0; teams[d.team].wins += d.wins || 0;
-      teams[d.team].top5 += d.top5 || 0; teams[d.team].top10 += d.top10 || 0; teams[d.team].drivers += 1;
+      teams[d.team].top3 += d.top3 || 0; teams[d.team].top3 += d.top3 || 0; teams[d.team].drivers += 1;
     }
-    return Object.values(teams).sort((a, b) => b.points - a.points || b.wins - a.wins || b.top5 - a.top5 || a.team.localeCompare(b.team));
+    return Object.values(teams).sort((a, b) => b.points - a.points || b.wins - a.wins || b.top3 - a.top3 || a.team.localeCompare(b.team));
   }, [drivers]);
 
-  const sortedDrivers = [...drivers].sort((a, b) => b.points - a.points || b.wins - a.wins || b.top5 - a.top5 || a.name.localeCompare(b.name));
+  const sortedDrivers = [...drivers].sort((a, b) => b.points - a.points || b.wins - a.wins || b.top3 - a.top3 || a.name.localeCompare(b.name));
   const currentLeader = sortedDrivers[0] || null;
   const latestRace = raceHistory.length > 0 ? raceHistory[raceHistory.length - 1] : null;
   const latestWinner = latestRace?.results?.find((r) => r.finishPos === 1) || null;
@@ -641,7 +645,7 @@ export default function App() {
         finishPos: finishPos || null, stage1Pos: stage1Pos || null, stage2Pos: stage2Pos || null, stage3Pos: stageCount === 3 ? stage3Pos || null : null,
         finishPoints, stage1Points, stage2Points, stage3Points, fastestLap, fastestLapPoints,
         offense, offenseNumber, penaltyPoints, totalRacePoints,
-        isWin: finishPos === 1, isTop5: finishPos >= 1 && finishPos <= 5, isTop10: finishPos >= 1 && finishPos <= 10, dnf,
+        isWin: finishPos === 1, isTop3: finishPos >= 1 && finishPos <= 3, isTop5: finishPos >= 1 && finishPos <= 5, dnf,
       };
     }).sort((a, b) => { if (a.finishPos === null) return 1; if (b.finishPos === null) return -1; return a.finishPos - b.finishPos; });
 
@@ -877,8 +881,8 @@ export default function App() {
           <h2 style={{ marginTop: 0 }}>Driver Standings</h2>
           <div style={{ overflowX: "auto" }}>
             <table style={tableStyle}>
-              <thead><tr><th style={thStyle}>Pos</th><th style={thStyle}>#</th><th style={thStyle}>Driver</th><th style={thStyle}>Team</th><th style={thStyle}>Points</th><th style={thStyle}>Wins</th><th style={thStyle}>Top 5</th><th style={thStyle}>Top 10</th><th style={thStyle}>DNFs</th></tr></thead>
-              <tbody>{sortedDrivers.map((d, i) => (<tr key={d.id}><td style={tdStyle}>{i+1}</td><td style={tdStyle}>{d.number}</td><td style={tdStyle}>{d.name}</td><td style={tdStyle}>{d.team}</td><td style={tdStyle}>{d.points}</td><td style={tdStyle}>{d.wins}</td><td style={tdStyle}>{d.top5}</td><td style={tdStyle}>{d.top10}</td><td style={tdStyle}>{d.dnfs || 0}</td></tr>))}</tbody>
+              <thead><tr><th style={thStyle}>Pos</th><th style={thStyle}>#</th><th style={thStyle}>Driver</th><th style={thStyle}>Team</th><th style={thStyle}>Points</th><th style={thStyle}>Wins</th><th style={thStyle}>Top 3</th><th style={thStyle}>Top 5</th><th style={thStyle}>DNFs</th></tr></thead>
+              <tbody>{sortedDrivers.map((d, i) => (<tr key={d.id}><td style={tdStyle}>{i+1}</td><td style={tdStyle}>{d.number}</td><td style={tdStyle}>{d.name}</td><td style={tdStyle}>{d.team}</td><td style={tdStyle}>{d.points}</td><td style={tdStyle}>{d.wins}</td><td style={tdStyle}>{d.top3}</td><td style={tdStyle}>{d.top5}</td><td style={tdStyle}>{d.dnfs || 0}</td></tr>))}</tbody>
             </table>
           </div>
         </div>
@@ -888,8 +892,8 @@ export default function App() {
           <h2 style={{ marginTop: 0 }}>Team Standings</h2>
           <div style={{ overflowX: "auto" }}>
             <table style={tableStyle}>
-              <thead><tr><th style={thStyle}>Pos</th><th style={thStyle}>Team</th><th style={thStyle}>Points</th><th style={thStyle}>Wins</th><th style={thStyle}>Top 5</th><th style={thStyle}>Top 10</th><th style={thStyle}>Drivers</th></tr></thead>
-              <tbody>{teamStandings.map((t, i) => (<tr key={t.team}><td style={tdStyle}>{i+1}</td><td style={tdStyle}>{t.team}</td><td style={tdStyle}>{t.points}</td><td style={tdStyle}>{t.wins}</td><td style={tdStyle}>{t.top5}</td><td style={tdStyle}>{t.top10}</td><td style={tdStyle}>{t.drivers}</td></tr>))}</tbody>
+              <thead><tr><th style={thStyle}>Pos</th><th style={thStyle}>Team</th><th style={thStyle}>Points</th><th style={thStyle}>Wins</th><th style={thStyle}>Top 3</th><th style={thStyle}>Top 5</th><th style={thStyle}>Drivers</th></tr></thead>
+              <tbody>{teamStandings.map((t, i) => (<tr key={t.team}><td style={tdStyle}>{i+1}</td><td style={tdStyle}>{t.team}</td><td style={tdStyle}>{t.points}</td><td style={tdStyle}>{t.wins}</td><td style={tdStyle}>{t.top3}</td><td style={tdStyle}>{t.top5}</td><td style={tdStyle}>{t.drivers}</td></tr>))}</tbody>
             </table>
           </div>
         </div>
