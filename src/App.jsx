@@ -103,7 +103,7 @@ function renderTeamBadge(teamName, size = 44) {
 }
 
 function makeDriverWithStats(driver) {
-  return { ...driver, startingPoints: Number(driver.startingPoints) || 0, manualWins: Number(driver.manualWins) || 0, points: Number(driver.startingPoints) || 0, wins: Number(driver.manualWins) || 0, top3: 0, top5: 0, dnfs: 0 };
+  return { ...driver, startingPoints: Number(driver.startingPoints) || 0, manualWins: Number(driver.manualWins) || 0, points: Number(driver.startingPoints) || 0, wins: Number(driver.manualWins) || 0, top3: 0, top5: 0, dnfs: 0, retired: driver.retired || false };
 }
 
 function getDefaultRoster() { return defaultDrivers.map(makeDriverWithStats); }
@@ -129,7 +129,7 @@ function rebuildDriversFromHistory(history, driverRoster) {
       fastestLaps += result.fastestLap ? 1 : 0;
       totalPenalties += result.penaltyPoints || 0;
     });
-    return { ...baseDriver, startingPoints: Number(baseDriver.startingPoints) || 0, manualWins: Number(baseDriver.manualWins) || 0, points, wins, top3, top5, dnfs, fastestLaps, totalPenalties };
+    return { ...baseDriver, startingPoints: Number(baseDriver.startingPoints) || 0, manualWins: Number(baseDriver.manualWins) || 0, points, wins, top3, top5, dnfs, fastestLaps, totalPenalties, retired: baseDriver.retired || false };
   });
 }
 
@@ -142,7 +142,7 @@ function createEmptySeason(name, roster = getDefaultRoster()) {
 
 function sanitizeSeason(season, fallbackName = "Season") {
   const rosterSource = Array.isArray(season?.drivers) && season.drivers.length > 0 ? season.drivers : getDefaultRoster();
-  const rosterOnly = rosterSource.map((d) => ({ id: d.id, number: Number(d.number), name: d.name, team: d.team, startingPoints: Number(d.startingPoints) || 0, manualWins: Number(d.manualWins) || 0 }));
+  const rosterOnly = rosterSource.map((d) => ({ id: d.id, number: Number(d.number), name: d.name, team: d.team, startingPoints: Number(d.startingPoints) || 0, manualWins: Number(d.manualWins) || 0, retired: d.retired || false }));
   const history = Array.isArray(season?.raceHistory) ? season.raceHistory : [];
   return {
     id: season?.id || makeSeasonId(), name: season?.name || fallbackName, createdAt: season?.createdAt || new Date().toISOString(),
@@ -300,7 +300,7 @@ function PublicStandings({ drivers, teams, seasonName = "" }) {
                       <td style={{ ...tdStyle, fontWeight: 900, color: isLeader ? "#f3d36a" : "white", fontSize: 16 }}>{index + 1}</td>
                       <td style={tdStyle}>{renderTeamBadge(driver.team, 38)}</td>
                       <td style={{ ...tdStyle, fontWeight: 800 }}>{driver.number}</td>
-                      <td style={{ ...tdStyle, fontWeight: 800 }}>{driver.name}</td>
+                      <td style={{ ...tdStyle, fontWeight: 800 }}>{driver.name}{driver.retired && <span style={{ marginLeft: 6, fontSize: 11, background: "#2a3140", color: "#f59e0b", borderRadius: 6, padding: "2px 6px", fontWeight: 700 }}>R</span>}</td>
                       <td style={tdStyle}>{driver.team}</td>
                       <td style={{ ...tdStyle, fontWeight: 900 }}>{driver.points}</td>
                       <td style={tdStyle}>{driver.wins}</td>
@@ -425,6 +425,7 @@ export default function App() {
 
   const activeSeason = seasons.find((s) => s.id === activeSeasonId) || seasons[0] || null;
   const drivers = activeSeason?.drivers || [];
+  const activeDrivers = drivers.filter((d) => !d.retired);
   const selectedRace = activeSeason?.selectedRace || "";
   const positions = activeSeason?.positions || {};
   const stage1 = activeSeason?.stage1 || {};
@@ -464,7 +465,7 @@ export default function App() {
     const trimmedName = newSeasonName.trim();
     if (!trimmedName) { alert("Please enter a season name."); return; }
     if (seasons.some((s) => s.name.toLowerCase() === trimmedName.toLowerCase())) { alert("A season with that name already exists."); return; }
-    const rosterOnly = drivers.map((d) => ({ id: d.id, number: d.number, name: d.name, team: d.team, startingPoints: Number(d.startingPoints) || 0, manualWins: Number(d.manualWins) || 0 }));
+    const rosterOnly = drivers.map((d) => ({ id: d.id, number: d.number, name: d.name, team: d.team, startingPoints: Number(d.startingPoints) || 0, manualWins: Number(d.manualWins) || 0, retired: d.retired || false }));
     const season = createEmptySeason(trimmedName, rosterOnly);
     setSeasons((prev) => [...prev, season]);
     setActiveSeasonId(season.id); setNewSeasonName(""); setRenameSeasonName(trimmedName); resetEditorStates();
@@ -576,6 +577,22 @@ export default function App() {
   const handleOffenseChange = (id, checked) => patchActiveSeason({ offenseMap: { ...offenseMap, [id]: checked } });
   const handleFastestLapChange = (id) => patchActiveSeason({ fastestLapMap: fastestLapMap[id] ? {} : { [id]: true } });
 
+  const retireDriver = (driverId) => {
+    if (!activeSeason) return;
+    const driver = drivers.find((d) => d.id === driverId);
+    if (!driver) return;
+    if (!window.confirm(`Retire ${driver.name}? They will be hidden from race entry but their stats will be preserved.`)) return;
+    const updatedDrivers = drivers.map((d) => d.id === driverId ? { ...d, retired: true } : d);
+    patchActiveSeason({ drivers: updatedDrivers });
+    if (editingDriverId === driverId) cancelEditDriver();
+  };
+
+  const unretireDriver = (driverId) => {
+    if (!activeSeason) return;
+    const updatedDrivers = drivers.map((d) => d.id === driverId ? { ...d, retired: false } : d);
+    patchActiveSeason({ drivers: updatedDrivers });
+  };
+
   const addDriver = () => {
     const trimmedName = newDriverName.trim(), trimmedTeam = newDriverTeam.trim(), driverNumber = String(newDriverNumber).trim();
     if (!trimmedName || !trimmedTeam || !driverNumber) { alert("Please enter a driver name, number, and team."); return; }
@@ -651,7 +668,7 @@ export default function App() {
 
     const updatedRace = { raceName: selectedRace, stageCount, results: raceResults };
     const newHistory = editingRaceName ? raceHistory.map((r) => r.raceName === editingRaceName ? updatedRace : r) : [...raceHistory, updatedRace];
-    const rosterOnly = drivers.map((d) => ({ id: d.id, number: d.number, name: d.name, team: d.team, startingPoints: Number(d.startingPoints) || 0, manualWins: Number(d.manualWins) || 0 }));
+    const rosterOnly = drivers.map((d) => ({ id: d.id, number: d.number, name: d.name, team: d.team, startingPoints: Number(d.startingPoints) || 0, manualWins: Number(d.manualWins) || 0, retired: d.retired || false }));
     replaceActiveSeason({ ...activeSeason, raceHistory: newHistory, drivers: rebuildDriversFromHistory(newHistory, rosterOnly), selectedRace: "", positions: {}, stage1: {}, stage2: {}, stage3: {}, dnfMap: {}, offenseMap: {}, fastestLapMap: {} });
     setEditingRaceName(null);
   };
@@ -671,7 +688,7 @@ export default function App() {
   const handleDeleteRace = (raceName) => {
     if (!activeSeason || !window.confirm(`Delete ${raceName}? This will recalculate the standings.`)) return;
     const newHistory = raceHistory.filter((r) => r.raceName !== raceName);
-    const rosterOnly = drivers.map((d) => ({ id: d.id, number: d.number, name: d.name, team: d.team, startingPoints: Number(d.startingPoints) || 0, manualWins: Number(d.manualWins) || 0 }));
+    const rosterOnly = drivers.map((d) => ({ id: d.id, number: d.number, name: d.name, team: d.team, startingPoints: Number(d.startingPoints) || 0, manualWins: Number(d.manualWins) || 0, retired: d.retired || false }));
     replaceActiveSeason({ ...activeSeason, raceHistory: newHistory, drivers: rebuildDriversFromHistory(newHistory, rosterOnly) });
     if (editingRaceName === raceName) clearInputs();
   };
@@ -798,7 +815,7 @@ export default function App() {
           <div style={{ overflowX: "auto" }}>
             <table style={tableStyle}>
               <thead><tr><th style={thStyle}>#</th><th style={thStyle}>Driver</th><th style={thStyle}>Team</th><th style={thStyle}>Actions</th></tr></thead>
-              <tbody>{drivers.map((d) => (<tr key={d.id}><td style={tdStyle}>{d.number}</td><td style={tdStyle}>{d.name}</td><td style={tdStyle}>{d.team}</td><td style={tdStyle}><div style={{ display: "flex", gap: 8 }}><button onClick={() => openEditDriver(d)} style={secondaryButtonStyle}>Edit</button><button onClick={() => removeDriver(d.id)} style={dangerButtonStyle}>Remove</button></div></td></tr>))}</tbody>
+              <tbody>{drivers.map((d) => (<tr key={d.id}><td style={tdStyle}>{d.number}</td><td style={tdStyle}>{d.name}</td><td style={tdStyle}>{d.team}</td><td style={tdStyle}><div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><button onClick={() => openEditDriver(d)} style={secondaryButtonStyle}>Edit</button>{d.retired ? (<button onClick={() => unretireDriver(d.id)} style={secondaryButtonStyle}>Unretire</button>) : (<button onClick={() => retireDriver(d.id)} style={{ ...secondaryButtonStyle, color: "#f59e0b", borderColor: "#f59e0b" }}>Retire</button>)}<button onClick={() => removeDriver(d.id)} style={dangerButtonStyle}>Remove</button></div></td></tr>))}</tbody>
             </table>
           </div>
           {editingDriverId && (
@@ -843,7 +860,7 @@ export default function App() {
                 </tr>
               </thead>
               <tbody>
-                {drivers.map((driver) => {
+                {activeDrivers.map((driver) => {
                   const prior = seasonOffenseCounts[driver.id] || 0;
                   const thisOffense = offenseMap[driver.id] ? prior + 1 : null;
                   return (
@@ -882,7 +899,7 @@ export default function App() {
           <div style={{ overflowX: "auto" }}>
             <table style={tableStyle}>
               <thead><tr><th style={thStyle}>Pos</th><th style={thStyle}>#</th><th style={thStyle}>Driver</th><th style={thStyle}>Team</th><th style={thStyle}>Points</th><th style={thStyle}>Wins</th><th style={thStyle}>Top 3</th><th style={thStyle}>Top 5</th><th style={thStyle}>DNFs</th></tr></thead>
-              <tbody>{sortedDrivers.map((d, i) => (<tr key={d.id}><td style={tdStyle}>{i+1}</td><td style={tdStyle}>{d.number}</td><td style={tdStyle}>{d.name}</td><td style={tdStyle}>{d.team}</td><td style={tdStyle}>{d.points}</td><td style={tdStyle}>{d.wins}</td><td style={tdStyle}>{d.top3}</td><td style={tdStyle}>{d.top5}</td><td style={tdStyle}>{d.dnfs || 0}</td></tr>))}</tbody>
+              <tbody>{sortedDrivers.map((d, i) => (<tr key={d.id}><td style={tdStyle}>{i+1}</td><td style={tdStyle}>{d.number}</td><td style={tdStyle}>{d.name}{d.retired && <span style={{ marginLeft: 6, fontSize: 11, background: "#2a3140", color: "#f59e0b", borderRadius: 6, padding: "2px 6px", fontWeight: 700 }}>R</span>}</td><td style={tdStyle}>{d.team}</td><td style={tdStyle}>{d.points}</td><td style={tdStyle}>{d.wins}</td><td style={tdStyle}>{d.top3}</td><td style={tdStyle}>{d.top5}</td><td style={tdStyle}>{d.dnfs || 0}</td></tr>))}</tbody>
             </table>
           </div>
         </div>
