@@ -393,7 +393,9 @@ export default function App() {
   const [manualWinsInputs, setManualWinsInputs] = useState({});
   const importFileRef = useRef(null);
   const path = window.location.pathname.toLowerCase();
-
+  
+  if (path === "/files") return <FilesPage />;
+  
   useEffect(() => {
     let isMounted = true;
     async function hydrateFromSupabase() {
