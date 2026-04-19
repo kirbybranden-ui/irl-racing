@@ -723,6 +723,7 @@ export default function App() {
     race.results.filter((r) => r.offense).map((r) => ({ raceName: race.raceName, number: r.number, name: r.name, offenseNumber: r.offenseNumber, penaltyPoints: r.penaltyPoints }))
   );
   if (!isHydrated) return <div style={appShellStyle}><div style={pageContainerStyle}><div style={sectionCardStyle}>Loading league data...</div></div></div>;
+  if (path === "/files") return <FilesPage />;
   if (path === "/overlay/drivers" || viewMode === "overlay-drivers") return <LeaderboardOverlay drivers={drivers} preview={viewMode === "overlay-drivers"} seasonName={activeSeason?.name || ""} />;
   if (path === "/overlay/teams" || viewMode === "overlay-teams") return <TeamOverlay teams={teamStandings} preview={viewMode === "overlay-teams"} seasonName={activeSeason?.name || ""} />;
   if (path === "/standings") return <PublicStandings drivers={drivers} teams={teamStandings} seasonName={activeSeason?.name || ""} />;
