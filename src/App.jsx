@@ -354,7 +354,7 @@ function TickerOverlay({ drivers, teams, raceHistory, preview = false, seasonNam
   const latestRace = raceHistory?.[raceHistory.length - 1];
   const winner = latestRace?.results?.find((r) => r.finishPos === 1);
   const tickerText = [
-    seasonName ? `Season: ${seasonName}` : "Performance Cup League",
+    seasonName ? `Season: ${seasonName}` : "Budweiser Cup League",
     winner ? `Latest Winner: #${winner.number} ${winner.name} (${latestRace.raceName})` : "No race winner yet",
     ...sorted.map((d, i) => `${i+1}. #${d.number} ${d.name} - ${d.points} pts`),
     ...teams.map((t, i) => `Team ${i+1}: ${t.team} - ${t.points} pts`),
