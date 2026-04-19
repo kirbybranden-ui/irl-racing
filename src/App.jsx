@@ -394,6 +394,10 @@ export default function App() {
   const importFileRef = useRef(null);
   const path = window.location.pathname.toLowerCase();
 
+  if (path === "/files") return <FilesPage />;
+  if (path === "/submit-appeal") return <SubmitAppealPage />;
+  if (path === "/appeals") return <AppealsPage />;
+
   useEffect(() => {
     let isMounted = true;
     async function hydrateFromSupabase() {
