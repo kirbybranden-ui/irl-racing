@@ -4,6 +4,8 @@ import teamLogoJAM from "./assets/teams/JAM.png";
 import teamLogoPMS from "./assets/teams/PMS.png";
 import teamLogoBNR from "./assets/teams/BNR.png";
 import FilesPage from "./FilesPage";
+import SubmitAppealsPage from "./SubmitAppealsPage";
+import AppealsPage from "./AppealsPage";
 const teamLogos = {
   JAM: teamLogoJAM,
   PMS: teamLogoPMS,
