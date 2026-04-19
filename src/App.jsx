@@ -429,6 +429,20 @@ export default function App() {
     return () => { isMounted = false; if (interval) clearInterval(interval); };
   }, []);
   useEffect(() => {
+  async function loadOpenAppeals() {
+    const { count, error } = await supabase
+      .from("appeals")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "Open");
+
+    if (!error) {
+      setOpenAppealCount(count || 0);
+    }
+  }
+
+  loadOpenAppeals();
+}, []);
+  useEffect(() => {
     if (!isHydrated) return;
     const timeout = setTimeout(() => {
       saveLeagueState({ seasons, activeSeasonId, tracks }).catch((e) => console.error("Supabase save failed:", e));
