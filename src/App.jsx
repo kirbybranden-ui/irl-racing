@@ -269,7 +269,7 @@ function PublicStandings({ drivers, teams, seasonName = "" }) {
             <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
               <img src={logo} alt="League Logo" style={{ height: 64, filter: "drop-shadow(0 6px 16px rgba(0,0,0,0.35))" }} />
               <div>
-                <div style={{ fontSize: 38, fontWeight: 900, letterSpacing: 0.6, lineHeight: 1.05 }}>PERFORMANCE CUP LEAGUE</div>
+                <div style={{ fontSize: 38, fontWeight: 900, letterSpacing: 0.6, lineHeight: 1.05 }}>BUDWEISER CUP LEAGUE</div>
                 <div style={{ fontSize: 16, opacity: 0.76, marginTop: 6 }}>Broadcast Standings</div>
               </div>
             </div>
@@ -464,8 +464,8 @@ export default function App() {
     window.URL.revokeObjectURL(url);
   };
 
-  const exportBackup = () => { if (!activeSeason) return; downloadBackupObject({ app: "Performance Cup League", version: 2, exportedAt: new Date().toISOString(), type: "single-season-backup", season: activeSeason }, `pcl-${activeSeason.name.replace(/\s+/g, "-").toLowerCase()}`); };
-  const exportAllSeasonsBackup = () => downloadBackupObject({ app: "Performance Cup League", version: 2, exportedAt: new Date().toISOString(), type: "full-league-backup", activeSeasonId, seasons }, "pcl-all-seasons-backup");
+  const exportBackup = () => { if (!activeSeason) return; downloadBackupObject({ app: "Budweiser Cup League", version: 2, exportedAt: new Date().toISOString(), type: "single-season-backup", season: activeSeason }, `pcl-${activeSeason.name.replace(/\s+/g, "-").toLowerCase()}`); };
+  const exportAllSeasonsBackup = () => downloadBackupObject({ app: "Budweiser Cup League", version: 2, exportedAt: new Date().toISOString(), type: "full-league-backup", activeSeasonId, seasons }, "pcl-all-seasons-backup");
 
   const createSeason = () => {
     const trimmedName = newSeasonName.trim();
@@ -538,7 +538,7 @@ export default function App() {
   const resetSeason = () => {
     if (!activeSeason) return;
     if (!window.confirm(`Archive and reset "${activeSeason.name}"? A backup will download first.`)) return;
-    downloadBackupObject({ app: "Performance Cup League", version: 2, archiveType: "season-reset-archive", archivedAt: new Date().toISOString(), season: activeSeason }, `pcl-${activeSeason.name.replace(/\s+/g, "-").toLowerCase()}-archive`);
+    downloadBackupObject({ app: "Budweiser Cup League", version: 2, archiveType: "season-reset-archive", archivedAt: new Date().toISOString(), season: activeSeason }, `pcl-${activeSeason.name.replace(/\s+/g, "-").toLowerCase()}-archive`);
     const resetDrivers = activeSeason.drivers.map((d) => ({ id: d.id, number: d.number, name: d.name, team: d.team, startingPoints: 0, manualWins: 0, points: 0, wins: 0, top3: 0, top5: 0, dnfs: 0 }));
     replaceActiveSeason({ ...activeSeason, drivers: resetDrivers, raceHistory: [], selectedRace: "", positions: {}, stage1: {}, stage2: {}, stage3: {}, dnfMap: {}, offenseMap: {}, fastestLapMap: {} });
     resetEditorStates();
@@ -720,7 +720,7 @@ export default function App() {
             <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
               <img src={logo} alt="League Logo" style={{ height: 54 }} />
               <div>
-                <div style={{ fontSize: 30, fontWeight: 800 }}>Performance Cup League</div>
+                <div style={{ fontSize: 30, fontWeight: 800 }}>Budweiser Cup League</div>
                 <div style={{ opacity: 0.72 }}>Admin Dashboard</div>
               </div>
             </div>
