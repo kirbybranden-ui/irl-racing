@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import logo from "./assets/logo.png";
+import logo from "./assets/logo1.png";
 import teamLogoJAM from "./assets/teams/JAM.png";
 import teamLogoPMS from "./assets/teams/PMS.png";
 import teamLogoBNR from "./assets/teams/BNR.png";
