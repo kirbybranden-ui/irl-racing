@@ -15,17 +15,7 @@ const defaultDrivers = [
   { id: 1, number: 64, name: "AMP-GHOSTRIDER", team: "JAM" },
   { id: 2, number: 46, name: "RookieVet99", team: "JAM" },
   { id: 3, number: 18, name: "bowhunter6758", team: "JAM" },
-  { id: 4, number: 81, name: "HOLDEN2DX4EV3R", team: "JAM" },
-  { id: 5, number: 60, name: "tropicalakari", team: "PMS" },
-  { id: 6, number: 61, name: "Lamloc", team: "PMS" },
-  { id: 7, number: 14, name: "KAPSIG", team: "PMS" },
-  { id: 8, number: 88, name: "BLUEDREAM2YT2010", team: "PMS" },
-  { id: 9, number: 10, name: "Jimmy Diimes.", team: "BNR" },
-  { id: 10, number: 4, name: "segregated-Chimp", team: "BNR" },
-  { id: 11, number: 27, name: "TheCoachDan", team: "BNR" },
-  { id: 12, number: 94, name: "all-boston-sport", team: "BNR" },
-  { id: 13, number: 19, name: "Silvereyeac", team: "None" },
-  { id: 14, number: 24, name: "Kevdinho7", team: "None" },
+  { id: 4, number: 81, name: "HOLDEN2DX4EV3R", team: "JAM" }
 ];
 
 const races = [
@@ -50,10 +40,9 @@ const races = [
 
 // Winston Cup points system
 const pointsTable = [
-  175, 170, 165, 160, 155, 150, 146, 142, 138, 134,
-  130, 127, 124, 121, 118, 115, 112, 109, 106, 103,
-  100, 97, 94, 91, 88, 85, 82, 79, 76, 73,
-  70, 67, 64, 61, 58, 55, 52, 49, 46, 43,
+  40, 35, 34, 33, 32, 31, 30, 29, 28, 27,
+  26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
+  16, 15, 14, 13, 12, 11, 10, 9, 8, 7,
 ];
 
 const stagePointsTable = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
