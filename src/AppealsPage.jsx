@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "./supabase";
+import { supabase } from "./lib/supabase";
 
 export default function AppealsPage() {
   const [appeals, setAppeals] = useState([]);
