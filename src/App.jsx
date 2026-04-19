@@ -3,6 +3,7 @@ import logo from "./assets/logo1.png";
 import teamLogoJAM from "./assets/teams/JAM.png";
 import teamLogoPMS from "./assets/teams/PMS.png";
 import teamLogoBNR from "./assets/teams/BNR.png";
+import FilesPage form "./FilesPage";
 
 const teamLogos = {
   JAM: teamLogoJAM,
