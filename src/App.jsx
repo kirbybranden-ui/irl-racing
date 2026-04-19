@@ -6,6 +6,7 @@ import teamLogoBNR from "./assets/teams/BNR.png";
 import FilesPage from "./FilesPage";
 import SubmitAppealsPage from "./SubmitAppealsPage";
 import AppealsPage from "./AppealsPage";
+import { supabase } from "./supabase";
 const teamLogos = {
   JAM: teamLogoJAM,
   PMS: teamLogoPMS,
