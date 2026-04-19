@@ -375,6 +375,7 @@ function TickerOverlay({ drivers, teams, raceHistory, preview = false, seasonNam
 }
 export default function App() {
   const [seasons, setSeasons] = useState(() => loadInitialLeagueState().seasons);
+  const [openAppealCount, setOpenAppealCount] = useState(0);
   const [activeSeasonId, setActiveSeasonId] = useState(() => loadInitialLeagueState().activeSeasonId);
   const [tracks, setTracks] = useState(() => loadInitialLeagueState().tracks);
   const [isHydrated, setIsHydrated] = useState(false);
