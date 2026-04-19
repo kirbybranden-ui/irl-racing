@@ -747,6 +747,9 @@ export default function App() {
                   {mode === "admin" ? "Admin" : mode === "overlay-drivers" ? "Driver Overlay" : mode === "overlay-teams" ? "Team Overlay" : "Ticker Overlay"}
                 </button>
               ))}
+              <button onClick={() => (window.location.pathname = "/appeals")}>
+                Appeals ({openAppealCount})
+                </button>
             </div>
           </div>
         </div>
