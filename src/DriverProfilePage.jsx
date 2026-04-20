@@ -106,13 +106,27 @@ export default function DriverProfilePage({ seasons, activeSeason }) {
     ? selectedSeason.drivers.find((d) => d && String(d.number) === String(driverNumber))
     : null;
 
-  if (!selectedSeasonId || !selectedSeason) {
+  if (!selectedSeason) {
     return (
       <div style={appShellStyle}>
         <div style={pageContainerStyle}>
           <div style={sectionCardStyle}>
             <button onClick={() => window.location.pathname = "/standings"} style={secondaryButtonStyle}>← Back to Standings</button>
-            <div style={{ marginTop: 16, opacity: 0.75 }}>Loading season data...</div>
+            <div style={{ marginTop: 16, marginBottom: 16, fontWeight: 700 }}>Select a Season:</div>
+            {allSeasons.length > 0 ? (
+              <select 
+                style={inputStyle} 
+                value={selectedSeasonId || ""} 
+                onChange={(e) => setSelectedSeasonId(e.target.value)}
+              >
+                <option value="">-- Choose a season --</option>
+                {allSeasons.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            ) : (
+              <div style={{ opacity: 0.75 }}>No seasons loaded. Try refreshing the page.</div>
+            )}
           </div>
         </div>
       </div>
