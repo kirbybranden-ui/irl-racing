@@ -425,7 +425,7 @@ export default function App() {
     hydrateFromSupabase();
     let interval = null;
     if (path === "/standings" || path === "/overlay/drivers" || path === "/overlay/teams" || path === "/overlay/ticker") {
-      interval = setInterval(hydrateFromSupabase, 10000);
+      interval = setInterval(hydrateFromSupabase, 2000);
     }
     return () => { isMounted = false; if (interval) clearInterval(interval); };
   }, []);
