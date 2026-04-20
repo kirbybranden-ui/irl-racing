@@ -436,12 +436,34 @@ export default function App() {
       .select("*", { count: "exact", head: true })
       .eq("status", "Open");
 
-    if (!error) {
-      setOpenAppealCount(count || 0);
+    if (error) {
+      console.error("Failed to load open appeals:", error);
+      return;
     }
+
+    setOpenAppealCount(count || 0);
   }
 
   loadOpenAppeals();
+
+  const channel = supabase
+    .channel("appeals-live-count")
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "appeals",
+      },
+      () => {
+        loadOpenAppeals();
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
 }, []);
   useEffect(() => {
     if (!isHydrated) return;
