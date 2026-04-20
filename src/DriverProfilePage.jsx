@@ -193,7 +193,7 @@ export default function DriverProfilePage({ seasons, activeSeason }) {
             </div>
             <div style={{ textAlign: "right" }}>
               <div style={{ fontSize: 12, opacity: 0.72, marginBottom: 4 }}>SEASON</div>
-              {allSeasons.length > 1 ? (
+              {allSeasons.length > 0 ? (
                 <select 
                   style={{ ...inputStyle, maxWidth: 240, marginBottom: 12 }} 
                   value={selectedSeasonId || ""} 
@@ -204,7 +204,7 @@ export default function DriverProfilePage({ seasons, activeSeason }) {
                   ))}
                 </select>
               ) : (
-                <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>{selectedSeason?.name || "—"}</div>
+                <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>—</div>
               )}
               {seasonIndex > 0 && <div style={{ fontSize: 12, opacity: 0.6 }}>Joined in {selectedSeason.name}</div>}
             </div>
