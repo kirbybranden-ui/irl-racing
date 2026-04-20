@@ -1,39 +1,3 @@
-import { useState } from "react";
-import { supabase } from "./lib/supabase";
-
-const TRACKS = [
-  "Daytona",
-  "Las Vegas",
-  "Richmond",
-  "Charlotte",
-  "Talladega",
-  "Texas",
-  "Michigan",
-  "Phoenix",
-  "Nashville",
-  "Pocono",
-  "Indianapolis Oval",
-  "Dover",
-  "Iowa",
-  "Homestead",
-];
-
-export default function SubmitAppealPage() {
-  const [requester, setRequester] = useState("");
-  const [track, setTrack] = useState(TRACKS[0]);
-  const [lapNumber, setLapNumber] = useState("");
-  const [description, setDescription] = useState("");
-  const [videoFile, setVideoFile] = useState(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [message, setMessage] = useState("");
-
-  async function handleSubmit(e) {
-    e.preventDefault();
-    setSubmitting(true);
-    setMessage("");
-
-    let evidenceUrl = "";
-
     if (videoFile) {
       const safeName = videoFile.name.replace(/\s+/g, "-");
       const path = `${Date.now()}-${safeName}`;
