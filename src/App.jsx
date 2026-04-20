@@ -6,6 +6,7 @@ import teamLogoBNR from "./assets/teams/BNR.png";
 import FilesPage from "./FilesPage";
 import SubmitAppealPage from "./SubmitAppealPage";
 import AppealsPage from "./AppealsPage";
+import DriverProfilePage from "./DriverProfilePage";
 import { supabase } from "./lib/supabase";
 const teamLogos = {
   JAM: teamLogoJAM,
@@ -234,6 +235,10 @@ function TeamOverlay({ teams, preview = false, seasonName = "" }) {
   );
 }
 function PublicStandings({ drivers, teams, seasonName = "" }) {
+  const handleDriverClick = (number) => {
+    window.location.pathname = `/driver/${number}`;
+  };
+
   const sorted = [...drivers].sort((a, b) => b.points - a.points || b.wins - a.wins || b.top3 - a.top3 || a.name.localeCompare(b.name));
   const [leader, second, third] = sorted;
   const totalPoints = sorted.reduce((s, d) => s + (d.points || 0), 0);
@@ -255,7 +260,7 @@ function PublicStandings({ drivers, teams, seasonName = "" }) {
         </div>
         <div style={{ fontSize: 24, fontWeight: 900, marginBottom: 4 }}>{driver.name}</div>
         <div style={{ fontSize: 14, opacity: 0.85, marginBottom: 18 }}>{driver.team}</div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10, marginBottom: 14 }}>
           {[{label:"POINTS",value:driver.points},{label:"WINS",value:driver.wins},{label:"TOP 3",value:driver.top3},{label:"TOP 5",value:driver.top5}].map((stat) => (
             <div key={stat.label} style={{ background: "rgba(0,0,0,0.22)", borderRadius: 14, padding: 12 }}>
               <div style={{ fontSize: 11, opacity: 0.8 }}>{stat.label}</div>
@@ -263,6 +268,12 @@ function PublicStandings({ drivers, teams, seasonName = "" }) {
             </div>
           ))}
         </div>
+        <button 
+          onClick={() => handleDriverClick(driver.number)}
+          style={{ width: "100%", background: "rgba(0,0,0,0.3)", color: "white", border: `1px solid rgba(255,255,255,0.3)`, borderRadius: 10, padding: "10px 14px", fontWeight: 700, cursor: "pointer", fontSize: 13 }}
+        >
+          View Full Profile
+        </button>
       </div>
     );
   };
@@ -305,11 +316,11 @@ function PublicStandings({ drivers, teams, seasonName = "" }) {
                 {sorted.map((driver, index) => {
                   const isLeader = index === 0;
                   return (
-                    <tr key={driver.id} style={{ background: isLeader ? "rgba(212,175,55,0.10)" : "transparent" }}>
+                    <tr key={driver.id} style={{ background: isLeader ? "rgba(212,175,55,0.10)" : "transparent", cursor: "pointer" }} onClick={() => handleDriverClick(driver.number)}>
                       <td style={{ ...tdStyle, fontWeight: 900, color: isLeader ? "#f3d36a" : "white", fontSize: 16 }}>{index + 1}</td>
                       <td style={tdStyle}>{renderTeamBadge(driver.team, 38)}</td>
                       <td style={{ ...tdStyle, fontWeight: 800 }}>{driver.number}</td>
-                      <td style={{ ...tdStyle, fontWeight: 800 }}>{driver.name}{driver.retired && <span style={{ marginLeft: 6, fontSize: 11, background: "#2a3140", color: "#f59e0b", borderRadius: 6, padding: "2px 6px", fontWeight: 700 }}>R</span>}</td>
+                      <td style={{ ...tdStyle, fontWeight: 800, color: "#d4af37" }}>{driver.name}{driver.retired && <span style={{ marginLeft: 6, fontSize: 11, background: "#2a3140", color: "#f59e0b", borderRadius: 6, padding: "2px 6px", fontWeight: 700 }}>R</span>}</td>
                       <td style={tdStyle}>{driver.team}</td>
                       <td style={{ ...tdStyle, fontWeight: 900 }}>{driver.points}</td>
                       <td style={tdStyle}>{driver.wins}</td>
@@ -399,6 +410,9 @@ export default function App() {
   if (path === "/files") return <FilesPage />;
   if (path === "/submit-appeal") return <SubmitAppealPage />;
   if (path === "/appeals") return <AppealsPage />;
+  if (path.startsWith("/driver/")) {
+    return <DriverProfilePage seasons={seasons} activeSeason={activeSeason} />;
+  }
 
   useEffect(() => {
     let isMounted = true;
