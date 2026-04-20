@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import logo from "./assets/logo1.png";
 import { supabase } from "./lib/supabase";
+import { loadLeagueState } from "./lib/leagueState";
 
 const appShellStyle = { minHeight: "100vh", background: "#0c0f14", color: "white", fontFamily: "Arial, sans-serif" };
 const pageContainerStyle = { maxWidth: 1000, margin: "0 auto", padding: 20 };
@@ -91,7 +92,26 @@ export default function DriverProfilePage({ seasons, activeSeason }) {
   const pathParts = window.location.pathname.split("/");
   const driverNumber = pathParts[2];
 
-  const allSeasons = Array.isArray(seasons) ? seasons : [];
+  const [freshSeasons, setFreshSeasons] = useState(Array.isArray(seasons) ? seasons : []);
+
+  useEffect(() => {
+    async function syncLatestData() {
+      try {
+        const state = await loadLeagueState();
+        if (state?.seasons && Array.isArray(state.seasons)) {
+          setFreshSeasons(state.seasons);
+        }
+      } catch (err) {
+        console.error("Failed to sync latest data:", err);
+      }
+    }
+
+    syncLatestData();
+    const interval = setInterval(syncLatestData, 3000); // Sync every 3 seconds
+    return () => clearInterval(interval);
+  }, []);
+
+  const allSeasons = freshSeasons.length > 0 ? freshSeasons : (Array.isArray(seasons) ? seasons : []);
   const currentActiveSeason = activeSeason && typeof activeSeason === "object" ? activeSeason : null;
 
   const initialSeasonId = currentActiveSeason?.id || allSeasons[0]?.id || null;
