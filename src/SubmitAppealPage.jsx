@@ -1,98 +1,207 @@
-    if (videoFile) {
-      const safeName = videoFile.name.replace(/\s+/g, "-");
-      const path = `${Date.now()}-${safeName}`;
+import React, { useState } from "react";
+import { supabase } from "./lib/supabase";
 
-      const { error: uploadError } = await supabase.storage
-        .from("appeal-evidence")
-        .upload(path, videoFile, { upsert: false });
+export default function SubmitAppealPage() {
+  const [requester, setRequester] = useState("");
+  const [track, setTrack] = useState("");
+  const [lapNumber, setLapNumber] = useState("");
+  const [description, setDescription] = useState("");
+  const [videoFile, setVideoFile] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
 
-      if (uploadError) {
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+
+    try {
+      let evidenceUrl = null;
+
+      if (videoFile) {
+        const fileName = `appeals/${Date.now()}-${videoFile.name}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("appeal-evidence")
+          .upload(fileName, videoFile);
+
+        if (uploadError) {
+          console.error("Video upload failed:", uploadError);
+          alert("Video upload failed: " + uploadError.message);
+          setSubmitting(false);
+          return;
+        }
+
+        const { data } = supabase.storage
+          .from("appeal-evidence")
+          .getPublicUrl(fileName);
+
+        evidenceUrl = data.publicUrl;
+      }
+
+      const { error } = await supabase.from("appeals").insert([
+        {
+          requester,
+          track,
+          lap_number: Number(lapNumber),
+          description,
+          evidence_url: evidenceUrl,
+          status: "Open",
+          admin_notes: "",
+        },
+      ]);
+
+      if (error) {
+        console.error("Appeal insert failed:", error);
+        alert("Appeal failed: " + error.message);
         setSubmitting(false);
-        setMessage("Video upload failed.");
         return;
       }
 
-      const { data } = supabase.storage.from("appeal-evidence").getPublicUrl(path);
-      evidenceUrl = data?.publicUrl || "";
+      alert("Appeal submitted successfully.");
+
+      setRequester("");
+      setTrack("");
+      setLapNumber("");
+      setDescription("");
+      setVideoFile(null);
+    } catch (err) {
+      console.error("Unexpected submit error:", err);
+      alert("Something went wrong while submitting the appeal.");
     }
 
-    const { error } = await supabase.from("appeals").insert([
-      {
-        requester,
-        track,
-        lap_number: lapNumber ? Number(lapNumber) : null,
-        description,
-        evidence_url: evidenceUrl,
-        status: "Open",
-      },
-    ]);
-
-    if (error) {
-      setMessage("Appeal submission failed.");
-      setSubmitting(false);
-      return;
-    }
-
-    setRequester("");
-    setTrack(TRACKS[0]);
-    setLapNumber("");
-    setDescription("");
-    setVideoFile(null);
-    const fileInput = document.getElementById("appeal-video-input");
-    if (fileInput) fileInput.value = "";
-    setMessage("Appeal submitted successfully.");
     setSubmitting(false);
-  }
+  };
 
   return (
-    <div style={{ padding: 20, color: "white" }}>
-      <h1>Submit Appeal</h1>
-      <p>Use this form to submit a case for review.</p>
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "#0c0f14",
+        color: "white",
+        fontFamily: "Arial, sans-serif",
+        padding: 24,
+      }}
+    >
+      <div
+        style={{
+          maxWidth: 700,
+          margin: "0 auto",
+          background: "#171b22",
+          border: "1px solid #2c3440",
+          borderRadius: 16,
+          padding: 24,
+        }}
+      >
+        <h1 style={{ marginTop: 0 }}>Submit Appeal</h1>
+        <p style={{ opacity: 0.8 }}>
+          Fill out the form below to submit a case for admin review.
+        </p>
 
-      <form onSubmit={handleSubmit} style={{ display: "grid", gap: 12, maxWidth: 700 }}>
-        <input
-          value={requester}
-          onChange={(e) => setRequester(e.target.value)}
-          placeholder="Requester name"
-          required
-        />
+        <form onSubmit={handleSubmit} style={{ display: "grid", gap: 14 }}>
+          <div>
+            <label style={{ display: "block", marginBottom: 6 }}>Requester</label>
+            <input
+              type="text"
+              value={requester}
+              onChange={(e) => setRequester(e.target.value)}
+              required
+              style={{
+                width: "100%",
+                padding: 10,
+                borderRadius: 8,
+                border: "1px solid #313947",
+                background: "#0f1319",
+                color: "white",
+                boxSizing: "border-box",
+              }}
+            />
+          </div>
 
-        <select value={track} onChange={(e) => setTrack(e.target.value)}>
-          {TRACKS.map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
-          ))}
-        </select>
+          <div>
+            <label style={{ display: "block", marginBottom: 6 }}>Track</label>
+            <input
+              type="text"
+              value={track}
+              onChange={(e) => setTrack(e.target.value)}
+              required
+              style={{
+                width: "100%",
+                padding: 10,
+                borderRadius: 8,
+                border: "1px solid #313947",
+                background: "#0f1319",
+                color: "white",
+                boxSizing: "border-box",
+              }}
+            />
+          </div>
 
-        <input
-          type="number"
-          value={lapNumber}
-          onChange={(e) => setLapNumber(e.target.value)}
-          placeholder="Lap number"
-        />
+          <div>
+            <label style={{ display: "block", marginBottom: 6 }}>Lap Number</label>
+            <input
+              type="number"
+              value={lapNumber}
+              onChange={(e) => setLapNumber(e.target.value)}
+              required
+              style={{
+                width: "100%",
+                padding: 10,
+                borderRadius: 8,
+                border: "1px solid #313947",
+                background: "#0f1319",
+                color: "white",
+                boxSizing: "border-box",
+              }}
+            />
+          </div>
 
-        <textarea
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="Describe the appeal"
-          rows={6}
-          required
-        />
+          <div>
+            <label style={{ display: "block", marginBottom: 6 }}>Description</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              required
+              rows={6}
+              style={{
+                width: "100%",
+                padding: 10,
+                borderRadius: 8,
+                border: "1px solid #313947",
+                background: "#0f1319",
+                color: "white",
+                boxSizing: "border-box",
+              }}
+            />
+          </div>
 
-        <input
-          id="appeal-video-input"
-          type="file"
-          accept="video/*"
-          onChange={(e) => setVideoFile(e.target.files?.[0] || null)}
-        />
+          <div>
+            <label style={{ display: "block", marginBottom: 6 }}>
+              Video Evidence (optional)
+            </label>
+            <input
+              type="file"
+              accept="video/*"
+              onChange={(e) => setVideoFile(e.target.files?.[0] || null)}
+              style={{ color: "white" }}
+            />
+          </div>
 
-        <button type="submit" disabled={submitting}>
-          {submitting ? "Submitting..." : "Submit Appeal"}
-        </button>
-      </form>
-
-      {message ? <p style={{ marginTop: 12 }}>{message}</p> : null}
+          <button
+            type="submit"
+            disabled={submitting}
+            style={{
+              background: "#d4af37",
+              color: "#111",
+              border: "none",
+              borderRadius: 10,
+              padding: "12px 16px",
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            {submitting ? "Submitting..." : "Submit Appeal"}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }
