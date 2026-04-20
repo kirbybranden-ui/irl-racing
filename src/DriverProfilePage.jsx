@@ -139,7 +139,21 @@ export default function DriverProfilePage({ seasons, activeSeason }) {
         <div style={pageContainerStyle}>
           <div style={sectionCardStyle}>
             <button onClick={() => window.location.pathname = "/standings"} style={secondaryButtonStyle}>← Back to Standings</button>
-            <div style={{ marginTop: 16, opacity: 0.75 }}>Driver #{driverNumber} not found in {selectedSeason.name}.</div>
+            <div style={{ marginTop: 16, marginBottom: 16, fontWeight: 700 }}>Driver #{driverNumber} not found in {selectedSeason?.name}</div>
+            {allSeasons.length > 1 && (
+              <div>
+                <div style={{ marginBottom: 8, fontSize: 12, opacity: 0.8 }}>Try another season:</div>
+                <select 
+                  style={inputStyle} 
+                  value={selectedSeasonId || ""} 
+                  onChange={(e) => setSelectedSeasonId(e.target.value)}
+                >
+                  {allSeasons.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -179,11 +193,19 @@ export default function DriverProfilePage({ seasons, activeSeason }) {
             </div>
             <div style={{ textAlign: "right" }}>
               <div style={{ fontSize: 12, opacity: 0.72, marginBottom: 4 }}>SEASON</div>
-              <select style={{ ...inputStyle, maxWidth: 240, marginBottom: 12 }} value={selectedSeasonId || ""} onChange={(e) => setSelectedSeasonId(e.target.value)}>
-                {allSeasons.map((s, idx) => (
-                  <option key={s.id} value={s.id}>{s.name} {idx === seasonIndex ? "(Current)" : ""}</option>
-                ))}
-              </select>
+              {allSeasons.length > 1 ? (
+                <select 
+                  style={{ ...inputStyle, maxWidth: 240, marginBottom: 12 }} 
+                  value={selectedSeasonId || ""} 
+                  onChange={(e) => setSelectedSeasonId(e.target.value)}
+                >
+                  {allSeasons.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              ) : (
+                <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>{selectedSeason?.name || "—"}</div>
+              )}
               {seasonIndex > 0 && <div style={{ fontSize: 12, opacity: 0.6 }}>Joined in {selectedSeason.name}</div>}
             </div>
           </div>
