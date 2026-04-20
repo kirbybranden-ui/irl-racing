@@ -1,282 +1,115 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "./lib/supabase";
-import { loadLeagueState } from "./lib/leagueState";
 
-const pageStyle = {
-  minHeight: "100vh",
-  background: "#0c0f14",
-  color: "white",
-  fontFamily: "Arial, sans-serif",
-  padding: 24,
-};
+export default function AppealsPage() {
+  const [appeals, setAppeals] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-const cardStyle = {
-  maxWidth: 760,
-  margin: "0 auto",
-  background: "#171b22",
-  border: "1px solid #2c3440",
-  borderRadius: 16,
-  padding: 24,
-  boxShadow: "0 8px 24px rgba(0,0,0,0.22)",
-};
+  async function loadAppeals() {
+    setLoading(true);
 
-const labelStyle = {
-  display: "block",
-  marginBottom: 6,
-  fontWeight: 700,
-};
+    const { data, error } = await supabase
+      .from("appeals")
+      .select("*")
+      .order("created_at", { ascending: false });
 
-const inputStyle = {
-  width: "100%",
-  background: "#0f1319",
-  color: "white",
-  border: "1px solid #313947",
-  borderRadius: 10,
-  padding: "10px 12px",
-  boxSizing: "border-box",
-};
+    if (error) {
+      console.error(error);
+      setAppeals([]);
+      setLoading(false);
+      return;
+    }
 
-const primaryButtonStyle = {
-  background: "#d4af37",
-  color: "#111",
-  border: "none",
-  borderRadius: 10,
-  padding: "12px 16px",
-  fontWeight: 700,
-  cursor: "pointer",
-};
-
-const secondaryButtonStyle = {
-  background: "#2a3140",
-  color: "white",
-  border: "1px solid #3d4859",
-  borderRadius: 10,
-  padding: "10px 14px",
-  fontWeight: 700,
-  cursor: "pointer",
-};
-
-export default function SubmitAppealPage() {
-  const [requester, setRequester] = useState("");
-  const [track, setTrack] = useState("");
-  const [lapNumber, setLapNumber] = useState("");
-  const [description, setDescription] = useState("");
-  const [videoFile, setVideoFile] = useState(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [drivers, setDrivers] = useState([]);
-  const [tracks, setTracks] = useState([]);
-  const fileInputRef = useRef(null);
+    setAppeals(data || []);
+    setLoading(false);
+  }
 
   useEffect(() => {
-    async function hydrateLeagueData() {
-      try {
-        const savedState = await loadLeagueState();
-
-        const allTracks = Array.isArray(savedState?.tracks) ? savedState.tracks : [];
-        setTracks(allTracks);
-
-        const seasons = Array.isArray(savedState?.seasons) ? savedState.seasons : [];
-        const activeSeasonId = savedState?.activeSeasonId;
-        const activeSeason =
-          seasons.find((s) => s.id === activeSeasonId) || seasons[0] || null;
-
-        const seasonDrivers = Array.isArray(activeSeason?.drivers)
-          ? activeSeason.drivers.filter((d) => !d.retired)
-          : [];
-
-        setDrivers(seasonDrivers);
-      } catch (error) {
-        console.error("Failed to load league data for appeal form:", error);
-      }
-    }
-
-    hydrateLeagueData();
+    loadAppeals();
   }, []);
 
-  const removeAttachment = () => {
-    setVideoFile(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-  };
+  async function updateAppeal(id, status, admin_notes) {
+    const { error } = await supabase
+      .from("appeals")
+      .update({ status, admin_notes })
+      .eq("id", id);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setSubmitting(true);
-
-    try {
-      let evidenceUrl = null;
-
-      if (videoFile) {
-        const fileName = `appeals/${Date.now()}-${videoFile.name}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from("appeal-evidence")
-          .upload(fileName, videoFile);
-
-        if (uploadError) {
-          console.error("Video upload failed:", uploadError);
-          alert("Video upload failed: " + uploadError.message);
-          setSubmitting(false);
-          return;
-        }
-
-        const { data } = supabase.storage
-          .from("appeal-evidence")
-          .getPublicUrl(fileName);
-
-        evidenceUrl = data?.publicUrl || null;
-      }
-
-      const { error } = await supabase.from("appeals").insert([
-        {
-          requester,
-          track,
-          lap_number: Number(lapNumber),
-          description,
-          evidence_url: evidenceUrl,
-          status: "Open",
-          admin_notes: "",
-        },
-      ]);
-
-      if (error) {
-        console.error("Appeal insert failed:", error);
-        alert("Appeal failed: " + error.message);
-        setSubmitting(false);
-        return;
-      }
-
-      alert("Appeal submitted successfully.");
-
-      setRequester("");
-      setTrack("");
-      setLapNumber("");
-      setDescription("");
-      removeAttachment();
-    } catch (err) {
-      console.error("Unexpected submit error:", err);
-      alert("Something went wrong while submitting the appeal.");
+    if (error) {
+      alert("Update failed");
+      return;
     }
 
-    setSubmitting(false);
-  };
+    await loadAppeals();
+  }
 
   return (
-    <div style={pageStyle}>
-      <div style={cardStyle}>
-        <h1 style={{ marginTop: 0 }}>Submit Appeal</h1>
-        <p style={{ opacity: 0.8, marginBottom: 20 }}>
-          Fill out the form below to submit a case for admin review.
-        </p>
+    <div style={{ padding: 20, color: "white" }}>
+      <h1>Appeals Review</h1>
 
-        <form onSubmit={handleSubmit} style={{ display: "grid", gap: 14 }}>
-          <div>
-            <label style={labelStyle}>Requester</label>
-            <select
-              value={requester}
-              onChange={(e) => setRequester(e.target.value)}
-              required
-              style={inputStyle}
-            >
-              <option value="">Select a driver</option>
-              {drivers
-                .slice()
-                .sort((a, b) => a.name.localeCompare(b.name))
-                .map((driver) => (
-                  <option key={driver.id} value={driver.name}>
-                    #{driver.number} {driver.name}
-                  </option>
-                ))}
-            </select>
-          </div>
+      {loading ? (
+        <p>Loading appeals...</p>
+      ) : appeals.length === 0 ? (
+        <p>No appeals submitted.</p>
+      ) : (
+        appeals.map((appeal) => (
+          <AppealCard key={appeal.id} appeal={appeal} onSave={updateAppeal} />
+        ))
+      )}
+    </div>
+  );
+}
 
-          <div>
-            <label style={labelStyle}>Track</label>
-            <select
-              value={track}
-              onChange={(e) => setTrack(e.target.value)}
-              required
-              style={inputStyle}
-            >
-              <option value="">Select a track</option>
-              {tracks
-                .slice()
-                .sort((a, b) => a.name.localeCompare(b.name))
-                .map((trackItem) => (
-                  <option key={trackItem.name} value={trackItem.name}>
-                    {trackItem.name}
-                  </option>
-                ))}
-            </select>
-          </div>
+function AppealCard({ appeal, onSave }) {
+  const [status, setStatus] = useState(appeal.status || "Open");
+  const [notes, setNotes] = useState(appeal.admin_notes || "");
 
-          <div>
-            <label style={labelStyle}>Lap Number</label>
-            <input
-              type="number"
-              value={lapNumber}
-              onChange={(e) => setLapNumber(e.target.value)}
-              required
-              min="1"
-              style={inputStyle}
-            />
-          </div>
+  return (
+    <div
+      style={{
+        border: "1px solid #444",
+        borderRadius: 10,
+        padding: 16,
+        marginBottom: 16,
+        background: "#1b1b1b",
+      }}
+    >
+      <p><strong>Requester:</strong> {appeal.requester}</p>
+      <p><strong>Track:</strong> {appeal.track}</p>
+      <p><strong>Lap:</strong> {appeal.lap_number ?? "-"}</p>
+      <p><strong>Description:</strong> {appeal.description}</p>
+      <p><strong>Status:</strong> {appeal.status}</p>
 
-          <div>
-            <label style={labelStyle}>Description</label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              required
-              rows={6}
-              style={inputStyle}
-            />
-          </div>
+      {appeal.evidence_url ? (
+        <div style={{ marginBottom: 12 }}>
+          <p><strong>Evidence:</strong></p>
+          <video controls width="320" src={appeal.evidence_url} />
+        </div>
+      ) : (
+        <p><strong>Evidence:</strong> None uploaded</p>
+      )}
 
-          <div>
-            <label style={labelStyle}>Video Evidence (optional)</label>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="video/*"
-              onChange={(e) => setVideoFile(e.target.files?.[0] || null)}
-              style={{ color: "white" }}
-            />
+      <select value={status} onChange={(e) => setStatus(e.target.value)}>
+        <option value="Open">Open</option>
+        <option value="Approved">Approved</option>
+        <option value="Denied">Denied</option>
+      </select>
 
-            {videoFile && (
-              <div
-                style={{
-                  marginTop: 10,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: 12,
-                  background: "#10141b",
-                  border: "1px solid #2d3643",
-                  borderRadius: 10,
-                  padding: 12,
-                }}
-              >
-                <div style={{ fontSize: 14, overflowWrap: "anywhere" }}>
-                  Attached: {videoFile.name}
-                </div>
-                <button
-                  type="button"
-                  onClick={removeAttachment}
-                  style={secondaryButtonStyle}
-                >
-                  Remove Attachment
-                </button>
-              </div>
-            )}
-          </div>
-
-          <button type="submit" disabled={submitting} style={primaryButtonStyle}>
-            {submitting ? "Submitting..." : "Submit Appeal"}
-          </button>
-        </form>
+      <div style={{ marginTop: 10 }}>
+        <textarea
+          rows={4}
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="Admin notes / determination"
+          style={{ width: "100%" }}
+        />
       </div>
+
+      <button
+        style={{ marginTop: 10 }}
+        onClick={() => onSave(appeal.id, status, notes)}
+      >
+        Save Determination
+      </button>
     </div>
   );
 }
