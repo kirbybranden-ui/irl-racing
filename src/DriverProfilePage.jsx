@@ -1,5 +1,4 @@
 import React, { useState, useMemo } from "react";
-import { useParams, useNavigate } from "react-router-dom";
 import logo from "./assets/logo1.png";
 import { supabase } from "./lib/supabase";
 
@@ -95,8 +94,8 @@ function AppealModal({ isOpen, onClose, driverId, driverName, driverNumber, onSu
 }
 
 export default function DriverProfilePage({ seasons, activeSeason }) {
-  const { number } = useParams();
-  const navigate = useNavigate();
+  const pathParts = window.location.pathname.split("/");
+  const number = pathParts[2]; // /driver/:number
   const [selectedSeasonId, setSelectedSeasonId] = useState(activeSeason?.id || "");
   const [isAppealModalOpen, setIsAppealModalOpen] = useState(false);
 
@@ -141,7 +140,7 @@ export default function DriverProfilePage({ seasons, activeSeason }) {
         <div style={pageContainerStyle}>
           <div style={sectionCardStyle}>
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-              <button onClick={() => navigate("/standings")} style={secondaryButtonStyle}>← Back to Standings</button>
+              <button onClick={() => window.location.pathname = "/standings"} style={secondaryButtonStyle}>← Back to Standings</button>
             </div>
             <div style={{ opacity: 0.75 }}>Driver #{number} not found in {selectedSeason?.name || "selected season"}.</div>
           </div>
@@ -160,7 +159,7 @@ export default function DriverProfilePage({ seasons, activeSeason }) {
         <div style={{ ...sectionCardStyle, background: `linear-gradient(135deg, ${brand.accent}20 0%, ${brand.dark}40 100%)`, border: `1px solid ${brand.accent}40`, marginBottom: 20 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
             <div>
-              <button onClick={() => navigate("/standings")} style={{ ...secondaryButtonStyle, marginBottom: 12 }}>← Back to Standings</button>
+              <button onClick={() => window.location.pathname = "/standings"} style={{ ...secondaryButtonStyle, marginBottom: 12 }}>← Back to Standings</button>
               <div style={{ fontSize: 28, fontWeight: 900 }}>#{driver.number} {driver.name}</div>
               <div style={{ fontSize: 16, opacity: 0.8, marginTop: 4 }}>{driver.team}</div>
             </div>
