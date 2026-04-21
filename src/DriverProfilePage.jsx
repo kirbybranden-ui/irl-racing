@@ -189,7 +189,16 @@ export default function DriverProfilePage({ seasons, activeSeason }) {
           {driver.manufacturer || "—"}
         </div>
 
-        <div style={{ ...sectionCardStyle, marginBottom: 20 }}>
+        <div style={{ ...sectionCardStyle, marginBottom: 20, position: "relative" }}>
+          {/* Manufacturer Logo - Top Right */}
+          <div style={{ position: "absolute", top: 16, right: 16, width: 90, height: 90, borderRadius: 8, background: "#1a1e27", border: "2px solid #404854", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", zIndex: 10 }}>
+            {driver.manufacturerLogo ? (
+              <img src={driver.manufacturerLogo} alt={driver.manufacturer} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            ) : (
+              <div style={{ fontWeight: 700, fontSize: 11, color: "#b8a059", textAlign: "center", padding: 8 }}>{driver.manufacturer || "—"}</div>
+            )}
+          </div>
+
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
             <div>
               <button onClick={() => window.location.pathname = "/standings"} style={{ ...secondaryButtonStyle, marginBottom: 12 }}>← Back to Standings</button>
