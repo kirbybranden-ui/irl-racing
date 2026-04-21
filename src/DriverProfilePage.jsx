@@ -189,7 +189,16 @@ export default function DriverProfilePage({ seasons, activeSeason }) {
           {driver.manufacturer || "—"}
         </div>
 
-        <div style={{ ...sectionCardStyle, marginBottom: 20 }}>
+        {/* Manufacturer Logo Banner - Top of Page */}
+        <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 16, padding: 40, marginBottom: 20, display: "flex", justifyContent: "center", alignItems: "center", minHeight: 200 }}>
+          {driver.manufacturerLogo ? (
+            <img src={driver.manufacturerLogo} alt={driver.manufacturer} style={{ maxWidth: "100%", maxHeight: 200, objectFit: "contain" }} />
+          ) : (
+            <div style={{ fontWeight: 700, fontSize: 18, color: "#b8a059", textAlign: "center" }}>{driver.manufacturer || "No Manufacturer"}</div>
+          )}
+        </div>
+
+        <div style={sectionCardStyle}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
             <div>
               <button onClick={() => window.location.pathname = "/standings"} style={{ ...secondaryButtonStyle, marginBottom: 12 }}>← Back to Standings</button>
@@ -217,15 +226,6 @@ export default function DriverProfilePage({ seasons, activeSeason }) {
               {seasonIndex > 0 && <div style={{ fontSize: 12, opacity: 0.6 }}>Joined in {selectedSeason.name}</div>}
             </div>
           </div>
-        </div>
-
-        {/* Large Centered Manufacturer Logo */}
-        <div style={{ ...sectionCardStyle, marginBottom: 20, display: "flex", justifyContent: "center", alignItems: "center", minHeight: 280 }}>
-          {driver.manufacturerLogo ? (
-            <img src={driver.manufacturerLogo} alt={driver.manufacturer} style={{ maxWidth: "100%", maxHeight: 280, objectFit: "contain" }} />
-          ) : (
-            <div style={{ fontWeight: 700, fontSize: 18, color: "#b8a059", textAlign: "center" }}>{driver.manufacturer || "No Manufacturer"}</div>
-          )}
         </div>
 
         <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 20 }}>
