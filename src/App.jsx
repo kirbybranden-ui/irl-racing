@@ -446,20 +446,6 @@ function TickerOverlay({ drivers, teams, raceHistory, preview = false, seasonNam
     </div>
   );
 }
-function CarGalleryPage({ drivers = [], tracks = [] }) {
-  return (
-    <div style={{ minHeight: "100vh", background: "#0c0f14", color: "white", padding: 40, fontFamily: "Arial, sans-serif" }}>
-      <h1>Car Gallery</h1>
-      <p>Gallery coming soon!</p>
-      <button 
-        onClick={() => window.history.back()}
-        style={{ background: "#d4af37", color: "#111", border: "none", padding: "10px 20px", borderRadius: 8, cursor: "pointer", fontWeight: 700 }}
-      >
-        Back to Admin
-      </button>
-    </div>
-  );
-}
 export default function App() {
   const [seasons, setSeasons] = useState(() => loadInitialLeagueState().seasons);
   const [openAppealCount, setOpenAppealCount] = useState(0);
