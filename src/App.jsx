@@ -16,10 +16,15 @@ const teamLogos = {
 };
 import { loadLeagueState, saveLeagueState } from "./lib/leagueState";
 const defaultDrivers = [
-  { id: 1, number: 64, name: "AMP-GHOSTRIDER", team: "JAM" },
-  { id: 2, number: 46, name: "RookieVet99", team: "JAM" },
+  { id: 1, number: 42, name: "AMP-GHOSTRIDER", team: "JAM" },
+  { id: 2, number: 99, name: "RookieVet99", team: "JAM" },
   { id: 3, number: 18, name: "bowhunter6758", team: "JAM" },
-  { id: 4, number: 81, name: "HOLDEN2DX4EV3R", team: "JAM" }
+  { id: 4, number: 81, name: "HOLDEN2DX4EV3R", team: "JAM" },
+  { id: 5, number: 3, name: "ixGusty", team: "None" },
+  { id: 6, number: 14, name: "KapSig", team: "None" },
+  { id: 7, number: 24, name: "KEVDINHO7", team: "None" },
+  { id: 8, number: 38, name: "It's_tricky88", team: "None" },
+  { id: 9, number: 97, name: "American_Hero216", team: "None" }
 ];
 const defaultRaces = [
   { name: "Daytona (R1)", stageCount: 2 },
