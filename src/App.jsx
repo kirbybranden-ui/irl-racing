@@ -31,7 +31,7 @@ const defaultDrivers = [
   { id: 5, number: 3, name: "ixGusty", manufacturer: "Toyota", team: "None" },
   { id: 6, number: 14, name: "KapSig", manufacturer: "Chevrolet", team: "None" },
   { id: 7, number: 24, name: "KEVDINHO7", manufacturer: "Chevrolet", team: "None" },
-  { id: 8, number: 38, name: "It's_tricky88", manufacturer: "Toyota", team: "None" },
+  { id: 8, number: 38, name: "It's_tricky88", manufacturer: "Chevrolet", team: "None" },
   { id: 9, number: 97, name: "American_Hero216", manufacturer: "Ford", team: "None" },
 ];
 const defaultRaces = [
