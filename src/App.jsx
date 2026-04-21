@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import logo from "./assets/logo1.png";
+import teamLogoJAM from "./assets/teams/JAM.png";
 import manufacturerChevrolet from "./assets/manufacturers/chevrolet.png";
 import manufacturerFord from "./assets/manufacturers/ford.png";
 import manufacturerToyota from "./assets/manufacturers/toyota.png";
@@ -10,8 +11,11 @@ import DriverProfilePage from "./DriverProfilePage";
 import WelcomePage from "./WelcomePage";
 import { supabase } from "./lib/supabase";
 
-// Team logos - will be populated when JAM.png is added
-const teamLogos = {};
+// Team logos
+const teamLogos = {
+  "JA MOTORSPORTS": teamLogoJAM,
+  JAM: teamLogoJAM,
+};
 const manufacturerLogos = {
   Chevrolet: manufacturerChevrolet,
   Ford: manufacturerFord,
@@ -109,6 +113,8 @@ const tdStyle = { padding: 10, borderBottom: "1px solid #252c38", verticalAlign:
 const statBoxStyle = { background: "#11161d", border: "1px solid #2a3240", borderRadius: 14, padding: 16, flex: "1 1 220px" };
 const teamBranding = {
   JAM: { logo: "JAM", accent: "#d4af37", dark: "#1b1b1b" },
+  "JA MOTORSPORTS": { logo: "JA", accent: "#d4af37", dark: "#1b1b1b" },
+  "None": { logo: "N", accent: "#808080", dark: "#2a2a2a" },
   "Team A": { logo: "A", accent: "#d4af37", dark: "#1b1b1b" },
   "Team B": { logo: "B", accent: "#3b82f6", dark: "#111827" },
   "Team C": { logo: "C", accent: "#ef4444", dark: "#1f1315" },
