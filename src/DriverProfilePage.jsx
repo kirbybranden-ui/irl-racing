@@ -256,9 +256,42 @@ export default function DriverProfilePage({ seasons, activeSeason }) {
           ))}
         </div>
 
+        {/* Achievements */}
+        {(() => {
+          const achievements = [
+            { badge: "🏆", name: "First Win", condition: driver.wins >= 1 },
+            { badge: "🥇", name: "Hat Trick", condition: driver.wins >= 3 },
+            { badge: "👑", name: "Dominator", condition: driver.wins >= 5 },
+            { badge: "🎯", name: "Podium Master", condition: driver.top3 >= 10 },
+            { badge: "⭐", name: "Century Club", condition: driver.points >= 100 },
+            { badge: "⚡", name: "Speed Demon", condition: driver.fastestLaps >= 5 },
+          ].filter(a => a.condition);
+          
+          return achievements.length > 0 && (
+            <div style={{ ...sectionCardStyle, marginBottom: 20 }}>
+              <h3 style={{ marginTop: 0, marginBottom: 12 }}>Achievements</h3>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                {achievements.map((a, i) => (
+                  <div key={i} style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 10, padding: 12, textAlign: "center", minWidth: 90 }}>
+                    <div style={{ fontSize: 28, marginBottom: 4 }}>{a.badge}</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, opacity: 0.8 }}>{a.name}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+
         <div style={{ marginBottom: 20 }}>
           <button onClick={() => setIsAppealModalOpen(true)} style={primaryButtonStyle}>File an Appeal</button>
         </div>
+
+        {driver.notes && (
+          <div style={{ ...sectionCardStyle, marginBottom: 20, background: "#1a1f27", borderLeft: "4px solid #d4af37" }}>
+            <h3 style={{ marginTop: 0, marginBottom: 8 }}>Admin Notes</h3>
+            <div style={{ fontSize: 14, lineHeight: 1.6, opacity: 0.9 }}>{driver.notes}</div>
+          </div>
+        )}
 
         <div style={sectionCardStyle}>
           <h2 style={{ marginTop: 0, marginBottom: 16 }}>Race-by-Race Breakdown</h2>
