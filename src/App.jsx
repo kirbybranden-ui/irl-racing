@@ -472,7 +472,6 @@ export default function App() {
   const [pendingDrivers, setPendingDrivers] = useState([]);
   const importFileRef = useRef(null);
   const path = window.location.pathname.toLowerCase();
-  const path = window.location.pathname.toLowerCase();
 console.log("Current path:", path);  // ADD THIS LINE
 
   if (path === "/files") return <FilesPage />;
