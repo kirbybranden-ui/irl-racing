@@ -1,8 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import logo from "./assets/logo1.png";
 import teamLogoJAM from "./assets/teams/JAM.png";
-import teamLogoPMS from "./assets/teams/PMS.png";
-import teamLogoBNR from "./assets/teams/BNR.png";
 import manufacturerChevrolet from "./assets/manufacturers/chevrolet.png";
 import manufacturerFord from "./assets/manufacturers/ford.png";
 import manufacturerToyota from "./assets/manufacturers/toyota.png";
@@ -14,8 +12,6 @@ import WelcomePage from "./WelcomePage";
 import { supabase } from "./lib/supabase";
 const teamLogos = {
   JAM: teamLogoJAM,
-  PMS: teamLogoPMS,
-  BNR: teamLogoBNR,
 };
 const manufacturerLogos = {
   Chevrolet: manufacturerChevrolet,
