@@ -183,23 +183,8 @@ export default function DriverProfilePage({ seasons, activeSeason }) {
 
   return (
     <div style={appShellStyle}>
-      <div style={{ ...pageContainerStyle, position: "relative" }}>
-        {/* Manufacturer Logo - Top Left */}
-        <div style={{ position: "absolute", top: 20, left: 20, width: 90, height: 90, borderRadius: 8, background: "#1a1e27", border: "2px solid #404854", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 11, color: "#b8a059", textAlign: "center", padding: 6, boxSizing: "border-box", zIndex: 10 }}>
-          {driver.manufacturer || "—"}
-        </div>
-
-        {/* Manufacturer Logo Banner - Top of Page */}
-        <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 16, padding: 40, marginBottom: 20, display: "flex", justifyContent: "center", alignItems: "center", minHeight: 200 }}>
-          {driver.manufacturerLogo ? (
-            <img src={driver.manufacturerLogo} alt={driver.manufacturer} style={{ maxWidth: "100%", maxHeight: 200, objectFit: "contain" }} />
-          ) : (
-            <div style={{ fontWeight: 700, fontSize: 18, color: "#b8a059", textAlign: "center" }}>{driver.manufacturer || "No Manufacturer"}</div>
-          )}
-        </div>
-
-        <div style={sectionCardStyle}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+      <div style={pageContainerStyle}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 24, flexWrap: "wrap" }}>
             <div>
               <button onClick={() => window.location.pathname = "/standings"} style={{ ...secondaryButtonStyle, marginBottom: 12 }}>← Back to Standings</button>
               <div>
@@ -208,6 +193,16 @@ export default function DriverProfilePage({ seasons, activeSeason }) {
                 <div style={{ fontSize: 14, opacity: 0.8, marginTop: 2 }}>{driver.team}</div>
               </div>
             </div>
+            
+            {/* Medium Manufacturer Logo - Center */}
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", width: 140, height: 140, borderRadius: 8, background: "#0f1319", border: "1px solid #2c3440" }}>
+              {driver.manufacturerLogo ? (
+                <img src={driver.manufacturerLogo} alt={driver.manufacturer} style={{ maxWidth: "90%", maxHeight: "90%", objectFit: "contain" }} />
+              ) : (
+                <div style={{ fontWeight: 700, fontSize: 12, color: "#b8a059", textAlign: "center", padding: 8 }}>{driver.manufacturer || "—"}</div>
+              )}
+            </div>
+            
             <div style={{ textAlign: "right" }}>
               <div style={{ fontSize: 12, opacity: 0.72, marginBottom: 4 }}>SEASON</div>
               {allSeasons.length > 0 ? (
