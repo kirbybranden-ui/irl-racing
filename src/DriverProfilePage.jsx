@@ -2,6 +2,7 @@ import React, { useState, useMemo } from "react";
 import logo from "./assets/logo1.png";
 import teamLogoJAM from "./assets/teams/JAM.png";
 import { supabase } from "./lib/supabase";
+import CarUploadComponent from "./CarUploadComponent";
 
 // Team logos
 const teamLogos = {
@@ -94,7 +95,7 @@ function AppealModal({ isOpen, onClose, driverId, driverName, driverNumber }) {
   );
 }
 
-export default function DriverProfilePage({ seasons, activeSeason }) {
+export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }) {
   const pathParts = window.location.pathname.split("/");
   const driverNumber = pathParts[2];
 
@@ -398,6 +399,9 @@ export default function DriverProfilePage({ seasons, activeSeason }) {
             <div style={{ fontSize: 14, lineHeight: 1.6, opacity: 0.9 }}>{driver.notes}</div>
           </div>
         )}
+
+        {/* Car Upload Component */}
+        <CarUploadComponent driver={driver} tracks={tracks} />
 
         {/* Season Stats Overview */}
         <div style={sectionCardStyle}>
