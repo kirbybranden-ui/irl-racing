@@ -11,7 +11,6 @@ import DriverProfilePage from "./DriverProfilePage";
 import WelcomePage from "./WelcomePage";
 import { supabase } from "./lib/supabase";
 import CarGalleryPage from "./CarGalleryPage";
-
 // Team logos
 const teamLogos = {
   "JA MOTORSPORTS": teamLogoJAM,
