@@ -21,34 +21,73 @@ const tableStyle = { width: "100%", borderCollapse: "collapse" };
 const thStyle = { textAlign: "left", padding: 10, borderBottom: "1px solid #313947", background: "#10141b", fontSize: 13, fontWeight: 700 };
 const tdStyle = { padding: 10, borderBottom: "1px solid #252c38", verticalAlign: "top", fontSize: 14 };
 
-function AppealModal({ isOpen, onClose, driverId, driverName, driverNumber }) {
-  const [appealType, setAppealType] = useState("offense");
-  const [raceContext, setRaceContext] = useState("");
+function AppealModal({ isOpen, onClose, seasons, activeSeason }) {
+  const [requester, setRequester] = useState("");
+  const [track, setTrack] = useState("");
   const [description, setDescription] = useState("");
+  const [videoUrl, setVideoUrl] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [uploadingVideo, setUploadingVideo] = useState(false);
+
+  const allSeasons = Array.isArray(seasons) ? seasons : [];
+  const currentActiveSeason = activeSeason && typeof activeSeason === "object" ? activeSeason : null;
+  const selectedSeason = currentActiveSeason || allSeasons[0];
+
+  // Get all drivers from active season, sorted by number
+  const drivers = selectedSeason?.drivers ? [...selectedSeason.drivers].sort((a, b) => a.number - b.number) : [];
+
+  // Get all tracks sorted by race order (earliest first)
+  const tracks = selectedSeason?.raceHistory ? selectedSeason.raceHistory.map(r => r.raceName) : [];
+
+  const handleVideoUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingVideo(true);
+    
+    if (window.cloudinary) {
+      window.cloudinary.openUploadWidget(
+        {
+          cloudName: "dpu05oykz",
+          uploadPreset: "dpu05oykz",
+          resourceType: "video",
+          folder: "appeal-evidence"
+        },
+        (error, result) => {
+          setUploadingVideo(false);
+          if (!error && result?.event === "success") {
+            setVideoUrl(result.info.secure_url);
+            alert("✅ Video uploaded successfully!");
+          }
+        }
+      );
+    }
+  };
 
   const handleSubmit = async () => {
-    if (!description.trim()) {
-      alert("Please describe your appeal.");
+    if (!requester.trim() || !track.trim() || !description.trim()) {
+      alert("Please fill in all required fields (Requester, Track, Description).");
       return;
     }
 
     setSubmitting(true);
     try {
       const { error } = await supabase.from("appeals").insert({
-  requester: driverName,
-  track: raceContext.trim(),
-  description: description.trim(),
-  status: "Open",
-  created_at: new Date().toISOString(),
-});
+        requester: requester.trim(),
+        track: track.trim(),
+        description: description.trim(),
+        evidence_url: videoUrl || null,
+        status: "Open",
+        created_at: new Date().toISOString(),
+      });
 
       if (error) throw error;
 
-      alert("Appeal submitted successfully!");
-      setAppealType("offense");
-      setRaceContext("");
+      alert("✅ Appeal submitted successfully!");
+      setRequester("");
+      setTrack("");
       setDescription("");
+      setVideoUrl("");
       onClose();
     } catch (err) {
       console.error("Appeal submission error:", err);
@@ -58,34 +97,101 @@ function AppealModal({ isOpen, onClose, driverId, driverName, driverNumber }) {
     }
   };
 
+  // Load Cloudinary widget script
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const script = document.createElement("script");
+    script.src = "https://upload-widget.cloudinary.com/latest/CloudinaryUploadWidget.js";
+    script.async = true;
+    document.body.appendChild(script);
+    return () => {
+      if (document.body.contains(script)) {
+        document.body.removeChild(script);
+      }
+    };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 }}>
-      <div style={{ background: "#171b22", border: "1px solid #2c3440", borderRadius: 16, padding: 28, maxWidth: 480, width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.4)" }}>
+      <div style={{ background: "#171b22", border: "1px solid #2c3440", borderRadius: 16, padding: 28, maxWidth: 520, width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.4)", maxHeight: "90vh", overflowY: "auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
           <h2 style={{ margin: 0, fontSize: 24, fontWeight: 800 }}>File an Appeal</h2>
           <button onClick={onClose} style={{ background: "none", border: "none", color: "white", fontSize: 24, cursor: "pointer", padding: 0 }}>×</button>
         </div>
+
         <div style={{ marginBottom: 16 }}>
-          <label style={{ display: "block", marginBottom: 6, fontWeight: 700 }}>Appeal Type</label>
-          <select style={inputStyle} value={appealType} onChange={(e) => setAppealType(e.target.value)}>
-            <option value="offense">Challenge an offense penalty</option>
-            <option value="result">Dispute race results/finishing position</option>
-            <option value="points">Request manual points adjustment</option>
-            <option value="general">General league question</option>
+          <label style={{ display: "block", marginBottom: 6, fontWeight: 700 }}>Requester (Driver) *</label>
+          <select style={inputStyle} value={requester} onChange={(e) => setRequester(e.target.value)}>
+            <option value="">-- Select Driver --</option>
+            {drivers.map((d) => (
+              <option key={d.id} value={`${d.number} - ${d.name}`}>
+                #{d.number} {d.name}
+              </option>
+            ))}
           </select>
         </div>
+
         <div style={{ marginBottom: 16 }}>
-          <label style={{ display: "block", marginBottom: 6, fontWeight: 700 }}>Race (optional)</label>
-          <input style={inputStyle} value={raceContext} onChange={(e) => setRaceContext(e.target.value)} placeholder="E.g., Daytona (R1)" />
+          <label style={{ display: "block", marginBottom: 6, fontWeight: 700 }}>Track *</label>
+          <select style={inputStyle} value={track} onChange={(e) => setTrack(e.target.value)}>
+            <option value="">-- Select Track --</option>
+            {tracks.map((t, idx) => (
+              <option key={idx} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
         </div>
+
         <div style={{ marginBottom: 16 }}>
-          <label style={{ display: "block", marginBottom: 6, fontWeight: 700 }}>Description</label>
-          <textarea style={{ ...inputStyle, minHeight: 120, resize: "vertical" }} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Explain your appeal in detail..." />
+          <label style={{ display: "block", marginBottom: 6, fontWeight: 700 }}>Description *</label>
+          <textarea 
+            style={{ ...inputStyle, minHeight: 120, resize: "vertical" }} 
+            value={description} 
+            onChange={(e) => setDescription(e.target.value)} 
+            placeholder="Describe what happened and who was involved..." 
+          />
         </div>
+
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: "block", marginBottom: 6, fontWeight: 700 }}>Video Evidence (optional)</label>
+          <button 
+            onClick={() => {
+              if (window.cloudinary) {
+                window.cloudinary.openUploadWidget(
+                  {
+                    cloudName: "dpu05oykz",
+                    uploadPreset: "dpu05oykz",
+                    resourceType: "video",
+                    folder: "appeal-evidence"
+                  },
+                  (error, result) => {
+                    if (!error && result?.event === "success") {
+                      setVideoUrl(result.info.secure_url);
+                      alert("✅ Video uploaded!");
+                    }
+                  }
+                );
+              }
+            }}
+            style={{ ...secondaryButtonStyle, marginBottom: videoUrl ? 8 : 0 }}
+            disabled={uploadingVideo}
+          >
+            {uploadingVideo ? "Uploading..." : "📹 Upload Video"}
+          </button>
+          {videoUrl && (
+            <div style={{ fontSize: 12, opacity: 0.8, color: "#4ade80" }}>
+              ✅ Video uploaded
+            </div>
+          )}
+        </div>
+
         <div style={{ display: "flex", gap: 10 }}>
-          <button onClick={handleSubmit} style={primaryButtonStyle} disabled={submitting}>{submitting ? "Submitting..." : "Submit Appeal"}</button>
+          <button onClick={handleSubmit} style={primaryButtonStyle} disabled={submitting}>
+            {submitting ? "Submitting..." : "Submit Appeal"}
+          </button>
           <button onClick={onClose} style={secondaryButtonStyle}>Cancel</button>
         </div>
       </div>
@@ -399,6 +505,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
         )}
 
         {/* Car Upload Component */}
+        <CarUploadComponent driver={driver} tracks={tracks} />
 
         {/* Season Stats Overview */}
         <div style={sectionCardStyle}>
@@ -661,7 +768,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
         )}
       </div>
 
-      <AppealModal isOpen={isAppealModalOpen} onClose={() => setIsAppealModalOpen(false)} driverId={driver.id} driverName={driver.name} driverNumber={driver.number} />
+      <AppealModal isOpen={isAppealModalOpen} onClose={() => setIsAppealModalOpen(false)} seasons={seasons} activeSeason={activeSeason} />
     </div>
   );
 }
