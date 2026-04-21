@@ -1,9 +1,13 @@
 import React, { useState, useMemo } from "react";
 import logo from "./assets/logo1.png";
+import teamLogoJAM from "./assets/teams/JAM.png";
 import { supabase } from "./lib/supabase";
 
-// Team logos - will be populated when JAM.png is added
-const teamLogos = {};
+// Team logos
+const teamLogos = {
+  "JA MOTORSPORTS": teamLogoJAM,
+  JAM: teamLogoJAM,
+};
 
 const appShellStyle = { minHeight: "100vh", background: "#0c0f14", color: "white", fontFamily: "Arial, sans-serif" };
 const pageContainerStyle = { maxWidth: 1000, margin: "0 auto", padding: 20 };
