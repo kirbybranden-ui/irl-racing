@@ -184,6 +184,7 @@ export default function DriverProfilePage({ seasons, activeSeason }) {
   return (
     <div style={appShellStyle}>
       <div style={pageContainerStyle}>
+        <div style={sectionCardStyle}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 24, flexWrap: "wrap" }}>
             <div>
               <button onClick={() => window.location.pathname = "/standings"} style={{ ...secondaryButtonStyle, marginBottom: 12 }}>← Back to Standings</button>
