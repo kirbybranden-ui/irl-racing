@@ -10,13 +10,8 @@ import DriverProfilePage from "./DriverProfilePage";
 import WelcomePage from "./WelcomePage";
 import { supabase } from "./lib/supabase";
 
-// Team logos - optional, add JAM.png when ready
-let teamLogos = {};
-try {
-  teamLogos = { JAM: require("./assets/teams/JAM.png").default };
-} catch {
-  teamLogos = {};
-}
+// Team logos - will be populated when JAM.png is added
+const teamLogos = {};
 const manufacturerLogos = {
   Chevrolet: manufacturerChevrolet,
   Ford: manufacturerFord,
