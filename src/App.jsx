@@ -130,7 +130,7 @@ function renderTeamBadge(teamName, size = 44) {
   );
 }
 function makeDriverWithStats(driver) {
-  return { ...driver, startingPoints: Number(driver.startingPoints) || 0, manualWins: Number(driver.manualWins) || 0, points: Number(driver.startingPoints) || 0, wins: Number(driver.manualWins) || 0, top3: 0, top5: 0, dnfs: 0, retired: driver.retired || false };
+  return { ...driver, manufacturer: driver.manufacturer || "", startingPoints: Number(driver.startingPoints) || 0, manualWins: Number(driver.manualWins) || 0, points: Number(driver.startingPoints) || 0, wins: Number(driver.manualWins) || 0, top3: 0, top5: 0, dnfs: 0, retired: driver.retired || false };
 }
 function getDefaultRoster() { return defaultDrivers.map(makeDriverWithStats); }
 function getStagePoints(stageFinish) {
@@ -158,12 +158,12 @@ function rebuildDriversFromHistory(history, driverRoster) {
 }
 function makeSeasonId() { return `season-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`; }
 function createEmptySeason(name, roster = getDefaultRoster()) {
-  const cleanRoster = roster.map((d) => ({ id: d.id, number: d.number, name: d.name, team: d.team, startingPoints: Number(d.startingPoints) || 0, manualWins: Number(d.manualWins) || 0 }));
+  const cleanRoster = roster.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer || "", team: d.team, startingPoints: Number(d.startingPoints) || 0, manualWins: Number(d.manualWins) || 0 }));
   return { id: makeSeasonId(), name: name || "New Season", createdAt: new Date().toISOString(), drivers: rebuildDriversFromHistory([], cleanRoster), selectedRace: "", positions: {}, stage1: {}, stage2: {}, stage3: {}, dnfMap: {}, offenseMap: {}, fastestLapMap: {}, raceHistory: [] };
 }
 function sanitizeSeason(season, fallbackName = "Season") {
   const rosterSource = Array.isArray(season?.drivers) && season.drivers.length > 0 ? season.drivers : getDefaultRoster();
-  const rosterOnly = rosterSource.map((d) => ({ id: d.id, number: Number(d.number), name: d.name, team: d.team, startingPoints: Number(d.startingPoints) || 0, manualWins: Number(d.manualWins) || 0, retired: d.retired || false }));
+  const rosterOnly = rosterSource.map((d) => ({ id: d.id, number: Number(d.number), name: d.name, manufacturer: d.manufacturer || "", team: d.team, startingPoints: Number(d.startingPoints) || 0, manualWins: Number(d.manualWins) || 0, retired: d.retired || false }));
   const history = Array.isArray(season?.raceHistory) ? season.raceHistory : [];
   return {
     id: season?.id || makeSeasonId(), name: season?.name || fallbackName, createdAt: season?.createdAt || new Date().toISOString(),
@@ -561,7 +561,7 @@ export default function App() {
     const trimmedName = newSeasonName.trim();
     if (!trimmedName) { alert("Please enter a season name."); return; }
     if (seasons.some((s) => s.name.toLowerCase() === trimmedName.toLowerCase())) { alert("A season with that name already exists."); return; }
-    const rosterOnly = drivers.map((d) => ({ id: d.id, number: d.number, name: d.name, team: d.team, startingPoints: Number(d.startingPoints) || 0, manualWins: Number(d.manualWins) || 0, retired: d.retired || false }));
+    const rosterOnly = drivers.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer || "", team: d.team, startingPoints: Number(d.startingPoints) || 0, manualWins: Number(d.manualWins) || 0, retired: d.retired || false }));
     const season = createEmptySeason(trimmedName, rosterOnly);
     setSeasons((prev) => [...prev, season]);
     setActiveSeasonId(season.id); setNewSeasonName(""); setRenameSeasonName(trimmedName); resetEditorStates();
@@ -623,7 +623,7 @@ export default function App() {
     if (!activeSeason) return;
     if (!window.confirm(`Archive and reset "${activeSeason.name}"? A backup will download first.`)) return;
     downloadBackupObject({ app: "Budweiser Cup League", version: 2, archiveType: "season-reset-archive", archivedAt: new Date().toISOString(), season: activeSeason }, `pcl-${activeSeason.name.replace(/\s+/g, "-").toLowerCase()}-archive`);
-    const resetDrivers = activeSeason.drivers.map((d) => ({ id: d.id, number: d.number, name: d.name, team: d.team, startingPoints: 0, manualWins: 0, points: 0, wins: 0, top3: 0, top5: 0, dnfs: 0 }));
+    const resetDrivers = activeSeason.drivers.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer || "", team: d.team, startingPoints: 0, manualWins: 0, points: 0, wins: 0, top3: 0, top5: 0, dnfs: 0 }));
     replaceActiveSeason({ ...activeSeason, drivers: resetDrivers, raceHistory: [], selectedRace: "", positions: {}, stage1: {}, stage2: {}, stage3: {}, dnfMap: {}, offenseMap: {}, fastestLapMap: {} });
     resetEditorStates();
   };
@@ -652,13 +652,13 @@ export default function App() {
   const latestWinner = latestRace?.results?.find((r) => r.finishPos === 1) || null;
   const applyStartingPointsAdjustments = () => {
     if (!activeSeason) return;
-    const updatedRoster = drivers.map((d) => { const v = Number(startingPointsInputs[d.id]); return { id: d.id, number: d.number, name: d.name, team: d.team, startingPoints: Number.isNaN(v) ? 0 : v, manualWins: Number(d.manualWins) || 0 }; });
+    const updatedRoster = drivers.map((d) => { const v = Number(startingPointsInputs[d.id]); return { id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer || "", team: d.team, startingPoints: Number.isNaN(v) ? 0 : v, manualWins: Number(d.manualWins) || 0 }; });
     replaceActiveSeason({ ...activeSeason, drivers: rebuildDriversFromHistory(raceHistory, updatedRoster) }); alert("Season starting points updated.");
   };
   const clearStartingPointsAdjustments = () => { const c = {}; drivers.forEach((d) => { c[d.id] = "0"; }); setStartingPointsInputs(c); };
   const applyManualWinsAdjustments = () => {
     if (!activeSeason) return;
-    const updatedRoster = drivers.map((d) => { const v = Number(manualWinsInputs[d.id]); return { id: d.id, number: d.number, name: d.name, team: d.team, startingPoints: Number(d.startingPoints) || 0, manualWins: Number.isNaN(v) ? 0 : v }; });
+    const updatedRoster = drivers.map((d) => { const v = Number(manualWinsInputs[d.id]); return { id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer || "", team: d.team, startingPoints: Number(d.startingPoints) || 0, manualWins: Number.isNaN(v) ? 0 : v }; });
     replaceActiveSeason({ ...activeSeason, drivers: rebuildDriversFromHistory(raceHistory, updatedRoster) }); alert("Manual wins updated.");
   };
   const clearManualWinsAdjustments = () => { const c = {}; drivers.forEach((d) => { c[d.id] = "0"; }); setManualWinsInputs(c); };
@@ -711,7 +711,7 @@ export default function App() {
     if (!activeSeason) return;
     const driver = drivers.find((d) => d.id === driverId);
     if (!driver || !window.confirm(`Remove ${driver.name}? This will also remove their results from race history.`)) return;
-    const newRoster = drivers.filter((d) => d.id !== driverId).map((d) => ({ id: d.id, number: d.number, name: d.name, team: d.team, startingPoints: Number(d.startingPoints) || 0, manualWins: Number(d.manualWins) || 0 }));
+    const newRoster = drivers.filter((d) => d.id !== driverId).map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer || "", team: d.team, startingPoints: Number(d.startingPoints) || 0, manualWins: Number(d.manualWins) || 0 }));
     const newHistory = raceHistory.map((race) => ({ ...race, results: (race.results || []).filter((r) => r.driverId !== driverId) }));
     const np = { ...positions }, ns1 = { ...stage1 }, ns2 = { ...stage2 }, ns3 = { ...stage3 }, nd = { ...dnfMap }, no = { ...offenseMap }, nf = { ...fastestLapMap };
     delete np[driverId]; delete ns1[driverId]; delete ns2[driverId]; delete ns3[driverId]; delete nd[driverId]; delete no[driverId]; delete nf[driverId];
@@ -750,12 +750,13 @@ export default function App() {
         id: Date.now(),
         number: pendingDriver.car_number,
         name: pendingDriver.driver_name,
+        manufacturer: pendingDriver.manufacturer || "",
         team: pendingDriver.team_name,
         startingPoints: 0,
         manualWins: 0,
         retired: false,
       };
-      const newRoster = [...drivers.map((d) => ({ id: d.id, number: d.number, name: d.name, team: d.team, startingPoints: Number(d.startingPoints) || 0, manualWins: Number(d.manualWins) || 0 })), newDriver];
+      const newRoster = [...drivers.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer || "", team: d.team, startingPoints: Number(d.startingPoints) || 0, manualWins: Number(d.manualWins) || 0 })), newDriver];
       patchActiveSeason({ drivers: rebuildDriversFromHistory(raceHistory, newRoster) });
 
       // Update pending driver status to approved
@@ -827,7 +828,7 @@ export default function App() {
     }).sort((a, b) => { if (a.finishPos === null) return 1; if (b.finishPos === null) return -1; return a.finishPos - b.finishPos; });
     const updatedRace = { raceName: selectedRace, stageCount, results: raceResults };
     const newHistory = editingRaceName ? raceHistory.map((r) => r.raceName === editingRaceName ? updatedRace : r) : [...raceHistory, updatedRace];
-    const rosterOnly = drivers.map((d) => ({ id: d.id, number: d.number, name: d.name, team: d.team, startingPoints: Number(d.startingPoints) || 0, manualWins: Number(d.manualWins) || 0, retired: d.retired || false }));
+    const rosterOnly = drivers.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer || "", team: d.team, startingPoints: Number(d.startingPoints) || 0, manualWins: Number(d.manualWins) || 0, retired: d.retired || false }));
     replaceActiveSeason({ ...activeSeason, raceHistory: newHistory, drivers: rebuildDriversFromHistory(newHistory, rosterOnly), selectedRace: "", positions: {}, stage1: {}, stage2: {}, stage3: {}, dnfMap: {}, offenseMap: {}, fastestLapMap: {} });
     setEditingRaceName(null);
   };
@@ -845,7 +846,7 @@ export default function App() {
   const handleDeleteRace = (raceName) => {
     if (!activeSeason || !window.confirm(`Delete ${raceName}? This will recalculate the standings.`)) return;
     const newHistory = raceHistory.filter((r) => r.raceName !== raceName);
-    const rosterOnly = drivers.map((d) => ({ id: d.id, number: d.number, name: d.name, team: d.team, startingPoints: Number(d.startingPoints) || 0, manualWins: Number(d.manualWins) || 0, retired: d.retired || false }));
+    const rosterOnly = drivers.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer || "", team: d.team, startingPoints: Number(d.startingPoints) || 0, manualWins: Number(d.manualWins) || 0, retired: d.retired || false }));
     replaceActiveSeason({ ...activeSeason, raceHistory: newHistory, drivers: rebuildDriversFromHistory(newHistory, rosterOnly) });
     if (editingRaceName === raceName) clearInputs();
   };
