@@ -113,6 +113,7 @@ const thStyle = { textAlign: "left", padding: 10, borderBottom: "1px solid #3139
 const tdStyle = { padding: 10, borderBottom: "1px solid #252c38", verticalAlign: "top", fontSize: 14 };
 const statBoxStyle = { background: "#11161d", border: "1px solid #2a3240", borderRadius: 14, padding: 16, flex: "1 1 220px" };
 const teamBranding = {
+  JAM: { logo: "JAM", accent: "#d4af37", dark: "#1b1b1b" },
   "Team A": { logo: "A", accent: "#d4af37", dark: "#1b1b1b" },
   "Team B": { logo: "B", accent: "#3b82f6", dark: "#111827" },
   "Team C": { logo: "C", accent: "#ef4444", dark: "#1f1315" },
