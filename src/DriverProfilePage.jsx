@@ -190,6 +190,7 @@ export default function DriverProfilePage({ seasons, activeSeason }) {
               <button onClick={() => window.location.pathname = "/standings"} style={{ ...secondaryButtonStyle, marginBottom: 12 }}>← Back to Standings</button>
               <div style={{ fontSize: 28, fontWeight: 900 }}>#{driver.number} {driver.name}</div>
               <div style={{ fontSize: 16, opacity: 0.8, marginTop: 4 }}>{driver.team}</div>
+              {driver.manufacturer && <div style={{ fontSize: 12, opacity: 0.7, marginTop: 2, fontWeight: 700 }}>{driver.manufacturer}</div>}
             </div>
             <div style={{ textAlign: "right" }}>
               <div style={{ fontSize: 12, opacity: 0.72, marginBottom: 4 }}>SEASON</div>
