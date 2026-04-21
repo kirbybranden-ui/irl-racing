@@ -401,7 +401,6 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
         )}
 
         {/* Car Upload Component */}
-        <CarUploadComponent driver={driver} tracks={tracks} />
 
         {/* Season Stats Overview */}
         <div style={sectionCardStyle}>
