@@ -27,23 +27,26 @@ const defaultDrivers = [
   { id: 9, number: 97, name: "American_Hero216", manufacturer: "Ford", team: "None" }
 ];
 const defaultRaces = [
-  { name: "Daytona (R1)", stageCount: 2 },
-  { name: "Echopark", stageCount: 2 },
-  { name: "Las Vegas (R1)", stageCount: 2 },
-  { name: "Dover (R1)", stageCount: 2 },
-  { name: "Talladega (R1)", stageCount: 2 },
-  { name: "Texas", stageCount: 2 },
+  { name: "Preseason - Michigan", stageCount: 2 },
+  { name: "Preseason - Dover", stageCount: 2 },
+  { name: "Preseason - WWT Raceway", stageCount: 2 },
+  { name: "Daytona (Night)", stageCount: 2 },
   { name: "Charlotte", stageCount: 3 },
+  { name: "Nashville", stageCount: 2 },
   { name: "Michigan", stageCount: 2 },
-  { name: "Homestead Miami", stageCount: 2 },
+  { name: "Pocono", stageCount: 2 },
+  { name: "Bristol (Night)", stageCount: 2 },
+  { name: "Las Vegas", stageCount: 2 },
+  { name: "Talladega", stageCount: 2 },
+  { name: "North Wilksboro", stageCount: 2 },
   { name: "Indianapolis", stageCount: 2 },
-  { name: "Daytona (R2)", stageCount: 2 },
-  { name: "Dover (R2)", stageCount: 2 },
   { name: "New Hampshire", stageCount: 2 },
-  { name: "Kansas", stageCount: 2 },
-  { name: "Las Vegas (R2)", stageCount: 2 },
-  { name: "Talladega (R2)", stageCount: 2 },
   { name: "Phoenix", stageCount: 2 },
+  { name: "Richmond", stageCount: 2 },
+  { name: "Kansas", stageCount: 2 },
+  { name: "Texas", stageCount: 2 },
+  { name: "Iowa", stageCount: 2 },
+  { name: "Homestead", stageCount: 2 },
 ];
 // Winston Cup points system
 const pointsTable = [
