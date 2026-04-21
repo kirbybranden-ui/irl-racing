@@ -1001,6 +1001,9 @@ export default function App() {
               <button onClick={() => (window.location.pathname = "/appeals")} style={headerButtonStyle}>
                 Appeals ({openAppealCount})
               </button>
+              <button onClick={() => (window.location.pathname = "/admin/car-gallery")} style={headerButtonStyle}>
+  Car Gallery
+</button>
             </div>
           </div>
         </div>
