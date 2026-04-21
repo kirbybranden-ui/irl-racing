@@ -1,7 +1,10 @@
-export default function CarGalleryPage({ drivers = [], tracks = [] }) {
-  console.log("CarGalleryPage loaded!", { drivers, tracks });
-  // rest of code...
-  
+  export default function CarGalleryPage({ drivers = [], tracks = [] }) {
+  const [uploads, setUploads] = useState([]);
+  const [filteredUploads, setFilteredUploads] = useState([]);
+  const [selectedDriver, setSelectedDriver] = useState("");
+  const [selectedRace, setSelectedRace] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   import React, { useEffect, useState } from "react";
 
 const appShellStyle = { minHeight: "100vh", background: "#0c0f14", color: "white", fontFamily: "Arial, sans-serif" };
@@ -11,14 +14,6 @@ const primaryButtonStyle = { background: "#d4af37", color: "#111", border: "none
 const secondaryButtonStyle = { background: "#2a3140", color: "white", border: "1px solid #3d4859", borderRadius: 10, padding: "10px 16px", fontWeight: 700, cursor: "pointer" };
 const dangerButtonStyle = { background: "#b42318", color: "white", border: "none", borderRadius: 10, padding: "10px 16px", fontWeight: 700, cursor: "pointer" };
 const inputStyle = { width: "100%", background: "#0f1319", color: "white", border: "1px solid #313947", borderRadius: 10, padding: "10px 12px", boxSizing: "border-box" };
-
-export default function CarGalleryPage({ drivers = [], tracks = [] }) {
-  const [uploads, setUploads] = useState([]);
-  const [filteredUploads, setFilteredUploads] = useState([]);
-  const [selectedDriver, setSelectedDriver] = useState("");
-  const [selectedRace, setSelectedRace] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
   useEffect(() => {
     loadUploads();
