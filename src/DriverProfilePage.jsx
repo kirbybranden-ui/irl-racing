@@ -1,6 +1,11 @@
 import React, { useState, useMemo } from "react";
 import logo from "./assets/logo1.png";
+import teamLogoJAM from "./assets/teams/JAM.png";
 import { supabase } from "./lib/supabase";
+
+const teamLogos = {
+  JAM: teamLogoJAM,
+};
 
 const appShellStyle = { minHeight: "100vh", background: "#0c0f14", color: "white", fontFamily: "Arial, sans-serif" };
 const pageContainerStyle = { maxWidth: 1000, margin: "0 auto", padding: 20 };
@@ -193,6 +198,15 @@ export default function DriverProfilePage({ seasons, activeSeason }) {
                 <div style={{ fontSize: 16, opacity: 0.8, marginTop: 4 }}>#{driver.number}</div>
                 <div style={{ fontSize: 14, opacity: 0.8, marginTop: 2 }}>{driver.team}</div>
               </div>
+            </div>
+            
+            {/* Team Logo - Left Center */}
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", width: 140, height: 140, borderRadius: 8, background: "#0f1319", border: "1px solid #2c3440" }}>
+              {teamLogos[driver.team] ? (
+                <img src={teamLogos[driver.team]} alt={driver.team} style={{ maxWidth: "90%", maxHeight: "90%", objectFit: "contain" }} />
+              ) : (
+                <div style={{ fontWeight: 700, fontSize: 12, color: "#b8a059", textAlign: "center", padding: 8 }}>{driver.team || "—"}</div>
+              )}
             </div>
             
             {/* Medium Manufacturer Logo - Center */}
