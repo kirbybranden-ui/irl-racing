@@ -16,15 +16,10 @@ const teamLogos = {
 };
 import { loadLeagueState, saveLeagueState } from "./lib/leagueState";
 const defaultDrivers = [
-  { id: 1, number: 42, name: "AMP-GHOSTRIDER", team: "JAM" },
-  { id: 2, number: 99, name: "RookieVet99", team: "JAM" },
+  { id: 1, number: 64, name: "AMP-GHOSTRIDER", team: "JAM" },
+  { id: 2, number: 46, name: "RookieVet99", team: "JAM" },
   { id: 3, number: 18, name: "bowhunter6758", team: "JAM" },
-  { id: 4, number: 81, name: "HOLDEN2DX4EV3R", team: "JAM" },
-  { id: 5, number: 3, name: "ixGusty", team: "None" },
-  { id: 6, number: 14, name: "KapSig", team: "None" },
-  { id: 7, number: 24, name: "KEVDINHO7", team: "None" },
-  { id: 8, number: 38, name: "It's_tricky88", team: "None" },
-  { id: 9, number: 97, name: "American_Hero216", team: "None" }
+  { id: 4, number: 81, name: "HOLDEN2DX4EV3R", team: "JAM" }
 ];
 const defaultRaces = [
   { name: "Daytona (R1)", stageCount: 2 },
@@ -317,7 +312,7 @@ function PublicStandings({ drivers, teams, seasonName = "" }) {
           <div style={{ fontSize: 26, fontWeight: 900, marginBottom: 14 }}>Driver Standings</div>
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead><tr><th style={thStyle}>Pos</th><th style={thStyle}>Team</th><th style={thStyle}>#</th><th style={thStyle}>Driver</th><th style={thStyle}>Team Name</th><th style={thStyle}>Points</th><th style={thStyle}>Wins</th><th style={thStyle}>Top 3</th><th style={thStyle}>Top 5</th><th style={thStyle}>DNFs</th><th style={thStyle}>FL</th><th style={thStyle}>Penalties</th></tr></thead>
+              <thead><tr><th style={thStyle}>Pos</th><th style={thStyle}>Team</th><th style={thStyle}>#</th><th style={thStyle}>Driver</th><th style={thStyle}>Manufacturer</th><th style={thStyle}>Team Name</th><th style={thStyle}>Points</th><th style={thStyle}>Wins</th><th style={thStyle}>Top 3</th><th style={thStyle}>Top 5</th><th style={thStyle}>DNFs</th><th style={thStyle}>FL</th><th style={thStyle}>Penalties</th></tr></thead>
               <tbody>
                 {sorted.map((driver, index) => {
                   const isLeader = index === 0;
@@ -327,6 +322,7 @@ function PublicStandings({ drivers, teams, seasonName = "" }) {
                       <td style={tdStyle}>{renderTeamBadge(driver.team, 38)}</td>
                       <td style={{ ...tdStyle, fontWeight: 800 }}>{driver.number}</td>
                       <td style={{ ...tdStyle, fontWeight: 800, color: "#d4af37" }}>{driver.name}{driver.retired && <span style={{ marginLeft: 6, fontSize: 11, background: "#2a3140", color: "#f59e0b", borderRadius: 6, padding: "2px 6px", fontWeight: 700 }}>R</span>}</td>
+                      <td style={tdStyle}>{driver.manufacturer || "—"}</td>
                       <td style={tdStyle}>{driver.team}</td>
                       <td style={{ ...tdStyle, fontWeight: 900 }}>{driver.points}</td>
                       <td style={tdStyle}>{driver.wins}</td>
@@ -359,6 +355,36 @@ function PublicStandings({ drivers, teams, seasonName = "" }) {
                     <td style={tdStyle}>{team.top5}</td>
                   </tr>
                 ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div style={{ background: "#151a22", border: "1px solid #2d3643", borderRadius: 22, padding: 18, boxShadow: "0 10px 28px rgba(0,0,0,0.22)" }}>
+          <div style={{ fontSize: 26, fontWeight: 900, marginBottom: 14 }}>Manufacturer Standings</div>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead><tr><th style={thStyle}>Pos</th><th style={thStyle}>Manufacturer</th><th style={thStyle}>Points</th><th style={thStyle}>Wins</th><th style={thStyle}>Top 3</th><th style={thStyle}>Top 5</th><th style={thStyle}>Drivers</th></tr></thead>
+              <tbody>
+                {(() => {
+                  const mfrs = {};
+                  for (const d of drivers) {
+                    const mfr = d.manufacturer || "Unknown";
+                    if (!mfrs[mfr]) mfrs[mfr] = { manufacturer: mfr, points: 0, wins: 0, top3: 0, top5: 0, drivers: 0 };
+                    mfrs[mfr].points += d.points || 0; mfrs[mfr].wins += d.wins || 0;
+                    mfrs[mfr].top3 += d.top3 || 0; mfrs[mfr].top5 += d.top5 || 0; mfrs[mfr].drivers += 1;
+                  }
+                  return Object.values(mfrs).sort((a, b) => b.points - a.points || b.wins - a.wins || b.top3 - a.top3 || a.manufacturer.localeCompare(b.manufacturer)).map((m, i) => (
+                    <tr key={m.manufacturer}>
+                      <td style={{ ...tdStyle, fontWeight: 900 }}>{i + 1}</td>
+                      <td style={{ ...tdStyle, fontWeight: 800 }}>{m.manufacturer}</td>
+                      <td style={{ ...tdStyle, fontWeight: 900 }}>{m.points}</td>
+                      <td style={tdStyle}>{m.wins}</td>
+                      <td style={tdStyle}>{m.top3}</td>
+                      <td style={tdStyle}>{m.top5}</td>
+                      <td style={tdStyle}>{m.drivers}</td>
+                    </tr>
+                  ));
+                })()}
               </tbody>
             </table>
           </div>
@@ -403,9 +429,10 @@ export default function App() {
   const [renameSeasonName, setRenameSeasonName] = useState("");
   const [newDriverName, setNewDriverName] = useState("");
   const [newDriverNumber, setNewDriverNumber] = useState("");
+  const [newDriverManufacturer, setNewDriverManufacturer] = useState("");
   const [newDriverTeam, setNewDriverTeam] = useState("");
   const [editingDriverId, setEditingDriverId] = useState(null);
-  const [editDriverForm, setEditDriverForm] = useState({ name: "", number: "", team: "" });
+  const [editDriverForm, setEditDriverForm] = useState({ name: "", number: "", manufacturer: "", team: "" });
   const [startingPointsInputs, setStartingPointsInputs] = useState({});
   const [manualWinsInputs, setManualWinsInputs] = useState({});
   const [newTrackName, setNewTrackName] = useState("");
@@ -601,6 +628,16 @@ export default function App() {
     }
     return Object.values(teams).sort((a, b) => b.points - a.points || b.wins - a.wins || b.top3 - a.top3 || a.team.localeCompare(b.team));
   }, [drivers]);
+  const manufacturerStandings = useMemo(() => {
+    const mfrs = {};
+    for (const d of drivers) {
+      const mfr = d.manufacturer || "Unknown";
+      if (!mfrs[mfr]) mfrs[mfr] = { manufacturer: mfr, points: 0, wins: 0, top3: 0, top5: 0, drivers: 0 };
+      mfrs[mfr].points += d.points || 0; mfrs[mfr].wins += d.wins || 0;
+      mfrs[mfr].top3 += d.top3 || 0; mfrs[mfr].top5 += d.top5 || 0; mfrs[mfr].drivers += 1;
+    }
+    return Object.values(mfrs).sort((a, b) => b.points - a.points || b.wins - a.wins || b.top3 - a.top3 || a.manufacturer.localeCompare(b.manufacturer));
+  }, [drivers]);
   const sortedDrivers = [...drivers].sort((a, b) => b.points - a.points || b.wins - a.wins || b.top3 - a.top3 || a.name.localeCompare(b.name));
   const currentLeader = sortedDrivers[0] || null;
   const latestRace = raceHistory.length > 0 ? raceHistory[raceHistory.length - 1] : null;
@@ -639,26 +676,26 @@ export default function App() {
     patchActiveSeason({ drivers: updatedDrivers });
   };
   const addDriver = () => {
-    const trimmedName = newDriverName.trim(), trimmedTeam = newDriverTeam.trim(), driverNumber = String(newDriverNumber).trim();
-    if (!trimmedName || !trimmedTeam || !driverNumber) { alert("Please enter a driver name, number, and team."); return; }
+    const trimmedName = newDriverName.trim(), trimmedTeam = newDriverTeam.trim(), trimmedManufacturer = newDriverManufacturer.trim(), driverNumber = String(newDriverNumber).trim();
+    if (!trimmedName || !trimmedTeam || !trimmedManufacturer || !driverNumber) { alert("Please enter driver name, number, manufacturer, and team."); return; }
     if (drivers.some((d) => d.name.toLowerCase() === trimmedName.toLowerCase())) { alert("A driver with that name already exists."); return; }
     if (drivers.some((d) => String(d.number) === driverNumber)) { alert("A driver with that number already exists."); return; }
-    const rosterDriver = { id: Date.now(), number: Number(driverNumber), name: trimmedName, team: trimmedTeam, startingPoints: 0, manualWins: 0 };
-    const newRoster = [...drivers.map((d) => ({ id: d.id, number: d.number, name: d.name, team: d.team, startingPoints: Number(d.startingPoints) || 0, manualWins: Number(d.manualWins) || 0 })), rosterDriver];
+    const rosterDriver = { id: Date.now(), number: Number(driverNumber), name: trimmedName, manufacturer: trimmedManufacturer, team: trimmedTeam, startingPoints: 0, manualWins: 0 };
+    const newRoster = [...drivers.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer, team: d.team, startingPoints: Number(d.startingPoints) || 0, manualWins: Number(d.manualWins) || 0 })), rosterDriver];
     patchActiveSeason({ drivers: rebuildDriversFromHistory(raceHistory, newRoster) });
-    setNewDriverName(""); setNewDriverNumber(""); setNewDriverTeam("");
+    setNewDriverName(""); setNewDriverNumber(""); setNewDriverManufacturer(""); setNewDriverTeam("");
   };
-  const openEditDriver = (driver) => { setEditingDriverId(driver.id); setEditDriverForm({ name: driver.name, number: driver.number, team: driver.team }); };
-  const cancelEditDriver = () => { setEditingDriverId(null); setEditDriverForm({ name: "", number: "", team: "" }); };
+  const openEditDriver = (driver) => { setEditingDriverId(driver.id); setEditDriverForm({ name: driver.name, number: driver.number, manufacturer: driver.manufacturer || "", team: driver.team }); };
+  const cancelEditDriver = () => { setEditingDriverId(null); setEditDriverForm({ name: "", number: "", manufacturer: "", team: "" }); };
   const saveDriverEdit = () => {
     if (!editingDriverId || !activeSeason) return;
-    const name = editDriverForm.name.trim(), number = String(editDriverForm.number).trim(), team = editDriverForm.team.trim();
-    if (!name || !number || !team) { alert("Please enter a driver name, number, and team."); return; }
+    const name = editDriverForm.name.trim(), number = String(editDriverForm.number).trim(), manufacturer = editDriverForm.manufacturer.trim(), team = editDriverForm.team.trim();
+    if (!name || !number || !manufacturer || !team) { alert("Please enter driver name, number, manufacturer, and team."); return; }
     if (drivers.some((d) => d.id !== editingDriverId && d.name.toLowerCase() === name.toLowerCase())) { alert("A driver with that name already exists."); return; }
     if (drivers.some((d) => d.id !== editingDriverId && String(d.number) === number)) { alert("A driver with that number already exists."); return; }
-    const updatedRoster = drivers.map((d) => d.id === editingDriverId ? { ...d, name, number: Number(number), team, startingPoints: Number(d.startingPoints) || 0, manualWins: Number(d.manualWins) || 0 } : d);
-    const updatedHistory = raceHistory.map((race) => ({ ...race, results: (race.results || []).map((r) => r.driverId === editingDriverId ? { ...r, name, number: Number(number), team } : r) }));
-    const rosterOnly = updatedRoster.map((d) => ({ id: d.id, number: d.number, name: d.name, team: d.team, startingPoints: Number(d.startingPoints) || 0, manualWins: Number(d.manualWins) || 0 }));
+    const updatedRoster = drivers.map((d) => d.id === editingDriverId ? { ...d, name, number: Number(number), manufacturer, team, startingPoints: Number(d.startingPoints) || 0, manualWins: Number(d.manualWins) || 0 } : d);
+    const updatedHistory = raceHistory.map((race) => ({ ...race, results: (race.results || []).map((r) => r.driverId === editingDriverId ? { ...r, name, number: Number(number), manufacturer, team } : r) }));
+    const rosterOnly = updatedRoster.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer, team: d.team, startingPoints: Number(d.startingPoints) || 0, manualWins: Number(d.manualWins) || 0 }));
     replaceActiveSeason({ ...activeSeason, drivers: rebuildDriversFromHistory(updatedHistory, rosterOnly), raceHistory: updatedHistory });
     cancelEditDriver();
   };
@@ -913,13 +950,14 @@ export default function App() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, marginBottom: 16 }}>
             <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Driver Name</div><input style={inputStyle} value={newDriverName} onChange={(e) => setNewDriverName(e.target.value)} placeholder="Enter driver name" /></div>
             <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Number</div><input style={inputStyle} value={newDriverNumber} onChange={(e) => setNewDriverNumber(e.target.value)} placeholder="Enter car number" type="number" /></div>
+            <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Manufacturer</div><select style={inputStyle} value={newDriverManufacturer} onChange={(e) => setNewDriverManufacturer(e.target.value)}><option value="">Select manufacturer</option><option value="Chevrolet">Chevrolet</option><option value="Ford">Ford</option><option value="Toyota">Toyota</option><option value="Other">Other</option></select></div>
             <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Team</div><input style={inputStyle} value={newDriverTeam} onChange={(e) => setNewDriverTeam(e.target.value)} placeholder="Enter team name" /></div>
           </div>
           <div style={{ marginBottom: 18 }}><button onClick={addDriver} style={primaryButtonStyle}>Add Driver</button></div>
           <div style={{ overflowX: "auto" }}>
             <table style={tableStyle}>
-              <thead><tr><th style={thStyle}>#</th><th style={thStyle}>Driver</th><th style={thStyle}>Team</th><th style={thStyle}>Actions</th></tr></thead>
-              <tbody>{drivers.map((d) => (<tr key={d.id}><td style={tdStyle}>{d.number}</td><td style={tdStyle}>{d.name}</td><td style={tdStyle}>{d.team}</td><td style={tdStyle}><div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><button onClick={() => openEditDriver(d)} style={secondaryButtonStyle}>Edit</button>{d.retired ? (<button onClick={() => unretireDriver(d.id)} style={secondaryButtonStyle}>Unretire</button>) : (<button onClick={() => retireDriver(d.id)} style={{ ...secondaryButtonStyle, color: "#f59e0b", borderColor: "#f59e0b" }}>Retire</button>)}<button onClick={() => removeDriver(d.id)} style={dangerButtonStyle}>Remove</button></div></td></tr>))}</tbody>
+              <thead><tr><th style={thStyle}>#</th><th style={thStyle}>Driver</th><th style={thStyle}>Manufacturer</th><th style={thStyle}>Team</th><th style={thStyle}>Actions</th></tr></thead>
+              <tbody>{drivers.map((d) => (<tr key={d.id}><td style={tdStyle}>{d.number}</td><td style={tdStyle}>{d.name}</td><td style={tdStyle}>{d.manufacturer || "—"}</td><td style={tdStyle}>{d.team}</td><td style={tdStyle}><div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><button onClick={() => openEditDriver(d)} style={secondaryButtonStyle}>Edit</button>{d.retired ? (<button onClick={() => unretireDriver(d.id)} style={secondaryButtonStyle}>Unretire</button>) : (<button onClick={() => retireDriver(d.id)} style={{ ...secondaryButtonStyle, color: "#f59e0b", borderColor: "#f59e0b" }}>Retire</button>)}<button onClick={() => removeDriver(d.id)} style={dangerButtonStyle}>Remove</button></div></td></tr>))}</tbody>
             </table>
           </div>
           {editingDriverId && (
@@ -928,6 +966,7 @@ export default function App() {
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, marginBottom: 12 }}>
                 <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Driver Name</div><input style={inputStyle} value={editDriverForm.name} onChange={(e) => setEditDriverForm({ ...editDriverForm, name: e.target.value })} /></div>
                 <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Number</div><input style={inputStyle} value={editDriverForm.number} onChange={(e) => setEditDriverForm({ ...editDriverForm, number: e.target.value })} type="number" /></div>
+                <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Manufacturer</div><select style={inputStyle} value={editDriverForm.manufacturer} onChange={(e) => setEditDriverForm({ ...editDriverForm, manufacturer: e.target.value })}><option value="">Select manufacturer</option><option value="Chevrolet">Chevrolet</option><option value="Ford">Ford</option><option value="Toyota">Toyota</option><option value="Other">Other</option></select></div>
                 <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Team</div><input style={inputStyle} value={editDriverForm.team} onChange={(e) => setEditDriverForm({ ...editDriverForm, team: e.target.value })} /></div>
               </div>
               <div style={{ display: "flex", gap: 10 }}><button onClick={saveDriverEdit} style={primaryButtonStyle}>Save Changes</button><button onClick={cancelEditDriver} style={secondaryButtonStyle}>Cancel</button></div>
@@ -1080,6 +1119,16 @@ export default function App() {
             <table style={tableStyle}>
               <thead><tr><th style={thStyle}>Pos</th><th style={thStyle}>Team</th><th style={thStyle}>Points</th><th style={thStyle}>Wins</th><th style={thStyle}>Top 3</th><th style={thStyle}>Top 5</th><th style={thStyle}>Drivers</th></tr></thead>
               <tbody>{teamStandings.map((t, i) => (<tr key={t.team}><td style={tdStyle}>{i+1}</td><td style={tdStyle}>{t.team}</td><td style={tdStyle}>{t.points}</td><td style={tdStyle}>{t.wins}</td><td style={tdStyle}>{t.top3}</td><td style={tdStyle}>{t.top5}</td><td style={tdStyle}>{t.drivers}</td></tr>))}</tbody>
+            </table>
+          </div>
+        </div>
+        {/* Manufacturer Standings */}
+        <div style={sectionCardStyle}>
+          <h2 style={{ marginTop: 0 }}>Manufacturer Standings</h2>
+          <div style={{ overflowX: "auto" }}>
+            <table style={tableStyle}>
+              <thead><tr><th style={thStyle}>Pos</th><th style={thStyle}>Manufacturer</th><th style={thStyle}>Points</th><th style={thStyle}>Wins</th><th style={thStyle}>Top 3</th><th style={thStyle}>Top 5</th><th style={thStyle}>Drivers</th></tr></thead>
+              <tbody>{manufacturerStandings.map((m, i) => (<tr key={m.manufacturer}><td style={tdStyle}>{i+1}</td><td style={tdStyle}>{m.manufacturer}</td><td style={tdStyle}>{m.points}</td><td style={tdStyle}>{m.wins}</td><td style={tdStyle}>{m.top3}</td><td style={tdStyle}>{m.top5}</td><td style={tdStyle}>{m.drivers}</td></tr>))}</tbody>
             </table>
           </div>
         </div>
