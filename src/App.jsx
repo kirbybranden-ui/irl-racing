@@ -10,6 +10,7 @@ import AppealsPage from "./AppealsPage";
 import DriverProfilePage from "./DriverProfilePage";
 import WelcomePage from "./WelcomePage";
 import { supabase } from "./lib/supabase";
+import CarGalleryPage from "./CarGalleryPage";
 
 // Team logos
 const teamLogos = {
