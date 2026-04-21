@@ -865,8 +865,6 @@ export default function App() {
     race.results.filter((r) => r.offense).map((r) => ({ raceName: race.raceName, number: r.number, name: r.name, offenseNumber: r.offenseNumber, penaltyPoints: r.penaltyPoints }))
   );
   if (!isHydrated) return <div style={appShellStyle}><div style={pageContainerStyle}><div style={sectionCardStyle}>Loading league data...</div></div></div>;
-  if (path === "/overlay/drivers" || viewMode === "overlay-drivers") return <LeaderboardOverlay drivers={drivers} preview={viewMode === "overlay-drivers"} seasonName={activeSeason?.name || ""} />;
-  if (path === "/overlay/teams" || viewMode === "overlay-teams") return <TeamOverlay teams={teamStandings} preview={viewMode === "overlay-teams"} seasonName={activeSeason?.name || ""} />;
   if (path === "/standings") return <PublicStandings drivers={drivers} teams={teamStandings} seasonName={activeSeason?.name || ""} />;
   if (path === "/overlay/ticker" || viewMode === "overlay-ticker") return <TickerOverlay drivers={drivers} teams={teamStandings} raceHistory={raceHistory} preview={viewMode === "overlay-ticker"} seasonName={activeSeason?.name || ""} />;
   return (
@@ -883,14 +881,17 @@ export default function App() {
               </div>
             </div>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              {["admin","overlay-drivers","overlay-teams","overlay-ticker"].map((mode) => (
+              {["admin","overlay-ticker"].map((mode) => (
                 <button key={mode} style={viewMode === mode ? activeHeaderButtonStyle : headerButtonStyle} onClick={() => setViewMode(mode)}>
-                  {mode === "admin" ? "Admin" : mode === "overlay-drivers" ? "Driver Overlay" : mode === "overlay-teams" ? "Team Overlay" : "Ticker Overlay"}
+                  {mode === "admin" ? "Admin" : "Ticker Overlay"}
                 </button>
               ))}
-              <button onClick={() => (window.location.pathname = "/appeals")}>
+              <button onClick={() => (window.location.pathname = "/standings")} style={headerButtonStyle}>
+                Standings
+              </button>
+              <button onClick={() => (window.location.pathname = "/appeals")} style={headerButtonStyle}>
                 Appeals ({openAppealCount})
-                </button>
+              </button>
             </div>
           </div>
         </div>
