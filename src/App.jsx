@@ -19,12 +19,12 @@ const defaultDrivers = [
   { id: 1, number: 42, name: "AMP-GHOSTRIDER", manufacturer: "Toyota", team: "JAM" },
   { id: 2, number: 99, name: "RookieVet99", manufacturer: "Toyota", team: "JAM" },
   { id: 3, number: 18, name: "bowhunter6758", manufacturer: "Toyota", team: "JAM" },
-  { id: 4, number: 81, name: "HOLDEN2DX4EV3R", manufacturer: "Chevrolet", team: "JAM" }
+  { id: 4, number: 81, name: "HOLDEN2DX4EV3R", manufacturer: "Chevrolet", team: "JAM" },
   { id: 5, number: 3, name: "ixGusty", manufacturer: "Toyota", team: "None" },
   { id: 6, number: 14, name: "KapSig", manufacturer: "Chevrolet", team: "None" },
   { id: 7, number: 24, name: "KEVDINHO7", manufacturer: "Chevrolet", team: "None" },
   { id: 8, number: 38, name: "It's_tricky88", manufacturer: "Toyota", team: "None" },
-  { id: 9, number: 97, name: "American_Hero216", manufacturer: "Ford", team: "None" }
+  { id: 9, number: 97, name: "American_Hero216", manufacturer: "Ford", team: "None" },
 ];
 const defaultRaces = [
   { name: "Preseason - Michigan", stageCount: 2 },
