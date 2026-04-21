@@ -63,19 +63,6 @@ function AppealModal({ isOpen, onClose, selectedSeason }) {
     }
   };
 
-  React.useEffect(() => {
-    if (!isOpen) return;
-    const script = document.createElement("script");
-    script.src = "https://upload-widget.cloudinary.com/latest/CloudinaryUploadWidget.js";
-    script.async = true;
-    document.body.appendChild(script);
-    return () => {
-      if (document.body.contains(script)) {
-        document.body.removeChild(script);
-      }
-    };
-  }, [isOpen]);
-
   if (!isOpen) return null;
 
   return (
@@ -122,7 +109,29 @@ function AppealModal({ isOpen, onClose, selectedSeason }) {
           <label style={{ display: "block", marginBottom: 6, fontWeight: 700 }}>Video Evidence (optional)</label>
           <button 
             onClick={() => {
-              if (window.cloudinary) {
+              if (!window.cloudinary) {
+                const script = document.createElement("script");
+                script.src = "https://upload-widget.cloudinary.com/latest/CloudinaryUploadWidget.js";
+                script.onload = () => {
+                  if (window.cloudinary) {
+                    window.cloudinary.openUploadWidget(
+                      {
+                        cloudName: "dpu05oykz",
+                        uploadPreset: "dpu05oykz",
+                        resourceType: "video",
+                        folder: "appeal-evidence"
+                      },
+                      (error, result) => {
+                        if (!error && result?.event === "success") {
+                          setVideoUrl(result.info.secure_url);
+                          alert("✅ Video uploaded!");
+                        }
+                      }
+                    );
+                  }
+                };
+                document.body.appendChild(script);
+              } else {
                 window.cloudinary.openUploadWidget(
                   {
                     cloudName: "dpu05oykz",
@@ -713,3 +722,4 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
     </div>
   );
 }
+
