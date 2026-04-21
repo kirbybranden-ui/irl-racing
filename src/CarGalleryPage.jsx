@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { getAllCarUploads, deleteCarUpload } from "./lib/carUploads.js";
+import { supabase } from "./lib/supabase.js";
 
 const appShellStyle = { minHeight: "100vh", background: "#0c0f14", color: "white", fontFamily: "Arial, sans-serif" };
 const pageContainerStyle = { maxWidth: 1400, margin: "0 auto", padding: 20 };
@@ -16,19 +16,33 @@ export default function CarGalleryPage({ drivers = [], tracks = [] }) {
   const [selectedRace, setSelectedRace] = useState("");
   const [loading, setLoading] = useState(true);
 
-  // Fetch all car uploads
   useEffect(() => {
-    async function loadUploads() {
-      setLoading(true);
-      const data = await getAllCarUploads();
-      setUploads(data);
-      setFilteredUploads(data);
-      setLoading(false);
-    }
     loadUploads();
   }, []);
 
-  // Apply filters
+  const loadUploads = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("car_uploads")
+        .select("*")
+        .order("uploaded_at", { ascending: false });
+
+      if (error) {
+        console.error("Error loading uploads:", error);
+        setUploads([]);
+      } else {
+        setUploads(data || []);
+        setFilteredUploads(data || []);
+      }
+    } catch (err) {
+      console.error("Error:", err);
+      setUploads([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     let filtered = [...uploads];
 
@@ -46,12 +60,14 @@ export default function CarGalleryPage({ drivers = [], tracks = [] }) {
   const handleDelete = async (uploadId, filePath) => {
     if (!window.confirm("Delete this upload?")) return;
 
-    const result = await deleteCarUpload(uploadId, filePath);
-    if (result.success) {
+    try {
+      await supabase.storage.from("car-uploads").remove([filePath]);
+      await supabase.from("car_uploads").delete().eq("id", uploadId);
       setUploads(uploads.filter(u => u.id !== uploadId));
       alert("Upload deleted!");
-    } else {
-      alert(`Error: ${result.error}`);
+    } catch (err) {
+      console.error("Error:", err);
+      alert("Error deleting upload");
     }
   };
 
@@ -64,8 +80,8 @@ export default function CarGalleryPage({ drivers = [], tracks = [] }) {
     document.body.removeChild(a);
   };
 
-  const isImageFile = (type) => type.startsWith("image/");
-  const isVideoFile = (type) => type.startsWith("video/");
+  const isImageFile = (type) => type && type.startsWith("image/");
+  const isVideoFile = (type) => type && type.startsWith("video/");
 
   return (
     <div style={appShellStyle}>
@@ -83,7 +99,6 @@ export default function CarGalleryPage({ drivers = [], tracks = [] }) {
           </p>
         </div>
 
-        {/* Filters */}
         <div style={sectionCardStyle}>
           <h2 style={{ marginTop: 0, marginBottom: 16 }}>Filters</h2>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
@@ -118,7 +133,7 @@ export default function CarGalleryPage({ drivers = [], tracks = [] }) {
                   .filter(t => uploads.some(u => u.race_id === t.name))
                   .map(t => (
                     <option key={t.name} value={t.name}>
-                      {t.name} ({t.date || "No date"})
+                      {t.name}
                     </option>
                   ))
                 }
@@ -133,13 +148,12 @@ export default function CarGalleryPage({ drivers = [], tracks = [] }) {
           </div>
         </div>
 
-        {/* Gallery Grid */}
         {loading ? (
           <div style={sectionCardStyle}>Loading car uploads...</div>
         ) : filteredUploads.length === 0 ? (
           <div style={sectionCardStyle}>
             <div style={{ opacity: 0.75, textAlign: "center", padding: 40 }}>
-              No car uploads found. Drivers will upload photos when the next race week opens!
+              No car uploads found.
             </div>
           </div>
         ) : (
@@ -147,7 +161,6 @@ export default function CarGalleryPage({ drivers = [], tracks = [] }) {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
               {filteredUploads.map(upload => {
                 const driver = drivers.find(d => d.id === upload.driver_id);
-                const race = tracks.find(t => t.name === upload.race_id);
 
                 return (
                   <div 
@@ -161,7 +174,6 @@ export default function CarGalleryPage({ drivers = [], tracks = [] }) {
                       flexDirection: "column"
                     }}
                   >
-                    {/* Thumbnail */}
                     <div 
                       style={{
                         width: "100%",
@@ -182,9 +194,6 @@ export default function CarGalleryPage({ drivers = [], tracks = [] }) {
                             width: "100%",
                             height: "100%",
                             objectFit: "cover"
-                          }}
-                          onError={(e) => {
-                            e.target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%23333' width='100' height='100'/%3E%3Ctext fill='%23999' x='50' y='50' text-anchor='middle' dy='.3em' font-size='12'%3EImage Not Found%3C/text%3E%3C/svg%3E";
                           }}
                         />
                       ) : isVideoFile(upload.file_type) ? (
@@ -218,7 +227,6 @@ export default function CarGalleryPage({ drivers = [], tracks = [] }) {
                       )}
                     </div>
 
-                    {/* Info */}
                     <div style={{ padding: 12, flex: 1, display: "flex", flexDirection: "column" }}>
                       <div style={{ marginBottom: 8 }}>
                         <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 2 }}>DRIVER</div>
@@ -230,13 +238,8 @@ export default function CarGalleryPage({ drivers = [], tracks = [] }) {
                       <div style={{ marginBottom: 8 }}>
                         <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 2 }}>RACE</div>
                         <div style={{ fontSize: 13 }}>
-                          {race?.name || upload.race_id}
+                          {upload.race_id}
                         </div>
-                        {race?.date && (
-                          <div style={{ fontSize: 11, opacity: 0.6, marginTop: 2 }}>
-                            {new Date(race.date).toLocaleDateString()}
-                          </div>
-                        )}
                       </div>
 
                       <div style={{ marginBottom: 8 }}>
@@ -256,7 +259,6 @@ export default function CarGalleryPage({ drivers = [], tracks = [] }) {
                         </div>
                       </div>
 
-                      {/* Actions */}
                       <div style={{ display: "flex", gap: 8, marginTop: "auto" }}>
                         <button 
                           onClick={() => handleDownload(upload.file_url, upload.file_name)}
