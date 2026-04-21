@@ -1,4 +1,8 @@
-import React, { useEffect, useState } from "react";
+export default function CarGalleryPage({ drivers = [], tracks = [] }) {
+  console.log("CarGalleryPage loaded!", { drivers, tracks });
+  // rest of code...
+  
+  import React, { useEffect, useState } from "react";
 
 const appShellStyle = { minHeight: "100vh", background: "#0c0f14", color: "white", fontFamily: "Arial, sans-serif" };
 const pageContainerStyle = { maxWidth: 1400, margin: "0 auto", padding: 20 };
