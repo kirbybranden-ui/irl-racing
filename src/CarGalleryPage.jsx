@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import { supabase } from "./lib/supabase.js";
 
 const appShellStyle = { minHeight: "100vh", background: "#0c0f14", color: "white", fontFamily: "Arial, sans-serif" };
 const pageContainerStyle = { maxWidth: 1400, margin: "0 auto", padding: 20 };
@@ -15,6 +14,7 @@ export default function CarGalleryPage({ drivers = [], tracks = [] }) {
   const [selectedDriver, setSelectedDriver] = useState("");
   const [selectedRace, setSelectedRace] = useState("");
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     loadUploads();
@@ -23,21 +23,40 @@ export default function CarGalleryPage({ drivers = [], tracks = [] }) {
   const loadUploads = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("car_uploads")
-        .select("*")
-        .order("uploaded_at", { ascending: false });
+      setError(null);
+      
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-      if (error) {
-        console.error("Error loading uploads:", error);
+      if (!supabaseUrl || !supabaseAnonKey) {
+        setError("Supabase credentials missing");
         setUploads([]);
-      } else {
-        setUploads(data || []);
-        setFilteredUploads(data || []);
+        setFilteredUploads([]);
+        return;
       }
+
+      const response = await fetch(
+        `${supabaseUrl}/rest/v1/car_uploads?order=uploaded_at.desc`,
+        {
+          headers: {
+            "apikey": supabaseAnonKey,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      setUploads(Array.isArray(data) ? data : []);
+      setFilteredUploads(Array.isArray(data) ? data : []);
     } catch (err) {
-      console.error("Error:", err);
+      console.error("Error loading uploads:", err);
+      setError(err.message);
       setUploads([]);
+      setFilteredUploads([]);
     } finally {
       setLoading(false);
     }
@@ -61,8 +80,32 @@ export default function CarGalleryPage({ drivers = [], tracks = [] }) {
     if (!window.confirm("Delete this upload?")) return;
 
     try {
-      await supabase.storage.from("car-uploads").remove([filePath]);
-      await supabase.from("car_uploads").delete().eq("id", uploadId);
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+      // Delete from storage
+      await fetch(
+        `${supabaseUrl}/storage/v1/object/car-uploads/${filePath}`,
+        {
+          method: "DELETE",
+          headers: {
+            "apikey": supabaseAnonKey,
+          },
+        }
+      );
+
+      // Delete from database
+      await fetch(
+        `${supabaseUrl}/rest/v1/car_uploads?id=eq.${uploadId}`,
+        {
+          method: "DELETE",
+          headers: {
+            "apikey": supabaseAnonKey,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
       setUploads(uploads.filter(u => u.id !== uploadId));
       alert("Upload deleted!");
     } catch (err) {
@@ -98,6 +141,15 @@ export default function CarGalleryPage({ drivers = [], tracks = [] }) {
             View and manage car uploads from drivers for each race week.
           </p>
         </div>
+
+        {error && (
+          <div style={{ ...sectionCardStyle, background: "#5d2c2c", borderColor: "#b42318" }}>
+            <div style={{ color: "#ff6b6b" }}>Error: {error}</div>
+            <button onClick={loadUploads} style={{ ...primaryButtonStyle, marginTop: 12 }}>
+              Retry
+            </button>
+          </div>
+        )}
 
         <div style={sectionCardStyle}>
           <h2 style={{ marginTop: 0, marginBottom: 16 }}>Filters</h2>
