@@ -183,13 +183,25 @@ export default function DriverProfilePage({ seasons, activeSeason }) {
 
   return (
     <div style={appShellStyle}>
-      <div style={pageContainerStyle}>
+      <div style={{ ...pageContainerStyle, position: "relative" }}>
+        {/* Manufacturer Logo - Top Left */}
+        <div style={{ position: "absolute", top: 20, left: 20, width: 90, height: 90, borderRadius: 8, background: "#1a1e27", border: "2px solid #404854", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 11, color: "#b8a059", textAlign: "center", padding: 6, boxSizing: "border-box", zIndex: 10 }}>
+          {driver.manufacturer || "—"}
+        </div>
+
         <div style={{ ...sectionCardStyle, marginBottom: 20 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
             <div>
               <button onClick={() => window.location.pathname = "/standings"} style={{ ...secondaryButtonStyle, marginBottom: 12 }}>← Back to Standings</button>
-              <div style={{ fontSize: 28, fontWeight: 900 }}>#{driver.number} {driver.name}</div>
-              <div style={{ fontSize: 16, opacity: 0.8, marginTop: 4 }}>{driver.team}</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                <div style={{ width: 70, height: 70, borderRadius: "50%", background: "#404854", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 28, color: "#fff", border: "3px solid #b8a059" }}>
+                  {driver.number}
+                </div>
+                <div>
+                  <div style={{ fontSize: 28, fontWeight: 900 }}>{driver.name}</div>
+                  <div style={{ fontSize: 16, opacity: 0.8, marginTop: 4 }}>{driver.team}</div>
+                </div>
+              </div>
               {driver.manufacturer && <div style={{ fontSize: 12, opacity: 0.7, marginTop: 2, fontWeight: 700 }}>{driver.manufacturer}</div>}
             </div>
             <div style={{ textAlign: "right" }}>
