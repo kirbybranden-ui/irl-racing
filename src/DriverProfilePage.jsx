@@ -2,13 +2,8 @@ import React, { useState, useMemo } from "react";
 import logo from "./assets/logo1.png";
 import { supabase } from "./lib/supabase";
 
-// Team logos - optional, add JAM.png when ready
-let teamLogos = {};
-try {
-  teamLogos = { JAM: require("./assets/teams/JAM.png").default };
-} catch {
-  teamLogos = {};
-}
+// Team logos - will be populated when JAM.png is added
+const teamLogos = {};
 
 const appShellStyle = { minHeight: "100vh", background: "#0c0f14", color: "white", fontFamily: "Arial, sans-serif" };
 const pageContainerStyle = { maxWidth: 1000, margin: "0 auto", padding: 20 };
