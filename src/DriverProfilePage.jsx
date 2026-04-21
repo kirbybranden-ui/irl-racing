@@ -33,9 +33,9 @@ function AppealModal({ isOpen, onClose, selectedSeason }) {
   const drivers = selectedSeason?.drivers ? [...selectedSeason.drivers].sort((a, b) => a.number - b.number) : [];
 
   // Get all tracks sorted alphabetically
-  const tracks = selectedSeason?.raceHistory 
+  const tracks = selectedSeason?.raceHistory && selectedSeason.raceHistory.length > 0
     ? [...selectedSeason.raceHistory].map(r => r.raceName).sort()
-    : [];
+    : ["Daytona", "Las Vegas", "Phoenix", "Martinsville", "Charlotte", "Kansas", "Michigan", "Bristol", "Atlanta", "Talladega", "Richmond"];
 
   const handleVideoUpload = (e) => {
     const file = e.target.files?.[0];
