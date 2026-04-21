@@ -8,6 +8,7 @@ import FilesPage from "./FilesPage";
 import SubmitAppealPage from "./SubmitAppealPage";
 import AppealsPage from "./AppealsPage";
 import DriverProfilePage from "./DriverProfilePage";
+import CarGalleryPage from "./CarGalleryPage";
 import WelcomePage from "./WelcomePage";
 import { supabase } from "./lib/supabase";
 
@@ -34,26 +35,26 @@ const defaultDrivers = [
   { id: 9, number: 97, name: "American_Hero216", manufacturer: "Ford", team: "None" },
 ];
 const defaultRaces = [
-  { name: "Preseason - Michigan", stageCount: 2, date: "2026-04-25" },
-  { name: "Preseason - Dover", stageCount: 2, date: "2026-05-02" },
-  { name: "Preseason - WWT Raceway", stageCount: 2, date: "2026-05-09" },
-  { name: "Daytona (Night)", stageCount: 2, date: "2026-05-16" },
-  { name: "Charlotte", stageCount: 3, date: "2026-05-23" },
-  { name: "Nashville", stageCount: 2, date: "2026-05-30" },
-  { name: "Michigan", stageCount: 2, date: "2026-06-06" },
-  { name: "Pocono", stageCount: 2, date: "2026-06-13" },
-  { name: "Bristol (Night)", stageCount: 2, date: "2026-06-20" },
-  { name: "Las Vegas", stageCount: 2, date: "2026-06-27" },
-  { name: "Talladega", stageCount: 2, date: "2026-07-11" },
-  { name: "North Wilksboro", stageCount: 2, date: "2026-07-18" },
-  { name: "Indianapolis", stageCount: 2, date: "2026-07-25" },
-  { name: "New Hampshire", stageCount: 2, date: "2026-08-01" },
-  { name: "Phoenix", stageCount: 2, date: "2026-08-08" },
-  { name: "Richmond", stageCount: 2, date: "2026-08-15" },
-  { name: "Kansas", stageCount: 2, date: "2026-08-22" },
-  { name: "Texas", stageCount: 2, date: "2026-08-29" },
-  { name: "Iowa", stageCount: 2, date: "2026-09-05" },
-  { name: "Homestead", stageCount: 2, date: "2026-09-12" },
+  { name: "Preseason - Michigan", stageCount: 2 },
+  { name: "Preseason - Dover", stageCount: 2 },
+  { name: "Preseason - WWT Raceway", stageCount: 2 },
+  { name: "Daytona (Night)", stageCount: 2 },
+  { name: "Charlotte", stageCount: 3 },
+  { name: "Nashville", stageCount: 2 },
+  { name: "Michigan", stageCount: 2 },
+  { name: "Pocono", stageCount: 2 },
+  { name: "Bristol (Night)", stageCount: 2 },
+  { name: "Las Vegas", stageCount: 2 },
+  { name: "Talladega", stageCount: 2 },
+  { name: "North Wilksboro", stageCount: 2 },
+  { name: "Indianapolis", stageCount: 2 },
+  { name: "New Hampshire", stageCount: 2 },
+  { name: "Phoenix", stageCount: 2 },
+  { name: "Richmond", stageCount: 2 },
+  { name: "Kansas", stageCount: 2 },
+  { name: "Texas", stageCount: 2 },
+  { name: "Iowa", stageCount: 2 },
+  { name: "Homestead", stageCount: 2 },
 ];
 // Winston Cup points system
 const pointsTable = [
@@ -476,9 +477,10 @@ export default function App() {
   if (path === "/welcome") return <WelcomePage />;
   if (path === "/submit-appeal") return <SubmitAppealPage />;
   if (path === "/appeals") return <AppealsPage />;
+  if (path === "/admin/car-gallery") return <CarGalleryPage drivers={drivers} tracks={tracks} />;
   if (path.startsWith("/driver/")) {
     const activeSeason = seasons.find((s) => s.id === activeSeasonId) || seasons[0] || null;
-    return <DriverProfilePage seasons={seasons} activeSeason={activeSeason} />;
+    return <DriverProfilePage seasons={seasons} activeSeason={activeSeason} tracks={tracks} />;
   }
 
   useEffect(() => {
@@ -923,6 +925,9 @@ export default function App() {
               </button>
               <button onClick={() => (window.location.pathname = "/appeals")} style={headerButtonStyle}>
                 Appeals ({openAppealCount})
+              </button>
+              <button onClick={() => (window.location.pathname = "/admin/car-gallery")} style={headerButtonStyle}>
+                Car Gallery
               </button>
             </div>
           </div>
