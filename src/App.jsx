@@ -8,7 +8,6 @@ import FilesPage from "./FilesPage";
 import SubmitAppealPage from "./SubmitAppealPage";
 import AppealsPage from "./AppealsPage";
 import DriverProfilePage from "./DriverProfilePage";
-import CarGalleryPage from "./CarGalleryPage";
 import WelcomePage from "./WelcomePage";
 import { supabase } from "./lib/supabase";
 
