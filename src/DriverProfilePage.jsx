@@ -590,6 +590,8 @@ export default function DriverProfilePage({ seasons, activeSeason }) {
             </div>
           </div>
         )}
+
+        <div style={sectionCardStyle}>
           <h2 style={{ marginTop: 0, marginBottom: 16 }}>Race-by-Race Breakdown</h2>
           {raceBreakdown.length === 0 ? (
             <div style={{ opacity: 0.75 }}>No races entered yet.</div>
