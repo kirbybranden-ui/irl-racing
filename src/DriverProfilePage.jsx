@@ -32,8 +32,10 @@ function AppealModal({ isOpen, onClose, selectedSeason }) {
   // Get all drivers from selected season, sorted by number
   const drivers = selectedSeason?.drivers ? [...selectedSeason.drivers].sort((a, b) => a.number - b.number) : [];
 
-  // Get all tracks sorted by race order (earliest first)
-  const tracks = selectedSeason?.raceHistory ? selectedSeason.raceHistory.map(r => r.raceName) : [];
+  // Get all tracks sorted alphabetically
+  const tracks = selectedSeason?.raceHistory 
+    ? [...selectedSeason.raceHistory].map(r => r.raceName).sort()
+    : [];
 
   const handleVideoUpload = (e) => {
     const file = e.target.files?.[0];
