@@ -140,7 +140,18 @@ function renderTeamBadge(teamName, size = 44) {
   );
 }
 function makeDriverWithStats(driver) {
-  return { ...driver, manufacturer: driver.manufacturer || "", manufacturerLogo: driver.manufacturerLogo || manufacturerLogos[driver.manufacturer] || null, startingPoints: Number(driver.startingPoints) || 0, manualWins: Number(driver.manualWins) || 0, points: Number(driver.startingPoints) || 0, wins: Number(driver.manualWins) || 0, top3: 0, top5: 0, dnfs: 0, retired: driver.retired || false };
+  return { ...driver, manufacturer: driver.manufacturer || "", manufacturerLogo: driver.manufacturerLogo || manufacturerLogos[driver.manufacturer] || null, startingPoints: Number(driver.startingPoints) || 0, manualWins: Number(driver.manualWins) || 0, points: Number(driver.startingPoints) || 0, wins: Number(driver.manualWins) || 0, top3: 0, top5: 0, dnfs: 0, retired: driver.retired || false, notes: driver.notes || "" };
+}
+
+function getDriverAchievements(driver) {
+  const achievements = [];
+  if (driver.wins >= 1) achievements.push({ badge: "🏆", name: "First Win", condition: driver.wins >= 1 });
+  if (driver.wins >= 3) achievements.push({ badge: "🥇", name: "Hat Trick", condition: driver.wins >= 3 });
+  if (driver.wins >= 5) achievements.push({ badge: "👑", name: "Dominator", condition: driver.wins >= 5 });
+  if (driver.top3 >= 10) achievements.push({ badge: "🎯", name: "Podium Master", condition: driver.top3 >= 10 });
+  if (driver.points >= 100) achievements.push({ badge: "⭐", name: "Century Club", condition: driver.points >= 100 });
+  if (driver.fastestLaps >= 5) achievements.push({ badge: "⚡", name: "Speed Demon", condition: driver.fastestLaps >= 5 });
+  return achievements;
 }
 function getDefaultRoster() { return defaultDrivers.map(makeDriverWithStats); }
 function getStagePoints(stageFinish) {
@@ -451,6 +462,8 @@ export default function App() {
   const [newDriverTeam, setNewDriverTeam] = useState("");
   const [editingDriverId, setEditingDriverId] = useState(null);
   const [editDriverForm, setEditDriverForm] = useState({ name: "", number: "", manufacturer: "", team: "" });
+  const [driverNotes, setDriverNotes] = useState({});
+  const [dnfReasons, setDnfReasons] = useState({});
   const [startingPointsInputs, setStartingPointsInputs] = useState({});
   const [manualWinsInputs, setManualWinsInputs] = useState({});
   const [newTrackName, setNewTrackName] = useState("");
@@ -601,6 +614,16 @@ export default function App() {
     (activeSeason?.drivers || []).forEach((d) => { nextInputs[d.id] = String(Number(d.manualWins) || 0); });
     setManualWinsInputs(nextInputs);
   }, [activeSeasonId]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const nextNotes = {};
+    (activeSeason?.drivers || []).forEach((d) => { nextNotes[d.id] = d.notes || ""; });
+    setDriverNotes(nextNotes);
+  }, [activeSeasonId]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const nextReasons = {};
+    (activeSeason?.drivers || []).forEach((d) => { nextReasons[d.id] = ""; });
+    setDnfReasons(nextReasons);
+  }, [selectedRace, activeSeasonId]); // eslint-disable-line react-hooks/exhaustive-deps
   const handleImportBackup = (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -705,6 +728,13 @@ export default function App() {
   };
   const openEditDriver = (driver) => { setEditingDriverId(driver.id); setEditDriverForm({ name: driver.name, number: driver.number, manufacturer: driver.manufacturer || "", team: driver.team }); };
   const cancelEditDriver = () => { setEditingDriverId(null); setEditDriverForm({ name: "", number: "", manufacturer: "", team: "" }); };
+  const saveDriverNotes = () => {
+    if (!activeSeason) return;
+    const updatedRoster = drivers.map((d) => ({ ...d, notes: driverNotes[d.id] || "" }));
+    const rosterOnly = updatedRoster.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer || "", manufacturerLogo: d.manufacturerLogo || null, team: d.team, startingPoints: Number(d.startingPoints) || 0, manualWins: Number(d.manualWins) || 0, retired: d.retired || false, notes: d.notes || "" }));
+    replaceActiveSeason({ ...activeSeason, drivers: rebuildDriversFromHistory(raceHistory, rosterOnly) });
+    alert("Driver notes saved!");
+  };
   const saveDriverEdit = () => {
     if (!editingDriverId || !activeSeason) return;
     const name = editDriverForm.name.trim(), number = String(editDriverForm.number).trim(), manufacturer = editDriverForm.manufacturer.trim(), team = editDriverForm.team.trim();
@@ -834,7 +864,7 @@ export default function App() {
         finishPos: finishPos || null, stage1Pos: stage1Pos || null, stage2Pos: stage2Pos || null, stage3Pos: stageCount === 3 ? stage3Pos || null : null,
         finishPoints, stage1Points, stage2Points, stage3Points, fastestLap, fastestLapPoints,
         offense, offenseNumber, penaltyPoints, totalRacePoints,
-        isWin: finishPos === 1, isTop3: finishPos >= 1 && finishPos <= 3, isTop5: finishPos >= 1 && finishPos <= 5, dnf,
+        isWin: finishPos === 1, isTop3: finishPos >= 1 && finishPos <= 3, isTop5: finishPos >= 1 && finishPos <= 5, dnf, dnfReason: dnf ? (dnfReasons[driver.id] || "Unknown") : null,
       };
     }).sort((a, b) => { if (a.finishPos === null) return 1; if (b.finishPos === null) return -1; return a.finishPos - b.finishPos; });
     const updatedRace = { raceName: selectedRace, stageCount, results: raceResults };
@@ -844,12 +874,14 @@ export default function App() {
     setEditingRaceName(null);
   };
   const handleEditRace = (race) => {
-    const np = {}, ns1 = {}, ns2 = {}, ns3 = {}, nd = {}, no = {}, nf = {};
+    const np = {}, ns1 = {}, ns2 = {}, ns3 = {}, nd = {}, no = {}, nf = {}, nr = {};
     race.results.forEach((r) => {
       np[r.driverId] = r.finishPos || ""; ns1[r.driverId] = r.stage1Pos || ""; ns2[r.driverId] = r.stage2Pos || ""; ns3[r.driverId] = r.stage3Pos || "";
       nd[r.driverId] = !!r.dnf; no[r.driverId] = !!r.offense;
       if (r.fastestLap) nf[r.driverId] = true;
+      if (r.dnfReason) nr[r.driverId] = r.dnfReason;
     });
+    setDnfReasons(nr);
     patchActiveSeason({ selectedRace: race.raceName, positions: np, stage1: ns1, stage2: ns2, stage3: ns3, dnfMap: nd, offenseMap: no, fastestLapMap: nf });
     setEditingRaceName(race.raceName);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -994,6 +1026,25 @@ export default function App() {
             </div>
           )}
         </div>
+        {/* Driver Notes Manager */}
+        <div style={sectionCardStyle}>
+          <h2 style={{ marginTop: 0 }}>Driver Notes</h2>
+          <div style={{ opacity: 0.78, marginBottom: 14 }}>Add performance notes, observations, or reminders for each driver.</div>
+          <div style={{ display: "grid", gap: 14 }}>
+            {drivers.map((d) => (
+              <div key={d.id} style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 14 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 8 }}>#{d.number} {d.name}</div>
+                <textarea 
+                  style={{ ...inputStyle, minHeight: 80, resize: "vertical" }} 
+                  value={driverNotes[d.id] || ""} 
+                  onChange={(e) => setDriverNotes({ ...driverNotes, [d.id]: e.target.value })}
+                  placeholder="Add notes about this driver..."
+                />
+              </div>
+            ))}
+          </div>
+          <button onClick={saveDriverNotes} style={{ ...primaryButtonStyle, marginTop: 16 }}>Save All Notes</button>
+        </div>
         {/* Pending Driver Signups */}
         {pendingDrivers.length > 0 && (
           <div style={sectionCardStyle}>
@@ -1104,7 +1155,30 @@ export default function App() {
                       {stageCount >= 1 && <td style={tdStyle}><input type="number" min="1" max="10" style={inputStyle} value={stage1[driver.id] || ""} onChange={(e) => handleStage1Change(driver.id, e.target.value)} /></td>}
                       {stageCount >= 2 && <td style={tdStyle}><input type="number" min="1" max="10" style={inputStyle} value={stage2[driver.id] || ""} onChange={(e) => handleStage2Change(driver.id, e.target.value)} /></td>}
                       {stageCount === 3 && <td style={tdStyle}><input type="number" min="1" max="10" style={inputStyle} value={stage3[driver.id] || ""} onChange={(e) => handleStage3Change(driver.id, e.target.value)} /></td>}
-                      <td style={tdStyle}><label style={{ display: "flex", alignItems: "center", gap: 8 }}><input type="checkbox" checked={!!dnfMap[driver.id]} onChange={(e) => handleDnfChange(driver.id, e.target.checked)} />DNF</label></td>
+                      <td style={tdStyle}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                          <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <input type="checkbox" checked={!!dnfMap[driver.id]} onChange={(e) => handleDnfChange(driver.id, e.target.checked)} />DNF
+                          </label>
+                          {dnfMap[driver.id] && (
+                            <select 
+                              style={{ ...inputStyle, fontSize: 12, padding: "6px 8px" }} 
+                              value={dnfReasons[driver.id] || ""} 
+                              onChange={(e) => setDnfReasons({ ...dnfReasons, [driver.id]: e.target.value })}
+                            >
+                              <option value="">Select reason...</option>
+                              <option value="Mechanical">Mechanical Failure</option>
+                              <option value="Crash">Crash/Incident</option>
+                              <option value="Engine">Engine Failure</option>
+                              <option value="Transmission">Transmission Issue</option>
+                              <option value="Fuel">Fuel System</option>
+                              <option value="Suspension">Suspension Damage</option>
+                              <option value="Pit Stop">Pit Stop Error</option>
+                              <option value="Other">Other</option>
+                            </select>
+                          )}
+                        </div>
+                      </td>
                       <td style={tdStyle}><label style={{ display: "flex", alignItems: "center", gap: 8 }}><input type="radio" name="fastestLap" checked={!!fastestLapMap[driver.id]} onChange={() => handleFastestLapChange(driver.id)} />FL +1</label></td>
                       <td style={tdStyle}><label style={{ display: "flex", alignItems: "center", gap: 8 }}><input type="checkbox" checked={!!offenseMap[driver.id]} onChange={(e) => handleOffenseChange(driver.id, e.target.checked)} />Offense</label></td>
                       <td style={{ ...tdStyle, color: thisOffense ? "#f87171" : "inherit" }}>
@@ -1197,7 +1271,7 @@ export default function App() {
                               {race.stageCount >= 2 && <td style={tdStyle}>{r.stage2Points}</td>}
                               {race.stageCount === 3 && <td style={tdStyle}>{r.stage3Points}</td>}
                               <td style={tdStyle}>{r.fastestLap ? "+1" : "—"}</td>
-                              <td style={tdStyle}>{r.dnf ? "DNF" : "—"}</td>
+                              <td style={tdStyle}>{r.dnf ? (r.dnfReason ? `DNF (${r.dnfReason})` : "DNF") : "—"}</td>
                               <td style={tdStyle}>{r.offense ? `#${r.offenseNumber}` : "—"}</td>
                               <td style={{ ...tdStyle, color: r.penaltyPoints > 0 ? "#f87171" : "inherit" }}>{r.penaltyPoints > 0 ? `-${r.penaltyPoints}` : "0"}</td>
                               <td style={{ ...tdStyle, fontWeight: 800 }}>{r.totalRacePoints}</td>
