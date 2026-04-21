@@ -36,14 +36,12 @@ function AppealModal({ isOpen, onClose, driverId, driverName, driverNumber }) {
     setSubmitting(true);
     try {
       const { error } = await supabase.from("appeals").insert({
-        driver_number: driverNumber,
-        driver_name: driverName,
-        appeal_type: appealType,
-        race_context: raceContext.trim(),
-        description: description.trim(),
-        status: "Open",
-        created_at: new Date().toISOString(),
-      });
+  requester: driverName,
+  track: raceContext.trim(),
+  description: description.trim(),
+  status: "Open",
+  created_at: new Date().toISOString(),
+});
 
       if (error) throw error;
 
