@@ -477,13 +477,6 @@ console.log("Current path:", path);  // ADD THIS LINE
   if (path === "/welcome") return <WelcomePage />;
   if (path === "/submit-appeal") return <SubmitAppealPage />;
   if (path === "/appeals") return <AppealsPage />;
-  if (path === "/admin/car-gallery") return (
-  <div style={{ minHeight: "100vh", background: "#0c0f14", color: "white", padding: 40, fontFamily: "Arial, sans-serif" }}>
-    <h1>Car Gallery</h1>
-    <p>Test: If you see this, the gallery works!</p>
-    <button onClick={() => window.history.back()} style={{ background: "#d4af37", color: "#111", border: "none", padding: "10px 20px", borderRadius: 8, cursor: "pointer", fontWeight: 700 }}>Back</button>
-  </div>
-);
   if (path.startsWith("/driver/")) {
     const activeSeason = seasons.find((s) => s.id === activeSeasonId) || seasons[0] || null;
     return <DriverProfilePage seasons={seasons} activeSeason={activeSeason} tracks={tracks} />;
