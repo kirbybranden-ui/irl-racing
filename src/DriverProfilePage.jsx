@@ -109,43 +109,51 @@ function AppealModal({ isOpen, onClose, selectedSeason }) {
           <label style={{ display: "block", marginBottom: 6, fontWeight: 700 }}>Video Evidence (optional)</label>
           <button 
             onClick={() => {
-              if (!window.cloudinary) {
-                const script = document.createElement("script");
-                script.src = "https://upload-widget.cloudinary.com/latest/CloudinaryUploadWidget.js";
-                script.onload = () => {
-                  if (window.cloudinary) {
-                    window.cloudinary.openUploadWidget(
-                      {
-                        cloudName: "dpu05oykz",
-                        uploadPreset: "dpu05oykz",
-                        resourceType: "video",
-                        folder: "appeal-evidence"
-                      },
-                      (error, result) => {
-                        if (!error && result?.event === "success") {
-                          setVideoUrl(result.info.secure_url);
-                          alert("✅ Video uploaded!");
-                        }
-                      }
-                    );
-                  }
-                };
-                document.body.appendChild(script);
-              } else {
+              console.log("Video button clicked");
+              console.log("window.cloudinary exists?", !!window.cloudinary);
+              
+              const openWidget = () => {
+                console.log("Opening Cloudinary widget...");
+                if (!window.cloudinary) {
+                  console.error("Cloudinary not available!");
+                  alert("Cloudinary is loading... try again in a moment");
+                  return;
+                }
+                
                 window.cloudinary.openUploadWidget(
                   {
                     cloudName: "dpu05oykz",
                     uploadPreset: "dpu05oykz",
                     resourceType: "video",
-                    folder: "appeal-evidence"
+                    folder: "appeal-evidence",
+                    maxFileSize: 500000000
                   },
                   (error, result) => {
+                    console.log("Upload callback:", { error, result });
                     if (!error && result?.event === "success") {
+                      console.log("Video uploaded:", result.info.secure_url);
                       setVideoUrl(result.info.secure_url);
                       alert("✅ Video uploaded!");
                     }
                   }
                 );
+              };
+              
+              if (window.cloudinary) {
+                openWidget();
+              } else {
+                console.log("Loading Cloudinary script...");
+                const script = document.createElement("script");
+                script.src = "https://upload-widget.cloudinary.com/latest/CloudinaryUploadWidget.js";
+                script.onload = () => {
+                  console.log("Cloudinary script loaded");
+                  setTimeout(openWidget, 500);
+                };
+                script.onerror = () => {
+                  console.error("Failed to load Cloudinary script");
+                  alert("Failed to load video upload. Please try again.");
+                };
+                document.body.appendChild(script);
               }
             }}
             style={secondaryButtonStyle}
@@ -722,4 +730,3 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
     </div>
   );
 }
-
