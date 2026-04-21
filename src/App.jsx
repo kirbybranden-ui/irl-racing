@@ -3,24 +3,24 @@ import logo from "./assets/logo1.png";
 import teamLogoJAM from "./assets/teams/JAM.png";
 import teamLogoPMS from "./assets/teams/PMS.png";
 import teamLogoBNR from "./assets/teams/BNR.png";
+import manufacturerChevrolet from "./assets/manufacturers/chevrolet.png";
+import manufacturerFord from "./assets/manufacturers/ford.png";
+import manufacturerToyota from "./assets/manufacturers/toyota.png";
 import FilesPage from "./FilesPage";
 import SubmitAppealPage from "./SubmitAppealPage";
 import AppealsPage from "./AppealsPage";
 import DriverProfilePage from "./DriverProfilePage";
 import WelcomePage from "./WelcomePage";
 import { supabase } from "./lib/supabase";
-import manufacturerChevrolet from "./assets/manufacturers/chevrolet.png";
-import manufacturerFord from "./assets/manufacturers/ford.png";
-import manufacturerToyota from "./assets/manufacturers/toyota.png";
-const manufacturerLogos = {
-  Chevrolet: manufacturerChevrolet,
-  Ford: manufacturerFord,
-  Toyota: manufacturerToyota,
-};
 const teamLogos = {
   JAM: teamLogoJAM,
   PMS: teamLogoPMS,
   BNR: teamLogoBNR,
+};
+const manufacturerLogos = {
+  Chevrolet: manufacturerChevrolet,
+  Ford: manufacturerFord,
+  Toyota: manufacturerToyota,
 };
 import { loadLeagueState, saveLeagueState } from "./lib/leagueState";
 const defaultDrivers = [
@@ -138,7 +138,7 @@ function renderTeamBadge(teamName, size = 44) {
   );
 }
 function makeDriverWithStats(driver) {
-  return { ...driver, manufacturer: driver.manufacturer || "", startingPoints: Number(driver.startingPoints) || 0, manualWins: Number(driver.manualWins) || 0, points: Number(driver.startingPoints) || 0, wins: Number(driver.manualWins) || 0, top3: 0, top5: 0, dnfs: 0, retired: driver.retired || false };
+  return { ...driver, manufacturer: driver.manufacturer || "", manufacturerLogo: driver.manufacturerLogo || null, startingPoints: Number(driver.startingPoints) || 0, manualWins: Number(driver.manualWins) || 0, points: Number(driver.startingPoints) || 0, wins: Number(driver.manualWins) || 0, top3: 0, top5: 0, dnfs: 0, retired: driver.retired || false };
 }
 function getDefaultRoster() { return defaultDrivers.map(makeDriverWithStats); }
 function getStagePoints(stageFinish) {
@@ -696,8 +696,8 @@ export default function App() {
     if (!trimmedName || !trimmedTeam || !trimmedManufacturer || !driverNumber) { alert("Please enter driver name, number, manufacturer, and team."); return; }
     if (drivers.some((d) => d.name.toLowerCase() === trimmedName.toLowerCase())) { alert("A driver with that name already exists."); return; }
     if (drivers.some((d) => String(d.number) === driverNumber)) { alert("A driver with that number already exists."); return; }
-    const rosterDriver = { id: Date.now(), number: Number(driverNumber), name: trimmedName, manufacturer: trimmedManufacturer, team: trimmedTeam, startingPoints: 0, manualWins: 0 };
-    const newRoster = [...drivers.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer, team: d.team, startingPoints: Number(d.startingPoints) || 0, manualWins: Number(d.manualWins) || 0 })), rosterDriver];
+    const rosterDriver = { id: Date.now(), number: Number(driverNumber), name: trimmedName, manufacturer: trimmedManufacturer, manufacturerLogo: manufacturerLogos[trimmedManufacturer] || null, team: trimmedTeam, startingPoints: 0, manualWins: 0 };
+    const newRoster = [...drivers.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer, manufacturerLogo: d.manufacturerLogo || null, team: d.team, startingPoints: Number(d.startingPoints) || 0, manualWins: Number(d.manualWins) || 0 })), rosterDriver];
     patchActiveSeason({ drivers: rebuildDriversFromHistory(raceHistory, newRoster) });
     setNewDriverName(""); setNewDriverNumber(""); setNewDriverManufacturer(""); setNewDriverTeam("");
   };
@@ -711,7 +711,7 @@ export default function App() {
     if (drivers.some((d) => d.id !== editingDriverId && String(d.number) === number)) { alert("A driver with that number already exists."); return; }
     const updatedRoster = drivers.map((d) => d.id === editingDriverId ? { ...d, name, number: Number(number), manufacturer, manufacturerLogo: manufacturerLogos[manufacturer] || null, team, startingPoints: Number(d.startingPoints) || 0, manualWins: Number(d.manualWins) || 0 } : d);
     const updatedHistory = raceHistory.map((race) => ({ ...race, results: (race.results || []).map((r) => r.driverId === editingDriverId ? { ...r, name, number: Number(number), manufacturer, team } : r) }));
-    const rosterOnly = updatedRoster.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer, team: d.team, startingPoints: Number(d.startingPoints) || 0, manualWins: Number(d.manualWins) || 0 }));
+    const rosterOnly = updatedRoster.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer, manufacturerLogo: d.manufacturerLogo || null, team: d.team, startingPoints: Number(d.startingPoints) || 0, manualWins: Number(d.manualWins) || 0 }));
     replaceActiveSeason({ ...activeSeason, drivers: rebuildDriversFromHistory(updatedHistory, rosterOnly), raceHistory: updatedHistory });
     cancelEditDriver();
   };
@@ -755,17 +755,17 @@ export default function App() {
     try {
       // Add to active season
       const newDriver = {
-  id: Date.now(),
-  number: pendingDriver.car_number,
-  name: pendingDriver.driver_name,
-  manufacturer: pendingDriver.manufacturer || "",
-  manufacturerLogo: manufacturerLogos[pendingDriver.manufacturer] || null,
-  team: pendingDriver.team_name,
-  startingPoints: 0,
-  manualWins: 0,
-  retired: false,
-};
-      const newRoster = [...drivers.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer || "", team: d.team, startingPoints: Number(d.startingPoints) || 0, manualWins: Number(d.manualWins) || 0 })), newDriver];
+        id: Date.now(),
+        number: pendingDriver.car_number,
+        name: pendingDriver.driver_name,
+        manufacturer: pendingDriver.manufacturer || "",
+        manufacturerLogo: manufacturerLogos[pendingDriver.manufacturer] || null,
+        team: pendingDriver.team_name,
+        startingPoints: 0,
+        manualWins: 0,
+        retired: false,
+      };
+      const newRoster = [...drivers.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer || "", manufacturerLogo: d.manufacturerLogo || null, team: d.team, startingPoints: Number(d.startingPoints) || 0, manualWins: Number(d.manualWins) || 0 })), newDriver];
       patchActiveSeason({ drivers: rebuildDriversFromHistory(raceHistory, newRoster) });
 
       // Update pending driver status to approved
