@@ -188,6 +188,112 @@ export default function DriverProfilePage({ seasons, activeSeason }) {
 
   const seasonIndex = allSeasons.findIndex((s) => s && s.id === selectedSeasonId);
 
+  // Calculate all stats
+  const careerStats = useMemo(() => {
+    let totalWins = 0, totalPoints = 0, totalPodiums = 0, totalRaces = 0;
+    allSeasons.forEach(season => {
+      const d = season.drivers?.find(dr => dr.id === driver.id);
+      if (d) {
+        totalWins += d.wins || 0;
+        totalPoints += d.points || 0;
+        totalPodiums += d.top3 || 0;
+        totalRaces += (season.raceHistory || []).filter(r => r.results?.some(res => res.driverId === driver.id)).length;
+      }
+    });
+    return { wins: totalWins, points: totalPoints, podiums: totalPodiums, races: totalRaces };
+  }, [allSeasons, driver.id]);
+
+  const recentForm = useMemo(() => {
+    return (selectedSeason.raceHistory || [])
+      .filter(r => r.results?.some(res => res.driverId === driver.id))
+      .slice(-5)
+      .map(r => {
+        const result = r.results.find(res => res.driverId === driver.id);
+        return { race: r.raceName, points: result?.totalRacePoints || 0, finish: result?.finishPos };
+      });
+  }, [selectedSeason, driver.id]);
+
+  const consistencyRating = useMemo(() => {
+    const finishes = raceBreakdown.filter(r => r.finishPos).map(r => r.finishPos);
+    if (finishes.length === 0) return { avg: 0, best: "—", worst: "—" };
+    const avg = (finishes.reduce((a, b) => a + b, 0) / finishes.length).toFixed(1);
+    return { avg, best: Math.min(...finishes), worst: Math.max(...finishes) };
+  }, [raceBreakdown]);
+
+  const personalRecords = useMemo(() => {
+    let bestFinish = Infinity, fastestLapCount = 0, highestPointsRace = 0;
+    raceBreakdown.forEach(r => {
+      if (r.finishPos) bestFinish = Math.min(bestFinish, r.finishPos);
+      if (r.fastestLap) fastestLapCount++;
+      if (r.totalRacePoints) highestPointsRace = Math.max(highestPointsRace, r.totalRacePoints);
+    });
+    return { bestFinish: bestFinish === Infinity ? "—" : bestFinish, fastestLaps: fastestLapCount, highestRacePoints: highestPointsRace };
+  }, [raceBreakdown]);
+
+  const streaks = useMemo(() => {
+    let currentWinStreak = 0, longestWinStreak = 0, currentPodiumStreak = 0, longestPodiumStreak = 0, currentDnfStreak = 0, longestDnfStreak = 0;
+    raceBreakdown.forEach(r => {
+      if (r.isWin) { currentWinStreak++; longestWinStreak = Math.max(longestWinStreak, currentWinStreak); } else currentWinStreak = 0;
+      if (r.isTop3) { currentPodiumStreak++; longestPodiumStreak = Math.max(longestPodiumStreak, currentPodiumStreak); } else currentPodiumStreak = 0;
+      if (r.dnf) { currentDnfStreak++; longestDnfStreak = Math.max(longestDnfStreak, currentDnfStreak); } else currentDnfStreak = 0;
+    });
+    return { currentWins: currentWinStreak, longestWins: longestWinStreak, currentPodiums: currentPodiumStreak, longestPodiums: longestPodiumStreak, currentDnfs: currentDnfStreak, longestDnfs: longestDnfStreak };
+  }, [raceBreakdown]);
+
+  const driverRanking = useMemo(() => {
+    const sorted = [...(selectedSeason.drivers || [])].sort((a, b) => b.points - a.points);
+    return sorted.findIndex(d => d.id === driver.id) + 1;
+  }, [selectedSeason, driver.id]);
+
+  const pointsGap = useMemo(() => {
+    const sorted = [...(selectedSeason.drivers || [])].sort((a, b) => b.points - a.points);
+    const driverIdx = sorted.findIndex(d => d.id === driver.id);
+    if (driverIdx === 0) return { ahead: 0, behind: 0 };
+    const ahead = sorted[driverIdx - 1].points - driver.points;
+    const behind = driverIdx < sorted.length - 1 ? driver.points - sorted[driverIdx + 1].points : 0;
+    return { ahead, behind };
+  }, [selectedSeason, driver.id]);
+
+  const teamStats = useMemo(() => {
+    const teammate = (selectedSeason.drivers || []).find(d => d.team === driver.team && d.id !== driver.id);
+    if (!teammate) return null;
+    return { name: teammate.name, number: teammate.number, points: teammate.points, wins: teammate.wins, top3: teammate.top3 };
+  }, [selectedSeason, driver.id]);
+
+  const trackStats = useMemo(() => {
+    const tracks = {};
+    raceBreakdown.forEach(r => {
+      const track = r.raceName;
+      if (!tracks[track]) tracks[track] = { races: 0, points: 0, finish: [] };
+      tracks[track].races++;
+      tracks[track].points += r.totalRacePoints || 0;
+      if (r.finishPos) tracks[track].finish.push(r.finishPos);
+    });
+    const sorted = Object.entries(tracks).sort((a, b) => b[1].points - a[1].points);
+    return { best: sorted[0], worst: sorted[sorted.length - 1], total: sorted.length };
+  }, [raceBreakdown]);
+
+  const pointsProjection = useMemo(() => {
+    const racesCompleted = raceBreakdown.length;
+    const totalTracks = selectedSeason.raceHistory?.length || 0;
+    if (racesCompleted === 0) return "—";
+    const avgPointsPerRace = driver.points / racesCompleted;
+    const projected = Math.round(avgPointsPerRace * totalTracks);
+    return projected;
+  }, [driver.points, raceBreakdown, selectedSeason]);
+
+  const achievementProgress = useMemo(() => {
+    const achievements = [
+      { name: "First Win", current: driver.wins, target: 1, emoji: "🏆" },
+      { name: "Hat Trick", current: driver.wins, target: 3, emoji: "🥇" },
+      { name: "Dominator", current: driver.wins, target: 5, emoji: "👑" },
+      { name: "Podium Master", current: driver.top3, target: 10, emoji: "🎯" },
+      { name: "Century Club", current: driver.points, target: 100, emoji: "⭐" },
+      { name: "Speed Demon", current: driver.fastestLaps || 0, target: 5, emoji: "⚡" },
+    ];
+    return achievements.filter(a => a.current < a.target);
+  }, [driver.wins, driver.top3, driver.points, driver.fastestLaps]);
+
   return (
     <div style={appShellStyle}>
       <div style={pageContainerStyle}>
@@ -293,7 +399,197 @@ export default function DriverProfilePage({ seasons, activeSeason }) {
           </div>
         )}
 
+        {/* Season Stats Overview */}
         <div style={sectionCardStyle}>
+          <h2 style={{ marginTop: 0, marginBottom: 16 }}>Season Overview</h2>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12, marginBottom: 16 }}>
+            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}>
+              <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>RANKING</div>
+              <div style={{ fontSize: 28, fontWeight: 800, color: "#d4af37" }}>P{driverRanking}</div>
+            </div>
+            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}>
+              <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>PROJECTION</div>
+              <div style={{ fontSize: 22, fontWeight: 800 }}>{pointsProjection} pts</div>
+              <div style={{ fontSize: 10, opacity: 0.6 }}>Full season estimate</div>
+            </div>
+            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}>
+              <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>AVG FINISH</div>
+              <div style={{ fontSize: 22, fontWeight: 800 }}>{consistencyRating.avg}</div>
+              <div style={{ fontSize: 10, opacity: 0.6 }}>Consistency</div>
+            </div>
+          </div>
+
+          {pointsGap.ahead > 0 && (
+            <div style={{ background: "#2a3140", borderRadius: 8, padding: 12, marginBottom: 12 }}>
+              <div style={{ fontSize: 13, opacity: 0.8 }}>📊 <strong>{pointsGap.ahead} points</strong> behind P{driverRanking - 1}</div>
+            </div>
+          )}
+          {pointsGap.behind > 0 && (
+            <div style={{ background: "#2a3140", borderRadius: 8, padding: 12 }}>
+              <div style={{ fontSize: 13, opacity: 0.8 }}>📊 <strong>{pointsGap.behind} point lead</strong> over P{driverRanking + 1}</div>
+            </div>
+          )}
+        </div>
+
+        {/* Personal Records */}
+        <div style={sectionCardStyle}>
+          <h2 style={{ marginTop: 0, marginBottom: 14 }}>Personal Records</h2>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12 }}>
+            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}>
+              <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>BEST FINISH</div>
+              <div style={{ fontSize: 28, fontWeight: 800, color: "#d4af37" }}>{personalRecords.bestFinish}</div>
+            </div>
+            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}>
+              <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>FASTEST LAPS</div>
+              <div style={{ fontSize: 28, fontWeight: 800, color: "#d4af37" }}>{personalRecords.fastestLaps}</div>
+            </div>
+            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}>
+              <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>BEST RACE</div>
+              <div style={{ fontSize: 28, fontWeight: 800, color: "#d4af37" }}>{personalRecords.highestRacePoints}</div>
+              <div style={{ fontSize: 10, opacity: 0.6 }}>points</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Streaks */}
+        <div style={sectionCardStyle}>
+          <h2 style={{ marginTop: 0, marginBottom: 14 }}>Current Streaks</h2>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12 }}>
+            <div style={{ background: streaks.currentWins > 0 ? "#1a3a1a" : "#0f1319", border: `1px solid ${streaks.currentWins > 0 ? "#4ade80" : "#2c3440"}`, borderRadius: 10, padding: 12 }}>
+              <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>WIN STREAK 🏆</div>
+              <div style={{ fontSize: 28, fontWeight: 800 }}>{streaks.currentWins}</div>
+              <div style={{ fontSize: 10, opacity: 0.6 }}>Best: {streaks.longestWins}</div>
+            </div>
+            <div style={{ background: streaks.currentPodiums > 0 ? "#1a3a1a" : "#0f1319", border: `1px solid ${streaks.currentPodiums > 0 ? "#4ade80" : "#2c3440"}`, borderRadius: 10, padding: 12 }}>
+              <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>PODIUM STREAK 🎯</div>
+              <div style={{ fontSize: 28, fontWeight: 800 }}>{streaks.currentPodiums}</div>
+              <div style={{ fontSize: 10, opacity: 0.6 }}>Best: {streaks.longestPodiums}</div>
+            </div>
+            <div style={{ background: streaks.currentDnfs > 0 ? "#3a1a1a" : "#0f1319", border: `1px solid ${streaks.currentDnfs > 0 ? "#f87171" : "#2c3440"}`, borderRadius: 10, padding: 12 }}>
+              <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>DNF STREAK 💥</div>
+              <div style={{ fontSize: 28, fontWeight: 800 }}>{streaks.currentDnfs}</div>
+              <div style={{ fontSize: 10, opacity: 0.6 }}>Worst: {streaks.longestDnfs}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Career Stats */}
+        <div style={sectionCardStyle}>
+          <h2 style={{ marginTop: 0, marginBottom: 14 }}>Career Stats (All Seasons)</h2>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12 }}>
+            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}>
+              <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>CAREER WINS</div>
+              <div style={{ fontSize: 28, fontWeight: 800 }}>{careerStats.wins}</div>
+            </div>
+            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}>
+              <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>CAREER POINTS</div>
+              <div style={{ fontSize: 28, fontWeight: 800 }}>{careerStats.points}</div>
+            </div>
+            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}>
+              <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>PODIUMS</div>
+              <div style={{ fontSize: 28, fontWeight: 800 }}>{careerStats.podiums}</div>
+            </div>
+            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}>
+              <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>RACES</div>
+              <div style={{ fontSize: 28, fontWeight: 800 }}>{careerStats.races}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Consistency Analysis */}
+        <div style={sectionCardStyle}>
+          <h2 style={{ marginTop: 0, marginBottom: 14 }}>Consistency Analysis</h2>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
+            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}>
+              <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>AVERAGE FINISH</div>
+              <div style={{ fontSize: 24, fontWeight: 800 }}>P{consistencyRating.avg}</div>
+            </div>
+            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}>
+              <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>BEST - WORST</div>
+              <div style={{ fontSize: 18, fontWeight: 800 }}>P{consistencyRating.best} - P{consistencyRating.worst}</div>
+              <div style={{ fontSize: 10, opacity: 0.6 }}>Range</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Track Stats */}
+        {trackStats.best && (
+          <div style={sectionCardStyle}>
+            <h2 style={{ marginTop: 0, marginBottom: 14 }}>Track Performance</h2>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
+              <div style={{ background: "#1a3a1a", border: "1px solid #4ade80", borderRadius: 10, padding: 12 }}>
+                <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4, color: "#4ade80" }}>BEST TRACK 🏁</div>
+                <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 4 }}>{trackStats.best[0]}</div>
+                <div style={{ fontSize: 12, opacity: 0.8 }}>{trackStats.best[1].points} pts in {trackStats.best[1].races} races</div>
+              </div>
+              <div style={{ background: "#3a1a1a", border: "1px solid #f87171", borderRadius: 10, padding: 12 }}>
+                <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4, color: "#f87171" }}>WORST TRACK 🚩</div>
+                <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 4 }}>{trackStats.worst[0]}</div>
+                <div style={{ fontSize: 12, opacity: 0.8 }}>{trackStats.worst[1].points} pts in {trackStats.worst[1].races} races</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Teammate Comparison */}
+        {teamStats && (
+          <div style={sectionCardStyle}>
+            <h2 style={{ marginTop: 0, marginBottom: 14 }}>Teammate Comparison</h2>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}>
+                <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 8 }}>{driver.name}</div>
+                <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 2 }}>Points: {driver.points}</div>
+                <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 2 }}>Wins: {driver.wins}</div>
+                <div style={{ fontSize: 11, opacity: 0.7 }}>Podiums: {driver.top3}</div>
+              </div>
+              <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}>
+                <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 8 }}>#{teamStats.number} {teamStats.name}</div>
+                <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 2 }}>Points: {teamStats.points}</div>
+                <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 2 }}>Wins: {teamStats.wins}</div>
+                <div style={{ fontSize: 11, opacity: 0.7 }}>Podiums: {teamStats.top3}</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Achievement Milestones */}
+        {achievementProgress.length > 0 && (
+          <div style={sectionCardStyle}>
+            <h2 style={{ marginTop: 0, marginBottom: 14 }}>Achievement Progress</h2>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {achievementProgress.map((a, i) => {
+                const progress = Math.round((a.current / a.target) * 100);
+                return (
+                  <div key={i}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                      <span style={{ fontSize: 13, fontWeight: 700 }}>{a.emoji} {a.name}</span>
+                      <span style={{ fontSize: 12, opacity: 0.7 }}>{a.current}/{a.target}</span>
+                    </div>
+                    <div style={{ background: "#0f1319", borderRadius: 8, height: 8, overflow: "hidden" }}>
+                      <div style={{ background: "#d4af37", height: "100%", width: `${progress}%`, transition: "width 0.3s" }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Recent Form Chart */}
+        {recentForm.length > 0 && (
+          <div style={sectionCardStyle}>
+            <h2 style={{ marginTop: 0, marginBottom: 14 }}>Recent Form (Last 5 Races)</h2>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(100px, 1fr))", gap: 10 }}>
+              {recentForm.map((r, i) => (
+                <div key={i} style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 8, padding: 10, textAlign: "center" }}>
+                  <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>{r.race.split("(")[0].trim().substring(0, 8)}</div>
+                  <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 2 }}>{r.points}</div>
+                  <div style={{ fontSize: 10, opacity: 0.6 }}>P{r.finish || "—"}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
           <h2 style={{ marginTop: 0, marginBottom: 16 }}>Race-by-Race Breakdown</h2>
           {raceBreakdown.length === 0 ? (
             <div style={{ opacity: 0.75 }}>No races entered yet.</div>
