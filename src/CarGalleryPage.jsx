@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { getAllCarUploads, deleteCarUpload } from "./lib/carUploads";
+import { getAllCarUploads, deleteCarUpload } from "./lib/carUploads.js";
 
 const appShellStyle = { minHeight: "100vh", background: "#0c0f14", color: "white", fontFamily: "Arial, sans-serif" };
 const pageContainerStyle = { maxWidth: 1400, margin: "0 auto", padding: 20 };
