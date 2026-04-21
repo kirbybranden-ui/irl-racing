@@ -21,7 +21,7 @@ const tableStyle = { width: "100%", borderCollapse: "collapse" };
 const thStyle = { textAlign: "left", padding: 10, borderBottom: "1px solid #313947", background: "#10141b", fontSize: 13, fontWeight: 700 };
 const tdStyle = { padding: 10, borderBottom: "1px solid #252c38", verticalAlign: "top", fontSize: 14 };
 
-function AppealModal({ isOpen, onClose, seasons, activeSeason }) {
+function AppealModal({ isOpen, onClose, selectedSeason }) {
   const [requester, setRequester] = useState("");
   const [track, setTrack] = useState("");
   const [description, setDescription] = useState("");
@@ -29,11 +29,7 @@ function AppealModal({ isOpen, onClose, seasons, activeSeason }) {
   const [submitting, setSubmitting] = useState(false);
   const [uploadingVideo, setUploadingVideo] = useState(false);
 
-  const allSeasons = Array.isArray(seasons) ? seasons : [];
-  const currentActiveSeason = activeSeason && typeof activeSeason === "object" ? activeSeason : null;
-  const selectedSeason = currentActiveSeason || allSeasons[0];
-
-  // Get all drivers from active season, sorted by number
+  // Get all drivers from selected season, sorted by number
   const drivers = selectedSeason?.drivers ? [...selectedSeason.drivers].sort((a, b) => a.number - b.number) : [];
 
   // Get all tracks sorted by race order (earliest first)
@@ -768,7 +764,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
         )}
       </div>
 
-      <AppealModal isOpen={isAppealModalOpen} onClose={() => setIsAppealModalOpen(false)} seasons={seasons} activeSeason={activeSeason} />
+      <AppealModal isOpen={isAppealModalOpen} onClose={() => setIsAppealModalOpen(false)} selectedSeason={selectedSeason} />
     </div>
   );
 }
