@@ -320,12 +320,9 @@ function PublicStandings({ drivers, teams, seasonName = "" }) {
                 <div style={{ fontSize: 16, opacity: 0.76, marginTop: 6 }}>Broadcast Standings</div>
               </div>
             </div>
-            <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-              <div style={{ background: "#0f1319", border: "1px solid #2a3240", borderRadius: 16, padding: "14px 18px", minWidth: 240 }}>
-                <div style={{ fontSize: 12, opacity: 0.72, marginBottom: 4 }}>ACTIVE SEASON</div>
-                <div style={{ fontSize: 22, fontWeight: 900 }}>{seasonName || "—"}</div>
-              </div>
-              <a href="https://irl-racing.vercel.app/" style={{ background: "#d4af37", color: "#111", border: "none", borderRadius: 10, padding: "10px 16px", fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", textDecoration: "none", display: "inline-block" }}>Admin Portal</a>
+            <div style={{ background: "#0f1319", border: "1px solid #2a3240", borderRadius: 16, padding: "14px 18px", minWidth: 240 }}>
+              <div style={{ fontSize: 12, opacity: 0.72, marginBottom: 4 }}>ACTIVE SEASON</div>
+              <div style={{ fontSize: 22, fontWeight: 900 }}>{seasonName || "—"}</div>
             </div>
           </div>
         </div>
@@ -450,8 +447,6 @@ function TickerOverlay({ drivers, teams, raceHistory, preview = false, seasonNam
   );
 }
 export default function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [passwordInput, setPasswordInput] = useState("");
   const [seasons, setSeasons] = useState(() => loadInitialLeagueState().seasons);
   const [openAppealCount, setOpenAppealCount] = useState(0);
   const [activeSeasonId, setActiveSeasonId] = useState(() => loadInitialLeagueState().activeSeasonId);
@@ -476,141 +471,16 @@ export default function App() {
   const [pendingDrivers, setPendingDrivers] = useState([]);
   const importFileRef = useRef(null);
   const path = window.location.pathname.toLowerCase();
+console.log("Current path:", path);  // ADD THIS LINE
 
-  const ADMIN_PASSWORD = "admin123";
-
-  const handleLogin = () => {
-    if (passwordInput === ADMIN_PASSWORD) {
-      setIsLoggedIn(true);
-      setPasswordInput("");
-    } else {
-      alert("Incorrect password");
-    }
-  };
-
-  const handleLogout = () => {
-    setIsLoggedIn(false);
-    setPasswordInput("");
-  };
-
-  // Public pages that don't require login
   if (path === "/files") return <FilesPage />;
   if (path === "/welcome") return <WelcomePage />;
   if (path === "/submit-appeal") return <SubmitAppealPage />;
   if (path === "/appeals") return <AppealsPage />;
-  if (path === "/standings") {
-    const activeSeason = seasons.find((s) => s.id === activeSeasonId) || seasons[0] || null;
-    return <PublicStandings drivers={activeSeason?.drivers || []} teams={teamStandings} seasonName={activeSeason?.name || ""} />;
-  }
+  if (path === "/admin/car-gallery") return <CarGalleryPage drivers={drivers} tracks={tracks} />;
   if (path.startsWith("/driver/")) {
     const activeSeason = seasons.find((s) => s.id === activeSeasonId) || seasons[0] || null;
     return <DriverProfilePage seasons={seasons} activeSeason={activeSeason} tracks={tracks} />;
-  }
-
-  // Admin pages require login
-  if (!isLoggedIn && path === "/admin/car-gallery") {
-    return (
-      <div style={{ minHeight: "100vh", background: "#0c0f14", color: "white", fontFamily: "Arial, sans-serif", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, boxSizing: "border-box" }}>
-        <div style={{ maxWidth: 400, width: "100%", background: "#171b22", border: "1px solid #2c3440", borderRadius: 16, padding: 40, boxShadow: "0 8px 24px rgba(0,0,0,0.22)" }}>
-          <div style={{ textAlign: "center", marginBottom: 32 }}>
-            <img src={logo} alt="League Logo" style={{ height: 60, marginBottom: 16 }} />
-            <h1 style={{ fontSize: 28, fontWeight: 900, marginTop: 0, marginBottom: 8 }}>Admin Portal</h1>
-            <p style={{ opacity: 0.75, marginTop: 0 }}>Budweiser Cup League</p>
-          </div>
-          <form onSubmit={handleLogin}>
-            <div style={{ marginBottom: 20 }}>
-              <label style={{ display: "block", marginBottom: 8, fontWeight: 700 }}>Password</label>
-              <input 
-                type="password" 
-                value={passwordInput}
-                onChange={(e) => setPasswordInput(e.target.value)}
-                placeholder="Enter admin password"
-                style={{ width: "100%", background: "#0f1319", color: "white", border: "1px solid #313947", borderRadius: 10, padding: "12px 14px", boxSizing: "border-box", fontSize: 14 }}
-                autoFocus
-              />
-            </div>
-            <button 
-              type="submit"
-              style={{ width: "100%", background: "#d4af37", color: "#111", border: "none", borderRadius: 10, padding: "12px 16px", fontWeight: 700, cursor: "pointer", fontSize: 16 }}
-            >
-              Login
-            </button>
-          </form>
-        </div>
-      </div>
-    );
-  }
-
-  // Show login for main admin dashboard
-  if (!isLoggedIn) {
-    return (
-      <div style={{ minHeight: "100vh", background: "#0c0f14", color: "white", fontFamily: "Arial, sans-serif", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, boxSizing: "border-box" }}>
-        <div style={{ maxWidth: 400, width: "100%", background: "#171b22", border: "1px solid #2c3440", borderRadius: 16, padding: 40, boxShadow: "0 8px 24px rgba(0,0,0,0.22)" }}>
-          <div style={{ textAlign: "center", marginBottom: 32 }}>
-            <img src={logo} alt="League Logo" style={{ height: 60, marginBottom: 16 }} />
-            <h1 style={{ fontSize: 28, fontWeight: 900, marginTop: 0, marginBottom: 8 }}>Admin Portal</h1>
-            <p style={{ opacity: 0.75, marginTop: 0 }}>Budweiser Cup League</p>
-          </div>
-          <form onSubmit={handleLogin}>
-            <div style={{ marginBottom: 20 }}>
-              <label style={{ display: "block", marginBottom: 8, fontWeight: 700 }}>Password</label>
-              <input 
-                type="password" 
-                value={passwordInput}
-                onChange={(e) => setPasswordInput(e.target.value)}
-                placeholder="Enter admin password"
-                style={{ width: "100%", background: "#0f1319", color: "white", border: "1px solid #313947", borderRadius: 10, padding: "12px 14px", boxSizing: "border-box", fontSize: 14 }}
-                autoFocus
-              />
-            </div>
-            <button 
-              type="submit"
-              style={{ width: "100%", background: "#d4af37", color: "#111", border: "none", borderRadius: 10, padding: "12px 16px", fontWeight: 700, cursor: "pointer", fontSize: 16 }}
-            >
-              Login
-            </button>
-          </form>
-        </div>
-      </div>
-    );
-  }
-
-console.log("Current path:", path);
-
-  if (path === "/admin/car-gallery") {
-    if (!isLoggedIn) {
-      return (
-        <div style={{ minHeight: "100vh", background: "#0c0f14", color: "white", fontFamily: "Arial, sans-serif", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, boxSizing: "border-box" }}>
-          <div style={{ maxWidth: 400, width: "100%", background: "#171b22", border: "1px solid #2c3440", borderRadius: 16, padding: 40, boxShadow: "0 8px 24px rgba(0,0,0,0.22)" }}>
-            <div style={{ textAlign: "center", marginBottom: 32 }}>
-              <img src={logo} alt="League Logo" style={{ height: 60, marginBottom: 16 }} />
-              <h1 style={{ fontSize: 28, fontWeight: 900, marginTop: 0, marginBottom: 8 }}>Admin Portal</h1>
-              <p style={{ opacity: 0.75, marginTop: 0 }}>Budweiser Cup League</p>
-            </div>
-            <form onSubmit={handleLogin}>
-              <div style={{ marginBottom: 20 }}>
-                <label style={{ display: "block", marginBottom: 8, fontWeight: 700 }}>Password</label>
-                <input 
-                  type="password" 
-                  value={passwordInput}
-                  onChange={(e) => setPasswordInput(e.target.value)}
-                  placeholder="Enter admin password"
-                  style={{ width: "100%", background: "#0f1319", color: "white", border: "1px solid #313947", borderRadius: 10, padding: "12px 14px", boxSizing: "border-box", fontSize: 14 }}
-                  autoFocus
-                />
-              </div>
-              <button 
-                type="submit"
-                style={{ width: "100%", background: "#d4af37", color: "#111", border: "none", borderRadius: 10, padding: "12px 16px", fontWeight: 700, cursor: "pointer", fontSize: 16 }}
-              >
-                Login
-              </button>
-            </form>
-          </div>
-        </div>
-      );
-    }
-    return <CarGalleryPage drivers={drivers} tracks={tracks} />;
   }
 
   useEffect(() => {
@@ -740,22 +610,22 @@ console.log("Current path:", path);
     const nextInputs = {};
     (activeSeason?.drivers || []).forEach((d) => { nextInputs[d.id] = String(Number(d.startingPoints) || 0); });
     setStartingPointsInputs(nextInputs);
-  }, [activeSeasonId]);
+  }, [activeSeasonId]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const nextInputs = {};
     (activeSeason?.drivers || []).forEach((d) => { nextInputs[d.id] = String(Number(d.manualWins) || 0); });
     setManualWinsInputs(nextInputs);
-  }, [activeSeasonId]);
+  }, [activeSeasonId]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const nextNotes = {};
     (activeSeason?.drivers || []).forEach((d) => { nextNotes[d.id] = d.notes || ""; });
     setDriverNotes(nextNotes);
-  }, [activeSeasonId]);
+  }, [activeSeasonId]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const nextReasons = {};
     (activeSeason?.drivers || []).forEach((d) => { nextReasons[d.id] = ""; });
     setDnfReasons(nextReasons);
-  }, [selectedRace, activeSeasonId]);
+  }, [selectedRace, activeSeasonId]); // eslint-disable-line react-hooks/exhaustive-deps
   const handleImportBackup = (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -1029,37 +899,10 @@ console.log("Current path:", path);
     race.results.filter((r) => r.offense).map((r) => ({ raceName: race.raceName, number: r.number, name: r.name, offenseNumber: r.offenseNumber, penaltyPoints: r.penaltyPoints }))
   );
   if (!isHydrated) return <div style={appShellStyle}><div style={pageContainerStyle}><div style={sectionCardStyle}>Loading league data...</div></div></div>;
-  
-  // Public pages - no login required
-  if (path === "/standings") return <PublicStandings drivers={activeSeason?.drivers || []} teams={teamStandings} seasonName={activeSeason?.name || ""} />;
-  
-  if (path === "/overlay/ticker" || viewMode === "overlay-ticker") return <TickerOverlay drivers={activeSeason?.drivers || []} teams={teamStandings} raceHistory={raceHistory} preview={viewMode === "overlay-ticker"} seasonName={activeSeason?.name || ""} />;
-  
+  if (path === "/standings") return <PublicStandings drivers={drivers} teams={teamStandings} seasonName={activeSeason?.name || ""} />;
+  if (path === "/overlay/ticker" || viewMode === "overlay-ticker") return <TickerOverlay drivers={drivers} teams={teamStandings} raceHistory={raceHistory} preview={viewMode === "overlay-ticker"} seasonName={activeSeason?.name || ""} />;
   return (
     <div style={appShellStyle}>
-      {!isLoggedIn && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0, 0, 0, 0.8)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999 }}>
-          <div style={{ background: "#171b22", border: "1px solid #2c3440", borderRadius: 16, padding: 40, maxWidth: 400, width: "100%" }}>
-            <h1 style={{ color: "white", fontSize: 24, fontWeight: 900, marginBottom: 8 }}>Admin Portal</h1>
-            <p style={{ color: "rgba(255,255,255,0.7)", marginBottom: 20 }}>Enter password to continue</p>
-            <input 
-              type="password" 
-              value={passwordInput}
-              onChange={(e) => setPasswordInput(e.target.value)}
-              onKeyPress={(e) => e.key === "Enter" && handleLogin()}
-              placeholder="Password"
-              style={{ width: "100%", background: "#0f1319", color: "white", border: "1px solid #313947", borderRadius: 10, padding: "10px 12px", boxSizing: "border-box", marginBottom: 12, fontSize: 14 }}
-              autoFocus
-            />
-            <button 
-              onClick={handleLogin}
-              style={{ width: "100%", background: "#d4af37", color: "#111", border: "none", borderRadius: 10, padding: "10px 12px", fontWeight: 700, cursor: "pointer", fontSize: 14 }}
-            >
-              Login
-            </button>
-          </div>
-        </div>
-      )}
       <div style={pageContainerStyle}>
         {/* Header */}
         <div style={{ ...sectionCardStyle, marginBottom: 20, padding: 20, background: "linear-gradient(135deg, #17191f 0%, #101216 100%)", border: "1px solid #353b45" }}>
@@ -1085,9 +928,6 @@ console.log("Current path:", path);
               </button>
               <button onClick={() => (window.location.pathname = "/admin/car-gallery")} style={headerButtonStyle}>
                 Car Gallery
-              </button>
-              <button onClick={handleLogout} style={{ ...headerButtonStyle, background: "#b42318", borderColor: "#b42318" }}>
-                Logout
               </button>
             </div>
           </div>
