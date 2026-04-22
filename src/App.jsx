@@ -479,14 +479,12 @@ export default function App() {
 
   const ADMIN_PASSWORD = "admin123";
 
-  const handleLogin = (e) => {
-    if (e && e.preventDefault) e.preventDefault();
+  const handleLogin = () => {
     if (passwordInput === ADMIN_PASSWORD) {
       setIsLoggedIn(true);
       setPasswordInput("");
     } else {
       alert("Incorrect password");
-      setPasswordInput("");
     }
   };
 
@@ -1037,39 +1035,31 @@ console.log("Current path:", path);
   
   if (path === "/overlay/ticker" || viewMode === "overlay-ticker") return <TickerOverlay drivers={activeSeason?.drivers || []} teams={teamStandings} raceHistory={raceHistory} preview={viewMode === "overlay-ticker"} seasonName={activeSeason?.name || ""} />;
   
-  // Require login for admin dashboard
-  if (!isLoggedIn) {
-    return (
-      <div style={{ minHeight: "100vh", background: "#0c0f14", color: "white", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-        <div style={{ maxWidth: 400, width: "100%", background: "#171b22", border: "1px solid #2c3440", borderRadius: 16, padding: 40 }}>
-          <div style={{ textAlign: "center", marginBottom: 32 }}>
-            <h1 style={{ fontSize: 28, fontWeight: 900, marginBottom: 8 }}>Admin Portal</h1>
-            <p style={{ opacity: 0.75 }}>Budweiser Cup League</p>
-          </div>
-          <div style={{ marginBottom: 20 }}>
+  return (
+    <div style={appShellStyle}>
+      {!isLoggedIn && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0, 0, 0, 0.8)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999 }}>
+          <div style={{ background: "#171b22", border: "1px solid #2c3440", borderRadius: 16, padding: 40, maxWidth: 400, width: "100%" }}>
+            <h1 style={{ color: "white", fontSize: 24, fontWeight: 900, marginBottom: 8 }}>Admin Portal</h1>
+            <p style={{ color: "rgba(255,255,255,0.7)", marginBottom: 20 }}>Enter password to continue</p>
             <input 
               type="password" 
               value={passwordInput}
               onChange={(e) => setPasswordInput(e.target.value)}
-              placeholder="Enter admin password"
-              style={{ width: "100%", background: "#0f1319", color: "white", border: "1px solid #313947", borderRadius: 10, padding: "12px 14px", boxSizing: "border-box", fontSize: 14, marginBottom: 12 }}
-              onKeyPress={(e) => e.key === "Enter" && handleLogin(e)}
+              onKeyPress={(e) => e.key === "Enter" && handleLogin()}
+              placeholder="Password"
+              style={{ width: "100%", background: "#0f1319", color: "white", border: "1px solid #313947", borderRadius: 10, padding: "10px 12px", boxSizing: "border-box", marginBottom: 12, fontSize: 14 }}
               autoFocus
             />
             <button 
               onClick={handleLogin}
-              style={{ width: "100%", background: "#d4af37", color: "#111", border: "none", borderRadius: 10, padding: "12px 16px", fontWeight: 700, cursor: "pointer", fontSize: 16 }}
+              style={{ width: "100%", background: "#d4af37", color: "#111", border: "none", borderRadius: 10, padding: "10px 12px", fontWeight: 700, cursor: "pointer", fontSize: 14 }}
             >
               Login
             </button>
           </div>
         </div>
-      </div>
-    );
-  }
-  
-  return (
-    <div style={appShellStyle}>
+      )}
       <div style={pageContainerStyle}>
         {/* Header */}
         <div style={{ ...sectionCardStyle, marginBottom: 20, padding: 20, background: "linear-gradient(135deg, #17191f 0%, #101216 100%)", border: "1px solid #353b45" }}>
