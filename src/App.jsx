@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import logo from "./assets/logo1.png";
 import teamLogoJAM from "./assets/teams/JAM.png";
+import teamLogoPMS from "./assets/teams/PMS.png";
+import teamLogoBNR from "./assets/teams/BNR.png";
 import FilesPage from "./FilesPage";
 import SubmitAppealPage from "./SubmitAppealPage";
 import AppealsPage from "./AppealsPage";
@@ -8,18 +10,20 @@ import { supabase } from "./lib/supabase";
 import CarGalleryPage from "./CarGalleryPage";
 const teamLogos = {
   JAM: teamLogoJAM,
+  PMS: teamLogoPMS,
+  BNR: teamLogoBNR,
 };
 import { loadLeagueState, saveLeagueState } from "./lib/leagueState";
 const defaultDrivers = [
-  { id: 1, number: 42, name: "AMP-GHOSTRIDER", manufacturer: "Toyota", team: "JAM", startingPoints: 0, manualWins: 0 },
-  { id: 2, number: 99, name: "RookieVet99", manufacturer: "Toyota", team: "JAM", startingPoints: 0, manualWins: 0 },
-  { id: 3, number: 18, name: "bowhunter6758", manufacturer: "Toyota", team: "JAM", startingPoints: 0, manualWins: 0 },
-  { id: 4, number: 81, name: "HOLDEN2DX4EV3R", manufacturer: "Chevrolet", team: "JAM", startingPoints: 0, manualWins: 0 },
-  { id: 5, number: 3, name: "ixGusty", manufacturer: "Toyota", team: "None", startingPoints: 0, manualWins: 0 },
-  { id: 6, number: 14, name: "KapSig", manufacturer: "Chevrolet", team: "None", startingPoints: 0, manualWins: 0 },
-  { id: 7, number: 24, name: "KEVDINHO7", manufacturer: "Chevrolet", team: "None", startingPoints: 0, manualWins: 0 },
-  { id: 8, number: 38, name: "It's_tricky88", manufacturer: "Toyota", team: "None", startingPoints: 0, manualWins: 0 },
-  { id: 9, number: 97, name: "American_Hero216", manufacturer: "Ford", team: "None", startingPoints: 0, manualWins: 0 },
+  { id: 1, number: 42, name: "AMP-GHOSTRIDER", manufacturer: "Toyota", team: "JAM" },
+  { id: 2, number: 99, name: "RookieVet99", manufacturer: "Toyota", team: "JAM" },
+  { id: 3, number: 18, name: "bowhunter6758", manufacturer: "Toyota", team: "JAM" },
+  { id: 4, number: 81, name: "HOLDEN2DX4EV3R", manufacturer: "Chevrolet", team: "JAM" },
+  { id: 5, number: 3, name: "ixGusty", manufacturer: "Toyota", team: "None" },
+  { id: 6, number: 14, name: "KapSig", manufacturer: "Chevrolet", team: "None" },
+  { id: 7, number: 24, name: "KEVDINHO7", manufacturer: "Chevrolet", team: "None" },
+  { id: 8, number: 38, name: "It's_tricky88", manufacturer: "Toyota", team: "None" },
+  { id: 9, number: 97, name: "American_Hero216", manufacturer: "Ford", team: "None" },
 ];
 const defaultRaces = [
   { name: "Preseason - Michigan", stageCount: 2, date: "2026-04-25" },
@@ -404,7 +408,6 @@ export default function App() {
   if (path === "/files") return <FilesPage />;
   if (path === "/submit-appeal") return <SubmitAppealPage />;
   if (path === "/appeals") return <AppealsPage />;
-  if (path === "/admin/car-gallery") return <CarGalleryPage />;
 
   useEffect(() => {
     let isMounted = true;
@@ -667,7 +670,7 @@ export default function App() {
     setTracks((prev) => prev.map((t) => t.name === trackName ? { ...t, stageCount: stages } : t));
   };
   const restoreDefaultTracks = () => {
-    if (!window.confirm("Restore the default 20-track schedule? Any custom tracks you've added will be removed (race history is preserved).")) return;
+    if (!window.confirm("Restore the default 17-track schedule? Any custom tracks you've added will be removed (race history is preserved).")) return;
     setTracks(defaultRaces);
   };
   const seasonOffenseCounts = useMemo(() => {
@@ -753,10 +756,9 @@ export default function App() {
                   {mode === "admin" ? "Admin" : mode === "overlay-drivers" ? "Driver Overlay" : mode === "overlay-teams" ? "Team Overlay" : "Ticker Overlay"}
                 </button>
               ))}
-              <button onClick={() => (window.location.pathname = "/appeals")} style={headerButtonStyle}>
+              <button onClick={() => (window.location.pathname = "/appeals")}>
                 Appeals ({openAppealCount})
-              </button>
-              <button onClick={() => (window.location.pathname = "/admin/car-gallery")} style={headerButtonStyle}>Car Gallery</button>
+                </button>
             </div>
           </div>
         </div>
