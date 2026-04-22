@@ -450,6 +450,8 @@ function TickerOverlay({ drivers, teams, raceHistory, preview = false, seasonNam
   );
 }
 export default function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [passwordInput, setPasswordInput] = useState("");
   const [seasons, setSeasons] = useState(() => loadInitialLeagueState().seasons);
   const [openAppealCount, setOpenAppealCount] = useState(0);
   const [activeSeasonId, setActiveSeasonId] = useState(() => loadInitialLeagueState().activeSeasonId);
@@ -474,6 +476,58 @@ export default function App() {
   const [pendingDrivers, setPendingDrivers] = useState([]);
   const importFileRef = useRef(null);
   const path = window.location.pathname.toLowerCase();
+
+  const ADMIN_PASSWORD = "admin123";
+
+  const handleLogin = (e) => {
+    e.preventDefault();
+    if (passwordInput === ADMIN_PASSWORD) {
+      setIsLoggedIn(true);
+      setPasswordInput("");
+    } else {
+      alert("Incorrect password");
+      setPasswordInput("");
+    }
+  };
+
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+    setPasswordInput("");
+  };
+
+  if (!isLoggedIn) {
+    return (
+      <div style={{ minHeight: "100vh", background: "#0c0f14", color: "white", fontFamily: "Arial, sans-serif", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, boxSizing: "border-box" }}>
+        <div style={{ maxWidth: 400, width: "100%", background: "#171b22", border: "1px solid #2c3440", borderRadius: 16, padding: 40, boxShadow: "0 8px 24px rgba(0,0,0,0.22)" }}>
+          <div style={{ textAlign: "center", marginBottom: 32 }}>
+            <img src={logo} alt="League Logo" style={{ height: 60, marginBottom: 16 }} />
+            <h1 style={{ fontSize: 28, fontWeight: 900, marginTop: 0, marginBottom: 8 }}>Admin Portal</h1>
+            <p style={{ opacity: 0.75, marginTop: 0 }}>Budweiser Cup League</p>
+          </div>
+          <form onSubmit={handleLogin}>
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: "block", marginBottom: 8, fontWeight: 700 }}>Password</label>
+              <input 
+                type="password" 
+                value={passwordInput}
+                onChange={(e) => setPasswordInput(e.target.value)}
+                placeholder="Enter admin password"
+                style={{ width: "100%", background: "#0f1319", color: "white", border: "1px solid #313947", borderRadius: 10, padding: "12px 14px", boxSizing: "border-box", fontSize: 14 }}
+                autoFocus
+              />
+            </div>
+            <button 
+              type="submit"
+              style={{ width: "100%", background: "#d4af37", color: "#111", border: "none", borderRadius: 10, padding: "12px 16px", fontWeight: 700, cursor: "pointer", fontSize: 16 }}
+            >
+              Login
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
 console.log("Current path:", path);
 
   if (path === "/files") return <FilesPage />;
@@ -931,6 +985,9 @@ console.log("Current path:", path);
               </button>
               <button onClick={() => (window.location.pathname = "/admin/car-gallery")} style={headerButtonStyle}>
                 Car Gallery
+              </button>
+              <button onClick={handleLogout} style={{ ...headerButtonStyle, background: "#b42318", borderColor: "#b42318" }}>
+                Logout
               </button>
             </div>
           </div>
