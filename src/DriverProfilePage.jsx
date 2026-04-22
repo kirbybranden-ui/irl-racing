@@ -206,27 +206,18 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
       .filter((r) => r && r.driverId === driver.id);
   }, [selectedSeason, driver]);
 
-  // Calculate stats from race breakdown to ensure accuracy
+  // Use stats from driver object (already calculated by App.jsx)
   const calculatedStats = useMemo(() => {
-    let points = (driver.points || 0);
-    let wins = 0;
-    let top3 = 0;
-    let top5 = 0;
-    let dnfs = 0;
-    let fastestLaps = 0;
-    let totalPenalties = 0;
-
-    raceBreakdown.forEach((race) => {
-      if (race.isWin) wins += 1;
-      if (race.isTop3) top3 += 1;
-      if (race.isTop5) top5 += 1;
-      if (race.dnf) dnfs += 1;
-      if (race.fastestLap) fastestLaps += 1;
-      totalPenalties += race.penaltyPoints || 0;
-    });
-
-    return { points, wins, top3, top5, dnfs, fastestLaps, totalPenalties };
-  }, [raceBreakdown, driver.points]);
+    return {
+      points: driver.points || 0,
+      wins: driver.wins || 0,
+      top3: driver.top3 || 0,
+      top5: driver.top5 || 0,
+      dnfs: driver.dnfs || 0,
+      fastestLaps: driver.fastestLaps || 0,
+      totalPenalties: driver.totalPenalties || 0,
+    };
+  }, [driver]);
 
   const offenseLog = useMemo(() => {
     if (!selectedSeason || !driver) return [];
