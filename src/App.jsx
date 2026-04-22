@@ -479,8 +479,7 @@ console.log("Current path:", path);  // ADD THIS LINE
   if (path === "/appeals") return <AppealsPage />;
   if (path === "/admin/car-gallery") return <CarGalleryPage drivers={drivers} tracks={tracks} />;
   if (path.startsWith("/driver/")) {
-    const activeSeason = seasons.find((s) => s.id === activeSeasonId) || seasons[0] || null;
-    return <DriverProfilePage seasons={seasons} activeSeason={activeSeason} tracks={tracks} />;
+    return <DriverProfilePage drivers={drivers} activeSeason={activeSeason} tracks={tracks} />;
   }
 
   useEffect(() => {
