@@ -480,7 +480,7 @@ export default function App() {
   const ADMIN_PASSWORD = "admin123";
 
   const handleLogin = (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
     if (passwordInput === ADMIN_PASSWORD) {
       setIsLoggedIn(true);
       setPasswordInput("");
@@ -1033,72 +1033,36 @@ console.log("Current path:", path);
   if (!isHydrated) return <div style={appShellStyle}><div style={pageContainerStyle}><div style={sectionCardStyle}>Loading league data...</div></div></div>;
   
   // Public pages - no login required
-  if (path === "/standings") {
-    const activeSeason = seasons.find((s) => s.id === activeSeasonId) || seasons[0] || null;
-    const drivers = activeSeason?.drivers || [];
-    const teams = (() => {
-      const teamStandings = {};
-      for (const d of drivers) {
-        if (!teamStandings[d.team]) teamStandings[d.team] = { team: d.team, points: 0, wins: 0, top3: 0, top5: 0, drivers: 0 };
-        teamStandings[d.team].points += d.points || 0;
-        teamStandings[d.team].wins += d.wins || 0;
-        teamStandings[d.team].top3 += d.top3 || 0;
-        teamStandings[d.team].top5 += d.top5 || 0;
-        teamStandings[d.team].drivers += 1;
-      }
-      return Object.values(teamStandings).sort((a, b) => b.points - a.points || b.wins - a.wins || b.top3 - a.top3 || a.team.localeCompare(b.team));
-    })();
-    return <PublicStandings drivers={drivers} teams={teams} seasonName={activeSeason?.name || ""} />;
-  }
+  if (path === "/standings") return <PublicStandings drivers={activeSeason?.drivers || []} teams={teamStandings} seasonName={activeSeason?.name || ""} />;
   
-  if (path === "/overlay/ticker" || viewMode === "overlay-ticker") {
-    const activeSeason = seasons.find((s) => s.id === activeSeasonId) || seasons[0] || null;
-    const drivers = activeSeason?.drivers || [];
-    const teams = (() => {
-      const teamStandings = {};
-      for (const d of drivers) {
-        if (!teamStandings[d.team]) teamStandings[d.team] = { team: d.team, points: 0, wins: 0, top3: 0, top5: 0, drivers: 0 };
-        teamStandings[d.team].points += d.points || 0;
-        teamStandings[d.team].wins += d.wins || 0;
-        teamStandings[d.team].top3 += d.top3 || 0;
-        teamStandings[d.team].top5 += d.top5 || 0;
-        teamStandings[d.team].drivers += 1;
-      }
-      return Object.values(teamStandings).sort((a, b) => b.points - a.points || b.wins - a.wins || b.top3 - a.top3 || a.team.localeCompare(b.team));
-    })();
-    const raceHistory = activeSeason?.raceHistory || [];
-    return <TickerOverlay drivers={drivers} teams={teams} raceHistory={raceHistory} preview={viewMode === "overlay-ticker"} seasonName={activeSeason?.name || ""} />;
-  }
+  if (path === "/overlay/ticker" || viewMode === "overlay-ticker") return <TickerOverlay drivers={activeSeason?.drivers || []} teams={teamStandings} raceHistory={raceHistory} preview={viewMode === "overlay-ticker"} seasonName={activeSeason?.name || ""} />;
   
   // Require login for admin dashboard
   if (!isLoggedIn) {
     return (
-      <div style={{ minHeight: "100vh", background: "#0c0f14", color: "white", fontFamily: "Arial, sans-serif", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, boxSizing: "border-box" }}>
-        <div style={{ maxWidth: 400, width: "100%", background: "#171b22", border: "1px solid #2c3440", borderRadius: 16, padding: 40, boxShadow: "0 8px 24px rgba(0,0,0,0.22)" }}>
+      <div style={{ minHeight: "100vh", background: "#0c0f14", color: "white", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+        <div style={{ maxWidth: 400, width: "100%", background: "#171b22", border: "1px solid #2c3440", borderRadius: 16, padding: 40 }}>
           <div style={{ textAlign: "center", marginBottom: 32 }}>
-            <img src={logo} alt="League Logo" style={{ height: 60, marginBottom: 16 }} />
-            <h1 style={{ fontSize: 28, fontWeight: 900, marginTop: 0, marginBottom: 8 }}>Admin Portal</h1>
-            <p style={{ opacity: 0.75, marginTop: 0 }}>Budweiser Cup League</p>
+            <h1 style={{ fontSize: 28, fontWeight: 900, marginBottom: 8 }}>Admin Portal</h1>
+            <p style={{ opacity: 0.75 }}>Budweiser Cup League</p>
           </div>
-          <form onSubmit={handleLogin}>
-            <div style={{ marginBottom: 20 }}>
-              <label style={{ display: "block", marginBottom: 8, fontWeight: 700 }}>Password</label>
-              <input 
-                type="password" 
-                value={passwordInput}
-                onChange={(e) => setPasswordInput(e.target.value)}
-                placeholder="Enter admin password"
-                style={{ width: "100%", background: "#0f1319", color: "white", border: "1px solid #313947", borderRadius: 10, padding: "12px 14px", boxSizing: "border-box", fontSize: 14 }}
-                autoFocus
-              />
-            </div>
+          <div style={{ marginBottom: 20 }}>
+            <input 
+              type="password" 
+              value={passwordInput}
+              onChange={(e) => setPasswordInput(e.target.value)}
+              placeholder="Enter admin password"
+              style={{ width: "100%", background: "#0f1319", color: "white", border: "1px solid #313947", borderRadius: 10, padding: "12px 14px", boxSizing: "border-box", fontSize: 14, marginBottom: 12 }}
+              onKeyPress={(e) => e.key === "Enter" && handleLogin(e)}
+              autoFocus
+            />
             <button 
-              type="submit"
+              onClick={handleLogin}
               style={{ width: "100%", background: "#d4af37", color: "#111", border: "none", borderRadius: 10, padding: "12px 16px", fontWeight: 700, cursor: "pointer", fontSize: 16 }}
             >
               Login
             </button>
-          </form>
+          </div>
         </div>
       </div>
     );
