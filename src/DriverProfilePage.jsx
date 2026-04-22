@@ -63,6 +63,19 @@ function AppealModal({ isOpen, onClose, selectedSeason }) {
     }
   };
 
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const script = document.createElement("script");
+    script.src = "https://upload-widget.cloudinary.com/latest/CloudinaryUploadWidget.js";
+    script.async = true;
+    document.body.appendChild(script);
+    return () => {
+      if (document.body.contains(script)) {
+        document.body.removeChild(script);
+      }
+    };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   return (
@@ -109,51 +122,21 @@ function AppealModal({ isOpen, onClose, selectedSeason }) {
           <label style={{ display: "block", marginBottom: 6, fontWeight: 700 }}>Video Evidence (optional)</label>
           <button 
             onClick={() => {
-              console.log("Video button clicked");
-              console.log("window.cloudinary exists?", !!window.cloudinary);
-              
-              const openWidget = () => {
-                console.log("Opening Cloudinary widget...");
-                if (!window.cloudinary) {
-                  console.error("Cloudinary not available!");
-                  alert("Cloudinary is loading... try again in a moment");
-                  return;
-                }
-                
+              if (window.cloudinary) {
                 window.cloudinary.openUploadWidget(
                   {
                     cloudName: "dpu05oykz",
                     uploadPreset: "dpu05oykz",
                     resourceType: "video",
-                    folder: "appeal-evidence",
-                    maxFileSize: 500000000
+                    folder: "appeal-evidence"
                   },
                   (error, result) => {
-                    console.log("Upload callback:", { error, result });
                     if (!error && result?.event === "success") {
-                      console.log("Video uploaded:", result.info.secure_url);
                       setVideoUrl(result.info.secure_url);
                       alert("✅ Video uploaded!");
                     }
                   }
                 );
-              };
-              
-              if (window.cloudinary) {
-                openWidget();
-              } else {
-                console.log("Loading Cloudinary script...");
-                const script = document.createElement("script");
-                script.src = "https://upload-widget.cloudinary.com/latest/CloudinaryUploadWidget.js";
-                script.onload = () => {
-                  console.log("Cloudinary script loaded");
-                  setTimeout(openWidget, 500);
-                };
-                script.onerror = () => {
-                  console.error("Failed to load Cloudinary script");
-                  alert("Failed to load video upload. Please try again.");
-                };
-                document.body.appendChild(script);
               }
             }}
             style={secondaryButtonStyle}
@@ -173,46 +156,21 @@ function AppealModal({ isOpen, onClose, selectedSeason }) {
   );
 }
 
-export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }) {
+export default function DriverProfilePage({ drivers, activeSeason, tracks = [] }) {
   const pathParts = window.location.pathname.split("/");
   const driverNumber = pathParts[2];
 
-  const allSeasons = Array.isArray(seasons) ? seasons : [];
-  const currentActiveSeason = activeSeason && typeof activeSeason === "object" ? activeSeason : null;
-
-  const initialSeasonId = currentActiveSeason?.id || allSeasons[0]?.id || null;
-  const [selectedSeasonId, setSelectedSeasonId] = useState(initialSeasonId);
+  const driver = drivers?.find((d) => d && String(d.number) === String(driverNumber));
+  const selectedSeason = activeSeason;
   const [isAppealModalOpen, setIsAppealModalOpen] = useState(false);
 
-  const selectedSeason = selectedSeasonId && allSeasons.length > 0 
-    ? allSeasons.find((s) => s && s.id === selectedSeasonId) 
-    : null;
-
-  const driver = selectedSeason && selectedSeason.drivers
-    ? selectedSeason.drivers.find((d) => d && String(d.number) === String(driverNumber))
-    : null;
-
-  if (!selectedSeason) {
+  if (!driver) {
     return (
       <div style={appShellStyle}>
         <div style={pageContainerStyle}>
           <div style={sectionCardStyle}>
             <button onClick={() => window.location.pathname = "/standings"} style={secondaryButtonStyle}>← Back to Standings</button>
-            <div style={{ marginTop: 16, marginBottom: 16, fontWeight: 700 }}>Select a Season:</div>
-            {allSeasons.length > 0 ? (
-              <select 
-                style={inputStyle} 
-                value={selectedSeasonId || ""} 
-                onChange={(e) => setSelectedSeasonId(e.target.value)}
-              >
-                <option value="">-- Choose a season --</option>
-                {allSeasons.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
-            ) : (
-              <div style={{ opacity: 0.75 }}>No seasons loaded. Try refreshing the page.</div>
-            )}
+            <div style={{ marginTop: 16, marginBottom: 16, fontWeight: 700 }}>Driver #{driverNumber} not found</div>
           </div>
         </div>
       </div>
