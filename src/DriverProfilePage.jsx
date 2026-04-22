@@ -229,15 +229,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
     );
   }
 
-  const offenseLog = useMemo(() => {
-    if (!selectedSeason || !driver) return [];
-    return (selectedSeason.raceHistory || []).flatMap((race) =>
-      (race.results || [])
-        .filter((r) => r && r.driverId === driver.id && r.offense)
-        .map((r) => ({ raceName: race.raceName, ...r }))
-    );
-  }, [selectedSeason, driver]);
-
+  // Calculate race breakdown and stats from actual race history
   const raceBreakdown = useMemo(() => {
     if (!selectedSeason || !driver) return [];
     return (selectedSeason.raceHistory || [])
@@ -245,7 +237,38 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
         const result = (race.results || []).find((r) => r && r.driverId === driver.id);
         return { raceName: race.raceName, stageCount: race.stageCount, ...result };
       })
-      .filter((r) => r.driverId === driver.id);
+      .filter((r) => r && r.driverId === driver.id);
+  }, [selectedSeason, driver]);
+
+  // Calculate stats from race breakdown to ensure accuracy
+  const calculatedStats = useMemo(() => {
+    let points = (driver.points || 0);
+    let wins = 0;
+    let top3 = 0;
+    let top5 = 0;
+    let dnfs = 0;
+    let fastestLaps = 0;
+    let totalPenalties = 0;
+
+    raceBreakdown.forEach((race) => {
+      if (race.isWin) wins += 1;
+      if (race.isTop3) top3 += 1;
+      if (race.isTop5) top5 += 1;
+      if (race.dnf) dnfs += 1;
+      if (race.fastestLap) fastestLaps += 1;
+      totalPenalties += race.penaltyPoints || 0;
+    });
+
+    return { points, wins, top3, top5, dnfs, fastestLaps, totalPenalties };
+  }, [raceBreakdown, driver.points]);
+
+  const offenseLog = useMemo(() => {
+    if (!selectedSeason || !driver) return [];
+    return (selectedSeason.raceHistory || []).flatMap((race) =>
+      (race.results || [])
+        .filter((r) => r && r.driverId === driver.id && r.offense)
+        .map((r) => ({ raceName: race.raceName, ...r }))
+    );
   }, [selectedSeason, driver]);
 
   const seasonIndex = allSeasons.findIndex((s) => s && s.id === selectedSeasonId);
@@ -338,22 +361,22 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
     const racesCompleted = raceBreakdown.length;
     const totalTracks = selectedSeason.raceHistory?.length || 0;
     if (racesCompleted === 0) return "—";
-    const avgPointsPerRace = driver.points / racesCompleted;
+    const avgPointsPerRace = calculatedStats.points / racesCompleted;
     const projected = Math.round(avgPointsPerRace * totalTracks);
     return projected;
-  }, [driver.points, raceBreakdown, selectedSeason]);
+  }, [calculatedStats.points, raceBreakdown, selectedSeason]);
 
   const achievementProgress = useMemo(() => {
     const achievements = [
-      { name: "First Win", current: driver.wins, target: 1, emoji: "🏆" },
-      { name: "Hat Trick", current: driver.wins, target: 3, emoji: "🥇" },
-      { name: "Dominator", current: driver.wins, target: 5, emoji: "👑" },
-      { name: "Podium Master", current: driver.top3, target: 10, emoji: "🎯" },
-      { name: "Century Club", current: driver.points, target: 100, emoji: "⭐" },
-      { name: "Speed Demon", current: driver.fastestLaps || 0, target: 5, emoji: "⚡" },
+      { name: "First Win", current: calculatedStats.wins, target: 1, emoji: "🏆" },
+      { name: "Hat Trick", current: calculatedStats.wins, target: 3, emoji: "🥇" },
+      { name: "Dominator", current: calculatedStats.wins, target: 5, emoji: "👑" },
+      { name: "Podium Master", current: calculatedStats.top3, target: 10, emoji: "🎯" },
+      { name: "Century Club", current: calculatedStats.points, target: 100, emoji: "⭐" },
+      { name: "Speed Demon", current: calculatedStats.fastestLaps, target: 5, emoji: "⚡" },
     ];
     return achievements.filter(a => a.current < a.target);
-  }, [driver.wins, driver.top3, driver.points, driver.fastestLaps]);
+  }, [calculatedStats]);
 
   return (
     <div style={appShellStyle}>
@@ -407,12 +430,12 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
 
         <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 20 }}>
           {[
-            { label: "POINTS", value: driver.points || 0 },
-            { label: "WINS", value: driver.wins || 0 },
-            { label: "TOP 3", value: driver.top3 || 0 },
-            { label: "TOP 5", value: driver.top5 || 0 },
-            { label: "DNFs", value: driver.dnfs || 0 },
-            { label: "PENALTIES", value: driver.totalPenalties ? `-${driver.totalPenalties}` : "0" },
+            { label: "POINTS", value: calculatedStats.points },
+            { label: "WINS", value: calculatedStats.wins },
+            { label: "TOP 3", value: calculatedStats.top3 },
+            { label: "TOP 5", value: calculatedStats.top5 },
+            { label: "DNFs", value: calculatedStats.dnfs },
+            { label: "PENALTIES", value: calculatedStats.totalPenalties ? `-${calculatedStats.totalPenalties}` : "0" },
           ].map((stat) => (
             <div key={stat.label} style={statBoxStyle}>
               <div style={{ fontSize: 11, opacity: 0.75, marginBottom: 6 }}>{stat.label}</div>
@@ -423,12 +446,12 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
 
         {(() => {
           const achievements = [
-            { badge: "🏆", name: "First Win", condition: driver.wins >= 1 },
-            { badge: "🥇", name: "Hat Trick", condition: driver.wins >= 3 },
-            { badge: "👑", name: "Dominator", condition: driver.wins >= 5 },
-            { badge: "🎯", name: "Podium Master", condition: driver.top3 >= 10 },
-            { badge: "⭐", name: "Century Club", condition: driver.points >= 100 },
-            { badge: "⚡", name: "Speed Demon", condition: driver.fastestLaps >= 5 },
+            { badge: "🏆", name: "First Win", condition: calculatedStats.wins >= 1 },
+            { badge: "🥇", name: "Hat Trick", condition: calculatedStats.wins >= 3 },
+            { badge: "👑", name: "Dominator", condition: calculatedStats.wins >= 5 },
+            { badge: "🎯", name: "Podium Master", condition: calculatedStats.top3 >= 10 },
+            { badge: "⭐", name: "Century Club", condition: calculatedStats.points >= 100 },
+            { badge: "⚡", name: "Speed Demon", condition: calculatedStats.fastestLaps >= 5 },
           ].filter(a => a.condition);
           
           return achievements.length > 0 && (
@@ -471,7 +494,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
             </div>
             <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}>
               <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>AVG FINISH</div>
-              <div style={{ fontSize: 22, fontWeight: 800 }}>{consistencyRating.avg}</div>
+              <div style={{ fontSize: 22, fontWeight: 800 }}>P{consistencyRating.avg}</div>
               <div style={{ fontSize: 10, opacity: 0.6 }}>Consistency</div>
             </div>
           </div>
@@ -590,8 +613,8 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
               <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}>
                 <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 8 }}>{driver.name}</div>
                 <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 2 }}>Points: {driver.points}</div>
-                <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 2 }}>Wins: {driver.wins}</div>
-                <div style={{ fontSize: 11, opacity: 0.7 }}>Podiums: {driver.top3}</div>
+                <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 2 }}>Wins: {calculatedStats.wins}</div>
+                <div style={{ fontSize: 11, opacity: 0.7 }}>Podiums: {calculatedStats.top3}</div>
               </div>
               <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}>
                 <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 8 }}>#{teamStats.number} {teamStats.name}</div>
