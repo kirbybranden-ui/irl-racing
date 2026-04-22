@@ -326,7 +326,7 @@ function PublicStandings({ drivers, teams, seasonName = "" }) {
                 <div style={{ fontSize: 22, fontWeight: 900 }}>{seasonName || "—"}</div>
               </div>
               <button 
-                onClick={() => window.location.pathname = "/"} 
+                onClick={() => window.location.href = "/"}
                 style={{ background: "#d4af37", color: "#111", border: "none", borderRadius: 10, padding: "10px 16px", fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}
               >
                 Admin Portal
