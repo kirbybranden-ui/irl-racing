@@ -160,7 +160,10 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
   const pathParts = window.location.pathname.split("/");
   const driverNumber = pathParts[2];
 
-  const selectedSeason = activeSeason && typeof activeSeason === "object" ? activeSeason : null;
+  const allSeasons = Array.isArray(seasons) ? seasons : [];
+const selectedSeason = activeSeason && activeSeason.id
+  ? allSeasons.find(s => s && s.id === activeSeason.id) || activeSeason
+  : allSeasons[0] || null;
   const [isAppealModalOpen, setIsAppealModalOpen] = useState(false);
 
   const driver = selectedSeason && selectedSeason.drivers
