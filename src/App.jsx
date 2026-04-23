@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import logo from "./assets/logo1.png";
 import teamLogoJAM from "./assets/teams/JAM.png";
+import teamLogoMER from "./assets/teams/ME.png";
 import manufacturerChevrolet from "./assets/manufacturers/chevrolet.png";
 import manufacturerFord from "./assets/manufacturers/ford.png";
 import manufacturerToyota from "./assets/manufacturers/toyota.png";
@@ -15,6 +16,8 @@ import CarGalleryPage from "./CarGalleryPage";
 const teamLogos = {
   "JA MOTORSPORTS": teamLogoJAM,
   JAM: teamLogoJAM,
+  "ME RACING": teamLogoMER,
+  MER: teamLogoMER,
 };
 const manufacturerLogos = {
   Chevrolet: manufacturerChevrolet,
@@ -28,16 +31,16 @@ const defaultDrivers = [
   { id: 3, number: 18, name: "bowhunter6758", manufacturer: "Toyota", team: "JAM" },
   { id: 4, number: 81, name: "HOLDEN2DX4EV3R", manufacturer: "Chevrolet", team: "JAM" },
   { id: 5, number: 3, name: "ixGusty", manufacturer: "Toyota", team: "None" },
-  { id: 6, number: 14, name: "KapSig", manufacturer: "Chevrolet", team: "MEM" },
+  { id: 6, number: 14, name: "KapSig", manufacturer: "Chevrolet", team: "MER" },
   { id: 7, number: 24, name: "KEVDINHO7", manufacturer: "Chevrolet", team: "KRM" },
   { id: 8, number: 38, name: "It's_tricky88", manufacturer: "Toyota", team: "None" },
   { id: 9, number: 97, name: "American_Hero216", manufacturer: "Ford", team: "None" },
-  { id: 10, number: 67, name: "tallishsinter94", manufacturer: "Toyota", team: "None"},
-  { id: 11, number: 8, name: "Highlander719", manufacturer: "Chevrolet", team: "None"},
-  { id: 12, number: 23, name: "Orly_Revo23", manufacturer: "Ford", team: "MMS"},
-  { id: 13, number: 87, name: "Racingis_life87", manufacturer: "Chevrolet", team: "KRM"},
-  { id: 14, number: 0, name: "Inactive-josiah-wells", manufacturer: "Other", team: "None"},
-  { id: 15, number: 1, name: "Inactive-shane-mcconnell", manufacturer: "Other", team: "None"},
+  { id: 10, number: 67, name: "tallishsinter94", manufacturer: "Toyota", team: "None" },
+  { id: 11, number: 8, name: "Highlander719", manufacturer: "Chevrolet", team: "None" },
+  { id: 12, number: 23, name: "Orly_Revo23", manufacturer: "Ford", team: "MMS" },
+  { id: 13, number: 87, name: "Racingis_life87", manufacturer: "Chevrolet", team: "KRM" },
+  { id: 14, number: 0, name: "Inactive-josiah-wells", manufacturer: "Other", team: "None" },
+  { id: 15, number: 1, name: "Inactive-shane-mcconnell", manufacturer: "Other", team: "None" },
 ];
 const defaultRaces = [
   { name: "Preseason - Michigan", stageCount: 2, date: "2026-04-25" },
@@ -125,6 +128,12 @@ const teamBranding = {
   "Team B": { logo: "B", accent: "#3b82f6", dark: "#111827" },
   "Team C": { logo: "C", accent: "#ef4444", dark: "#1f1315" },
   "Team D": { logo: "D", accent: "#22c55e", dark: "#0f1b14" },
+  "MER": { logo: "MER", accent: "#ffffff", dark: "#1a1030" },
+  "ME RACING": { logo: "MER", accent: "#ffffff", dark: "#1a1030" },
+  "KRM": { logo: "KRM", accent: "#dc2626", dark: "#1f1010" },
+  "KEVIN RACING MOTORSPORTS": { logo: "KRM", accent: "#dc2626", dark: "#1f1010" },
+  "MMS": { logo: "MMS", accent: "#0ea5e9", dark: "#0c1a24" },
+  "MAYHEM MOTORSPORTS": { logo: "MMS", accent: "#0ea5e9", dark: "#0c1a24" },
 };
 function getTeamBranding(teamName) {
   return teamBranding[teamName] || { logo: teamName?.charAt(0)?.toUpperCase() || "?", accent: "#d4af37", dark: "#161a20" };
