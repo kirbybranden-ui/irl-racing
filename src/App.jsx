@@ -28,10 +28,16 @@ const defaultDrivers = [
   { id: 3, number: 18, name: "bowhunter6758", manufacturer: "Toyota", team: "JAM" },
   { id: 4, number: 81, name: "HOLDEN2DX4EV3R", manufacturer: "Chevrolet", team: "JAM" },
   { id: 5, number: 3, name: "ixGusty", manufacturer: "Toyota", team: "None" },
-  { id: 6, number: 14, name: "KapSig", manufacturer: "Chevrolet", team: "None" },
-  { id: 7, number: 24, name: "KEVDINHO7", manufacturer: "Chevrolet", team: "None" },
+  { id: 6, number: 14, name: "KapSig", manufacturer: "Chevrolet", team: "MEM" },
+  { id: 7, number: 24, name: "KEVDINHO7", manufacturer: "Chevrolet", team: "KRM" },
   { id: 8, number: 38, name: "It's_tricky88", manufacturer: "Toyota", team: "None" },
   { id: 9, number: 97, name: "American_Hero216", manufacturer: "Ford", team: "None" },
+  { id: 10, number: 67, name: "tallishsinter94", manufacturer: "Toyota", team: "None"},
+  { id: 11, number: 8, name: "Highlander719", manufacturer: "Chevrolet", team: "None"},
+  { id: 12, number: 23, name: "Orly_Revo23", manufacturer: "Ford", team: "MMS"},
+  { id: 13, number: 87, name: "Racingis_life87", manufacturer: "Chevrolet", team: "KRM"},
+  { id: 14, number: 0, name: "Inactive-josiah-wells", manufacturer: "Other", team: "None"},
+  { id: 15, number: 1, name: "Inactive-shane-mcconnell", manufacturer: "Other", team: "None"},
 ];
 const defaultRaces = [
   { name: "Preseason - Michigan", stageCount: 2, date: "2026-04-25" },
