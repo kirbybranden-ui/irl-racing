@@ -1,12 +1,15 @@
 import React, { useState, useMemo } from "react";
 import logo from "./assets/logo1.png";
 import teamLogoJAM from "./assets/teams/JAM.png";
+import teamLogoMER from "./assets/teams/ME.png";
 import { supabase } from "./lib/supabase";
 
 // Team logos
 const teamLogos = {
   "JA MOTORSPORTS": teamLogoJAM,
   JAM: teamLogoJAM,
+  "ME RACING": teamLogoMER,
+  MER: teamLogoMER,
 };
 
 // ─── Team Full Names ───────────────────────────────────────────────────────────
@@ -39,6 +42,8 @@ function AppealModal({ isOpen, onClose, selectedSeason }) {
   const [description, setDescription] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [cloudinaryReady, setCloudinaryReady] = useState(false);
+  const widgetRef = React.useRef(null);
 
   const drivers = selectedSeason?.drivers ? [...selectedSeason.drivers].sort((a, b) => a.number - b.number) : [];
   const tracks = ["Bristol (Night)", "Charlotte", "Daytona (Night)", "Homestead", "Indianapolis", "Iowa", "Kansas", "Michigan", "Nashville", "New Hampshire", "North Wilksboro", "Phoenix", "Pocono", "Preseason - Dover", "Preseason - Michigan", "Preseason - WWT Raceway", "Richmond", "Talladega", "Texas", "Las Vegas"];
@@ -76,18 +81,49 @@ function AppealModal({ isOpen, onClose, selectedSeason }) {
     }
   };
 
+  // Load Cloudinary script once — correct URL for v2 widget
   React.useEffect(() => {
-    if (!isOpen) return;
+    if (window.cloudinary) {
+      setCloudinaryReady(true);
+      return;
+    }
+    const existing = document.getElementById("cloudinary-widget-script");
+    if (existing) return; // already loading
     const script = document.createElement("script");
-    script.src = "https://upload-widget.cloudinary.com/latest/CloudinaryUploadWidget.js";
+    script.id = "cloudinary-widget-script";
+    script.src = "https://widget.cloudinary.com/v2.0/global/all.js";
     script.async = true;
+    script.onload = () => setCloudinaryReady(true);
+    script.onerror = () => console.error("Cloudinary widget failed to load");
     document.body.appendChild(script);
-    return () => {
-      if (document.body.contains(script)) {
-        document.body.removeChild(script);
+    // Do NOT remove on cleanup — let it stay loaded so re-opening the modal is instant
+  }, []);
+
+  // Build the widget once cloudinary is ready
+  React.useEffect(() => {
+    if (!cloudinaryReady || !window.cloudinary) return;
+    widgetRef.current = window.cloudinary.createUploadWidget(
+      {
+        cloudName: "dpu05oykz",
+        uploadPreset: "dpu05oykz", // ⚠️ UPDATE THIS: go to Cloudinary dashboard → Settings → Upload → Upload Presets
+        resourceType: "video",
+        folder: "appeal-evidence",
+        maxFileSize: 200000000, // 200MB limit
+        clientAllowedFormats: ["mp4", "mov", "avi", "mkv", "webm"],
+      },
+      (error, result) => {
+        if (error) {
+          console.error("Upload error:", error);
+          alert("Upload failed: " + (error.message || "Unknown error"));
+          return;
+        }
+        if (result?.event === "success") {
+          setVideoUrl(result.info.secure_url);
+          alert("✅ Video uploaded successfully!");
+        }
       }
-    };
-  }, [isOpen]);
+    );
+  }, [cloudinaryReady]);
 
   if (!isOpen) return null;
 
@@ -135,27 +171,21 @@ function AppealModal({ isOpen, onClose, selectedSeason }) {
           <label style={{ display: "block", marginBottom: 6, fontWeight: 700 }}>Video Evidence (optional)</label>
           <button
             onClick={() => {
-              if (window.cloudinary) {
-                window.cloudinary.openUploadWidget(
-                  {
-                    cloudName: "dpu05oykz",
-                    uploadPreset: "dpu05oykz",
-                    resourceType: "video",
-                    folder: "appeal-evidence"
-                  },
-                  (error, result) => {
-                    if (!error && result?.event === "success") {
-                      setVideoUrl(result.info.secure_url);
-                      alert("✅ Video uploaded!");
-                    }
-                  }
-                );
+              if (!cloudinaryReady || !widgetRef.current) {
+                alert("Upload widget is still loading, please wait a moment and try again.");
+                return;
               }
+              widgetRef.current.open();
             }}
-            style={secondaryButtonStyle}
+            style={{ ...secondaryButtonStyle, opacity: cloudinaryReady ? 1 : 0.6 }}
           >
-            {videoUrl ? "✅ Video uploaded" : "📹 Upload Video"}
+            {videoUrl ? "✅ Video uploaded" : cloudinaryReady ? "📹 Upload Video" : "⏳ Loading uploader..."}
           </button>
+          {videoUrl && (
+            <div style={{ marginTop: 8, fontSize: 12, opacity: 0.7, wordBreak: "break-all" }}>
+              {videoUrl}
+            </div>
+          )}
         </div>
 
         <div style={{ display: "flex", gap: 10 }}>
