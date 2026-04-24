@@ -15,6 +15,7 @@ export default function CarGalleryPage({ drivers = [], tracks = [] }) {
   const [selectedDriver, setSelectedDriver] = useState("");
   const [selectedRace, setSelectedRace] = useState("");
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
 
   useEffect(() => {
     loadUploads();
@@ -23,21 +24,28 @@ export default function CarGalleryPage({ drivers = [], tracks = [] }) {
   const loadUploads = async () => {
     try {
       setLoading(true);
+      setLoadError(null);
       const { data, error } = await supabase
         .from("car_uploads")
         .select("*")
         .order("uploaded_at", { ascending: false });
 
+      console.log("CarGallery fetch — data:", data, "error:", error);
+
       if (error) {
         console.error("Error loading uploads:", error);
+        setLoadError(error.message);
         setUploads([]);
+        setFilteredUploads([]);
       } else {
         setUploads(data || []);
         setFilteredUploads(data || []);
       }
     } catch (err) {
       console.error("Error:", err);
+      setLoadError(err.message);
       setUploads([]);
+      setFilteredUploads([]);
     } finally {
       setLoading(false);
     }
@@ -118,7 +126,13 @@ export default function CarGalleryPage({ drivers = [], tracks = [] }) {
           </div>
         </div>
 
-        {loading ? (
+        {loadError ? (
+          <div style={{ ...sectionCardStyle, borderColor: "#b42318" }}>
+            <div style={{ color: "#f87171", fontWeight: 700, marginBottom: 8 }}>Failed to load uploads</div>
+            <div style={{ fontSize: 13, opacity: 0.8 }}>{loadError}</div>
+            <button onClick={loadUploads} style={{ ...primaryButtonStyle, marginTop: 12 }}>Retry</button>
+          </div>
+        ) : loading ? (
           <div style={sectionCardStyle}>Loading car uploads...</div>
         ) : filteredUploads.length === 0 ? (
           <div style={sectionCardStyle}>
