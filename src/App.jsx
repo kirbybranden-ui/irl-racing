@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import logo from "./assets/logo1.png";
 import teamLogoJAM from "./assets/teams/JAM.png";
+import teamLogoMER from "./assets/teams/ME.png";
 import manufacturerChevrolet from "./assets/manufacturers/chevrolet.png";
 import manufacturerFord from "./assets/manufacturers/ford.png";
 import manufacturerToyota from "./assets/manufacturers/toyota.png";
@@ -15,6 +16,8 @@ import CarGalleryPage from "./CarGalleryPage";
 const teamLogos = {
   "JA MOTORSPORTS": teamLogoJAM,
   JAM: teamLogoJAM,
+  "ME RACING": teamLogoMER,
+  MER: teamLogoMER,
 };
 const manufacturerLogos = {
   Chevrolet: manufacturerChevrolet,
@@ -494,18 +497,24 @@ export default function App() {
   const [pendingDrivers, setPendingDrivers] = useState([]);
   const importFileRef = useRef(null);
   const path = window.location.pathname.toLowerCase();
-console.log("Current path:", path);  // ADD THIS LINE
 
-  if (path === "/files") return <FilesPage />;
-  if (path === "/welcome") return <WelcomePage />;
-  if (path === "/submit-appeal") return <SubmitAppealPage />;
-  if (path === "/appeals") return <AppealsPage />;
-  if (path === "/admin/car-gallery") return <CarGalleryPage drivers={drivers} tracks={tracks} />;
-  if (path.startsWith("/driver/")) {
-    const activeSeason = seasons.find((s) => s.id === activeSeasonId) || seasons[0] || null;
-    return <DriverProfilePage seasons={seasons} activeSeason={activeSeason} tracks={tracks} />;
-  }
+  // ─── Computed values (must be before all hooks) ───────────────────────────
+  const activeSeason = seasons.find((s) => s.id === activeSeasonId) || seasons[0] || null;
+  const drivers = activeSeason?.drivers || [];
+  const activeDrivers = drivers.filter((d) => !d.retired);
+  const selectedRace = activeSeason?.selectedRace || "";
+  const positions = activeSeason?.positions || {};
+  const stage1 = activeSeason?.stage1 || {};
+  const stage2 = activeSeason?.stage2 || {};
+  const stage3 = activeSeason?.stage3 || {};
+  const dnfMap = activeSeason?.dnfMap || {};
+  const offenseMap = activeSeason?.offenseMap || {};
+  const fastestLapMap = activeSeason?.fastestLapMap || {};
+  const raceHistory = activeSeason?.raceHistory || [];
+  const selectedRaceData = tracks.find((r) => r.name === selectedRace);
+  const stageCount = selectedRaceData ? selectedRaceData.stageCount : 2;
 
+  // ─── ALL useEffect hooks (must be before any early returns) ───────────────
   useEffect(() => {
     let isMounted = true;
     async function hydrateFromSupabase() {
@@ -530,25 +539,22 @@ console.log("Current path:", path);  // ADD THIS LINE
     }
     hydrateFromSupabase();
     let interval = null;
-    if (path === "/standings" || path === "/overlay/drivers" || path === "/overlay/teams" || path === "/overlay/ticker") {
-      interval = setInterval(hydrateFromSupabase, 2000);
+    // Poll every 3s on live pages so stats stay current without a manual refresh
+    if (path === "/standings" || path.startsWith("/driver/") || path === "/overlay/drivers" || path === "/overlay/teams" || path === "/overlay/ticker") {
+      interval = setInterval(hydrateFromSupabase, 3000);
     }
     return () => { isMounted = false; if (interval) clearInterval(interval); };
   }, []);
   useEffect(() => {
-  async function loadOpenAppeals() {
-    const { count, error } = await supabase
-      .from("appeals")
-      .select("*", { count: "exact", head: true })
-      .eq("status", "Open");
-
-    if (!error) {
-      setOpenAppealCount(count || 0);
+    async function loadOpenAppeals() {
+      const { count, error } = await supabase
+        .from("appeals")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "Open");
+      if (!error) setOpenAppealCount(count || 0);
     }
-  }
-
-  loadOpenAppeals();
-}, []);
+    loadOpenAppeals();
+  }, []);
   useEffect(() => {
     async function loadPendingDrivers() {
       const { data, error } = await supabase
@@ -556,12 +562,8 @@ console.log("Current path:", path);  // ADD THIS LINE
         .select("*")
         .eq("status", "pending")
         .order("created_at", { ascending: false });
-
-      if (!error && data) {
-        setPendingDrivers(data);
-      }
+      if (!error && data) setPendingDrivers(data);
     }
-
     loadPendingDrivers();
     const interval = setInterval(loadPendingDrivers, 5000);
     return () => clearInterval(interval);
@@ -573,20 +575,27 @@ console.log("Current path:", path);  // ADD THIS LINE
     }, 250);
     return () => clearTimeout(timeout);
   }, [seasons, activeSeasonId, tracks, isHydrated]);
-  const activeSeason = seasons.find((s) => s.id === activeSeasonId) || seasons[0] || null;
-  const drivers = activeSeason?.drivers || [];
-  const activeDrivers = drivers.filter((d) => !d.retired);
-  const selectedRace = activeSeason?.selectedRace || "";
-  const positions = activeSeason?.positions || {};
-  const stage1 = activeSeason?.stage1 || {};
-  const stage2 = activeSeason?.stage2 || {};
-  const stage3 = activeSeason?.stage3 || {};
-  const dnfMap = activeSeason?.dnfMap || {};
-  const offenseMap = activeSeason?.offenseMap || {};
-  const fastestLapMap = activeSeason?.fastestLapMap || {};
-  const raceHistory = activeSeason?.raceHistory || [];
-  const selectedRaceData = tracks.find((r) => r.name === selectedRace);
-  const stageCount = selectedRaceData ? selectedRaceData.stageCount : 2;
+  useEffect(() => { if (activeSeason?.name) setRenameSeasonName(activeSeason.name); }, [activeSeasonId, activeSeason?.name]);
+  useEffect(() => {
+    const nextInputs = {};
+    (activeSeason?.drivers || []).forEach((d) => { nextInputs[d.id] = String(Number(d.startingPoints) || 0); });
+    setStartingPointsInputs(nextInputs);
+  }, [activeSeasonId]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const nextInputs = {};
+    (activeSeason?.drivers || []).forEach((d) => { nextInputs[d.id] = String(Number(d.manualWins) || 0); });
+    setManualWinsInputs(nextInputs);
+  }, [activeSeasonId]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const nextNotes = {};
+    (activeSeason?.drivers || []).forEach((d) => { nextNotes[d.id] = d.notes || ""; });
+    setDriverNotes(nextNotes);
+  }, [activeSeasonId]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const nextReasons = {};
+    (activeSeason?.drivers || []).forEach((d) => { nextReasons[d.id] = ""; });
+    setDnfReasons(nextReasons);
+  }, [selectedRace, activeSeasonId]); // eslint-disable-line react-hooks/exhaustive-deps
   const replaceActiveSeason = (next) => setSeasons((prev) => prev.map((s) => (s.id === activeSeasonId ? next : s)));
   const patchActiveSeason = (patch) => setSeasons((prev) => prev.map((s) => (s.id === activeSeasonId ? { ...s, ...patch } : s)));
   const clearInputs = () => {
@@ -628,27 +637,6 @@ console.log("Current path:", path);  // ADD THIS LINE
     const remaining = seasons.filter((s) => s.id !== activeSeason.id);
     setSeasons(remaining); setActiveSeasonId(remaining[0].id); setRenameSeasonName(remaining[0].name); resetEditorStates();
   };
-  useEffect(() => { if (activeSeason?.name) setRenameSeasonName(activeSeason.name); }, [activeSeasonId, activeSeason?.name]);
-  useEffect(() => {
-    const nextInputs = {};
-    (activeSeason?.drivers || []).forEach((d) => { nextInputs[d.id] = String(Number(d.startingPoints) || 0); });
-    setStartingPointsInputs(nextInputs);
-  }, [activeSeasonId]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    const nextInputs = {};
-    (activeSeason?.drivers || []).forEach((d) => { nextInputs[d.id] = String(Number(d.manualWins) || 0); });
-    setManualWinsInputs(nextInputs);
-  }, [activeSeasonId]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    const nextNotes = {};
-    (activeSeason?.drivers || []).forEach((d) => { nextNotes[d.id] = d.notes || ""; });
-    setDriverNotes(nextNotes);
-  }, [activeSeasonId]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    const nextReasons = {};
-    (activeSeason?.drivers || []).forEach((d) => { nextReasons[d.id] = ""; });
-    setDnfReasons(nextReasons);
-  }, [selectedRace, activeSeasonId]); // eslint-disable-line react-hooks/exhaustive-deps
   const handleImportBackup = (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -921,7 +909,15 @@ console.log("Current path:", path);  // ADD THIS LINE
   const offenseLog = raceHistory.flatMap((race) =>
     race.results.filter((r) => r.offense).map((r) => ({ raceName: race.raceName, number: r.number, name: r.name, offenseNumber: r.offenseNumber, penaltyPoints: r.penaltyPoints }))
   );
+  // Static pages (no Supabase data needed)
+  if (path === "/files") return <FilesPage />;
+  if (path === "/welcome") return <WelcomePage />;
+  if (path === "/submit-appeal") return <SubmitAppealPage />;
+  if (path === "/appeals") return <AppealsPage />;
+  // Loading gate — all routes below this need Supabase data
   if (!isHydrated) return <div style={appShellStyle}><div style={pageContainerStyle}><div style={sectionCardStyle}>Loading league data...</div></div></div>;
+  if (path === "/admin/car-gallery") return <CarGalleryPage drivers={drivers} tracks={tracks} />;
+  if (path.startsWith("/driver/")) return <DriverProfilePage seasons={seasons} activeSeason={activeSeason} tracks={tracks} />;
   if (path === "/standings") return <PublicStandings drivers={drivers} teams={teamStandings} seasonName={activeSeason?.name || ""} />;
   if (path === "/overlay/ticker" || viewMode === "overlay-ticker") return <TickerOverlay drivers={drivers} teams={teamStandings} raceHistory={raceHistory} preview={viewMode === "overlay-ticker"} seasonName={activeSeason?.name || ""} />;
   return (
