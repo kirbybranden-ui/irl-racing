@@ -314,17 +314,28 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
       const sorted = [...(selectedSeason?.drivers || [])].sort((a, b) => b.points - a.points);
       const ranking = sorted.findIndex(d => d.id === driver.id) + 1;
 
-      // ── PRE-RACE: generate if today is race day or day before and no interview yet
+      // ── PRE-RACE: generate for next upcoming race within 3 days, or just next race if none within window
       const today = new Date(); today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
-      const upcomingRace = (tracks || [])
+      const inThreeDays = new Date(today); inThreeDays.setDate(inThreeDays.getDate() + 3);
+
+      const racesWithDates = (tracks || [])
         .filter(t => t.date)
         .map(t => ({ ...t, dateObj: new Date(t.date + "T12:00:00") }))
-        .sort((a, b) => a.dateObj - b.dateObj)
-        .find(t => {
+        .sort((a, b) => a.dateObj - b.dateObj);
+
+      // First try: race within 3 days (day before, race day, or 2 days before)
+      let upcomingRace = racesWithDates.find(t => {
+        const d = new Date(t.dateObj); d.setHours(0, 0, 0, 0);
+        return d.getTime() >= today.getTime() && d.getTime() <= inThreeDays.getTime();
+      });
+
+      // Fallback: just use the next upcoming race regardless of how far away
+      if (!upcomingRace) {
+        upcomingRace = racesWithDates.find(t => {
           const d = new Date(t.dateObj); d.setHours(0, 0, 0, 0);
-          return d.getTime() === today.getTime() || d.getTime() === tomorrow.getTime();
+          return d.getTime() >= today.getTime();
         });
+      }
 
       if (upcomingRace) {
         const hasPreRace = (existing || []).some(i => i.race_name === upcomingRace.name && i.type === "pre");
@@ -368,12 +379,14 @@ Respond ONLY with a valid JSON array, no markdown or backticks:
         const hasPostRace = (existing || []).some(i => i.race_name === latestRace.raceName && i.type === "post");
         if (!hasPostRace) {
           const result = latestRace.results?.find(r => r.driverId === driver.id);
-          if (result) {
-            setGeneratingInterview(true);
-            const prompt = `You are a motorsports journalist interviewing ${driver.name}, driver of the #${driver.number} ${driver.manufacturer}${hasTeam ? ` for ${teamName}` : " as an independent driver"} in the Budweiser Cup League iRacing series.
+          const resultContext = result
+            ? `Race result: Finished P${result.finishPos || "unknown"}${result.dnf ? ` (DNF — reason: ${result.dnfReason || "mechanical"})` : ""}${result.isWin ? " — WON THE RACE! 🏆" : ""}. Earned ${result.totalRacePoints} points${result.fastestLap ? ", also set the fastest lap" : ""}.`
+            : `The driver did not have results recorded for this race.`;
+          setGeneratingInterview(true);
+          const prompt = `You are a motorsports journalist interviewing ${driver.name}, driver of the #${driver.number} ${driver.manufacturer}${hasTeam ? ` for ${teamName}` : " as an independent driver"} in the Budweiser Cup League iRacing series.
 
 This is a POST-RACE interview after the ${latestRace.raceName}.
-Race result: Finished P${result.finishPos || "unknown"}${result.dnf ? ` (DNF — reason: ${result.dnfReason || "mechanical"})` : ""}${result.isWin ? " — WON THE RACE! 🏆" : ""}. Earned ${result.totalRacePoints} points${result.fastestLap ? ", also set the fastest lap" : ""}.
+${resultContext}
 Season standings: P${ranking} with ${driver.points} total points, ${driver.wins} wins across ${raceHistory.length} races.
 ${hasTeam && teammates.length > 0 ? `Teammate(s): ${teammates.map(t => `#${t.number} ${t.name} (${t.points} pts)`).join(", ")}.` : ""}
 
@@ -382,24 +395,23 @@ Generate 4 varied post-race interview questions and in-character answers. Refere
 Respond ONLY with a valid JSON array, no markdown or backticks:
 [{"question":"...","answer":"..."},{"question":"...","answer":"..."},{"question":"...","answer":"..."},{"question":"...","answer":"..."}]`;
 
-            try {
-              const res = await fetch("https://api.anthropic.com/v1/messages", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1000, messages: [{ role: "user", content: prompt }] })
-              });
-              const aiData = await res.json();
-              const text = aiData.content?.[0]?.text || "[]";
-              const qa = JSON.parse(text.replace(/```json|```/g, "").trim());
-              const { data: saved } = await supabase.from("interviews").insert({
-                driver_id: driver.id, driver_name: driver.name, driver_number: driver.number,
-                race_name: latestRace.raceName, type: "post", questions_and_answers: qa,
-                generated_at: new Date().toISOString()
-              }).select();
-              if (saved) setInterviews(prev => [...saved, ...prev]);
-            } catch (err) { console.error("Post-race interview generation failed:", err); }
-            setGeneratingInterview(false);
-          }
+          try {
+            const res = await fetch("https://api.anthropic.com/v1/messages", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1000, messages: [{ role: "user", content: prompt }] })
+            });
+            const aiData = await res.json();
+            const text = aiData.content?.[0]?.text || "[]";
+            const qa = JSON.parse(text.replace(/```json|```/g, "").trim());
+            const { data: saved } = await supabase.from("interviews").insert({
+              driver_id: driver.id, driver_name: driver.name, driver_number: driver.number,
+              race_name: latestRace.raceName, type: "post", questions_and_answers: qa,
+              generated_at: new Date().toISOString()
+            }).select();
+            if (saved) setInterviews(prev => [...saved, ...prev]);
+          } catch (err) { console.error("Post-race interview generation failed:", err); }
+          setGeneratingInterview(false);
         }
       }
     }
