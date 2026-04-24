@@ -12,6 +12,7 @@ import DriverProfilePage from "./DriverProfilePage";
 import WelcomePage from "./WelcomePage";
 import { supabase } from "./lib/supabase";
 import CarGalleryPage from "./CarGalleryPage";
+import InterviewsPage from "./InterviewsPage";
 // Team logos
 const teamLogos = {
   "JA MOTORSPORTS": teamLogoJAM,
@@ -1006,6 +1007,7 @@ export default function App() {
   // Loading gate — all routes below this need Supabase data
   if (!isHydrated) return <div style={appShellStyle}><div style={pageContainerStyle}><div style={sectionCardStyle}>Loading league data...</div></div></div>;
   if (path === "/admin/car-gallery") return <CarGalleryPage drivers={drivers} tracks={tracks} />;
+  if (path === "/admin/interviews") return <InterviewsPage />;
   if (path.startsWith("/driver/")) return <DriverProfilePage seasons={seasons} activeSeason={activeSeason} tracks={tracks} />;
   if (path === "/standings") return <PublicStandings drivers={drivers} teams={teamStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} />;
   if (path === "/overlay/ticker" || viewMode === "overlay-ticker") return <TickerOverlay drivers={drivers} teams={teamStandings} raceHistory={raceHistory} preview={viewMode === "overlay-ticker"} seasonName={activeSeason?.name || ""} />;
@@ -1036,6 +1038,9 @@ export default function App() {
               </button>
               <button onClick={() => (window.location.pathname = "/admin/car-gallery")} style={headerButtonStyle}>
                 Car Gallery
+              </button>
+              <button onClick={() => (window.location.pathname = "/admin/interviews")} style={headerButtonStyle}>
+                🎙️ Interviews
               </button>
             </div>
           </div>
