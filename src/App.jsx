@@ -296,9 +296,23 @@ function TeamOverlay({ teams, preview = false, seasonName = "" }) {
 }
 function PublicStandings({ drivers, teams, seasonName = "", tracks = [], raceHistory = [] }) {
   const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [featuredVideo, setFeaturedVideo] = useState(null);
   const handleDriverClick = (number) => {
     window.location.pathname = `/driver/${number}`;
   };
+
+  useEffect(() => {
+    async function loadFeaturedVideo() {
+      const { data } = await supabase
+        .from("featured_video")
+        .select("*")
+        .order("uploaded_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      setFeaturedVideo(data || null);
+    }
+    loadFeaturedVideo();
+  }, []);
 
   const sorted = [...drivers].sort((a, b) => b.points - a.points || b.wins - a.wins || b.top3 - a.top3 || a.name.localeCompare(b.name));
   const [leader, second, third] = sorted;
@@ -349,6 +363,43 @@ function PublicStandings({ drivers, teams, seasonName = "", tracks = [], raceHis
   return (
     <div style={{ minHeight: "100vh", background: "radial-gradient(circle at top, #18202b 0%, #0d1117 38%, #090c11 100%)", color: "white", fontFamily: "Arial, sans-serif" }}>
       <div style={{ maxWidth: 1520, margin: "0 auto", padding: 24 }}>
+
+        {/* ── Featured Video Banner ──────────────────────────────────── */}
+        {featuredVideo && (
+          <div style={{ background: "linear-gradient(135deg, #12151c 0%, #0c0f14 100%)", border: "1px solid #d4af37", borderRadius: 20, overflow: "hidden", marginBottom: 22, boxShadow: "0 14px 40px rgba(212,175,55,0.15)" }}>
+            <div style={{ padding: "14px 20px", display: "flex", alignItems: "center", gap: 12, borderBottom: "1px solid rgba(212,175,55,0.2)" }}>
+              <span style={{ fontSize: 18 }}>🎬</span>
+              <div style={{ flex: 1 }}>
+                {featuredVideo.title && <div style={{ fontSize: 16, fontWeight: 800 }}>{featuredVideo.title}</div>}
+                {featuredVideo.description && <div style={{ fontSize: 13, opacity: 0.65, marginTop: 2 }}>{featuredVideo.description}</div>}
+              </div>
+              <div style={{ fontSize: 11, opacity: 0.45 }}>{new Date(featuredVideo.uploaded_at).toLocaleDateString()}</div>
+            </div>
+            <div style={{ position: "relative", width: "100%", paddingBottom: "56.25%", background: "#000" }}>
+              {featuredVideo.video_url.includes("youtube.com") || featuredVideo.video_url.includes("youtu.be") ? (
+                <iframe
+                  src={featuredVideo.video_url.replace("watch?v=", "embed/").replace("youtu.be/", "www.youtube.com/embed/")}
+                  style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: "none" }}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              ) : featuredVideo.video_url.includes("twitch.tv") ? (
+                <iframe
+                  src={`https://player.twitch.tv/?video=${featuredVideo.video_url.split("/").pop()}&parent=${window.location.hostname}`}
+                  style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: "none" }}
+                  allowFullScreen
+                />
+              ) : (
+                <video
+                  controls
+                  autoPlay={false}
+                  style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain" }}
+                  src={featuredVideo.video_url}
+                />
+              )}
+            </div>
+          </div>
+        )}
         <div style={{ background: "linear-gradient(135deg, #1a1f27 0%, #10141b 100%)", border: "1px solid #313947", borderRadius: 24, padding: 26, marginBottom: 22, boxShadow: "0 14px 34px rgba(0,0,0,0.28)", overflow: "hidden", position: "relative" }}>
           <div style={{ position: "absolute", right: -60, top: -60, width: 220, height: 220, borderRadius: "50%", background: "rgba(212,175,55,0.08)" }} />
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 18, flexWrap: "wrap" }}>
@@ -585,6 +636,11 @@ export default function App() {
   const [newTrackName, setNewTrackName] = useState("");
   const [newTrackStageCount, setNewTrackStageCount] = useState(2);
   const [pendingDrivers, setPendingDrivers] = useState([]);
+  const [featuredVideo, setFeaturedVideo] = useState(null);
+  const [videoUrl, setVideoUrl] = useState("");
+  const [videoTitle, setVideoTitle] = useState("");
+  const [videoDescription, setVideoDescription] = useState("");
+  const [videoUploading, setVideoUploading] = useState(false);
   const importFileRef = useRef(null);
   const path = window.location.pathname.toLowerCase();
 
@@ -666,7 +722,18 @@ export default function App() {
     }, 250);
     return () => clearTimeout(timeout);
   }, [seasons, activeSeasonId, tracks, isHydrated]);
-  useEffect(() => { if (activeSeason?.name) setRenameSeasonName(activeSeason.name); }, [activeSeasonId, activeSeason?.name]);
+  useEffect(() => {
+    async function loadFeaturedVideo() {
+      const { data } = await supabase
+        .from("featured_video")
+        .select("*")
+        .order("uploaded_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      setFeaturedVideo(data || null);
+    }
+    loadFeaturedVideo();
+  }, []);
   useEffect(() => {
     const nextInputs = {};
     (activeSeason?.drivers || []).forEach((d) => { nextInputs[d.id] = String(Number(d.startingPoints) || 0); });
@@ -1075,6 +1142,77 @@ export default function App() {
             </div>
           ))}
         </div>
+        {/* Featured Video */}
+        <div style={sectionCardStyle}>
+          <h2 style={{ marginTop: 0 }}>🎬 Featured Video</h2>
+          <div style={{ fontSize: 13, opacity: 0.7, marginBottom: 16 }}>
+            Post a pre-race hype video or race highlight. It appears at the top of the /standings page. Paste a YouTube, Twitch, or direct video URL.
+          </div>
+
+          {featuredVideo && (
+            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 14, marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+              <div>
+                <div style={{ fontWeight: 700, marginBottom: 2 }}>{featuredVideo.title || "Untitled Video"}</div>
+                {featuredVideo.description && <div style={{ fontSize: 12, opacity: 0.65, marginBottom: 4 }}>{featuredVideo.description}</div>}
+                <div style={{ fontSize: 12, opacity: 0.5, wordBreak: "break-all" }}>{featuredVideo.video_url}</div>
+              </div>
+              <button
+                style={dangerButtonStyle}
+                onClick={async () => {
+                  if (!window.confirm("Remove the featured video from standings?")) return;
+                  await supabase.from("featured_video").delete().eq("id", featuredVideo.id);
+                  setFeaturedVideo(null);
+                }}
+              >
+                Remove
+              </button>
+            </div>
+          )}
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, marginBottom: 14 }}>
+            <div>
+              <div style={{ marginBottom: 6, fontWeight: 700 }}>Video URL *</div>
+              <input style={inputStyle} value={videoUrl} onChange={e => setVideoUrl(e.target.value)} placeholder="YouTube, Twitch, or direct .mp4 URL" />
+            </div>
+            <div>
+              <div style={{ marginBottom: 6, fontWeight: 700 }}>Title (optional)</div>
+              <input style={inputStyle} value={videoTitle} onChange={e => setVideoTitle(e.target.value)} placeholder="e.g. Preseason Michigan Highlights" />
+            </div>
+            <div>
+              <div style={{ marginBottom: 6, fontWeight: 700 }}>Description (optional)</div>
+              <input style={inputStyle} value={videoDescription} onChange={e => setVideoDescription(e.target.value)} placeholder="e.g. Race recap — Season 1 opener" />
+            </div>
+          </div>
+
+          <button
+            style={{ ...primaryButtonStyle, opacity: videoUploading ? 0.6 : 1 }}
+            disabled={videoUploading}
+            onClick={async () => {
+              if (!videoUrl.trim()) { alert("Please enter a video URL."); return; }
+              setVideoUploading(true);
+              try {
+                // Remove any existing featured video first
+                if (featuredVideo) await supabase.from("featured_video").delete().eq("id", featuredVideo.id);
+                const { data, error } = await supabase.from("featured_video").insert({
+                  video_url: videoUrl.trim(),
+                  title: videoTitle.trim() || null,
+                  description: videoDescription.trim() || null,
+                  uploaded_at: new Date().toISOString(),
+                }).select().single();
+                if (error) throw error;
+                setFeaturedVideo(data);
+                setVideoUrl(""); setVideoTitle(""); setVideoDescription("");
+                alert("✅ Featured video published to /standings!");
+              } catch (err) {
+                alert(`Failed to publish video: ${err.message}`);
+              }
+              setVideoUploading(false);
+            }}
+          >
+            {videoUploading ? "Publishing..." : "🎬 Publish to Standings"}
+          </button>
+        </div>
+
         {/* Backup & Restore */}
         <div style={sectionCardStyle}>
           <h2 style={{ marginTop: 0 }}>Backup & Restore</h2>
