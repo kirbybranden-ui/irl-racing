@@ -51,13 +51,17 @@ export async function uploadCarFile(driverId, driverName, raceId, file) {
       .insert({
         driver_id: driverId,
         driver_name: driverName,
+        uploader_name: driverName,
+        driver_number: null,
         race_id: raceId,
+        race_week: raceId,
         file_name: file.name,
         file_path: filePath,
         file_url: publicUrl,
-        image_url: publicUrl,   // satisfies NOT NULL constraint
         file_type: file.type,
         file_size: file.size,
+        image_url: publicUrl,
+        cloudinary_id: filePath,  // use filePath as a unique identifier
         uploaded_at: new Date().toISOString(),
       });
  
