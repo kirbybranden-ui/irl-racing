@@ -599,16 +599,22 @@ function patchMissingDrivers(cleanSeasons) {
     );
     // Update any drivers whose name/number/manufacturer/team has changed in defaultDrivers
     const updatedDrivers = season.drivers.map((d) => {
-      const canonical = defaultDrivers.find((dd) => dd.id === d.id);
-      if (!canonical) return d;
-      return {
-        ...d,
-        name: canonical.name,
-        number: canonical.number,
-        manufacturer: canonical.manufacturer,
-        team: canonical.team,
-      };
-    });
+  const canonical = defaultDrivers.find((dd) => dd.id === d.id);
+
+  let updatedTeam = d.team === "KRM" ? "MER" : d.team;
+
+  if (!canonical) {
+    return { ...d, team: updatedTeam };
+  }
+
+  return {
+    ...d,
+    name: canonical.name,
+    number: canonical.number,
+    manufacturer: canonical.manufacturer,
+    team: canonical.team === "KRM" ? "MER" : canonical.team,
+  };
+});
     if (missing.length === 0 && updatedDrivers.every((d, i) => d === season.drivers[i])) return season;
     const newRoster = [
       ...updatedDrivers.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer || "", team: d.team, startingPoints: Number(d.startingPoints) || 0, manualWins: Number(d.manualWins) || 0, retired: d.retired || false, notes: d.notes || "" })),
