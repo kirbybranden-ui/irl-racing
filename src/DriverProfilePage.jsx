@@ -39,7 +39,83 @@ const tableStyle = { width: "100%", borderCollapse: "collapse" };
 const thStyle = { textAlign: "left", padding: 10, borderBottom: "1px solid #313947", background: "#10141b", fontSize: 13, fontWeight: 700 };
 const tdStyle = { padding: 10, borderBottom: "1px solid #252c38", verticalAlign: "top", fontSize: 14 };
 
-function AppealModal({ isOpen, onClose, selectedSeason }) {
+// ─── Interview Answer Card ─────────────────────────────────────────────────
+function InterviewAnswerCard({ interview, onAnswered }) {
+  const isPre = interview.type === "pre";
+  const qa = Array.isArray(interview.questions_and_answers) ? interview.questions_and_answers : [];
+  const [answers, setAnswers] = useState(() => qa.map(q => q.answer || ""));
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(interview.answered || false);
+
+  async function submitAnswers() {
+    const filled = answers.every((a, i) => !qa[i].question || a.trim());
+    if (!filled) { alert("Please answer all questions before submitting."); return; }
+    setSubmitting(true);
+    const updated = qa.map((q, i) => ({ question: q.question, answer: answers[i].trim() }));
+    const { data, error } = await supabase
+      .from("interviews")
+      .update({ questions_and_answers: updated, answered: true })
+      .eq("id", interview.id)
+      .select()
+      .single();
+    if (!error && data) {
+      setSubmitted(true);
+      onAnswered(data);
+    } else {
+      alert("Failed to submit answers. Please try again.");
+    }
+    setSubmitting(false);
+  }
+
+  return (
+    <div style={{ background: "#0f1319", border: `1px solid ${submitted ? (isPre ? "#1e3a6e" : "#1a5c30") : "#3a3200"}`, borderRadius: 12, padding: 16 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
+        <span style={{ background: isPre ? "#3b82f6" : "#22c55e", color: "white", borderRadius: 8, padding: "3px 10px", fontSize: 11, fontWeight: 800 }}>
+          {isPre ? "🎤 PRE-RACE" : "🏆 POST-RACE"}
+        </span>
+        <span style={{ fontSize: 14, fontWeight: 700 }}>{interview.race_name}</span>
+        {submitted && (
+          <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 6, background: "#14532d", color: "#4ade80", marginLeft: "auto" }}>
+            ✅ Submitted
+          </span>
+        )}
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        {qa.map((item, i) => (
+          <div key={i} style={{ borderLeft: `3px solid ${isPre ? "#3b82f6" : "#22c55e"}`, paddingLeft: 14 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, opacity: 0.85, marginBottom: 8 }}>Q: {item.question}</div>
+            {submitted ? (
+              <div style={{ fontSize: 14, lineHeight: 1.6, fontStyle: "italic", color: "#e2e8f0" }}>
+                "{answers[i]}"
+              </div>
+            ) : (
+              <textarea
+                rows={3}
+                style={{ width: "100%", background: "#0c1018", color: "white", border: "1px solid #313947", borderRadius: 10, padding: "10px 12px", boxSizing: "border-box", resize: "vertical", fontSize: 14, lineHeight: 1.5 }}
+                placeholder="Type your answer..."
+                value={answers[i]}
+                onChange={e => setAnswers(prev => prev.map((a, idx) => idx === i ? e.target.value : a))}
+              />
+            )}
+          </div>
+        ))}
+      </div>
+
+      {!submitted && (
+        <button
+          onClick={submitAnswers}
+          disabled={submitting}
+          style={{ marginTop: 16, background: "#d4af37", color: "#111", border: "none", borderRadius: 10, padding: "10px 18px", fontWeight: 700, cursor: "pointer", opacity: submitting ? 0.6 : 1 }}
+        >
+          {submitting ? "Submitting..." : "📨 Submit Answers"}
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ─── Appeal Modal ──────────────────────────────────────────────────────────
   const [requester, setRequester] = useState("");
   const [track, setTrack] = useState("");
   const [description, setDescription] = useState("");
@@ -622,33 +698,15 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
         {interviews.length > 0 && (
           <div style={sectionCardStyle}>
             <h2 style={{ marginTop: 0, marginBottom: 4 }}>🎙️ Driver Interviews</h2>
-            <div style={{ fontSize: 13, opacity: 0.65, marginBottom: 16 }}>AI-generated pre and post-race interviews.</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              {interviews.map(interview => {
-                const isPre = interview.type === "pre";
-                const qa = Array.isArray(interview.questions_and_answers) ? interview.questions_and_answers : [];
-                return (
-                  <div key={interview.id} style={{ background: "#0f1319", border: `1px solid ${isPre ? "#1e3a6e" : "#1a5c30"}`, borderRadius: 12, padding: 16 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-                      <span style={{ background: isPre ? "#3b82f6" : "#22c55e", color: "white", borderRadius: 8, padding: "3px 10px", fontSize: 11, fontWeight: 800 }}>
-                        {isPre ? "🎤 PRE-RACE" : "🏆 POST-RACE"}
-                      </span>
-                      <span style={{ fontSize: 14, fontWeight: 700 }}>{interview.race_name}</span>
-                      <span style={{ fontSize: 11, opacity: 0.45, marginLeft: "auto" }}>
-                        {new Date(interview.generated_at).toLocaleDateString()}
-                      </span>
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                      {qa.map((item, i) => (
-                        <div key={i} style={{ borderLeft: `3px solid ${isPre ? "#3b82f6" : "#22c55e"}`, paddingLeft: 14 }}>
-                          <div style={{ fontSize: 12, fontWeight: 700, opacity: 0.7, marginBottom: 4 }}>Q: {item.question}</div>
-                          <div style={{ fontSize: 14, lineHeight: 1.6, fontStyle: "italic" }}>"{item.answer}"</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
+            <div style={{ fontSize: 13, opacity: 0.65, marginBottom: 16 }}>Answer the questions below and submit. Your responses go to the league admin.</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+              {interviews.map(interview => (
+                <InterviewAnswerCard
+                  key={interview.id}
+                  interview={interview}
+                  onAnswered={(updated) => setInterviews(prev => prev.map(i => i.id === updated.id ? updated : i))}
+                />
+              ))}
             </div>
           </div>
         )}
