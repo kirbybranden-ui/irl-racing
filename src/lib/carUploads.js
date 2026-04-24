@@ -44,6 +44,8 @@ export async function uploadCarFile(driverId, driverName, raceId, file) {
       .from("car-uploads")
       .getPublicUrl(filePath);
  
+    const publicUrl = urlData.publicUrl;
+ 
     const { data: dbData, error: dbError } = await supabase
       .from("car_uploads")
       .insert({
@@ -52,7 +54,8 @@ export async function uploadCarFile(driverId, driverName, raceId, file) {
         race_id: raceId,
         file_name: file.name,
         file_path: filePath,
-        file_url: urlData.publicUrl,
+        file_url: publicUrl,
+        image_url: publicUrl,   // satisfies NOT NULL constraint
         file_type: file.type,
         file_size: file.size,
         uploaded_at: new Date().toISOString(),
@@ -60,7 +63,7 @@ export async function uploadCarFile(driverId, driverName, raceId, file) {
  
     if (dbError) throw dbError;
  
-    return { success: true, url: urlData.publicUrl, file: data };
+    return { success: true, url: publicUrl, file: data };
   } catch (error) {
     console.error("Upload error:", error);
     return { success: false, error: error.message };
