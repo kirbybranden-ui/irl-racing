@@ -12,11 +12,7 @@ const dangerButtonStyle = { background: "#b42318", color: "white", border: "none
 const blueButtonStyle = { background: "#2563eb", color: "white", border: "none", borderRadius: 10, padding: "10px 18px", fontWeight: 700, cursor: "pointer" };
 const greenButtonStyle = { background: "#16a34a", color: "white", border: "none", borderRadius: 10, padding: "10px 18px", fontWeight: 700, cursor: "pointer" };
 
-const emptyQA = () => [
-  { question: "", answer: "" },
-  { question: "", answer: "" },
-  { question: "", answer: "" },
-];
+const emptyQuestions = () => ["", "", ""];
 
 export default function InterviewsPage({ drivers = [], tracks = [], seasons = [], activeSeasonId = "" }) {
   const [interviews, setInterviews] = useState([]);
@@ -24,16 +20,17 @@ export default function InterviewsPage({ drivers = [], tracks = [], seasons = []
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState("");
 
-  // Filter state
+  // Filters
   const [filterDriver, setFilterDriver] = useState("");
   const [filterRace, setFilterRace] = useState("");
   const [filterType, setFilterType] = useState("");
+  const [filterAnswered, setFilterAnswered] = useState("");
 
-  // Form state
+  // Form state — only questions, no answers
   const [selectedDriverId, setSelectedDriverId] = useState("");
   const [selectedRace, setSelectedRace] = useState("");
   const [interviewType, setInterviewType] = useState("pre");
-  const [qa, setQa] = useState(emptyQA());
+  const [questions, setQuestions] = useState(emptyQuestions());
 
   // Auto-detect next upcoming race
   const nextRace = useMemo(() => {
@@ -49,10 +46,14 @@ export default function InterviewsPage({ drivers = [], tracks = [], seasons = []
     if (nextRace && !selectedRace) setSelectedRace(nextRace.name);
   }, [nextRace]);
 
-  useEffect(() => { loadInterviews(); }, []);
+  useEffect(() => {
+    loadInterviews();
+    // Poll every 15s so driver answers appear without refreshing
+    const interval = setInterval(loadInterviews, 15000);
+    return () => clearInterval(interval);
+  }, []);
 
   async function loadInterviews() {
-    setLoading(true);
     const { data, error } = await supabase
       .from("interviews").select("*").order("generated_at", { ascending: false });
     if (!error) setInterviews(data || []);
@@ -65,20 +66,15 @@ export default function InterviewsPage({ drivers = [], tracks = [], seasons = []
     setInterviews(prev => prev.filter(i => i.id !== id));
   }
 
-  function updateQA(index, field, value) {
-    setQa(prev => prev.map((item, i) => i === index ? { ...item, [field]: value } : item));
-  }
-
-  async function saveInterview() {
+  async function publishQuestions() {
     if (!selectedDriverId) { setSaveStatus("⚠️ Please select a driver."); return; }
     if (!selectedRace) { setSaveStatus("⚠️ Please select a race."); return; }
-    const filled = qa.filter(q => q.question.trim() && q.answer.trim());
-    if (filled.length === 0) { setSaveStatus("⚠️ Please fill in at least one question and answer."); return; }
+    const filled = questions.filter(q => q.trim());
+    if (filled.length === 0) { setSaveStatus("⚠️ Please enter at least one question."); return; }
 
     const driver = drivers.find(d => String(d.id) === String(selectedDriverId));
     if (!driver) { setSaveStatus("⚠️ Driver not found."); return; }
 
-    // Check for existing
     const exists = interviews.some(
       i => String(i.driver_id) === String(driver.id) && i.race_name === selectedRace && i.type === interviewType
     );
@@ -90,22 +86,26 @@ export default function InterviewsPage({ drivers = [], tracks = [], seasons = []
     setSaving(true);
     setSaveStatus("");
 
+    // Save with questions only — answers are empty, driver fills them in
+    const qa = filled.map(q => ({ question: q, answer: "" }));
+
     const { data: saved, error } = await supabase.from("interviews").insert({
       driver_id: driver.id,
       driver_name: driver.name,
       driver_number: driver.number,
       race_name: selectedRace,
       type: interviewType,
-      questions_and_answers: filled,
+      questions_and_answers: qa,
+      answered: false,
       generated_at: new Date().toISOString(),
     }).select().single();
 
     if (error) {
-      setSaveStatus(`❌ Failed to save: ${error.message}`);
+      setSaveStatus(`❌ Failed: ${error.message}`);
     } else {
       setInterviews(prev => [saved, ...prev]);
-      setQa(emptyQA());
-      setSaveStatus(`✅ ${interviewType === "pre" ? "Pre" : "Post"}-race interview for ${driver.name} published to their profile!`);
+      setQuestions(emptyQuestions());
+      setSaveStatus(`✅ Questions published to ${driver.name}'s profile! Waiting for their answers.`);
     }
     setSaving(false);
   }
@@ -117,6 +117,8 @@ export default function InterviewsPage({ drivers = [], tracks = [], seasons = []
     if (filterDriver && i.driver_name !== filterDriver) return false;
     if (filterRace && i.race_name !== filterRace) return false;
     if (filterType && i.type !== filterType) return false;
+    if (filterAnswered === "answered" && !i.answered) return false;
+    if (filterAnswered === "pending" && i.answered) return false;
     return true;
   });
 
@@ -127,6 +129,9 @@ export default function InterviewsPage({ drivers = [], tracks = [], seasons = []
     return acc;
   }, {});
 
+  const pendingCount = interviews.filter(i => !i.answered && (i.questions_and_answers || []).some(q => q.question)).length;
+  const answeredCount = interviews.filter(i => i.answered).length;
+
   return (
     <div style={appShellStyle}>
       <div style={pageContainerStyle}>
@@ -135,19 +140,20 @@ export default function InterviewsPage({ drivers = [], tracks = [], seasons = []
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
           <div>
             <h1 style={{ margin: 0, fontSize: 28, fontWeight: 900 }}>🎙️ Driver Interviews</h1>
-            <div style={{ opacity: 0.6, fontSize: 14, marginTop: 4 }}>{interviews.length} total interviews</div>
+            <div style={{ opacity: 0.6, fontSize: 14, marginTop: 4 }}>
+              {answeredCount} answered · {pendingCount} awaiting response
+            </div>
           </div>
           <button onClick={() => window.location.pathname = "/"} style={secondaryButtonStyle}>← Admin</button>
         </div>
 
-        {/* Create Interview Form */}
+        {/* Post Questions Form */}
         <div style={{ ...sectionCardStyle, border: "1px solid #d4af37" }}>
-          <h2 style={{ marginTop: 0, marginBottom: 4 }}>Create Interview</h2>
+          <h2 style={{ marginTop: 0, marginBottom: 4 }}>Post Interview Questions</h2>
           <div style={{ fontSize: 13, opacity: 0.65, marginBottom: 20 }}>
-            Fill in 3 questions and answers. Publishes instantly to the driver's profile page.
+            Type up to 3 questions. They appear on the driver's profile page where the driver types their answers and submits back here.
           </div>
 
-          {/* Driver / Race / Type row */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 20 }}>
             <div>
               <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Driver</div>
@@ -176,73 +182,40 @@ export default function InterviewsPage({ drivers = [], tracks = [], seasons = []
               </select>
             </div>
             <div>
-              <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Interview Type</div>
+              <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Type</div>
               <div style={{ display: "flex", gap: 8 }}>
-                <button
-                  onClick={() => setInterviewType("pre")}
-                  style={{ ...interviewType === "pre" ? blueButtonStyle : secondaryButtonStyle, flex: 1, fontSize: 13 }}
-                >
-                  🎤 Pre-Race
-                </button>
-                <button
-                  onClick={() => setInterviewType("post")}
-                  style={{ ...interviewType === "post" ? greenButtonStyle : secondaryButtonStyle, flex: 1, fontSize: 13 }}
-                >
-                  🏆 Post-Race
-                </button>
+                <button onClick={() => setInterviewType("pre")} style={{ ...(interviewType === "pre" ? blueButtonStyle : secondaryButtonStyle), flex: 1, fontSize: 13 }}>🎤 Pre</button>
+                <button onClick={() => setInterviewType("post")} style={{ ...(interviewType === "post" ? greenButtonStyle : secondaryButtonStyle), flex: 1, fontSize: 13 }}>🏆 Post</button>
               </div>
             </div>
           </div>
 
-          {/* 3 Q&A rows */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 16, marginBottom: 20 }}>
-            {qa.map((item, i) => (
-              <div key={i} style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 16 }}>
-                <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 12, color: interviewType === "pre" ? "#3b82f6" : "#22c55e" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 20 }}>
+            {questions.map((q, i) => (
+              <div key={i}>
+                <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6, color: interviewType === "pre" ? "#3b82f6" : "#22c55e" }}>
                   Question {i + 1}
                 </div>
-                <div style={{ marginBottom: 10 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6, opacity: 0.7 }}>Q</div>
-                  <textarea
-                    rows={2}
-                    style={inputStyle}
-                    placeholder={`Type question ${i + 1}...`}
-                    value={item.question}
-                    onChange={e => updateQA(i, "question", e.target.value)}
-                  />
-                </div>
-                <div>
-                  <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6, opacity: 0.7 }}>A</div>
-                  <textarea
-                    rows={3}
-                    style={inputStyle}
-                    placeholder="Type the driver's answer..."
-                    value={item.answer}
-                    onChange={e => updateQA(i, "answer", e.target.value)}
-                  />
-                </div>
+                <textarea
+                  rows={2}
+                  style={inputStyle}
+                  placeholder={`Type question ${i + 1}...`}
+                  value={q}
+                  onChange={e => setQuestions(prev => prev.map((item, idx) => idx === i ? e.target.value : item))}
+                />
               </div>
             ))}
           </div>
 
           <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-            <button
-              style={{ ...primaryButtonStyle, opacity: saving ? 0.6 : 1 }}
-              disabled={saving}
-              onClick={saveInterview}
-            >
-              {saving ? "Saving..." : "📤 Publish Interview"}
+            <button style={{ ...primaryButtonStyle, opacity: saving ? 0.6 : 1 }} disabled={saving} onClick={publishQuestions}>
+              {saving ? "Posting..." : "📤 Post Questions to Driver"}
             </button>
-            <button
-              style={secondaryButtonStyle}
-              onClick={() => { setQa(emptyQA()); setSaveStatus(""); }}
-            >
-              Clear
-            </button>
+            <button style={secondaryButtonStyle} onClick={() => { setQuestions(emptyQuestions()); setSaveStatus(""); }}>Clear</button>
           </div>
 
           {saveStatus && (
-            <div style={{ marginTop: 14, fontSize: 13, padding: "10px 14px", background: "#0a0d12", borderRadius: 10, border: "1px solid #2c3440", lineHeight: 1.5 }}>
+            <div style={{ marginTop: 14, fontSize: 13, padding: "10px 14px", background: "#0a0d12", borderRadius: 10, border: "1px solid #2c3440" }}>
               {saveStatus}
             </div>
           )}
@@ -250,7 +223,7 @@ export default function InterviewsPage({ drivers = [], tracks = [], seasons = []
 
         {/* Filters */}
         <div style={sectionCardStyle}>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
             <div>
               <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Driver</div>
               <select style={selectStyle} value={filterDriver} onChange={e => setFilterDriver(e.target.value)}>
@@ -269,13 +242,21 @@ export default function InterviewsPage({ drivers = [], tracks = [], seasons = []
               <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Type</div>
               <select style={selectStyle} value={filterType} onChange={e => setFilterType(e.target.value)}>
                 <option value="">Pre & Post</option>
-                <option value="pre">Pre-Race Only</option>
-                <option value="post">Post-Race Only</option>
+                <option value="pre">Pre-Race</option>
+                <option value="post">Post-Race</option>
+              </select>
+            </div>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Status</div>
+              <select style={selectStyle} value={filterAnswered} onChange={e => setFilterAnswered(e.target.value)}>
+                <option value="">All</option>
+                <option value="answered">Answered</option>
+                <option value="pending">Pending</option>
               </select>
             </div>
             <div style={{ display: "flex", alignItems: "flex-end" }}>
-              <button onClick={() => { setFilterDriver(""); setFilterRace(""); setFilterType(""); }} style={{ ...secondaryButtonStyle, width: "100%" }}>
-                Clear Filters
+              <button onClick={() => { setFilterDriver(""); setFilterRace(""); setFilterType(""); setFilterAnswered(""); }} style={{ ...secondaryButtonStyle, width: "100%" }}>
+                Clear
               </button>
             </div>
           </div>
@@ -283,10 +264,10 @@ export default function InterviewsPage({ drivers = [], tracks = [], seasons = []
 
         {/* Interview List */}
         {loading ? (
-          <div style={sectionCardStyle}>Loading interviews...</div>
+          <div style={sectionCardStyle}>Loading...</div>
         ) : filtered.length === 0 ? (
           <div style={{ ...sectionCardStyle, opacity: 0.7, textAlign: "center", padding: 40 }}>
-            No interviews yet. Create one above.
+            No interviews yet. Post some questions above.
           </div>
         ) : (
           Object.entries(grouped).map(([raceName, raceInterviews]) => (
@@ -294,29 +275,37 @@ export default function InterviewsPage({ drivers = [], tracks = [], seasons = []
               <div style={{ fontSize: 20, fontWeight: 900, marginBottom: 16, borderBottom: "1px solid #2c3440", paddingBottom: 12 }}>
                 🏁 {raceName}
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 {raceInterviews.map(interview => {
                   const isPre = interview.type === "pre";
                   const qa = Array.isArray(interview.questions_and_answers) ? interview.questions_and_answers : [];
+                  const isAnswered = interview.answered;
                   return (
-                    <div key={interview.id} style={{ background: "#0f1319", border: `1px solid ${isPre ? "#1e3a6e" : "#1a5c30"}`, borderRadius: 12, padding: 16 }}>
+                    <div key={interview.id} style={{ background: "#0f1319", border: `1px solid ${isAnswered ? (isPre ? "#1e3a6e" : "#1a5c30") : "#3a3a1a"}`, borderRadius: 12, padding: 16 }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14, flexWrap: "wrap", gap: 8 }}>
                         <div>
-                          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4, flexWrap: "wrap" }}>
                             <span style={{ background: isPre ? "#3b82f6" : "#22c55e", color: "white", borderRadius: 8, padding: "3px 10px", fontSize: 11, fontWeight: 800 }}>
                               {isPre ? "🎤 PRE-RACE" : "🏆 POST-RACE"}
                             </span>
                             <span style={{ fontSize: 16, fontWeight: 800 }}>#{interview.driver_number} {interview.driver_name}</span>
+                            <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 6, background: isAnswered ? "#14532d" : "#3a2a00", color: isAnswered ? "#4ade80" : "#f59e0b" }}>
+                              {isAnswered ? "✅ Answered" : "⏳ Awaiting Answer"}
+                            </span>
                           </div>
                           <div style={{ fontSize: 11, opacity: 0.5 }}>{new Date(interview.generated_at).toLocaleString()}</div>
                         </div>
                         <button onClick={() => deleteInterview(interview.id)} style={dangerButtonStyle}>Delete</button>
                       </div>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                         {qa.map((item, i) => (
                           <div key={i} style={{ borderLeft: `3px solid ${isPre ? "#3b82f6" : "#22c55e"}`, paddingLeft: 14 }}>
-                            <div style={{ fontSize: 13, fontWeight: 700, opacity: 0.8, marginBottom: 4 }}>Q: {item.question}</div>
-                            <div style={{ fontSize: 14, lineHeight: 1.6, fontStyle: "italic" }}>"{item.answer}"</div>
+                            <div style={{ fontSize: 13, fontWeight: 700, opacity: 0.8, marginBottom: 6 }}>Q: {item.question}</div>
+                            {item.answer ? (
+                              <div style={{ fontSize: 14, lineHeight: 1.6, fontStyle: "italic", color: "#e2e8f0" }}>"{item.answer}"</div>
+                            ) : (
+                              <div style={{ fontSize: 12, opacity: 0.4, fontStyle: "italic" }}>No answer yet...</div>
+                            )}
                           </div>
                         ))}
                       </div>
