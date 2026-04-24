@@ -56,14 +56,17 @@ function AppealModal({ isOpen, onClose, selectedSeason }) {
 
     setSubmitting(true);
     try {
-      const { error } = await supabase.from("appeals").insert({
+      const payload = {
         requester: requester.trim(),
         track: track.trim(),
         description: description.trim(),
         evidence_url: videoUrl || null,
         status: "Open",
         created_at: new Date().toISOString(),
-      });
+      };
+      console.log("Submitting appeal payload:", payload);
+      const { data, error } = await supabase.from("appeals").insert(payload).select();
+      console.log("Supabase response — data:", data, "error:", error);
 
       if (error) throw error;
 
@@ -75,7 +78,7 @@ function AppealModal({ isOpen, onClose, selectedSeason }) {
       onClose();
     } catch (err) {
       console.error("Appeal submission error:", err);
-      alert("Failed to submit appeal. Please try again.");
+      alert(`Failed to submit appeal: ${err?.message || err?.code || "Unknown error"}`);
     } finally {
       setSubmitting(false);
     }
@@ -202,6 +205,7 @@ function AppealModal({ isOpen, onClose, selectedSeason }) {
 export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }) {
   const pathParts = window.location.pathname.split("/");
   const driverNumber = pathParts[2];
+  const subPage = pathParts[3]; // "appeals" if on /driver/42/appeals
 
   const allSeasons = Array.isArray(seasons) ? seasons : [];
   const selectedSeason = activeSeason && activeSeason.id
@@ -238,6 +242,93 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
     const interval = setInterval(fetchMyAppeals, 5000);
     return () => clearInterval(interval);
   }, [driverNumber, driver?.name]);
+
+  // ── Appeals sub-page ──────────────────────────────────────────────────────
+  if (subPage === "appeals") {
+    return (
+      <div style={appShellStyle}>
+        <div style={pageContainerStyle}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20, flexWrap: "wrap" }}>
+            <button
+              onClick={() => window.location.pathname = `/driver/${driverNumber}`}
+              style={secondaryButtonStyle}
+            >
+              ← Back to Profile
+            </button>
+            <div>
+              <div style={{ fontSize: 22, fontWeight: 900 }}>
+                {driver ? `#${driver.number} ${driver.name}` : `Driver #${driverNumber}`} — Appeals
+              </div>
+              <div style={{ fontSize: 13, opacity: 0.6, marginTop: 2 }}>{myAppeals.length} appeal{myAppeals.length !== 1 ? "s" : ""} total</div>
+            </div>
+          </div>
+
+          <div style={{ marginBottom: 20 }}>
+            <button onClick={() => setIsAppealModalOpen(true)} style={primaryButtonStyle}>📋 File New Appeal</button>
+          </div>
+
+          {myAppeals.length === 0 ? (
+            <div style={{ ...sectionCardStyle, opacity: 0.7 }}>No appeals submitted yet.</div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              {myAppeals.map(appeal => {
+                const statusConfig = {
+                  Open:     { color: "#3b82f6", bg: "#0f1d35", border: "#1e3a6e", icon: "🕐" },
+                  Approved: { color: "#22c55e", bg: "#0e2918", border: "#1a5c30", icon: "✅" },
+                  Denied:   { color: "#ef4444", bg: "#2a0e0e", border: "#6b1a1a", icon: "❌" },
+                }[appeal.status] || { color: "#888", bg: "#111", border: "#333", icon: "?" };
+
+                return (
+                  <div key={appeal.id} style={{ background: statusConfig.bg, border: `1px solid ${statusConfig.border}`, borderRadius: 14, padding: 18 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontSize: 20 }}>{statusConfig.icon}</span>
+                        <span style={{ fontWeight: 800, fontSize: 16 }}>{appeal.track}</span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <span style={{ background: statusConfig.color, color: "white", borderRadius: 8, padding: "3px 12px", fontSize: 12, fontWeight: 800 }}>
+                          {appeal.status}
+                        </span>
+                        <span style={{ fontSize: 12, opacity: 0.5 }}>
+                          {new Date(appeal.created_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div style={{ fontSize: 14, opacity: 0.8, lineHeight: 1.6, marginBottom: appeal.admin_notes ? 12 : 0 }}>
+                      {appeal.description}
+                    </div>
+
+                    {appeal.evidence_url && (
+                      <div style={{ marginTop: 10 }}>
+                        <video controls width="100%" style={{ maxWidth: 480, borderRadius: 8 }} src={appeal.evidence_url} />
+                      </div>
+                    )}
+
+                    {appeal.admin_notes && (
+                      <div style={{ marginTop: 12, background: "rgba(0,0,0,0.3)", borderRadius: 8, padding: "12px 16px", borderLeft: `3px solid ${statusConfig.color}` }}>
+                        <div style={{ fontSize: 11, fontWeight: 800, opacity: 0.7, marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                          League Determination
+                        </div>
+                        <div style={{ fontSize: 14, lineHeight: 1.6 }}>{appeal.admin_notes}</div>
+                      </div>
+                    )}
+
+                    {appeal.status === "Open" && (
+                      <div style={{ marginTop: 10, fontSize: 12, opacity: 0.5, fontStyle: "italic" }}>
+                        Awaiting league review...
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+        <AppealModal isOpen={isAppealModalOpen} onClose={() => setIsAppealModalOpen(false)} selectedSeason={selectedSeason} />
+      </div>
+    );
+  }
 
   if (!selectedSeason) {
     return (
@@ -488,68 +579,19 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
           );
         })()}
 
-        <div style={{ marginBottom: 20 }}>
+        <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
           <button onClick={() => setIsAppealModalOpen(true)} style={primaryButtonStyle}>📋 File an Appeal</button>
-        </div>
-
-        {/* ── My Appeals ───────────────────────────────────────────────── */}
-        <div style={sectionCardStyle}>
-          <h2 style={{ marginTop: 0, marginBottom: 16 }}>My Appeals</h2>
-          {myAppeals.length === 0 ? (
-            <div style={{ opacity: 0.6, fontSize: 14 }}>No appeals submitted yet.</div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              {myAppeals.map(appeal => {
-                const statusConfig = {
-                  Open:     { color: "#3b82f6", bg: "#0f1d35", border: "#1e3a6e", icon: "🕐" },
-                  Approved: { color: "#22c55e", bg: "#0e2918", border: "#1a5c30", icon: "✅" },
-                  Denied:   { color: "#ef4444", bg: "#2a0e0e", border: "#6b1a1a", icon: "❌" },
-                }[appeal.status] || { color: "#888", bg: "#111", border: "#333", icon: "?" };
-
-                return (
-                  <div key={appeal.id} style={{ background: statusConfig.bg, border: `1px solid ${statusConfig.border}`, borderRadius: 12, padding: 16 }}>
-                    {/* Header */}
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <span style={{ fontSize: 18 }}>{statusConfig.icon}</span>
-                        <span style={{ fontWeight: 800, fontSize: 15 }}>{appeal.track}</span>
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <span style={{ background: statusConfig.color, color: "white", borderRadius: 8, padding: "3px 10px", fontSize: 12, fontWeight: 800 }}>
-                          {appeal.status}
-                        </span>
-                        <span style={{ fontSize: 12, opacity: 0.5 }}>
-                          {new Date(appeal.created_at).toLocaleDateString()}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Description */}
-                    <div style={{ fontSize: 13, opacity: 0.8, marginBottom: appeal.admin_notes ? 10 : 0, lineHeight: 1.5 }}>
-                      {appeal.description}
-                    </div>
-
-                    {/* Admin determination — only shows when resolved */}
-                    {appeal.admin_notes && (
-                      <div style={{ marginTop: 10, background: "rgba(0,0,0,0.3)", borderRadius: 8, padding: "10px 14px", borderLeft: `3px solid ${statusConfig.color}` }}>
-                        <div style={{ fontSize: 11, fontWeight: 800, opacity: 0.7, marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5 }}>
-                          League Determination
-                        </div>
-                        <div style={{ fontSize: 14, lineHeight: 1.6 }}>{appeal.admin_notes}</div>
-                      </div>
-                    )}
-
-                    {/* Pending message */}
-                    {appeal.status === "Open" && (
-                      <div style={{ marginTop: 10, fontSize: 12, opacity: 0.55, fontStyle: "italic" }}>
-                        Awaiting league review...
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
+          <button
+            onClick={() => window.location.pathname = `/driver/${driverNumber}/appeals`}
+            style={{ ...secondaryButtonStyle, position: "relative" }}
+          >
+            📁 My Appeals
+            {myAppeals.length > 0 && (
+              <span style={{ marginLeft: 8, background: myAppeals.some(a => a.status !== "Open") ? "#22c55e" : "#3b82f6", color: "white", borderRadius: 99, padding: "2px 8px", fontSize: 11, fontWeight: 800 }}>
+                {myAppeals.length}
+              </span>
+            )}
+          </button>
         </div>
 
         {driver.notes && (
