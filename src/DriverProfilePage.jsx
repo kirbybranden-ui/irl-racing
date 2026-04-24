@@ -21,7 +21,7 @@ const teamFullNames = {
   KRM: "Kevin Racing Motorsports",
   MMS: "Mayhem Motorsports",
   NLM: "Nine Line Motorsports",
-  None: "Independent",
+  Independent: "Independent",
 };
 function getTeamFullName(teamAbbr) {
   return teamFullNames[teamAbbr] || teamAbbr;
@@ -306,7 +306,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
         .order("generated_at", { ascending: false });
       setInterviews(existing || []);
 
-      const hasTeam = driver.team && driver.team !== "None";
+      const hasTeam = driver.team && driver.team !== "Independent";
       const teamName = getTeamFullName(driver.team);
       const teammates = hasTeam
         ? (selectedSeason?.drivers || []).filter(d => d.team === driver.team && d.id !== driver.id)
