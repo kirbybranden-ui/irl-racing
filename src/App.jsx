@@ -392,7 +392,7 @@ function PublicStandings({ drivers, teams, seasonName = "", tracks = [], raceHis
               ) : (
                 <video
                   controls
-                  autoPlay={false}
+                  crossOrigin="anonymous"
                   style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain" }}
                   src={featuredVideo.video_url}
                 />
@@ -1075,7 +1075,7 @@ export default function App() {
   // Loading gate — all routes below this need Supabase data
   if (!isHydrated) return <div style={appShellStyle}><div style={pageContainerStyle}><div style={sectionCardStyle}>Loading league data...</div></div></div>;
   if (path === "/admin/car-gallery") return <CarGalleryPage drivers={drivers} tracks={tracks} />;
-  if (path === "/admin/interviews") return <InterviewsPage />;
+  if (path === "/admin/interviews") return <InterviewsPage drivers={drivers} tracks={tracks} seasons={seasons} activeSeasonId={activeSeasonId} />;
   if (path.startsWith("/driver/")) return <DriverProfilePage seasons={seasons} activeSeason={activeSeason} tracks={tracks} />;
   if (path === "/standings") return <PublicStandings drivers={drivers} teams={teamStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} />;
   if (path === "/overlay/ticker" || viewMode === "overlay-ticker") return <TickerOverlay drivers={drivers} teams={teamStandings} raceHistory={raceHistory} preview={viewMode === "overlay-ticker"} seasonName={activeSeason?.name || ""} />;
@@ -1172,7 +1172,7 @@ export default function App() {
                   Remove
                 </button>
               </div>
-              <video controls style={{ width: "100%", maxHeight: 240, borderRadius: 8, background: "#000" }} src={featuredVideo.video_url} />
+              <video controls crossOrigin="anonymous" style={{ width: "100%", maxHeight: 240, borderRadius: 8, background: "#000" }} src={featuredVideo.video_url} />
             </div>
           )}
 
@@ -1204,7 +1204,11 @@ export default function App() {
                 // Upload to Supabase Storage
                 const { error: storageError } = await supabase.storage
                   .from("car-uploads")
-                  .upload(filePath, file, { cacheControl: "3600", upsert: false });
+                  .upload(filePath, file, {
+                    cacheControl: "3600",
+                    upsert: false,
+                    contentType: file.type || "video/mp4",
+                  });
                 if (storageError) throw storageError;
 
                 const { data: urlData } = supabase.storage
