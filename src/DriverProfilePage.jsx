@@ -105,7 +105,7 @@ function AppealModal({ isOpen, onClose, selectedSeason }) {
     widgetRef.current = window.cloudinary.createUploadWidget(
       {
         cloudName: "dpu05oykz",
-        uploadPreset: "irl_appeals",
+        uploadPreset: "dpu05oykz", // ⚠️ UPDATE THIS: go to Cloudinary dashboard → Settings → Upload → Upload Presets
         resourceType: "video",
         folder: "appeal-evidence",
         maxFileSize: 200000000, // 200MB limit
@@ -208,6 +208,39 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
     ? allSeasons.find(s => s && s.id === activeSeason.id) || activeSeason
     : allSeasons[0] || null;
   const [isAppealModalOpen, setIsAppealModalOpen] = useState(false);
+  const [appealNotifications, setAppealNotifications] = useState([]);
+  const [dismissedIds, setDismissedIds] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(`irl-dismissed-appeals-${driverNumber}`) || "[]"); }
+    catch { return []; }
+  });
+
+  // Poll for resolved appeals belonging to this driver
+  useEffect(() => {
+    async function fetchAppealNotifications() {
+      const { data } = await supabase
+        .from("appeals")
+        .select("*")
+        .in("status", ["Approved", "Denied"])
+        .order("created_at", { ascending: false });
+      if (data) {
+        const mine = data.filter(a =>
+          a.requester && a.requester.startsWith(`${driverNumber} - `)
+        );
+        setAppealNotifications(mine);
+      }
+    }
+    fetchAppealNotifications();
+    const interval = setInterval(fetchAppealNotifications, 5000);
+    return () => clearInterval(interval);
+  }, [driverNumber]);
+
+  const dismissNotification = (appealId) => {
+    const updated = [...dismissedIds, appealId];
+    setDismissedIds(updated);
+    localStorage.setItem(`irl-dismissed-appeals-${driverNumber}`, JSON.stringify(updated));
+  };
+
+  const pendingNotifications = appealNotifications.filter(a => !dismissedIds.includes(a.id));
 
   const driver = selectedSeason && selectedSeason.drivers
     ? selectedSeason.drivers.find((d) => d && String(d.number) === String(driverNumber))
@@ -384,6 +417,48 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
   return (
     <div style={appShellStyle}>
       <div style={pageContainerStyle}>
+
+        {/* ── Appeal Notifications ─────────────────────────────────────── */}
+        {pendingNotifications.map(appeal => {
+          const approved = appeal.status === "Approved";
+          return (
+            <div key={appeal.id} style={{
+              background: approved ? "linear-gradient(135deg, #14532d 0%, #0f2d1a 100%)" : "linear-gradient(135deg, #4c1212 0%, #2a0a0a 100%)",
+              border: `1px solid ${approved ? "#4ade80" : "#f87171"}`,
+              borderRadius: 14,
+              padding: 18,
+              marginBottom: 16,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "flex-start",
+              gap: 16,
+              boxShadow: `0 4px 20px ${approved ? "rgba(74,222,128,0.15)" : "rgba(248,113,113,0.15)"}`,
+            }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 18, fontWeight: 900, marginBottom: 6, display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 22 }}>{approved ? "✅" : "❌"}</span>
+                  Appeal {appeal.status}
+                </div>
+                <div style={{ fontSize: 13, opacity: 0.85, marginBottom: 4 }}>
+                  <strong>Track:</strong> {appeal.track}
+                </div>
+                {appeal.admin_notes && (
+                  <div style={{ fontSize: 13, background: "rgba(0,0,0,0.25)", borderRadius: 8, padding: "8px 12px", marginTop: 8, lineHeight: 1.5 }}>
+                    <strong>League determination:</strong> {appeal.admin_notes}
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={() => dismissNotification(appeal.id)}
+                style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "white", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 12, fontWeight: 700, whiteSpace: "nowrap" }}
+              >
+                Dismiss
+              </button>
+            </div>
+          );
+        })}
+
+        {/* ── Driver Header ─────────────────────────────────────────────── */}
         <div style={sectionCardStyle}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 24, flexWrap: "wrap" }}>
             <div>
