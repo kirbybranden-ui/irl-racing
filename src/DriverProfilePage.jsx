@@ -214,46 +214,30 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
     : null;
 
   const [isAppealModalOpen, setIsAppealModalOpen] = useState(false);
-  const [appealNotifications, setAppealNotifications] = useState([]);
-  const [dismissedIds, setDismissedIds] = useState(() => {
-    try { return JSON.parse(localStorage.getItem(`irl-dismissed-appeals-${driverNumber}`) || "[]").map(String); }
-    catch { return []; }
-  });
+  const [myAppeals, setMyAppeals] = useState([]);
 
-  // Poll for resolved appeals belonging to this driver
+  // Load all appeals for this driver - poll every 5s so admin decisions show up live
   useEffect(() => {
-    async function fetchAppealNotifications() {
+    async function fetchMyAppeals() {
       const { data, error } = await supabase
         .from("appeals")
         .select("*")
-        .in("status", ["Approved", "Denied"])
         .order("created_at", { ascending: false });
-      if (error) { console.error("Appeal fetch error:", error); return; }
+      if (error) { console.error("Appeals fetch error:", error); return; }
       if (data) {
         const mine = data.filter(a => {
           if (!a.requester) return false;
-          // Match by car number prefix: "42 - AMP-GHOSTRIDER"
           const byNumber = a.requester.startsWith(`${driverNumber} - `);
-          // Fallback: match by driver name in case format varies
-          const byName = driver?.name && a.requester.includes(driver.name);
+          const byName = driver?.name && a.requester.toLowerCase().includes(driver.name.toLowerCase());
           return byNumber || byName;
         });
-        setAppealNotifications(mine);
+        setMyAppeals(mine);
       }
     }
-    fetchAppealNotifications();
-    const interval = setInterval(fetchAppealNotifications, 5000);
+    fetchMyAppeals();
+    const interval = setInterval(fetchMyAppeals, 5000);
     return () => clearInterval(interval);
   }, [driverNumber, driver?.name]);
-
-  const dismissNotification = (appealId) => {
-    const updated = [...dismissedIds, String(appealId)];
-    setDismissedIds(updated);
-    localStorage.setItem(`irl-dismissed-appeals-${driverNumber}`, JSON.stringify(updated));
-  };
-
-  // Convert both sides to string so number/string mismatch never causes a miss
-  const pendingNotifications = appealNotifications.filter(a => !dismissedIds.includes(String(a.id)));
 
   if (!selectedSeason) {
     return (
@@ -427,46 +411,6 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
     <div style={appShellStyle}>
       <div style={pageContainerStyle}>
 
-        {/* ── Appeal Notifications ─────────────────────────────────────── */}
-        {pendingNotifications.map(appeal => {
-          const approved = appeal.status === "Approved";
-          return (
-            <div key={appeal.id} style={{
-              background: approved ? "linear-gradient(135deg, #14532d 0%, #0f2d1a 100%)" : "linear-gradient(135deg, #4c1212 0%, #2a0a0a 100%)",
-              border: `1px solid ${approved ? "#4ade80" : "#f87171"}`,
-              borderRadius: 14,
-              padding: 18,
-              marginBottom: 16,
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "flex-start",
-              gap: 16,
-              boxShadow: `0 4px 20px ${approved ? "rgba(74,222,128,0.15)" : "rgba(248,113,113,0.15)"}`,
-            }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 18, fontWeight: 900, marginBottom: 6, display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 22 }}>{approved ? "✅" : "❌"}</span>
-                  Appeal {appeal.status}
-                </div>
-                <div style={{ fontSize: 13, opacity: 0.85, marginBottom: 4 }}>
-                  <strong>Track:</strong> {appeal.track}
-                </div>
-                {appeal.admin_notes && (
-                  <div style={{ fontSize: 13, background: "rgba(0,0,0,0.25)", borderRadius: 8, padding: "8px 12px", marginTop: 8, lineHeight: 1.5 }}>
-                    <strong>League determination:</strong> {appeal.admin_notes}
-                  </div>
-                )}
-              </div>
-              <button
-                onClick={() => dismissNotification(appeal.id)}
-                style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "white", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 12, fontWeight: 700, whiteSpace: "nowrap" }}
-              >
-                Dismiss
-              </button>
-            </div>
-          );
-        })}
-
         {/* ── Driver Header ─────────────────────────────────────────────── */}
         <div style={sectionCardStyle}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 24, flexWrap: "wrap" }}>
@@ -545,7 +489,67 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
         })()}
 
         <div style={{ marginBottom: 20 }}>
-          <button onClick={() => setIsAppealModalOpen(true)} style={primaryButtonStyle}>File an Appeal</button>
+          <button onClick={() => setIsAppealModalOpen(true)} style={primaryButtonStyle}>📋 File an Appeal</button>
+        </div>
+
+        {/* ── My Appeals ───────────────────────────────────────────────── */}
+        <div style={sectionCardStyle}>
+          <h2 style={{ marginTop: 0, marginBottom: 16 }}>My Appeals</h2>
+          {myAppeals.length === 0 ? (
+            <div style={{ opacity: 0.6, fontSize: 14 }}>No appeals submitted yet.</div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              {myAppeals.map(appeal => {
+                const statusConfig = {
+                  Open:     { color: "#3b82f6", bg: "#0f1d35", border: "#1e3a6e", icon: "🕐" },
+                  Approved: { color: "#22c55e", bg: "#0e2918", border: "#1a5c30", icon: "✅" },
+                  Denied:   { color: "#ef4444", bg: "#2a0e0e", border: "#6b1a1a", icon: "❌" },
+                }[appeal.status] || { color: "#888", bg: "#111", border: "#333", icon: "?" };
+
+                return (
+                  <div key={appeal.id} style={{ background: statusConfig.bg, border: `1px solid ${statusConfig.border}`, borderRadius: 12, padding: 16 }}>
+                    {/* Header */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontSize: 18 }}>{statusConfig.icon}</span>
+                        <span style={{ fontWeight: 800, fontSize: 15 }}>{appeal.track}</span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <span style={{ background: statusConfig.color, color: "white", borderRadius: 8, padding: "3px 10px", fontSize: 12, fontWeight: 800 }}>
+                          {appeal.status}
+                        </span>
+                        <span style={{ fontSize: 12, opacity: 0.5 }}>
+                          {new Date(appeal.created_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Description */}
+                    <div style={{ fontSize: 13, opacity: 0.8, marginBottom: appeal.admin_notes ? 10 : 0, lineHeight: 1.5 }}>
+                      {appeal.description}
+                    </div>
+
+                    {/* Admin determination — only shows when resolved */}
+                    {appeal.admin_notes && (
+                      <div style={{ marginTop: 10, background: "rgba(0,0,0,0.3)", borderRadius: 8, padding: "10px 14px", borderLeft: `3px solid ${statusConfig.color}` }}>
+                        <div style={{ fontSize: 11, fontWeight: 800, opacity: 0.7, marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                          League Determination
+                        </div>
+                        <div style={{ fontSize: 14, lineHeight: 1.6 }}>{appeal.admin_notes}</div>
+                      </div>
+                    )}
+
+                    {/* Pending message */}
+                    {appeal.status === "Open" && (
+                      <div style={{ marginTop: 10, fontSize: 12, opacity: 0.55, fontStyle: "italic" }}>
+                        Awaiting league review...
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {driver.notes && (
