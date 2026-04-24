@@ -26,6 +26,9 @@ const teamLogos = {
   "NINE LINE MOTORSPORTS": teamLogoNLM,
   "Nine Line Motorsports": teamLogoNLM,
   NLM: teamLogoNLM,
+
+  "MAYHEM MOTORSPORTS": teamLogoMMS,
+MMS: teamLogoMMS,
 };
 const manufacturerLogos = {
   Chevrolet: manufacturerChevrolet,
