@@ -51,8 +51,7 @@ const defaultDrivers = [
   { id: 8,  number: 38, name: "It's_tricky88",            manufacturer: "Toyota",    team: "None" },
   { id: 9,  number: 97, name: "American_Hero216",         manufacturer: "Ford",      team: "MMS"  },
   { id: 10, number: 67, name: "tallishsinter94",          manufacturer: "Toyota",    team: "None" },
-  { id: 11, number: 6,  name: "Highlander713",            manufacturer: "Ford",      team: "NLM"  },
-  { id: 12, number: 23, name: "Orly_Revo23",              manufacturer: "Ford",      team: "MMS"  },
+  { id: 11, number: 6,  name: "Highlander713",            manufacturer: "Ford",      team: "NLM"  },  { id: 12, number: 23, name: "Orly_Revo23",              manufacturer: "Ford",      team: "MMS"  },
   { id: 13, number: 87, name: "Racingis_life87",          manufacturer: "Chevrolet", team: "KRM"  },
   { id: 14, number: 0,  name: "Inactive-josiah-wells",    manufacturer: "Other",     team: "None" },
   { id: 15, number: 1,  name: "Inactive-shane-mcconnell", manufacturer: "Other",     team: "None" },
@@ -531,7 +530,24 @@ function TickerOverlay({ drivers, teams, raceHistory, preview = false, seasonNam
     </div>
   );
 }
-export default function App() {
+// ─── Patch any drivers from defaultDrivers that are missing from saved seasons ─
+// This runs once after Supabase load so new roster additions always appear
+// even when a season already exists in the database.
+function patchMissingDrivers(cleanSeasons, raceHistory = []) {
+  return cleanSeasons.map((season) => {
+    const existingIds  = new Set(season.drivers.map((d) => d.id));
+    const existingNums = new Set(season.drivers.map((d) => String(d.number)));
+    const missing = defaultDrivers.filter(
+      (d) => !existingIds.has(d.id) && !existingNums.has(String(d.number))
+    );
+    if (missing.length === 0) return season;
+    const newRoster = [
+      ...season.drivers.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer || "", team: d.team, startingPoints: Number(d.startingPoints) || 0, manualWins: Number(d.manualWins) || 0, retired: d.retired || false, notes: d.notes || "" })),
+      ...missing.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer || "", team: d.team, startingPoints: 0, manualWins: 0, retired: false, notes: "" })),
+    ];
+    return { ...season, drivers: rebuildDriversFromHistory(season.raceHistory || [], newRoster) };
+  });
+}
   const [seasons, setSeasons] = useState(() => loadInitialLeagueState().seasons);
   const [openAppealCount, setOpenAppealCount] = useState(0);
   const [activeSeasonId, setActiveSeasonId] = useState(() => loadInitialLeagueState().activeSeasonId);
@@ -581,7 +597,8 @@ export default function App() {
         const savedState = await loadLeagueState();
         if (!isMounted) return;
         if (savedState?.seasons && Array.isArray(savedState.seasons)) {
-          const cleanSeasons = savedState.seasons.map((s, i) => sanitizeSeason(s, `Season ${i + 1}`));
+          let cleanSeasons = savedState.seasons.map((s, i) => sanitizeSeason(s, `Season ${i + 1}`));
+          cleanSeasons = patchMissingDrivers(cleanSeasons);
           if (cleanSeasons.length > 0) {
             setSeasons(cleanSeasons);
             const activeExists = cleanSeasons.some((s) => s.id === savedState.activeSeasonId);
