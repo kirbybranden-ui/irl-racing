@@ -226,6 +226,9 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
   const [carUploading, setCarUploading] = useState(false);
   const [selectedRaceForUpload, setSelectedRaceForUpload] = useState("");
   const carFileInputRef = useRef(null);
+  const [interviews, setInterviews] = useState([]);
+  const [generatingInterview, setGeneratingInterview] = useState(false);
+  const interviewInitRef = useRef(false);
 
   // Load all appeals for this driver - poll every 5s so admin decisions show up live
   useEffect(() => {
@@ -289,7 +292,120 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
     }
   };
 
-  // ── Appeals sub-page ──────────────────────────────────────────────────────
+  // ── Interview generation ──────────────────────────────────────────────────
+  useEffect(() => {
+    if (!driver?.id || interviewInitRef.current) return;
+    interviewInitRef.current = true;
+
+    async function handleInterviews() {
+      // Load existing interviews for this driver
+      const { data: existing } = await supabase
+        .from("interviews")
+        .select("*")
+        .eq("driver_id", driver.id)
+        .order("generated_at", { ascending: false });
+      setInterviews(existing || []);
+
+      const hasTeam = driver.team && driver.team !== "None";
+      const teamName = getTeamFullName(driver.team);
+      const teammates = hasTeam
+        ? (selectedSeason?.drivers || []).filter(d => d.team === driver.team && d.id !== driver.id)
+        : [];
+      const sorted = [...(selectedSeason?.drivers || [])].sort((a, b) => b.points - a.points);
+      const ranking = sorted.findIndex(d => d.id === driver.id) + 1;
+
+      // ── PRE-RACE: generate if today is race day or day before and no interview yet
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
+      const upcomingRace = (tracks || [])
+        .filter(t => t.date)
+        .map(t => ({ ...t, dateObj: new Date(t.date + "T12:00:00") }))
+        .sort((a, b) => a.dateObj - b.dateObj)
+        .find(t => {
+          const d = new Date(t.dateObj); d.setHours(0, 0, 0, 0);
+          return d.getTime() === today.getTime() || d.getTime() === tomorrow.getTime();
+        });
+
+      if (upcomingRace) {
+        const hasPreRace = (existing || []).some(i => i.race_name === upcomingRace.name && i.type === "pre");
+        if (!hasPreRace) {
+          setGeneratingInterview(true);
+          const prompt = `You are a motorsports journalist interviewing ${driver.name}, driver of the #${driver.number} ${driver.manufacturer}${hasTeam ? ` for ${teamName}` : " as an independent driver"} in the Budweiser Cup League iRacing series.
+
+This is a PRE-RACE interview the day before the ${upcomingRace.name}.
+${hasTeam && teammates.length > 0 ? `\nTeammate(s): ${teammates.map(t => `#${t.number} ${t.name}`).join(", ")}.` : ""}
+Current season: P${ranking} in standings, ${driver.points} points, ${driver.wins} wins.
+
+Generate 4 varied pre-race interview questions and in-character answers. Mix expectations, strategy, car setup, and competitive goals. Answers in first person, authentic racing driver style, 2-3 sentences each. Make it specific to this race and unique.
+
+Respond ONLY with a valid JSON array, no markdown or backticks:
+[{"question":"...","answer":"..."},{"question":"...","answer":"..."},{"question":"...","answer":"..."},{"question":"...","answer":"..."}]`;
+
+          try {
+            const res = await fetch("https://api.anthropic.com/v1/messages", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1000, messages: [{ role: "user", content: prompt }] })
+            });
+            const aiData = await res.json();
+            const text = aiData.content?.[0]?.text || "[]";
+            const qa = JSON.parse(text.replace(/```json|```/g, "").trim());
+            const { data: saved } = await supabase.from("interviews").insert({
+              driver_id: driver.id, driver_name: driver.name, driver_number: driver.number,
+              race_name: upcomingRace.name, type: "pre", questions_and_answers: qa,
+              generated_at: new Date().toISOString()
+            }).select();
+            if (saved) setInterviews(prev => [...saved, ...prev]);
+          } catch (err) { console.error("Pre-race interview generation failed:", err); }
+          setGeneratingInterview(false);
+        }
+      }
+
+      // ── POST-RACE: generate for most recent race if no post interview yet
+      const raceHistory = selectedSeason?.raceHistory || [];
+      const latestRace = raceHistory[raceHistory.length - 1];
+      if (latestRace) {
+        const hasPostRace = (existing || []).some(i => i.race_name === latestRace.raceName && i.type === "post");
+        if (!hasPostRace) {
+          const result = latestRace.results?.find(r => r.driverId === driver.id);
+          if (result) {
+            setGeneratingInterview(true);
+            const prompt = `You are a motorsports journalist interviewing ${driver.name}, driver of the #${driver.number} ${driver.manufacturer}${hasTeam ? ` for ${teamName}` : " as an independent driver"} in the Budweiser Cup League iRacing series.
+
+This is a POST-RACE interview after the ${latestRace.raceName}.
+Race result: Finished P${result.finishPos || "unknown"}${result.dnf ? ` (DNF — reason: ${result.dnfReason || "mechanical"})` : ""}${result.isWin ? " — WON THE RACE! 🏆" : ""}. Earned ${result.totalRacePoints} points${result.fastestLap ? ", also set the fastest lap" : ""}.
+Season standings: P${ranking} with ${driver.points} total points, ${driver.wins} wins across ${raceHistory.length} races.
+${hasTeam && teammates.length > 0 ? `Teammate(s): ${teammates.map(t => `#${t.number} ${t.name} (${t.points} pts)`).join(", ")}.` : ""}
+
+Generate 4 varied post-race interview questions and in-character answers. Reference the actual result, car performance, team feedback if applicable, and season outlook. Every race must feel different. Answers in first person, authentic racing driver style, 2-3 sentences each.
+
+Respond ONLY with a valid JSON array, no markdown or backticks:
+[{"question":"...","answer":"..."},{"question":"...","answer":"..."},{"question":"...","answer":"..."},{"question":"...","answer":"..."}]`;
+
+            try {
+              const res = await fetch("https://api.anthropic.com/v1/messages", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1000, messages: [{ role: "user", content: prompt }] })
+              });
+              const aiData = await res.json();
+              const text = aiData.content?.[0]?.text || "[]";
+              const qa = JSON.parse(text.replace(/```json|```/g, "").trim());
+              const { data: saved } = await supabase.from("interviews").insert({
+                driver_id: driver.id, driver_name: driver.name, driver_number: driver.number,
+                race_name: latestRace.raceName, type: "post", questions_and_answers: qa,
+                generated_at: new Date().toISOString()
+              }).select();
+              if (saved) setInterviews(prev => [...saved, ...prev]);
+            } catch (err) { console.error("Post-race interview generation failed:", err); }
+            setGeneratingInterview(false);
+          }
+        }
+      }
+    }
+
+    handleInterviews();
+  }, [driver?.id]);
   if (subPage === "appeals") {
     return (
       <div style={appShellStyle}>
@@ -599,6 +715,46 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
             </div>
           ))}
         </div>
+
+        {/* ── Interviews ───────────────────────────────────────────────── */}
+        {(interviews.length > 0 || generatingInterview) && (
+          <div style={sectionCardStyle}>
+            <h2 style={{ marginTop: 0, marginBottom: 4 }}>🎙️ Driver Interviews</h2>
+            <div style={{ fontSize: 13, opacity: 0.65, marginBottom: 16 }}>AI-generated pre and post-race interviews.</div>
+            {generatingInterview && (
+              <div style={{ background: "#0f1319", borderRadius: 10, padding: 14, marginBottom: 14, fontSize: 13, opacity: 0.75, display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 18 }}>⏳</span> Generating interview...
+              </div>
+            )}
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              {interviews.map(interview => {
+                const isPre = interview.type === "pre";
+                const qa = Array.isArray(interview.questions_and_answers) ? interview.questions_and_answers : [];
+                return (
+                  <div key={interview.id} style={{ background: "#0f1319", border: `1px solid ${isPre ? "#1e3a6e" : "#1a5c30"}`, borderRadius: 12, padding: 16 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+                      <span style={{ background: isPre ? "#3b82f6" : "#22c55e", color: "white", borderRadius: 8, padding: "3px 10px", fontSize: 11, fontWeight: 800 }}>
+                        {isPre ? "🎤 PRE-RACE" : "🏆 POST-RACE"}
+                      </span>
+                      <span style={{ fontSize: 14, fontWeight: 700 }}>{interview.race_name}</span>
+                      <span style={{ fontSize: 11, opacity: 0.45, marginLeft: "auto" }}>
+                        {new Date(interview.generated_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                      {qa.map((item, i) => (
+                        <div key={i} style={{ borderLeft: `3px solid ${isPre ? "#3b82f6" : "#22c55e"}`, paddingLeft: 14 }}>
+                          <div style={{ fontSize: 12, fontWeight: 700, opacity: 0.7, marginBottom: 4 }}>Q: {item.question}</div>
+                          <div style={{ fontSize: 14, lineHeight: 1.6, fontStyle: "italic" }}>"{item.answer}"</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {(() => {
           const achievements = [
