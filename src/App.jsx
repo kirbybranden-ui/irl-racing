@@ -743,7 +743,27 @@ console.log("Current path:", path);  // ADD THIS LINE
     patchActiveSeason({ drivers: rebuildDriversFromHistory(raceHistory, newRoster) });
     setNewDriverName(""); setNewDriverNumber(""); setNewDriverManufacturer(""); setNewDriverTeam("");
   };
-  const openEditDriver = (driver) => { setEditingDriverId(driver.id); setEditDriverForm({ name: driver.name, number: driver.number, manufacturer: driver.manufacturer || "", team: driver.team }); };
+  const syncDefaultRoster = () => {
+    if (!activeSeason) return;
+    const existingIds = new Set(drivers.map((d) => d.id));
+    const existingNumbers = new Set(drivers.map((d) => String(d.number)));
+    const existingNames = new Set(drivers.map((d) => d.name.toLowerCase()));
+    const newDrivers = defaultDrivers.filter(
+      (d) => !existingIds.has(d.id) && !existingNumbers.has(String(d.number)) && !existingNames.has(d.name.toLowerCase())
+    );
+    // Also update team assignments for existing drivers whose team changed in defaultDrivers
+    const updatedRoster = drivers.map((d) => {
+      const match = defaultDrivers.find((dd) => dd.id === d.id);
+      if (match && match.team !== d.team) return { ...d, team: match.team };
+      return d;
+    });
+    const mergedRoster = [
+      ...updatedRoster.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer || "", manufacturerLogo: manufacturerLogos[d.manufacturer] || null, team: d.team, startingPoints: Number(d.startingPoints) || 0, manualWins: Number(d.manualWins) || 0, retired: d.retired || false })),
+      ...newDrivers.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer || "", manufacturerLogo: manufacturerLogos[d.manufacturer] || null, team: d.team, startingPoints: 0, manualWins: 0, retired: false })),
+    ];
+    replaceActiveSeason({ ...activeSeason, drivers: rebuildDriversFromHistory(raceHistory, mergedRoster) });
+    alert(`Sync complete! ${newDrivers.length} driver(s) added, team assignments updated.`);
+  }; setEditingDriverId(driver.id); setEditDriverForm({ name: driver.name, number: driver.number, manufacturer: driver.manufacturer || "", team: driver.team }); };
   const cancelEditDriver = () => { setEditingDriverId(null); setEditDriverForm({ name: "", number: "", manufacturer: "", team: "" }); };
   const saveDriverNotes = () => {
     if (!activeSeason) return;
@@ -1026,7 +1046,10 @@ console.log("Current path:", path);  // ADD THIS LINE
             <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Manufacturer</div><select style={inputStyle} value={newDriverManufacturer} onChange={(e) => setNewDriverManufacturer(e.target.value)}><option value="">Select manufacturer</option><option value="Chevrolet">Chevrolet</option><option value="Ford">Ford</option><option value="Toyota">Toyota</option><option value="Other">Other</option></select></div>
             <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Team</div><input style={inputStyle} value={newDriverTeam} onChange={(e) => setNewDriverTeam(e.target.value)} placeholder="Enter team name" /></div>
           </div>
-          <div style={{ marginBottom: 18 }}><button onClick={addDriver} style={primaryButtonStyle}>Add Driver</button></div>
+          <div style={{ marginBottom: 18, display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <button onClick={addDriver} style={primaryButtonStyle}>Add Driver</button>
+            <button onClick={syncDefaultRoster} style={{ ...secondaryButtonStyle, borderColor: "#d4af37", color: "#d4af37" }}>↺ Sync Default Roster</button>
+          </div>
           <div style={{ overflowX: "auto" }}>
             <table style={tableStyle}>
               <thead><tr><th style={thStyle}>#</th><th style={thStyle}>Driver</th><th style={thStyle}>Manufacturer</th><th style={thStyle}>Team</th><th style={thStyle}>Actions</th></tr></thead>
