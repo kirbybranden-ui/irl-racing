@@ -9,6 +9,19 @@ const teamLogos = {
   JAM: teamLogoJAM,
 };
 
+// ─── Team Full Names ───────────────────────────────────────────────────────────
+const teamFullNames = {
+  JAM: "JA Motorsports",
+  "JA MOTORSPORTS": "JA Motorsports",
+  MER: "ME Racing",
+  KRM: "Kevin Racing Motorsports",
+  MMS: "Mayhem Motorsports",
+  None: "Independent",
+};
+function getTeamFullName(teamAbbr) {
+  return teamFullNames[teamAbbr] || teamAbbr;
+}
+
 const appShellStyle = { minHeight: "100vh", background: "#0c0f14", color: "white", fontFamily: "Arial, sans-serif" };
 const pageContainerStyle = { maxWidth: 1000, margin: "0 auto", padding: 20 };
 const sectionCardStyle = { background: "#171b22", border: "1px solid #2c3440", borderRadius: 16, padding: 20, marginBottom: 20, boxShadow: "0 8px 24px rgba(0,0,0,0.22)" };
@@ -110,17 +123,17 @@ function AppealModal({ isOpen, onClose, selectedSeason }) {
 
         <div style={{ marginBottom: 16 }}>
           <label style={{ display: "block", marginBottom: 6, fontWeight: 700 }}>Description *</label>
-          <textarea 
-            style={{ ...inputStyle, minHeight: 120, resize: "vertical" }} 
-            value={description} 
-            onChange={(e) => setDescription(e.target.value)} 
-            placeholder="Describe what happened and who was involved..." 
+          <textarea
+            style={{ ...inputStyle, minHeight: 120, resize: "vertical" }}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Describe what happened and who was involved..."
           />
         </div>
 
         <div style={{ marginBottom: 16 }}>
           <label style={{ display: "block", marginBottom: 6, fontWeight: 700 }}>Video Evidence (optional)</label>
-          <button 
+          <button
             onClick={() => {
               if (window.cloudinary) {
                 window.cloudinary.openUploadWidget(
@@ -161,9 +174,9 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
   const driverNumber = pathParts[2];
 
   const allSeasons = Array.isArray(seasons) ? seasons : [];
-const selectedSeason = activeSeason && activeSeason.id
-  ? allSeasons.find(s => s && s.id === activeSeason.id) || activeSeason
-  : allSeasons[0] || null;
+  const selectedSeason = activeSeason && activeSeason.id
+    ? allSeasons.find(s => s && s.id === activeSeason.id) || activeSeason
+    : allSeasons[0] || null;
   const [isAppealModalOpen, setIsAppealModalOpen] = useState(false);
 
   const driver = selectedSeason && selectedSeason.drivers
@@ -348,18 +361,19 @@ const selectedSeason = activeSeason && activeSeason.id
               <div>
                 <div style={{ fontSize: 28, fontWeight: 900 }}>{driver.name}</div>
                 <div style={{ fontSize: 16, opacity: 0.8, marginTop: 4 }}>#{driver.number}</div>
-                <div style={{ fontSize: 14, opacity: 0.8, marginTop: 2 }}>{driver.team}</div>
+                <div style={{ fontSize: 15, fontWeight: 700, marginTop: 4 }}>{getTeamFullName(driver.team)}</div>
+                <div style={{ fontSize: 12, opacity: 0.5, marginTop: 2 }}>{driver.team}</div>
               </div>
             </div>
-            
+
             <div style={{ display: "flex", justifyContent: "center", alignItems: "center", width: 140, height: 140, borderRadius: 8, background: "#0f1319", border: "1px solid #2c3440" }}>
               {teamLogos[driver.team] ? (
                 <img src={teamLogos[driver.team]} alt={driver.team} style={{ maxWidth: "90%", maxHeight: "90%", objectFit: "contain" }} />
               ) : (
-                <div style={{ fontWeight: 700, fontSize: 12, color: "#b8a059", textAlign: "center", padding: 8 }}>{driver.team || "—"}</div>
+                <div style={{ fontWeight: 700, fontSize: 13, color: "#b8a059", textAlign: "center", padding: 8 }}>{getTeamFullName(driver.team)}</div>
               )}
             </div>
-            
+
             <div style={{ display: "flex", justifyContent: "center", alignItems: "center", width: 140, height: 140, borderRadius: 8, background: "#0f1319", border: "1px solid #2c3440" }}>
               {driver.manufacturerLogo ? (
                 <img src={driver.manufacturerLogo} alt={driver.manufacturer} style={{ maxWidth: "90%", maxHeight: "90%", objectFit: "contain" }} />
@@ -367,7 +381,7 @@ const selectedSeason = activeSeason && activeSeason.id
                 <div style={{ fontWeight: 700, fontSize: 12, color: "#b8a059", textAlign: "center", padding: 8 }}>{driver.manufacturer || "—"}</div>
               )}
             </div>
-            
+
             <div style={{ textAlign: "right" }}>
               <div style={{ fontSize: 12, opacity: 0.72, marginBottom: 4 }}>SEASON</div>
               <div style={{ fontSize: 16, fontWeight: 700 }}>{selectedSeason.name}</div>
@@ -400,7 +414,7 @@ const selectedSeason = activeSeason && activeSeason.id
             { badge: "⭐", name: "Century Club", condition: calculatedStats.points >= 100 },
             { badge: "⚡", name: "Speed Demon", condition: calculatedStats.fastestLaps >= 5 },
           ].filter(a => a.condition);
-          
+
           return achievements.length > 0 && (
             <div style={{ ...sectionCardStyle, marginBottom: 20 }}>
               <h3 style={{ marginTop: 0, marginBottom: 12 }}>Achievements</h3>
@@ -556,6 +570,7 @@ const selectedSeason = activeSeason && activeSeason.id
         {teamStats && (
           <div style={sectionCardStyle}>
             <h2 style={{ marginTop: 0, marginBottom: 14 }}>Teammate Comparison</h2>
+            <div style={{ fontSize: 13, opacity: 0.7, marginBottom: 10 }}>{getTeamFullName(driver.team)}</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}>
                 <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 8 }}>{driver.name}</div>
