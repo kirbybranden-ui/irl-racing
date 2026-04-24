@@ -56,17 +56,14 @@ function AppealModal({ isOpen, onClose, selectedSeason }) {
 
     setSubmitting(true);
     try {
-      const payload = {
+      const { error } = await supabase.from("appeals").insert({
         requester: requester.trim(),
         track: track.trim(),
         description: description.trim(),
         evidence_url: videoUrl || null,
         status: "Open",
         created_at: new Date().toISOString(),
-      };
-      console.log("Submitting appeal payload:", payload);
-      const { data, error } = await supabase.from("appeals").insert(payload).select();
-      console.log("Supabase response — data:", data, "error:", error);
+      });
 
       if (error) throw error;
 
@@ -78,7 +75,7 @@ function AppealModal({ isOpen, onClose, selectedSeason }) {
       onClose();
     } catch (err) {
       console.error("Appeal submission error:", err);
-      alert(`Failed to submit appeal: ${err?.message || err?.code || "Unknown error"}`);
+      alert("Failed to submit appeal. Please try again.");
     } finally {
       setSubmitting(false);
     }
