@@ -105,7 +105,7 @@ function AppealModal({ isOpen, onClose, selectedSeason }) {
     widgetRef.current = window.cloudinary.createUploadWidget(
       {
         cloudName: "dpu05oykz",
-        uploadPreset: "dpu05oykz", // ⚠️ UPDATE THIS: go to Cloudinary dashboard → Settings → Upload → Upload Presets
+        uploadPreset: "irl_appeals",  // ← or whatever you named it
         resourceType: "video",
         folder: "appeal-evidence",
         maxFileSize: 200000000, // 200MB limit
