@@ -105,7 +105,7 @@ function AppealModal({ isOpen, onClose, selectedSeason }) {
     widgetRef.current = window.cloudinary.createUploadWidget(
       {
         cloudName: "dpu05oykz",
-        uploadPreset: "irl_appeals",  // ← or whatever you named it
+        uploadPreset: "dpu05oykz", // ⚠️ UPDATE THIS: go to Cloudinary dashboard → Settings → Upload → Upload Presets
         resourceType: "video",
         folder: "appeal-evidence",
         maxFileSize: 200000000, // 200MB limit
@@ -207,44 +207,53 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
   const selectedSeason = activeSeason && activeSeason.id
     ? allSeasons.find(s => s && s.id === activeSeason.id) || activeSeason
     : allSeasons[0] || null;
+
+  // Compute driver early so we can use driver.name in the notification filter
+  const driver = selectedSeason && selectedSeason.drivers
+    ? selectedSeason.drivers.find((d) => d && String(d.number) === String(driverNumber))
+    : null;
+
   const [isAppealModalOpen, setIsAppealModalOpen] = useState(false);
   const [appealNotifications, setAppealNotifications] = useState([]);
   const [dismissedIds, setDismissedIds] = useState(() => {
-    try { return JSON.parse(localStorage.getItem(`irl-dismissed-appeals-${driverNumber}`) || "[]"); }
+    try { return JSON.parse(localStorage.getItem(`irl-dismissed-appeals-${driverNumber}`) || "[]").map(String); }
     catch { return []; }
   });
 
   // Poll for resolved appeals belonging to this driver
   useEffect(() => {
     async function fetchAppealNotifications() {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("appeals")
         .select("*")
         .in("status", ["Approved", "Denied"])
         .order("created_at", { ascending: false });
+      if (error) { console.error("Appeal fetch error:", error); return; }
       if (data) {
-        const mine = data.filter(a =>
-          a.requester && a.requester.startsWith(`${driverNumber} - `)
-        );
+        const mine = data.filter(a => {
+          if (!a.requester) return false;
+          // Match by car number prefix: "42 - AMP-GHOSTRIDER"
+          const byNumber = a.requester.startsWith(`${driverNumber} - `);
+          // Fallback: match by driver name in case format varies
+          const byName = driver?.name && a.requester.includes(driver.name);
+          return byNumber || byName;
+        });
         setAppealNotifications(mine);
       }
     }
     fetchAppealNotifications();
     const interval = setInterval(fetchAppealNotifications, 5000);
     return () => clearInterval(interval);
-  }, [driverNumber]);
+  }, [driverNumber, driver?.name]);
 
   const dismissNotification = (appealId) => {
-    const updated = [...dismissedIds, appealId];
+    const updated = [...dismissedIds, String(appealId)];
     setDismissedIds(updated);
     localStorage.setItem(`irl-dismissed-appeals-${driverNumber}`, JSON.stringify(updated));
   };
 
-  const pendingNotifications = appealNotifications.filter(a => !dismissedIds.includes(a.id));
-
-  const driver = selectedSeason && selectedSeason.drivers
-    ? selectedSeason.drivers.find((d) => d && String(d.number) === String(driverNumber))
-    : null;
+  // Convert both sides to string so number/string mismatch never causes a miss
+  const pendingNotifications = appealNotifications.filter(a => !dismissedIds.includes(String(a.id)));
 
   if (!selectedSeason) {
     return (
