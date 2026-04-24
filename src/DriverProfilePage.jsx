@@ -682,31 +682,42 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
             <div style={{ fontSize: 13, opacity: 0.5, fontStyle: "italic" }}>No uploads yet.</div>
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 14 }}>
-              {carUploads.map(upload => (
-                <div key={upload.id} style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, overflow: "hidden" }}>
-                  <div style={{ width: "100%", paddingBottom: "75%", position: "relative", background: "#1a1f27" }}>
-                    {upload.file_type?.startsWith("image/") ? (
-                      <img src={upload.file_url} alt="Car" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
-                    ) : upload.file_type?.startsWith("video/") ? (
-                      <video controls style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}>
-                        <source src={upload.file_url} type={upload.file_type} />
-                      </video>
-                    ) : (
-                      <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#666" }}>📄</div>
-                    )}
+              {carUploads.map(upload => {
+                const url = upload.image_url || upload.file_url || "";
+                const fileType = upload.file_type || "";
+                const isImage = fileType.startsWith("image/") || (!fileType && url.match(/\.(jpg|jpeg|png|gif|webp)$/i));
+                const isVideo = fileType.startsWith("video/") || (!fileType && url.match(/\.(mp4|mov|avi|webm)$/i));
+                const raceName = upload.race_week || upload.race_id || "—";
+                return (
+                  <div key={upload.id} style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, overflow: "hidden" }}>
+                    <div style={{ width: "100%", paddingBottom: "75%", position: "relative", background: "#1a1f27" }}>
+                      {isImage ? (
+                        <img src={url} alt="Car" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+                      ) : isVideo ? (
+                        <video controls style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}>
+                          <source src={url} type={fileType || "video/mp4"} />
+                        </video>
+                      ) : url ? (
+                        <img src={url} alt="Car" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+                      ) : (
+                        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#666" }}>📄</div>
+                      )}
+                    </div>
+                    <div style={{ padding: 10 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 2 }}>{raceName}</div>
+                      <div style={{ fontSize: 11, opacity: 0.55, marginBottom: 8 }}>
+                        {upload.uploaded_at ? new Date(upload.uploaded_at).toLocaleDateString() : ""}
+                      </div>
+                      <button
+                        onClick={() => handleCarDelete(upload.id, upload.file_path || upload.cloudinary_id)}
+                        style={{ ...dangerButtonStyle, width: "100%", padding: "6px 10px", fontSize: 12 }}
+                      >
+                        Remove
+                      </button>
+                    </div>
                   </div>
-                  <div style={{ padding: 10 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 2 }}>{upload.race_id}</div>
-                    <div style={{ fontSize: 11, opacity: 0.55, marginBottom: 8 }}>{new Date(upload.uploaded_at).toLocaleDateString()}</div>
-                    <button
-                      onClick={() => handleCarDelete(upload.id, upload.file_path)}
-                      style={{ ...dangerButtonStyle, width: "100%", padding: "6px 10px", fontSize: 12 }}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
