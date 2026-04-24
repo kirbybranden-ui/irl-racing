@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import logo from "./assets/logo1.png";
 import teamLogoJAM from "./assets/teams/JAM.png";
-import teamLogoMER from "./assets/teams/ME.png";
 import manufacturerChevrolet from "./assets/manufacturers/chevrolet.png";
 import manufacturerFord from "./assets/manufacturers/ford.png";
 import manufacturerToyota from "./assets/manufacturers/toyota.png";
@@ -16,8 +15,6 @@ import CarGalleryPage from "./CarGalleryPage";
 const teamLogos = {
   "JA MOTORSPORTS": teamLogoJAM,
   JAM: teamLogoJAM,
-  "ME RACING": teamLogoMER,
-  MER: teamLogoMER,
 };
 const manufacturerLogos = {
   Chevrolet: manufacturerChevrolet,
@@ -25,22 +22,36 @@ const manufacturerLogos = {
   Toyota: manufacturerToyota,
 };
 import { loadLeagueState, saveLeagueState } from "./lib/leagueState";
+
+// ─── Team Full Names ───────────────────────────────────────────────────────────
+const teamFullNames = {
+  JAM: "JA Motorsports",
+  "JA MOTORSPORTS": "JA Motorsports",
+  MER: "ME Racing",
+  KRM: "Kevin Racing Motorsports",
+  MMS: "Mayhem Motorsports",
+  None: "Independent",
+};
+function getTeamFullName(teamAbbr) {
+  return teamFullNames[teamAbbr] || teamAbbr;
+}
+
 const defaultDrivers = [
-  { id: 1, number: 42, name: "AMP-GHOSTRIDER", manufacturer: "Toyota", team: "JAM" },
-  { id: 2, number: 99, name: "RookieVet99", manufacturer: "Toyota", team: "JAM" },
-  { id: 3, number: 18, name: "bowhunter6758", manufacturer: "Toyota", team: "JAM" },
-  { id: 4, number: 81, name: "HOLDEN2DX4EV3R", manufacturer: "Chevrolet", team: "JAM" },
-  { id: 5, number: 3, name: "ixGusty", manufacturer: "Toyota", team: "None" },
-  { id: 6, number: 14, name: "KapSig", manufacturer: "Chevrolet", team: "MER" },
-  { id: 7, number: 24, name: "KEVDINHO7", manufacturer: "Chevrolet", team: "KRM" },
-  { id: 8, number: 38, name: "It's_tricky88", manufacturer: "Toyota", team: "None" },
-  { id: 9, number: 97, name: "American_Hero216", manufacturer: "Ford", team: "None" },
-  { id: 10, number: 67, name: "tallishsinter94", manufacturer: "Toyota", team: "None" },
-  { id: 11, number: 8, name: "Highlander719", manufacturer: "Chevrolet", team: "None" },
-  { id: 12, number: 23, name: "Orly_Revo23", manufacturer: "Ford", team: "MMS" },
-  { id: 13, number: 87, name: "Racingis_life87", manufacturer: "Chevrolet", team: "KRM" },
-  { id: 14, number: 0, name: "Inactive-josiah-wells", manufacturer: "Other", team: "None" },
-  { id: 15, number: 1, name: "Inactive-shane-mcconnell", manufacturer: "Other", team: "None" },
+  { id: 1,  number: 42, name: "AMP-GHOSTRIDER",          manufacturer: "Toyota",    team: "JAM"  },
+  { id: 2,  number: 99, name: "RookieVet99",              manufacturer: "Toyota",    team: "JAM"  },
+  { id: 3,  number: 18, name: "bowhunter6758",            manufacturer: "Toyota",    team: "JAM"  },
+  { id: 4,  number: 81, name: "HOLDEN2DX4EV3R",           manufacturer: "Chevrolet", team: "JAM"  },
+  { id: 5,  number: 3,  name: "ixGusty",                  manufacturer: "Toyota",    team: "None" },
+  { id: 6,  number: 14, name: "KapSig",                   manufacturer: "Chevrolet", team: "MER"  },
+  { id: 7,  number: 24, name: "KEVDINHO7",                manufacturer: "Chevrolet", team: "KRM"  },
+  { id: 8,  number: 38, name: "It's_tricky88",            manufacturer: "Toyota",    team: "None" },
+  { id: 9,  number: 97, name: "American_Hero216",         manufacturer: "Ford",      team: "MMS"  },
+  { id: 10, number: 67, name: "tallishsinter94",          manufacturer: "Toyota",    team: "None" },
+  { id: 11, number: 8,  name: "Highlander719",            manufacturer: "Chevrolet", team: "None" },
+  { id: 12, number: 23, name: "Orly_Revo23",              manufacturer: "Ford",      team: "MMS"  },
+  { id: 13, number: 87, name: "Racingis_life87",          manufacturer: "Chevrolet", team: "KRM"  },
+  { id: 14, number: 0,  name: "Inactive-josiah-wells",    manufacturer: "Other",     team: "None" },
+  { id: 15, number: 1,  name: "Inactive-shane-mcconnell", manufacturer: "Other",     team: "None" },
 ];
 const defaultRaces = [
   { name: "Preseason - Michigan", stageCount: 2, date: "2026-04-25" },
@@ -123,17 +134,14 @@ const statBoxStyle = { background: "#11161d", border: "1px solid #2a3240", borde
 const teamBranding = {
   JAM: { logo: "JAM", accent: "#d4af37", dark: "#1b1b1b" },
   "JA MOTORSPORTS": { logo: "JA", accent: "#d4af37", dark: "#1b1b1b" },
+  MER: { logo: "MER", accent: "#dc2626", dark: "#200a0a", fullName: "ME Racing" },
+  KRM: { logo: "KRM", accent: "#2563eb", dark: "#0a0e1f", fullName: "Kevin Racing Motorsports" },
+  MMS: { logo: "MMS", accent: "#9333ea", dark: "#150a2e", fullName: "Mayhem Motorsports" },
   "None": { logo: "N", accent: "#808080", dark: "#2a2a2a" },
   "Team A": { logo: "A", accent: "#d4af37", dark: "#1b1b1b" },
   "Team B": { logo: "B", accent: "#3b82f6", dark: "#111827" },
   "Team C": { logo: "C", accent: "#ef4444", dark: "#1f1315" },
   "Team D": { logo: "D", accent: "#22c55e", dark: "#0f1b14" },
-  "MER": { logo: "MER", accent: "#ffffff", dark: "#1a1030" },
-  "ME RACING": { logo: "MER", accent: "#ffffff", dark: "#1a1030" },
-  "KRM": { logo: "KRM", accent: "#dc2626", dark: "#1f1010" },
-  "KEVIN RACING MOTORSPORTS": { logo: "KRM", accent: "#dc2626", dark: "#1f1010" },
-  "MMS": { logo: "MMS", accent: "#0ea5e9", dark: "#0c1a24" },
-  "MAYHEM MOTORSPORTS": { logo: "MMS", accent: "#0ea5e9", dark: "#0c1a24" },
 };
 function getTeamBranding(teamName) {
   return teamBranding[teamName] || { logo: teamName?.charAt(0)?.toUpperCase() || "?", accent: "#d4af37", dark: "#161a20" };
@@ -149,7 +157,7 @@ function renderTeamBadge(teamName, size = 44) {
     );
   }
   return (
-    <div style={{ width: size, height: size, minWidth: size, borderRadius: "50%", background: `linear-gradient(135deg, ${brand.accent} 0%, ${brand.dark} 100%)`, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, color: "white", border: "2px solid rgba(255,255,255,0.15)", boxShadow: "0 6px 16px rgba(0,0,0,0.25)", fontSize: size * 0.38 }}>
+    <div style={{ width: size, height: size, minWidth: size, borderRadius: "50%", background: `linear-gradient(135deg, ${brand.accent} 0%, ${brand.dark} 100%)`, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, color: "white", border: "2px solid rgba(255,255,255,0.15)", boxShadow: "0 6px 16px rgba(0,0,0,0.25)", fontSize: size * 0.28 }}>
       {brand.logo}
     </div>
   );
@@ -258,7 +266,7 @@ function LeaderboardOverlay({ drivers, preview = false, seasonName = "" }) {
           <div style={{ fontSize: 14, opacity: 0.78 }}>{seasonName}</div>
         </div>
         <table style={tableStyle}><thead><tr><th style={thStyle}>Pos</th><th style={thStyle}>#</th><th style={thStyle}>Driver</th><th style={thStyle}>Team</th><th style={thStyle}>Mfr</th><th style={thStyle}>Points</th><th style={thStyle}>Wins</th><th style={thStyle}>Top 3</th><th style={thStyle}>Top 5</th></tr></thead>
-          <tbody>{sorted.map((d, i) => <tr key={d.id}><td style={tdStyle}>{i+1}</td><td style={{...tdStyle, display: "flex", alignItems: "center", justifyContent: "center"}}><div style={{width: 32, height: 32, borderRadius: "50%", background: "#404854", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 12, color: "#fff", border: "2px solid #b8a059"}}>{d.number}</div></td><td style={tdStyle}>{d.name}</td><td style={tdStyle}>{d.team}</td><td style={tdStyle}>{d.manufacturer || "—"}</td><td style={tdStyle}>{d.points}</td><td style={tdStyle}>{d.wins}</td><td style={tdStyle}>{d.top3}</td><td style={tdStyle}>{d.top5}</td></tr>)}</tbody>
+          <tbody>{sorted.map((d, i) => <tr key={d.id}><td style={tdStyle}>{i+1}</td><td style={{...tdStyle, display: "flex", alignItems: "center", justifyContent: "center"}}><div style={{width: 32, height: 32, borderRadius: "50%", background: "#404854", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 12, color: "#fff", border: "2px solid #b8a059"}}>{d.number}</div></td><td style={tdStyle}>{d.name}</td><td style={tdStyle}>{getTeamFullName(d.team)}</td><td style={tdStyle}>{d.manufacturer || "—"}</td><td style={tdStyle}>{d.points}</td><td style={tdStyle}>{d.wins}</td><td style={tdStyle}>{d.top3}</td><td style={tdStyle}>{d.top5}</td></tr>)}</tbody>
         </table>
       </div>
     </div>
@@ -273,7 +281,7 @@ function TeamOverlay({ teams, preview = false, seasonName = "" }) {
           <div style={{ fontSize: 14, opacity: 0.78 }}>{seasonName}</div>
         </div>
         <table style={tableStyle}><thead><tr><th style={thStyle}>Pos</th><th style={thStyle}>Team</th><th style={thStyle}>Points</th><th style={thStyle}>Wins</th><th style={thStyle}>Top 3</th><th style={thStyle}>Top 5</th></tr></thead>
-          <tbody>{teams.map((t, i) => <tr key={t.team}><td style={tdStyle}>{i+1}</td><td style={tdStyle}>{t.team}</td><td style={tdStyle}>{t.points}</td><td style={tdStyle}>{t.wins}</td><td style={tdStyle}>{t.top3}</td><td style={tdStyle}>{t.top5}</td></tr>)}</tbody>
+          <tbody>{teams.map((t, i) => <tr key={t.team}><td style={tdStyle}>{i+1}</td><td style={tdStyle}>{getTeamFullName(t.team)}</td><td style={tdStyle}>{t.points}</td><td style={tdStyle}>{t.wins}</td><td style={tdStyle}>{t.top3}</td><td style={tdStyle}>{t.top5}</td></tr>)}</tbody>
         </table>
       </div>
     </div>
@@ -304,7 +312,7 @@ function PublicStandings({ drivers, teams, seasonName = "" }) {
           {renderTeamBadge(driver.team, 54)}
         </div>
         <div style={{ fontSize: 24, fontWeight: 900, marginBottom: 4 }}>{driver.name}</div>
-        <div style={{ fontSize: 14, opacity: 0.85, marginBottom: 18 }}>{driver.team}</div>
+        <div style={{ fontSize: 14, opacity: 0.85, marginBottom: 18 }}>{getTeamFullName(driver.team)}</div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10, marginBottom: 14 }}>
           {[{label:"POINTS",value:driver.points},{label:"WINS",value:driver.wins},{label:"TOP 3",value:driver.top3},{label:"TOP 5",value:driver.top5}].map((stat) => (
             <div key={stat.label} style={{ background: "rgba(0,0,0,0.22)", borderRadius: 14, padding: 12 }}>
@@ -313,7 +321,7 @@ function PublicStandings({ drivers, teams, seasonName = "" }) {
             </div>
           ))}
         </div>
-        <button 
+        <button
           onClick={() => handleDriverClick(driver.number)}
           style={{ width: "100%", background: "rgba(0,0,0,0.3)", color: "white", border: `1px solid rgba(255,255,255,0.3)`, borderRadius: 10, padding: "10px 14px", fontWeight: 700, cursor: "pointer", fontSize: 13 }}
         >
@@ -367,7 +375,7 @@ function PublicStandings({ drivers, teams, seasonName = "" }) {
                       <td style={{ ...tdStyle, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" }}><div style={{width: 36, height: 36, borderRadius: "50%", background: "#404854", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 14, color: "#fff", border: "2px solid #b8a059"}}>{driver.number}</div></td>
                       <td style={{ ...tdStyle, fontWeight: 800, color: "#d4af37" }}>{driver.name}{driver.retired && <span style={{ marginLeft: 6, fontSize: 11, background: "#2a3140", color: "#f59e0b", borderRadius: 6, padding: "2px 6px", fontWeight: 700 }}>R</span>}</td>
                       <td style={tdStyle}>{driver.manufacturer || "—"}</td>
-                      <td style={tdStyle}>{driver.team}</td>
+                      <td style={tdStyle}>{getTeamFullName(driver.team)}</td>
                       <td style={{ ...tdStyle, fontWeight: 900 }}>{driver.points}</td>
                       <td style={tdStyle}>{driver.wins}</td>
                       <td style={tdStyle}>{driver.top3}</td>
@@ -382,7 +390,7 @@ function PublicStandings({ drivers, teams, seasonName = "" }) {
             </table>
           </div>
         </div>
-        <div style={{ background: "#151a22", border: "1px solid #2d3643", borderRadius: 22, padding: 18, boxShadow: "0 10px 28px rgba(0,0,0,0.22)" }}>
+        <div style={{ background: "#151a22", border: "1px solid #2d3643", borderRadius: 22, padding: 18, marginBottom: 22, boxShadow: "0 10px 28px rgba(0,0,0,0.22)" }}>
           <div style={{ fontSize: 26, fontWeight: 900, marginBottom: 14 }}>Team Standings</div>
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -392,7 +400,7 @@ function PublicStandings({ drivers, teams, seasonName = "" }) {
                   <tr key={team.team}>
                     <td style={{ ...tdStyle, fontWeight: 900 }}>{index + 1}</td>
                     <td style={tdStyle}>{renderTeamBadge(team.team, 42)}</td>
-                    <td style={{ ...tdStyle, fontWeight: 800 }}>{team.team}</td>
+                    <td style={{ ...tdStyle, fontWeight: 800 }}>{getTeamFullName(team.team)}</td>
                     <td style={{ ...tdStyle, fontWeight: 900 }}>{team.points}</td>
                     <td style={tdStyle}>{team.wins}</td>
                     <td style={tdStyle}>{team.top3}</td>
@@ -445,7 +453,7 @@ function TickerOverlay({ drivers, teams, raceHistory, preview = false, seasonNam
     seasonName ? `Season: ${seasonName}` : "Budweiser Cup League",
     winner ? `Latest Winner: #${winner.number} ${winner.name} (${latestRace.raceName})` : "No race winner yet",
     ...sorted.map((d, i) => `${i+1}. #${d.number} ${d.name} - ${d.points} pts`),
-    ...teams.map((t, i) => `Team ${i+1}: ${t.team} - ${t.points} pts`),
+    ...teams.map((t, i) => `Team ${i+1}: ${getTeamFullName(t.team)} - ${t.points} pts`),
   ].join("   •   ");
   return (
     <div style={{ width: "100%", minHeight: preview ? "100vh" : "80px", background: preview ? "#111" : "transparent", display: "flex", alignItems: preview ? "center" : "flex-start", justifyContent: "center", paddingTop: preview ? 20 : 0, boxSizing: "border-box" }}>
@@ -743,27 +751,6 @@ console.log("Current path:", path);  // ADD THIS LINE
     patchActiveSeason({ drivers: rebuildDriversFromHistory(raceHistory, newRoster) });
     setNewDriverName(""); setNewDriverNumber(""); setNewDriverManufacturer(""); setNewDriverTeam("");
   };
-  const syncDefaultRoster = () => {
-    if (!activeSeason) return;
-    const existingIds = new Set(drivers.map((d) => d.id));
-    const existingNumbers = new Set(drivers.map((d) => String(d.number)));
-    const existingNames = new Set(drivers.map((d) => d.name.toLowerCase()));
-    const newDrivers = defaultDrivers.filter(
-      (d) => !existingIds.has(d.id) && !existingNumbers.has(String(d.number)) && !existingNames.has(d.name.toLowerCase())
-    );
-    // Also update team assignments for existing drivers whose team changed in defaultDrivers
-    const updatedRoster = drivers.map((d) => {
-      const match = defaultDrivers.find((dd) => dd.id === d.id);
-      if (match && match.team !== d.team) return { ...d, team: match.team };
-      return d;
-    });
-    const mergedRoster = [
-      ...updatedRoster.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer || "", manufacturerLogo: manufacturerLogos[d.manufacturer] || null, team: d.team, startingPoints: Number(d.startingPoints) || 0, manualWins: Number(d.manualWins) || 0, retired: d.retired || false })),
-      ...newDrivers.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer || "", manufacturerLogo: manufacturerLogos[d.manufacturer] || null, team: d.team, startingPoints: 0, manualWins: 0, retired: false })),
-    ];
-    replaceActiveSeason({ ...activeSeason, drivers: rebuildDriversFromHistory(raceHistory, mergedRoster) });
-    alert(`Sync complete! ${newDrivers.length} driver(s) added, team assignments updated.`);
-  };
   const openEditDriver = (driver) => { setEditingDriverId(driver.id); setEditDriverForm({ name: driver.name, number: driver.number, manufacturer: driver.manufacturer || "", team: driver.team }); };
   const cancelEditDriver = () => { setEditingDriverId(null); setEditDriverForm({ name: "", number: "", manufacturer: "", team: "" }); };
   const saveDriverNotes = () => {
@@ -1019,7 +1006,7 @@ console.log("Current path:", path);  // ADD THIS LINE
           <div style={{ overflowX: "auto" }}>
             <table style={tableStyle}>
               <thead><tr><th style={thStyle}>#</th><th style={thStyle}>Driver</th><th style={thStyle}>Team</th><th style={thStyle}>Starting Points</th><th style={thStyle}>Current Total</th></tr></thead>
-              <tbody>{drivers.map((d) => (<tr key={d.id}><td style={{...tdStyle, display: "flex", alignItems: "center", justifyContent: "center"}}><div style={{width: 32, height: 32, borderRadius: "50%", background: "#404854", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 12, color: "#fff", border: "2px solid #b8a059"}}>{d.number}</div></td><td style={tdStyle}>{d.name}</td><td style={tdStyle}>{d.team}</td><td style={tdStyle}><input type="number" style={inputStyle} value={startingPointsInputs[d.id] ?? "0"} onChange={(e) => setStartingPointsInputs((p) => ({ ...p, [d.id]: e.target.value }))} /></td><td style={{ ...tdStyle, fontWeight: 800 }}>{d.points}</td></tr>))}</tbody>
+              <tbody>{drivers.map((d) => (<tr key={d.id}><td style={{...tdStyle, display: "flex", alignItems: "center", justifyContent: "center"}}><div style={{width: 32, height: 32, borderRadius: "50%", background: "#404854", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 12, color: "#fff", border: "2px solid #b8a059"}}>{d.number}</div></td><td style={tdStyle}>{d.name}</td><td style={tdStyle}>{getTeamFullName(d.team)}</td><td style={tdStyle}><input type="number" style={inputStyle} value={startingPointsInputs[d.id] ?? "0"} onChange={(e) => setStartingPointsInputs((p) => ({ ...p, [d.id]: e.target.value }))} /></td><td style={{ ...tdStyle, fontWeight: 800 }}>{d.points}</td></tr>))}</tbody>
             </table>
           </div>
         </div>
@@ -1034,7 +1021,7 @@ console.log("Current path:", path);  // ADD THIS LINE
           <div style={{ overflowX: "auto" }}>
             <table style={tableStyle}>
               <thead><tr><th style={thStyle}>#</th><th style={thStyle}>Driver</th><th style={thStyle}>Team</th><th style={thStyle}>Manual Wins</th><th style={thStyle}>Current Total Wins</th></tr></thead>
-              <tbody>{drivers.map((d) => (<tr key={d.id}><td style={{...tdStyle, display: "flex", alignItems: "center", justifyContent: "center"}}><div style={{width: 32, height: 32, borderRadius: "50%", background: "#404854", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 12, color: "#fff", border: "2px solid #b8a059"}}>{d.number}</div></td><td style={tdStyle}>{d.name}</td><td style={tdStyle}>{d.team}</td><td style={tdStyle}><input type="number" style={inputStyle} value={manualWinsInputs[d.id] ?? "0"} onChange={(e) => setManualWinsInputs((p) => ({ ...p, [d.id]: e.target.value }))} /></td><td style={{ ...tdStyle, fontWeight: 800 }}>{d.wins}</td></tr>))}</tbody>
+              <tbody>{drivers.map((d) => (<tr key={d.id}><td style={{...tdStyle, display: "flex", alignItems: "center", justifyContent: "center"}}><div style={{width: 32, height: 32, borderRadius: "50%", background: "#404854", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 12, color: "#fff", border: "2px solid #b8a059"}}>{d.number}</div></td><td style={tdStyle}>{d.name}</td><td style={tdStyle}>{getTeamFullName(d.team)}</td><td style={tdStyle}><input type="number" style={inputStyle} value={manualWinsInputs[d.id] ?? "0"} onChange={(e) => setManualWinsInputs((p) => ({ ...p, [d.id]: e.target.value }))} /></td><td style={{ ...tdStyle, fontWeight: 800 }}>{d.wins}</td></tr>))}</tbody>
             </table>
           </div>
         </div>
@@ -1045,16 +1032,13 @@ console.log("Current path:", path);  // ADD THIS LINE
             <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Driver Name</div><input style={inputStyle} value={newDriverName} onChange={(e) => setNewDriverName(e.target.value)} placeholder="Enter driver name" /></div>
             <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Number</div><input style={inputStyle} value={newDriverNumber} onChange={(e) => setNewDriverNumber(e.target.value)} placeholder="Enter car number" type="number" /></div>
             <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Manufacturer</div><select style={inputStyle} value={newDriverManufacturer} onChange={(e) => setNewDriverManufacturer(e.target.value)}><option value="">Select manufacturer</option><option value="Chevrolet">Chevrolet</option><option value="Ford">Ford</option><option value="Toyota">Toyota</option><option value="Other">Other</option></select></div>
-            <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Team</div><input style={inputStyle} value={newDriverTeam} onChange={(e) => setNewDriverTeam(e.target.value)} placeholder="Enter team name" /></div>
+            <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Team (abbreviation)</div><input style={inputStyle} value={newDriverTeam} onChange={(e) => setNewDriverTeam(e.target.value)} placeholder="e.g. JAM, MER, KRM, MMS" /></div>
           </div>
-          <div style={{ marginBottom: 18, display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <button onClick={addDriver} style={primaryButtonStyle}>Add Driver</button>
-            <button onClick={syncDefaultRoster} style={{ ...secondaryButtonStyle, borderColor: "#d4af37", color: "#d4af37" }}>↺ Sync Default Roster</button>
-          </div>
+          <div style={{ marginBottom: 18 }}><button onClick={addDriver} style={primaryButtonStyle}>Add Driver</button></div>
           <div style={{ overflowX: "auto" }}>
             <table style={tableStyle}>
               <thead><tr><th style={thStyle}>#</th><th style={thStyle}>Driver</th><th style={thStyle}>Manufacturer</th><th style={thStyle}>Team</th><th style={thStyle}>Actions</th></tr></thead>
-              <tbody>{drivers.map((d) => (<tr key={d.id}><td style={{...tdStyle, display: "flex", alignItems: "center", justifyContent: "center"}}><div style={{width: 32, height: 32, borderRadius: "50%", background: "#404854", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 12, color: "#fff", border: "2px solid #b8a059"}}>{d.number}</div></td><td style={tdStyle}>{d.name}</td><td style={tdStyle}>{d.manufacturer || "—"}</td><td style={tdStyle}>{d.team}</td><td style={tdStyle}><div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><button onClick={() => openEditDriver(d)} style={secondaryButtonStyle}>Edit</button>{d.retired ? (<button onClick={() => unretireDriver(d.id)} style={secondaryButtonStyle}>Unretire</button>) : (<button onClick={() => retireDriver(d.id)} style={{ ...secondaryButtonStyle, color: "#f59e0b", borderColor: "#f59e0b" }}>Retire</button>)}<button onClick={() => removeDriver(d.id)} style={dangerButtonStyle}>Remove</button></div></td></tr>))}</tbody>
+              <tbody>{drivers.map((d) => (<tr key={d.id}><td style={{...tdStyle, display: "flex", alignItems: "center", justifyContent: "center"}}><div style={{width: 32, height: 32, borderRadius: "50%", background: "#404854", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 12, color: "#fff", border: "2px solid #b8a059"}}>{d.number}</div></td><td style={tdStyle}>{d.name}</td><td style={tdStyle}>{d.manufacturer || "—"}</td><td style={tdStyle}>{getTeamFullName(d.team)} <span style={{ fontSize: 11, opacity: 0.55 }}>({d.team})</span></td><td style={tdStyle}><div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><button onClick={() => openEditDriver(d)} style={secondaryButtonStyle}>Edit</button>{d.retired ? (<button onClick={() => unretireDriver(d.id)} style={secondaryButtonStyle}>Unretire</button>) : (<button onClick={() => retireDriver(d.id)} style={{ ...secondaryButtonStyle, color: "#f59e0b", borderColor: "#f59e0b" }}>Retire</button>)}<button onClick={() => removeDriver(d.id)} style={dangerButtonStyle}>Remove</button></div></td></tr>))}</tbody>
             </table>
           </div>
           {editingDriverId && (
@@ -1064,7 +1048,7 @@ console.log("Current path:", path);  // ADD THIS LINE
                 <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Driver Name</div><input style={inputStyle} value={editDriverForm.name} onChange={(e) => setEditDriverForm({ ...editDriverForm, name: e.target.value })} /></div>
                 <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Number</div><input style={inputStyle} value={editDriverForm.number} onChange={(e) => setEditDriverForm({ ...editDriverForm, number: e.target.value })} type="number" /></div>
                 <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Manufacturer</div><select style={inputStyle} value={editDriverForm.manufacturer} onChange={(e) => setEditDriverForm({ ...editDriverForm, manufacturer: e.target.value })}><option value="">Select manufacturer</option><option value="Chevrolet">Chevrolet</option><option value="Ford">Ford</option><option value="Toyota">Toyota</option><option value="Other">Other</option></select></div>
-                <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Team</div><input style={inputStyle} value={editDriverForm.team} onChange={(e) => setEditDriverForm({ ...editDriverForm, team: e.target.value })} /></div>
+                <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Team (abbreviation)</div><input style={inputStyle} value={editDriverForm.team} onChange={(e) => setEditDriverForm({ ...editDriverForm, team: e.target.value })} placeholder="e.g. JAM, MER, KRM, MMS" /></div>
               </div>
               <div style={{ display: "flex", gap: 10 }}><button onClick={saveDriverEdit} style={primaryButtonStyle}>Save Changes</button><button onClick={cancelEditDriver} style={secondaryButtonStyle}>Cancel</button></div>
             </div>
@@ -1077,10 +1061,10 @@ console.log("Current path:", path);  // ADD THIS LINE
           <div style={{ display: "grid", gap: 14 }}>
             {drivers.map((d) => (
               <div key={d.id} style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 14 }}>
-                <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 8 }}>#{d.number} {d.name}</div>
-                <textarea 
-                  style={{ ...inputStyle, minHeight: 80, resize: "vertical" }} 
-                  value={driverNotes[d.id] || ""} 
+                <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 8 }}>#{d.number} {d.name} <span style={{ fontWeight: 400, opacity: 0.6, fontSize: 12 }}>— {getTeamFullName(d.team)}</span></div>
+                <textarea
+                  style={{ ...inputStyle, minHeight: 80, resize: "vertical" }}
+                  value={driverNotes[d.id] || ""}
                   onChange={(e) => setDriverNotes({ ...driverNotes, [d.id]: e.target.value })}
                   placeholder="Add notes about this driver..."
                 />
@@ -1194,7 +1178,7 @@ console.log("Current path:", path);  // ADD THIS LINE
                     <tr key={driver.id}>
                       <td style={{...tdStyle, display: "flex", alignItems: "center", justifyContent: "center"}}><div style={{width: 36, height: 36, borderRadius: "50%", background: "#404854", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 14, color: "#fff", border: "2px solid #b8a059"}}>{driver.number}</div></td>
                       <td style={tdStyle}>{driver.name}</td>
-                      <td style={tdStyle}>{driver.team}</td>
+                      <td style={tdStyle}>{getTeamFullName(driver.team)} <span style={{ fontSize: 11, opacity: 0.5 }}>({driver.team})</span></td>
                       <td style={tdStyle}><input type="number" min="1" max="40" style={inputStyle} value={positions[driver.id] || ""} onChange={(e) => handlePositionChange(driver.id, e.target.value)} /></td>
                       {stageCount >= 1 && <td style={tdStyle}><input type="number" min="1" max="10" style={inputStyle} value={stage1[driver.id] || ""} onChange={(e) => handleStage1Change(driver.id, e.target.value)} /></td>}
                       {stageCount >= 2 && <td style={tdStyle}><input type="number" min="1" max="10" style={inputStyle} value={stage2[driver.id] || ""} onChange={(e) => handleStage2Change(driver.id, e.target.value)} /></td>}
@@ -1205,9 +1189,9 @@ console.log("Current path:", path);  // ADD THIS LINE
                             <input type="checkbox" checked={!!dnfMap[driver.id]} onChange={(e) => handleDnfChange(driver.id, e.target.checked)} />DNF
                           </label>
                           {dnfMap[driver.id] && (
-                            <select 
-                              style={{ ...inputStyle, fontSize: 12, padding: "6px 8px" }} 
-                              value={dnfReasons[driver.id] || ""} 
+                            <select
+                              style={{ ...inputStyle, fontSize: 12, padding: "6px 8px" }}
+                              value={dnfReasons[driver.id] || ""}
                               onChange={(e) => setDnfReasons({ ...dnfReasons, [driver.id]: e.target.value })}
                             >
                               <option value="">Select reason...</option>
@@ -1247,7 +1231,7 @@ console.log("Current path:", path);  // ADD THIS LINE
           <div style={{ overflowX: "auto" }}>
             <table style={tableStyle}>
               <thead><tr><th style={thStyle}>Pos</th><th style={thStyle}>#</th><th style={thStyle}>Driver</th><th style={thStyle}>Team</th><th style={thStyle}>Points</th><th style={thStyle}>Wins</th><th style={thStyle}>Top 3</th><th style={thStyle}>Top 5</th><th style={thStyle}>DNFs</th></tr></thead>
-              <tbody>{sortedDrivers.map((d, i) => (<tr key={d.id}><td style={tdStyle}>{i+1}</td><td style={{...tdStyle, display: "flex", alignItems: "center", justifyContent: "center"}}><div style={{width: 36, height: 36, borderRadius: "50%", background: "#404854", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 14, color: "#fff", border: "2px solid #b8a059"}}>{d.number}</div></td><td style={tdStyle}>{d.name}{d.retired && <span style={{ marginLeft: 6, fontSize: 11, background: "#2a3140", color: "#f59e0b", borderRadius: 6, padding: "2px 6px", fontWeight: 700 }}>R</span>}</td><td style={tdStyle}>{d.team}</td><td style={tdStyle}>{d.points}</td><td style={tdStyle}>{d.wins}</td><td style={tdStyle}>{d.top3}</td><td style={tdStyle}>{d.top5}</td><td style={tdStyle}>{d.dnfs || 0}</td></tr>))}</tbody>
+              <tbody>{sortedDrivers.map((d, i) => (<tr key={d.id}><td style={tdStyle}>{i+1}</td><td style={{...tdStyle, display: "flex", alignItems: "center", justifyContent: "center"}}><div style={{width: 36, height: 36, borderRadius: "50%", background: "#404854", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 14, color: "#fff", border: "2px solid #b8a059"}}>{d.number}</div></td><td style={tdStyle}>{d.name}{d.retired && <span style={{ marginLeft: 6, fontSize: 11, background: "#2a3140", color: "#f59e0b", borderRadius: 6, padding: "2px 6px", fontWeight: 700 }}>R</span>}</td><td style={tdStyle}>{getTeamFullName(d.team)}</td><td style={tdStyle}>{d.points}</td><td style={tdStyle}>{d.wins}</td><td style={tdStyle}>{d.top3}</td><td style={tdStyle}>{d.top5}</td><td style={tdStyle}>{d.dnfs || 0}</td></tr>))}</tbody>
             </table>
           </div>
         </div>
@@ -1257,7 +1241,7 @@ console.log("Current path:", path);  // ADD THIS LINE
           <div style={{ overflowX: "auto" }}>
             <table style={tableStyle}>
               <thead><tr><th style={thStyle}>Pos</th><th style={thStyle}>Team</th><th style={thStyle}>Points</th><th style={thStyle}>Wins</th><th style={thStyle}>Top 3</th><th style={thStyle}>Top 5</th><th style={thStyle}>Drivers</th></tr></thead>
-              <tbody>{teamStandings.map((t, i) => (<tr key={t.team}><td style={tdStyle}>{i+1}</td><td style={tdStyle}>{t.team}</td><td style={tdStyle}>{t.points}</td><td style={tdStyle}>{t.wins}</td><td style={tdStyle}>{t.top3}</td><td style={tdStyle}>{t.top5}</td><td style={tdStyle}>{t.drivers}</td></tr>))}</tbody>
+              <tbody>{teamStandings.map((t, i) => (<tr key={t.team}><td style={tdStyle}>{i+1}</td><td style={tdStyle}>{getTeamFullName(t.team)}</td><td style={tdStyle}>{t.points}</td><td style={tdStyle}>{t.wins}</td><td style={tdStyle}>{t.top3}</td><td style={tdStyle}>{t.top5}</td><td style={tdStyle}>{t.drivers}</td></tr>))}</tbody>
             </table>
           </div>
         </div>
@@ -1309,7 +1293,7 @@ console.log("Current path:", path);  // ADD THIS LINE
                               <td style={tdStyle}>{r.finishPos ?? "—"}</td>
                               <td style={{...tdStyle, display: "flex", alignItems: "center", justifyContent: "center"}}><div style={{width: 36, height: 36, borderRadius: "50%", background: "#404854", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 14, color: "#fff", border: "2px solid #b8a059"}}>{r.number}</div></td>
                               <td style={tdStyle}>{r.name}</td>
-                              <td style={tdStyle}>{r.team}</td>
+                              <td style={tdStyle}>{getTeamFullName(r.team)}</td>
                               <td style={tdStyle}>{r.finishPoints}</td>
                               {race.stageCount >= 1 && <td style={tdStyle}>{r.stage1Points}</td>}
                               {race.stageCount >= 2 && <td style={tdStyle}>{r.stage2Points}</td>}
