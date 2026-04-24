@@ -33,6 +33,7 @@ const teamFullNames = {
   MER: "ME Racing",
   KRM: "Kevin Racing Motorsports",
   MMS: "Mayhem Motorsports",
+  NLM: "Nine Line Motorsports",
   None: "Independent",
 };
 function getTeamFullName(teamAbbr) {
@@ -50,11 +51,12 @@ const defaultDrivers = [
   { id: 8,  number: 38, name: "It's_tricky88",            manufacturer: "Toyota",    team: "None" },
   { id: 9,  number: 97, name: "American_Hero216",         manufacturer: "Ford",      team: "MMS"  },
   { id: 10, number: 67, name: "tallishsinter94",          manufacturer: "Toyota",    team: "None" },
-  { id: 11, number: 8,  name: "Highlander719",            manufacturer: "Chevrolet", team: "None" },
+  { id: 11, number: 6,  name: "Highlander713",            manufacturer: "Ford",      team: "NLM"  },
   { id: 12, number: 23, name: "Orly_Revo23",              manufacturer: "Ford",      team: "MMS"  },
   { id: 13, number: 87, name: "Racingis_life87",          manufacturer: "Chevrolet", team: "KRM"  },
   { id: 14, number: 0,  name: "Inactive-josiah-wells",    manufacturer: "Other",     team: "None" },
   { id: 15, number: 1,  name: "Inactive-shane-mcconnell", manufacturer: "Other",     team: "None" },
+  { id: 16, number: 9,  name: "vtfan_25",                 manufacturer: "Ford",      team: "NLM"  },
 ];
 const defaultRaces = [
   { name: "Preseason - Michigan", stageCount: 2, date: "2026-04-25" },
@@ -140,6 +142,7 @@ const teamBranding = {
   MER: { logo: "MER", accent: "#dc2626", dark: "#200a0a", fullName: "ME Racing" },
   KRM: { logo: "KRM", accent: "#2563eb", dark: "#0a0e1f", fullName: "Kevin Racing Motorsports" },
   MMS: { logo: "MMS", accent: "#9333ea", dark: "#150a2e", fullName: "Mayhem Motorsports" },
+  NLM: { logo: "NLM", accent: "#f97316", dark: "#1f0e00", fullName: "Nine Line Motorsports" },
   "None": { logo: "N", accent: "#808080", dark: "#2a2a2a" },
   "Team A": { logo: "A", accent: "#d4af37", dark: "#1b1b1b" },
   "Team B": { logo: "B", accent: "#3b82f6", dark: "#111827" },
@@ -200,7 +203,7 @@ function rebuildDriversFromHistory(history, driverRoster) {
       fastestLaps += result.fastestLap ? 1 : 0;
       totalPenalties += result.penaltyPoints || 0;
     });
-    return { ...baseDriver, manufacturerLogo: baseDriver.manufacturerLogo || manufacturerLogos[baseDriver.manufacturer] || null, startingPoints: Number(baseDriver.startingPoints) || 0, manualWins: Number(baseDriver.manualWins) || 0, points, wins, top3, top5, dnfs, fastestLaps, totalPenalties, retired: baseDriver.retired || false };
+    return { ...baseDriver, manufacturerLogo: baseDriver.manufacturerLogo || manufacturerLogos[baseDriver.manufacturer] || null, startingPoints: Number(baseDriver.startingPoints) || 0, manualWins: Number(baseDriver.manualWins) || 0, points, wins, top3, top5, dnfs, fastestLaps, totalPenalties, retired: baseDriver.retired || false, notes: baseDriver.notes || "" };
   });
 }
 function makeSeasonId() { return `season-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`; }
@@ -210,7 +213,7 @@ function createEmptySeason(name, roster = getDefaultRoster()) {
 }
 function sanitizeSeason(season, fallbackName = "Season") {
   const rosterSource = Array.isArray(season?.drivers) && season.drivers.length > 0 ? season.drivers : getDefaultRoster();
-  const rosterOnly = rosterSource.map((d) => ({ id: d.id, number: Number(d.number), name: d.name, manufacturer: d.manufacturer || "", team: d.team, startingPoints: Number(d.startingPoints) || 0, manualWins: Number(d.manualWins) || 0, retired: d.retired || false }));
+  const rosterOnly = rosterSource.map((d) => ({ id: d.id, number: Number(d.number), name: d.name, manufacturer: d.manufacturer || "", team: d.team, startingPoints: Number(d.startingPoints) || 0, manualWins: Number(d.manualWins) || 0, retired: d.retired || false, notes: d.notes || "" }));
   const history = Array.isArray(season?.raceHistory) ? season.raceHistory : [];
   return {
     id: season?.id || makeSeasonId(), name: season?.name || fallbackName, createdAt: season?.createdAt || new Date().toISOString(),
@@ -290,7 +293,8 @@ function TeamOverlay({ teams, preview = false, seasonName = "" }) {
     </div>
   );
 }
-function PublicStandings({ drivers, teams, seasonName = "" }) {
+function PublicStandings({ drivers, teams, seasonName = "", tracks = [], raceHistory = [] }) {
+  const [scheduleOpen, setScheduleOpen] = useState(false);
   const handleDriverClick = (number) => {
     window.location.pathname = `/driver/${number}`;
   };
@@ -300,6 +304,14 @@ function PublicStandings({ drivers, teams, seasonName = "" }) {
   const totalPoints = sorted.reduce((s, d) => s + (d.points || 0), 0);
   const totalWins = sorted.reduce((s, d) => s + (d.wins || 0), 0);
   const totalDnfs = sorted.reduce((s, d) => s + (d.dnfs || 0), 0);
+
+  // Sort tracks by date, mark completed ones
+  const completedRaces = new Set((raceHistory || []).map(r => r.raceName));
+  const sortedTracks = [...tracks].sort((a, b) => {
+    if (a.date && b.date) return new Date(a.date) - new Date(b.date);
+    return 0;
+  });
+  const nextRace = sortedTracks.find(t => !completedRaces.has(t.name));
   const podiumCard = (driver, place) => {
     if (!driver) return null;
     const brand = getTeamBranding(driver.team);
@@ -359,7 +371,54 @@ function PublicStandings({ drivers, teams, seasonName = "" }) {
               <div style={{ fontSize: 30, fontWeight: 900 }}>{item.value}</div>
             </div>
           ))}
+          {/* Schedule tile */}
+          <div
+            onClick={() => setScheduleOpen(true)}
+            style={{ background: "linear-gradient(135deg, #131922 0%, #0f141b 100%)", border: "1px solid #d4af37", borderRadius: 18, padding: 18, boxShadow: "0 10px 24px rgba(0,0,0,0.18)", cursor: "pointer", position: "relative", overflow: "hidden" }}
+          >
+            <div style={{ position: "absolute", top: -16, right: -16, width: 80, height: 80, borderRadius: "50%", background: "rgba(212,175,55,0.08)" }} />
+            <div style={{ fontSize: 12, opacity: 0.72, marginBottom: 8 }}>🏁 SCHEDULE</div>
+            <div style={{ fontSize: 18, fontWeight: 900, marginBottom: 4 }}>
+              {nextRace ? nextRace.name : "Season Complete"}
+            </div>
+            <div style={{ fontSize: 11, opacity: 0.6 }}>
+              {nextRace?.date ? new Date(nextRace.date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : ""}
+            </div>
+            <div style={{ fontSize: 11, color: "#d4af37", marginTop: 6, fontWeight: 700 }}>View full schedule →</div>
+          </div>
         </div>
+
+        {/* Schedule modal */}
+        {scheduleOpen && (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 }}>
+            <div style={{ background: "#151a22", border: "1px solid #2d3643", borderRadius: 20, padding: 28, maxWidth: 560, width: "100%", maxHeight: "80vh", overflowY: "auto", boxShadow: "0 24px 60px rgba(0,0,0,0.5)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+                <div style={{ fontSize: 22, fontWeight: 900 }}>🏁 Race Schedule</div>
+                <button onClick={() => setScheduleOpen(false)} style={{ background: "none", border: "none", color: "white", fontSize: 24, cursor: "pointer" }}>×</button>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {sortedTracks.map((track, i) => {
+                  const completed = completedRaces.has(track.name);
+                  const isNext = track.name === nextRace?.name;
+                  return (
+                    <div key={track.name} style={{ display: "flex", alignItems: "center", gap: 14, padding: "10px 14px", borderRadius: 12, background: isNext ? "rgba(212,175,55,0.12)" : "rgba(255,255,255,0.03)", border: `1px solid ${isNext ? "#d4af37" : completed ? "#1a3a1a" : "#1e2530"}` }}>
+                      <div style={{ width: 28, height: 28, borderRadius: "50%", background: completed ? "#16a34a" : isNext ? "#d4af37" : "#1e2530", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, color: completed || isNext ? "#000" : "#666", flexShrink: 0 }}>
+                        {completed ? "✓" : i + 1}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 700, fontSize: 14, color: completed ? "#4ade80" : isNext ? "#d4af37" : "white" }}>{track.name}</div>
+                        {track.date && <div style={{ fontSize: 11, opacity: 0.55, marginTop: 2 }}>{new Date(track.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}</div>}
+                      </div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: completed ? "#4ade80" : isNext ? "#f59e0b" : "#555" }}>
+                        {completed ? "COMPLETE" : isNext ? "NEXT" : "UPCOMING"}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
         <div style={{ display: "flex", flexWrap: "wrap", gap: 16, marginBottom: 24 }}>
           {podiumCard(leader, 1)}{podiumCard(second, 2)}{podiumCard(third, 3)}
         </div>
@@ -918,7 +977,7 @@ export default function App() {
   if (!isHydrated) return <div style={appShellStyle}><div style={pageContainerStyle}><div style={sectionCardStyle}>Loading league data...</div></div></div>;
   if (path === "/admin/car-gallery") return <CarGalleryPage drivers={drivers} tracks={tracks} />;
   if (path.startsWith("/driver/")) return <DriverProfilePage seasons={seasons} activeSeason={activeSeason} tracks={tracks} />;
-  if (path === "/standings") return <PublicStandings drivers={drivers} teams={teamStandings} seasonName={activeSeason?.name || ""} />;
+  if (path === "/standings") return <PublicStandings drivers={drivers} teams={teamStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} />;
   if (path === "/overlay/ticker" || viewMode === "overlay-ticker") return <TickerOverlay drivers={drivers} teams={teamStandings} raceHistory={raceHistory} preview={viewMode === "overlay-ticker"} seasonName={activeSeason?.name || ""} />;
   return (
     <div style={appShellStyle}>
