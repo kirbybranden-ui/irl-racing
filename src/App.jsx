@@ -548,6 +548,7 @@ function patchMissingDrivers(cleanSeasons, raceHistory = []) {
     return { ...season, drivers: rebuildDriversFromHistory(season.raceHistory || [], newRoster) };
   });
 }
+export default function App() {
   const [seasons, setSeasons] = useState(() => loadInitialLeagueState().seasons);
   const [openAppealCount, setOpenAppealCount] = useState(0);
   const [activeSeasonId, setActiveSeasonId] = useState(() => loadInitialLeagueState().activeSeasonId);
