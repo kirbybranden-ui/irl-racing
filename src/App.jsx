@@ -112,7 +112,7 @@ function sanitizeTracks(rawTracks) {
       const stageCount = Number(t?.stageCount);
       if (!name) return null;
       const stages = [1, 2, 3].includes(stageCount) ? stageCount : 2;
-      return { name, stageCount: stages };
+      return { name, stageCount: stages, date: t?.date || null };
     })
     .filter(Boolean);
   // De-dupe by name (case-insensitive)
