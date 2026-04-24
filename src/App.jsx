@@ -637,10 +637,10 @@ export default function App() {
   const [newTrackStageCount, setNewTrackStageCount] = useState(2);
   const [pendingDrivers, setPendingDrivers] = useState([]);
   const [featuredVideo, setFeaturedVideo] = useState(null);
-  const [videoUrl, setVideoUrl] = useState("");
   const [videoTitle, setVideoTitle] = useState("");
   const [videoDescription, setVideoDescription] = useState("");
   const [videoUploading, setVideoUploading] = useState(false);
+  const videoFileInputRef = useRef(null);
   const importFileRef = useRef(null);
   const path = window.location.pathname.toLowerCase();
 
@@ -1146,34 +1146,37 @@ export default function App() {
         <div style={sectionCardStyle}>
           <h2 style={{ marginTop: 0 }}>🎬 Featured Video</h2>
           <div style={{ fontSize: 13, opacity: 0.7, marginBottom: 16 }}>
-            Post a pre-race hype video or race highlight. It appears at the top of the /standings page. Paste a YouTube, Twitch, or direct video URL.
+            Upload a pre-race hype video or race highlight. It appears at the top of the /standings page. Replaces any existing featured video.
           </div>
 
           {featuredVideo && (
-            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 14, marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-              <div>
-                <div style={{ fontWeight: 700, marginBottom: 2 }}>{featuredVideo.title || "Untitled Video"}</div>
-                {featuredVideo.description && <div style={{ fontSize: 12, opacity: 0.65, marginBottom: 4 }}>{featuredVideo.description}</div>}
-                <div style={{ fontSize: 12, opacity: 0.5, wordBreak: "break-all" }}>{featuredVideo.video_url}</div>
+            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 14, marginBottom: 16 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap", marginBottom: 10 }}>
+                <div>
+                  <div style={{ fontWeight: 700, marginBottom: 2 }}>{featuredVideo.title || "Untitled Video"}</div>
+                  {featuredVideo.description && <div style={{ fontSize: 12, opacity: 0.65, marginBottom: 4 }}>{featuredVideo.description}</div>}
+                  <div style={{ fontSize: 11, opacity: 0.45 }}>Published {new Date(featuredVideo.uploaded_at).toLocaleString()}</div>
+                </div>
+                <button
+                  style={dangerButtonStyle}
+                  onClick={async () => {
+                    if (!window.confirm("Remove the featured video from standings?")) return;
+                    // Delete from storage if it's a Supabase file
+                    if (featuredVideo.file_path) {
+                      await supabase.storage.from("car-uploads").remove([featuredVideo.file_path]);
+                    }
+                    await supabase.from("featured_video").delete().eq("id", featuredVideo.id);
+                    setFeaturedVideo(null);
+                  }}
+                >
+                  Remove
+                </button>
               </div>
-              <button
-                style={dangerButtonStyle}
-                onClick={async () => {
-                  if (!window.confirm("Remove the featured video from standings?")) return;
-                  await supabase.from("featured_video").delete().eq("id", featuredVideo.id);
-                  setFeaturedVideo(null);
-                }}
-              >
-                Remove
-              </button>
+              <video controls style={{ width: "100%", maxHeight: 240, borderRadius: 8, background: "#000" }} src={featuredVideo.video_url} />
             </div>
           )}
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, marginBottom: 14 }}>
-            <div>
-              <div style={{ marginBottom: 6, fontWeight: 700 }}>Video URL *</div>
-              <input style={inputStyle} value={videoUrl} onChange={e => setVideoUrl(e.target.value)} placeholder="YouTube, Twitch, or direct .mp4 URL" />
-            </div>
             <div>
               <div style={{ marginBottom: 6, fontWeight: 700 }}>Title (optional)</div>
               <input style={inputStyle} value={videoTitle} onChange={e => setVideoTitle(e.target.value)} placeholder="e.g. Preseason Michigan Highlights" />
@@ -1184,33 +1187,68 @@ export default function App() {
             </div>
           </div>
 
-          <button
-            style={{ ...primaryButtonStyle, opacity: videoUploading ? 0.6 : 1 }}
-            disabled={videoUploading}
-            onClick={async () => {
-              if (!videoUrl.trim()) { alert("Please enter a video URL."); return; }
+          <input
+            ref={videoFileInputRef}
+            type="file"
+            accept="video/mp4,video/mov,video/quicktime,video/avi,video/webm"
+            style={{ display: "none" }}
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
               setVideoUploading(true);
               try {
-                // Remove any existing featured video first
-                if (featuredVideo) await supabase.from("featured_video").delete().eq("id", featuredVideo.id);
-                const { data, error } = await supabase.from("featured_video").insert({
-                  video_url: videoUrl.trim(),
+                const fileExt = file.name.split(".").pop();
+                const fileName = `featured-${Date.now()}.${fileExt}`;
+                const filePath = `featured/${fileName}`;
+
+                // Upload to Supabase Storage
+                const { error: storageError } = await supabase.storage
+                  .from("car-uploads")
+                  .upload(filePath, file, { cacheControl: "3600", upsert: false });
+                if (storageError) throw storageError;
+
+                const { data: urlData } = supabase.storage
+                  .from("car-uploads")
+                  .getPublicUrl(filePath);
+
+                // Remove existing featured video
+                if (featuredVideo) {
+                  if (featuredVideo.file_path) await supabase.storage.from("car-uploads").remove([featuredVideo.file_path]);
+                  await supabase.from("featured_video").delete().eq("id", featuredVideo.id);
+                }
+
+                // Save to DB
+                const { data: saved, error: dbError } = await supabase.from("featured_video").insert({
+                  video_url: urlData.publicUrl,
+                  file_path: filePath,
                   title: videoTitle.trim() || null,
                   description: videoDescription.trim() || null,
                   uploaded_at: new Date().toISOString(),
                 }).select().single();
-                if (error) throw error;
-                setFeaturedVideo(data);
-                setVideoUrl(""); setVideoTitle(""); setVideoDescription("");
-                alert("✅ Featured video published to /standings!");
+                if (dbError) throw dbError;
+
+                setFeaturedVideo(saved);
+                setVideoTitle(""); setVideoDescription("");
+                alert("✅ Video uploaded and published to /standings!");
               } catch (err) {
-                alert(`Failed to publish video: ${err.message}`);
+                console.error("Video upload error:", err);
+                alert(`Upload failed: ${err.message}`);
               }
               setVideoUploading(false);
+              if (videoFileInputRef.current) videoFileInputRef.current.value = "";
             }}
+          />
+
+          <button
+            style={{ ...primaryButtonStyle, opacity: videoUploading ? 0.6 : 1 }}
+            disabled={videoUploading}
+            onClick={() => videoFileInputRef.current?.click()}
           >
-            {videoUploading ? "Publishing..." : "🎬 Publish to Standings"}
+            {videoUploading ? "⏳ Uploading..." : "📁 Choose Video File"}
           </button>
+          {videoUploading && (
+            <div style={{ marginTop: 10, fontSize: 13, opacity: 0.7 }}>Uploading — large files may take a moment...</div>
+          )}
         </div>
 
         {/* Backup & Restore */}
