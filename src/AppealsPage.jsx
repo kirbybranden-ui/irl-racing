@@ -1,814 +1,187 @@
-import React, { useState, useMemo, useEffect } from "react";
-import logo from "./assets/logo1.png";
-import teamLogoJAM from "./assets/teams/JAM.png";
-import teamLogoMER from "./assets/teams/ME.png";
+import { useEffect, useState } from "react";
 import { supabase } from "./lib/supabase";
 
-// Team logos
-const teamLogos = {
-  "JA MOTORSPORTS": teamLogoJAM,
-  JAM: teamLogoJAM,
-  "ME RACING": teamLogoMER,
-  MER: teamLogoMER,
+const cardStyle = {
+  border: "1px solid #2c3440",
+  borderRadius: 14,
+  padding: 20,
+  marginBottom: 16,
+  background: "#171b22",
+  boxShadow: "0 4px 16px rgba(0,0,0,0.2)",
+};
+const labelStyle = { fontSize: 12, opacity: 0.6, fontWeight: 700, textTransform: "uppercase", marginBottom: 2 };
+const valueStyle = { fontSize: 15, marginBottom: 12 };
+const inputStyle = { width: "100%", background: "#0f1319", color: "white", border: "1px solid #313947", borderRadius: 10, padding: "10px 12px", boxSizing: "border-box", resize: "vertical" };
+const selectStyle = { background: "#0f1319", color: "white", border: "1px solid #313947", borderRadius: 10, padding: "10px 12px", minWidth: 160 };
+const saveButtonStyle = { marginTop: 12, background: "#d4af37", color: "#111", border: "none", borderRadius: 10, padding: "10px 18px", fontWeight: 700, cursor: "pointer", fontSize: 14 };
+
+const statusColors = {
+  Open:     { bg: "#1a2030", border: "#3b4f6e", badge: "#3b82f6" },
+  Approved: { bg: "#14291a", border: "#2d6641", badge: "#22c55e" },
+  Denied:   { bg: "#2a1010", border: "#6b2020", badge: "#ef4444" },
 };
 
-// ─── Team Full Names ───────────────────────────────────────────────────────────
-const teamFullNames = {
-  JAM: "JA Motorsports",
-  "JA MOTORSPORTS": "JA Motorsports",
-  MER: "ME Racing",
-  KRM: "Kevin Racing Motorsports",
-  MMS: "Mayhem Motorsports",
-  None: "Independent",
-};
-function getTeamFullName(teamAbbr) {
-  return teamFullNames[teamAbbr] || teamAbbr;
-}
+export default function AppealsPage() {
+  const [appeals, setAppeals] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-const appShellStyle = { minHeight: "100vh", background: "#0c0f14", color: "white", fontFamily: "Arial, sans-serif" };
-const pageContainerStyle = { maxWidth: 1000, margin: "0 auto", padding: 20 };
-const sectionCardStyle = { background: "#171b22", border: "1px solid #2c3440", borderRadius: 16, padding: 20, marginBottom: 20, boxShadow: "0 8px 24px rgba(0,0,0,0.22)" };
-const primaryButtonStyle = { background: "#d4af37", color: "#111", border: "none", borderRadius: 10, padding: "10px 16px", fontWeight: 700, cursor: "pointer" };
-const secondaryButtonStyle = { background: "#2a3140", color: "white", border: "1px solid #3d4859", borderRadius: 10, padding: "10px 16px", fontWeight: 700, cursor: "pointer" };
-const inputStyle = { width: "100%", background: "#0f1319", color: "white", border: "1px solid #313947", borderRadius: 10, padding: "10px 12px", boxSizing: "border-box" };
-const statBoxStyle = { background: "#11161d", border: "1px solid #2a3240", borderRadius: 14, padding: 16, flex: "1 1 160px" };
-const tableStyle = { width: "100%", borderCollapse: "collapse" };
-const thStyle = { textAlign: "left", padding: 10, borderBottom: "1px solid #313947", background: "#10141b", fontSize: 13, fontWeight: 700 };
-const tdStyle = { padding: 10, borderBottom: "1px solid #252c38", verticalAlign: "top", fontSize: 14 };
-
-function AppealModal({ isOpen, onClose, selectedSeason }) {
-  const [requester, setRequester] = useState("");
-  const [track, setTrack] = useState("");
-  const [description, setDescription] = useState("");
-  const [videoUrl, setVideoUrl] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [cloudinaryReady, setCloudinaryReady] = useState(false);
-  const widgetRef = React.useRef(null);
-
-  const drivers = selectedSeason?.drivers ? [...selectedSeason.drivers].sort((a, b) => a.number - b.number) : [];
-  const tracks = ["Bristol (Night)", "Charlotte", "Daytona (Night)", "Homestead", "Indianapolis", "Iowa", "Kansas", "Michigan", "Nashville", "New Hampshire", "North Wilksboro", "Phoenix", "Pocono", "Preseason - Dover", "Preseason - Michigan", "Preseason - WWT Raceway", "Richmond", "Talladega", "Texas", "Las Vegas"];
-
-  const handleSubmit = async () => {
-    if (!requester.trim() || !track.trim() || !description.trim()) {
-      alert("Please fill in all required fields (Requester, Track, Description).");
+  async function loadAppeals() {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("appeals")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) {
+      console.error(error);
+      setAppeals([]);
+      setLoading(false);
       return;
     }
+    setAppeals(data || []);
+    setLoading(false);
+  }
 
-    setSubmitting(true);
-    try {
-      const { error } = await supabase.from("appeals").insert({
-        requester: requester.trim(),
-        track: track.trim(),
-        description: description.trim(),
-        evidence_url: videoUrl || null,
-        status: "Open",
-        created_at: new Date().toISOString(),
-      });
-
-      if (error) throw error;
-
-      alert("✅ Appeal submitted successfully!");
-      setRequester("");
-      setTrack("");
-      setDescription("");
-      setVideoUrl("");
-      onClose();
-    } catch (err) {
-      console.error("Appeal submission error:", err);
-      alert("Failed to submit appeal. Please try again.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  // Load Cloudinary script once — correct URL for v2 widget
-  React.useEffect(() => {
-    if (window.cloudinary) {
-      setCloudinaryReady(true);
-      return;
-    }
-    const existing = document.getElementById("cloudinary-widget-script");
-    if (existing) return; // already loading
-    const script = document.createElement("script");
-    script.id = "cloudinary-widget-script";
-    script.src = "https://widget.cloudinary.com/v2.0/global/all.js";
-    script.async = true;
-    script.onload = () => setCloudinaryReady(true);
-    script.onerror = () => console.error("Cloudinary widget failed to load");
-    document.body.appendChild(script);
-    // Do NOT remove on cleanup — let it stay loaded so re-opening the modal is instant
+  useEffect(() => {
+    loadAppeals();
   }, []);
 
-  // Build the widget once cloudinary is ready
-  React.useEffect(() => {
-    if (!cloudinaryReady || !window.cloudinary) return;
-    widgetRef.current = window.cloudinary.createUploadWidget(
-      {
-        cloudName: "dpu05oykz",
-        uploadPreset: "dpu05oykz", // ⚠️ UPDATE THIS: go to Cloudinary dashboard → Settings → Upload → Upload Presets
-        resourceType: "video",
-        folder: "appeal-evidence",
-        maxFileSize: 200000000, // 200MB limit
-        clientAllowedFormats: ["mp4", "mov", "avi", "mkv", "webm"],
-      },
-      (error, result) => {
-        if (error) {
-          console.error("Upload error:", error);
-          alert("Upload failed: " + (error.message || "Unknown error"));
-          return;
-        }
-        if (result?.event === "success") {
-          setVideoUrl(result.info.secure_url);
-          alert("✅ Video uploaded successfully!");
-        }
-      }
-    );
-  }, [cloudinaryReady]);
+  async function updateAppeal(id, status, admin_notes) {
+    const { error } = await supabase
+      .from("appeals")
+      .update({ status, admin_notes })
+      .eq("id", id);
+    if (error) {
+      alert("Update failed");
+      return;
+    }
+    await loadAppeals();
+  }
 
-  if (!isOpen) return null;
+  const openCount = appeals.filter(a => a.status === "Open").length;
+  const resolvedCount = appeals.filter(a => a.status !== "Open").length;
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 }}>
-      <div style={{ background: "#171b22", border: "1px solid #2c3440", borderRadius: 16, padding: 28, maxWidth: 520, width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.4)", maxHeight: "90vh", overflowY: "auto" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-          <h2 style={{ margin: 0, fontSize: 24, fontWeight: 800 }}>File an Appeal</h2>
-          <button onClick={onClose} style={{ background: "none", border: "none", color: "white", fontSize: 24, cursor: "pointer", padding: 0 }}>×</button>
-        </div>
-
-        <div style={{ marginBottom: 16 }}>
-          <label style={{ display: "block", marginBottom: 6, fontWeight: 700 }}>Requester (Driver) *</label>
-          <select style={inputStyle} value={requester} onChange={(e) => setRequester(e.target.value)}>
-            <option value="">-- Select Driver --</option>
-            {drivers.map((d) => (
-              <option key={d.id} value={`${d.number} - ${d.name}`}>
-                #{d.number} {d.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div style={{ marginBottom: 16 }}>
-          <label style={{ display: "block", marginBottom: 6, fontWeight: 700 }}>Track *</label>
-          <select style={inputStyle} value={track} onChange={(e) => setTrack(e.target.value)}>
-            <option value="">-- Select Track --</option>
-            {tracks.map((t, idx) => (
-              <option key={idx} value={t}>{t}</option>
-            ))}
-          </select>
-        </div>
-
-        <div style={{ marginBottom: 16 }}>
-          <label style={{ display: "block", marginBottom: 6, fontWeight: 700 }}>Description *</label>
-          <textarea
-            style={{ ...inputStyle, minHeight: 120, resize: "vertical" }}
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Describe what happened and who was involved..."
-          />
-        </div>
-
-        <div style={{ marginBottom: 16 }}>
-          <label style={{ display: "block", marginBottom: 6, fontWeight: 700 }}>Video Evidence (optional)</label>
-          <button
-            onClick={() => {
-              if (!cloudinaryReady || !widgetRef.current) {
-                alert("Upload widget is still loading, please wait a moment and try again.");
-                return;
-              }
-              widgetRef.current.open();
-            }}
-            style={{ ...secondaryButtonStyle, opacity: cloudinaryReady ? 1 : 0.6 }}
-          >
-            {videoUrl ? "✅ Video uploaded" : cloudinaryReady ? "📹 Upload Video" : "⏳ Loading uploader..."}
-          </button>
-          {videoUrl && (
-            <div style={{ marginTop: 8, fontSize: 12, opacity: 0.7, wordBreak: "break-all" }}>
-              {videoUrl}
+    <div style={{ minHeight: "100vh", background: "#0c0f14", color: "white", fontFamily: "Arial, sans-serif", padding: 24 }}>
+      <div style={{ maxWidth: 860, margin: "0 auto" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
+          <div>
+            <h1 style={{ margin: 0, fontSize: 28, fontWeight: 900 }}>Appeals Review</h1>
+            <div style={{ opacity: 0.6, fontSize: 14, marginTop: 4 }}>
+              {openCount} open · {resolvedCount} resolved
             </div>
-          )}
+          </div>
+          <button
+            onClick={() => window.location.pathname = "/"}
+            style={{ background: "#1e2530", color: "white", border: "1px solid #313947", borderRadius: 10, padding: "10px 16px", fontWeight: 700, cursor: "pointer" }}
+          >
+            ← Admin
+          </button>
         </div>
 
-        <div style={{ display: "flex", gap: 10 }}>
-          <button onClick={handleSubmit} style={primaryButtonStyle} disabled={submitting}>
-            {submitting ? "Submitting..." : "Submit Appeal"}
-          </button>
-          <button onClick={onClose} style={secondaryButtonStyle}>Cancel</button>
-        </div>
+        {loading ? (
+          <p style={{ opacity: 0.7 }}>Loading appeals...</p>
+        ) : appeals.length === 0 ? (
+          <p style={{ opacity: 0.7 }}>No appeals submitted yet.</p>
+        ) : (
+          appeals.map((appeal) => (
+            <AppealCard key={appeal.id} appeal={appeal} onSave={updateAppeal} />
+          ))
+        )}
       </div>
     </div>
   );
 }
 
-export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }) {
-  const pathParts = window.location.pathname.split("/");
-  const driverNumber = pathParts[2];
+function AppealCard({ appeal, onSave }) {
+  const [status, setStatus] = useState(appeal.status || "Open");
+  const [notes, setNotes] = useState(appeal.admin_notes || "");
+  const [saving, setSaving] = useState(false);
 
-  const allSeasons = Array.isArray(seasons) ? seasons : [];
-  const selectedSeason = activeSeason && activeSeason.id
-    ? allSeasons.find(s => s && s.id === activeSeason.id) || activeSeason
-    : allSeasons[0] || null;
+  const colors = statusColors[appeal.status] || statusColors.Open;
+  const wasResolved = appeal.status === "Approved" || appeal.status === "Denied";
+  const willNotify = (status === "Approved" || status === "Denied") && status !== appeal.status;
 
-  // Compute driver early so we can use driver.name in the notification filter
-  const driver = selectedSeason && selectedSeason.drivers
-    ? selectedSeason.drivers.find((d) => d && String(d.number) === String(driverNumber))
-    : null;
-
-  const [isAppealModalOpen, setIsAppealModalOpen] = useState(false);
-  const [appealNotifications, setAppealNotifications] = useState([]);
-  const [dismissedIds, setDismissedIds] = useState(() => {
-    try { return JSON.parse(localStorage.getItem(`irl-dismissed-appeals-${driverNumber}`) || "[]").map(String); }
-    catch { return []; }
-  });
-
-  // Poll for resolved appeals belonging to this driver
-  useEffect(() => {
-    async function fetchAppealNotifications() {
-      const { data, error } = await supabase
-        .from("appeals")
-        .select("*")
-        .in("status", ["Approved", "Denied"])
-        .order("created_at", { ascending: false });
-      if (error) { console.error("Appeal fetch error:", error); return; }
-      if (data) {
-        const mine = data.filter(a => {
-          if (!a.requester) return false;
-          // Match by car number prefix: "42 - AMP-GHOSTRIDER"
-          const byNumber = a.requester.startsWith(`${driverNumber} - `);
-          // Fallback: match by driver name in case format varies
-          const byName = driver?.name && a.requester.includes(driver.name);
-          return byNumber || byName;
-        });
-        setAppealNotifications(mine);
-      }
-    }
-    fetchAppealNotifications();
-    const interval = setInterval(fetchAppealNotifications, 5000);
-    return () => clearInterval(interval);
-  }, [driverNumber, driver?.name]);
-
-  const dismissNotification = (appealId) => {
-    const updated = [...dismissedIds, String(appealId)];
-    setDismissedIds(updated);
-    localStorage.setItem(`irl-dismissed-appeals-${driverNumber}`, JSON.stringify(updated));
+  const handleSave = async () => {
+    setSaving(true);
+    await onSave(appeal.id, status, notes);
+    setSaving(false);
   };
 
-  // Convert both sides to string so number/string mismatch never causes a miss
-  const pendingNotifications = appealNotifications.filter(a => !dismissedIds.includes(String(a.id)));
-
-  if (!selectedSeason) {
-    return (
-      <div style={appShellStyle}>
-        <div style={pageContainerStyle}>
-          <div style={sectionCardStyle}>
-            <button onClick={() => window.location.pathname = "/standings"} style={secondaryButtonStyle}>← Back to Standings</button>
-            <div style={{ marginTop: 16, marginBottom: 16, fontWeight: 700 }}>No season data loaded.</div>
-            <div style={{ opacity: 0.75 }}>Try refreshing the page or returning to standings.</div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!driver) {
-    return (
-      <div style={appShellStyle}>
-        <div style={pageContainerStyle}>
-          <div style={sectionCardStyle}>
-            <button onClick={() => window.location.pathname = "/standings"} style={secondaryButtonStyle}>← Back to Standings</button>
-            <div style={{ marginTop: 16, marginBottom: 16, fontWeight: 700 }}>Driver #{driverNumber} not found in {selectedSeason?.name}</div>
-            <div style={{ opacity: 0.75 }}>Check the standings page to select a valid driver.</div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Calculate race breakdown and stats from actual race history
-  const raceBreakdown = useMemo(() => {
-    if (!selectedSeason || !driver) return [];
-    return (selectedSeason.raceHistory || [])
-      .map((race) => {
-        const result = (race.results || []).find((r) => r && r.driverId === driver.id);
-        return { raceName: race.raceName, stageCount: race.stageCount, ...result };
-      })
-      .filter((r) => r && r.driverId === driver.id);
-  }, [selectedSeason, driver]);
-
-  // Use stats from driver object (already calculated by App.jsx)
-  const calculatedStats = useMemo(() => {
-    return {
-      points: driver.points || 0,
-      wins: driver.wins || 0,
-      top3: driver.top3 || 0,
-      top5: driver.top5 || 0,
-      dnfs: driver.dnfs || 0,
-      fastestLaps: driver.fastestLaps || 0,
-      totalPenalties: driver.totalPenalties || 0,
-    };
-  }, [driver]);
-
-  const offenseLog = useMemo(() => {
-    if (!selectedSeason || !driver) return [];
-    return (selectedSeason.raceHistory || []).flatMap((race) =>
-      (race.results || [])
-        .filter((r) => r && r.driverId === driver.id && r.offense)
-        .map((r) => ({ raceName: race.raceName, ...r }))
-    );
-  }, [selectedSeason, driver]);
-
-  const careerStats = useMemo(() => {
-    let totalWins = 0, totalPoints = 0, totalPodiums = 0, totalRaces = 0;
-    if (seasons && Array.isArray(seasons)) {
-      seasons.forEach(season => {
-        const d = season.drivers?.find(dr => dr.id === driver.id);
-        if (d) {
-          totalWins += d.wins || 0;
-          totalPoints += d.points || 0;
-          totalPodiums += d.top3 || 0;
-          totalRaces += (season.raceHistory || []).filter(r => r.results?.some(res => res.driverId === driver.id)).length;
-        }
-      });
-    }
-    return { wins: totalWins, points: totalPoints, podiums: totalPodiums, races: totalRaces };
-  }, [seasons, driver.id]);
-
-  const recentForm = useMemo(() => {
-    return (selectedSeason.raceHistory || [])
-      .filter(r => r.results?.some(res => res.driverId === driver.id))
-      .slice(-5)
-      .map(r => {
-        const result = r.results.find(res => res.driverId === driver.id);
-        return { race: r.raceName, points: result?.totalRacePoints || 0, finish: result?.finishPos };
-      });
-  }, [selectedSeason, driver.id]);
-
-  const consistencyRating = useMemo(() => {
-    const finishes = raceBreakdown.filter(r => r.finishPos).map(r => r.finishPos);
-    if (finishes.length === 0) return { avg: 0, best: "—", worst: "—" };
-    const avg = (finishes.reduce((a, b) => a + b, 0) / finishes.length).toFixed(1);
-    return { avg, best: Math.min(...finishes), worst: Math.max(...finishes) };
-  }, [raceBreakdown]);
-
-  const personalRecords = useMemo(() => {
-    let bestFinish = Infinity, fastestLapCount = 0, highestPointsRace = 0;
-    raceBreakdown.forEach(r => {
-      if (r.finishPos) bestFinish = Math.min(bestFinish, r.finishPos);
-      if (r.fastestLap) fastestLapCount++;
-      if (r.totalRacePoints) highestPointsRace = Math.max(highestPointsRace, r.totalRacePoints);
-    });
-    return { bestFinish: bestFinish === Infinity ? "—" : bestFinish, fastestLaps: fastestLapCount, highestRacePoints: highestPointsRace };
-  }, [raceBreakdown]);
-
-  const streaks = useMemo(() => {
-    let currentWinStreak = 0, longestWinStreak = 0, currentPodiumStreak = 0, longestPodiumStreak = 0, currentDnfStreak = 0, longestDnfStreak = 0;
-    raceBreakdown.forEach(r => {
-      if (r.isWin) { currentWinStreak++; longestWinStreak = Math.max(longestWinStreak, currentWinStreak); } else currentWinStreak = 0;
-      if (r.isTop3) { currentPodiumStreak++; longestPodiumStreak = Math.max(longestPodiumStreak, currentPodiumStreak); } else currentPodiumStreak = 0;
-      if (r.dnf) { currentDnfStreak++; longestDnfStreak = Math.max(longestDnfStreak, currentDnfStreak); } else currentDnfStreak = 0;
-    });
-    return { currentWins: currentWinStreak, longestWins: longestWinStreak, currentPodiums: currentPodiumStreak, longestPodiums: longestPodiumStreak, currentDnfs: currentDnfStreak, longestDnfs: longestDnfStreak };
-  }, [raceBreakdown]);
-
-  const driverRanking = useMemo(() => {
-    const sorted = [...(selectedSeason.drivers || [])].sort((a, b) => b.points - a.points);
-    return sorted.findIndex(d => d.id === driver.id) + 1;
-  }, [selectedSeason, driver.id]);
-
-  const pointsGap = useMemo(() => {
-    const sorted = [...(selectedSeason.drivers || [])].sort((a, b) => b.points - a.points);
-    const driverIdx = sorted.findIndex(d => d.id === driver.id);
-    if (driverIdx === 0) return { ahead: 0, behind: 0 };
-    const ahead = sorted[driverIdx - 1].points - driver.points;
-    const behind = driverIdx < sorted.length - 1 ? driver.points - sorted[driverIdx + 1].points : 0;
-    return { ahead, behind };
-  }, [selectedSeason, driver.id]);
-
-  const teamStats = useMemo(() => {
-    const teammate = (selectedSeason.drivers || []).find(d => d.team === driver.team && d.id !== driver.id);
-    if (!teammate) return null;
-    return { name: teammate.name, number: teammate.number, points: teammate.points, wins: teammate.wins, top3: teammate.top3 };
-  }, [selectedSeason, driver.id]);
-
-  const trackStats = useMemo(() => {
-    const tracks = {};
-    raceBreakdown.forEach(r => {
-      const track = r.raceName;
-      if (!tracks[track]) tracks[track] = { races: 0, points: 0, finish: [] };
-      tracks[track].races++;
-      tracks[track].points += r.totalRacePoints || 0;
-      if (r.finishPos) tracks[track].finish.push(r.finishPos);
-    });
-    const sorted = Object.entries(tracks).sort((a, b) => b[1].points - a[1].points);
-    return { best: sorted[0], worst: sorted[sorted.length - 1], total: sorted.length };
-  }, [raceBreakdown]);
-
-  const pointsProjection = useMemo(() => {
-    const racesCompleted = raceBreakdown.length;
-    const totalTracks = selectedSeason.raceHistory?.length || 0;
-    if (racesCompleted === 0) return "—";
-    const avgPointsPerRace = calculatedStats.points / racesCompleted;
-    const projected = Math.round(avgPointsPerRace * totalTracks);
-    return projected;
-  }, [calculatedStats.points, raceBreakdown, selectedSeason]);
-
-  const achievementProgress = useMemo(() => {
-    const achievements = [
-      { name: "First Win", current: calculatedStats.wins, target: 1, emoji: "🏆" },
-      { name: "Hat Trick", current: calculatedStats.wins, target: 3, emoji: "🥇" },
-      { name: "Dominator", current: calculatedStats.wins, target: 5, emoji: "👑" },
-      { name: "Podium Master", current: calculatedStats.top3, target: 10, emoji: "🎯" },
-      { name: "Century Club", current: calculatedStats.points, target: 100, emoji: "⭐" },
-      { name: "Speed Demon", current: calculatedStats.fastestLaps, target: 5, emoji: "⚡" },
-    ];
-    return achievements.filter(a => a.current < a.target);
-  }, [calculatedStats]);
-
   return (
-    <div style={appShellStyle}>
-      <div style={pageContainerStyle}>
-
-        {/* ── Appeal Notifications ─────────────────────────────────────── */}
-        {pendingNotifications.map(appeal => {
-          const approved = appeal.status === "Approved";
-          return (
-            <div key={appeal.id} style={{
-              background: approved ? "linear-gradient(135deg, #14532d 0%, #0f2d1a 100%)" : "linear-gradient(135deg, #4c1212 0%, #2a0a0a 100%)",
-              border: `1px solid ${approved ? "#4ade80" : "#f87171"}`,
-              borderRadius: 14,
-              padding: 18,
-              marginBottom: 16,
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "flex-start",
-              gap: 16,
-              boxShadow: `0 4px 20px ${approved ? "rgba(74,222,128,0.15)" : "rgba(248,113,113,0.15)"}`,
-            }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 18, fontWeight: 900, marginBottom: 6, display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 22 }}>{approved ? "✅" : "❌"}</span>
-                  Appeal {appeal.status}
-                </div>
-                <div style={{ fontSize: 13, opacity: 0.85, marginBottom: 4 }}>
-                  <strong>Track:</strong> {appeal.track}
-                </div>
-                {appeal.admin_notes && (
-                  <div style={{ fontSize: 13, background: "rgba(0,0,0,0.25)", borderRadius: 8, padding: "8px 12px", marginTop: 8, lineHeight: 1.5 }}>
-                    <strong>League determination:</strong> {appeal.admin_notes}
-                  </div>
-                )}
-              </div>
-              <button
-                onClick={() => dismissNotification(appeal.id)}
-                style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "white", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 12, fontWeight: 700, whiteSpace: "nowrap" }}
-              >
-                Dismiss
-              </button>
-            </div>
-          );
-        })}
-
-        {/* ── Driver Header ─────────────────────────────────────────────── */}
-        <div style={sectionCardStyle}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 24, flexWrap: "wrap" }}>
-            <div>
-              <button onClick={() => window.location.pathname = "/standings"} style={{ ...secondaryButtonStyle, marginBottom: 12 }}>← Back to Standings</button>
-              <div>
-                <div style={{ fontSize: 28, fontWeight: 900 }}>{driver.name}</div>
-                <div style={{ fontSize: 16, opacity: 0.8, marginTop: 4 }}>#{driver.number}</div>
-                <div style={{ fontSize: 15, fontWeight: 700, marginTop: 4 }}>{getTeamFullName(driver.team)}</div>
-                <div style={{ fontSize: 12, opacity: 0.5, marginTop: 2 }}>{driver.team}</div>
-              </div>
-            </div>
-
-            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", width: 140, height: 140, borderRadius: 8, background: "#0f1319", border: "1px solid #2c3440" }}>
-              {teamLogos[driver.team] ? (
-                <img src={teamLogos[driver.team]} alt={driver.team} style={{ maxWidth: "90%", maxHeight: "90%", objectFit: "contain" }} />
-              ) : (
-                <div style={{ fontWeight: 700, fontSize: 13, color: "#b8a059", textAlign: "center", padding: 8 }}>{getTeamFullName(driver.team)}</div>
-              )}
-            </div>
-
-            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", width: 140, height: 140, borderRadius: 8, background: "#0f1319", border: "1px solid #2c3440" }}>
-              {driver.manufacturerLogo ? (
-                <img src={driver.manufacturerLogo} alt={driver.manufacturer} style={{ maxWidth: "90%", maxHeight: "90%", objectFit: "contain" }} />
-              ) : (
-                <div style={{ fontWeight: 700, fontSize: 12, color: "#b8a059", textAlign: "center", padding: 8 }}>{driver.manufacturer || "—"}</div>
-              )}
-            </div>
-
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 12, opacity: 0.72, marginBottom: 4 }}>SEASON</div>
-              <div style={{ fontSize: 16, fontWeight: 700 }}>{selectedSeason.name}</div>
-            </div>
-          </div>
+    <div style={{ ...cardStyle, background: colors.bg, borderColor: colors.border }}>
+      {/* Header row */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
+        <div>
+          <div style={{ fontSize: 17, fontWeight: 800, marginBottom: 2 }}>{appeal.requester}</div>
+          <div style={{ fontSize: 12, opacity: 0.55 }}>{new Date(appeal.created_at).toLocaleString()}</div>
         </div>
-
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 20 }}>
-          {[
-            { label: "POINTS", value: calculatedStats.points },
-            { label: "WINS", value: calculatedStats.wins },
-            { label: "TOP 3", value: calculatedStats.top3 },
-            { label: "TOP 5", value: calculatedStats.top5 },
-            { label: "DNFs", value: calculatedStats.dnfs },
-            { label: "PENALTIES", value: calculatedStats.totalPenalties ? `-${calculatedStats.totalPenalties}` : "0" },
-          ].map((stat) => (
-            <div key={stat.label} style={statBoxStyle}>
-              <div style={{ fontSize: 11, opacity: 0.75, marginBottom: 6 }}>{stat.label}</div>
-              <div style={{ fontSize: 24, fontWeight: 800 }}>{stat.value}</div>
-            </div>
-          ))}
+        <div style={{ background: colors.badge, color: "white", borderRadius: 8, padding: "4px 12px", fontSize: 12, fontWeight: 800 }}>
+          {appeal.status}
         </div>
+      </div>
 
-        {(() => {
-          const achievements = [
-            { badge: "🏆", name: "First Win", condition: calculatedStats.wins >= 1 },
-            { badge: "🥇", name: "Hat Trick", condition: calculatedStats.wins >= 3 },
-            { badge: "👑", name: "Dominator", condition: calculatedStats.wins >= 5 },
-            { badge: "🎯", name: "Podium Master", condition: calculatedStats.top3 >= 10 },
-            { badge: "⭐", name: "Century Club", condition: calculatedStats.points >= 100 },
-            { badge: "⚡", name: "Speed Demon", condition: calculatedStats.fastestLaps >= 5 },
-          ].filter(a => a.condition);
-
-          return achievements.length > 0 && (
-            <div style={{ ...sectionCardStyle, marginBottom: 20 }}>
-              <h3 style={{ marginTop: 0, marginBottom: 12 }}>Achievements</h3>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-                {achievements.map((a, i) => (
-                  <div key={i} style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 10, padding: 12, textAlign: "center", minWidth: 90 }}>
-                    <div style={{ fontSize: 28, marginBottom: 4 }}>{a.badge}</div>
-                    <div style={{ fontSize: 11, fontWeight: 700, opacity: 0.8 }}>{a.name}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          );
-        })()}
-
-        <div style={{ marginBottom: 20 }}>
-          <button onClick={() => setIsAppealModalOpen(true)} style={primaryButtonStyle}>File an Appeal</button>
+      {/* Details */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 14 }}>
+        <div>
+          <div style={labelStyle}>Track</div>
+          <div style={valueStyle}>{appeal.track}</div>
         </div>
-
-        {driver.notes && (
-          <div style={{ ...sectionCardStyle, marginBottom: 20, background: "#1a1f27", borderLeft: "4px solid #d4af37" }}>
-            <h3 style={{ marginTop: 0, marginBottom: 8 }}>Admin Notes</h3>
-            <div style={{ fontSize: 14, lineHeight: 1.6, opacity: 0.9 }}>{driver.notes}</div>
-          </div>
-        )}
-
-        <div style={sectionCardStyle}>
-          <h2 style={{ marginTop: 0, marginBottom: 16 }}>Season Overview</h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12, marginBottom: 16 }}>
-            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}>
-              <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>RANKING</div>
-              <div style={{ fontSize: 28, fontWeight: 800, color: "#d4af37" }}>P{driverRanking}</div>
-            </div>
-            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}>
-              <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>PROJECTION</div>
-              <div style={{ fontSize: 22, fontWeight: 800 }}>{pointsProjection} pts</div>
-              <div style={{ fontSize: 10, opacity: 0.6 }}>Full season estimate</div>
-            </div>
-            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}>
-              <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>AVG FINISH</div>
-              <div style={{ fontSize: 22, fontWeight: 800 }}>P{consistencyRating.avg}</div>
-              <div style={{ fontSize: 10, opacity: 0.6 }}>Consistency</div>
-            </div>
-          </div>
-
-          {pointsGap.ahead > 0 && (
-            <div style={{ background: "#2a3140", borderRadius: 8, padding: 12, marginBottom: 12 }}>
-              <div style={{ fontSize: 13, opacity: 0.8 }}>📊 <strong>{pointsGap.ahead} points</strong> behind P{driverRanking - 1}</div>
-            </div>
-          )}
-          {pointsGap.behind > 0 && (
-            <div style={{ background: "#2a3140", borderRadius: 8, padding: 12 }}>
-              <div style={{ fontSize: 13, opacity: 0.8 }}>📊 <strong>{pointsGap.behind} point lead</strong> over P{driverRanking + 1}</div>
-            </div>
-          )}
-        </div>
-
-        <div style={sectionCardStyle}>
-          <h2 style={{ marginTop: 0, marginBottom: 14 }}>Personal Records</h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12 }}>
-            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}>
-              <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>BEST FINISH</div>
-              <div style={{ fontSize: 28, fontWeight: 800, color: "#d4af37" }}>{personalRecords.bestFinish}</div>
-            </div>
-            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}>
-              <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>FASTEST LAPS</div>
-              <div style={{ fontSize: 28, fontWeight: 800, color: "#d4af37" }}>{personalRecords.fastestLaps}</div>
-            </div>
-            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}>
-              <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>BEST RACE</div>
-              <div style={{ fontSize: 28, fontWeight: 800, color: "#d4af37" }}>{personalRecords.highestRacePoints}</div>
-              <div style={{ fontSize: 10, opacity: 0.6 }}>points</div>
-            </div>
-          </div>
-        </div>
-
-        <div style={sectionCardStyle}>
-          <h2 style={{ marginTop: 0, marginBottom: 14 }}>Current Streaks</h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12 }}>
-            <div style={{ background: streaks.currentWins > 0 ? "#1a3a1a" : "#0f1319", border: `1px solid ${streaks.currentWins > 0 ? "#4ade80" : "#2c3440"}`, borderRadius: 10, padding: 12 }}>
-              <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>WIN STREAK 🏆</div>
-              <div style={{ fontSize: 28, fontWeight: 800 }}>{streaks.currentWins}</div>
-              <div style={{ fontSize: 10, opacity: 0.6 }}>Best: {streaks.longestWins}</div>
-            </div>
-            <div style={{ background: streaks.currentPodiums > 0 ? "#1a3a1a" : "#0f1319", border: `1px solid ${streaks.currentPodiums > 0 ? "#4ade80" : "#2c3440"}`, borderRadius: 10, padding: 12 }}>
-              <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>PODIUM STREAK 🎯</div>
-              <div style={{ fontSize: 28, fontWeight: 800 }}>{streaks.currentPodiums}</div>
-              <div style={{ fontSize: 10, opacity: 0.6 }}>Best: {streaks.longestPodiums}</div>
-            </div>
-            <div style={{ background: streaks.currentDnfs > 0 ? "#3a1a1a" : "#0f1319", border: `1px solid ${streaks.currentDnfs > 0 ? "#f87171" : "#2c3440"}`, borderRadius: 10, padding: 12 }}>
-              <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>DNF STREAK 💥</div>
-              <div style={{ fontSize: 28, fontWeight: 800 }}>{streaks.currentDnfs}</div>
-              <div style={{ fontSize: 10, opacity: 0.6 }}>Worst: {streaks.longestDnfs}</div>
-            </div>
-          </div>
-        </div>
-
-        <div style={sectionCardStyle}>
-          <h2 style={{ marginTop: 0, marginBottom: 14 }}>Career Stats (All Seasons)</h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12 }}>
-            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}>
-              <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>CAREER WINS</div>
-              <div style={{ fontSize: 28, fontWeight: 800 }}>{careerStats.wins}</div>
-            </div>
-            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}>
-              <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>CAREER POINTS</div>
-              <div style={{ fontSize: 28, fontWeight: 800 }}>{careerStats.points}</div>
-            </div>
-            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}>
-              <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>PODIUMS</div>
-              <div style={{ fontSize: 28, fontWeight: 800 }}>{careerStats.podiums}</div>
-            </div>
-            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}>
-              <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>RACES</div>
-              <div style={{ fontSize: 28, fontWeight: 800 }}>{careerStats.races}</div>
-            </div>
-          </div>
-        </div>
-
-        <div style={sectionCardStyle}>
-          <h2 style={{ marginTop: 0, marginBottom: 14 }}>Consistency Analysis</h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
-            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}>
-              <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>AVERAGE FINISH</div>
-              <div style={{ fontSize: 24, fontWeight: 800 }}>P{consistencyRating.avg}</div>
-            </div>
-            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}>
-              <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>BEST - WORST</div>
-              <div style={{ fontSize: 18, fontWeight: 800 }}>P{consistencyRating.best} - P{consistencyRating.worst}</div>
-              <div style={{ fontSize: 10, opacity: 0.6 }}>Range</div>
-            </div>
-          </div>
-        </div>
-
-        {trackStats.best && (
-          <div style={sectionCardStyle}>
-            <h2 style={{ marginTop: 0, marginBottom: 14 }}>Track Performance</h2>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
-              <div style={{ background: "#1a3a1a", border: "1px solid #4ade80", borderRadius: 10, padding: 12 }}>
-                <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4, color: "#4ade80" }}>BEST TRACK 🏁</div>
-                <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 4 }}>{trackStats.best[0]}</div>
-                <div style={{ fontSize: 12, opacity: 0.8 }}>{trackStats.best[1].points} pts in {trackStats.best[1].races} races</div>
-              </div>
-              <div style={{ background: "#3a1a1a", border: "1px solid #f87171", borderRadius: 10, padding: 12 }}>
-                <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4, color: "#f87171" }}>WORST TRACK 🚩</div>
-                <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 4 }}>{trackStats.worst[0]}</div>
-                <div style={{ fontSize: 12, opacity: 0.8 }}>{trackStats.worst[1].points} pts in {trackStats.worst[1].races} races</div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {teamStats && (
-          <div style={sectionCardStyle}>
-            <h2 style={{ marginTop: 0, marginBottom: 14 }}>Teammate Comparison</h2>
-            <div style={{ fontSize: 13, opacity: 0.7, marginBottom: 10 }}>{getTeamFullName(driver.team)}</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}>
-                <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 8 }}>{driver.name}</div>
-                <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 2 }}>Points: {driver.points}</div>
-                <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 2 }}>Wins: {calculatedStats.wins}</div>
-                <div style={{ fontSize: 11, opacity: 0.7 }}>Podiums: {calculatedStats.top3}</div>
-              </div>
-              <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}>
-                <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 8 }}>#{teamStats.number} {teamStats.name}</div>
-                <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 2 }}>Points: {teamStats.points}</div>
-                <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 2 }}>Wins: {teamStats.wins}</div>
-                <div style={{ fontSize: 11, opacity: 0.7 }}>Podiums: {teamStats.top3}</div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {achievementProgress.length > 0 && (
-          <div style={sectionCardStyle}>
-            <h2 style={{ marginTop: 0, marginBottom: 14 }}>Achievement Progress</h2>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {achievementProgress.map((a, i) => {
-                const progress = Math.round((a.current / a.target) * 100);
-                return (
-                  <div key={i}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                      <span style={{ fontSize: 13, fontWeight: 700 }}>{a.emoji} {a.name}</span>
-                      <span style={{ fontSize: 12, opacity: 0.7 }}>{a.current}/{a.target}</span>
-                    </div>
-                    <div style={{ background: "#0f1319", borderRadius: 8, height: 8, overflow: "hidden" }}>
-                      <div style={{ background: "#d4af37", height: "100%", width: `${progress}%`, transition: "width 0.3s" }} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {recentForm.length > 0 && (
-          <div style={sectionCardStyle}>
-            <h2 style={{ marginTop: 0, marginBottom: 14 }}>Recent Form (Last 5 Races)</h2>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(100px, 1fr))", gap: 10 }}>
-              {recentForm.map((r, i) => (
-                <div key={i} style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 8, padding: 10, textAlign: "center" }}>
-                  <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>{r.race.split("(")[0].trim().substring(0, 8)}</div>
-                  <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 2 }}>{r.points}</div>
-                  <div style={{ fontSize: 10, opacity: 0.6 }}>P{r.finish || "—"}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div style={sectionCardStyle}>
-          <h2 style={{ marginTop: 0, marginBottom: 16 }}>Race-by-Race Breakdown</h2>
-          {raceBreakdown.length === 0 ? (
-            <div style={{ opacity: 0.75 }}>No races entered yet.</div>
-          ) : (
-            <div style={{ overflowX: "auto" }}>
-              <table style={tableStyle}>
-                <thead>
-                  <tr>
-                    <th style={thStyle}>Race</th>
-                    <th style={thStyle}>Finish</th>
-                    <th style={thStyle}>Race Pts</th>
-                    <th style={thStyle}>Stage 1</th>
-                    <th style={thStyle}>Stage 2</th>
-                    <th style={thStyle}>FL</th>
-                    <th style={thStyle}>DNF</th>
-                    <th style={thStyle}>Offense</th>
-                    <th style={thStyle}>Penalty</th>
-                    <th style={thStyle}>Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {raceBreakdown.map((race) => (
-                    <tr key={race.raceName}>
-                      <td style={tdStyle}>{race.raceName}</td>
-                      <td style={tdStyle}>{race.finishPos ?? "—"}</td>
-                      <td style={tdStyle}>{race.finishPoints || 0}</td>
-                      <td style={tdStyle}>{race.stage1Points || 0}</td>
-                      <td style={tdStyle}>{race.stage2Points || 0}</td>
-                      <td style={tdStyle}>{race.fastestLap ? "+1" : "—"}</td>
-                      <td style={tdStyle}>{race.dnf ? "DNF" : "—"}</td>
-                      <td style={tdStyle}>{race.offense ? `#${race.offenseNumber}` : "—"}</td>
-                      <td style={{ ...tdStyle, color: (race.penaltyPoints || 0) > 0 ? "#f87171" : "inherit" }}>{(race.penaltyPoints || 0) > 0 ? `-${race.penaltyPoints}` : "—"}</td>
-                      <td style={{ ...tdStyle, fontWeight: 800 }}>{race.totalRacePoints || 0}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-
-        {offenseLog.length > 0 && (
-          <div style={sectionCardStyle}>
-            <h2 style={{ marginTop: 0, marginBottom: 16 }}>Offense History</h2>
-            <div style={{ overflowX: "auto" }}>
-              <table style={tableStyle}>
-                <thead>
-                  <tr>
-                    <th style={thStyle}>Race</th>
-                    <th style={thStyle}>Offense #</th>
-                    <th style={thStyle}>Penalty Points</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {offenseLog.map((entry, idx) => (
-                    <tr key={`${entry.raceName}-${idx}`}>
-                      <td style={tdStyle}>{entry.raceName}</td>
-                      <td style={tdStyle}>#{entry.offenseNumber}</td>
-                      <td style={{ ...tdStyle, color: "#f87171", fontWeight: 700 }}>-{entry.penaltyPoints} pts</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+        {appeal.lap_number != null && (
+          <div>
+            <div style={labelStyle}>Lap</div>
+            <div style={valueStyle}>{appeal.lap_number}</div>
           </div>
         )}
       </div>
 
-      <AppealModal isOpen={isAppealModalOpen} onClose={() => setIsAppealModalOpen(false)} selectedSeason={selectedSeason} />
+      <div style={{ marginBottom: 14 }}>
+        <div style={labelStyle}>Description</div>
+        <div style={{ fontSize: 14, lineHeight: 1.6, background: "rgba(0,0,0,0.2)", borderRadius: 8, padding: 12 }}>{appeal.description}</div>
+      </div>
+
+      {/* Evidence video */}
+      {appeal.evidence_url ? (
+        <div style={{ marginBottom: 14 }}>
+          <div style={labelStyle}>Evidence</div>
+          <video controls width="100%" style={{ maxWidth: 480, borderRadius: 8, marginTop: 6 }} src={appeal.evidence_url} />
+        </div>
+      ) : (
+        <div style={{ marginBottom: 14, fontSize: 13, opacity: 0.55 }}>No video evidence uploaded</div>
+      )}
+
+      {/* Previous admin notes if already resolved */}
+      {wasResolved && appeal.admin_notes && (
+        <div style={{ marginBottom: 14, background: "rgba(0,0,0,0.25)", borderRadius: 8, padding: 12 }}>
+          <div style={labelStyle}>Previous Determination</div>
+          <div style={{ fontSize: 14, lineHeight: 1.5 }}>{appeal.admin_notes}</div>
+        </div>
+      )}
+
+      {/* Controls */}
+      <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 14, marginTop: 4 }}>
+        <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 10, flexWrap: "wrap" }}>
+          <select style={selectStyle} value={status} onChange={(e) => setStatus(e.target.value)}>
+            <option value="Open">Open</option>
+            <option value="Approved">Approved</option>
+            <option value="Denied">Denied</option>
+          </select>
+          {willNotify && (
+            <div style={{ fontSize: 12, color: "#f59e0b", fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}>
+              🔔 Driver will be notified on their profile page
+            </div>
+          )}
+        </div>
+        <textarea
+          rows={3}
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="Add league determination / admin notes for the driver..."
+          style={{ ...inputStyle, marginBottom: 10 }}
+        />
+        <button style={saveButtonStyle} onClick={handleSave} disabled={saving}>
+          {saving ? "Saving..." : "Save Determination"}
+        </button>
+      </div>
     </div>
   );
 }
