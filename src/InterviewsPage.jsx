@@ -4,32 +4,36 @@ import { supabase } from "./lib/supabase";
 const appShellStyle = { minHeight: "100vh", background: "#0c0f14", color: "white", fontFamily: "Arial, sans-serif" };
 const pageContainerStyle = { maxWidth: 1000, margin: "0 auto", padding: 24 };
 const sectionCardStyle = { background: "#171b22", border: "1px solid #2c3440", borderRadius: 16, padding: 20, marginBottom: 20, boxShadow: "0 8px 24px rgba(0,0,0,0.22)" };
-const inputStyle = { background: "#0f1319", color: "white", border: "1px solid #313947", borderRadius: 10, padding: "10px 12px", boxSizing: "border-box", width: "100%" };
+const inputStyle = { background: "#0f1319", color: "white", border: "1px solid #313947", borderRadius: 10, padding: "10px 12px", boxSizing: "border-box", width: "100%", resize: "vertical" };
+const selectStyle = { background: "#0f1319", color: "white", border: "1px solid #313947", borderRadius: 10, padding: "10px 12px", boxSizing: "border-box", width: "100%" };
+const primaryButtonStyle = { background: "#d4af37", color: "#111", border: "none", borderRadius: 10, padding: "10px 18px", fontWeight: 700, cursor: "pointer" };
 const secondaryButtonStyle = { background: "#2a3140", color: "white", border: "1px solid #3d4859", borderRadius: 10, padding: "10px 16px", fontWeight: 700, cursor: "pointer" };
 const dangerButtonStyle = { background: "#b42318", color: "white", border: "none", borderRadius: 10, padding: "8px 14px", fontWeight: 700, cursor: "pointer", fontSize: 12 };
-const blueButtonStyle = { background: "#2563eb", color: "white", border: "none", borderRadius: 10, padding: "10px 16px", fontWeight: 700, cursor: "pointer" };
-const greenButtonStyle = { background: "#16a34a", color: "white", border: "none", borderRadius: 10, padding: "10px 16px", fontWeight: 700, cursor: "pointer" };
+const blueButtonStyle = { background: "#2563eb", color: "white", border: "none", borderRadius: 10, padding: "10px 18px", fontWeight: 700, cursor: "pointer" };
+const greenButtonStyle = { background: "#16a34a", color: "white", border: "none", borderRadius: 10, padding: "10px 18px", fontWeight: 700, cursor: "pointer" };
 
-const teamFullNames = {
-  JAM: "JA Motorsports", MER: "ME Racing", KRM: "Kevin Racing Motorsports",
-  MMS: "Mayhem Motorsports", NLM: "Nine Line Motorsports", Independent: "Independent",
-};
-function getTeamFullName(t) { return teamFullNames[t] || t; }
+const emptyQA = () => [
+  { question: "", answer: "" },
+  { question: "", answer: "" },
+  { question: "", answer: "" },
+];
 
 export default function InterviewsPage({ drivers = [], tracks = [], seasons = [], activeSeasonId = "" }) {
   const [interviews, setInterviews] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState("");
+
+  // Filter state
   const [filterDriver, setFilterDriver] = useState("");
   const [filterRace, setFilterRace] = useState("");
   const [filterType, setFilterType] = useState("");
 
-  // Generate section state
+  // Form state
   const [selectedDriverId, setSelectedDriverId] = useState("");
   const [selectedRace, setSelectedRace] = useState("");
-  const [generating, setGenerating] = useState(false);
-  const [generateStatus, setGenerateStatus] = useState("");
-
-  const activeSeason = seasons.find(s => s.id === activeSeasonId) || seasons[0] || null;
+  const [interviewType, setInterviewType] = useState("pre");
+  const [qa, setQa] = useState(emptyQA());
 
   // Auto-detect next upcoming race
   const nextRace = useMemo(() => {
@@ -61,98 +65,49 @@ export default function InterviewsPage({ drivers = [], tracks = [], seasons = []
     setInterviews(prev => prev.filter(i => i.id !== id));
   }
 
-  async function generateInterview(type) {
-    if (!selectedDriverId) { setGenerateStatus("⚠️ Please select a driver."); return; }
-    if (!selectedRace) { setGenerateStatus("⚠️ Please select a race."); return; }
+  function updateQA(index, field, value) {
+    setQa(prev => prev.map((item, i) => i === index ? { ...item, [field]: value } : item));
+  }
+
+  async function saveInterview() {
+    if (!selectedDriverId) { setSaveStatus("⚠️ Please select a driver."); return; }
+    if (!selectedRace) { setSaveStatus("⚠️ Please select a race."); return; }
+    const filled = qa.filter(q => q.question.trim() && q.answer.trim());
+    if (filled.length === 0) { setSaveStatus("⚠️ Please fill in at least one question and answer."); return; }
 
     const driver = drivers.find(d => String(d.id) === String(selectedDriverId));
-    if (!driver) { setGenerateStatus("⚠️ Driver not found."); return; }
+    if (!driver) { setSaveStatus("⚠️ Driver not found."); return; }
 
-    // Check if already exists
+    // Check for existing
     const exists = interviews.some(
-      i => String(i.driver_id) === String(driver.id) && i.race_name === selectedRace && i.type === type
+      i => String(i.driver_id) === String(driver.id) && i.race_name === selectedRace && i.type === interviewType
     );
     if (exists) {
-      setGenerateStatus(`⚠️ A ${type}-race interview for ${driver.name} at ${selectedRace} already exists.`);
+      setSaveStatus(`⚠️ A ${interviewType}-race interview for ${driver.name} at ${selectedRace} already exists. Delete it first to replace.`);
       return;
     }
 
-    setGenerating(true);
-    setGenerateStatus(`⏳ Generating ${type === "pre" ? "pre" : "post"}-race interview for #${driver.number} ${driver.name}...`);
+    setSaving(true);
+    setSaveStatus("");
 
-    const hasTeam = driver.team && driver.team !== "Independent";
-    const teamName = getTeamFullName(driver.team);
-    const teammates = hasTeam
-      ? (activeSeason?.drivers || []).filter(d => d.team === driver.team && d.id !== driver.id)
-      : [];
-    const sorted = [...(activeSeason?.drivers || [])].sort((a, b) => b.points - a.points);
-    const ranking = sorted.findIndex(d => d.id === driver.id) + 1;
-    const raceHistory = activeSeason?.raceHistory || [];
+    const { data: saved, error } = await supabase.from("interviews").insert({
+      driver_id: driver.id,
+      driver_name: driver.name,
+      driver_number: driver.number,
+      race_name: selectedRace,
+      type: interviewType,
+      questions_and_answers: filled,
+      generated_at: new Date().toISOString(),
+    }).select().single();
 
-    let prompt = "";
-    if (type === "pre") {
-      prompt = `You are a motorsports journalist interviewing ${driver.name}, driver of the #${driver.number} ${driver.manufacturer}${hasTeam ? ` for ${teamName}` : " as an independent driver"} in the Budweiser Cup League iRacing series.
-
-This is a PRE-RACE interview the day before the ${selectedRace}.
-${hasTeam && teammates.length > 0 ? `Teammate(s): ${teammates.map(t => `#${t.number} ${t.name}`).join(", ")}.` : ""}
-Current season: P${ranking} in standings, ${driver.points} points, ${driver.wins} wins.
-
-Generate 4 varied pre-race interview questions and in-character answers. Mix expectations, strategy, car setup, and competitive goals. Answers in first person, authentic racing driver style, 2-3 sentences each. Make it specific to this race and unique.
-
-Respond ONLY with a valid JSON array, no markdown or backticks:
-[{"question":"...","answer":"..."},{"question":"...","answer":"..."},{"question":"...","answer":"..."},{"question":"...","answer":"..."}]`;
+    if (error) {
+      setSaveStatus(`❌ Failed to save: ${error.message}`);
     } else {
-      const latestRace = raceHistory.find(r => r.raceName === selectedRace);
-      const result = latestRace?.results?.find(r => r.driverId === driver.id);
-      const resultContext = result
-        ? `Race result: Finished P${result.finishPos || "unknown"}${result.dnf ? ` (DNF)` : ""}${result.isWin ? " — WON THE RACE! 🏆" : ""}. Earned ${result.totalRacePoints} points${result.fastestLap ? ", set fastest lap" : ""}.`
-        : `No recorded result for this driver at this race.`;
-
-      prompt = `You are a motorsports journalist interviewing ${driver.name}, driver of the #${driver.number} ${driver.manufacturer}${hasTeam ? ` for ${teamName}` : " as an independent driver"} in the Budweiser Cup League iRacing series.
-
-This is a POST-RACE interview after the ${selectedRace}.
-${resultContext}
-Season standings: P${ranking} with ${driver.points} total points, ${driver.wins} wins across ${raceHistory.length} races.
-${hasTeam && teammates.length > 0 ? `Teammate(s): ${teammates.map(t => `#${t.number} ${t.name} (${t.points} pts)`).join(", ")}.` : ""}
-
-Generate 4 varied post-race interview questions and in-character answers. Reference the actual result, car performance, season outlook. Answers in first person, authentic racing driver style, 2-3 sentences each.
-
-Respond ONLY with a valid JSON array, no markdown or backticks:
-[{"question":"...","answer":"..."},{"question":"...","answer":"..."},{"question":"...","answer":"..."},{"question":"...","answer":"..."}]`;
-    }
-
-    try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
-          messages: [{ role: "user", content: prompt }]
-        })
-      });
-      const aiData = await res.json();
-      const text = aiData.content?.[0]?.text || "[]";
-      const qa = JSON.parse(text.replace(/```json|```/g, "").trim());
-
-      const { data: saved, error } = await supabase.from("interviews").insert({
-        driver_id: driver.id,
-        driver_name: driver.name,
-        driver_number: driver.number,
-        race_name: selectedRace,
-        type,
-        questions_and_answers: qa,
-        generated_at: new Date().toISOString()
-      }).select().single();
-
-      if (error) throw error;
       setInterviews(prev => [saved, ...prev]);
-      setGenerateStatus(`✅ ${type === "pre" ? "Pre" : "Post"}-race interview for ${driver.name} generated and published to their driver profile!`);
-    } catch (err) {
-      console.error("Generation failed:", err);
-      setGenerateStatus(`❌ Generation failed: ${err.message}`);
+      setQa(emptyQA());
+      setSaveStatus(`✅ ${interviewType === "pre" ? "Pre" : "Post"}-race interview for ${driver.name} published to their profile!`);
     }
-    setGenerating(false);
+    setSaving(false);
   }
 
   const allDriverNames = [...new Set(interviews.map(i => i.driver_name).filter(Boolean))].sort();
@@ -185,67 +140,110 @@ Respond ONLY with a valid JSON array, no markdown or backticks:
           <button onClick={() => window.location.pathname = "/"} style={secondaryButtonStyle}>← Admin</button>
         </div>
 
-        {/* Generate Section */}
+        {/* Create Interview Form */}
         <div style={{ ...sectionCardStyle, border: "1px solid #d4af37" }}>
-          <h2 style={{ marginTop: 0, marginBottom: 4 }}>Generate Interview</h2>
-          <div style={{ fontSize: 13, opacity: 0.65, marginBottom: 16 }}>
-            Manually generate a pre or post-race interview for any driver. Publishes instantly to their driver profile. Will not overwrite an existing interview.
+          <h2 style={{ marginTop: 0, marginBottom: 4 }}>Create Interview</h2>
+          <div style={{ fontSize: 13, opacity: 0.65, marginBottom: 20 }}>
+            Fill in 3 questions and answers. Publishes instantly to the driver's profile page.
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12, marginBottom: 16 }}>
+          {/* Driver / Race / Type row */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 20 }}>
             <div>
               <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Driver</div>
-              <select style={inputStyle} value={selectedDriverId} onChange={e => setSelectedDriverId(e.target.value)}>
-                <option value="">Select a driver...</option>
-                {[...drivers]
-                  .filter(d => !d.retired)
-                  .sort((a, b) => a.number - b.number)
-                  .map(d => (
-                    <option key={d.id} value={d.id}>#{d.number} {d.name}</option>
-                  ))}
+              <select style={selectStyle} value={selectedDriverId} onChange={e => setSelectedDriverId(e.target.value)}>
+                <option value="">Select driver...</option>
+                {[...drivers].filter(d => !d.retired).sort((a, b) => a.number - b.number).map(d => (
+                  <option key={d.id} value={d.id}>#{d.number} {d.name}</option>
+                ))}
               </select>
             </div>
             <div>
               <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>
-                Race {nextRace && <span style={{ color: "#d4af37", fontWeight: 400, fontSize: 11 }}>— auto-selected: {nextRace.name}</span>}
+                Race {nextRace && <span style={{ color: "#d4af37", fontWeight: 400 }}>— next: {nextRace.name}</span>}
               </div>
-              <select style={inputStyle} value={selectedRace} onChange={e => setSelectedRace(e.target.value)}>
-                <option value="">Select a race...</option>
-                {[...tracks]
-                  .sort((a, b) => {
-                    if (a.date && b.date) return new Date(a.date) - new Date(b.date);
-                    return a.name.localeCompare(b.name);
-                  })
-                  .map(t => (
-                    <option key={t.name} value={t.name}>
-                      {t.name}{t.date ? ` (${new Date(t.date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })})` : ""}
-                      {t.name === nextRace?.name ? " ← Next" : ""}
-                    </option>
-                  ))}
+              <select style={selectStyle} value={selectedRace} onChange={e => setSelectedRace(e.target.value)}>
+                <option value="">Select race...</option>
+                {[...tracks].sort((a, b) => {
+                  if (a.date && b.date) return new Date(a.date) - new Date(b.date);
+                  return a.name.localeCompare(b.name);
+                }).map(t => (
+                  <option key={t.name} value={t.name}>
+                    {t.name}{t.date ? ` (${new Date(t.date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })})` : ""}
+                    {t.name === nextRace?.name ? " ← Next" : ""}
+                  </option>
+                ))}
               </select>
+            </div>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Interview Type</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  onClick={() => setInterviewType("pre")}
+                  style={{ ...interviewType === "pre" ? blueButtonStyle : secondaryButtonStyle, flex: 1, fontSize: 13 }}
+                >
+                  🎤 Pre-Race
+                </button>
+                <button
+                  onClick={() => setInterviewType("post")}
+                  style={{ ...interviewType === "post" ? greenButtonStyle : secondaryButtonStyle, flex: 1, fontSize: 13 }}
+                >
+                  🏆 Post-Race
+                </button>
+              </div>
             </div>
           </div>
 
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
+          {/* 3 Q&A rows */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 16, marginBottom: 20 }}>
+            {qa.map((item, i) => (
+              <div key={i} style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 16 }}>
+                <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 12, color: interviewType === "pre" ? "#3b82f6" : "#22c55e" }}>
+                  Question {i + 1}
+                </div>
+                <div style={{ marginBottom: 10 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6, opacity: 0.7 }}>Q</div>
+                  <textarea
+                    rows={2}
+                    style={inputStyle}
+                    placeholder={`Type question ${i + 1}...`}
+                    value={item.question}
+                    onChange={e => updateQA(i, "question", e.target.value)}
+                  />
+                </div>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6, opacity: 0.7 }}>A</div>
+                  <textarea
+                    rows={3}
+                    style={inputStyle}
+                    placeholder="Type the driver's answer..."
+                    value={item.answer}
+                    onChange={e => updateQA(i, "answer", e.target.value)}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
             <button
-              style={{ ...blueButtonStyle, opacity: generating ? 0.6 : 1 }}
-              disabled={generating}
-              onClick={() => generateInterview("pre")}
+              style={{ ...primaryButtonStyle, opacity: saving ? 0.6 : 1 }}
+              disabled={saving}
+              onClick={saveInterview}
             >
-              {generating ? "⏳ Generating..." : "🎤 Generate Pre-Race Interview"}
+              {saving ? "Saving..." : "📤 Publish Interview"}
             </button>
             <button
-              style={{ ...greenButtonStyle, opacity: generating ? 0.6 : 1 }}
-              disabled={generating}
-              onClick={() => generateInterview("post")}
+              style={secondaryButtonStyle}
+              onClick={() => { setQa(emptyQA()); setSaveStatus(""); }}
             >
-              {generating ? "⏳ Generating..." : "🏆 Generate Post-Race Interview"}
+              Clear
             </button>
           </div>
 
-          {generateStatus && (
-            <div style={{ fontSize: 13, padding: "10px 14px", background: "#0f1319", borderRadius: 10, border: "1px solid #2c3440", lineHeight: 1.5 }}>
-              {generateStatus}
+          {saveStatus && (
+            <div style={{ marginTop: 14, fontSize: 13, padding: "10px 14px", background: "#0a0d12", borderRadius: 10, border: "1px solid #2c3440", lineHeight: 1.5 }}>
+              {saveStatus}
             </div>
           )}
         </div>
@@ -255,21 +253,21 @@ Respond ONLY with a valid JSON array, no markdown or backticks:
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
             <div>
               <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Driver</div>
-              <select style={inputStyle} value={filterDriver} onChange={e => setFilterDriver(e.target.value)}>
+              <select style={selectStyle} value={filterDriver} onChange={e => setFilterDriver(e.target.value)}>
                 <option value="">All Drivers</option>
                 {allDriverNames.map(d => <option key={d} value={d}>{d}</option>)}
               </select>
             </div>
             <div>
               <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Race</div>
-              <select style={inputStyle} value={filterRace} onChange={e => setFilterRace(e.target.value)}>
+              <select style={selectStyle} value={filterRace} onChange={e => setFilterRace(e.target.value)}>
                 <option value="">All Races</option>
                 {allRaces.map(r => <option key={r} value={r}>{r}</option>)}
               </select>
             </div>
             <div>
               <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Type</div>
-              <select style={inputStyle} value={filterType} onChange={e => setFilterType(e.target.value)}>
+              <select style={selectStyle} value={filterType} onChange={e => setFilterType(e.target.value)}>
                 <option value="">Pre & Post</option>
                 <option value="pre">Pre-Race Only</option>
                 <option value="post">Post-Race Only</option>
@@ -288,7 +286,7 @@ Respond ONLY with a valid JSON array, no markdown or backticks:
           <div style={sectionCardStyle}>Loading interviews...</div>
         ) : filtered.length === 0 ? (
           <div style={{ ...sectionCardStyle, opacity: 0.7, textAlign: "center", padding: 40 }}>
-            No interviews yet. Use the Generate section above or they auto-generate when drivers visit their profile pages.
+            No interviews yet. Create one above.
           </div>
         ) : (
           Object.entries(grouped).map(([raceName, raceInterviews]) => (
@@ -310,7 +308,7 @@ Respond ONLY with a valid JSON array, no markdown or backticks:
                             </span>
                             <span style={{ fontSize: 16, fontWeight: 800 }}>#{interview.driver_number} {interview.driver_name}</span>
                           </div>
-                          <div style={{ fontSize: 11, opacity: 0.5 }}>Generated {new Date(interview.generated_at).toLocaleString()}</div>
+                          <div style={{ fontSize: 11, opacity: 0.5 }}>{new Date(interview.generated_at).toLocaleString()}</div>
                         </div>
                         <button onClick={() => deleteInterview(interview.id)} style={dangerButtonStyle}>Delete</button>
                       </div>
