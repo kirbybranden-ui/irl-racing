@@ -763,7 +763,8 @@ console.log("Current path:", path);  // ADD THIS LINE
     ];
     replaceActiveSeason({ ...activeSeason, drivers: rebuildDriversFromHistory(raceHistory, mergedRoster) });
     alert(`Sync complete! ${newDrivers.length} driver(s) added, team assignments updated.`);
-  }; setEditingDriverId(driver.id); setEditDriverForm({ name: driver.name, number: driver.number, manufacturer: driver.manufacturer || "", team: driver.team }); };
+  };
+  const openEditDriver = (driver) => { setEditingDriverId(driver.id); setEditDriverForm({ name: driver.name, number: driver.number, manufacturer: driver.manufacturer || "", team: driver.team }); };
   const cancelEditDriver = () => { setEditingDriverId(null); setEditDriverForm({ name: "", number: "", manufacturer: "", team: "" }); };
   const saveDriverNotes = () => {
     if (!activeSeason) return;
