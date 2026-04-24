@@ -314,28 +314,20 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
       const sorted = [...(selectedSeason?.drivers || [])].sort((a, b) => b.points - a.points);
       const ranking = sorted.findIndex(d => d.id === driver.id) + 1;
 
-      // ── PRE-RACE: generate for next upcoming race within 3 days, or just next race if none within window
+      // ── PRE-RACE: generate only on the day before the race (Friday for Saturday races)
       const today = new Date(); today.setHours(0, 0, 0, 0);
-      const inThreeDays = new Date(today); inThreeDays.setDate(inThreeDays.getDate() + 3);
+      const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
 
       const racesWithDates = (tracks || [])
         .filter(t => t.date)
         .map(t => ({ ...t, dateObj: new Date(t.date + "T12:00:00") }))
         .sort((a, b) => a.dateObj - b.dateObj);
 
-      // First try: race within 3 days (day before, race day, or 2 days before)
-      let upcomingRace = racesWithDates.find(t => {
+      // Only match a race happening tomorrow (exactly 1 day before)
+      const upcomingRace = racesWithDates.find(t => {
         const d = new Date(t.dateObj); d.setHours(0, 0, 0, 0);
-        return d.getTime() >= today.getTime() && d.getTime() <= inThreeDays.getTime();
+        return d.getTime() === tomorrow.getTime();
       });
-
-      // Fallback: just use the next upcoming race regardless of how far away
-      if (!upcomingRace) {
-        upcomingRace = racesWithDates.find(t => {
-          const d = new Date(t.dateObj); d.setHours(0, 0, 0, 0);
-          return d.getTime() >= today.getTime();
-        });
-      }
 
       if (upcomingRace) {
         const hasPreRace = (existing || []).some(i => i.race_name === upcomingRace.name && i.type === "pre");
