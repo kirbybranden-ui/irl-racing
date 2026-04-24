@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import logo from "./assets/logo1.png";
 import teamLogoJAM from "./assets/teams/JAM.png";
 import teamLogoMER from "./assets/teams/ME.png";
+import teamLogoNLM from "./assets/teams/NLM.png";
 import manufacturerChevrolet from "./assets/manufacturers/chevrolet.png";
 import manufacturerFord from "./assets/manufacturers/ford.png";
 import manufacturerToyota from "./assets/manufacturers/toyota.png";
@@ -17,8 +18,13 @@ import InterviewsPage from "./InterviewsPage";
 const teamLogos = {
   "JA MOTORSPORTS": teamLogoJAM,
   JAM: teamLogoJAM,
+
   "ME RACING": teamLogoMER,
   MER: teamLogoMER,
+
+  "NINE LINE MOTORSPORTS": teamLogoNLM,
+  "Nine Line Motorsports": teamLogoNLM,
+  NLM: teamLogoNLM,
 };
 const manufacturerLogos = {
   Chevrolet: manufacturerChevrolet,
