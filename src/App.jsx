@@ -146,7 +146,6 @@ const teamBranding = {
   JAM: { logo: "JAM", accent: "#d4af37", dark: "#1b1b1b" },
   "JA MOTORSPORTS": { logo: "JA", accent: "#d4af37", dark: "#1b1b1b" },
   MER: { logo: "MER", accent: "#dc2626", dark: "#200a0a", fullName: "ME Racing" },
-  KRM: { logo: "KRM", accent: "#2563eb", dark: "#0a0e1f", fullName: "Kevin Racing Motorsports" },
   MMS: { logo: "MMS", accent: "#9333ea", dark: "#150a2e", fullName: "Mayhem Motorsports" },
   NLM: { logo: "NLM", accent: "#f97316", dark: "#1f0e00", fullName: "Nine Line Motorsports" },
   "Independent": { logo: "IND", accent: "#808080", dark: "#2a2a2a" },
