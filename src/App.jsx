@@ -533,16 +533,28 @@ function TickerOverlay({ drivers, teams, raceHistory, preview = false, seasonNam
 // ─── Patch any drivers from defaultDrivers that are missing from saved seasons ─
 // This runs once after Supabase load so new roster additions always appear
 // even when a season already exists in the database.
-function patchMissingDrivers(cleanSeasons, raceHistory = []) {
+function patchMissingDrivers(cleanSeasons) {
   return cleanSeasons.map((season) => {
     const existingIds  = new Set(season.drivers.map((d) => d.id));
     const existingNums = new Set(season.drivers.map((d) => String(d.number)));
     const missing = defaultDrivers.filter(
       (d) => !existingIds.has(d.id) && !existingNums.has(String(d.number))
     );
-    if (missing.length === 0) return season;
+    // Update any drivers whose name/number/manufacturer/team has changed in defaultDrivers
+    const updatedDrivers = season.drivers.map((d) => {
+      const canonical = defaultDrivers.find((dd) => dd.id === d.id);
+      if (!canonical) return d;
+      return {
+        ...d,
+        name: canonical.name,
+        number: canonical.number,
+        manufacturer: canonical.manufacturer,
+        team: canonical.team,
+      };
+    });
+    if (missing.length === 0 && updatedDrivers.every((d, i) => d === season.drivers[i])) return season;
     const newRoster = [
-      ...season.drivers.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer || "", team: d.team, startingPoints: Number(d.startingPoints) || 0, manualWins: Number(d.manualWins) || 0, retired: d.retired || false, notes: d.notes || "" })),
+      ...updatedDrivers.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer || "", team: d.team, startingPoints: Number(d.startingPoints) || 0, manualWins: Number(d.manualWins) || 0, retired: d.retired || false, notes: d.notes || "" })),
       ...missing.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer || "", team: d.team, startingPoints: 0, manualWins: 0, retired: false, notes: "" })),
     ];
     return { ...season, drivers: rebuildDriversFromHistory(season.raceHistory || [], newRoster) };
