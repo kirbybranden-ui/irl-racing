@@ -116,6 +116,7 @@ function InterviewAnswerCard({ interview, onAnswered }) {
 }
 
 // ─── Appeal Modal ──────────────────────────────────────────────────────────
+function AppealModal({ isOpen, onClose, selectedSeason }) {
   const [requester, setRequester] = useState("");
   const [track, setTrack] = useState("");
   const [description, setDescription] = useState("");
