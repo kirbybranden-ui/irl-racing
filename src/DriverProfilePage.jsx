@@ -1,8 +1,9 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import logo from "./assets/logo1.png";
 import teamLogoJAM from "./assets/teams/JAM.png";
 import teamLogoMER from "./assets/teams/ME.png";
 import { supabase } from "./lib/supabase";
+import { uploadCarFile, getCarUploads, deleteCarUpload } from "./lib/carUploads";
 
 // Team logos
 const teamLogos = {
@@ -19,6 +20,7 @@ const teamFullNames = {
   MER: "ME Racing",
   KRM: "Kevin Racing Motorsports",
   MMS: "Mayhem Motorsports",
+  NLM: "Nine Line Motorsports",
   None: "Independent",
 };
 function getTeamFullName(teamAbbr) {
@@ -219,6 +221,10 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
 
   const [isAppealModalOpen, setIsAppealModalOpen] = useState(false);
   const [myAppeals, setMyAppeals] = useState([]);
+  const [carUploads, setCarUploads] = useState([]);
+  const [carUploading, setCarUploading] = useState(false);
+  const [selectedRaceForUpload, setSelectedRaceForUpload] = useState("");
+  const carFileInputRef = useRef(null);
 
   // Load all appeals for this driver - poll every 5s so admin decisions show up live
   useEffect(() => {
@@ -242,6 +248,45 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
     const interval = setInterval(fetchMyAppeals, 5000);
     return () => clearInterval(interval);
   }, [driverNumber, driver?.name]);
+
+  // Load this driver's car uploads
+  useEffect(() => {
+    if (!driver?.id) return;
+    async function fetchCarUploads() {
+      const data = await getCarUploads(driver.id);
+      setCarUploads(data);
+    }
+    fetchCarUploads();
+  }, [driver?.id]);
+
+  const handleCarUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !driver) return;
+    if (!selectedRaceForUpload) { alert("Please select a race week before uploading."); return; }
+    const allowed = ["image/jpeg","image/png","image/gif","image/webp","video/mp4","video/mov","video/quicktime"];
+    if (!allowed.includes(file.type)) { alert("Only image or video files are allowed."); return; }
+    setCarUploading(true);
+    const result = await uploadCarFile(driver.id, driver.name, selectedRaceForUpload, file);
+    if (result.success) {
+      const updated = await getCarUploads(driver.id);
+      setCarUploads(updated);
+      alert("✅ Car photo uploaded! It will appear in the admin gallery.");
+    } else {
+      alert(`Upload failed: ${result.error || "Unknown error"}`);
+    }
+    setCarUploading(false);
+    if (carFileInputRef.current) carFileInputRef.current.value = "";
+  };
+
+  const handleCarDelete = async (uploadId, filePath) => {
+    if (!window.confirm("Remove this upload?")) return;
+    const result = await deleteCarUpload(uploadId, filePath);
+    if (result.success) {
+      setCarUploads(prev => prev.filter(u => u.id !== uploadId));
+    } else {
+      alert("Failed to delete upload.");
+    }
+  };
 
   // ── Appeals sub-page ──────────────────────────────────────────────────────
   if (subPage === "appeals") {
@@ -592,6 +637,78 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
               </span>
             )}
           </button>
+        </div>
+
+        {/* ── Car Photo Upload ─────────────────────────────────────────── */}
+        <div style={sectionCardStyle}>
+          <h2 style={{ marginTop: 0, marginBottom: 4 }}>🚗 Car Photos</h2>
+          <div style={{ fontSize: 13, opacity: 0.65, marginBottom: 16 }}>Upload your car photo for each race week. Photos appear in the admin gallery.</div>
+
+          {/* Upload controls */}
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 18 }}>
+            <div style={{ flex: "1 1 200px" }}>
+              <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Race Week</div>
+              <select
+                style={inputStyle}
+                value={selectedRaceForUpload}
+                onChange={e => setSelectedRaceForUpload(e.target.value)}
+              >
+                <option value="">Select a race...</option>
+                {tracks.map(t => (
+                  <option key={t.name} value={t.name}>{t.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <input
+                ref={carFileInputRef}
+                type="file"
+                accept="image/*,video/mp4,video/quicktime"
+                style={{ display: "none" }}
+                onChange={handleCarUpload}
+              />
+              <button
+                onClick={() => carFileInputRef.current?.click()}
+                style={{ ...primaryButtonStyle, opacity: carUploading ? 0.6 : 1 }}
+                disabled={carUploading}
+              >
+                {carUploading ? "⏳ Uploading..." : "📷 Upload Photo / Video"}
+              </button>
+            </div>
+          </div>
+
+          {/* Previous uploads */}
+          {carUploads.length === 0 ? (
+            <div style={{ fontSize: 13, opacity: 0.5, fontStyle: "italic" }}>No uploads yet.</div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 14 }}>
+              {carUploads.map(upload => (
+                <div key={upload.id} style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, overflow: "hidden" }}>
+                  <div style={{ width: "100%", paddingBottom: "75%", position: "relative", background: "#1a1f27" }}>
+                    {upload.file_type?.startsWith("image/") ? (
+                      <img src={upload.file_url} alt="Car" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+                    ) : upload.file_type?.startsWith("video/") ? (
+                      <video controls style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}>
+                        <source src={upload.file_url} type={upload.file_type} />
+                      </video>
+                    ) : (
+                      <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#666" }}>📄</div>
+                    )}
+                  </div>
+                  <div style={{ padding: 10 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 2 }}>{upload.race_id}</div>
+                    <div style={{ fontSize: 11, opacity: 0.55, marginBottom: 8 }}>{new Date(upload.uploaded_at).toLocaleDateString()}</div>
+                    <button
+                      onClick={() => handleCarDelete(upload.id, upload.file_path)}
+                      style={{ ...dangerButtonStyle, width: "100%", padding: "6px 10px", fontSize: 12 }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {driver.notes && (
