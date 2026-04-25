@@ -3,6 +3,8 @@ import logo from "./assets/logo1.png";
 import teamLogoJAM from "./assets/teams/JAM.png";
 import teamLogoMER from "./assets/teams/ME.png";
 import teamLogoNLM from "./assets/teams/NLM.png";
+import teamLogoMMS from "./assets/teams/MMS.png";
+import teamLogoBOM from "./assets/teams/BOM.png";
 import manufacturerChevrolet from "./assets/manufacturers/chevrolet.png";
 import manufacturerFord from "./assets/manufacturers/ford.png";
 import manufacturerToyota from "./assets/manufacturers/toyota.png";
@@ -14,14 +16,23 @@ import WelcomePage from "./WelcomePage";
 import { supabase } from "./lib/supabase";
 import CarGalleryPage from "./CarGalleryPage";
 import InterviewsPage from "./InterviewsPage";
-import TeamPage from "./TeamPage";
-import ManufacturerPage from "./ManufacturerPage";
 // Team logos
 const teamLogos = {
   "JA MOTORSPORTS": teamLogoJAM,
   JAM: teamLogoJAM,
+
   "ME RACING": teamLogoMER,
   MER: teamLogoMER,
+
+  "NINE LINE MOTORSPORTS": teamLogoNLM,
+  "Nine Line Motorsports": teamLogoNLM,
+  NLM: teamLogoNLM,
+
+  "MAYHEM MOTORSPORTS": teamLogoMMS,
+MMS: teamLogoMMS,
+
+  "BLUE OVAL MOTORSPORTS": teamLogoBOM, 
+  BOM: teamLogoBOM,
 };
 const manufacturerLogos = {
   Chevrolet: manufacturerChevrolet,
@@ -35,9 +46,9 @@ const teamFullNames = {
   JAM: "JA Motorsports",
   "JA MOTORSPORTS": "JA Motorsports",
   MER: "ME Racing",
-  KRM: "Kevin Racing Motorsports",
   MMS: "Mayhem Motorsports",
   NLM: "Nine Line Motorsports",
+  BOM: "Blue Oval Motorsports",
   Independent: "Independent",
 };
 function getTeamFullName(teamAbbr) {
@@ -45,20 +56,24 @@ function getTeamFullName(teamAbbr) {
 }
 
 const defaultDrivers = [
-  { id: 1,  number: 42,  name: "AMP-GHOSTRIDER",              manufacturer: "Toyota",    team: "JAM"         },
-  { id: 2,  number: 99,  name: "RookieVet99",                  manufacturer: "Toyota",    team: "JAM"         },
-  { id: 3,  number: 18,  name: "bowhunter6758",                manufacturer: "Toyota",    team: "JAM"         },
-  { id: 4,  number: 81,  name: "HOLDEN2DX4EV3R",               manufacturer: "Chevrolet", team: "JAM"         },
-  { id: 5,  number: 3,   name: "ixGusty",                      manufacturer: "Toyota",    team: "Independent" },
-  { id: 6,  number: 14,  name: "KapSig",                       manufacturer: "Chevrolet", team: "MER"         },
-  { id: 7,  number: 24,  name: "KEVDINHO7",                    manufacturer: "Chevrolet", team: "KRM"         },
-  { id: 8,  number: 38,  name: "It's_tricky88",                manufacturer: "Chevrolet", team: "Independent" },
-  { id: 9,  number: 97,  name: "American_Hero216",             manufacturer: "Ford",      team: "MMS"         },
-  { id: 10, number: 67,  name: "tallishsinter94",              manufacturer: "Toyota",    team: "Independent" },
-  { id: 11, number: 6,   name: "Highlander713",                manufacturer: "Ford",      team: "NLM"         },
-  { id: 12, number: 23,  name: "Orly_Revo23",                  manufacturer: "Ford",      team: "MMS"         },
-  { id: 13, number: 87,  name: "Racingis_life87",              manufacturer: "Chevrolet", team: "KRM"         },
-  { id: 16, number: 9,   name: "vtfan_25",                     manufacturer: "Ford",      team: "NLM"         },
+  { id: 1,  number: 42, name: "AMP-GHOSTRIDER",           manufacturer: "Toyota",    team: "JAM"         },
+  { id: 2,  number: 99, name: "RookieVet99",               manufacturer: "Toyota",    team: "JAM"         },
+  { id: 3,  number: 18, name: "bowhunter6758",             manufacturer: "Toyota",    team: "JAM"         },
+  { id: 4,  number: 81, name: "HOLDEN2DX4EV3R",            manufacturer: "Chevrolet", team: "JAM"         },
+  { id: 5,  number: 3,  name: "ixGusty",                   manufacturer: "Toyota",    team: "Independent" },
+  { id: 6,  number: 14, name: "KapSig",                    manufacturer: "Chevrolet", team: "MER"         },
+  { id: 7,  number: 24, name: "KEVDINHO7",                 manufacturer: "Chevrolet", team: "MER"         },
+  { id: 8,  number: 38, name: "It's_tricky88",             manufacturer: "Chevrolet", team: "Independent" },
+  { id: 9,  number: 97, name: "American_Hero216",          manufacturer: "Ford",      team: "MMS"         },
+  { id: 10, number: 67, name: "tallishsinter94",           manufacturer: "Toyota",    team: "Independent" },
+  { id: 11, number: 6,  name: "Highlander713",             manufacturer: "Ford",      team: "NLM"         },
+  { id: 12, number: 23, name: "Orly_Revo23",               manufacturer: "Ford",      team: "MMS"         },
+  { id: 13, number: 87, name: "Racingis_life87",           manufacturer: "Chevrolet", team: "MER"         },
+  { id: 16, number: 9,  name: "vtfan_25",                  manufacturer: "Ford",      team: "NLM"         },
+  { id: 17, number: 100, name: "Inactive-Gene-Crawford",   manufacturer: "Other",     team: "Independent" },
+  { id: 14, number: 101,  name: "Inactive-josiah-wells",     manufacturer: "Other",   team: "Independent" },
+  { id: 15, number: 102,  name: "Inactive-shane-mcconnell",  manufacturer: "Other",   team: "Independent" },
+  { id: 18, number: 72, name: "abajack91",                manufacturer: "Ford",       team: "BOM"         },
 ];
 const defaultRaces = [
   { name: "Preseason - Michigan", stageCount: 2, date: "2026-04-25" },
@@ -142,11 +157,10 @@ const teamBranding = {
   JAM: { logo: "JAM", accent: "#d4af37", dark: "#1b1b1b" },
   "JA MOTORSPORTS": { logo: "JA", accent: "#d4af37", dark: "#1b1b1b" },
   MER: { logo: "MER", accent: "#dc2626", dark: "#200a0a", fullName: "ME Racing" },
-  KRM: { logo: "KRM", accent: "#2563eb", dark: "#0a0e1f", fullName: "Kevin Racing Motorsports" },
   MMS: { logo: "MMS", accent: "#9333ea", dark: "#150a2e", fullName: "Mayhem Motorsports" },
   NLM: { logo: "NLM", accent: "#f97316", dark: "#1f0e00", fullName: "Nine Line Motorsports" },
   "Independent": { logo: "IND", accent: "#808080", dark: "#2a2a2a" },
-  "Team A": { logo: "A", accent: "#d4af37", dark: "#1b1b1b" },
+  BOM: { logo: "BOM", accent: "#d4af37", dark: "#1b1b1b" },
   "Team B": { logo: "B", accent: "#3b82f6", dark: "#111827" },
   "Team C": { logo: "C", accent: "#ef4444", dark: "#1f1315" },
   "Team D": { logo: "D", accent: "#22c55e", dark: "#0f1b14" },
@@ -489,8 +503,8 @@ function PublicStandings({ drivers, teams, seasonName = "", tracks = [], raceHis
                       <td style={tdStyle}>{renderTeamBadge(driver.team, 38)}</td>
                       <td style={{ ...tdStyle, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" }}><div style={{width: 36, height: 36, borderRadius: "50%", background: "#404854", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 14, color: "#fff", border: "2px solid #b8a059"}}>{driver.number}</div></td>
                       <td style={{ ...tdStyle, fontWeight: 800, color: "#d4af37" }}>{driver.name}{driver.retired && <span style={{ marginLeft: 6, fontSize: 11, background: "#2a3140", color: "#f59e0b", borderRadius: 6, padding: "2px 6px", fontWeight: 700 }}>R</span>}</td>
-                      <td style={tdStyle} onClick={(e) => { e.stopPropagation(); window.location.pathname = `/manufacturer/${driver.manufacturer}`; }} style={{...tdStyle, cursor: "pointer", textDecoration: "underline", opacity: 0.9, _hover: { opacity: 1 } }}>{driver.manufacturer || "—"}</td>
-                      <td style={tdStyle} onClick={(e) => { e.stopPropagation(); window.location.pathname = `/team/${driver.team}`; }} style={{...tdStyle, cursor: "pointer", textDecoration: "underline", opacity: 0.9, _hover: { opacity: 1 } }}>{getTeamFullName(driver.team)}</td>
+                      <td style={tdStyle}>{driver.manufacturer || "—"}</td>
+                      <td style={tdStyle}>{getTeamFullName(driver.team)}</td>
                       <td style={{ ...tdStyle, fontWeight: 900 }}>{driver.points}</td>
                       <td style={tdStyle}>{driver.wins}</td>
                       <td style={tdStyle}>{driver.top3}</td>
@@ -596,16 +610,22 @@ function patchMissingDrivers(cleanSeasons) {
     );
     // Update any drivers whose name/number/manufacturer/team has changed in defaultDrivers
     const updatedDrivers = season.drivers.map((d) => {
-      const canonical = defaultDrivers.find((dd) => dd.id === d.id);
-      if (!canonical) return d;
-      return {
-        ...d,
-        name: canonical.name,
-        number: canonical.number,
-        manufacturer: canonical.manufacturer,
-        team: canonical.team,
-      };
-    });
+  const canonical = defaultDrivers.find((dd) => dd.id === d.id);
+
+  let updatedTeam = d.team === "KRM" ? "MER" : d.team;
+
+  if (!canonical) {
+    return { ...d, team: updatedTeam };
+  }
+
+  return {
+    ...d,
+    name: canonical.name,
+    number: canonical.number,
+    manufacturer: canonical.manufacturer,
+    team: canonical.team === "KRM" ? "MER" : canonical.team,
+  };
+});
     if (missing.length === 0 && updatedDrivers.every((d, i) => d === season.drivers[i])) return season;
     const newRoster = [
       ...updatedDrivers.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer || "", team: d.team, startingPoints: Number(d.startingPoints) || 0, manualWins: Number(d.manualWins) || 0, retired: d.retired || false, notes: d.notes || "" })),
@@ -1077,22 +1097,6 @@ export default function App() {
   if (!isHydrated) return <div style={appShellStyle}><div style={pageContainerStyle}><div style={sectionCardStyle}>Loading league data...</div></div></div>;
   if (path === "/admin/car-gallery") return <CarGalleryPage drivers={drivers} tracks={tracks} />;
   if (path === "/admin/interviews") return <InterviewsPage drivers={drivers} tracks={tracks} seasons={seasons} activeSeasonId={activeSeasonId} />;
-  if (path.startsWith("/team/")) {
-    const teamName = path.split("/").pop();
-    return <TeamPage teamName={teamName} drivers={drivers} raceHistory={selectedSeason?.raceHistory || []} />;
-  }
-  if (path.startsWith("/manufacturer/")) {
-    const mfgName = path.split("/").pop();
-    return <ManufacturerPage manufacturerName={mfgName} drivers={drivers} raceHistory={selectedSeason?.raceHistory || []} />;
-  }
-  if (path.startsWith("/team/")) {
-    const teamName = path.split("/").pop();
-    return <TeamPage teamName={teamName} drivers={drivers} raceHistory={selectedSeason?.raceHistory || []} />;
-  }
-  if (path.startsWith("/manufacturer/")) {
-    const mfgName = path.split("/").pop();
-    return <ManufacturerPage manufacturerName={mfgName} drivers={drivers} raceHistory={selectedSeason?.raceHistory || []} />;
-  }
   if (path.startsWith("/driver/")) return <DriverProfilePage seasons={seasons} activeSeason={activeSeason} tracks={tracks} />;
   if (path === "/standings") return <PublicStandings drivers={drivers} teams={teamStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} />;
   if (path === "/overlay/ticker" || viewMode === "overlay-ticker") return <TickerOverlay drivers={drivers} teams={teamStandings} raceHistory={raceHistory} preview={viewMode === "overlay-ticker"} seasonName={activeSeason?.name || ""} />;
