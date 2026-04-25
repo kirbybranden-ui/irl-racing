@@ -69,11 +69,11 @@ const defaultDrivers = [
   { id: 11, number: 6,  name: "Highlander713",             manufacturer: "Ford",      team: "NLM"         },
   { id: 12, number: 23, name: "Orly_Revo23",               manufacturer: "Ford",      team: "MMS"         },
   { id: 13, number: 87, name: "Racingis_life87",           manufacturer: "Chevrolet", team: "MER"         },
-  { id: 14, number: 0,  name: "Inactive-josiah-wells",     manufacturer: "Other",     team: "Independent" },
-  { id: 15, number: 1,  name: "Inactive-shane-mcconnell",  manufacturer: "Other",     team: "Independent" },
   { id: 16, number: 9,  name: "vtfan_25",                  manufacturer: "Ford",      team: "NLM"         },
-  { id: 17, number: 100, name: "Inactive-Gene-Crawford",   manufacturer: "Other",     team: "Independent" },  
-  { id: 18, number: 101, name: "abajack91",                manufacturer: "Ford",      team: "BOM"         },
+  { id: 17, number: 100, name: "Inactive-Gene-Crawford",   manufacturer: "Other",     team: "Independent" },
+  { id: 14, number: 101,  name: "Inactive-josiah-wells",     manufacturer: "Other",   team: "Independent" },
+  { id: 15, number: 102,  name: "Inactive-shane-mcconnell",  manufacturer: "Other",   team: "Independent" },
+  { id: 18, number: 72, name: "abajack91",                manufacturer: "Ford",       team: "BOM"         },
 ];
 const defaultRaces = [
   { name: "Preseason - Michigan", stageCount: 2, date: "2026-04-25" },
