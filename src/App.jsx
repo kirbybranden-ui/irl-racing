@@ -67,6 +67,8 @@ const defaultDrivers = [
   { id: 14, number: 0,  name: "Inactive-josiah-wells",     manufacturer: "Other",     team: "Independent" },
   { id: 15, number: 1,  name: "Inactive-shane-mcconnell",  manufacturer: "Other",     team: "Independent" },
   { id: 16, number: 9,  name: "vtfan_25",                  manufacturer: "Ford",      team: "NLM"         },
+  { id: 17, number: 100, name: "Inactive-Gene-Crawford",   manufacturer: "Other",     team: "Independent" },  
+  { id: 18, number: 101, name: "abajack91",                manufacturer: "Ford",      team: "BOM"         },
 ];
 const defaultRaces = [
   { name: "Preseason - Michigan", stageCount: 2, date: "2026-04-25" },
@@ -153,7 +155,7 @@ const teamBranding = {
   MMS: { logo: "MMS", accent: "#9333ea", dark: "#150a2e", fullName: "Mayhem Motorsports" },
   NLM: { logo: "NLM", accent: "#f97316", dark: "#1f0e00", fullName: "Nine Line Motorsports" },
   "Independent": { logo: "IND", accent: "#808080", dark: "#2a2a2a" },
-  "Team A": { logo: "A", accent: "#d4af37", dark: "#1b1b1b" },
+  BOM: { logo: "BOM", accent: "#d4af37", dark: "#1b1b1b" },
   "Team B": { logo: "B", accent: "#3b82f6", dark: "#111827" },
   "Team C": { logo: "C", accent: "#ef4444", dark: "#1f1315" },
   "Team D": { logo: "D", accent: "#22c55e", dark: "#0f1b14" },
