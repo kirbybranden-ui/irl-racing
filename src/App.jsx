@@ -48,6 +48,7 @@ const teamFullNames = {
   MER: "ME Racing",
   MMS: "Mayhem Motorsports",
   NLM: "Nine Line Motorsports",
+  BOM: "Blue Oval Motorsports",
   Independent: "Independent",
 };
 function getTeamFullName(teamAbbr) {
