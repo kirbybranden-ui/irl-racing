@@ -5,6 +5,7 @@ import teamLogoMER from "./assets/teams/ME.png";
 import teamLogoNLM from "./assets/teams/NLM.png";
 import teamLogoMMS from "./assets/teams/MMS.png";
 import teamLogoBOM from "./assets/teams/BOM.png";
+import teamLogoIND from "./assets/teams/IND.png";
 import manufacturerChevrolet from "./assets/manufacturers/chevrolet.png";
 import manufacturerFord from "./assets/manufacturers/ford.png";
 import manufacturerToyota from "./assets/manufacturers/toyota.png";
@@ -33,6 +34,9 @@ MMS: teamLogoMMS,
 
   "BLUE OVAL MOTORSPORTS": teamLogoBOM, 
   BOM: teamLogoBOM,
+
+  "INDEPENDENT": teamLogoIND
+  IND: teamLogoIND
 };
 const manufacturerLogos = {
   Chevrolet: manufacturerChevrolet,
