@@ -30,7 +30,7 @@ const teamFullNames = {
   MMS: "Mayhem Motorsports",
   NLM: "Nine Line Motorsports",
   BOM: "Blue Oval Motorsports",
-  Independent: "Independent",
+  IND: "Independent",
 };
 function getTeamFullName(teamAbbr) {
   return teamFullNames[teamAbbr] || teamAbbr;
