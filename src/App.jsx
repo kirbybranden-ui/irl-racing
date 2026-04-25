@@ -16,8 +16,6 @@ import CarGalleryPage from "./CarGalleryPage";
 import InterviewsPage from "./InterviewsPage";
 import TeamPage from "./TeamPage";
 import ManufacturerPage from "./ManufacturerPage";
-import TeamPage from "./TeamPage";
-import ManufacturerPage from "./ManufacturerPage";
 // Team logos
 const teamLogos = {
   "JA MOTORSPORTS": teamLogoJAM,
