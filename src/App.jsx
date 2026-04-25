@@ -30,6 +30,9 @@ const teamLogos = {
 
   "MAYHEM MOTORSPORTS": teamLogoMMS,
 MMS: teamLogoMMS,
+
+  "BLUE OVAL MOTORSPORTS": teamLogoBOM, 
+  BOM: teamLogoBOM,
 };
 const manufacturerLogos = {
   Chevrolet: manufacturerChevrolet,
