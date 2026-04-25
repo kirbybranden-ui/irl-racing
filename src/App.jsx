@@ -35,7 +35,7 @@ MMS: teamLogoMMS,
   "BLUE OVAL MOTORSPORTS": teamLogoBOM, 
   BOM: teamLogoBOM,
 
-  "INDEPENDENT": teamLogoIND,
+  "Independent": teamLogoIND,
   IND: teamLogoIND,
 };
 const manufacturerLogos = {
