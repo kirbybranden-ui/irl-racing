@@ -2,6 +2,9 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 import logo from "./assets/logo1.png";
 import teamLogoJAM from "./assets/teams/JAM.png";
 import teamLogoMER from "./assets/teams/ME.png";
+import teamLogoMMS from "./assets/teams/MMS.png";
+import teamLogoNLM from "./assets/teams/NLM.png";
+import teamLogoBOM from "./assets/teams/BOM.png";
 import { supabase } from "./lib/supabase";
 import { uploadCarFile, getCarUploads, deleteCarUpload } from "./lib/carUploads";
 
@@ -11,6 +14,9 @@ const teamLogos = {
   JAM: teamLogoJAM,
   "ME RACING": teamLogoMER,
   MER: teamLogoMER,
+  MMS: teamLogoMMS,
+  NLM: teamLogoNLM,
+  BOM: teamLogoBOM,
 };
 
 // ─── Team Full Names ───────────────────────────────────────────────────────────
@@ -21,6 +27,7 @@ const teamFullNames = {
   KRM: "Kevin Racing Motorsports",
   MMS: "Mayhem Motorsports",
   NLM: "Nine Line Motorsports",
+  BOM: "Blue Oval Motorsports",
   Independent: "Independent",
 };
 function getTeamFullName(teamAbbr) {
