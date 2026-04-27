@@ -54,6 +54,9 @@ const teamFullNames = {
 function getTeamFullName(teamAbbr) {
   return teamFullNames[teamAbbr] || teamAbbr;
 }
+function isInactivePlaceholderDriver(driver) {
+  return String(driver?.name || "").trim().toLowerCase().startsWith("inactive-");
+}
 const defaultDrivers = [
   { id: 1,  number: 42, name: "AMP-GHOSTRIDER",           manufacturer: "Toyota",    team: "JAM"         },
   { id: 2,  number: 99, name: "RookieVet99",               manufacturer: "Toyota",    team: "JAM"         },
@@ -599,20 +602,22 @@ function patchMissingDrivers(cleanSeasons) {
       (d) => !existingIds.has(d.id) && !existingNums.has(String(d.number))
     );
     // Update any drivers whose name/number/manufacturer/team has changed in defaultDrivers
-    const updatedDrivers = season.drivers.map((d) => {
-  const canonical = defaultDrivers.find((dd) => dd.id === d.id);
-  let updatedTeam = d.team === "KRM" ? "MER" : d.team;
-  if (!canonical) {
-    return { ...d, team: updatedTeam };
-  }
-  return {
-    ...d,
-    name: canonical.name,
-    number: canonical.number,
-    manufacturer: canonical.manufacturer,
-    team: canonical.team === "KRM" ? "MER" : canonical.team,
-  };
-});
+    const updatedDrivers = season.drivers
+      .filter((d) => !isInactivePlaceholderDriver(d))
+      .map((d) => {
+        const canonical = defaultDrivers.find((dd) => dd.id === d.id);
+        let updatedTeam = d.team === "KRM" ? "MER" : d.team;
+        if (!canonical) {
+          return { ...d, team: updatedTeam };
+        }
+        return {
+          ...d,
+          name: canonical.name,
+          number: canonical.number,
+          manufacturer: canonical.manufacturer,
+          team: canonical.team === "KRM" ? "MER" : canonical.team,
+        };
+      });
     if (missing.length === 0 && updatedDrivers.every((d, i) => d === season.drivers[i])) return season;
     const newRoster = [
       ...updatedDrivers.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer || "", team: d.team, startingPoints: Number(d.startingPoints) || 0, manualWins: Number(d.manualWins) || 0, retired: d.retired || false, notes: d.notes || "" })),
@@ -654,7 +659,8 @@ export default function App() {
   // ─── Computed values (must be before all hooks) ───────────────────────────
   const activeSeason = seasons.find((s) => s.id === activeSeasonId) || seasons[0] || null;
   const drivers = activeSeason?.drivers || [];
-  const activeDrivers = drivers.filter((d) => !d.retired);
+  const visibleDrivers = drivers.filter((d) => !isInactivePlaceholderDriver(d));
+  const activeDrivers = visibleDrivers.filter((d) => !d.retired);
   const selectedRace = activeSeason?.selectedRace || "";
   const positions = activeSeason?.positions || {};
   const stage1 = activeSeason?.stage1 || {};
@@ -839,24 +845,24 @@ export default function App() {
   };
   const teamStandings = useMemo(() => {
     const teams = {};
-    for (const d of drivers) {
+    for (const d of visibleDrivers) {
       if (!teams[d.team]) teams[d.team] = { team: d.team, points: 0, wins: 0, top3: 0, top5: 0, drivers: 0 };
       teams[d.team].points += d.points || 0; teams[d.team].wins += d.wins || 0;
       teams[d.team].top3 += d.top3 || 0; teams[d.team].top5 += d.top5 || 0; teams[d.team].drivers += 1;
     }
     return Object.values(teams).sort((a, b) => b.points - a.points || b.wins - a.wins || b.top3 - a.top3 || a.team.localeCompare(b.team));
-  }, [drivers]);
+  }, [visibleDrivers]);
   const manufacturerStandings = useMemo(() => {
     const mfrs = {};
-    for (const d of drivers) {
+    for (const d of visibleDrivers) {
       const mfr = d.manufacturer || "Unknown";
       if (!mfrs[mfr]) mfrs[mfr] = { manufacturer: mfr, points: 0, wins: 0, top3: 0, top5: 0, drivers: 0 };
       mfrs[mfr].points += d.points || 0; mfrs[mfr].wins += d.wins || 0;
       mfrs[mfr].top3 += d.top3 || 0; mfrs[mfr].top5 += d.top5 || 0; mfrs[mfr].drivers += 1;
     }
     return Object.values(mfrs).sort((a, b) => b.points - a.points || b.wins - a.wins || b.top3 - a.top3 || a.manufacturer.localeCompare(b.manufacturer));
-  }, [drivers]);
-  const sortedDrivers = [...drivers].sort((a, b) => b.points - a.points || b.wins - a.wins || b.top3 - a.top3 || a.name.localeCompare(b.name));
+  }, [visibleDrivers]);
+  const sortedDrivers = [...visibleDrivers].sort((a, b) => b.points - a.points || b.wins - a.wins || b.top3 - a.top3 || a.name.localeCompare(b.name));
   const currentLeader = sortedDrivers[0] || null;
   const latestRace = raceHistory.length > 0 ? raceHistory[raceHistory.length - 1] : null;
   const latestWinner = latestRace?.results?.find((r) => r.finishPos === 1) || null;
@@ -1082,9 +1088,9 @@ export default function App() {
     const abbr = path.replace("/team/", "").split("/")[0];
     return (
       <TeamDetailPage
-        drivers={activeSeason.drivers}
+        drivers={visibleDrivers}
         teamStandings={teamStandings}
-        raceHistory={activeSeason.raceHistory}
+        raceHistory={raceHistory}
         initialTeam={abbr}
       />
     );
@@ -1097,16 +1103,16 @@ export default function App() {
     );
     return (
       <ManufacturerDetailPage
-        drivers={activeSeason.drivers}
+        drivers={visibleDrivers}
         manufacturerStandings={manufacturerStandings}
-        raceHistory={activeSeason.raceHistory}
+        raceHistory={raceHistory}
         initialManufacturer={mfrName}
       />
     );
   }
   if (path.startsWith("/driver/")) return <DriverProfilePage seasons={seasons} activeSeason={activeSeason} tracks={tracks} />;
-  if (path === "/standings") return <PublicStandings drivers={drivers} teams={teamStandings} manufacturerStandings={manufacturerStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} />;
-  if (path === "/overlay/ticker" || viewMode === "overlay-ticker") return <TickerOverlay drivers={drivers} teams={teamStandings} raceHistory={raceHistory} preview={viewMode === "overlay-ticker"} seasonName={activeSeason?.name || ""} />;
+  if (path === "/standings") return <PublicStandings drivers={visibleDrivers} teams={teamStandings} manufacturerStandings={manufacturerStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} />;
+  if (path === "/overlay/ticker" || viewMode === "overlay-ticker") return <TickerOverlay drivers={visibleDrivers} teams={teamStandings} raceHistory={raceHistory} preview={viewMode === "overlay-ticker"} seasonName={activeSeason?.name || ""} />;
   return (
     <div style={appShellStyle}>
       <div style={pageContainerStyle}>
