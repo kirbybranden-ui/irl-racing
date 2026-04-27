@@ -701,7 +701,7 @@ export default function App() {
     hydrateFromSupabase();
     let interval = null;
     // Poll every 3s on live pages so stats stay current without a manual refresh
-    if (path === "/standings" || path.startsWith("/driver/") || path === "/overlay/drivers" || path === "/overlay/teams" || path === "/overlay/ticker") {
+    if (path === "/standings" || path.startsWith("/driver/") || path.startsWith("/team/") || path.startsWith("/manufacturer/") || path === "/overlay/drivers" || path === "/overlay/teams" || path === "/overlay/ticker") {
       interval = setInterval(hydrateFromSupabase, 3000);
     }
     return () => { isMounted = false; if (interval) clearInterval(interval); };
@@ -1088,12 +1088,24 @@ export default function App() {
   // Team detail page
   if (path.startsWith("/team/")) {
     const abbr = decodeURIComponent(rawPath.replace(/^\/team\//i, "").split("/")[0]);
+    const normalizedTeam = String(abbr || "").toLowerCase();
+    const selectedTeamDrivers = visibleDrivers.filter(
+      (d) => String(d.team || "").toLowerCase() === normalizedTeam
+    );
+    const selectedTeamStanding = teamStandings.find(
+      (t) => String(t.team || "").toLowerCase() === normalizedTeam
+    ) || null;
+
     return (
       <TeamDetailPage
+        key={`team-${abbr}-${activeSeasonId}-${raceHistory.length}-${selectedTeamStanding?.points || 0}`}
         drivers={visibleDrivers}
+        teamDrivers={selectedTeamDrivers}
         teams={teamStandings}
         teamStandings={teamStandings}
         standings={teamStandings}
+        selectedStanding={selectedTeamStanding}
+        team={selectedTeamStanding}
         raceHistory={raceHistory}
         seasonName={activeSeason?.name || ""}
         initialTeam={abbr}
@@ -1107,12 +1119,24 @@ export default function App() {
     const mfrName = decodeURIComponent(
       rawPath.replace(/^\/manufacturer\//i, "").split("/")[0]
     );
+    const normalizedManufacturer = String(mfrName || "").toLowerCase();
+    const selectedManufacturerDrivers = visibleDrivers.filter(
+      (d) => String(d.manufacturer || "").toLowerCase() === normalizedManufacturer
+    );
+    const selectedManufacturerStanding = manufacturerStandings.find(
+      (m) => String(m.manufacturer || "").toLowerCase() === normalizedManufacturer
+    ) || null;
+
     return (
       <ManufacturerDetailPage
+        key={`manufacturer-${mfrName}-${activeSeasonId}-${raceHistory.length}-${selectedManufacturerStanding?.points || 0}`}
         drivers={visibleDrivers}
+        manufacturerDrivers={selectedManufacturerDrivers}
         manufacturers={manufacturerStandings}
         manufacturerStandings={manufacturerStandings}
         standings={manufacturerStandings}
+        selectedStanding={selectedManufacturerStanding}
+        manufacturer={selectedManufacturerStanding}
         raceHistory={raceHistory}
         seasonName={activeSeason?.name || ""}
         initialManufacturer={mfrName}
