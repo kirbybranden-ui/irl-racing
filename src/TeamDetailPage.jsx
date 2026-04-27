@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 
 const pageStyle = {
   minHeight: "100vh",
@@ -30,6 +30,15 @@ const tdStyle = {
   borderBottom: "1px solid #252c38",
   verticalAlign: "top",
   fontSize: 14,
+};
+
+const inputStyle = {
+  width: "100%",
+  background: "#0f1319",
+  color: "white",
+  border: "1px solid #313947",
+  borderRadius: 10,
+  padding: "10px 12px",
 };
 
 function normalize(value) {
@@ -97,6 +106,7 @@ export default function TeamDetailPage({
 
   const starts = teamRaceResults.length;
   const finishResults = teamRaceResults.filter((r) => Number(r.finishPos));
+
   const bestFinish = finishResults.length
     ? Math.min(...finishResults.map((r) => Number(r.finishPos)))
     : "—";
@@ -113,12 +123,21 @@ export default function TeamDetailPage({
     .reduce((s, r) => s + (Number(r.totalRacePoints) || 0), 0);
 
   const teamGroups = {};
+
   drivers
     .filter((d) => !normalize(d.name).startsWith("inactive-"))
     .forEach((d) => {
-      if (!teamGroups[d.team]) teamGroups[d.team] = { team: d.team, current: 0, previous: 0 };
+      if (!teamGroups[d.team]) {
+        teamGroups[d.team] = {
+          team: d.team,
+          current: 0,
+          previous: 0,
+        };
+      }
+
       const lastResult = latestResults.find((r) => r.driverId === d.id);
       const lastPts = Number(lastResult?.totalRacePoints) || 0;
+
       teamGroups[d.team].current += Number(d.points) || 0;
       teamGroups[d.team].previous += (Number(d.points) || 0) - lastPts;
     });
@@ -136,6 +155,43 @@ export default function TeamDetailPage({
   const trend = getTrend(currentRank, previousRank);
 
   const topDriver = roster[0] || null;
+
+  const [compareA, setCompareA] = useState(roster[0]?.id || "");
+  const [compareB, setCompareB] = useState(roster[1]?.id || "");
+
+  function getDriverRaceStats(driverId) {
+    const results = raceHistory.flatMap((race) =>
+      (race.results || [])
+        .filter((r) => r.driverId === driverId)
+        .map((r) => ({ ...r, raceName: race.raceName }))
+    );
+
+    const finishes = results.filter((r) => Number(r.finishPos));
+    const latestRaceResult = latestResults.find((r) => r.driverId === driverId);
+
+    return {
+      starts: results.length,
+      bestFinish: finishes.length
+        ? Math.min(...finishes.map((r) => Number(r.finishPos)))
+        : "—",
+      avgFinish: finishes.length
+        ? (
+            finishes.reduce((s, r) => s + Number(r.finishPos || 0), 0) /
+            finishes.length
+          ).toFixed(1)
+        : "—",
+      lastRacePoints: latestRaceResult?.totalRacePoints || 0,
+      lastRaceFinish: latestRaceResult?.finishPos
+        ? `P${latestRaceResult.finishPos}`
+        : "—",
+    };
+  }
+
+  const driverA = roster.find((d) => d.id === Number(compareA) || d.id === compareA);
+  const driverB = roster.find((d) => d.id === Number(compareB) || d.id === compareB);
+
+  const statsA = driverA ? getDriverRaceStats(driverA.id) : null;
+  const statsB = driverB ? getDriverRaceStats(driverB.id) : null;
 
   return (
     <div style={pageStyle}>
@@ -166,7 +222,7 @@ export default function TeamDetailPage({
           </div>
 
           <div style={{ fontSize: 15, opacity: 0.72, marginTop: 6 }}>
-            Live Team Analytics • Race Data • Trend Tracking
+            Live Team Analytics • Race Data • Trend Tracking • Driver Comparison
           </div>
         </div>
 
@@ -241,6 +297,108 @@ export default function TeamDetailPage({
               </div>
             </div>
           </div>
+        </div>
+
+        <div style={cardStyle}>
+          <div style={{ fontSize: 26, fontWeight: 900, marginBottom: 14 }}>
+            Driver Comparison Tool
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+              gap: 14,
+              marginBottom: 18,
+            }}
+          >
+            <div>
+              <div style={{ fontSize: 12, opacity: 0.65, marginBottom: 6 }}>
+                DRIVER A
+              </div>
+              <select
+                value={compareA}
+                onChange={(e) => setCompareA(e.target.value)}
+                style={inputStyle}
+              >
+                {roster.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    #{d.number} {d.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <div style={{ fontSize: 12, opacity: 0.65, marginBottom: 6 }}>
+                DRIVER B
+              </div>
+              <select
+                value={compareB}
+                onChange={(e) => setCompareB(e.target.value)}
+                style={inputStyle}
+              >
+                {roster.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    #{d.number} {d.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {driverA && driverB && statsA && statsB ? (
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr>
+                    <th style={thStyle}>Stat</th>
+                    <th style={thStyle}>
+                      #{driverA.number} {driverA.name}
+                    </th>
+                    <th style={thStyle}>
+                      #{driverB.number} {driverB.name}
+                    </th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {[
+                    ["Points", driverA.points || 0, driverB.points || 0],
+                    ["Wins", driverA.wins || 0, driverB.wins || 0],
+                    ["Top 3", driverA.top3 || 0, driverB.top3 || 0],
+                    ["Top 5", driverA.top5 || 0, driverB.top5 || 0],
+                    ["DNFs", driverA.dnfs || 0, driverB.dnfs || 0],
+                    ["Fastest Laps", driverA.fastestLaps || 0, driverB.fastestLaps || 0],
+                    ["Penalties", driverA.totalPenalties || 0, driverB.totalPenalties || 0],
+                    ["Starts", statsA.starts, statsB.starts],
+                    [
+                      "Best Finish",
+                      statsA.bestFinish === "—" ? "—" : `P${statsA.bestFinish}`,
+                      statsB.bestFinish === "—" ? "—" : `P${statsB.bestFinish}`,
+                    ],
+                    ["Average Finish", statsA.avgFinish, statsB.avgFinish],
+                    ["Last Race Finish", statsA.lastRaceFinish, statsB.lastRaceFinish],
+                    ["Last Race Points", statsA.lastRacePoints, statsB.lastRacePoints],
+                  ].map(([label, a, b]) => (
+                    <tr key={label}>
+                      <td style={{ ...tdStyle, fontWeight: 900 }}>{label}</td>
+                      <td style={{ ...tdStyle, color: "#d4af37", fontWeight: 800 }}>
+                        {a}
+                      </td>
+                      <td style={{ ...tdStyle, color: "#d4af37", fontWeight: 800 }}>
+                        {b}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div style={{ opacity: 0.7 }}>
+              Select two drivers to compare.
+            </div>
+          )}
         </div>
 
         <div style={cardStyle}>
@@ -337,7 +495,12 @@ export default function TeamDetailPage({
                     <td style={tdStyle}>{d.top5 || 0}</td>
                     <td style={tdStyle}>{d.dnfs || 0}</td>
                     <td style={tdStyle}>{d.fastestLaps || 0}</td>
-                    <td style={{ ...tdStyle, color: (d.totalPenalties || 0) > 0 ? "#f87171" : "white" }}>
+                    <td
+                      style={{
+                        ...tdStyle,
+                        color: (d.totalPenalties || 0) > 0 ? "#f87171" : "white",
+                      }}
+                    >
                       {d.totalPenalties ? `-${d.totalPenalties}` : "0"}
                     </td>
                   </tr>
