@@ -13,30 +13,25 @@ import FilesPage from "./FilesPage";
 import SubmitAppealPage from "./SubmitAppealPage";
 import AppealsPage from "./AppealsPage";
 import DriverProfilePage from "./DriverProfilePage";
+import TeamDetailPage from "./TeamDetailPage";
+import ManufacturerDetailPage from "./ManufacturerDetailPage";
 import WelcomePage from "./WelcomePage";
 import { supabase } from "./lib/supabase";
 import CarGalleryPage from "./CarGalleryPage";
 import InterviewsPage from "./InterviewsPage";
-import TeamDetailPage from "./TeamDetailPage";
-import ManufacturerDetailPage from "./ManufacturerDetailPage";
 // Team logos
 const teamLogos = {
   "JA MOTORSPORTS": teamLogoJAM,
   JAM: teamLogoJAM,
-
   "ME RACING": teamLogoMER,
   MER: teamLogoMER,
-
   "NINE LINE MOTORSPORTS": teamLogoNLM,
   "Nine Line Motorsports": teamLogoNLM,
   NLM: teamLogoNLM,
-
   "MAYHEM MOTORSPORTS": teamLogoMMS,
 MMS: teamLogoMMS,
-
   "BLUE OVAL MOTORSPORTS": teamLogoBOM, 
   BOM: teamLogoBOM,
-
   "Independent": teamLogoIND,
   IND: teamLogoIND,
 };
@@ -46,7 +41,6 @@ const manufacturerLogos = {
   Toyota: manufacturerToyota,
 };
 import { loadLeagueState, saveLeagueState } from "./lib/leagueState";
-
 // ─── Team Full Names ───────────────────────────────────────────────────────────
 const teamFullNames = {
   JAM: "JA Motorsports",
@@ -60,7 +54,6 @@ const teamFullNames = {
 function getTeamFullName(teamAbbr) {
   return teamFullNames[teamAbbr] || teamAbbr;
 }
-
 const defaultDrivers = [
   { id: 1,  number: 42, name: "AMP-GHOSTRIDER",           manufacturer: "Toyota",    team: "JAM"         },
   { id: 2,  number: 99, name: "RookieVet99",               manufacturer: "Toyota",    team: "JAM"         },
@@ -193,7 +186,6 @@ function renderTeamBadge(teamName, size = 44) {
 function makeDriverWithStats(driver) {
   return { ...driver, manufacturer: driver.manufacturer || "", manufacturerLogo: driver.manufacturerLogo || manufacturerLogos[driver.manufacturer] || null, startingPoints: Number(driver.startingPoints) || 0, manualWins: Number(driver.manualWins) || 0, points: Number(driver.startingPoints) || 0, wins: Number(driver.manualWins) || 0, top3: 0, top5: 0, dnfs: 0, retired: driver.retired || false, notes: driver.notes || "" };
 }
-
 function getDriverAchievements(driver) {
   const achievements = [];
   if (driver.wins >= 1) achievements.push({ badge: "🏆", name: "First Win", condition: driver.wins >= 1 });
@@ -309,19 +301,18 @@ function TeamOverlay({ teams, preview = false, seasonName = "" }) {
           <div style={{ fontSize: 14, opacity: 0.78 }}>{seasonName}</div>
         </div>
         <table style={tableStyle}><thead><tr><th style={thStyle}>Pos</th><th style={thStyle}>Team</th><th style={thStyle}>Points</th><th style={thStyle}>Wins</th><th style={thStyle}>Top 3</th><th style={thStyle}>Top 5</th></tr></thead>
-          <tbody>{teams.map((t, i) => <tr key={t.team}><td style={tdStyle}>{i+1}</td><td style={tdStyle}>{getTeamFullName(t.team)}</td><td style={tdStyle}>{t.points}</td><td style={tdStyle}>{t.wins}</td><td style={tdStyle}>{t.top3}</td><td style={tdStyle}>{t.top5}</td></tr>)}</tbody>
+          <tbody>{teams.map((t, i) => <tr key={t.team} onClick={() => (window.location.href = `/team/${t.team}`)} style={{ cursor: "pointer" }}><td style={tdStyle}>{i+1}</td><td style={tdStyle}>{getTeamFullName(t.team)}</td><td style={tdStyle}>{t.points}</td><td style={tdStyle}>{t.wins}</td><td style={tdStyle}>{t.top3}</td><td style={tdStyle}>{t.top5}</td></tr>)}</tbody>
         </table>
       </div>
     </div>
   );
 }
-function PublicStandings({ drivers, teams, seasonName = "", tracks = [], raceHistory = [] }) {
+function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonName = "", tracks = [], raceHistory = [] }) {
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [featuredVideo, setFeaturedVideo] = useState(null);
   const handleDriverClick = (number) => {
     window.location.pathname = `/driver/${number}`;
   };
-
   useEffect(() => {
     async function loadFeaturedVideo() {
       const { data } = await supabase
@@ -334,13 +325,11 @@ function PublicStandings({ drivers, teams, seasonName = "", tracks = [], raceHis
     }
     loadFeaturedVideo();
   }, []);
-
   const sorted = [...drivers].sort((a, b) => b.points - a.points || b.wins - a.wins || b.top3 - a.top3 || a.name.localeCompare(b.name));
   const [leader, second, third] = sorted;
   const totalPoints = sorted.reduce((s, d) => s + (d.points || 0), 0);
   const totalWins = sorted.reduce((s, d) => s + (d.wins || 0), 0);
   const totalDnfs = sorted.reduce((s, d) => s + (d.dnfs || 0), 0);
-
   // Sort tracks by date, mark completed ones
   const completedRaces = new Set((raceHistory || []).map(r => r.raceName));
   const sortedTracks = [...tracks].sort((a, b) => {
@@ -374,7 +363,7 @@ function PublicStandings({ drivers, teams, seasonName = "", tracks = [], raceHis
         </div>
         <button
           onClick={() => handleDriverClick(driver.number)}
-          style={{ width: "100%", background: "rgba(0,0,0,0.3)", color: "white", border: `1px solid rgba(255,255,255,0.3)`, borderRadius: 10, padding: "10px 14px", fontWeight: 700, cursor: "pointer", fontSize: 13 }}
+          style={{ width: "100%", background: "rgba(0,0,0,0.3)", color: "white", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 10, padding: "10px 14px", fontWeight: 700, cursor: "pointer", fontSize: 13 }}
         >
           View Full Profile
         </button>
@@ -384,7 +373,6 @@ function PublicStandings({ drivers, teams, seasonName = "", tracks = [], raceHis
   return (
     <div style={{ minHeight: "100vh", background: "radial-gradient(circle at top, #18202b 0%, #0d1117 38%, #090c11 100%)", color: "white", fontFamily: "Arial, sans-serif" }}>
       <div style={{ maxWidth: 1520, margin: "0 auto", padding: 24 }}>
-
         {/* ── Featured Video Banner ──────────────────────────────────── */}
         {featuredVideo && (
           <div style={{ background: "linear-gradient(135deg, #12151c 0%, #0c0f14 100%)", border: "1px solid #d4af37", borderRadius: 20, overflow: "hidden", marginBottom: 22, boxShadow: "0 14px 40px rgba(212,175,55,0.15)" }}>
@@ -460,7 +448,6 @@ function PublicStandings({ drivers, teams, seasonName = "", tracks = [], raceHis
             <div style={{ fontSize: 11, color: "#d4af37", marginTop: 6, fontWeight: 700 }}>View full schedule →</div>
           </div>
         </div>
-
         {/* Schedule modal */}
         {scheduleOpen && (
           <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 }}>
@@ -532,7 +519,7 @@ function PublicStandings({ drivers, teams, seasonName = "", tracks = [], raceHis
               <thead><tr><th style={thStyle}>Pos</th><th style={thStyle}>Logo</th><th style={thStyle}>Team</th><th style={thStyle}>Points</th><th style={thStyle}>Wins</th><th style={thStyle}>Top 3</th><th style={thStyle}>Top 5</th></tr></thead>
               <tbody>
                 {teams.map((team, index) => (
-                  <tr key={team.team}>
+                  <tr key={team.team} onClick={() => (window.location.href = `/team/${team.team}`)} style={{ cursor: "pointer" }}>
                     <td style={{ ...tdStyle, fontWeight: 900 }}>{index + 1}</td>
                     <td style={tdStyle}>{renderTeamBadge(team.team, 42)}</td>
                     <td style={{ ...tdStyle, fontWeight: 800 }}>{getTeamFullName(team.team)}</td>
@@ -561,7 +548,7 @@ function PublicStandings({ drivers, teams, seasonName = "", tracks = [], raceHis
                     mfrs[mfr].top3 += d.top3 || 0; mfrs[mfr].top5 += d.top5 || 0; mfrs[mfr].drivers += 1;
                   }
                   return Object.values(mfrs).sort((a, b) => b.points - a.points || b.wins - a.wins || b.top3 - a.top3 || a.manufacturer.localeCompare(b.manufacturer)).map((m, i) => (
-                    <tr key={m.manufacturer}>
+                    <tr key={m.manufacturer} onClick={() => (window.location.href = `/manufacturer/${encodeURIComponent(m.manufacturer)}`)} style={{ cursor: "pointer" }}>
                       <td style={{ ...tdStyle, fontWeight: 900 }}>{i + 1}</td>
                       <td style={{ ...tdStyle, fontWeight: 800 }}>{m.manufacturer}</td>
                       <td style={{ ...tdStyle, fontWeight: 900 }}>{m.points}</td>
@@ -617,13 +604,10 @@ function patchMissingDrivers(cleanSeasons) {
     // Update any drivers whose name/number/manufacturer/team has changed in defaultDrivers
     const updatedDrivers = season.drivers.map((d) => {
   const canonical = defaultDrivers.find((dd) => dd.id === d.id);
-
   let updatedTeam = d.team === "KRM" ? "MER" : d.team;
-
   if (!canonical) {
     return { ...d, team: updatedTeam };
   }
-
   return {
     ...d,
     name: canonical.name,
@@ -670,7 +654,6 @@ export default function App() {
   const videoFileInputRef = useRef(null);
   const importFileRef = useRef(null);
   const path = window.location.pathname.toLowerCase();
-
   // ─── Computed values (must be before all hooks) ───────────────────────────
   const activeSeason = seasons.find((s) => s.id === activeSeasonId) || seasons[0] || null;
   const drivers = activeSeason?.drivers || [];
@@ -686,7 +669,6 @@ export default function App() {
   const raceHistory = activeSeason?.raceHistory || [];
   const selectedRaceData = tracks.find((r) => r.name === selectedRace);
   const stageCount = selectedRaceData ? selectedRaceData.stageCount : 2;
-
   // ─── ALL useEffect hooks (must be before any early returns) ───────────────
   useEffect(() => {
     let isMounted = true;
@@ -981,7 +963,6 @@ export default function App() {
   const approvePendingDriver = async (pendingDriver) => {
     if (!activeSeason || !pendingDriver) return;
     if (!window.confirm(`Add ${pendingDriver.driver_name} (#${pendingDriver.car_number}) to the league?`)) return;
-
     try {
       // Add to active season
       const newDriver = {
@@ -997,13 +978,11 @@ export default function App() {
       };
       const newRoster = [...drivers.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer || "", manufacturerLogo: d.manufacturerLogo || null, team: d.team, startingPoints: Number(d.startingPoints) || 0, manualWins: Number(d.manualWins) || 0 })), newDriver];
       patchActiveSeason({ drivers: rebuildDriversFromHistory(raceHistory, newRoster) });
-
       // Update pending driver status to approved
       await supabase
         .from("pending_drivers")
         .update({ status: "approved" })
         .eq("id", pendingDriver.id);
-
       setPendingDrivers((prev) => prev.filter((d) => d.id !== pendingDriver.id));
       alert(`${pendingDriver.driver_name} has been added to the league!`);
     } catch (err) {
@@ -1013,13 +992,11 @@ export default function App() {
   };
   const rejectPendingDriver = async (pendingDriver) => {
     if (!window.confirm(`Reject ${pendingDriver.driver_name}?`)) return;
-
     try {
       await supabase
         .from("pending_drivers")
         .update({ status: "rejected" })
         .eq("id", pendingDriver.id);
-
       setPendingDrivers((prev) => prev.filter((d) => d.id !== pendingDriver.id));
     } catch (err) {
       console.error("Error rejecting driver:", err);
@@ -1103,35 +1080,35 @@ export default function App() {
   if (!isHydrated) return <div style={appShellStyle}><div style={pageContainerStyle}><div style={sectionCardStyle}>Loading league data...</div></div></div>;
   if (path === "/admin/car-gallery") return <CarGalleryPage drivers={drivers} tracks={tracks} />;
   if (path === "/admin/interviews") return <InterviewsPage drivers={drivers} tracks={tracks} seasons={seasons} activeSeasonId={activeSeasonId} />;
-  if (path.startsWith("/driver/")) return <DriverProfilePage seasons={seasons} activeSeason={activeSeason} tracks={tracks} />;
   // Team detail page
-if (path.startsWith("/team/")) {
-  const abbr = path.replace("/team/", "").split("/")[0];
-  return (
-    <TeamDetailPage
-      drivers={season.drivers}
-      teamStandings={teamStandings}
-      raceHistory={season.raceHistory}
-      initialTeam={abbr}
-    />
-  );
-}
+  if (path.startsWith("/team/")) {
+    const abbr = path.replace("/team/", "").split("/")[0];
+    return (
+      <TeamDetailPage
+        drivers={activeSeason.drivers}
+        teamStandings={teamStandings}
+        raceHistory={activeSeason.raceHistory}
+        initialTeam={abbr}
+      />
+    );
+  }
 
-// Manufacturer detail page
-if (path.startsWith("/manufacturer/")) {
-  const mfrName = decodeURIComponent(
-    path.replace("/manufacturer/", "").split("/")[0]
-  );
-  return (
-    <ManufacturerDetailPage
-      drivers={season.drivers}
-      manufacturerStandings={manufacturerStandings}
-      raceHistory={season.raceHistory}
-      initialManufacturer={mfrName}
-    />
-  );
-}
-  if (path === "/standings") return <PublicStandings drivers={drivers} teams={teamStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} />;
+  // Manufacturer detail page
+  if (path.startsWith("/manufacturer/")) {
+    const mfrName = decodeURIComponent(
+      path.replace("/manufacturer/", "").split("/")[0]
+    );
+    return (
+      <ManufacturerDetailPage
+        drivers={activeSeason.drivers}
+        manufacturerStandings={manufacturerStandings}
+        raceHistory={activeSeason.raceHistory}
+        initialManufacturer={mfrName}
+      />
+    );
+  }
+  if (path.startsWith("/driver/")) return <DriverProfilePage seasons={seasons} activeSeason={activeSeason} tracks={tracks} />;
+  if (path === "/standings") return <PublicStandings drivers={drivers} teams={teamStandings} manufacturerStandings={manufacturerStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} />;
   if (path === "/overlay/ticker" || viewMode === "overlay-ticker") return <TickerOverlay drivers={drivers} teams={teamStandings} raceHistory={raceHistory} preview={viewMode === "overlay-ticker"} seasonName={activeSeason?.name || ""} />;
   return (
     <div style={appShellStyle}>
@@ -1202,7 +1179,6 @@ if (path.startsWith("/manufacturer/")) {
           <div style={{ fontSize: 13, opacity: 0.7, marginBottom: 16 }}>
             Upload a pre-race hype video or race highlight. It appears at the top of the /standings page. Replaces any existing featured video.
           </div>
-
           {featuredVideo && (
             <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 14, marginBottom: 16 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap", marginBottom: 10 }}>
@@ -1229,7 +1205,6 @@ if (path.startsWith("/manufacturer/")) {
               <video controls crossOrigin="anonymous" style={{ width: "100%", maxHeight: 240, borderRadius: 8, background: "#000" }} src={featuredVideo.video_url} />
             </div>
           )}
-
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, marginBottom: 14 }}>
             <div>
               <div style={{ marginBottom: 6, fontWeight: 700 }}>Title (optional)</div>
@@ -1240,7 +1215,6 @@ if (path.startsWith("/manufacturer/")) {
               <input style={inputStyle} value={videoDescription} onChange={e => setVideoDescription(e.target.value)} placeholder="e.g. Race recap — Season 1 opener" />
             </div>
           </div>
-
           <input
             ref={videoFileInputRef}
             type="file"
@@ -1254,7 +1228,6 @@ if (path.startsWith("/manufacturer/")) {
                 const fileExt = file.name.split(".").pop();
                 const fileName = `featured-${Date.now()}.${fileExt}`;
                 const filePath = `featured/${fileName}`;
-
                 // Upload to Supabase Storage
                 const { error: storageError } = await supabase.storage
                   .from("car-uploads")
@@ -1264,17 +1237,14 @@ if (path.startsWith("/manufacturer/")) {
                     contentType: file.type || "video/mp4",
                   });
                 if (storageError) throw storageError;
-
                 const { data: urlData } = supabase.storage
                   .from("car-uploads")
                   .getPublicUrl(filePath);
-
                 // Remove existing featured video
                 if (featuredVideo) {
                   if (featuredVideo.file_path) await supabase.storage.from("car-uploads").remove([featuredVideo.file_path]);
                   await supabase.from("featured_video").delete().eq("id", featuredVideo.id);
                 }
-
                 // Save to DB
                 const { data: saved, error: dbError } = await supabase.from("featured_video").insert({
                   video_url: urlData.publicUrl,
@@ -1284,7 +1254,6 @@ if (path.startsWith("/manufacturer/")) {
                   uploaded_at: new Date().toISOString(),
                 }).select().single();
                 if (dbError) throw dbError;
-
                 setFeaturedVideo(saved);
                 setVideoTitle(""); setVideoDescription("");
                 alert("✅ Video uploaded and published to /standings!");
@@ -1296,7 +1265,6 @@ if (path.startsWith("/manufacturer/")) {
               if (videoFileInputRef.current) videoFileInputRef.current.value = "";
             }}
           />
-
           <button
             style={{ ...primaryButtonStyle, opacity: videoUploading ? 0.6 : 1 }}
             disabled={videoUploading}
@@ -1308,7 +1276,6 @@ if (path.startsWith("/manufacturer/")) {
             <div style={{ marginTop: 10, fontSize: 13, opacity: 0.7 }}>Uploading — large files may take a moment...</div>
           )}
         </div>
-
         {/* Backup & Restore */}
         <div style={sectionCardStyle}>
           <h2 style={{ marginTop: 0 }}>Backup & Restore</h2>
@@ -1566,7 +1533,7 @@ if (path.startsWith("/manufacturer/")) {
           <div style={{ overflowX: "auto" }}>
             <table style={tableStyle}>
               <thead><tr><th style={thStyle}>Pos</th><th style={thStyle}>Team</th><th style={thStyle}>Points</th><th style={thStyle}>Wins</th><th style={thStyle}>Top 3</th><th style={thStyle}>Top 5</th><th style={thStyle}>Drivers</th></tr></thead>
-              <tbody>{teamStandings.map((t, i) => (<tr key={t.team}><td style={tdStyle}>{i+1}</td><td style={tdStyle}>{getTeamFullName(t.team)}</td><td style={tdStyle}>{t.points}</td><td style={tdStyle}>{t.wins}</td><td style={tdStyle}>{t.top3}</td><td style={tdStyle}>{t.top5}</td><td style={tdStyle}>{t.drivers}</td></tr>))}</tbody>
+              <tbody>{teamStandings.map((t, i) => (<tr key={t.team} onClick={() => (window.location.href = `/team/${t.team}`)} style={{ cursor: "pointer" }}><td style={tdStyle}>{i+1}</td><td style={tdStyle}>{getTeamFullName(t.team)}</td><td style={tdStyle}>{t.points}</td><td style={tdStyle}>{t.wins}</td><td style={tdStyle}>{t.top3}</td><td style={tdStyle}>{t.top5}</td><td style={tdStyle}>{t.drivers}</td></tr>))}</tbody>
             </table>
           </div>
         </div>
@@ -1576,7 +1543,7 @@ if (path.startsWith("/manufacturer/")) {
           <div style={{ overflowX: "auto" }}>
             <table style={tableStyle}>
               <thead><tr><th style={thStyle}>Pos</th><th style={thStyle}>Manufacturer</th><th style={thStyle}>Points</th><th style={thStyle}>Wins</th><th style={thStyle}>Top 3</th><th style={thStyle}>Top 5</th><th style={thStyle}>Drivers</th></tr></thead>
-              <tbody>{manufacturerStandings.map((m, i) => (<tr key={m.manufacturer}><td style={tdStyle}>{i+1}</td><td style={tdStyle}>{m.manufacturer}</td><td style={tdStyle}>{m.points}</td><td style={tdStyle}>{m.wins}</td><td style={tdStyle}>{m.top3}</td><td style={tdStyle}>{m.top5}</td><td style={tdStyle}>{m.drivers}</td></tr>))}</tbody>
+              <tbody>{manufacturerStandings.map((m, i) => (<tr key={m.manufacturer} onClick={() => (window.location.href = `/manufacturer/${encodeURIComponent(m.manufacturer)}`)} style={{ cursor: "pointer" }}><td style={tdStyle}>{i+1}</td><td style={tdStyle}>{m.manufacturer}</td><td style={tdStyle}>{m.points}</td><td style={tdStyle}>{m.wins}</td><td style={tdStyle}>{m.top3}</td><td style={tdStyle}>{m.top5}</td><td style={tdStyle}>{m.drivers}</td></tr>))}</tbody>
             </table>
           </div>
         </div>
