@@ -1104,6 +1104,33 @@ export default function App() {
   if (path === "/admin/car-gallery") return <CarGalleryPage drivers={drivers} tracks={tracks} />;
   if (path === "/admin/interviews") return <InterviewsPage drivers={drivers} tracks={tracks} seasons={seasons} activeSeasonId={activeSeasonId} />;
   if (path.startsWith("/driver/")) return <DriverProfilePage seasons={seasons} activeSeason={activeSeason} tracks={tracks} />;
+  // Team detail page
+if (path.startsWith("/team/")) {
+  const abbr = path.replace("/team/", "").split("/")[0];
+  return (
+    <TeamDetailPage
+      drivers={season.drivers}
+      teamStandings={teamStandings}
+      raceHistory={season.raceHistory}
+      initialTeam={abbr}
+    />
+  );
+}
+
+// Manufacturer detail page
+if (path.startsWith("/manufacturer/")) {
+  const mfrName = decodeURIComponent(
+    path.replace("/manufacturer/", "").split("/")[0]
+  );
+  return (
+    <ManufacturerDetailPage
+      drivers={season.drivers}
+      manufacturerStandings={manufacturerStandings}
+      raceHistory={season.raceHistory}
+      initialManufacturer={mfrName}
+    />
+  );
+}
   if (path === "/standings") return <PublicStandings drivers={drivers} teams={teamStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} />;
   if (path === "/overlay/ticker" || viewMode === "overlay-ticker") return <TickerOverlay drivers={drivers} teams={teamStandings} raceHistory={raceHistory} preview={viewMode === "overlay-ticker"} seasonName={activeSeason?.name || ""} />;
   return (
