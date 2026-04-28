@@ -10,11 +10,12 @@ export default function AppUpdateBanner({ page = "all" }) {
         .from("app_update_banners")
         .select("*")
         .in("page", ["all", page])
+        .eq("active", true)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
 
-      setBanner(data);
+      setBanner(data || null);
     }
 
     loadBanner();
@@ -35,6 +36,13 @@ export default function AppUpdateBanner({ page = "all" }) {
         boxShadow: "0 10px 30px rgba(212,175,55,0.25)",
         display: "flex",
         alignItems: "center",
+        gap: 10,
+      }}
+    >
+      🚨 {banner.message}
+    </div>
+  );
+}        alignItems: "center",
         gap: 10,
       }}
     >
