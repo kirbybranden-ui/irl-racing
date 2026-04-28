@@ -19,6 +19,7 @@ import WelcomePage from "./WelcomePage";
 import { supabase } from "./lib/supabase";
 import CarGalleryPage from "./CarGalleryPage";
 import InterviewsPage from "./InterviewsPage";
+import StreamPage from "./StreamPage";
 // Team logos
 const teamLogos = {
   "JA MOTORSPORTS": teamLogoJAM,
@@ -1081,6 +1082,7 @@ export default function App() {
   if (path === "/welcome") return <WelcomePage />;
   if (path === "/submit-appeal") return <SubmitAppealPage />;
   if (path === "/appeals") return <AppealsPage />;
+  if (path === "/streams") return <StreamPage />;
   // Loading gate — all routes below this need Supabase data
   if (!isHydrated) return <div style={appShellStyle}><div style={pageContainerStyle}><div style={sectionCardStyle}>Loading league data...</div></div></div>;
   if (path === "/admin/car-gallery") return <CarGalleryPage drivers={drivers} tracks={tracks} />;
@@ -1168,6 +1170,9 @@ export default function App() {
               ))}
               <button onClick={() => (window.location.pathname = "/standings")} style={headerButtonStyle}>
                 Standings
+              </button>
+              <button onClick={() => (window.location.pathname = "/streams")} style={headerButtonStyle}>
+                🎮 Streams
               </button>
               <button onClick={() => (window.location.pathname = "/appeals")} style={headerButtonStyle}>
                 Appeals ({openAppealCount})
