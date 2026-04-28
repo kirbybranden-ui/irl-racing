@@ -167,7 +167,9 @@ export default function StreamPage({
                   <td style={styles.td}>{driver.team || "Independent"}</td>
                   <td style={styles.td}>{driver.points || 0}</td>
                   <td style={styles.td}>{driver.wins || 0}</td>
+                  <td style={styles.td}>{driver.top3 || 0}</td>
                   <td style={styles.td}>{driver.top5 || driver.top5s || 0}</td>
+                  <td style={styles.td}>{driver.dnfs || 0}</td>
                 </tr>
               ))}
             </tbody>
