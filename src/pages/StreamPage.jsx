@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
+const [streams, setStreams] = useState([]);
 
 const card = {
   background: "linear-gradient(180deg, #171c25, #0f131a)",
