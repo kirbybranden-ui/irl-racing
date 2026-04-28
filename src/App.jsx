@@ -321,7 +321,7 @@ const trackOverviewData = {
     restartZone: "Frontstretch restart zone before the start/finish line",
     tireWear: "Moderate. The track is wide enough for multiple grooves, but overdriving corner exit can hurt right-side tire life.",
     notes: "Fast, wide, draft-heavy track where momentum matters. Drivers can move around to find clean air and manage long-run balance.",
-    imageUrl: "",
+    imageUrl: "https://vistghrmmlnkfpcxjcwm.supabase.co/storage/v1/object/public/track-images/michigan.jpg",
   },
   "Michigan": {
     name: "Michigan International Speedway",
@@ -334,7 +334,7 @@ const trackOverviewData = {
     restartZone: "Frontstretch restart zone before the start/finish line",
     tireWear: "Moderate. Drivers can use several lanes, but long green-flag runs reward smooth throttle and clean corner exits.",
     notes: "Drafting and momentum are huge. The preferred lane can change as tires fall off.",
-    imageUrl: "",
+    imageUrl: "https://vistghrmmlnkfpcxjcwm.supabase.co/storage/v1/object/public/track-images/michigan.jpg",
   },
   "Preseason - Dover": {
     name: "Dover Motor Speedway",
@@ -347,7 +347,7 @@ const trackOverviewData = {
     restartZone: "Frontstretch restart zone before the start/finish line",
     tireWear: "High. Concrete grip is strong, but rhythm mistakes and sliding off the corner can punish tires quickly.",
     notes: "Fast short-track feel with heavy compression into the corners. Track position and clean exits are critical.",
-    imageUrl: "",
+    imageUrl: "https://vistghrmmlnkfpcxjcwm.supabase.co/storage/v1/object/public/track-images/dover.jpg",
   },
   "Dover": {
     name: "Dover Motor Speedway",
@@ -360,7 +360,7 @@ const trackOverviewData = {
     restartZone: "Frontstretch restart zone before the start/finish line",
     tireWear: "High. Drivers need to protect corner exit and avoid abusing the right front.",
     notes: "The Monster Mile rewards rhythm, discipline, and clean traffic management.",
-    imageUrl: "",
+    imageUrl: "https://vistghrmmlnkfpcxjcwm.supabase.co/storage/v1/object/public/track-images/dover.jpg",
   },
   "Preseason - WWT Raceway": {
     name: "World Wide Technology Raceway",
@@ -373,7 +373,7 @@ const trackOverviewData = {
     restartZone: "Frontstretch restart zone before the start/finish line",
     tireWear: "Moderate. The two ends of the track drive differently, so balance and braking discipline matter.",
     notes: "Flat, technical oval with different corner shapes. Passing usually requires setup and patience.",
-    imageUrl: "",
+    imageUrl: "https://vistghrmmlnkfpcxjcwm.supabase.co/storage/v1/object/public/track-images/worldwidetechnologyraceway.jpg",
   },
   "WWT Raceway": {
     name: "World Wide Technology Raceway",
@@ -386,7 +386,7 @@ const trackOverviewData = {
     restartZone: "Frontstretch restart zone before the start/finish line",
     tireWear: "Moderate. Rear grip on exit is important over a long run.",
     notes: "Technical braking zones and different corner profiles make consistency important.",
-    imageUrl: "",
+    imageUrl: "https://vistghrmmlnkfpcxjcwm.supabase.co/storage/v1/object/public/track-images/worldwidetechnologyraceway.jpg",
   },
   "Daytona (Night)": {
     name: "Daytona International Speedway",
@@ -399,7 +399,7 @@ const trackOverviewData = {
     restartZone: "Frontstretch restart zone before the start/finish line",
     tireWear: "Low to moderate. Drafting, lane discipline, and pushing technique matter more than tire falloff.",
     notes: "Pack racing with huge runs. Survival, patience, and timing are key.",
-    imageUrl: "",
+    imageUrl: "https://vistghrmmlnkfpcxjcwm.supabase.co/storage/v1/object/public/track-images/daytona.jpg",
   },
   "Charlotte": {
     name: "Charlotte Motor Speedway",
@@ -412,7 +412,7 @@ const trackOverviewData = {
     restartZone: "Frontstretch restart zone before the start/finish line",
     tireWear: "Moderate to high. Long-run speed depends on keeping the car stable in dirty air and saving right-side tires.",
     notes: "Clean air and momentum are important. Charlotte has 3 stage points in your league format.",
-    imageUrl: "",
+    imageUrl: "https://vistghrmmlnkfpcxjcwm.supabase.co/storage/v1/object/public/track-images/charlotte.jpg",
   },
   "Nashville": {
     name: "Nashville Superspeedway",
@@ -425,7 +425,7 @@ const trackOverviewData = {
     restartZone: "Frontstretch restart zone before the start/finish line",
     tireWear: "Moderate. Concrete grip and traffic make throttle control important.",
     notes: "Momentum track with long corners and tricky traffic transitions.",
-    imageUrl: "",
+    imageUrl: "https://vistghrmmlnkfpcxjcwm.supabase.co/storage/v1/object/public/track-images/nashville.jpg",
   },
   "Pocono": {
     name: "Pocono Raceway",
@@ -438,7 +438,7 @@ const trackOverviewData = {
     restartZone: "Frontstretch restart zone before the start/finish line",
     tireWear: "Moderate. Each corner needs a different compromise, especially braking and exit drive.",
     notes: "Three unique corners. Turn 3 exit is critical for frontstretch speed.",
-    imageUrl: "",
+    imageUrl: "https://vistghrmmlnkfpcxjcwm.supabase.co/storage/v1/object/public/track-images/pocono.jpg",
   },
   "Bristol (Night)": {
     name: "Bristol Motor Speedway",
@@ -451,7 +451,7 @@ const trackOverviewData = {
     restartZone: "Frontstretch restart zone before the start/finish line",
     tireWear: "High. Traffic, wheel spin, and overdriving corner entry can use tires up fast.",
     notes: "Short-track chaos. Rhythm, patience, and clean bumper discipline matter.",
-    imageUrl: "",
+    imageUrl: "https://vistghrmmlnkfpcxjcwm.supabase.co/storage/v1/object/public/track-images/bristol.jpg",
   },
   "Las Vegas": {
     name: "Las Vegas Motor Speedway",
@@ -464,7 +464,7 @@ const trackOverviewData = {
     restartZone: "Frontstretch restart zone before the start/finish line",
     tireWear: "Moderate. Long-run balance and clean air make a big difference.",
     notes: "Momentum-based intermediate with multiple lanes as the run develops.",
-    imageUrl: "",
+    imageUrl: "https://vistghrmmlnkfpcxjcwm.supabase.co/storage/v1/object/public/track-images/lasvegas.jpg",
   },
   "Talladega": {
     name: "Talladega Superspeedway",
@@ -477,7 +477,7 @@ const trackOverviewData = {
     restartZone: "Frontstretch restart zone before the start/finish line",
     tireWear: "Low. Drafting, pushing, lane choice, and avoiding mistakes matter most.",
     notes: "Huge pack-racing track. Runs form quickly and decision-making is everything.",
-    imageUrl: "",
+    imageUrl: "https://vistghrmmlnkfpcxjcwm.supabase.co/storage/v1/object/public/track-images/talladega.jpg",
   },
   "North Wilkesboro": {
     name: "North Wilkesboro Speedway",
@@ -490,7 +490,7 @@ const trackOverviewData = {
     restartZone: "Frontstretch restart zone before the start/finish line",
     tireWear: "High. Tire conservation and throttle control are major factors.",
     notes: "Old-school short track with heavy braking, low grip, and tough passing.",
-    imageUrl: "",
+    imageUrl: "https://vistghrmmlnkfpcxjcwm.supabase.co/storage/v1/object/public/track-images/northwilkesboro.jpg",
   },
   "Indianapolis": {
     name: "Indianapolis Motor Speedway",
@@ -503,7 +503,7 @@ const trackOverviewData = {
     restartZone: "Frontstretch restart zone before the start/finish line",
     tireWear: "Moderate. Braking stability and exit speed are critical because the corners are flat and narrow.",
     notes: "Precision track. Mistakes on corner exit cost speed for a long straightaway.",
-    imageUrl: "",
+    imageUrl: "https://vistghrmmlnkfpcxjcwm.supabase.co/storage/v1/object/public/track-images/indianapolis.jpg",
   },
   "New Hampshire": {
     name: "New Hampshire Motor Speedway",
@@ -516,7 +516,7 @@ const trackOverviewData = {
     restartZone: "Frontstretch restart zone before the start/finish line",
     tireWear: "Moderate to high. Flat corners reward smooth braking and throttle pickup.",
     notes: "Track position and braking discipline are key. Passing can be difficult without a run.",
-    imageUrl: "",
+    imageUrl: "https://vistghrmmlnkfpcxjcwm.supabase.co/storage/v1/object/public/track-images/newhampshire.jpg",
   },
   "Phoenix": {
     name: "Phoenix Raceway",
@@ -529,7 +529,7 @@ const trackOverviewData = {
     restartZone: "Frontstretch restart zone before the start/finish line",
     tireWear: "Moderate. Drivers need to manage rear grip off the flat corners.",
     notes: "Restarts can get aggressive through the dogleg. Track position matters.",
-    imageUrl: "",
+    imageUrl: "https://vistghrmmlnkfpcxjcwm.supabase.co/storage/v1/object/public/track-images/phoenix.jpg",
   },
   "Richmond": {
     name: "Richmond Raceway",
@@ -542,7 +542,7 @@ const trackOverviewData = {
     restartZone: "Frontstretch restart zone before the start/finish line",
     tireWear: "High. Long-run tire saving is one of the biggest keys.",
     notes: "Short-track strategy race. Smoothness and tire management create passing chances.",
-    imageUrl: "",
+    imageUrl: "https://vistghrmmlnkfpcxjcwm.supabase.co/storage/v1/object/public/track-images/richmond.jpg",
   },
   "Kansas": {
     name: "Kansas Speedway",
@@ -555,7 +555,7 @@ const trackOverviewData = {
     restartZone: "Frontstretch restart zone before the start/finish line",
     tireWear: "Moderate. Multiple grooves open up, but dirty air still matters.",
     notes: "Progressive banking makes lane choice important over a long run.",
-    imageUrl: "",
+    imageUrl: "https://vistghrmmlnkfpcxjcwm.supabase.co/storage/v1/object/public/track-images/kansas.jpg",
   },
   "Texas": {
     name: "Texas Motor Speedway",
@@ -568,7 +568,7 @@ const trackOverviewData = {
     restartZone: "Frontstretch restart zone before the start/finish line",
     tireWear: "Moderate. The two ends can feel different, so setup compromise matters.",
     notes: "Momentum and clean air are major. Restarts can decide track position quickly.",
-    imageUrl: "",
+    imageUrl: "https://vistghrmmlnkfpcxjcwm.supabase.co/storage/v1/object/public/track-images/texas.jpg",
   },
   "Iowa": {
     name: "Iowa Speedway",
@@ -581,7 +581,7 @@ const trackOverviewData = {
     restartZone: "Frontstretch restart zone before the start/finish line",
     tireWear: "High. Progressive banking helps passing, but overdriving will burn tires quickly.",
     notes: "Short-track/intermediate mix with multiple lanes and heavy tire strategy.",
-    imageUrl: "",
+    imageUrl: "https://vistghrmmlnkfpcxjcwm.supabase.co/storage/v1/object/public/track-images/iowa.jpg",
   },
   "Homestead": {
     name: "Homestead-Miami Speedway",
@@ -594,7 +594,7 @@ const trackOverviewData = {
     restartZone: "Frontstretch restart zone before the start/finish line",
     tireWear: "High. The wall lane is fast, but tire saving and throttle control still matter.",
     notes: "Multiple grooves with major long-run falloff. Drivers can search for grip from bottom to wall.",
-    imageUrl: "",
+    imageUrl: "https://vistghrmmlnkfpcxjcwm.supabase.co/storage/v1/object/public/track-images/homestead.jpg",
   },
 };
 
