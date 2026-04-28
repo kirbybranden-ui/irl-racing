@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+\import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
 
 const card = {
@@ -36,15 +36,20 @@ export default function StreamPage({
   }
 
   async function loadStreams() {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("streams")
       .select("*")
       .order("created_at", { ascending: false });
 
-    const cleanData = data || [];
-    setStreams(cleanData);
+    if (error) {
+      console.error("Stream load error:", error);
+      setStreams([]);
+      return;
+    }
 
-    const firstReplay = cleanData.find((s) => !s.is_active);
+    setStreams(data || []);
+
+    const firstReplay = (data || []).find((s) => !s.is_active);
     setSelectedReplay(firstReplay || null);
   }
 
@@ -105,6 +110,7 @@ export default function StreamPage({
                       src={getStreamEmbedUrl(stream)}
                       style={{ width: "100%", height: "100%", border: "none" }}
                       allowFullScreen
+                      title={stream.title || stream.streamer_name || "Live stream"}
                     />
                   </div>
                 </div>
@@ -149,6 +155,7 @@ export default function StreamPage({
                   src={getStreamEmbedUrl(selectedReplay)}
                   style={{ width: "100%", height: "100%", border: "none" }}
                   allowFullScreen
+                  title={selectedReplay.title || selectedReplay.race_name || "Race replay"}
                 />
               </div>
 
@@ -167,6 +174,7 @@ export default function StreamPage({
                   <span>
                     {selectedReplay.streamer_name ||
                       selectedReplay.driver_name ||
+                      selectedReplay.channel_name ||
                       selectedReplay.channel ||
                       "Broadcast Archive"}
                   </span>
@@ -217,6 +225,7 @@ export default function StreamPage({
                       <span>
                         {stream.streamer_name ||
                           stream.driver_name ||
+                          stream.channel_name ||
                           stream.channel ||
                           "Replay"}
                       </span>
@@ -271,26 +280,33 @@ export default function StreamPage({
 
 function getStreamEmbedUrl(stream = {}) {
   const raw =
-    stream.url ||
     stream.stream_url ||
+    stream.url ||
     stream.twitch_url ||
     stream.youtube_url ||
+    stream.channel_name ||
     stream.channel ||
     "";
 
   if (!raw) return "";
 
   const value = String(raw).trim();
+  const hostname =
+    typeof window !== "undefined"
+      ? window.location.hostname
+      : "irl-racing.vercel.app";
 
   if (value.includes("player.twitch.tv")) {
     return value.includes("parent=")
       ? value
-      : `${value}&parent=irl-racing.vercel.app&parent=localhost`;
+      : `${value}${value.includes("?") ? "&" : "?"}parent=${hostname}`;
   }
 
   if (value.includes("twitch.tv")) {
     const channel = value.split("twitch.tv/")[1]?.split(/[/?]/)[0];
-    return `https://player.twitch.tv/?channel=${channel}&parent=irl-racing.vercel.app&parent=localhost`;
+    return channel
+      ? `https://player.twitch.tv/?channel=${channel}&parent=${hostname}`
+      : "";
   }
 
   if (value.includes("youtube.com/watch?v=")) {
@@ -304,7 +320,7 @@ function getStreamEmbedUrl(stream = {}) {
   }
 
   if (!value.includes("http")) {
-    return `https://player.twitch.tv/?channel=${value}&parent=irl-racing.vercel.app&parent=localhost`;
+    return `https://player.twitch.tv/?channel=${value}&parent=${hostname}`;
   }
 
   return value;
