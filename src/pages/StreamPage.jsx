@@ -41,14 +41,22 @@ export default function StreamPage({
       .select("*")
       .order("created_at", { ascending: false });
 
-    setStreams(data || []);
+    const cleanData = data || [];
+    setStreams(cleanData);
 
-    const firstReplay = (data || []).find((s) => !s.is_active);
+    const firstReplay = cleanData.find((s) => !s.is_active);
     setSelectedReplay(firstReplay || null);
   }
 
   const activeStreams = streams.filter((s) => s.is_active);
   const replayStreams = streams.filter((s) => !s.is_active);
+
+  const replaysByRace = replayStreams.reduce((groups, stream) => {
+    const race = stream.race_name || stream.race || stream.event || "Other Replays";
+    if (!groups[race]) groups[race] = [];
+    groups[race].push(stream);
+    return groups;
+  }, {});
 
   const sortedDrivers = useMemo(() => {
     return [...drivers].sort((a, b) => (b.points || 0) - (a.points || 0));
@@ -77,7 +85,6 @@ export default function StreamPage({
       </header>
 
       <main style={styles.grid}>
-        {/* LIVE STREAM GRID */}
         <section style={{ ...card, gridColumn: "span 2" }}>
           <div style={styles.sectionHeader}>
             <h2 style={styles.sectionTitle}>Race Broadcast</h2>
@@ -89,13 +96,13 @@ export default function StreamPage({
               {activeStreams.map((stream) => (
                 <div key={stream.id} style={styles.streamCard}>
                   <div style={styles.streamHeader}>
-                    <strong>{stream.title || stream.race_name || "Race Stream"}</strong>
+                    <strong>{stream.title || stream.streamer_name || stream.race_name || "Race Stream"}</strong>
                     <span style={styles.livePill}>LIVE</span>
                   </div>
 
                   <div style={styles.streamVideo}>
                     <iframe
-                      src={getStreamEmbedUrl(stream.url || stream.stream_url)}
+                      src={getStreamEmbedUrl(stream)}
                       style={{ width: "100%", height: "100%", border: "none" }}
                       allowFullScreen
                     />
@@ -113,7 +120,6 @@ export default function StreamPage({
           )}
         </section>
 
-        {/* RACE INFO */}
         <section style={card}>
           <h2 style={styles.sectionTitle}>Race Info</h2>
           <InfoRow label="Event" value={activeRace?.name || "TBD"} />
@@ -122,18 +128,16 @@ export default function StreamPage({
           <InfoRow label="Pit Speed" value={selectedTrack?.pitSpeed || "TBD"} />
         </section>
 
-        {/* POINTS LEADER */}
         <section style={card}>
           <h2 style={styles.sectionTitle}>Points Leader</h2>
           {leader ? <DriverFeature driver={leader} /> : <EmptyText text="No driver data loaded." />}
         </section>
 
-        {/* NETFLIX STYLE REPLAY UI */}
         <section style={{ ...card, gridColumn: "span 3" }}>
           <div style={styles.sectionHeader}>
             <div>
               <h2 style={styles.sectionTitle}>Race Replay Theater</h2>
-              <p style={styles.muted}>Watch previous races from the Budweiser Cup League archive.</p>
+              <p style={styles.muted}>Previous races grouped by race event.</p>
             </div>
             <span style={styles.smallBadge}>{replayStreams.length} Replays</span>
           </div>
@@ -142,7 +146,7 @@ export default function StreamPage({
             <div style={styles.replayHero}>
               <div style={styles.replayPlayer}>
                 <iframe
-                  src={getStreamEmbedUrl(selectedReplay.url || selectedReplay.stream_url)}
+                  src={getStreamEmbedUrl(selectedReplay)}
                   style={{ width: "100%", height: "100%", border: "none" }}
                   allowFullScreen
                 />
@@ -160,7 +164,17 @@ export default function StreamPage({
 
                 <div style={styles.replayMeta}>
                   <span>{selectedReplay.race_name || "Race Replay"}</span>
-                  <span>{selectedReplay.created_at ? new Date(selectedReplay.created_at).toLocaleDateString() : "Archive"}</span>
+                  <span>
+                    {selectedReplay.streamer_name ||
+                      selectedReplay.driver_name ||
+                      selectedReplay.channel ||
+                      "Broadcast Archive"}
+                  </span>
+                  <span>
+                    {selectedReplay.created_at
+                      ? new Date(selectedReplay.created_at).toLocaleDateString()
+                      : "Archive"}
+                  </span>
                 </div>
               </div>
             </div>
@@ -168,11 +182,12 @@ export default function StreamPage({
             <EmptyText text="No previous race replays found." />
           )}
 
-          {replayStreams.length > 0 && (
-            <>
-              <h3 style={styles.rowTitle}>Previous Races</h3>
+          {Object.entries(replaysByRace).map(([raceName, raceStreams]) => (
+            <div key={raceName} style={{ marginBottom: 26 }}>
+              <h3 style={styles.rowTitle}>{raceName}</h3>
+
               <div style={styles.netflixRow}>
-                {replayStreams.map((stream) => (
+                {raceStreams.map((stream) => (
                   <button
                     key={stream.id}
                     onClick={() => setSelectedReplay(stream)}
@@ -198,17 +213,21 @@ export default function StreamPage({
                     </div>
 
                     <div style={styles.replayCardBody}>
-                      <strong>{stream.title || stream.race_name || "Race Replay"}</strong>
-                      <span>{stream.race_name || "Previous Race"}</span>
+                      <strong>{stream.title || "Race Broadcast"}</strong>
+                      <span>
+                        {stream.streamer_name ||
+                          stream.driver_name ||
+                          stream.channel ||
+                          "Replay"}
+                      </span>
                     </div>
                   </button>
                 ))}
               </div>
-            </>
-          )}
+            </div>
+          ))}
         </section>
 
-        {/* LIVE STANDINGS */}
         <section style={{ ...card, gridColumn: "span 3" }}>
           <div style={styles.sectionHeader}>
             <h2 style={styles.sectionTitle}>Live Standings</h2>
@@ -250,25 +269,45 @@ export default function StreamPage({
   );
 }
 
-function getStreamEmbedUrl(url = "") {
-  if (!url) return "";
+function getStreamEmbedUrl(stream = {}) {
+  const raw =
+    stream.url ||
+    stream.stream_url ||
+    stream.twitch_url ||
+    stream.youtube_url ||
+    stream.channel ||
+    "";
 
-  if (url.includes("twitch.tv")) {
-    const channel = url.split("twitch.tv/")[1]?.split(/[/?]/)[0];
+  if (!raw) return "";
+
+  const value = String(raw).trim();
+
+  if (value.includes("player.twitch.tv")) {
+    return value.includes("parent=")
+      ? value
+      : `${value}&parent=irl-racing.vercel.app&parent=localhost`;
+  }
+
+  if (value.includes("twitch.tv")) {
+    const channel = value.split("twitch.tv/")[1]?.split(/[/?]/)[0];
     return `https://player.twitch.tv/?channel=${channel}&parent=irl-racing.vercel.app&parent=localhost`;
   }
 
-  if (url.includes("youtube.com/watch?v=")) {
-    const id = url.split("watch?v=")[1]?.split("&")[0];
+  if (value.includes("youtube.com/watch?v=")) {
+    const id = value.split("watch?v=")[1]?.split("&")[0];
     return `https://www.youtube.com/embed/${id}`;
   }
 
-  if (url.includes("youtu.be/")) {
-    const id = url.split("youtu.be/")[1]?.split("?")[0];
+  if (value.includes("youtu.be/")) {
+    const id = value.split("youtu.be/")[1]?.split("?")[0];
     return `https://www.youtube.com/embed/${id}`;
   }
 
-  return url;
+  if (!value.includes("http")) {
+    return `https://player.twitch.tv/?channel=${value}&parent=irl-racing.vercel.app&parent=localhost`;
+  }
+
+  return value;
 }
 
 function TickerBar({ messages }) {
@@ -465,6 +504,9 @@ const styles = {
     textAlign: "center",
     fontSize: 30,
     fontWeight: 900,
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
   },
 
   streamGrid: {
