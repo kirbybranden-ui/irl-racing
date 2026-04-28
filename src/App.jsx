@@ -312,6 +312,7 @@ function TeamOverlay({ teams, preview = false, seasonName = "" }) {
 function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonName = "", tracks = [], raceHistory = [] }) {
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [featuredVideo, setFeaturedVideo] = useState(null);
+  const [streamCount, setStreamCount] = useState(0);
   const handleDriverClick = (number) => {
     window.location.pathname = `/driver/${number}`;
   };
@@ -326,6 +327,17 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
       setFeaturedVideo(data || null);
     }
     loadFeaturedVideo();
+  }, []);
+  useEffect(() => {
+    async function loadStreamCount() {
+      const { count, error } = await supabase
+        .from("streams")
+        .select("*", { count: "exact", head: true });
+      if (!error) setStreamCount(count || 0);
+    }
+    loadStreamCount();
+    const interval = setInterval(loadStreamCount, 10000);
+    return () => clearInterval(interval);
   }, []);
   const sorted = [...drivers].sort((a, b) => b.points - a.points || b.wins - a.wins || b.top3 - a.top3 || a.name.localeCompare(b.name));
   const [leader, second, third] = sorted;
@@ -421,9 +433,35 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
                 <div style={{ fontSize: 16, opacity: 0.76, marginTop: 6 }}>Broadcast Standings</div>
               </div>
             </div>
-            <div style={{ background: "#0f1319", border: "1px solid #2a3240", borderRadius: 16, padding: "14px 18px", minWidth: 240 }}>
-              <div style={{ fontSize: 12, opacity: 0.72, marginBottom: 4 }}>ACTIVE SEASON</div>
-              <div style={{ fontSize: 22, fontWeight: 900 }}>{seasonName || "—"}</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+              <div style={{ background: "#0f1319", border: "1px solid #2a3240", borderRadius: 16, padding: "14px 18px", minWidth: 240 }}>
+                <div style={{ fontSize: 12, opacity: 0.72, marginBottom: 4 }}>ACTIVE SEASON</div>
+                <div style={{ fontSize: 22, fontWeight: 900 }}>{seasonName || "—"}</div>
+              </div>
+              <button
+                onClick={() => (window.location.pathname = "/streams")}
+                style={{
+                  background: "linear-gradient(135deg, #9146ff 0%, #5b21b6 100%)",
+                  color: "white",
+                  border: "1px solid rgba(255,255,255,0.18)",
+                  borderRadius: 16,
+                  padding: "12px 18px",
+                  fontWeight: 900,
+                  cursor: "pointer",
+                  fontSize: 14,
+                  minHeight: 64,
+                  boxShadow: "0 10px 24px rgba(145,70,255,0.22)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                }}
+              >
+                <span style={{ width: 9, height: 9, borderRadius: "50%", background: "#ef4444", display: "inline-block", boxShadow: "0 0 12px rgba(239,68,68,0.8)" }} />
+                <span>📡 Streams</span>
+                <span style={{ background: "rgba(0,0,0,0.28)", border: "1px solid rgba(255,255,255,0.18)", borderRadius: 999, padding: "4px 8px", fontSize: 12 }}>
+                  {streamCount}
+                </span>
+              </button>
             </div>
           </div>
         </div>
