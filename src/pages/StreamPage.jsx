@@ -267,7 +267,7 @@ function DriverFeature({ driver, label }) {
           <span>Wins</span>
         </div>
         <div>
-          <strong>{driver.top5s || 0}</strong>
+          <strong>{driver.top5 || driver.top5s || 0}</strong>
           <span>Top 5</span>
         </div>
       </div>
