@@ -56,7 +56,7 @@ export default function StreamPage({
     banners.length > 0
       ? banners.map((b) => `${b.title || "League Update"} — ${b.message}`)
       : [
-          "Welcome to the IRL Racing League broadcast center",
+          "Welcome to the Budweiser Cup League broadcast center"
           "Live timing, standings, race updates, and league news will appear here",
         ];
 
