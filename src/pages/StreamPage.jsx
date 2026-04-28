@@ -152,7 +152,9 @@ export default function StreamPage({
                 <th style={styles.th}>TEAM</th>
                 <th style={styles.th}>PTS</th>
                 <th style={styles.th}>WINS</th>
+                <th style={styles.th}>TOP 3</th>
                 <th style={styles.th}>TOP 5</th>
+                <th style={styles.th}>DNF</th>
               </tr>
             </thead>
             <tbody>
