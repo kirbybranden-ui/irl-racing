@@ -66,7 +66,7 @@ export default function StreamPage({
 
       <header style={styles.header}>
         <div>
-          <div style={styles.kicker}>IRL RACING LEAGUE</div>
+          <div style={styles.kicker}>BUDWEISER CUP LEAGUE</div>
           <h1 style={styles.title}>Broadcast Stream Center</h1>
           <p style={styles.subtitle}>
             Live race hub, league updates, standings, track data, and broadcast
