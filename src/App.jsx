@@ -311,10 +311,34 @@ function TeamOverlay({ teams, preview = false, seasonName = "" }) {
     </div>
   );
 }
+const iracingTrackData = {
+  "Preseason - Michigan": { name: "Michigan International Speedway", type: "2-mile D-shaped oval", location: "Brooklyn, Michigan", length: "2.0 miles", banking: "18° turns", notes: "Wide racing surface, strong draft, multiple grooves.", raceTip: "Protect corner exit speed and use the draft wisely." },
+  "Michigan": { name: "Michigan International Speedway", type: "2-mile D-shaped oval", location: "Brooklyn, Michigan", length: "2.0 miles", banking: "18° turns", notes: "Fast, wide, draft-heavy intermediate track.", raceTip: "Keep momentum high and avoid scrubbing speed in dirty air." },
+  "Preseason - Dover": { name: "Dover Motor Speedway", type: "1-mile concrete oval", location: "Dover, Delaware", length: "1.0 mile", banking: "24° turns", notes: "High-banked concrete oval with narrow exits.", raceTip: "Do not overdrive entry; corner exit discipline matters." },
+  "Dover": { name: "Dover Motor Speedway", type: "1-mile concrete oval", location: "Dover, Delaware", length: "1.0 mile", banking: "24° turns", notes: "Rhythm track with high banking and difficult traffic.", raceTip: "Be patient in traffic and keep the car low on exit." },
+  "Preseason - WWT Raceway": { name: "World Wide Technology Raceway", type: "1.25-mile egg-shaped oval", location: "Madison, Illinois", length: "1.25 miles", banking: "9°-11° turns", notes: "Flat, technical oval with two very different corners.", raceTip: "Do not drive both ends the same; braking stability is key." },
+  "Daytona (Night)": { name: "Daytona International Speedway", type: "2.5-mile superspeedway", location: "Daytona Beach, Florida", length: "2.5 miles", banking: "31° turns", notes: "Pack racing, drafting, pushing, lane discipline, and survival.", raceTip: "Stay connected to the pack and time runs carefully." },
+  "Charlotte": { name: "Charlotte Motor Speedway", type: "1.5-mile quad oval", location: "Concord, North Carolina", length: "1.5 miles", banking: "24° turns", notes: "Classic intermediate with speed, dirty air, and tire falloff.", raceTip: "Save the right front and avoid sliding through the center." },
+  "Nashville": { name: "Nashville Superspeedway", type: "1.33-mile concrete oval", location: "Lebanon, Tennessee", length: "1.33 miles", banking: "14° turns", notes: "Concrete intermediate where throttle discipline matters.", raceTip: "Keep the car under you on long runs." },
+  "Pocono": { name: "Pocono Raceway", type: "2.5-mile triangle", location: "Long Pond, Pennsylvania", length: "2.5 miles", banking: "14° / 8° / 6° turns", notes: "Three unique corners with long straights and heavy braking.", raceTip: "Turn 3 exit controls the long frontstretch speed." },
+  "Bristol (Night)": { name: "Bristol Motor Speedway", type: "0.533-mile short track", location: "Bristol, Tennessee", length: "0.533 miles", banking: "24°-28° turns", notes: "High-banked short track with traffic, rhythm, and pressure.", raceTip: "Stay calm in traffic and avoid stacking the field up." },
+  "Las Vegas": { name: "Las Vegas Motor Speedway", type: "1.5-mile intermediate oval", location: "Las Vegas, Nevada", length: "1.5 miles", banking: "20° turns", notes: "Momentum-heavy intermediate with tire wear and dirty air.", raceTip: "Build speed through clean exits." },
+  "Talladega": { name: "Talladega Superspeedway", type: "2.66-mile superspeedway", location: "Talladega, Alabama", length: "2.66 miles", banking: "33° turns", notes: "Large superspeedway with pack racing and big runs.", raceTip: "Choose drafting partners wisely." },
+  "North Wilkesboro": { name: "North Wilkesboro Speedway", type: "0.625-mile short track", location: "North Wilkesboro, North Carolina", length: "0.625 miles", banking: "13° turns", notes: "Old-school short track with tire conservation and tight racing.", raceTip: "Save tires and keep drive off the corner." },
+  "Indianapolis": { name: "Indianapolis Motor Speedway", type: "2.5-mile rectangular oval", location: "Speedway, Indiana", length: "2.5 miles", banking: "9.2° turns", notes: "Flat technical oval where precision matters.", raceTip: "Hit your marks; missing entry ruins the straightaway." },
+  "New Hampshire": { name: "New Hampshire Motor Speedway", type: "1.058-mile flat oval", location: "Loudon, New Hampshire", length: "1.058 miles", banking: "2°-7° turns", notes: "Flat oval with braking zones and limited grip.", raceTip: "Roll the center and avoid wheelspin." },
+  "Phoenix": { name: "Phoenix Raceway", type: "1-mile dogleg oval", location: "Avondale, Arizona", length: "1.0 mile", banking: "8°-11° turns", notes: "Short-flat oval with a dogleg and restart strategy.", raceTip: "Defend the dogleg but avoid overcommitting into turn 1." },
+  "Richmond": { name: "Richmond Raceway", type: "0.75-mile short track", location: "Richmond, Virginia", length: "0.75 miles", banking: "14° turns", notes: "Tire-management short track with long-run falloff.", raceTip: "Save rear tires and avoid throttle spikes." },
+  "Kansas": { name: "Kansas Speedway", type: "1.5-mile intermediate oval", location: "Kansas City, Kansas", length: "1.5 miles", banking: "17°-20° progressive turns", notes: "Progressive banking allows multiple lanes.", raceTip: "Move around for clean air and protect momentum." },
+  "Texas": { name: "Texas Motor Speedway", type: "1.5-mile intermediate oval", location: "Fort Worth, Texas", length: "1.5 miles", banking: "20° / 24° turns", notes: "Fast intermediate with different corner characteristics.", raceTip: "Adjust entry and throttle pickup by corner." },
+  "Iowa": { name: "Iowa Speedway", type: "0.875-mile short oval", location: "Newton, Iowa", length: "0.875 miles", banking: "12°-14° progressive turns", notes: "Short oval with progressive banking and tire wear.", raceTip: "Manage traffic and keep the front tires underneath you." },
+  "Homestead": { name: "Homestead-Miami Speedway", type: "1.5-mile oval", location: "Homestead, Florida", length: "1.5 miles", banking: "18°-20° progressive turns", notes: "Progressive banking with a strong high line and tire falloff.", raceTip: "The wall line is fast, but mistakes are expensive." },
+};
+
 function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonName = "", tracks = [], raceHistory = [] }) {
   const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [selectedTrackInfo, setSelectedTrackInfo] = useState(null);
   const [featuredVideo, setFeaturedVideo] = useState(null);
-  const [streamCount, setStreamCount] = useState(0);
   const handleDriverClick = (number) => {
     window.location.pathname = `/driver/${number}`;
   };
@@ -329,17 +353,6 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
       setFeaturedVideo(data || null);
     }
     loadFeaturedVideo();
-  }, []);
-  useEffect(() => {
-    async function loadStreamCount() {
-      const { count, error } = await supabase
-        .from("streams")
-        .select("*", { count: "exact", head: true });
-      if (!error) setStreamCount(count || 0);
-    }
-    loadStreamCount();
-    const interval = setInterval(loadStreamCount, 10000);
-    return () => clearInterval(interval);
   }, []);
   const sorted = [...drivers].sort((a, b) => b.points - a.points || b.wins - a.wins || b.top3 - a.top3 || a.name.localeCompare(b.name));
   const [leader, second, third] = sorted;
@@ -440,70 +453,9 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
                 <div style={{ fontSize: 12, opacity: 0.72, marginBottom: 4 }}>ACTIVE SEASON</div>
                 <div style={{ fontSize: 22, fontWeight: 900 }}>{seasonName || "—"}</div>
               </div>
-              <button
-                onClick={() => (window.location.pathname = "/streams")}
-                style={{
-                  background: "linear-gradient(135deg, #9146ff 0%, #5b21b6 100%)",
-                  color: "white",
-                  border: "1px solid rgba(255,255,255,0.18)",
-                  borderRadius: 16,
-                  padding: "12px 18px",
-                  fontWeight: 900,
-                  cursor: "pointer",
-                  fontSize: 14,
-                  minHeight: 64,
-                  boxShadow: "0 10px 24px rgba(145,70,255,0.22)",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                }}
-              >
-                <span style={{ width: 9, height: 9, borderRadius: "50%", background: "#ef4444", display: "inline-block", boxShadow: "0 0 12px rgba(239,68,68,0.8)" }} />
-                <span>📡 Streams</span>
-                <span style={{ background: "rgba(0,0,0,0.28)", border: "1px solid rgba(255,255,255,0.18)", borderRadius: 999, padding: "4px 8px", fontSize: 12 }}>
-                  {streamCount}
-                </span>
-              </button>
-              <button
-                onClick={() => (window.location.pathname = "/news")}
-                style={{
-                  background: "linear-gradient(135deg, #d4af37 0%, #b8860b 100%)",
-                  color: "#111",
-                  border: "1px solid rgba(255,255,255,0.18)",
-                  borderRadius: 16,
-                  padding: "12px 18px",
-                  fontWeight: 900,
-                  cursor: "pointer",
-                  fontSize: 14,
-                  minHeight: 64,
-                  boxShadow: "0 10px 24px rgba(212,175,55,0.18)",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                }}
-              >
-                📰 News
-              </button>
-              <button
-                onClick={() => (window.location.pathname = "/notifications")}
-                style={{
-                  background: "linear-gradient(135deg, #222936 0%, #10141b 100%)",
-                  color: "white",
-                  border: "1px solid #3a4453",
-                  borderRadius: 16,
-                  padding: "12px 18px",
-                  fontWeight: 900,
-                  cursor: "pointer",
-                  fontSize: 14,
-                  minHeight: 64,
-                  boxShadow: "0 10px 24px rgba(0,0,0,0.22)",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                }}
-              >
-                🔔 Notifications
-              </button>
+              <button onClick={() => (window.location.pathname = "/streams")} style={{ background: "#9146ff", color: "white", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>📡 Streams</button>
+              <button onClick={() => (window.location.pathname = "/news")} style={{ background: "#d4af37", color: "#111", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>📰 News</button>
+              <button onClick={() => (window.location.pathname = "/notifications")} style={{ background: "#222936", color: "white", border: "1px solid #3a4453", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>🔔 Notifications</button>
             </div>
           </div>
         </div>
@@ -543,7 +495,7 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
                   const completed = completedRaces.has(track.name);
                   const isNext = track.name === nextRace?.name;
                   return (
-                    <div key={track.name} style={{ display: "flex", alignItems: "center", gap: 14, padding: "10px 14px", borderRadius: 12, background: isNext ? "rgba(212,175,55,0.12)" : "rgba(255,255,255,0.03)", border: `1px solid ${isNext ? "#d4af37" : completed ? "#1a3a1a" : "#1e2530"}` }}>
+                    <div key={track.name} onClick={() => setSelectedTrackInfo(iracingTrackData[track.name] || { name: track.name, type: "Track data not added yet", location: "—", length: "—", banking: "—", notes: "Add this track to iracingTrackData in App.jsx.", raceTip: "No iRacing note has been added for this track yet." })} style={{ display: "flex", alignItems: "center", gap: 14, padding: "10px 14px", borderRadius: 12, background: isNext ? "rgba(212,175,55,0.12)" : "rgba(255,255,255,0.03)", border: `1px solid ${isNext ? "#d4af37" : completed ? "#1a3a1a" : "#1e2530"}`, cursor: "pointer" }}>
                       <div style={{ width: 28, height: 28, borderRadius: "50%", background: completed ? "#16a34a" : isNext ? "#d4af37" : "#1e2530", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, color: completed || isNext ? "#000" : "#666", flexShrink: 0 }}>
                         {completed ? "✓" : i + 1}
                       </div>
@@ -558,6 +510,27 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
                   );
                 })}
               </div>
+            </div>
+          </div>
+        )}
+        {selectedTrackInfo && (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.78)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1100, padding: 20 }}>
+            <div style={{ background: "#151a22", border: "1px solid #d4af37", borderRadius: 22, padding: 28, maxWidth: 680, width: "100%", boxShadow: "0 24px 60px rgba(0,0,0,0.55)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 18 }}>
+                <div>
+                  <div style={{ color: "#d4af37", fontSize: 12, fontWeight: 900, letterSpacing: 1 }}>iRACING TRACK INFO</div>
+                  <div style={{ fontSize: 30, fontWeight: 900, marginTop: 6 }}>{selectedTrackInfo.name}</div>
+                  <div style={{ fontSize: 13, opacity: 0.65, marginTop: 4 }}>{selectedTrackInfo.location}</div>
+                </div>
+                <button onClick={() => setSelectedTrackInfo(null)} style={{ background: "none", border: "none", color: "white", fontSize: 30, cursor: "pointer", lineHeight: 1 }}>×</button>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 18 }}>
+                <div style={{ background: "#0f1319", border: "1px solid #2d3643", borderRadius: 14, padding: 14 }}><div style={{ fontSize: 11, opacity: 0.58, marginBottom: 5 }}>TYPE</div><div style={{ fontWeight: 800 }}>{selectedTrackInfo.type}</div></div>
+                <div style={{ background: "#0f1319", border: "1px solid #2d3643", borderRadius: 14, padding: 14 }}><div style={{ fontSize: 11, opacity: 0.58, marginBottom: 5 }}>LENGTH</div><div style={{ fontWeight: 800 }}>{selectedTrackInfo.length}</div></div>
+                <div style={{ background: "#0f1319", border: "1px solid #2d3643", borderRadius: 14, padding: 14 }}><div style={{ fontSize: 11, opacity: 0.58, marginBottom: 5 }}>BANKING</div><div style={{ fontWeight: 800 }}>{selectedTrackInfo.banking}</div></div>
+              </div>
+              <div style={{ background: "rgba(212,175,55,0.08)", border: "1px solid rgba(212,175,55,0.25)", borderRadius: 14, padding: 16, marginBottom: 14, lineHeight: 1.55 }}><strong>Track Notes:</strong> {selectedTrackInfo.notes}</div>
+              <div style={{ background: "#0f1319", border: "1px solid #2d3643", borderRadius: 14, padding: 16, lineHeight: 1.55 }}><strong>Race Tip:</strong> {selectedTrackInfo.raceTip}</div>
             </div>
           </div>
         )}
