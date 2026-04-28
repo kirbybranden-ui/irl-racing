@@ -75,7 +75,7 @@ const defaultDrivers = [
   { id: 12, number: 23, name: "Orly_Revo23",               manufacturer: "Ford",      team: "MMS"         },
   { id: 13, number: 87, name: "Racingis_life87",           manufacturer: "Chevrolet", team: "MER"         },
   { id: 16, number: 9,  name: "vtfan_25",                  manufacturer: "Ford",      team: "NLM"         },
-  { id: 18, number: 72, name: "abajack91",                manufacturer: "Ford",       team: "BOM"         },
+  { id: 18, number: 72, name: "abajack91",                 manufacturer: "Ford",      team: "NLM"         },
 ];
 const defaultRaces = [
   { name: "Preseason - Michigan", stageCount: 2, date: "2026-04-25" },
