@@ -1454,7 +1454,31 @@ export default function App() {
   if (path === "/welcome") return <WelcomePage />;
   if (path === "/submit-appeal") return <SubmitAppealPage />;
   if (path === "/appeals") return <AppealsPage />;
-  if (path === "/streams") return <StreamPage />;
+  if (path === "/streams" || path === "/stream") {
+  // Build next race
+  const completedRaces = new Set((activeSeason?.raceHistory || []).map(r => r.raceName));
+  const sortedTracks = [...(tracks || [])].sort((a, b) => {
+    if (a.date && b.date) return new Date(a.date) - new Date(b.date);
+    return 0;
+  });
+  const nextRace = sortedTracks.find(t => !completedRaces.has(t.name));
+
+  // Track helper (uses your existing trackOverviewData)
+  function getTrackOverview(race) {
+    if (!race) return null;
+    return trackOverviewData[race.name] || trackOverviewData[race.track] || null;
+  }
+
+  return (
+    <StreamPage
+      drivers={drivers}
+      teams={teamStandings}
+      manufacturers={manufacturerStandings}
+      activeRace={nextRace}
+      selectedTrack={getTrackOverview(nextRace)}
+    />
+  );
+}
   if (path === "/news") return <NewsPage />;
   if (path === "/notifications") return <NotificationsPage />;
   // Loading gate — all routes below this need Supabase data
