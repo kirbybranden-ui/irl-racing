@@ -20,6 +20,7 @@ import { supabase } from "./lib/supabase";
 import CarGalleryPage from "./CarGalleryPage";
 import InterviewsPage from "./InterviewsPage";
 import StreamPage from "./StreamPage";
+import NewsPage from "./NewsPage";
 // Team logos
 const teamLogos = {
   "JA MOTORSPORTS": teamLogoJAM,
@@ -461,6 +462,26 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
                 <span style={{ background: "rgba(0,0,0,0.28)", border: "1px solid rgba(255,255,255,0.18)", borderRadius: 999, padding: "4px 8px", fontSize: 12 }}>
                   {streamCount}
                 </span>
+              </button>
+              <button
+                onClick={() => (window.location.pathname = "/news")}
+                style={{
+                  background: "linear-gradient(135deg, #d4af37 0%, #b8860b 100%)",
+                  color: "#111",
+                  border: "1px solid rgba(255,255,255,0.18)",
+                  borderRadius: 16,
+                  padding: "12px 18px",
+                  fontWeight: 900,
+                  cursor: "pointer",
+                  fontSize: 14,
+                  minHeight: 64,
+                  boxShadow: "0 10px 24px rgba(212,175,55,0.18)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                }}
+              >
+                📰 News
               </button>
             </div>
           </div>
@@ -1121,6 +1142,7 @@ export default function App() {
   if (path === "/submit-appeal") return <SubmitAppealPage />;
   if (path === "/appeals") return <AppealsPage />;
   if (path === "/streams") return <StreamPage />;
+  if (path === "/news") return <NewsPage />;
   // Loading gate — all routes below this need Supabase data
   if (!isHydrated) return <div style={appShellStyle}><div style={pageContainerStyle}><div style={sectionCardStyle}>Loading league data...</div></div></div>;
   if (path === "/admin/car-gallery") return <CarGalleryPage drivers={drivers} tracks={tracks} />;
@@ -1211,6 +1233,9 @@ export default function App() {
               </button>
               <button onClick={() => (window.location.pathname = "/streams")} style={headerButtonStyle}>
                 🎮 Streams
+              </button>
+              <button onClick={() => (window.location.pathname = "/news")} style={headerButtonStyle}>
+                📰 News
               </button>
               <button onClick={() => (window.location.pathname = "/appeals")} style={headerButtonStyle}>
                 Appeals ({openAppealCount})
