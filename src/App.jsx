@@ -600,6 +600,23 @@ const trackOverviewData = {
   },
 };
 
+function getTrackOverview(track) {
+  return trackOverviewData[track.name] || {
+    name: track.name,
+    location: "—",
+    type: "Track data not added yet",
+    length: "—",
+    turns: "—",
+    banking: "—",
+    pitSpeed: "—",
+    restartZone: "—",
+    tireWear: "Add tire-wear notes for this track in trackOverviewData.",
+    notes: "Add this track to trackOverviewData in App.jsx.",
+    imageUrl: "",
+  };
+}
+
+
 function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonName = "", tracks = [], raceHistory = [] }) {
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [selectedTrackInfo, setSelectedTrackInfo] = useState(null);
@@ -760,7 +777,7 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
                   const completed = completedRaces.has(track.name);
                   const isNext = track.name === nextRace?.name;
                   return (
-                    <div key={track.name} onClick={() => setSelectedTrackInfo(iracingTrackData[track.name] || { name: track.name, type: "Track data not added yet", location: "—", length: "—", banking: "—", notes: "Add this track to iracingTrackData in App.jsx.", raceTip: "No iRacing note has been added for this track yet." })} style={{ display: "flex", alignItems: "center", gap: 14, padding: "10px 14px", borderRadius: 12, background: isNext ? "rgba(212,175,55,0.12)" : "rgba(255,255,255,0.03)", border: `1px solid ${isNext ? "#d4af37" : completed ? "#1a3a1a" : "#1e2530"}`, cursor: "pointer" }}>
+                    <div key={track.name} onClick={() => setSelectedTrackInfo(getTrackOverview(track))} style={{ display: "flex", alignItems: "center", gap: 14, padding: "10px 14px", borderRadius: 12, background: isNext ? "rgba(212,175,55,0.12)" : "rgba(255,255,255,0.03)", border: `1px solid ${isNext ? "#d4af37" : completed ? "#1a3a1a" : "#1e2530"}`, cursor: "pointer" }}>
                       <div style={{ width: 28, height: 28, borderRadius: "50%", background: completed ? "#16a34a" : isNext ? "#d4af37" : "#1e2530", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, color: completed || isNext ? "#000" : "#666", flexShrink: 0 }}>
                         {completed ? "✓" : i + 1}
                       </div>
@@ -779,23 +796,77 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
           </div>
         )}
         {selectedTrackInfo && (
-          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.78)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1100, padding: 20 }}>
-            <div style={{ background: "#151a22", border: "1px solid #d4af37", borderRadius: 22, padding: 28, maxWidth: 680, width: "100%", boxShadow: "0 24px 60px rgba(0,0,0,0.55)" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 18 }}>
-                <div>
-                  <div style={{ color: "#d4af37", fontSize: 12, fontWeight: 900, letterSpacing: 1 }}>iRACING TRACK INFO</div>
-                  <div style={{ fontSize: 30, fontWeight: 900, marginTop: 6 }}>{selectedTrackInfo.name}</div>
-                  <div style={{ fontSize: 13, opacity: 0.65, marginTop: 4 }}>{selectedTrackInfo.location}</div>
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.82)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1100, padding: 20 }}>
+            <div style={{ background: "linear-gradient(135deg, #171d27 0%, #0d1117 100%)", border: "1px solid #d4af37", borderRadius: 24, padding: 0, maxWidth: 860, width: "100%", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 24px 70px rgba(0,0,0,0.65)" }}>
+              {selectedTrackInfo.imageUrl && (
+                <div style={{ position: "relative", width: "100%", background: "#05070a", borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: "hidden" }}>
+                  <img
+                    src={selectedTrackInfo.imageUrl}
+                    alt={selectedTrackInfo.name}
+                    style={{ width: "100%", maxHeight: 360, objectFit: "cover", display: "block" }}
+                  />
+                  <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(0,0,0,0.10) 0%, rgba(0,0,0,0.78) 100%)" }} />
+                  <div style={{ position: "absolute", left: 22, bottom: 18, right: 70 }}>
+                    <div style={{ color: "#d4af37", fontSize: 12, fontWeight: 900, letterSpacing: 1 }}>TRACK OVERVIEW</div>
+                    <div style={{ fontSize: 34, fontWeight: 900, marginTop: 4 }}>{selectedTrackInfo.name}</div>
+                    <div style={{ fontSize: 13, opacity: 0.78, marginTop: 4 }}>{selectedTrackInfo.location}</div>
+                  </div>
+                  <button onClick={() => setSelectedTrackInfo(null)} style={{ position: "absolute", top: 14, right: 16, background: "rgba(0,0,0,0.55)", border: "1px solid rgba(255,255,255,0.22)", color: "white", width: 42, height: 42, borderRadius: "50%", fontSize: 26, cursor: "pointer", lineHeight: 1 }}>×</button>
                 </div>
-                <button onClick={() => setSelectedTrackInfo(null)} style={{ background: "none", border: "none", color: "white", fontSize: 30, cursor: "pointer", lineHeight: 1 }}>×</button>
+              )}
+
+              <div style={{ padding: 26 }}>
+                {!selectedTrackInfo.imageUrl && (
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 18 }}>
+                    <div>
+                      <div style={{ color: "#d4af37", fontSize: 12, fontWeight: 900, letterSpacing: 1 }}>TRACK OVERVIEW</div>
+                      <div style={{ fontSize: 32, fontWeight: 900, marginTop: 6 }}>{selectedTrackInfo.name}</div>
+                      <div style={{ fontSize: 13, opacity: 0.65, marginTop: 4 }}>{selectedTrackInfo.location}</div>
+                    </div>
+                    <button onClick={() => setSelectedTrackInfo(null)} style={{ background: "none", border: "none", color: "white", fontSize: 30, cursor: "pointer", lineHeight: 1 }}>×</button>
+                  </div>
+                )}
+
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12, marginBottom: 18 }}>
+                  <div style={{ background: "#0f1319", border: "1px solid #2d3643", borderRadius: 14, padding: 14 }}>
+                    <div style={{ fontSize: 11, opacity: 0.58, marginBottom: 5 }}>TYPE</div>
+                    <div style={{ fontWeight: 800 }}>{selectedTrackInfo.type}</div>
+                  </div>
+                  <div style={{ background: "#0f1319", border: "1px solid #2d3643", borderRadius: 14, padding: 14 }}>
+                    <div style={{ fontSize: 11, opacity: 0.58, marginBottom: 5 }}>LENGTH</div>
+                    <div style={{ fontWeight: 800 }}>{selectedTrackInfo.length}</div>
+                  </div>
+                  <div style={{ background: "#0f1319", border: "1px solid #2d3643", borderRadius: 14, padding: 14 }}>
+                    <div style={{ fontSize: 11, opacity: 0.58, marginBottom: 5 }}>TURNS</div>
+                    <div style={{ fontWeight: 800 }}>{selectedTrackInfo.turns}</div>
+                  </div>
+                  <div style={{ background: "#0f1319", border: "1px solid #2d3643", borderRadius: 14, padding: 14 }}>
+                    <div style={{ fontSize: 11, opacity: 0.58, marginBottom: 5 }}>PIT SPEED</div>
+                    <div style={{ fontWeight: 800 }}>{selectedTrackInfo.pitSpeed}</div>
+                  </div>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12, marginBottom: 14 }}>
+                  <div style={{ background: "rgba(212,175,55,0.08)", border: "1px solid rgba(212,175,55,0.25)", borderRadius: 14, padding: 16, lineHeight: 1.55 }}>
+                    <div style={{ color: "#d4af37", fontSize: 12, fontWeight: 900, marginBottom: 6 }}>BANKING</div>
+                    {selectedTrackInfo.banking}
+                  </div>
+                  <div style={{ background: "#0f1319", border: "1px solid #2d3643", borderRadius: 14, padding: 16, lineHeight: 1.55 }}>
+                    <div style={{ color: "#d4af37", fontSize: 12, fontWeight: 900, marginBottom: 6 }}>RESTART ZONE</div>
+                    {selectedTrackInfo.restartZone}
+                  </div>
+                </div>
+
+                <div style={{ background: "#0f1319", border: "1px solid #2d3643", borderRadius: 14, padding: 16, marginBottom: 14, lineHeight: 1.55 }}>
+                  <div style={{ color: "#d4af37", fontSize: 12, fontWeight: 900, marginBottom: 6 }}>TIRE WEAR</div>
+                  {selectedTrackInfo.tireWear}
+                </div>
+
+                <div style={{ background: "rgba(255,255,255,0.035)", border: "1px solid #2d3643", borderRadius: 14, padding: 16, lineHeight: 1.55 }}>
+                  <div style={{ color: "#d4af37", fontSize: 12, fontWeight: 900, marginBottom: 6 }}>RACE NOTES</div>
+                  {selectedTrackInfo.notes}
+                </div>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 18 }}>
-                <div style={{ background: "#0f1319", border: "1px solid #2d3643", borderRadius: 14, padding: 14 }}><div style={{ fontSize: 11, opacity: 0.58, marginBottom: 5 }}>TYPE</div><div style={{ fontWeight: 800 }}>{selectedTrackInfo.type}</div></div>
-                <div style={{ background: "#0f1319", border: "1px solid #2d3643", borderRadius: 14, padding: 14 }}><div style={{ fontSize: 11, opacity: 0.58, marginBottom: 5 }}>LENGTH</div><div style={{ fontWeight: 800 }}>{selectedTrackInfo.length}</div></div>
-                <div style={{ background: "#0f1319", border: "1px solid #2d3643", borderRadius: 14, padding: 14 }}><div style={{ fontSize: 11, opacity: 0.58, marginBottom: 5 }}>BANKING</div><div style={{ fontWeight: 800 }}>{selectedTrackInfo.banking}</div></div>
-              </div>
-              <div style={{ background: "rgba(212,175,55,0.08)", border: "1px solid rgba(212,175,55,0.25)", borderRadius: 14, padding: 16, marginBottom: 14, lineHeight: 1.55 }}><strong>Track Notes:</strong> {selectedTrackInfo.notes}</div>
-              <div style={{ background: "#0f1319", border: "1px solid #2d3643", borderRadius: 14, padding: 16, lineHeight: 1.55 }}><strong>Race Tip:</strong> {selectedTrackInfo.raceTip}</div>
             </div>
           </div>
         )}
