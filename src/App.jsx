@@ -22,6 +22,7 @@ import InterviewsPage from "./InterviewsPage";
 import NewsPage from "./NewsPage";
 import NotificationsPage from "./NotificationsPage";
 import StreamPage from "./pages/StreamPage";
+import LiveControlPanel from "./LiveControlPanel";
 // Team logos
 const teamLogos = {
   "JA MOTORSPORTS": teamLogoJAM,
