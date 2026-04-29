@@ -1455,6 +1455,9 @@ export default function App() {
   if (path === "/welcome") return <WelcomePage />;
   if (path === "/submit-appeal") return <SubmitAppealPage />;
   if (path === "/appeals") return <AppealsPage />;
+  if (path === "/admin/live-control") {
+  return <LiveControlPanel />;
+}
   if (path === "/streams" || path === "/stream") {
   // Build next race
   const completedRaces = new Set((activeSeason?.raceHistory || []).map(r => r.raceName));
