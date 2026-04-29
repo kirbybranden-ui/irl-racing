@@ -169,8 +169,8 @@ const teamBranding = {
   NLM: { logo: "NLM", accent: "#f97316", dark: "#1f0e00", fullName: "Nine Line Motorsports" },
   "Independent": { logo: "IND", accent: "#808080", dark: "#2a2a2a" },
   BOM: { logo: "BOM", accent: "#d4af37", dark: "#1b1b1b" },
-  "Wyatt Sick6 Motorsports": teamLogoWSM,
-  WSM: teamLogoWSM,
+  WSM: { logo: "WSM", accent: "#3b82f6", dark: "#111827" },
+  "Team C": { logo: "C", accent: "#ef4444", dark: "#1f1315" },
   "Team C": { logo: "C", accent: "#ef4444", dark: "#1f1315" },
   "Team D": { logo: "D", accent: "#22c55e", dark: "#0f1b14" },
 };
