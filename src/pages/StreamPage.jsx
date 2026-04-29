@@ -54,7 +54,10 @@ export default function StreamPage({
           story.summary || story.message || story.body || ""
         }`
       )
-
+    : [
+        "Budweiser Cup League broadcast center",
+        "Live streams, standings, race info, and league updates all in one place",
+      ];
   return (
     <div style={styles.page}>
       <TickerBar messages={tickerMessages} />
