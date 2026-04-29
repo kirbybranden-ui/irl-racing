@@ -56,10 +56,11 @@ export default function StreamPage({
 
   const tickerMessages =
     banners.length > 0
-      ? banners.map((story) =>
-          `${story.title || "League Story"} — ${
-            story.summary || story.message || story.body || ""
-          }`
+      ? banners.map(
+          (story) =>
+            `${story.title || "League Story"} — ${
+              story.summary || story.message || story.body || ""
+            }`
         )
       : [
           "Budweiser Cup League broadcast center",
@@ -74,6 +75,9 @@ export default function StreamPage({
         <div>
           <div style={styles.kicker}>BUDWEISER CUP LEAGUE</div>
           <h1 style={styles.title}>RaceDay Stream Center</h1>
+          <p style={styles.subtitle}>
+            Live driver POVs, track data, standings, and league storylines.
+          </p>
         </div>
 
         <div style={styles.livePanel}>
@@ -85,66 +89,94 @@ export default function StreamPage({
 
       <main style={styles.layout}>
         <section style={styles.mainColumn}>
-          <h2 style={styles.sectionTitle}>Race Broadcast</h2>
+          <div style={styles.sectionHeader}>
+            <div>
+              <h2 style={styles.sectionTitle}>Race Broadcast</h2>
+              <p style={styles.sectionSub}>Driver onboard cameras</p>
+            </div>
+            <span style={styles.redBadge}>{streams.length} LIVE</span>
+          </div>
 
           {streams.length > 0 ? (
             <div style={styles.streamGrid}>
               {streams.map((stream) => (
                 <div key={stream.id} style={styles.streamCard}>
                   <div style={styles.streamTop}>
-                    <strong>
-                      {stream.display_name ||
-                        stream.title ||
-                        stream.channel_name}
-                    </strong>
+                    <div>
+                      <div style={styles.streamName}>
+                        {stream.display_name ||
+                          stream.title ||
+                          stream.channel_name ||
+                          "Driver Stream"}
+                      </div>
+                      <div style={styles.streamMeta}>
+                        {stream.race_name || activeRace?.name || "Race Broadcast"}
+                      </div>
+                    </div>
+
                     <span style={styles.livePill}>LIVE</span>
                   </div>
 
                   <div style={styles.videoBox}>
                     <iframe
                       src={getTwitchEmbed(stream.channel_name)}
+                      title={stream.display_name || stream.channel_name}
                       style={{ width: "100%", height: "100%", border: "none" }}
                       allowFullScreen
-                      title={stream.channel_name}
                     />
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div style={styles.emptyBox}>No active streams</div>
+            <div style={styles.emptyBox}>
+              <h2>No active streams</h2>
+              <p>Turn streams on in Supabase by setting is_active to true.</p>
+            </div>
           )}
         </section>
 
         <aside style={styles.sideColumn}>
           <div style={styles.card}>
-            <h3>Race Info</h3>
+            <h3 style={styles.cardTitle}>Race Info</h3>
             <InfoRow label="Event" value={activeRace?.name || "TBD"} />
             <InfoRow label="Track" value={selectedTrack?.name || "TBD"} />
+            <InfoRow label="Length" value={selectedTrack?.length || "TBD"} />
+            <InfoRow label="Turns" value={selectedTrack?.turns || "TBD"} />
+            <InfoRow label="Banking" value={selectedTrack?.banking || "TBD"} />
+            <InfoRow label="Pit Speed" value={selectedTrack?.pitSpeed || "TBD"} />
           </div>
 
           <div style={styles.card}>
-            <h3>Points Leader</h3>
+            <h3 style={styles.cardTitle}>Points Leader</h3>
+
             {leader ? (
               <>
                 <div style={styles.driverNumber}>#{leader.number}</div>
-                <div>{leader.name}</div>
-                <div>{leader.points} pts</div>
+                <div style={styles.driverName}>{leader.name}</div>
+                <div style={styles.driverTeam}>{leader.team || "Independent"}</div>
+
+                <div style={styles.statGrid}>
+                  <Stat label="PTS" value={leader.points || 0} />
+                  <Stat label="WINS" value={leader.wins || 0} />
+                  <Stat label="TOP 5" value={leader.top5 || leader.top5s || 0} />
+                </div>
               </>
             ) : (
-              <p>No data</p>
+              <p style={styles.muted}>No driver data loaded.</p>
             )}
           </div>
 
           <div style={styles.card}>
-            <h3>Top 10</h3>
-            {sortedDrivers.slice(0, 10).map((d, i) => (
-              <div key={d.id} style={styles.row}>
-                <span>{i + 1}</span>
-                <span>
-                  #{d.number} {d.name}
+            <h3 style={styles.cardTitle}>Top 10 Standings</h3>
+
+            {sortedDrivers.slice(0, 10).map((driver, index) => (
+              <div key={driver.id || driver.name} style={styles.standingRow}>
+                <span style={styles.position}>{index + 1}</span>
+                <span style={styles.driverMini}>
+                  #{driver.number} {driver.name}
                 </span>
-                <strong>{d.points}</strong>
+                <strong>{driver.points || 0}</strong>
               </div>
             ))}
           </div>
@@ -156,75 +188,351 @@ export default function StreamPage({
 
 function getTwitchEmbed(channel) {
   if (!channel) return "";
-  const hostname = window.location.hostname;
+
+  const hostname =
+    typeof window !== "undefined"
+      ? window.location.hostname
+      : "irl-racing.vercel.app";
+
   return `https://player.twitch.tv/?channel=${channel}&parent=${hostname}`;
 }
 
 function TickerBar({ messages }) {
   return (
-    <div style={styles.ticker}>
-      <div style={styles.tickerInner}>
-        {messages.map((m, i) => (
-          <span key={i} style={styles.tickerItem}>
-            {m}
-          </span>
-        ))}
+    <div style={styles.tickerWrap}>
+      <div style={styles.tickerLabel}>NEWS</div>
+
+      <div style={styles.tickerTrack}>
+        <div style={styles.tickerInner}>
+          {messages.map((message, index) => (
+            <span key={index} style={styles.tickerItem}>
+              {message}
+            </span>
+          ))}
+        </div>
       </div>
+
+      <style>
+        {`
+          @keyframes scrollTicker {
+            0% { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
+          }
+        `}
+      </style>
     </div>
   );
 }
 
 function InfoRow({ label, value }) {
   return (
-    <div style={styles.row}>
+    <div style={styles.infoRow}>
       <span>{label}</span>
       <strong>{value}</strong>
     </div>
   );
 }
 
+function Stat({ label, value }) {
+  return (
+    <div style={styles.statBox}>
+      <strong>{value}</strong>
+      <span>{label}</span>
+    </div>
+  );
+}
+
 const styles = {
-  page: { background: "#0b0f15", color: "white", minHeight: "100vh" },
-  hero: { padding: 20, display: "flex", justifyContent: "space-between" },
-  title: { fontSize: 32 },
-  kicker: { color: "#d71920", fontWeight: 900 },
-  livePanel: { textAlign: "center" },
-  liveText: { color: "#d71920" },
-  liveCount: { fontSize: 30 },
-  layout: {
-    display: "grid",
-    gridTemplateColumns: "2fr 1fr",
-    gap: 20,
-    padding: 20,
+  page: {
+    minHeight: "100vh",
+    background:
+      "radial-gradient(circle at top, #1b2533 0%, #0b0f15 45%, #05070a 100%)",
+    color: "white",
+    fontFamily: "Arial, sans-serif",
   },
-  mainColumn: { background: "#111", padding: 15, borderRadius: 10 },
-  sideColumn: { display: "grid", gap: 15 },
-  card: { background: "#111", padding: 15, borderRadius: 10 },
-  streamGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
-    gap: 15,
-  },
-  streamCard: { background: "#000", borderRadius: 10 },
-  streamTop: {
+
+  tickerWrap: {
+    height: 46,
     display: "flex",
-    justifyContent: "space-between",
-    padding: 10,
+    alignItems: "center",
+    background: "#05070a",
+    borderBottom: "3px solid #d71920",
+    overflow: "hidden",
+    position: "sticky",
+    top: 0,
+    zIndex: 50,
   },
-  videoBox: { height: 200 },
-  livePill: { background: "red", padding: "4px 8px", borderRadius: 10 },
-  ticker: { background: "#d71920", overflow: "hidden", whiteSpace: "nowrap" },
+
+  tickerLabel: {
+    height: "100%",
+    background: "#d71920",
+    padding: "0 20px",
+    display: "flex",
+    alignItems: "center",
+    fontWeight: 900,
+    letterSpacing: 1,
+  },
+
+  tickerTrack: {
+    flex: 1,
+    overflow: "hidden",
+    whiteSpace: "nowrap",
+  },
+
   tickerInner: {
     display: "inline-block",
-    animation: "ticker 20s linear infinite",
+    whiteSpace: "nowrap",
+    animation: "scrollTicker 28s linear infinite",
   },
-  tickerItem: { marginRight: 40 },
-  driverNumber: { fontSize: 40 },
-  row: {
+
+  tickerItem: {
+    display: "inline-block",
+    marginRight: 70,
+    fontSize: 14,
+    fontWeight: 900,
+    textTransform: "uppercase",
+  },
+
+  hero: {
+    padding: "30px",
     display: "flex",
     justifyContent: "space-between",
+    alignItems: "center",
+    gap: 20,
+    borderBottom: "1px solid #1f2937",
+  },
+
+  kicker: {
+    color: "#d71920",
+    fontSize: 13,
+    fontWeight: 900,
+    letterSpacing: 2,
+  },
+
+  title: {
+    margin: "4px 0",
+    fontSize: 42,
+    lineHeight: 1,
+    fontWeight: 900,
+  },
+
+  subtitle: {
+    margin: 0,
+    color: "#aab3c2",
+  },
+
+  livePanel: {
+    background: "#10151f",
+    border: "1px solid #334155",
+    borderRadius: 18,
+    padding: "16px 22px",
+    minWidth: 150,
+    textAlign: "center",
+  },
+
+  liveText: {
+    color: "#d71920",
+    fontSize: 13,
+    fontWeight: 900,
+  },
+
+  liveCount: {
+    fontSize: 42,
+    fontWeight: 900,
+    lineHeight: 1,
+  },
+
+  liveSub: {
+    color: "#94a3b8",
+    fontSize: 12,
+    fontWeight: 700,
+  },
+
+  layout: {
+    display: "grid",
+    gridTemplateColumns: "2.5fr 1fr",
+    gap: 20,
+    padding: 20,
+    alignItems: "start",
+  },
+
+  mainColumn: {
+    background: "#10151f",
+    border: "1px solid #2b3442",
+    borderRadius: 16,
+    padding: 16,
+    boxShadow: "0 12px 32px rgba(0,0,0,.35)",
+  },
+
+  sideColumn: {
+    display: "grid",
+    gap: 16,
+  },
+
+  sectionHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+    gap: 12,
+  },
+
+  sectionTitle: {
+    margin: 0,
+    fontSize: 24,
+    fontWeight: 900,
+  },
+
+  sectionSub: {
+    margin: "4px 0 0",
+    color: "#94a3b8",
+    fontSize: 13,
+  },
+
+  redBadge: {
+    background: "#d71920",
+    color: "white",
+    padding: "7px 12px",
+    borderRadius: 999,
+    fontSize: 12,
+    fontWeight: 900,
+  },
+
+  streamGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))",
+    gap: 16,
+  },
+
+  streamCard: {
+    background: "#07090d",
+    border: "1px solid #263140",
+    borderRadius: 16,
+    overflow: "hidden",
+  },
+
+  streamTop: {
+    padding: "12px 14px",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    background: "linear-gradient(90deg, #151c27, #0f141c)",
+    borderBottom: "1px solid #263140",
+  },
+
+  streamName: {
+    fontWeight: 900,
+    fontSize: 15,
+  },
+
+  streamMeta: {
+    color: "#94a3b8",
+    fontSize: 12,
+    marginTop: 3,
+  },
+
+  livePill: {
+    background: "#d71920",
+    borderRadius: 999,
+    padding: "5px 9px",
+    fontSize: 11,
+    fontWeight: 900,
+  },
+
+  videoBox: {
+    height: 225,
+    background: "#000",
+  },
+
+  emptyBox: {
+    height: 280,
+    background: "#07090d",
+    borderRadius: 16,
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "center",
+    color: "#94a3b8",
+  },
+
+  card: {
+    background: "#10151f",
+    border: "1px solid #2b3442",
+    borderRadius: 16,
+    padding: 16,
+    boxShadow: "0 10px 30px rgba(0,0,0,.28)",
+  },
+
+  cardTitle: {
+    margin: "0 0 12px",
+    fontWeight: 900,
+    fontSize: 18,
+  },
+
+  infoRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: 12,
+    padding: "9px 0",
+    borderBottom: "1px solid #263140",
+    color: "#aab3c2",
+    fontSize: 14,
+  },
+
+  driverNumber: {
+    fontSize: 42,
+    fontWeight: 900,
+    lineHeight: 1,
+  },
+
+  driverName: {
+    fontSize: 18,
+    fontWeight: 800,
     marginTop: 5,
   },
-  emptyBox: { padding: 40, textAlign: "center" },
-  sectionTitle: { marginBottom: 10 },
+
+  driverTeam: {
+    color: "#94a3b8",
+    marginTop: 3,
+  },
+
+  statGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(3, 1fr)",
+    gap: 8,
+    marginTop: 12,
+  },
+
+  statBox: {
+    background: "#07090d",
+    border: "1px solid #263140",
+    borderRadius: 12,
+    padding: 10,
+    textAlign: "center",
+    display: "grid",
+    gap: 3,
+  },
+
+  standingRow: {
+    display: "grid",
+    gridTemplateColumns: "30px 1fr auto",
+    gap: 8,
+    padding: "7px 0",
+    borderBottom: "1px solid #263140",
+    alignItems: "center",
+  },
+
+  position: {
+    color: "#d71920",
+    fontWeight: 900,
+  },
+
+  driverMini: {
+    fontSize: 13,
+    fontWeight: 700,
+  },
+
+  muted: {
+    color: "#94a3b8",
+  },
 };
