@@ -37,6 +37,8 @@ MMS: teamLogoMMS,
   BOM: teamLogoBOM,
   "Independent": teamLogoIND,
   IND: teamLogoIND,
+  "Wyatt Sick6 Motorsports": teamLogoWSM,
+  WSM: teamLogoWSM,
 };
 const manufacturerLogos = {
   Chevrolet: manufacturerChevrolet,
@@ -52,6 +54,7 @@ const teamFullNames = {
   MMS: "Mayhem Motorsports",
   NLM: "Nine Line Motorsports",
   BOM: "Blue Oval Motorsports",
+  WSM: "Wyatt Sick6 Motorsports",
   Independent: "Independent",
 };
 function getTeamFullName(teamAbbr) {
@@ -76,6 +79,7 @@ const defaultDrivers = [
   { id: 13, number: 87, name: "Racingis_life87",           manufacturer: "Chevrolet", team: "MER"         },
   { id: 16, number: 9,  name: "vtfan_25",                  manufacturer: "Ford",      team: "NLM"         },
   { id: 18, number: 72, name: "abajack91",                 manufacturer: "Ford",      team: "NLM"         },
+  { id: 19, number: 66, name: "Uncle_HowdySICK6",          manufacturer: "Other",     team: "WSM"         },
 ];
 const defaultRaces = [
   { name: "Preseason - Michigan", stageCount: 2, date: "2026-04-25" },
@@ -164,7 +168,7 @@ const teamBranding = {
   NLM: { logo: "NLM", accent: "#f97316", dark: "#1f0e00", fullName: "Nine Line Motorsports" },
   "Independent": { logo: "IND", accent: "#808080", dark: "#2a2a2a" },
   BOM: { logo: "BOM", accent: "#d4af37", dark: "#1b1b1b" },
-  "Team B": { logo: "B", accent: "#3b82f6", dark: "#111827" },
+  "WSM": { logo: "WSM", accent: "#3b82f6", dark: "#111827" },
   "Team C": { logo: "C", accent: "#ef4444", dark: "#1f1315" },
   "Team D": { logo: "D", accent: "#22c55e", dark: "#0f1b14" },
 };
