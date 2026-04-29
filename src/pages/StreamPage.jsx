@@ -47,13 +47,13 @@ export default function StreamPage({
 
   const leader = sortedDrivers[0];
 
-  const tickerMessages =
-    banners.length > 0
-      ? banners.map((b) => `${b.title || "League Update"} — ${b.message}`)
-      : [
-          "Budweiser Cup League broadcast center",
-          "Live streams, standings, race info, and league updates all in one place",
-        ];
+ const tickerMessages =
+  banners.length > 0
+    ? banners.map((story) =>
+        `${story.title || "League Story"} — ${
+          story.summary || story.message || story.body || ""
+        }`
+      )
 
   return (
     <div style={styles.page}>
