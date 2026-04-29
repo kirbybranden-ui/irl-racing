@@ -16,22 +16,21 @@ export default function StreamPage({
     loadBanners();
   }, []);
 
-  async function loadStreams() {
-    const { data, error } = await supabase
-      .from("streams")
-      .select("*")
-      .eq("is_active", true)
-      .order("created_at", { ascending: false });
+  async function loadBanners() {
+  const { data, error } = await supabase
+    .from("news")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(10);
 
-    if (error) {
-      console.error("Stream load error:", error);
-      setStreams([]);
-      return;
-    }
-
-    setStreams(data || []);
+  if (error) {
+    console.error("News ticker load error:", error);
+    setBanners([]);
+    return;
   }
 
+  setBanners(data || []);
+}
   async function loadBanners() {
     const { data } = await supabase
       .from("app_update_banners")
