@@ -775,10 +775,6 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
               <button onClick={() => (window.location.pathname = "/streams")} style={{ background: "#9146ff", color: "white", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>📡 Streams</button>
               <button onClick={() => (window.location.pathname = "/news")} style={{ background: "#d4af37", color: "#111", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>📰 News</button>
               <button onClick={() => (window.location.pathname = "/notifications")} style={{ background: "#222936", color: "white", border: "1px solid #3a4453", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>🔔 Notifications</button>
-<button onClick={() => (window.location.pathname = "/notifications")} style={{ background: "#222936", color: "white", border: "1px solid #3a4453", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>
-  🔔 Notifications
-</button>
-
 <button
   onClick={() => (window.location.pathname = "/admin/live-control")}
   style={{
