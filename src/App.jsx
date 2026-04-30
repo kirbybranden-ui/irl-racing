@@ -663,6 +663,7 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [selectedTrackInfo, setSelectedTrackInfo] = useState(null);
   const [featuredVideo, setFeaturedVideo] = useState(null);
+  const [manualOnesToWatch, setManualOnesToWatch] = useState([]);
   const handleDriverClick = (number) => {
     window.location.pathname = `/driver/${number}`;
   };
@@ -678,6 +679,24 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
     }
     loadFeaturedVideo();
   }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadManualOnesToWatch() {
+      const { data, error } = await supabase
+        .from("ones_to_watch")
+        .select("*")
+        .eq("active", true)
+        .order("display_order", { ascending: true })
+        .order("created_at", { ascending: false });
+      if (!isMounted) return;
+      if (!error) setManualOnesToWatch(data || []);
+    }
+    loadManualOnesToWatch();
+    const interval = setInterval(loadManualOnesToWatch, 5000);
+    return () => { isMounted = false; clearInterval(interval); };
+  }, []);
+
   const sorted = [...drivers].sort((a, b) => b.points - a.points || b.wins - a.wins || b.top3 - a.top3 || a.name.localeCompare(b.name));
   const [leader, second, third] = sorted;
   const totalPoints = sorted.reduce((s, d) => s + (d.points || 0), 0);
@@ -690,6 +709,83 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
     return 0;
   });
   const nextRace = sortedTracks.find(t => !completedRaces.has(t.name));
+
+  const autoOnesToWatch = sorted
+    .filter((driver) => !driver.retired && !isInactivePlaceholderDriver(driver))
+    .map((driver) => {
+      const recentResults = (raceHistory || [])
+        .slice(-3)
+        .map((race) => {
+          const result = race.results?.find((r) => r.driverId === driver.id);
+          if (!result) return null;
+          const finish = Number(result.finishPos || result.finish || result.position || 99);
+          return { raceName: race.raceName, finish, dnf: !!result.dnf };
+        })
+        .filter(Boolean);
+
+      const avgFinish = recentResults.length
+        ? recentResults.reduce((sum, result) => sum + result.finish, 0) / recentResults.length
+        : 99;
+      const latestFinish = recentResults.length ? recentResults[recentResults.length - 1].finish : null;
+      const recentTop5s = recentResults.filter((result) => result.finish <= 5).length;
+      const recentDnfs = recentResults.filter((result) => result.dnf).length;
+      const positionIndex = sorted.findIndex((d) => d.id === driver.id);
+      const standingsRank = positionIndex >= 0 ? positionIndex + 1 : 99;
+
+      const watchScore =
+        (driver.points || 0) +
+        (driver.wins || 0) * 35 +
+        (driver.top3 || 0) * 12 +
+        (driver.top5 || 0) * 7 +
+        recentTop5s * 18 +
+        Math.max(0, 25 - avgFinish) * 4 -
+        recentDnfs * 15 -
+        standingsRank * 2;
+
+      let reason = "Building momentum";
+      if (driver.wins > 0) reason = "Race-winning threat";
+      else if (recentTop5s >= 2) reason = "Hot over the last 3 races";
+      else if (avgFinish <= 6) reason = "Consistent front-runner";
+      else if (standingsRank > 8 && recentTop5s >= 1) reason = "Underdog moving forward";
+      else if ((driver.top5 || 0) > 0) reason = "Top-5 speed showing";
+
+      return { ...driver, avgFinish, latestFinish, recentTop5s, standingsRank, watchScore, reason };
+    })
+    .sort((a, b) => b.watchScore - a.watchScore)
+    .slice(0, 5);
+
+  const manualWatchDrivers = manualOnesToWatch
+    .map((pick) => {
+      const driver = drivers.find((d) => Number(d.id) === Number(pick.driver_id));
+      if (!driver) return null;
+      const standingsRank = sorted.findIndex((d) => d.id === driver.id) + 1;
+      const recentResults = (raceHistory || [])
+        .slice(-3)
+        .map((race) => {
+          const result = race.results?.find((r) => r.driverId === driver.id);
+          if (!result) return null;
+          const finish = Number(result.finishPos || result.finish || result.position || 99);
+          return { finish, dnf: !!result.dnf };
+        })
+        .filter(Boolean);
+      const avgFinish = recentResults.length ? recentResults.reduce((sum, result) => sum + result.finish, 0) / recentResults.length : 99;
+      const latestFinish = recentResults.length ? recentResults[recentResults.length - 1].finish : null;
+      return {
+        ...driver,
+        reason: pick.reason || "League director watch pick",
+        watchBadge: pick.badge || "DIRECTOR PICK",
+        standingsRank: standingsRank > 0 ? standingsRank : "—",
+        latestFinish,
+        avgFinish,
+        isManualWatchPick: true,
+      };
+    })
+    .filter(Boolean)
+    .slice(0, 5);
+
+  const onesToWatch = manualWatchDrivers.length > 0 ? manualWatchDrivers : autoOnesToWatch;
+  const onesToWatchMode = manualWatchDrivers.length > 0 ? "DIRECTOR PICKS" : "AUTO-UPDATES FROM RACE HISTORY";
+
   const getTrackOverview = (trackName) => {
     const rawName = String(trackName || "").trim();
     const cleanName = rawName.replace(/^Preseason - /i, "").trim();
@@ -905,6 +1001,63 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
         <div style={{ display: "flex", flexWrap: "wrap", gap: 16, marginBottom: 24 }}>
           {podiumCard(leader, 1)}{podiumCard(second, 2)}{podiumCard(third, 3)}
         </div>
+
+        {onesToWatch.length > 0 && (
+          <div style={{ background: "linear-gradient(135deg, #171b22 0%, #0f1319 100%)", border: "1px solid rgba(212,175,55,0.45)", borderRadius: 22, padding: 20, marginBottom: 22, boxShadow: "0 14px 34px rgba(212,175,55,0.10)", overflow: "hidden", position: "relative" }}>
+            <div style={{ position: "absolute", right: -45, top: -45, width: 150, height: 150, borderRadius: "50%", background: "rgba(212,175,55,0.08)" }} />
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 14, flexWrap: "wrap", marginBottom: 16, position: "relative" }}>
+              <div>
+                <div style={{ color: "#d4af37", fontSize: 12, fontWeight: 900, letterSpacing: 1 }}>BROADCAST FEATURE</div>
+                <div style={{ fontSize: 28, fontWeight: 900, marginTop: 4 }}>🔥 Ones to Watch</div>
+                <div style={{ fontSize: 13, opacity: 0.65, marginTop: 4 }}>Drivers trending on points, recent finishes, wins, top-5 speed, and momentum.</div>
+              </div>
+              <div style={{ fontSize: 12, opacity: 0.6, fontWeight: 800 }}>{onesToWatchMode}</div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14, position: "relative" }}>
+              {onesToWatch.map((driver, index) => {
+                const brand = getTeamBranding(driver.team);
+                return (
+                  <div
+                    key={driver.id}
+                    onClick={() => handleDriverClick(driver.number)}
+                    style={{ background: index === 0 ? `linear-gradient(135deg, ${brand.accent} 0%, ${brand.dark} 100%)` : "#11161d", border: index === 0 ? `1px solid ${brand.accent}` : "1px solid #2a3240", borderRadius: 18, padding: 16, cursor: "pointer", boxShadow: "0 10px 24px rgba(0,0,0,0.22)", minHeight: 178 }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12 }}>
+                      <div style={{ fontSize: 11, fontWeight: 900, opacity: 0.75 }}>#{index + 1} {driver.watchBadge || "WATCH LIST"}</div>
+                      {renderTeamBadge(driver.team, 42)}
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                      <div style={{ width: 40, height: 40, borderRadius: "50%", background: "rgba(0,0,0,0.32)", border: "2px solid rgba(255,255,255,0.22)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900 }}>
+                        {driver.number}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 18, fontWeight: 900, lineHeight: 1.1 }}>{driver.name}</div>
+                        <div style={{ fontSize: 12, opacity: 0.72, marginTop: 2 }}>{getTeamFullName(driver.team)}</div>
+                      </div>
+                    </div>
+                    <div style={{ background: "rgba(0,0,0,0.22)", borderRadius: 12, padding: "10px 12px", marginBottom: 10, fontSize: 13, fontWeight: 800 }}>
+                      {driver.reason}
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+                      {[
+                        { label: "RANK", value: `P${driver.standingsRank}` },
+                        { label: "LAST", value: driver.latestFinish ? `P${driver.latestFinish}` : "—" },
+                        { label: "AVG 3", value: driver.avgFinish < 99 ? driver.avgFinish.toFixed(1) : "—" },
+                      ].map((stat) => (
+                        <div key={stat.label} style={{ background: "rgba(0,0,0,0.22)", borderRadius: 10, padding: 8 }}>
+                          <div style={{ fontSize: 10, opacity: 0.65, fontWeight: 900 }}>{stat.label}</div>
+                          <div style={{ fontSize: 16, fontWeight: 900 }}>{stat.value}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         <div style={{ background: "#151a22", border: "1px solid #2d3643", borderRadius: 22, padding: 18, marginBottom: 22, boxShadow: "0 10px 28px rgba(0,0,0,0.22)" }}>
           <div style={{ fontSize: 26, fontWeight: 900, marginBottom: 14 }}>Driver Standings</div>
           <div style={{ overflowX: "auto" }}>
@@ -1073,6 +1226,12 @@ export default function App() {
   const [newTrackStageCount, setNewTrackStageCount] = useState(2);
   const [pendingDrivers, setPendingDrivers] = useState([]);
   const [featuredVideo, setFeaturedVideo] = useState(null);
+  const [manualWatchPicks, setManualWatchPicks] = useState([]);
+  const [watchDriverId, setWatchDriverId] = useState("");
+  const [watchReason, setWatchReason] = useState("");
+  const [watchBadge, setWatchBadge] = useState("DIRECTOR PICK");
+  const [watchDisplayOrder, setWatchDisplayOrder] = useState("1");
+  const [watchSaving, setWatchSaving] = useState(false);
   const [videoTitle, setVideoTitle] = useState("");
   const [videoDescription, setVideoDescription] = useState("");
   const [videoUploading, setVideoUploading] = useState(false);
@@ -1170,6 +1329,25 @@ export default function App() {
     }
     loadFeaturedVideo();
   }, []);
+
+  const loadManualWatchPicks = async () => {
+    const { data, error } = await supabase
+      .from("ones_to_watch")
+      .select("*")
+      .order("active", { ascending: false })
+      .order("display_order", { ascending: true })
+      .order("created_at", { ascending: false });
+    if (error) {
+      console.error("Failed to load ones_to_watch:", error);
+      return;
+    }
+    setManualWatchPicks(data || []);
+  };
+
+  useEffect(() => {
+    loadManualWatchPicks();
+  }, []);
+
   useEffect(() => {
     const nextInputs = {};
     (activeSeason?.drivers || []).forEach((d) => { nextInputs[d.id] = String(Number(d.startingPoints) || 0); });
@@ -1259,6 +1437,41 @@ export default function App() {
     };
     reader.readAsText(file);
   };
+  const addManualWatchPick = async () => {
+    if (!watchDriverId) { alert("Select a driver for Ones to Watch."); return; }
+    const selectedDriver = drivers.find((d) => Number(d.id) === Number(watchDriverId));
+    if (!selectedDriver) { alert("That driver could not be found."); return; }
+    setWatchSaving(true);
+    const payload = {
+      driver_id: Number(watchDriverId),
+      reason: watchReason.trim() || "League director watch pick",
+      badge: watchBadge.trim() || "DIRECTOR PICK",
+      display_order: Number(watchDisplayOrder) || 1,
+      active: true,
+    };
+    const { error } = await supabase.from("ones_to_watch").insert(payload);
+    setWatchSaving(false);
+    if (error) { console.error("Failed to add Ones to Watch pick:", error); alert("Could not save the Ones to Watch pick. Make sure the Supabase table exists."); return; }
+    setWatchDriverId("");
+    setWatchReason("");
+    setWatchBadge("DIRECTOR PICK");
+    setWatchDisplayOrder(String((manualWatchPicks?.length || 0) + 2));
+    await loadManualWatchPicks();
+  };
+
+  const toggleManualWatchPick = async (pick) => {
+    const { error } = await supabase.from("ones_to_watch").update({ active: !pick.active }).eq("id", pick.id);
+    if (error) { console.error("Failed to update Ones to Watch pick:", error); alert("Could not update this pick."); return; }
+    await loadManualWatchPicks();
+  };
+
+  const deleteManualWatchPick = async (pickId) => {
+    if (!window.confirm("Delete this Ones to Watch pick?")) return;
+    const { error } = await supabase.from("ones_to_watch").delete().eq("id", pickId);
+    if (error) { console.error("Failed to delete Ones to Watch pick:", error); alert("Could not delete this pick."); return; }
+    await loadManualWatchPicks();
+  };
+
   const resetSeason = () => {
     if (!activeSeason) return;
     if (!window.confirm(`Archive and reset "${activeSeason.name}"? A backup will download first.`)) return;
@@ -1682,6 +1895,80 @@ export default function App() {
             </div>
           ))}
         </div>
+        {/* Ones to Watch Manager */}
+        <div style={sectionCardStyle}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap", marginBottom: 14 }}>
+            <div>
+              <h2 style={{ margin: 0 }}>🔥 Ones to Watch Manager</h2>
+              <div style={{ fontSize: 13, opacity: 0.7, marginTop: 6 }}>Manual picks override the automatic /standings watch list. Turn all manual picks off to return to auto mode.</div>
+            </div>
+            <button onClick={loadManualWatchPicks} style={secondaryButtonStyle}>Refresh Picks</button>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, marginBottom: 14 }}>
+            <div>
+              <div style={{ marginBottom: 6, fontWeight: 700 }}>Driver</div>
+              <select style={inputStyle} value={watchDriverId} onChange={(e) => setWatchDriverId(e.target.value)}>
+                <option value="">Select driver...</option>
+                {visibleDrivers.map((d) => <option key={d.id} value={d.id}>#{d.number} {d.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <div style={{ marginBottom: 6, fontWeight: 700 }}>Badge</div>
+              <select style={inputStyle} value={watchBadge} onChange={(e) => setWatchBadge(e.target.value)}>
+                <option value="DIRECTOR PICK">DIRECTOR PICK</option>
+                <option value="HOT SEAT">HOT SEAT</option>
+                <option value="MOMENTUM">MOMENTUM</option>
+                <option value="UNDERDOG">UNDERDOG</option>
+                <option value="REBOUND WATCH">REBOUND WATCH</option>
+                <option value="TITLE THREAT">TITLE THREAT</option>
+              </select>
+            </div>
+            <div>
+              <div style={{ marginBottom: 6, fontWeight: 700 }}>Display Order</div>
+              <input style={inputStyle} type="number" min="1" value={watchDisplayOrder} onChange={(e) => setWatchDisplayOrder(e.target.value)} />
+            </div>
+          </div>
+
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ marginBottom: 6, fontWeight: 700 }}>Reason / Storyline</div>
+            <input style={inputStyle} value={watchReason} onChange={(e) => setWatchReason(e.target.value)} placeholder="Example: Coming off a podium and showing long-run speed" />
+          </div>
+
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
+            <button onClick={addManualWatchPick} disabled={watchSaving} style={{ ...primaryButtonStyle, opacity: watchSaving ? 0.6 : 1 }}>{watchSaving ? "Saving..." : "Add to Ones to Watch"}</button>
+            <button onClick={() => { setWatchDriverId(""); setWatchReason(""); setWatchBadge("DIRECTOR PICK"); setWatchDisplayOrder("1"); }} style={secondaryButtonStyle}>Clear Form</button>
+          </div>
+
+          <div style={{ overflowX: "auto" }}>
+            <table style={tableStyle}>
+              <thead><tr><th style={thStyle}>Status</th><th style={thStyle}>Order</th><th style={thStyle}>Driver</th><th style={thStyle}>Badge</th><th style={thStyle}>Reason</th><th style={thStyle}>Actions</th></tr></thead>
+              <tbody>
+                {manualWatchPicks.length === 0 ? (
+                  <tr><td colSpan={6} style={{ ...tdStyle, opacity: 0.7 }}>No manual picks yet. /standings will use the automatic watch list.</td></tr>
+                ) : manualWatchPicks.map((pick) => {
+                  const driver = drivers.find((d) => Number(d.id) === Number(pick.driver_id));
+                  return (
+                    <tr key={pick.id}>
+                      <td style={{ ...tdStyle, color: pick.active ? "#4ade80" : "#f59e0b", fontWeight: 900 }}>{pick.active ? "ACTIVE" : "OFF"}</td>
+                      <td style={tdStyle}>{pick.display_order || "—"}</td>
+                      <td style={{ ...tdStyle, fontWeight: 800 }}>{driver ? `#${driver.number} ${driver.name}` : `Driver ID ${pick.driver_id}`}</td>
+                      <td style={tdStyle}>{pick.badge || "DIRECTOR PICK"}</td>
+                      <td style={tdStyle}>{pick.reason || "—"}</td>
+                      <td style={tdStyle}>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          <button onClick={() => toggleManualWatchPick(pick)} style={secondaryButtonStyle}>{pick.active ? "Turn Off" : "Activate"}</button>
+                          <button onClick={() => deleteManualWatchPick(pick.id)} style={dangerButtonStyle}>Delete</button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         {/* Featured Video */}
         <div style={sectionCardStyle}>
           <h2 style={{ marginTop: 0 }}>🎬 Featured Video</h2>
