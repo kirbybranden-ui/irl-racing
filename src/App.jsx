@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import logo from "./assets/logo1.png";
+import storySubmittedKick from "./assets/story-submitted-kick.png";
 import teamLogoJAM from "./assets/teams/JAM.png";
 import teamLogoMER from "./assets/teams/ME.png";
 import teamLogoNLM from "./assets/teams/NLM.png";
@@ -1212,6 +1213,7 @@ function SubmitStoryPage() {
   const [storyText, setStoryText] = useState("");
   const [saving, setSaving] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [showKickGraphic, setShowKickGraphic] = useState(false);
 
   const submitStory = async (e) => {
     e.preventDefault();
@@ -1240,6 +1242,7 @@ function SubmitStoryPage() {
     setStoryTitle("");
     setStoryText("");
     setSubmitted(true);
+    setShowKickGraphic(true);
   };
 
   return (
@@ -1257,8 +1260,18 @@ function SubmitStoryPage() {
             <button onClick={() => (window.location.pathname = "/standings")} style={secondaryButtonStyle}>Back to Standings</button>
           </div>
           {submitted && (
-            <div style={{ background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.45)", borderRadius: 14, padding: 14, marginBottom: 16, color: "#bbf7d0", fontWeight: 800 }}>
-              Story submitted. The admins can now review it.
+            <div style={{ background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.45)", borderRadius: 14, padding: 14, marginBottom: 16, color: "#bbf7d0", fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+              <span>Story submitted. The admins can now review it.</span>
+              <button type="button" onClick={() => setShowKickGraphic(true)} style={{ ...secondaryButtonStyle, padding: "8px 12px", fontSize: 12 }}>View Kick Graphic</button>
+            </div>
+          )}
+
+          {showKickGraphic && (
+            <div onClick={() => setShowKickGraphic(false)} style={{ position: "fixed", inset: 0, zIndex: 3000, background: "rgba(0,0,0,0.86)", display: "flex", alignItems: "center", justifyContent: "center", padding: 18 }}>
+              <div onClick={(e) => e.stopPropagation()} style={{ position: "relative", width: "min(1100px, 96vw)", background: "#050505", border: "2px solid #ef4444", borderRadius: 16, overflow: "hidden", boxShadow: "0 30px 90px rgba(239,68,68,0.25)" }}>
+                <button type="button" onClick={() => setShowKickGraphic(false)} aria-label="Close story submitted graphic" style={{ position: "absolute", top: 12, right: 12, zIndex: 2, width: 38, height: 38, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.25)", background: "rgba(0,0,0,0.55)", color: "white", fontSize: 24, cursor: "pointer", lineHeight: 1 }}>×</button>
+                <img src={storySubmittedKick} alt="Story submitted action graphic" style={{ width: "100%", display: "block" }} />
+              </div>
             </div>
           )}
           <form onSubmit={submitStory}>
