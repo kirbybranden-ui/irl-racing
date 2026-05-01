@@ -894,6 +894,7 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
               </div>
               <button onClick={() => (window.location.pathname = "/streams")} style={{ background: "#9146ff", color: "white", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>📡 Streams</button>
               <button onClick={() => (window.location.pathname = "/news")} style={{ background: "#d4af37", color: "#111", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>📰 News</button>
+              <button onClick={() => (window.location.pathname = "/submit-story")} style={{ background: "#16a34a", color: "white", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>✍️ Add Story</button>
               <button onClick={() => (window.location.pathname = "/notifications")} style={{ background: "#222936", color: "white", border: "1px solid #3a4453", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>🔔 Notifications</button>
 </div> {/* ✅ CLOSE BUTTON ROW */}
           </div>
@@ -1203,9 +1204,199 @@ function patchMissingDrivers(cleanSeasons) {
     return { ...season, drivers: rebuildDriversFromHistory(season.raceHistory || [], newRoster) };
   });
 }
+
+function SubmitStoryPage() {
+  const [authorName, setAuthorName] = useState("");
+  const [driverName, setDriverName] = useState("");
+  const [storyTitle, setStoryTitle] = useState("");
+  const [storyText, setStoryText] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+
+  const submitStory = async (e) => {
+    e.preventDefault();
+    const cleanStory = storyText.trim();
+    if (!cleanStory) {
+      alert("Please type your story before submitting.");
+      return;
+    }
+    setSaving(true);
+    const payload = {
+      author_name: authorName.trim() || null,
+      driver_name: driverName.trim() || null,
+      title: storyTitle.trim() || null,
+      story: cleanStory,
+      status: "Open",
+    };
+    const { error } = await supabase.from("story_submissions").insert(payload);
+    setSaving(false);
+    if (error) {
+      console.error("Story submission failed:", error);
+      alert("Could not submit the story. Make sure the story_submissions Supabase table exists.");
+      return;
+    }
+    setAuthorName("");
+    setDriverName("");
+    setStoryTitle("");
+    setStoryText("");
+    setSubmitted(true);
+  };
+
+  return (
+    <div style={appShellStyle}>
+      <div style={{ ...pageContainerStyle, maxWidth: 900 }}>
+        <div style={{ ...sectionCardStyle, background: "linear-gradient(135deg, #17191f 0%, #101216 100%)" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap", marginBottom: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <img src={logo} alt="League Logo" style={{ height: 48 }} />
+              <div>
+                <div style={{ fontSize: 28, fontWeight: 900 }}>Submit a Story</div>
+                <div style={{ opacity: 0.72, fontSize: 14 }}>Send news, rumors, driver notes, race recaps, or league storylines to the admins.</div>
+              </div>
+            </div>
+            <button onClick={() => (window.location.pathname = "/standings")} style={secondaryButtonStyle}>Back to Standings</button>
+          </div>
+          {submitted && (
+            <div style={{ background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.45)", borderRadius: 14, padding: 14, marginBottom: 16, color: "#bbf7d0", fontWeight: 800 }}>
+              Story submitted. The admins can now review it.
+            </div>
+          )}
+          <form onSubmit={submitStory}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, marginBottom: 12 }}>
+              <div>
+                <div style={{ marginBottom: 6, fontWeight: 800 }}>Your Name / PSN</div>
+                <input style={inputStyle} value={authorName} onChange={(e) => setAuthorName(e.target.value)} placeholder="Example: AMP-GHOSTRIDER" />
+              </div>
+              <div>
+                <div style={{ marginBottom: 6, fontWeight: 800 }}>Driver / Team Mentioned</div>
+                <input style={inputStyle} value={driverName} onChange={(e) => setDriverName(e.target.value)} placeholder="Example: #76 BCR_Ziggy5525 / WSM" />
+              </div>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ marginBottom: 6, fontWeight: 800 }}>Story Title</div>
+              <input style={inputStyle} value={storyTitle} onChange={(e) => setStoryTitle(e.target.value)} placeholder="Example: WSM adds a new Chevrolet to the garage" />
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ marginBottom: 6, fontWeight: 800 }}>Story Details</div>
+              <textarea
+                style={{ ...inputStyle, minHeight: 220, resize: "vertical", lineHeight: 1.45 }}
+                value={storyText}
+                onChange={(e) => setStoryText(e.target.value)}
+                placeholder="Type the full story, notes, quote, rumor, race recap, or announcement here."
+              />
+            </div>
+            <button type="submit" disabled={saving} style={{ ...primaryButtonStyle, opacity: saving ? 0.65 : 1 }}>
+              {saving ? "Submitting..." : "Submit Story"}
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StoriesAdminPage() {
+  const [stories, setStories] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadStories = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("story_submissions")
+      .select("*")
+      .order("created_at", { ascending: false });
+    setLoading(false);
+    if (error) {
+      console.error("Failed to load stories:", error);
+      alert("Could not load stories. Make sure the story_submissions Supabase table exists.");
+      return;
+    }
+    setStories(data || []);
+  };
+
+  useEffect(() => {
+    loadStories();
+    const interval = setInterval(loadStories, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const updateStoryStatus = async (storyId, status) => {
+    const { error } = await supabase
+      .from("story_submissions")
+      .update({ status })
+      .eq("id", storyId);
+    if (error) {
+      console.error("Failed to update story:", error);
+      alert("Could not update that story.");
+      return;
+    }
+    await loadStories();
+  };
+
+  const openStories = stories.filter((story) => String(story.status || "Open") === "Open");
+
+  return (
+    <div style={appShellStyle}>
+      <div style={pageContainerStyle}>
+        <div style={{ ...sectionCardStyle, background: "linear-gradient(135deg, #17191f 0%, #101216 100%)" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <img src={logo} alt="League Logo" style={{ height: 48 }} />
+              <div>
+                <div style={{ fontSize: 30, fontWeight: 900 }}>Story Inbox</div>
+                <div style={{ opacity: 0.72 }}>Review submitted league stories and mark them complete.</div>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <button onClick={loadStories} style={secondaryButtonStyle}>Refresh</button>
+              <button onClick={() => (window.location.pathname = "/")} style={secondaryButtonStyle}>Back to Admin</button>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 18 }}>
+          <div style={statBoxStyle}><div style={{ opacity: 0.65, fontSize: 12 }}>OPEN STORIES</div><div style={{ fontSize: 30, fontWeight: 900 }}>{openStories.length}</div></div>
+          <div style={statBoxStyle}><div style={{ opacity: 0.65, fontSize: 12 }}>TOTAL SUBMITTED</div><div style={{ fontSize: 30, fontWeight: 900 }}>{stories.length}</div></div>
+        </div>
+
+        {loading ? (
+          <div style={sectionCardStyle}>Loading stories...</div>
+        ) : stories.length === 0 ? (
+          <div style={sectionCardStyle}>No stories submitted yet.</div>
+        ) : (
+          stories.map((story) => (
+            <div key={story.id} style={{ ...sectionCardStyle, borderColor: String(story.status || "Open") === "Open" ? "#d4af37" : "#2c3440" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 14, flexWrap: "wrap", marginBottom: 10 }}>
+                <div>
+                  <div style={{ fontSize: 22, fontWeight: 900 }}>{story.title || "Untitled Story"}</div>
+                  <div style={{ opacity: 0.68, fontSize: 13, marginTop: 4 }}>
+                    Submitted by {story.author_name || "Unknown"}{story.driver_name ? ` • ${story.driver_name}` : ""}{story.created_at ? ` • ${new Date(story.created_at).toLocaleString()}` : ""}
+                  </div>
+                </div>
+                <div style={{ background: String(story.status || "Open") === "Open" ? "rgba(212,175,55,0.16)" : "rgba(34,197,94,0.12)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 999, padding: "8px 12px", fontWeight: 900, height: "fit-content" }}>
+                  {story.status || "Open"}
+                </div>
+              </div>
+              <div style={{ background: "#0f1319", border: "1px solid #2a3240", borderRadius: 14, padding: 14, whiteSpace: "pre-wrap", lineHeight: 1.5, marginBottom: 12 }}>
+                {story.story}
+              </div>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <button onClick={() => updateStoryStatus(story.id, "Open")} style={secondaryButtonStyle}>Mark Open</button>
+                <button onClick={() => updateStoryStatus(story.id, "Reviewed")} style={primaryButtonStyle}>Mark Reviewed</button>
+                <button onClick={() => updateStoryStatus(story.id, "Archived")} style={dangerButtonStyle}>Archive</button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [seasons, setSeasons] = useState(() => loadInitialLeagueState().seasons);
   const [openAppealCount, setOpenAppealCount] = useState(0);
+  const [openStoryCount, setOpenStoryCount] = useState(0);
   const [activeSeasonId, setActiveSeasonId] = useState(() => loadInitialLeagueState().activeSeasonId);
   const [tracks, setTracks] = useState(() => loadInitialLeagueState().tracks);
   const [isHydrated, setIsHydrated] = useState(false);
@@ -1297,6 +1488,18 @@ export default function App() {
       if (!error) setOpenAppealCount(count || 0);
     }
     loadOpenAppeals();
+  }, []);
+  useEffect(() => {
+    async function loadOpenStories() {
+      const { count, error } = await supabase
+        .from("story_submissions")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "Open");
+      if (!error) setOpenStoryCount(count || 0);
+    }
+    loadOpenStories();
+    const interval = setInterval(loadOpenStories, 5000);
+    return () => clearInterval(interval);
   }, []);
   useEffect(() => {
     async function loadPendingDrivers() {
@@ -1716,7 +1919,9 @@ export default function App() {
   if (path === "/files") return <FilesPage />;
   if (path === "/welcome") return <WelcomePage />;
   if (path === "/submit-appeal") return <SubmitAppealPage />;
+  if (path === "/submit-story") return <SubmitStoryPage />;
   if (path === "/appeals") return <AppealsPage />;
+  if (path === "/admin/stories" || path === "/stories") return <StoriesAdminPage />;
   if (path === "/admin/live-control") {
   return <LiveControlPanel />;
 }
@@ -1857,6 +2062,9 @@ export default function App() {
               </button>
               <button onClick={() => (window.location.pathname = "/appeals")} style={headerButtonStyle}>
                 Appeals ({openAppealCount})
+              </button>
+              <button onClick={() => (window.location.pathname = "/admin/stories")} style={headerButtonStyle}>
+                Stories ({openStoryCount})
               </button>
               <button onClick={() => (window.location.pathname = "/admin/car-gallery")} style={headerButtonStyle}>
                 Car Gallery
