@@ -7,6 +7,7 @@ import teamLogoNLM from "./assets/teams/NLM.png";
 import teamLogoBOM from "./assets/teams/BOM.png";
 import teamLogoWSM from "./assets/teams/WSM.png";
 import teamLogoIND from "./assets/teams/IND.png";
+import teamLogo19XI from "./assets/teams/19XI.png";
 import { supabase } from "./lib/supabase";
 import { uploadCarFile, getCarUploads, deleteCarUpload } from "./lib/carUploads";
 
@@ -21,6 +22,8 @@ const teamLogos = {
   BOM: teamLogoBOM,
   WSM: teamLogoWSM,
   IND: teamLogoIND,
+  "19XI": teamLogo19XI,
+  "19XI Racing": teamLogo19XI,
 };
 
 // ─── Team Full Names ───────────────────────────────────────────────────────────
@@ -34,6 +37,8 @@ const teamFullNames = {
   BOM: "Blue Oval Motorsports",
   WSM: "Wyatt SICK6 Motorsports",
   IND: "Independent",
+  "19XI": "19XI Racing",
+  "19XI Racing": "19XI Racing",
 };
 function getTeamFullName(teamAbbr) {
   return teamFullNames[teamAbbr] || teamAbbr;
@@ -138,7 +143,7 @@ function AppealModal({ isOpen, onClose, selectedSeason }) {
   const widgetRef = React.useRef(null);
 
   const drivers = selectedSeason?.drivers ? [...selectedSeason.drivers].sort((a, b) => a.number - b.number) : [];
-  const tracks = ["Bristol (Night)", "Charlotte", "Daytona (Night)", "Homestead", "Indianapolis", "Iowa", "Kansas", "Michigan", "Nashville", "New Hampshire", "North Wilksboro", "Phoenix", "Pocono", "Preseason - Dover", "Preseason - Michigan", "Preseason - WWT Raceway", "Richmond", "Talladega", "Texas", "Las Vegas"];
+  const tracks = ["Bristol (Night)", "Charlotte", "Daytona (Night)", "Homestead", "Indianapolis", "Iowa", "Kansas", "Michigan", "Nashville", "New Hampshire", "North Wilksboro", "Phoenix", "Pocono", "Preseason - Dover", "Preseason - Michigan", "Preseason - EchoPark Speedway", "Richmond", "Talladega", "Texas", "Las Vegas"];
 
   const handleSubmit = async () => {
     if (!requester.trim() || !track.trim() || !description.trim()) {
