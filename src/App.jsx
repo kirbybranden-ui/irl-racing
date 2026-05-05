@@ -8,6 +8,7 @@ import teamLogoMMS from "./assets/teams/MMS.png";
 import teamLogoBOM from "./assets/teams/BOM.png";
 import teamLogoWSM from "./assets/teams/WSM.png";
 import teamLogoIND from "./assets/teams/IND.png";
+import teamLogo19XI from "./assets/teams/19XI.png";
 import manufacturerChevrolet from "./assets/manufacturers/chevrolet.png";
 import manufacturerFord from "./assets/manufacturers/ford.png";
 import manufacturerToyota from "./assets/manufacturers/toyota.png";
@@ -41,6 +42,8 @@ MMS: teamLogoMMS,
   IND: teamLogoIND,
   "Wyatt Sick6 Motorsports": teamLogoWSM,
   WSM: teamLogoWSM,
+  "19XI": teamLogo19XI,
+  "19XI Racing": teamLogo19XI,
 };
 const manufacturerLogos = {
   Chevrolet: manufacturerChevrolet,
@@ -58,6 +61,7 @@ const teamFullNames = {
   BOM: "Blue Oval Motorsports",
   WSM: "Wyatt Sick6 Motorsports",
   "19XI": "19XI Racing",
+  "19XI Racing": "19XI Racing",
   Independent: "Independent",
 };
 function getTeamFullName(teamAbbr) {
@@ -176,6 +180,7 @@ const teamBranding = {
   BOM: { logo: "BOM", accent: "#d4af37", dark: "#1b1b1b" },
   WSM: { logo: "WSM", accent: "#3b82f6", dark: "#111827" },
   "19XI": { logo: "19XI", accent: "#8b5cf6", dark: "#160b2d", fullName: "19XI Racing" },
+  "19XI Racing": { logo: "19XI", accent: "#8b5cf6", dark: "#160b2d", fullName: "19XI Racing" },
   "Team C": { logo: "C", accent: "#ef4444", dark: "#1f1315" },
   "Team C": { logo: "C", accent: "#ef4444", dark: "#1f1315" },
   "Team D": { logo: "D", accent: "#22c55e", dark: "#0f1b14" },
