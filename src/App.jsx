@@ -137,11 +137,28 @@ function countPriorOffenses(raceHistory, driverId, excludeRaceName = null) {
   });
   return count;
 }
+function normalizeTrackName(name) {
+  const raw = String(name || "").trim();
+  const key = raw.toLowerCase();
+  if (key === "preseason - wwt raceway" || key === "preseason - world wide technology raceway") {
+    return "Preseason - EchoPark Speedway";
+  }
+  if (key === "wwt raceway" || key === "world wide technology raceway") {
+    return "EchoPark Speedway";
+  }
+  if (key === "preseason - echpark speedway" || key === "preseason - echopark speedway") {
+    return "Preseason - EchoPark Speedway";
+  }
+  if (key === "echpark speedway" || key === "echopark speedway") {
+    return "EchoPark Speedway";
+  }
+  return raw;
+}
 function sanitizeTracks(rawTracks) {
   if (!Array.isArray(rawTracks)) return null;
   const cleaned = rawTracks
     .map((t) => {
-      const name = typeof t?.name === "string" ? t.name.trim() : "";
+      const name = normalizeTrackName(typeof t?.name === "string" ? t.name.trim() : "");
       const stageCount = Number(t?.stageCount);
       if (!name) return null;
       const stages = [1, 2, 3].includes(stageCount) ? stageCount : 2;
@@ -249,10 +266,12 @@ function createEmptySeason(name, roster = getDefaultRoster()) {
 function sanitizeSeason(season, fallbackName = "Season") {
   const rosterSource = Array.isArray(season?.drivers) && season.drivers.length > 0 ? season.drivers : getDefaultRoster();
   const rosterOnly = rosterSource.map((d) => ({ id: d.id, number: Number(d.number), name: d.name, manufacturer: d.manufacturer || "", team: d.team, startingPoints: Number(d.startingPoints) || 0, manualWins: Number(d.manualWins) || 0, retired: d.retired || false, notes: d.notes || "" }));
-  const history = Array.isArray(season?.raceHistory) ? season.raceHistory : [];
+  const history = Array.isArray(season?.raceHistory)
+    ? season.raceHistory.map((race) => ({ ...race, raceName: normalizeTrackName(race.raceName) }))
+    : [];
   return {
     id: season?.id || makeSeasonId(), name: season?.name || fallbackName, createdAt: season?.createdAt || new Date().toISOString(),
-    drivers: rebuildDriversFromHistory(history, rosterOnly), selectedRace: season?.selectedRace || "",
+    drivers: rebuildDriversFromHistory(history, rosterOnly), selectedRace: normalizeTrackName(season?.selectedRace || ""),
     positions: season?.positions || {}, stage1: season?.stage1 || {}, stage2: season?.stage2 || {}, stage3: season?.stage3 || {},
     dnfMap: season?.dnfMap || {}, offenseMap: season?.offenseMap || {}, fastestLapMap: season?.fastestLapMap || {}, raceHistory: history,
   };
@@ -1536,6 +1555,15 @@ export default function App() {
     const interval = setInterval(loadPendingDrivers, 5000);
     return () => clearInterval(interval);
   }, []);
+  useEffect(() => {
+    if (!isHydrated) return;
+    const cleanTracks = sanitizeTracks(tracks);
+    const needsTrackMigration = JSON.stringify(cleanTracks) !== JSON.stringify(tracks);
+    if (needsTrackMigration && cleanTracks && cleanTracks.length > 0) {
+      setTracks(cleanTracks);
+    }
+  }, [tracks, isHydrated]);
+
   useEffect(() => {
     if (!isHydrated) return;
     const timeout = setTimeout(() => {
