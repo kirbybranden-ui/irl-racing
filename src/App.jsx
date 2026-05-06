@@ -207,6 +207,59 @@ const teamBranding = {
 function getTeamBranding(teamName) {
   return teamBranding[teamName] || { logo: teamName?.charAt(0)?.toUpperCase() || "?", accent: "#d4af37", dark: "#161a20" };
 }
+
+function AdminLoginPage() {
+  const ADMIN_ACCESS_CODE = "BCLADMIN2026";
+  const [code, setCode] = useState("");
+  const [error, setError] = useState("");
+
+  const handleLogin = (event) => {
+    event.preventDefault();
+    if (code.trim() === ADMIN_ACCESS_CODE) {
+      localStorage.setItem("bcl-admin-auth", "true");
+      localStorage.setItem("bcl-admin-auth-time", new Date().toISOString());
+      window.location.pathname = "/";
+      return;
+    }
+    setError("Invalid admin code.");
+  };
+
+  return (
+    <div style={appShellStyle}>
+      <div style={{ ...pageContainerStyle, maxWidth: 760 }}>
+        <div style={{ ...sectionCardStyle, marginTop: 40, background: "linear-gradient(135deg, #17191f 0%, #101216 100%)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 22 }}>
+            <img src={logo} alt="League Logo" style={{ height: 62 }} />
+            <div>
+              <div style={{ fontSize: 32, fontWeight: 900 }}>Admin Portal Login</div>
+              <div style={{ opacity: 0.72, marginTop: 4 }}>Budweiser Cup League private dashboard</div>
+            </div>
+          </div>
+
+          <form onSubmit={handleLogin}>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>
+              ADMIN ACCESS CODE
+            </label>
+            <input
+              type="password"
+              value={code}
+              onChange={(event) => { setCode(event.target.value); setError(""); }}
+              placeholder="Enter admin access code"
+              style={inputStyle}
+              autoFocus
+            />
+            {error && <div style={{ color: "#f87171", marginTop: 10, fontWeight: 800 }}>{error}</div>}
+            <div style={{ display: "flex", gap: 10, marginTop: 18, flexWrap: "wrap" }}>
+              <button type="submit" style={primaryButtonStyle}>Unlock Admin Portal</button>
+              <button type="button" onClick={() => (window.location.pathname = "/standings")} style={secondaryButtonStyle}>Back to Standings</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function renderTeamBadge(teamName, size = 44) {
   const brand = getTeamBranding(teamName);
   const logoSrc = teamLogos[teamName];
@@ -928,6 +981,7 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
               <button onClick={() => (window.location.pathname = "/owners")} style={{ background: "#0f766e", color: "white", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>💼 Owners</button>
               <button onClick={() => (window.location.pathname = "/submit-story")} style={{ background: "#16a34a", color: "white", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>✍️ Add Story</button>
               <button onClick={() => (window.location.pathname = "/notifications")} style={{ background: "#222936", color: "white", border: "1px solid #3a4453", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>🔔 Notifications</button>
+              <button onClick={() => (window.location.pathname = "/admin-login")} style={{ background: "#111827", color: "#d4af37", border: "1px solid #d4af37", borderRadius: 12, padding: "12px 18px", fontWeight: 900, cursor: "pointer", fontSize: 14 }}>🔐 Admin Portal</button>
 </div> {/* ✅ CLOSE BUTTON ROW */}
           </div>
         </div>
@@ -2063,6 +2117,18 @@ export default function App() {
   const offenseLog = raceHistory.flatMap((race) =>
     race.results.filter((r) => r.offense).map((r) => ({ raceName: race.raceName, number: r.number, name: r.name, offenseNumber: r.offenseNumber, penaltyPoints: r.penaltyPoints }))
   );
+  const adminProtectedPaths = new Set(["/", "/appeals", "/admin/stories", "/stories", "/admin/live-control", "/admin/car-gallery", "/admin/interviews"]);
+  const isAdminProtectedPath = adminProtectedPaths.has(path);
+  const isAdminAuthenticated = localStorage.getItem("bcl-admin-auth") === "true";
+  const logoutAdmin = () => {
+    localStorage.removeItem("bcl-admin-auth");
+    localStorage.removeItem("bcl-admin-auth-time");
+    window.location.pathname = "/standings";
+  };
+
+  if (path === "/admin-login") return <AdminLoginPage />;
+  if (isAdminProtectedPath && !isAdminAuthenticated) return <AdminLoginPage />;
+
   // Static pages (no Supabase data needed)
   if (path === "/files") return <FilesPage />;
   if (path === "/welcome") return <WelcomePage />;
@@ -2202,6 +2268,9 @@ export default function App() {
               </button>
               <button onClick={() => (window.location.pathname = "/owners")} style={headerButtonStyle}>
                 💼 Owners
+              </button>
+              <button onClick={logoutAdmin} style={{ ...headerButtonStyle, border: "1px solid #b42318", color: "#fecaca" }}>
+                Logout
               </button>
               <button onClick={() => (window.location.pathname = "/streams")} style={headerButtonStyle}>
                 🎮 Streams
