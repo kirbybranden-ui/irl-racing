@@ -8,6 +8,7 @@ import teamLogoBOM from "./assets/teams/BOM.png";
 import teamLogoWSM from "./assets/teams/WSM.png";
 import teamLogoIND from "./assets/teams/IND.png";
 import teamLogo19XI from "./assets/teams/19XI.png";
+import { supabase } from "./lib/supabase";
 
 const teamLogos = {
   JAM: teamLogoJAM,
@@ -48,19 +49,6 @@ const ownerNames = {
   IND: "Free Agent Pool",
 };
 
-const ownerAccessCodes = {
-  JAM: "JAM",
-  MER: "MER",
-  MMS: "MMS",
-  NLM: "NLM",
-  WSM: "WSM",
-  "19XI": "19XI",
-  "19XI Racing": "19XI",
-  BOM: "BOM",
-  Independent: "IND",
-  IND: "IND",
-};
-
 const startingBudgets = {
   JAM: 5000000,
   MER: 5000000,
@@ -86,6 +74,30 @@ const tdStyle = { padding: 10, borderBottom: "1px solid #252c38", verticalAlign:
 function money(value) {
   const safe = Number(value) || 0;
   return safe.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+}
+
+function loadLocalOwnerAccessCodes() {
+  try {
+    const saved = localStorage.getItem("ownerPortalAccessCodes");
+    return saved ? JSON.parse(saved) : {};
+  } catch {
+    return {};
+  }
+}
+
+async function loadRemoteOwnerAccessCodes() {
+  const { data, error } = await supabase
+    .from("owner_access_codes")
+    .select("team, code, active")
+    .eq("active", true);
+  if (error) {
+    console.error("Failed to load owner access codes:", error);
+    return loadLocalOwnerAccessCodes();
+  }
+  const nextCodes = {};
+  (data || []).forEach((row) => { if (row.team && row.code) nextCodes[row.team] = row.code; });
+  localStorage.setItem("ownerPortalAccessCodes", JSON.stringify(nextCodes));
+  return nextCodes;
 }
 
 function getTeamFullName(team) {
@@ -173,13 +185,37 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
   const [accessCode, setAccessCode] = useState("");
   const [authorizedTeam, setAuthorizedTeam] = useState(() => localStorage.getItem("ownerPortalAuthorizedTeam") || "");
   const [error, setError] = useState("");
+  const [ownerAccessCodes, setOwnerAccessCodes] = useState(loadLocalOwnerAccessCodes);
+
+  React.useEffect(() => {
+    let isMounted = true;
+    async function refreshCodes(event) {
+      if (event && event.key !== "ownerPortalAccessCodes") return;
+      const codes = await loadRemoteOwnerAccessCodes();
+      if (isMounted) setOwnerAccessCodes(codes);
+    }
+    refreshCodes();
+    window.addEventListener("storage", refreshCodes);
+    window.addEventListener("focus", refreshCodes);
+    return () => {
+      isMounted = false;
+      window.removeEventListener("storage", refreshCodes);
+      window.removeEventListener("focus", refreshCodes);
+    };
+  }, []);
 
   const safeSelectedTeam = availableTeams.includes(selectedTeam) ? selectedTeam : availableTeams[0] || selectedTeam;
   const selected = useMemo(() => buildTeamFinancialRow(safeSelectedTeam, drivers, teams, raceHistory), [safeSelectedTeam, drivers, teams, raceHistory]);
   const isAuthorized = authorizedTeam === safeSelectedTeam;
 
-  function unlockTeam() {
-    const expected = String(ownerAccessCodes[safeSelectedTeam] || safeSelectedTeam).toUpperCase();
+  async function unlockTeam() {
+    const latestCodes = await loadRemoteOwnerAccessCodes();
+    setOwnerAccessCodes(latestCodes);
+    const expected = String(latestCodes[safeSelectedTeam] || ownerAccessCodes[safeSelectedTeam] || "").trim().toUpperCase();
+    if (!expected) {
+      setError("No owner code has been generated for this team yet. Contact league admin.");
+      return;
+    }
     if (String(accessCode).trim().toUpperCase() !== expected) {
       setError("Incorrect owner code for this team.");
       return;
@@ -248,7 +284,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
           </div>
           {!isAuthorized && (
             <div style={{ marginTop: 14, fontSize: 13, opacity: 0.75, lineHeight: 1.5 }}>
-              Owners only see the team they unlock. Current simple owner codes are the team abbreviations, like NLM, WSM, JAM, MER, MMS, or 19XI. You can replace this later with Supabase login.
+              Owners only see the team they unlock. Owner codes are generated and managed from the admin portal.
             </div>
           )}
           {error && <div style={{ marginTop: 12, color: "#f87171", fontWeight: 800 }}>{error}</div>}
