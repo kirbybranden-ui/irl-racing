@@ -1488,9 +1488,15 @@ export default function App() {
   const drivers = activeSeason?.drivers || [];
   const visibleDrivers = drivers.filter((d) => !isInactivePlaceholderDriver(d));
   const activeDrivers = visibleDrivers.filter((d) => !d.retired);
-  const ownerPortalTeams = Array.from(new Set(visibleDrivers.map((driver) => driver.team || "Independent")))
-    .filter((team) => team !== "Independent" && team !== "IND")
-    .sort((a, b) => getTeamFullName(a).localeCompare(getTeamFullName(b)));
+  const ownerPortalTeams = useMemo(() => {
+    const fixedTeams = ["JAM", "MER", "MMS", "NLM", "WSM", "19XI"];
+    const liveTeams = visibleDrivers
+      .map((driver) => driver.team || "Independent")
+      .filter((team) => team !== "Independent" && team !== "IND");
+    return Array.from(new Set([...fixedTeams, ...liveTeams]))
+      .filter(Boolean)
+      .sort((a, b) => getTeamFullName(a).localeCompare(getTeamFullName(b)));
+  }, [visibleDrivers]);
   const selectedRace = activeSeason?.selectedRace || "";
   const positions = activeSeason?.positions || {};
   const stage1 = activeSeason?.stage1 || {};
@@ -1805,7 +1811,12 @@ export default function App() {
       { team, code: newCode, active: true, updated_at: new Date().toISOString() },
       { onConflict: "team" }
     );
-    if (error) alert("Code generated locally, but Supabase save failed. Make sure owner_access_codes table exists.");
+    if (error) {
+      console.error("Owner code Supabase save failed:", error);
+      alert("Code generated on this admin browser, but Supabase save failed. Make sure the owner_access_codes table exists.");
+    } else {
+      alert(`Owner code generated for ${getTeamFullName(team)}: ${newCode}`);
+    }
   };
   const generateAllOwnerCodes = async () => {
     const nextCodes = { ...ownerAccessCodes };
@@ -1816,7 +1827,12 @@ export default function App() {
     });
     saveOwnerAccessCodes(nextCodes);
     const { error } = await supabase.from("owner_access_codes").upsert(rows, { onConflict: "team" });
-    if (error) alert("Codes generated locally, but Supabase save failed. Make sure owner_access_codes table exists.");
+    if (error) {
+      console.error("Owner codes Supabase save failed:", error);
+      alert("Codes generated on this admin browser, but Supabase save failed. Make sure the owner_access_codes table exists.");
+    } else {
+      alert("Owner codes generated for all teams.");
+    }
   };
   const clearOwnerCode = async (team) => {
     const nextCodes = { ...ownerAccessCodes };
