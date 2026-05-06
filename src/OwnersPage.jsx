@@ -48,6 +48,19 @@ const ownerNames = {
   IND: "Free Agent Pool",
 };
 
+const ownerAccessCodes = {
+  JAM: "JAM",
+  MER: "MER",
+  MMS: "MMS",
+  NLM: "NLM",
+  WSM: "WSM",
+  "19XI": "19XI",
+  "19XI Racing": "19XI",
+  BOM: "BOM",
+  Independent: "IND",
+  IND: "IND",
+};
+
 const startingBudgets = {
   JAM: 5000000,
   MER: 5000000,
@@ -62,10 +75,11 @@ const startingBudgets = {
 };
 
 const appShellStyle = { minHeight: "100vh", background: "radial-gradient(circle at top, #18202b 0%, #0d1117 38%, #090c11 100%)", color: "white", fontFamily: "Arial, sans-serif" };
-const pageContainerStyle = { maxWidth: 1420, margin: "0 auto", padding: 24 };
+const pageContainerStyle = { maxWidth: 1180, margin: "0 auto", padding: 24 };
 const sectionCardStyle = { background: "#171b22", border: "1px solid #2c3440", borderRadius: 18, padding: 20, marginBottom: 20, boxShadow: "0 8px 24px rgba(0,0,0,0.22)" };
 const primaryButtonStyle = { background: "#d4af37", color: "#111", border: "none", borderRadius: 10, padding: "10px 16px", fontWeight: 800, cursor: "pointer" };
 const secondaryButtonStyle = { background: "#2a3140", color: "white", border: "1px solid #3d4859", borderRadius: 10, padding: "10px 16px", fontWeight: 800, cursor: "pointer" };
+const inputStyle = { width: "100%", background: "#0f1319", color: "white", border: "1px solid #313947", borderRadius: 10, padding: "10px 12px", boxSizing: "border-box" };
 const thStyle = { textAlign: "left", padding: 10, borderBottom: "1px solid #313947", background: "#10141b", fontSize: 12, letterSpacing: 0.4 };
 const tdStyle = { padding: 10, borderBottom: "1px solid #252c38", verticalAlign: "top", fontSize: 13 };
 
@@ -75,7 +89,7 @@ function money(value) {
 }
 
 function getTeamFullName(team) {
-  return teamFullNames[team] || team;
+  return teamFullNames[team] || team || "Team";
 }
 
 function getFinishPay(finishPos) {
@@ -88,67 +102,108 @@ function getFinishPay(finishPos) {
   return 0;
 }
 
+function buildTeamFinancialRow(team, drivers, teams, raceHistory) {
+  const teamDrivers = drivers.filter((driver) => (driver.team || "Independent") === team);
+  const teamStanding = teams.find((standing) => standing.team === team) || {};
+  let raceIncome = 0;
+  let dnfCosts = 0;
+  let penaltyCosts = 0;
+  let starts = 0;
+  const raceRows = [];
+
+  raceHistory.forEach((race) => {
+    (race.results || []).forEach((result) => {
+      const driver = teamDrivers.find((item) => item.id === result.driverId);
+      if (!driver) return;
+      const payout = getFinishPay(result.finishPos);
+      const dnfCost = result.dnf ? 100000 : 0;
+      const penaltyCost = result.offense || Number(result.penaltyPoints) > 0 ? 25000 : 0;
+      starts += 1;
+      raceIncome += payout;
+      dnfCosts += dnfCost;
+      penaltyCosts += penaltyCost;
+      raceRows.push({
+        raceName: race.raceName,
+        driver,
+        finishPos: result.finishPos,
+        payout,
+        dnfCost,
+        penaltyCost,
+        net: payout - dnfCost - penaltyCost,
+      });
+    });
+  });
+
+  const allianceCosts = team === "19XI" || team === "19XI Racing" ? 50000 : 0;
+  const startingBudget = startingBudgets[team] ?? 5000000;
+  const totalCosts = dnfCosts + penaltyCosts + allianceCosts;
+  const netRevenue = raceIncome - totalCosts;
+  const projectedBudget = startingBudget + netRevenue;
+
+  return {
+    team,
+    owner: ownerNames[team] || `${getTeamFullName(team)} Owner`,
+    drivers: teamDrivers,
+    points: teamStanding.points || 0,
+    wins: teamStanding.wins || 0,
+    top3: teamStanding.top3 || 0,
+    top5: teamStanding.top5 || 0,
+    starts,
+    raceIncome,
+    dnfCosts,
+    penaltyCosts,
+    allianceCosts,
+    totalCosts,
+    startingBudget,
+    netRevenue,
+    projectedBudget,
+    raceRows,
+  };
+}
+
 export default function OwnersPage({ drivers = [], teams = [], raceHistory = [], seasonName = "" }) {
   const availableTeams = useMemo(() => {
     const teamSet = new Set(drivers.map((driver) => driver.team || "Independent"));
-    return Array.from(teamSet).sort((a, b) => getTeamFullName(a).localeCompare(getTeamFullName(b)));
+    return Array.from(teamSet)
+      .filter((team) => team !== "Independent" && team !== "IND")
+      .sort((a, b) => getTeamFullName(a).localeCompare(getTeamFullName(b)));
   }, [drivers]);
 
-  const [selectedTeam, setSelectedTeam] = useState(availableTeams[0] || "JAM");
+  const [selectedTeam, setSelectedTeam] = useState(() => localStorage.getItem("ownerPortalTeam") || availableTeams[0] || "JAM");
+  const [accessCode, setAccessCode] = useState("");
+  const [authorizedTeam, setAuthorizedTeam] = useState(() => localStorage.getItem("ownerPortalAuthorizedTeam") || "");
+  const [error, setError] = useState("");
 
-  const financialRows = useMemo(() => {
-    return availableTeams.map((team) => {
-      const teamDrivers = drivers.filter((driver) => (driver.team || "Independent") === team);
-      const teamStanding = teams.find((standing) => standing.team === team) || {};
-      let raceIncome = 0;
-      let dnfCosts = 0;
-      let penaltyCosts = 0;
-      let starts = 0;
+  const safeSelectedTeam = availableTeams.includes(selectedTeam) ? selectedTeam : availableTeams[0] || selectedTeam;
+  const selected = useMemo(() => buildTeamFinancialRow(safeSelectedTeam, drivers, teams, raceHistory), [safeSelectedTeam, drivers, teams, raceHistory]);
+  const isAuthorized = authorizedTeam === safeSelectedTeam;
 
-      raceHistory.forEach((race) => {
-        (race.results || []).forEach((result) => {
-          const driver = teamDrivers.find((item) => item.id === result.driverId);
-          if (!driver) return;
-          starts += 1;
-          raceIncome += getFinishPay(result.finishPos);
-          if (result.dnf) dnfCosts += 100000;
-          if (result.offense || Number(result.penaltyPoints) > 0) penaltyCosts += 25000;
-        });
-      });
+  function unlockTeam() {
+    const expected = String(ownerAccessCodes[safeSelectedTeam] || safeSelectedTeam).toUpperCase();
+    if (String(accessCode).trim().toUpperCase() !== expected) {
+      setError("Incorrect owner code for this team.");
+      return;
+    }
+    localStorage.setItem("ownerPortalTeam", safeSelectedTeam);
+    localStorage.setItem("ownerPortalAuthorizedTeam", safeSelectedTeam);
+    setAuthorizedTeam(safeSelectedTeam);
+    setError("");
+  }
 
-      const allianceCosts = team === "19XI" || team === "19XI Racing" ? 50000 : 0;
-      const startingBudget = startingBudgets[team] ?? 5000000;
-      const netRevenue = raceIncome - dnfCosts - penaltyCosts - allianceCosts;
-      const projectedBudget = startingBudget + netRevenue;
+  function switchTeam(team) {
+    setSelectedTeam(team);
+    setAccessCode("");
+    setError("");
+    localStorage.setItem("ownerPortalTeam", team);
+    if (authorizedTeam !== team) localStorage.removeItem("ownerPortalAuthorizedTeam");
+    if (authorizedTeam !== team) setAuthorizedTeam("");
+  }
 
-      return {
-        team,
-        owner: ownerNames[team] || `${getTeamFullName(team)} Owner`,
-        drivers: teamDrivers,
-        points: teamStanding.points || 0,
-        wins: teamStanding.wins || 0,
-        top3: teamStanding.top3 || 0,
-        top5: teamStanding.top5 || 0,
-        starts,
-        raceIncome,
-        dnfCosts,
-        penaltyCosts,
-        allianceCosts,
-        startingBudget,
-        netRevenue,
-        projectedBudget,
-      };
-    }).sort((a, b) => b.projectedBudget - a.projectedBudget || b.points - a.points);
-  }, [availableTeams, drivers, teams, raceHistory]);
-
-  const selected = financialRows.find((row) => row.team === selectedTeam) || financialRows[0];
-  const leagueTotals = financialRows.reduce((acc, row) => {
-    acc.budget += row.projectedBudget;
-    acc.income += row.raceIncome;
-    acc.costs += row.dnfCosts + row.penaltyCosts + row.allianceCosts;
-    acc.drivers += row.drivers.length;
-    return acc;
-  }, { budget: 0, income: 0, costs: 0, drivers: 0 });
+  function lockPortal() {
+    localStorage.removeItem("ownerPortalAuthorizedTeam");
+    setAuthorizedTeam("");
+    setAccessCode("");
+  }
 
   return (
     <div style={appShellStyle}>
@@ -159,160 +214,179 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
               <img src={logo} alt="League Logo" style={{ height: 58 }} />
               <div>
                 <div style={{ fontSize: 34, fontWeight: 900, lineHeight: 1 }}>Owners Portal</div>
-                <div style={{ opacity: 0.72, marginTop: 5 }}>{seasonName || "Active Season"} · Budweiser Cup League</div>
+                <div style={{ opacity: 0.72, marginTop: 5 }}>{seasonName || "Active Season"} · Private Team View</div>
               </div>
             </div>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <button onClick={() => (window.location.pathname = "/")} style={secondaryButtonStyle}>Admin</button>
               <button onClick={() => (window.location.pathname = "/standings")} style={primaryButtonStyle}>Standings</button>
+              {isAuthorized && <button onClick={lockPortal} style={secondaryButtonStyle}>Lock Team View</button>}
             </div>
           </div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14, marginBottom: 20 }}>
-          {[
-            { label: "LEAGUE BUDGET VALUE", value: money(leagueTotals.budget) },
-            { label: "RACE PAYOUTS EARNED", value: money(leagueTotals.income) },
-            { label: "TOTAL COSTS", value: money(leagueTotals.costs) },
-            { label: "ACTIVE DRIVERS", value: leagueTotals.drivers },
-          ].map((stat) => (
-            <div key={stat.label} style={{ background: "#131922", border: "1px solid #2d3643", borderRadius: 16, padding: 16 }}>
-              <div style={{ fontSize: 11, opacity: 0.65, marginBottom: 6 }}>{stat.label}</div>
-              <div style={{ fontSize: 24, fontWeight: 900 }}>{stat.value}</div>
+        <div style={{ ...sectionCardStyle, borderColor: isAuthorized ? "#d4af37" : "#3d4859" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16, alignItems: "end" }}>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>OWNER TEAM</div>
+              <select value={safeSelectedTeam} onChange={(event) => switchTeam(event.target.value)} style={inputStyle}>
+                {availableTeams.map((team) => <option key={team} value={team}>{getTeamFullName(team)}</option>)}
+              </select>
             </div>
-          ))}
+            {!isAuthorized && (
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>OWNER CODE</div>
+                <input
+                  value={accessCode}
+                  onChange={(event) => setAccessCode(event.target.value)}
+                  onKeyDown={(event) => { if (event.key === "Enter") unlockTeam(); }}
+                  placeholder={`Enter ${getTeamFullName(safeSelectedTeam)} owner code`}
+                  style={inputStyle}
+                />
+              </div>
+            )}
+            {!isAuthorized && <button onClick={unlockTeam} style={primaryButtonStyle}>Unlock My Team</button>}
+          </div>
+          {!isAuthorized && (
+            <div style={{ marginTop: 14, fontSize: 13, opacity: 0.75, lineHeight: 1.5 }}>
+              Owners only see the team they unlock. Current simple owner codes are the team abbreviations, like NLM, WSM, JAM, MER, MMS, or 19XI. You can replace this later with Supabase login.
+            </div>
+          )}
+          {error && <div style={{ marginTop: 12, color: "#f87171", fontWeight: 800 }}>{error}</div>}
         </div>
 
-        <div style={{ ...sectionCardStyle, borderColor: "#d4af37" }}>
-          <h2 style={{ marginTop: 0 }}>Team Owner View</h2>
-          <div style={{ display: "grid", gridTemplateColumns: "260px 1fr", gap: 18 }}>
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>SELECT TEAM</div>
-              <select value={selected?.team || selectedTeam} onChange={(event) => setSelectedTeam(event.target.value)} style={{ width: "100%", background: "#0f1319", color: "white", border: "1px solid #313947", borderRadius: 10, padding: "10px 12px" }}>
-                {financialRows.map((row) => <option key={row.team} value={row.team}>{getTeamFullName(row.team)}</option>)}
-              </select>
-              {selected && teamLogos[selected.team] && (
-                <div style={{ marginTop: 16, background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 16, textAlign: "center" }}>
-                  <img src={teamLogos[selected.team]} alt={selected.team} style={{ maxWidth: 130, maxHeight: 130, objectFit: "contain" }} />
+        {!isAuthorized ? (
+          <div style={{ ...sectionCardStyle, textAlign: "center", padding: 34 }}>
+            <div style={{ fontSize: 28, fontWeight: 900, marginBottom: 8 }}>Locked Owner View</div>
+            <div style={{ opacity: 0.72 }}>Unlock your team to view roster, budget, payouts, penalties, and race financials.</div>
+          </div>
+        ) : (
+          <>
+            <div style={{ ...sectionCardStyle, background: "linear-gradient(135deg, #171b22 0%, #10141b 100%)", borderColor: "#d4af37" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 18, flexWrap: "wrap", alignItems: "center" }}>
+                <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+                  {teamLogos[selected.team] && (
+                    <div style={{ width: 92, height: 92, background: "#0f1319", border: "1px solid #2c3440", borderRadius: 16, display: "flex", alignItems: "center", justifyContent: "center", padding: 10 }}>
+                      <img src={teamLogos[selected.team]} alt={selected.team} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
+                    </div>
+                  )}
+                  <div>
+                    <div style={{ fontSize: 32, fontWeight: 900 }}>{getTeamFullName(selected.team)}</div>
+                    <div style={{ opacity: 0.7, marginTop: 4 }}>Owner: {selected.owner}</div>
+                    <div style={{ opacity: 0.55, fontSize: 12, marginTop: 4 }}>Only this team’s information is shown.</div>
+                  </div>
                 </div>
-              )}
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontSize: 11, opacity: 0.65 }}>PROJECTED TEAM BUDGET</div>
+                  <div style={{ fontSize: 34, fontWeight: 900, color: selected.projectedBudget >= selected.startingBudget ? "#4ade80" : "#f87171" }}>{money(selected.projectedBudget)}</div>
+                </div>
+              </div>
             </div>
 
-            {selected && (
-              <div>
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", marginBottom: 14 }}>
-                  <div>
-                    <div style={{ fontSize: 28, fontWeight: 900 }}>{getTeamFullName(selected.team)}</div>
-                    <div style={{ opacity: 0.7, marginTop: 4 }}>Owner: {selected.owner}</div>
-                  </div>
-                  <div style={{ textAlign: "right" }}>
-                    <div style={{ fontSize: 11, opacity: 0.65 }}>PROJECTED TEAM BUDGET</div>
-                    <div style={{ fontSize: 30, fontWeight: 900, color: selected.projectedBudget >= selected.startingBudget ? "#4ade80" : "#f87171" }}>{money(selected.projectedBudget)}</div>
-                  </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 12, marginBottom: 20 }}>
+              {[
+                { label: "Starting Budget", value: money(selected.startingBudget) },
+                { label: "Race Income", value: money(selected.raceIncome) },
+                { label: "DNF Costs", value: money(selected.dnfCosts) },
+                { label: "Penalty Costs", value: money(selected.penaltyCosts) },
+                { label: "Alliance Cost", value: money(selected.allianceCosts) },
+                { label: "Net", value: money(selected.netRevenue), good: selected.netRevenue >= 0 },
+                { label: "Team Points", value: selected.points },
+                { label: "Team Wins", value: selected.wins },
+              ].map((stat) => (
+                <div key={stat.label} style={{ background: "#131922", border: "1px solid #2d3643", borderRadius: 16, padding: 16 }}>
+                  <div style={{ fontSize: 11, opacity: 0.65, marginBottom: 6 }}>{stat.label}</div>
+                  <div style={{ fontSize: 22, fontWeight: 900, color: stat.good === undefined ? "white" : stat.good ? "#4ade80" : "#f87171" }}>{stat.value}</div>
                 </div>
+              ))}
+            </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, marginBottom: 16 }}>
-                  {[
-                    { label: "Points", value: selected.points },
-                    { label: "Wins", value: selected.wins },
-                    { label: "Race Income", value: money(selected.raceIncome) },
-                    { label: "DNF Costs", value: money(selected.dnfCosts) },
-                    { label: "Penalty Costs", value: money(selected.penaltyCosts) },
-                    { label: "Alliance Cost", value: money(selected.allianceCosts) },
-                  ].map((stat) => (
-                    <div key={stat.label} style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 12 }}>
-                      <div style={{ fontSize: 11, opacity: 0.65, marginBottom: 4 }}>{stat.label}</div>
-                      <div style={{ fontSize: 18, fontWeight: 900 }}>{stat.value}</div>
-                    </div>
-                  ))}
-                </div>
+            <div style={sectionCardStyle}>
+              <h2 style={{ marginTop: 0 }}>My Team Roster</h2>
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr>
+                      <th style={thStyle}>#</th>
+                      <th style={thStyle}>Driver</th>
+                      <th style={thStyle}>Manufacturer</th>
+                      <th style={thStyle}>Points</th>
+                      <th style={thStyle}>Wins</th>
+                      <th style={thStyle}>Top 3</th>
+                      <th style={thStyle}>Top 5</th>
+                      <th style={thStyle}>DNFs</th>
+                      <th style={thStyle}>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selected.drivers.map((driver) => (
+                      <tr key={driver.id} onClick={() => (window.location.pathname = `/driver/${driver.number}`)} style={{ cursor: "pointer" }}>
+                        <td style={tdStyle}>#{driver.number}</td>
+                        <td style={{ ...tdStyle, fontWeight: 800 }}>{driver.name}</td>
+                        <td style={tdStyle}>{driver.manufacturer || "—"}</td>
+                        <td style={tdStyle}>{driver.points || 0}</td>
+                        <td style={tdStyle}>{driver.wins || 0}</td>
+                        <td style={tdStyle}>{driver.top3 || 0}</td>
+                        <td style={tdStyle}>{driver.top5 || 0}</td>
+                        <td style={tdStyle}>{driver.dnfs || 0}</td>
+                        <td style={tdStyle}>{driver.retired ? "Retired" : "Active"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
 
-                <h3 style={{ marginBottom: 10 }}>Driver Contracts / Roster</h3>
+            <div style={sectionCardStyle}>
+              <h2 style={{ marginTop: 0 }}>My Race Financials</h2>
+              {selected.raceRows.length === 0 ? (
+                <div style={{ opacity: 0.72 }}>No race financial data yet for {getTeamFullName(selected.team)}.</div>
+              ) : (
                 <div style={{ overflowX: "auto" }}>
                   <table style={{ width: "100%", borderCollapse: "collapse" }}>
                     <thead>
                       <tr>
-                        <th style={thStyle}>#</th>
+                        <th style={thStyle}>Race</th>
                         <th style={thStyle}>Driver</th>
-                        <th style={thStyle}>Manufacturer</th>
-                        <th style={thStyle}>Points</th>
-                        <th style={thStyle}>Wins</th>
-                        <th style={thStyle}>Top 3</th>
-                        <th style={thStyle}>Top 5</th>
-                        <th style={thStyle}>Status</th>
+                        <th style={thStyle}>Finish</th>
+                        <th style={thStyle}>Payout</th>
+                        <th style={thStyle}>DNF Cost</th>
+                        <th style={thStyle}>Penalty Cost</th>
+                        <th style={thStyle}>Net</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {selected.drivers.map((driver) => (
-                        <tr key={driver.id} onClick={() => (window.location.pathname = `/driver/${driver.number}`)} style={{ cursor: "pointer" }}>
-                          <td style={tdStyle}>#{driver.number}</td>
-                          <td style={{ ...tdStyle, fontWeight: 800 }}>{driver.name}</td>
-                          <td style={tdStyle}>{driver.manufacturer || "—"}</td>
-                          <td style={tdStyle}>{driver.points || 0}</td>
-                          <td style={tdStyle}>{driver.wins || 0}</td>
-                          <td style={tdStyle}>{driver.top3 || 0}</td>
-                          <td style={tdStyle}>{driver.top5 || 0}</td>
-                          <td style={tdStyle}>{driver.retired ? "Retired" : "Active"}</td>
+                      {selected.raceRows.map((row, index) => (
+                        <tr key={`${row.raceName}-${row.driver.id}-${index}`}>
+                          <td style={tdStyle}>{row.raceName}</td>
+                          <td style={{ ...tdStyle, fontWeight: 800 }}>#{row.driver.number} {row.driver.name}</td>
+                          <td style={tdStyle}>P{row.finishPos || "—"}</td>
+                          <td style={tdStyle}>{money(row.payout)}</td>
+                          <td style={{ ...tdStyle, color: row.dnfCost ? "#f87171" : "inherit" }}>{row.dnfCost ? money(row.dnfCost) : "—"}</td>
+                          <td style={{ ...tdStyle, color: row.penaltyCost ? "#f87171" : "inherit" }}>{row.penaltyCost ? money(row.penaltyCost) : "—"}</td>
+                          <td style={{ ...tdStyle, fontWeight: 900, color: row.net >= 0 ? "#4ade80" : "#f87171" }}>{money(row.net)}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
+              )}
+            </div>
+
+            <div style={sectionCardStyle}>
+              <h2 style={{ marginTop: 0 }}>My Team Finance Rules</h2>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10 }}>
+                <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 12 }}>🏆 Win payout: <strong>{money(250000)}</strong></div>
+                <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 12 }}>🥉 Top 3 payout: <strong>{money(100000)}</strong></div>
+                <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 12 }}>🔥 Top 5 payout: <strong>{money(75000)}</strong></div>
+                <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 12 }}>✅ Top 10 payout: <strong>{money(25000)}</strong></div>
+                <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 12 }}>🏁 Other finishers: <strong>{money(10000)}</strong></div>
+                <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 12 }}>💥 DNF cost: <strong>{money(100000)}</strong></div>
+                <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 12 }}>🚨 Penalty cost: <strong>{money(25000)}</strong></div>
+                <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 12 }}>🤝 19XI alliance cost: <strong>{money(50000)}</strong></div>
               </div>
-            )}
-          </div>
-        </div>
-
-        <div style={sectionCardStyle}>
-          <h2 style={{ marginTop: 0 }}>Owner Financial Standings</h2>
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead>
-                <tr>
-                  <th style={thStyle}>Rank</th>
-                  <th style={thStyle}>Team</th>
-                  <th style={thStyle}>Drivers</th>
-                  <th style={thStyle}>Race Income</th>
-                  <th style={thStyle}>Costs</th>
-                  <th style={thStyle}>Net</th>
-                  <th style={thStyle}>Projected Budget</th>
-                  <th style={thStyle}>Points</th>
-                </tr>
-              </thead>
-              <tbody>
-                {financialRows.map((row, index) => {
-                  const costs = row.dnfCosts + row.penaltyCosts + row.allianceCosts;
-                  return (
-                    <tr key={row.team} onClick={() => setSelectedTeam(row.team)} style={{ cursor: "pointer" }}>
-                      <td style={tdStyle}>{index + 1}</td>
-                      <td style={{ ...tdStyle, fontWeight: 900 }}>{getTeamFullName(row.team)}</td>
-                      <td style={tdStyle}>{row.drivers.length}</td>
-                      <td style={tdStyle}>{money(row.raceIncome)}</td>
-                      <td style={{ ...tdStyle, color: costs > 0 ? "#f87171" : "inherit" }}>{money(costs)}</td>
-                      <td style={{ ...tdStyle, color: row.netRevenue >= 0 ? "#4ade80" : "#f87171", fontWeight: 800 }}>{money(row.netRevenue)}</td>
-                      <td style={{ ...tdStyle, fontWeight: 900 }}>{money(row.projectedBudget)}</td>
-                      <td style={tdStyle}>{row.points}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div style={sectionCardStyle}>
-          <h2 style={{ marginTop: 0 }}>League Finance Rules</h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10 }}>
-            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 12 }}>🏆 Win payout: <strong>{money(250000)}</strong></div>
-            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 12 }}>🥉 Top 3 payout: <strong>{money(100000)}</strong></div>
-            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 12 }}>🔥 Top 5 payout: <strong>{money(75000)}</strong></div>
-            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 12 }}>✅ Top 10 payout: <strong>{money(25000)}</strong></div>
-            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 12 }}>🏁 Other finishers: <strong>{money(10000)}</strong></div>
-            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 12 }}>💥 DNF cost: <strong>{money(100000)}</strong></div>
-            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 12 }}>🚨 Penalty cost: <strong>{money(25000)}</strong></div>
-            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 12 }}>🤝 Technical alliance: <strong>{money(50000)}</strong></div>
-          </div>
-        </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
