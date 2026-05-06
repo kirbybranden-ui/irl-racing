@@ -1471,6 +1471,14 @@ export default function App() {
   const [videoTitle, setVideoTitle] = useState("");
   const [videoDescription, setVideoDescription] = useState("");
   const [videoUploading, setVideoUploading] = useState(false);
+  const [ownerAccessCodes, setOwnerAccessCodes] = useState(() => {
+    try {
+      const saved = localStorage.getItem("ownerPortalAccessCodes");
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
   const videoFileInputRef = useRef(null);
   const importFileRef = useRef(null);
   const rawPath = window.location.pathname;
@@ -1480,6 +1488,9 @@ export default function App() {
   const drivers = activeSeason?.drivers || [];
   const visibleDrivers = drivers.filter((d) => !isInactivePlaceholderDriver(d));
   const activeDrivers = visibleDrivers.filter((d) => !d.retired);
+  const ownerPortalTeams = Array.from(new Set(visibleDrivers.map((driver) => driver.team || "Independent")))
+    .filter((team) => team !== "Independent" && team !== "IND")
+    .sort((a, b) => getTeamFullName(a).localeCompare(getTeamFullName(b)));
   const selectedRace = activeSeason?.selectedRace || "";
   const positions = activeSeason?.positions || {};
   const stage1 = activeSeason?.stage1 || {};
@@ -1585,6 +1596,10 @@ export default function App() {
       setFeaturedVideo(data || null);
     }
     loadFeaturedVideo();
+  }, []);
+
+  useEffect(() => {
+    loadOwnerAccessCodes();
   }, []);
 
   const loadManualWatchPicks = async () => {
@@ -1760,6 +1775,70 @@ export default function App() {
   const currentLeader = sortedDrivers[0] || null;
   const latestRace = raceHistory.length > 0 ? raceHistory[raceHistory.length - 1] : null;
   const latestWinner = latestRace?.results?.find((r) => r.finishPos === 1) || null;
+  const saveOwnerAccessCodes = (nextCodes) => {
+    setOwnerAccessCodes(nextCodes);
+    localStorage.setItem("ownerPortalAccessCodes", JSON.stringify(nextCodes));
+  };
+  const loadOwnerAccessCodes = async () => {
+    const { data, error } = await supabase
+      .from("owner_access_codes")
+      .select("team, code, active")
+      .eq("active", true);
+    if (error) {
+      console.error("Failed to load owner access codes:", error);
+      return;
+    }
+    const nextCodes = {};
+    (data || []).forEach((row) => { if (row.team && row.code) nextCodes[row.team] = row.code; });
+    saveOwnerAccessCodes(nextCodes);
+  };
+  const createOwnerCode = (team) => {
+    const prefix = String(team || "TEAM").replace(/[^A-Z0-9]/gi, "").toUpperCase() || "TEAM";
+    const randomPart = Math.random().toString(36).slice(2, 8).toUpperCase();
+    return `${prefix}-${randomPart}`;
+  };
+  const generateOwnerCode = async (team) => {
+    const newCode = createOwnerCode(team);
+    const nextCodes = { ...ownerAccessCodes, [team]: newCode };
+    saveOwnerAccessCodes(nextCodes);
+    const { error } = await supabase.from("owner_access_codes").upsert(
+      { team, code: newCode, active: true, updated_at: new Date().toISOString() },
+      { onConflict: "team" }
+    );
+    if (error) alert("Code generated locally, but Supabase save failed. Make sure owner_access_codes table exists.");
+  };
+  const generateAllOwnerCodes = async () => {
+    const nextCodes = { ...ownerAccessCodes };
+    const rows = ownerPortalTeams.map((team) => {
+      const code = createOwnerCode(team);
+      nextCodes[team] = code;
+      return { team, code, active: true, updated_at: new Date().toISOString() };
+    });
+    saveOwnerAccessCodes(nextCodes);
+    const { error } = await supabase.from("owner_access_codes").upsert(rows, { onConflict: "team" });
+    if (error) alert("Codes generated locally, but Supabase save failed. Make sure owner_access_codes table exists.");
+  };
+  const clearOwnerCode = async (team) => {
+    const nextCodes = { ...ownerAccessCodes };
+    delete nextCodes[team];
+    saveOwnerAccessCodes(nextCodes);
+    const { error } = await supabase
+      .from("owner_access_codes")
+      .update({ active: false, updated_at: new Date().toISOString() })
+      .eq("team", team);
+    if (error) console.error("Failed to clear owner code:", error);
+  };
+  const copyOwnerCode = async (team) => {
+    const code = ownerAccessCodes[team];
+    if (!code) return;
+    const message = `${getTeamFullName(team)} owner portal: go to /owners, select ${getTeamFullName(team)}, and use code ${code}`;
+    try {
+      await navigator.clipboard.writeText(message);
+      alert("Owner code copied.");
+    } catch {
+      alert(message);
+    }
+  };
   const applyStartingPointsAdjustments = () => {
     if (!activeSeason) return;
     const updatedRoster = drivers.map((d) => { const v = Number(startingPointsInputs[d.id]); return { id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer || "", team: d.team, startingPoints: Number.isNaN(v) ? 0 : v, manualWins: Number(d.manualWins) || 0 }; });
@@ -2161,6 +2240,49 @@ export default function App() {
             </div>
           ))}
         </div>
+        {/* Owner Access Code Manager */}
+        <div style={sectionCardStyle}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap", marginBottom: 14 }}>
+            <div>
+              <h2 style={{ margin: 0 }}>💼 Owner Portal Access</h2>
+              <div style={{ fontSize: 13, opacity: 0.7, marginTop: 6 }}>Admin sees all owner codes here. Owners use these codes on /owners and only unlock their own team view.</div>
+            </div>
+            <button onClick={generateAllOwnerCodes} style={primaryButtonStyle}>Generate Codes for All Teams</button>
+          </div>
+          <div style={{ overflowX: "auto" }}>
+            <table style={tableStyle}>
+              <thead>
+                <tr>
+                  <th style={thStyle}>Team</th>
+                  <th style={thStyle}>Owner Code</th>
+                  <th style={thStyle}>Drivers</th>
+                  <th style={thStyle}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ownerPortalTeams.map((team) => {
+                  const teamDrivers = visibleDrivers.filter((driver) => driver.team === team);
+                  const code = ownerAccessCodes[team] || "";
+                  return (
+                    <tr key={team}>
+                      <td style={{ ...tdStyle, fontWeight: 900 }}>{getTeamFullName(team)}</td>
+                      <td style={{ ...tdStyle, fontFamily: "monospace", fontWeight: 900, color: code ? "#d4af37" : "#f87171" }}>{code || "Not generated"}</td>
+                      <td style={tdStyle}>{teamDrivers.map((driver) => `#${driver.number} ${driver.name}`).join(", ") || "—"}</td>
+                      <td style={tdStyle}>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          <button onClick={() => generateOwnerCode(team)} style={secondaryButtonStyle}>{code ? "Regenerate" : "Generate"}</button>
+                          <button onClick={() => copyOwnerCode(team)} disabled={!code} style={{ ...secondaryButtonStyle, opacity: code ? 1 : 0.45 }}>Copy</button>
+                          <button onClick={() => clearOwnerCode(team)} disabled={!code} style={{ ...dangerButtonStyle, opacity: code ? 1 : 0.45 }}>Clear</button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         {/* Ones to Watch Manager */}
         <div style={sectionCardStyle}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap", marginBottom: 14 }}>
