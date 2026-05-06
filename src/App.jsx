@@ -25,6 +25,7 @@ import InterviewsPage from "./InterviewsPage";
 import NewsPage from "./NewsPage";
 import NotificationsPage from "./NotificationsPage";
 import StreamPage from "./pages/StreamPage";
+import OwnersPage from "./OwnersPage";
 // Team logos
 const teamLogos = {
   "JA MOTORSPORTS": teamLogoJAM,
@@ -924,6 +925,7 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
               </div>
               <button onClick={() => (window.location.pathname = "/streams")} style={{ background: "#9146ff", color: "white", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>📡 Streams</button>
               <button onClick={() => (window.location.pathname = "/news")} style={{ background: "#d4af37", color: "#111", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>📰 News</button>
+              <button onClick={() => (window.location.pathname = "/owners")} style={{ background: "#0f766e", color: "white", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>💼 Owners</button>
               <button onClick={() => (window.location.pathname = "/submit-story")} style={{ background: "#16a34a", color: "white", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>✍️ Add Story</button>
               <button onClick={() => (window.location.pathname = "/notifications")} style={{ background: "#222936", color: "white", border: "1px solid #3a4453", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>🔔 Notifications</button>
 </div> {/* ✅ CLOSE BUTTON ROW */}
@@ -1516,7 +1518,7 @@ export default function App() {
     hydrateFromSupabase();
     let interval = null;
     // Poll every 3s on live pages so stats stay current without a manual refresh
-    if (path === "/standings" || path.startsWith("/driver/") || path.startsWith("/team/") || path.startsWith("/manufacturer/") || path === "/overlay/drivers" || path === "/overlay/teams" || path === "/overlay/ticker") {
+    if (path === "/standings" || path === "/owners" || path.startsWith("/driver/") || path.startsWith("/team/") || path.startsWith("/manufacturer/") || path === "/overlay/drivers" || path === "/overlay/teams" || path === "/overlay/ticker") {
       interval = setInterval(hydrateFromSupabase, 3000);
     }
     return () => { isMounted = false; if (interval) clearInterval(interval); };
@@ -2078,6 +2080,7 @@ export default function App() {
       </>
     );
   }
+  if (path === "/owners") return <OwnersPage drivers={visibleDrivers} teams={teamStandings} raceHistory={raceHistory} seasonName={activeSeason?.name || ""} />;
   if (path === "/standings") return <PublicStandings drivers={visibleDrivers} teams={teamStandings} manufacturerStandings={manufacturerStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} />;
   if (path === "/overlay/ticker" || viewMode === "overlay-ticker") return <TickerOverlay drivers={visibleDrivers} teams={teamStandings} raceHistory={raceHistory} preview={viewMode === "overlay-ticker"} seasonName={activeSeason?.name || ""} />;
   return (
@@ -2101,6 +2104,9 @@ export default function App() {
               ))}
               <button onClick={() => (window.location.pathname = "/standings")} style={headerButtonStyle}>
                 Standings
+              </button>
+              <button onClick={() => (window.location.pathname = "/owners")} style={headerButtonStyle}>
+                💼 Owners
               </button>
               <button onClick={() => (window.location.pathname = "/streams")} style={headerButtonStyle}>
                 🎮 Streams
