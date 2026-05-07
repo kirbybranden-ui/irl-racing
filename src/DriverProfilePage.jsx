@@ -44,6 +44,41 @@ function getTeamFullName(teamAbbr) {
   return teamFullNames[teamAbbr] || teamAbbr;
 }
 
+function money(value) {
+  const safe = Number(value) || 0;
+  return safe.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+}
+
+function loadLocalDriverAccessCodes() {
+  try {
+    const saved = localStorage.getItem("driverProfileAccessCodes");
+    return saved ? JSON.parse(saved) : {};
+  } catch {
+    return {};
+  }
+}
+
+async function loadRemoteDriverAccessCodes() {
+  const { data, error } = await supabase
+    .from("driver_access_codes")
+    .select("driver_number, driver_name, code, active")
+    .eq("active", true);
+
+  if (error) {
+    console.error("Failed to load driver access codes:", error);
+    return loadLocalDriverAccessCodes();
+  }
+
+  const nextCodes = {};
+  (data || []).forEach((row) => {
+    if (row.driver_number && row.code) nextCodes[String(row.driver_number)] = row.code;
+    if (row.driver_name && row.code) nextCodes[String(row.driver_name).toLowerCase()] = row.code;
+  });
+
+  localStorage.setItem("driverProfileAccessCodes", JSON.stringify(nextCodes));
+  return nextCodes;
+}
+
 const appShellStyle = { minHeight: "100vh", background: "#0c0f14", color: "white", fontFamily: "Arial, sans-serif" };
 const pageContainerStyle = { maxWidth: 1000, margin: "0 auto", padding: 20 };
 const sectionCardStyle = { background: "#171b22", border: "1px solid #2c3440", borderRadius: 16, padding: 20, marginBottom: 20, boxShadow: "0 8px 24px rgba(0,0,0,0.22)" };
@@ -322,6 +357,15 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
   const carFileInputRef = useRef(null);
   const [interviews, setInterviews] = useState([]);
   const interviewInitRef = useRef(false);
+  const [contractOffers, setContractOffers] = useState([]);
+  const [contractLoading, setContractLoading] = useState(false);
+  const [contractError, setContractError] = useState("");
+  const [driverAccessCodeInput, setDriverAccessCodeInput] = useState("");
+  const [driverAccessCodes, setDriverAccessCodes] = useState(loadLocalDriverAccessCodes);
+  const [authorizedDriverNumber, setAuthorizedDriverNumber] = useState(() => localStorage.getItem("driverProfileAuthorizedNumber") || "");
+
+  const driverAccessKey = driver ? String(driver.number) : String(driverNumber);
+  const isDriverAuthorized = authorizedDriverNumber === driverAccessKey;
 
   // Load all appeals for this driver - poll every 5s so admin decisions show up live
   useEffect(() => {
@@ -384,6 +428,173 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
       alert("Failed to delete upload.");
     }
   };
+
+  // ── Driver Access Codes ────────────────────────────────────────────────
+  useEffect(() => {
+    let isMounted = true;
+
+    async function refreshDriverCodes(event) {
+      if (event && event.key !== "driverProfileAccessCodes") return;
+      const codes = await loadRemoteDriverAccessCodes();
+      if (isMounted) setDriverAccessCodes(codes);
+    }
+
+    refreshDriverCodes();
+    window.addEventListener("storage", refreshDriverCodes);
+    window.addEventListener("focus", refreshDriverCodes);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener("storage", refreshDriverCodes);
+      window.removeEventListener("focus", refreshDriverCodes);
+    };
+  }, []);
+
+  async function unlockDriverContracts() {
+    const latestCodes = await loadRemoteDriverAccessCodes();
+    setDriverAccessCodes(latestCodes);
+
+    const expectedByNumber = String(latestCodes[driverAccessKey] || driverAccessCodes[driverAccessKey] || "").trim().toUpperCase();
+    const expectedByName = String(driver?.name ? (latestCodes[String(driver.name).toLowerCase()] || driverAccessCodes[String(driver.name).toLowerCase()] || "") : "").trim().toUpperCase();
+    const expected = expectedByNumber || expectedByName;
+
+    if (!expected) {
+      setContractError("No driver access code has been generated for this driver yet. Contact league admin.");
+      return;
+    }
+
+    if (String(driverAccessCodeInput).trim().toUpperCase() !== expected) {
+      setContractError("Incorrect driver access code.");
+      return;
+    }
+
+    localStorage.setItem("driverProfileAuthorizedNumber", driverAccessKey);
+    setAuthorizedDriverNumber(driverAccessKey);
+    setDriverAccessCodeInput("");
+    setContractError("");
+  }
+
+  function lockDriverContracts() {
+    localStorage.removeItem("driverProfileAuthorizedNumber");
+    setAuthorizedDriverNumber("");
+    setDriverAccessCodeInput("");
+    setContractOffers([]);
+  }
+
+  // ── Load Contract Offers ────────────────────────────────────────────────
+  useEffect(() => {
+    if (!driver?.name || !isDriverAuthorized) {
+      setContractOffers([]);
+      return;
+    }
+
+    async function loadContractOffers() {
+      setContractLoading(true);
+      const { data, error } = await supabase
+        .from("contract_offers")
+        .select("*")
+        .eq("driver_name", driver.name)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Failed to load contract offers:", error);
+        setContractError("Could not load contract offers. Check contract_offers RLS select policy.");
+        setContractLoading(false);
+        return;
+      }
+
+      setContractOffers(data || []);
+      setContractLoading(false);
+    }
+
+    loadContractOffers();
+    const interval = setInterval(loadContractOffers, 5000);
+    return () => clearInterval(interval);
+  }, [driver?.name, isDriverAuthorized]);
+
+  async function updateOfferStatus(id, status) {
+    const { error } = await supabase
+      .from("contract_offers")
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq("id", id);
+
+    if (error) {
+      console.error(error);
+      alert("Failed to update contract offer. Check contract_offers RLS update policy.");
+      return false;
+    }
+
+    setContractOffers((prev) => prev.map((offer) => offer.id === id ? { ...offer, status } : offer));
+    return true;
+  }
+
+  async function acceptContractOffer(offer) {
+    if (!window.confirm(`Accept contract from ${offer.team} for ${money(offer.salary)} salary and ${money(offer.signing_bonus)} signing bonus?`)) return;
+
+    const totalCost = Number(offer.salary || 0) + Number(offer.signing_bonus || 0);
+
+    const { data: financeRow, error: financeLoadError } = await supabase
+      .from("team_finances")
+      .select("*")
+      .eq("team", offer.team)
+      .maybeSingle();
+
+    if (financeLoadError) {
+      console.error(financeLoadError);
+      alert("Could not load team finances. Contract was not accepted.");
+      return;
+    }
+
+    if (financeRow && Number(financeRow.balance || 0) < totalCost) {
+      alert("This team does not have enough available balance to fund the accepted contract.");
+      return;
+    }
+
+    const accepted = await updateOfferStatus(offer.id, "Accepted");
+    if (!accepted) return;
+
+    if (financeRow) {
+      const nextBalance = Number(financeRow.balance || 0) - totalCost;
+      const nextPayroll = Number(financeRow.payroll_spent || 0) + Number(offer.salary || 0);
+      const nextBonusSpent = Number(financeRow.signing_bonus_spent || 0) + Number(offer.signing_bonus || 0);
+
+      const { error: financeUpdateError } = await supabase
+        .from("team_finances")
+        .update({
+          balance: nextBalance,
+          payroll_spent: nextPayroll,
+          signing_bonus_spent: nextBonusSpent,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", financeRow.id);
+
+      if (financeUpdateError) {
+        console.error(financeUpdateError);
+        alert("Contract accepted, but team finances were not updated. Check team_finances RLS update policy.");
+      }
+    }
+
+    await supabase
+      .from("contract_offers")
+      .update({ status: "Declined", updated_at: new Date().toISOString() })
+      .eq("driver_name", driver.name)
+      .eq("status", "Pending")
+      .neq("id", offer.id);
+
+    setContractOffers((prev) => prev.map((item) => {
+      if (item.id === offer.id) return { ...item, status: "Accepted" };
+      if (item.status === "Pending") return { ...item, status: "Declined" };
+      return item;
+    }));
+
+    alert("Contract accepted. Salary and signing bonus have been charged to the team account.");
+  }
+
+  async function declineContractOffer(offer) {
+    if (!window.confirm(`Decline contract offer from ${offer.team}?`)) return;
+    const declined = await updateOfferStatus(offer.id, "Declined");
+    if (declined) alert("Contract offer declined.");
+  }
 
   // ── Load interviews for this driver ──────────────────────────────────────
   useEffect(() => {
@@ -710,6 +921,132 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
               <div style={{ fontSize: 24, fontWeight: 800 }}>{stat.value}</div>
             </div>
           ))}
+        </div>
+
+        {/* ── Contract Offers / Driver Lock ─────────────────────────────── */}
+        <div style={{ ...sectionCardStyle, borderColor: isDriverAuthorized ? "#d4af37" : "#2c3440" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
+            <div>
+              <h2 style={{ margin: 0 }}>📄 Contract Offers</h2>
+              <div style={{ fontSize: 13, opacity: 0.65, marginTop: 4 }}>
+                Driver-only contract inbox. Unlock to review, accept, or decline offers.
+              </div>
+            </div>
+            {isDriverAuthorized && (
+              <button onClick={lockDriverContracts} style={secondaryButtonStyle}>Lock Contracts</button>
+            )}
+          </div>
+
+          {!isDriverAuthorized ? (
+            <div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, alignItems: "end" }}>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>DRIVER CODE</div>
+                  <input
+                    value={driverAccessCodeInput}
+                    onChange={(event) => setDriverAccessCodeInput(event.target.value)}
+                    onKeyDown={(event) => { if (event.key === "Enter") unlockDriverContracts(); }}
+                    placeholder={`Enter #${driver.number} driver code`}
+                    style={inputStyle}
+                  />
+                </div>
+                <button onClick={unlockDriverContracts} style={primaryButtonStyle}>Unlock My Contracts</button>
+              </div>
+
+              <div style={{ marginTop: 12, fontSize: 13, opacity: 0.65, lineHeight: 1.5 }}>
+                Contract offers are hidden until this driver unlocks the inbox with their private driver code.
+              </div>
+
+              {contractError && (
+                <div style={{ marginTop: 12, color: "#f87171", fontWeight: 800 }}>{contractError}</div>
+              )}
+            </div>
+          ) : contractLoading ? (
+            <div style={{ opacity: 0.7 }}>Loading contract offers...</div>
+          ) : contractOffers.length === 0 ? (
+            <div style={{ opacity: 0.7 }}>No contract offers currently available for #{driver.number} {driver.name}.</div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              {contractOffers.map((offer) => (
+                <div key={offer.id} style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 18 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 10 }}>
+                    <div>
+                      <div style={{ fontSize: 20, fontWeight: 900 }}>{offer.team}</div>
+                      <div style={{ fontSize: 12, opacity: 0.65 }}>{offer.brand_style || "Balanced"}</div>
+                    </div>
+                    <div style={{
+                      background: offer.status === "Accepted" ? "#14532d" : offer.status === "Declined" ? "#7f1d1d" : offer.status === "Withdrawn" ? "#3f3f46" : "#1e3a8a",
+                      padding: "4px 12px",
+                      borderRadius: 8,
+                      fontWeight: 800,
+                      fontSize: 12,
+                    }}>
+                      {offer.status}
+                    </div>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(165px, 1fr))", gap: 12, marginBottom: 14 }}>
+                    <div>
+                      <div style={{ opacity: 0.6, fontSize: 11 }}>SALARY</div>
+                      <div style={{ fontWeight: 900, color: "#d4af37" }}>{money(offer.salary)}</div>
+                    </div>
+                    <div>
+                      <div style={{ opacity: 0.6, fontSize: 11 }}>SIGNING BONUS</div>
+                      <div style={{ fontWeight: 900 }}>{money(offer.signing_bonus)}</div>
+                    </div>
+                    <div>
+                      <div style={{ opacity: 0.6, fontSize: 11 }}>CONTRACT LENGTH</div>
+                      <div style={{ fontWeight: 900 }}>{offer.contract_length || 1} season(s)</div>
+                    </div>
+                    <div>
+                      <div style={{ opacity: 0.6, fontSize: 11 }}>BUYOUT</div>
+                      <div style={{ fontWeight: 900 }}>{money(offer.buyout_amount)}</div>
+                    </div>
+                    <div>
+                      <div style={{ opacity: 0.6, fontSize: 11 }}>WIN BONUS</div>
+                      <div style={{ fontWeight: 900 }}>{money(offer.win_bonus)}</div>
+                    </div>
+                    <div>
+                      <div style={{ opacity: 0.6, fontSize: 11 }}>CHAMPIONSHIP BONUS</div>
+                      <div style={{ fontWeight: 900 }}>{money(offer.championship_bonus)}</div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
+                    {offer.no_trade_clause && <span style={{ background: "#171b22", border: "1px solid #2c3440", borderRadius: 999, padding: "5px 10px", fontSize: 12 }}>No-trade clause</span>}
+                    {offer.team_option && <span style={{ background: "#171b22", border: "1px solid #2c3440", borderRadius: 999, padding: "5px 10px", fontSize: 12 }}>Team option</span>}
+                    {offer.mutual_option && <span style={{ background: "#171b22", border: "1px solid #2c3440", borderRadius: 999, padding: "5px 10px", fontSize: 12 }}>Mutual option</span>}
+                    {offer.guaranteed_seat && <span style={{ background: "#171b22", border: "1px solid #2c3440", borderRadius: 999, padding: "5px 10px", fontSize: 12 }}>Guaranteed seat</span>}
+                  </div>
+
+                  {offer.media_requirements && (
+                    <div style={{ marginBottom: 14, background: "#171b22", borderRadius: 10, padding: 12, lineHeight: 1.6, fontSize: 13 }}>
+                      <div style={{ fontSize: 11, opacity: 0.65, marginBottom: 6, fontWeight: 800 }}>MEDIA / BRAND REQUIREMENTS</div>
+                      {offer.media_requirements}
+                    </div>
+                  )}
+
+                  {offer.notes && (
+                    <div style={{ marginBottom: 14, background: "#11161d", borderRadius: 10, padding: 12, lineHeight: 1.6, fontSize: 13 }}>
+                      <div style={{ fontSize: 11, opacity: 0.65, marginBottom: 6, fontWeight: 800 }}>OWNER NOTES</div>
+                      {offer.notes}
+                    </div>
+                  )}
+
+                  {offer.expires_at && (
+                    <div style={{ fontSize: 12, opacity: 0.65, marginBottom: 14 }}>Expires: {new Date(offer.expires_at).toLocaleDateString()}</div>
+                  )}
+
+                  {offer.status === "Pending" && (
+                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                      <button onClick={() => acceptContractOffer(offer)} style={{ ...primaryButtonStyle, background: "#22c55e" }}>Accept Offer</button>
+                      <button onClick={() => declineContractOffer(offer)} style={{ ...dangerButtonStyle }}>Decline Offer</button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* ── Interviews ───────────────────────────────────────────────── */}
