@@ -2148,8 +2148,11 @@ export default function App() {
   const offenseLog = raceHistory.flatMap((race) =>
     race.results.filter((r) => r.offense).map((r) => ({ raceName: race.raceName, number: r.number, name: r.name, offenseNumber: r.offenseNumber, penaltyPoints: r.penaltyPoints }))
   );
+  // Admin protection is ONLY for admin dashboard routes.
+  // Public driver profile routes like /driver/18 must never redirect to the admin portal.
   const adminProtectedPaths = new Set(["/", "/appeals", "/admin/stories", "/stories", "/admin/live-control", "/admin/car-gallery", "/admin/interviews"]);
-  const isAdminProtectedPath = adminProtectedPaths.has(path);
+  const isDriverProfilePath = path.startsWith("/driver/");
+  const isAdminProtectedPath = adminProtectedPaths.has(path) && !isDriverProfilePath;
   const isAdminAuthenticated = localStorage.getItem("bcl-admin-auth") === "true";
   const logoutAdmin = () => {
     localStorage.removeItem("bcl-admin-auth");
@@ -2260,7 +2263,14 @@ export default function App() {
       />
     );
   }
+  // Driver profile pages must ALWAYS render DriverProfilePage.
+  // This keeps bowhunter6758 and every other owner-driver from being redirected into Admin or Owners pages.
   if (path.startsWith("/driver/")) {
+    const driverNumberFromPath = decodeURIComponent(rawPath.replace(/^\/driver\//i, "").split("/")[0] || "");
+    const selectedProfileDriver = visibleDrivers.find(
+      (driver) => String(driver.number) === String(driverNumberFromPath)
+    ) || null;
+
     return (
       <>
         <div style={{ minHeight: 0, background: "#0c0f14", padding: "20px 20px 0" }}>
@@ -2268,10 +2278,25 @@ export default function App() {
             <AppUpdateBanner page="driver" />
           </div>
         </div>
-        <DriverProfilePage seasons={seasons} activeSeason={activeSeason} tracks={tracks} />
+        <DriverProfilePage
+          key={`driver-profile-${driverNumberFromPath}-${activeSeasonId}-${raceHistory.length}-${selectedProfileDriver?.points || 0}`}
+          seasons={seasons}
+          activeSeason={activeSeason}
+          tracks={tracks}
+          driver={selectedProfileDriver}
+          drivers={visibleDrivers}
+          raceHistory={raceHistory}
+          teams={teamStandings}
+          standings={visibleDrivers}
+          manufacturers={manufacturerStandings}
+          manufacturerStandings={manufacturerStandings}
+          seasonName={activeSeason?.name || ""}
+        />
       </>
     );
   }
+
+  // Owners Portal stays on its own protected route only.
   if (path === "/owners") return <OwnersPage drivers={visibleDrivers} teams={teamStandings} raceHistory={raceHistory} seasonName={activeSeason?.name || ""} />;
   if (path === "/standings") return <PublicStandings drivers={visibleDrivers} teams={teamStandings} manufacturerStandings={manufacturerStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} />;
   if (path === "/overlay/ticker" || viewMode === "overlay-ticker") return <TickerOverlay drivers={visibleDrivers} teams={teamStandings} raceHistory={raceHistory} preview={viewMode === "overlay-ticker"} seasonName={activeSeason?.name || ""} />;
