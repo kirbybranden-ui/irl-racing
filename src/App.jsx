@@ -80,7 +80,7 @@ const defaultDrivers = [
   { id: 6,  number: 14, name: "KapSig",                    manufacturer: "Chevrolet", team: "MER"         },
   { id: 7,  number: 24, name: "KEVDINHO7",                 manufacturer: "Chevrolet", team: "MER"         },
   { id: 8,  number: 38, name: "It's_tricky88",             manufacturer: "Chevrolet", team: "Independent" },
-  { id: 9,  number: 97, name: "American_Hero216",          manufacturer: "Toyota",    team: "19XI"        },
+  { id: 9,  number: 19, name: "American_Hero216",          manufacturer: "Toyota",    team: "19XI"        },
   { id: 10, number: 67, name: "tallishsinter94",           manufacturer: "Toyota",    team: "19XI"        },
   { id: 11, number: 6,  name: "Highlander713",             manufacturer: "Ford",      team: "NLM"         },
   { id: 12, number: 23, name: "Orly_Revo23",               manufacturer: "Ford",      team: "MMS"         },
