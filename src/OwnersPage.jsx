@@ -70,6 +70,30 @@ const secondaryButtonStyle = { background: "#2a3140", color: "white", border: "1
 const inputStyle = { width: "100%", background: "#0f1319", color: "white", border: "1px solid #313947", borderRadius: 10, padding: "10px 12px", boxSizing: "border-box" };
 const thStyle = { textAlign: "left", padding: 10, borderBottom: "1px solid #313947", background: "#10141b", fontSize: 12, letterSpacing: 0.4 };
 const tdStyle = { padding: 10, borderBottom: "1px solid #252c38", verticalAlign: "top", fontSize: 13 };
+const checkboxLabelStyle = { display: "flex", gap: 8, alignItems: "center", background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 12, fontSize: 13, fontWeight: 800 };
+const MIN_DRIVER_SALARY = 250000;
+const MIN_CONTRACT_LENGTH = 1;
+const OWNER_MINIMUM_SALARY = 500000;
+const DEFAULT_CONTRACT_FORM = {
+  driver_name: "",
+  driver_number: "",
+  manufacturer: "",
+  salary: 250000,
+  signing_bonus: 0,
+  contract_length: 1,
+  buyout_amount: 375000,
+  brand_style: "Balanced",
+  media_requirements: "",
+  notes: "",
+  expires_at: "",
+  no_trade_clause: false,
+  team_option: false,
+  mutual_option: false,
+  guaranteed_seat: false,
+  championship_bonus: 0,
+  win_bonus: 0,
+};
+
 
 function money(value) {
   const safe = Number(value) || 0;
@@ -104,13 +128,20 @@ function getTeamFullName(team) {
   return teamFullNames[team] || team || "Team";
 }
 
-function getFinishPay(finishPos) {
+function getFinishPay(finishPos, raceName = "") {
   const finish = Number(finishPos);
-  if (finish === 1) return 250000;
-  if (finish >= 2 && finish <= 3) return 100000;
-  if (finish >= 4 && finish <= 5) return 75000;
-  if (finish >= 6 && finish <= 10) return 25000;
-  if (finish > 10) return 10000;
+  const track = String(raceName || "").toLowerCase();
+
+  if (finish === 1) {
+    if (track.includes("daytona")) return 750000;
+    if (track.includes("charlotte")) return 500000;
+    return 250000;
+  }
+
+  if (finish >= 2 && finish <= 3) return 50000;
+  if (finish >= 4 && finish <= 5) return 20000;
+  if (finish >= 6 && finish <= 10) return 10000;
+  if (finish > 10) return 5000;
   return 0;
 }
 
@@ -127,7 +158,7 @@ function buildTeamFinancialRow(team, drivers, teams, raceHistory) {
     (race.results || []).forEach((result) => {
       const driver = teamDrivers.find((item) => item.id === result.driverId);
       if (!driver) return;
-      const payout = getFinishPay(result.finishPos);
+      const payout = getFinishPay(result.finishPos, race.raceName);
       const dnfCost = result.dnf ? 100000 : 0;
       const penaltyCost = result.offense || Number(result.penaltyPoints) > 0 ? 25000 : 0;
       starts += 1;
@@ -186,6 +217,12 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
   const [authorizedTeam, setAuthorizedTeam] = useState(() => localStorage.getItem("ownerPortalAuthorizedTeam") || "");
   const [error, setError] = useState("");
   const [ownerAccessCodes, setOwnerAccessCodes] = useState(loadLocalOwnerAccessCodes);
+  const [teamFinance, setTeamFinance] = useState(null);
+  const [contractOffers, setContractOffers] = useState([]);
+  const [contractMessage, setContractMessage] = useState("");
+  const [contractError, setContractError] = useState("");
+  const [contractForm, setContractForm] = useState(DEFAULT_CONTRACT_FORM);
+
 
   React.useEffect(() => {
     let isMounted = true;
@@ -207,6 +244,193 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
   const safeSelectedTeam = availableTeams.includes(selectedTeam) ? selectedTeam : availableTeams[0] || selectedTeam;
   const selected = useMemo(() => buildTeamFinancialRow(safeSelectedTeam, drivers, teams, raceHistory), [safeSelectedTeam, drivers, teams, raceHistory]);
   const isAuthorized = authorizedTeam === safeSelectedTeam;
+
+
+  const availableDriversForOffers = useMemo(() => {
+    return drivers
+      .filter((driver) => !driver.retired)
+      .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+  }, [drivers]);
+
+  const ownerTeamName = getTeamFullName(safeSelectedTeam);
+  const currentTeamBalance = Number(teamFinance?.balance ?? selected.projectedBudget ?? 0);
+  const pendingOfferCount = contractOffers.filter((offer) => offer.status === "Pending").length;
+
+  function updateContractField(field, value) {
+    setContractForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function selectContractDriver(driverId) {
+    const driver = drivers.find((item) => String(item.id) === String(driverId));
+    if (!driver) {
+      setContractForm((current) => ({ ...current, driver_name: "", driver_number: "", manufacturer: "" }));
+      return;
+    }
+
+    setContractForm((current) => ({
+      ...current,
+      driver_name: driver.name || "",
+      driver_number: driver.number || "",
+      manufacturer: driver.manufacturer || "",
+    }));
+  }
+
+  async function loadTeamFinance() {
+    if (!safeSelectedTeam) return;
+
+    const { data, error: financeError } = await supabase
+      .from("team_finances")
+      .select("*")
+      .eq("team", ownerTeamName)
+      .maybeSingle();
+
+    if (financeError) {
+      console.error("Failed to load team finance:", financeError);
+      setTeamFinance(null);
+      return;
+    }
+
+    setTeamFinance(data || null);
+  }
+
+  async function loadContractOffers() {
+    if (!safeSelectedTeam) return;
+
+    const { data, error: offersError } = await supabase
+      .from("contract_offers")
+      .select("*")
+      .or(`team.eq.${ownerTeamName},created_by_team.eq.${ownerTeamName}`)
+      .order("created_at", { ascending: false });
+
+    if (offersError) {
+      console.error("Failed to load contract offers:", offersError);
+      setContractOffers([]);
+      return;
+    }
+
+    setContractOffers(data || []);
+  }
+
+  React.useEffect(() => {
+    if (!isAuthorized) return;
+    loadTeamFinance();
+    loadContractOffers();
+  }, [isAuthorized, ownerTeamName]);
+
+  async function submitContractOffer() {
+    setContractMessage("");
+    setContractError("");
+
+    if (!isAuthorized) {
+      setContractError("Owner access required before creating contract offers.");
+      return;
+    }
+
+    const salary = Number(contractForm.salary) || 0;
+    const signingBonus = Number(contractForm.signing_bonus) || 0;
+    const contractLength = Number(contractForm.contract_length) || 0;
+    const buyoutAmount = Number(contractForm.buyout_amount) || 0;
+    const championshipBonus = Number(contractForm.championship_bonus) || 0;
+    const winBonus = Number(contractForm.win_bonus) || 0;
+    const selectedDriver = drivers.find((driver) => driver.name === contractForm.driver_name);
+    const isOwnerDriver = selectedDriver && String(selectedDriver.name || "").toLowerCase() === String(ownerNames[safeSelectedTeam] || "").toLowerCase();
+    const totalImmediateCost = salary + signingBonus;
+
+    if (!contractForm.driver_name.trim()) {
+      setContractError("Select a driver before generating a contract offer.");
+      return;
+    }
+
+    if (salary < MIN_DRIVER_SALARY) {
+      setContractError("Minimum driver salary is $250,000.");
+      return;
+    }
+
+    if (isOwnerDriver && salary < OWNER_MINIMUM_SALARY) {
+      setContractError("Owner-drivers must take a minimum salary of $500,000.");
+      return;
+    }
+
+    if (contractLength < MIN_CONTRACT_LENGTH) {
+      setContractError("Minimum contract length is 1 season.");
+      return;
+    }
+
+    if (signingBonus < 0 || championshipBonus < 0 || winBonus < 0 || buyoutAmount < 0) {
+      setContractError("Contract money fields cannot be negative.");
+      return;
+    }
+
+    if (buyoutAmount > salary * 1.5) {
+      setContractError("Buyout cannot exceed 1.5x the current contract amount. Signing bonus is excluded from buyout.");
+      return;
+    }
+
+    if (signingBonus > currentTeamBalance) {
+      setContractError("Signing bonus cannot exceed the team account balance.");
+      return;
+    }
+
+    if (totalImmediateCost > currentTeamBalance) {
+      setContractError("Salary plus signing bonus exceeds your available team balance.");
+      return;
+    }
+
+    const payload = {
+      driver_name: contractForm.driver_name.trim(),
+      driver_number: String(contractForm.driver_number || "").trim(),
+      team: ownerTeamName,
+      manufacturer: String(contractForm.manufacturer || "").trim(),
+      salary,
+      signing_bonus: signingBonus,
+      contract_length: contractLength,
+      buyout_amount: buyoutAmount,
+      notes: contractForm.notes,
+      status: "Pending",
+      expires_at: contractForm.expires_at || null,
+      created_by_team: ownerTeamName,
+      no_trade_clause: Boolean(contractForm.no_trade_clause),
+      team_option: Boolean(contractForm.team_option),
+      mutual_option: Boolean(contractForm.mutual_option),
+      championship_bonus: championshipBonus,
+      win_bonus: winBonus,
+      guaranteed_seat: Boolean(contractForm.guaranteed_seat),
+      media_requirements: contractForm.media_requirements,
+      brand_style: contractForm.brand_style,
+    };
+
+    const { error: insertError } = await supabase.from("contract_offers").insert([payload]);
+
+    if (insertError) {
+      console.error("Could not create contract offer:", insertError);
+      setContractError("Could not create contract offer. Check that the contract_offers table exists and RLS allows inserts.");
+      return;
+    }
+
+    setContractMessage(`Contract offer sent to ${payload.driver_name}'s driver page.`);
+    setContractForm(DEFAULT_CONTRACT_FORM);
+    await loadContractOffers();
+  }
+
+  async function withdrawContractOffer(offerId) {
+    setContractMessage("");
+    setContractError("");
+
+    const { error: withdrawError } = await supabase
+      .from("contract_offers")
+      .update({ status: "Withdrawn", updated_at: new Date().toISOString() })
+      .eq("id", offerId)
+      .eq("created_by_team", ownerTeamName);
+
+    if (withdrawError) {
+      console.error("Could not withdraw offer:", withdrawError);
+      setContractError("Could not withdraw this offer.");
+      return;
+    }
+
+    setContractMessage("Contract offer withdrawn.");
+    await loadContractOffers();
+  }
 
   async function unlockTeam() {
     const latestCodes = await loadRemoteOwnerAccessCodes();
@@ -336,6 +560,197 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
               ))}
             </div>
 
+            <div style={{ ...sectionCardStyle, borderColor: "#d4af37" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", alignItems: "center", marginBottom: 16 }}>
+                <div>
+                  <h2 style={{ margin: 0 }}>Generate Contract Offer</h2>
+                  <div style={{ opacity: 0.68, marginTop: 6, fontSize: 13 }}>
+                    Offers come from {ownerTeamName} and post to the selected driver page.
+                  </div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontSize: 11, opacity: 0.65 }}>AVAILABLE TEAM ACCOUNT</div>
+                  <div style={{ fontSize: 26, fontWeight: 900, color: "#d4af37" }}>{money(currentTeamBalance)}</div>
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>DRIVER</div>
+                  <select
+                    value={drivers.find((driver) => driver.name === contractForm.driver_name)?.id || ""}
+                    onChange={(event) => selectContractDriver(event.target.value)}
+                    style={inputStyle}
+                  >
+                    <option value="">Select driver</option>
+                    {availableDriversForOffers.map((driver) => (
+                      <option key={driver.id || driver.number || driver.name} value={driver.id}>
+                        #{driver.number} {driver.name} · {driver.team || "Free Agent"}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>DRIVER NUMBER</div>
+                  <input value={contractForm.driver_number} onChange={(event) => updateContractField("driver_number", event.target.value)} style={inputStyle} placeholder="Driver number" />
+                </div>
+
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>MANUFACTURER</div>
+                  <input value={contractForm.manufacturer} onChange={(event) => updateContractField("manufacturer", event.target.value)} style={inputStyle} placeholder="Chevrolet / Ford / Toyota" />
+                </div>
+
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>SALARY</div>
+                  <input type="number" min={250000} value={contractForm.salary} onChange={(event) => updateContractField("salary", event.target.value)} style={inputStyle} />
+                </div>
+
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>SIGNING BONUS</div>
+                  <input type="number" min={0} value={contractForm.signing_bonus} onChange={(event) => updateContractField("signing_bonus", event.target.value)} style={inputStyle} />
+                </div>
+
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>CONTRACT LENGTH</div>
+                  <input type="number" min={1} value={contractForm.contract_length} onChange={(event) => updateContractField("contract_length", event.target.value)} style={inputStyle} />
+                </div>
+
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>BUYOUT AMOUNT</div>
+                  <input type="number" min={0} value={contractForm.buyout_amount} onChange={(event) => updateContractField("buyout_amount", event.target.value)} style={inputStyle} />
+                </div>
+
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>WIN BONUS</div>
+                  <input type="number" min={0} value={contractForm.win_bonus} onChange={(event) => updateContractField("win_bonus", event.target.value)} style={inputStyle} />
+                </div>
+
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>CHAMPIONSHIP BONUS</div>
+                  <input type="number" min={0} value={contractForm.championship_bonus} onChange={(event) => updateContractField("championship_bonus", event.target.value)} style={inputStyle} />
+                </div>
+
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>BRAND STYLE</div>
+                  <select value={contractForm.brand_style} onChange={(event) => updateContractField("brand_style", event.target.value)} style={inputStyle}>
+                    <option>Professional / Sponsor Friendly</option>
+                    <option>Balanced</option>
+                    <option>Aggressive / Edgy</option>
+                    <option>Owner Defined</option>
+                  </select>
+                </div>
+
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>OFFER EXPIRES</div>
+                  <input type="date" value={contractForm.expires_at} onChange={(event) => updateContractField("expires_at", event.target.value)} style={inputStyle} />
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 10, marginTop: 14 }}>
+                <label style={checkboxLabelStyle}>
+                  <input type="checkbox" checked={contractForm.no_trade_clause} onChange={(event) => updateContractField("no_trade_clause", event.target.checked)} />
+                  No-trade clause
+                </label>
+                <label style={checkboxLabelStyle}>
+                  <input type="checkbox" checked={contractForm.team_option} onChange={(event) => updateContractField("team_option", event.target.checked)} />
+                  Team option
+                </label>
+                <label style={checkboxLabelStyle}>
+                  <input type="checkbox" checked={contractForm.mutual_option} onChange={(event) => updateContractField("mutual_option", event.target.checked)} />
+                  Mutual option
+                </label>
+                <label style={checkboxLabelStyle}>
+                  <input type="checkbox" checked={contractForm.guaranteed_seat} onChange={(event) => updateContractField("guaranteed_seat", event.target.checked)} />
+                  Guaranteed seat
+                </label>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 14, marginTop: 14 }}>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>MEDIA REQUIREMENTS / BRAND CONDUCT</div>
+                  <textarea
+                    value={contractForm.media_requirements}
+                    onChange={(event) => updateContractField("media_requirements", event.target.value)}
+                    placeholder="Example: professional, sponsor-friendly, edgy but within league rules, required interviews, Discord conduct, etc."
+                    style={{ ...inputStyle, minHeight: 95, resize: "vertical" }}
+                  />
+                </div>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>CONTRACT NOTES</div>
+                  <textarea
+                    value={contractForm.notes}
+                    onChange={(event) => updateContractField("notes", event.target.value)}
+                    placeholder="Add any special terms, expectations, storyline details, or owner notes."
+                    style={{ ...inputStyle, minHeight: 95, resize: "vertical" }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14, marginTop: 14, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
+                <div><strong>Immediate Cost:</strong> {money((Number(contractForm.salary) || 0) + (Number(contractForm.signing_bonus) || 0))}</div>
+                <div><strong>Max Buyout:</strong> {money((Number(contractForm.salary) || 0) * 1.5)}</div>
+                <div><strong>Min Salary:</strong> {money(MIN_DRIVER_SALARY)}</div>
+                <div><strong>Min Length:</strong> {MIN_CONTRACT_LENGTH} season</div>
+              </div>
+
+              {contractError && <div style={{ marginTop: 12, color: "#f87171", fontWeight: 900 }}>{contractError}</div>}
+              {contractMessage && <div style={{ marginTop: 12, color: "#4ade80", fontWeight: 900 }}>{contractMessage}</div>}
+
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 16 }}>
+                <button onClick={submitContractOffer} style={primaryButtonStyle}>Generate Contract Offer</button>
+                <button onClick={() => { setContractForm(DEFAULT_CONTRACT_FORM); setContractError(""); setContractMessage(""); }} style={secondaryButtonStyle}>Reset Form</button>
+              </div>
+            </div>
+
+            <div style={sectionCardStyle}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+                <div>
+                  <h2 style={{ marginTop: 0, marginBottom: 6 }}>My Contract Offers</h2>
+                  <div style={{ opacity: 0.68, fontSize: 13 }}>{pendingOfferCount} pending offer{pendingOfferCount === 1 ? "" : "s"}</div>
+                </div>
+                <button onClick={loadContractOffers} style={secondaryButtonStyle}>Refresh Offers</button>
+              </div>
+              {contractOffers.length === 0 ? (
+                <div style={{ opacity: 0.72, marginTop: 12 }}>No contract offers have been created by {ownerTeamName} yet.</div>
+              ) : (
+                <div style={{ overflowX: "auto", marginTop: 12 }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <thead>
+                      <tr>
+                        <th style={thStyle}>Driver</th>
+                        <th style={thStyle}>Salary</th>
+                        <th style={thStyle}>Bonus</th>
+                        <th style={thStyle}>Length</th>
+                        <th style={thStyle}>Buyout</th>
+                        <th style={thStyle}>Brand</th>
+                        <th style={thStyle}>Status</th>
+                        <th style={thStyle}>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {contractOffers.map((offer) => (
+                        <tr key={offer.id}>
+                          <td style={{ ...tdStyle, fontWeight: 900 }}>#{offer.driver_number || "—"} {offer.driver_name}</td>
+                          <td style={tdStyle}>{money(offer.salary)}</td>
+                          <td style={tdStyle}>{money(offer.signing_bonus)}</td>
+                          <td style={tdStyle}>{offer.contract_length} season{Number(offer.contract_length) === 1 ? "" : "s"}</td>
+                          <td style={tdStyle}>{money(offer.buyout_amount)}</td>
+                          <td style={tdStyle}>{offer.brand_style || "—"}</td>
+                          <td style={{ ...tdStyle, fontWeight: 900, color: offer.status === "Accepted" ? "#4ade80" : offer.status === "Pending" ? "#d4af37" : offer.status === "Declined" || offer.status === "Withdrawn" ? "#f87171" : "white" }}>{offer.status}</td>
+                          <td style={tdStyle}>
+                            {offer.status === "Pending" ? (
+                              <button onClick={() => withdrawContractOffer(offer.id)} style={{ ...secondaryButtonStyle, padding: "7px 10px", fontSize: 12 }}>Withdraw</button>
+                            ) : "—"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
             <div style={sectionCardStyle}>
               <h2 style={{ marginTop: 0 }}>My Team Roster</h2>
               <div style={{ overflowX: "auto" }}>
@@ -411,11 +826,13 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
             <div style={sectionCardStyle}>
               <h2 style={{ marginTop: 0 }}>My Team Finance Rules</h2>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10 }}>
-                <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 12 }}>🏆 Win payout: <strong>{money(250000)}</strong></div>
-                <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 12 }}>🥉 Top 3 payout: <strong>{money(100000)}</strong></div>
-                <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 12 }}>🔥 Top 5 payout: <strong>{money(75000)}</strong></div>
-                <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 12 }}>✅ Top 10 payout: <strong>{money(25000)}</strong></div>
-                <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 12 }}>🏁 Other finishers: <strong>{money(10000)}</strong></div>
+                <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 12 }}>🏆 Standard win payout: <strong>{money(250000)}</strong></div>
+                <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 12 }}>🏁 Daytona win: <strong>{money(750000)}</strong></div>
+                <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 12 }}>👑 Charlotte win: <strong>{money(500000)}</strong></div>
+                <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 12 }}>🥉 Race top 3 payout: <strong>{money(50000)}</strong></div>
+                <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 12 }}>🔥 Race top 5 payout: <strong>{money(20000)}</strong></div>
+                <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 12 }}>✅ Race top 10 payout: <strong>{money(10000)}</strong></div>
+                <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 12 }}>🏁 Below top 10: <strong>{money(5000)}</strong></div>
                 <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 12 }}>💥 DNF cost: <strong>{money(100000)}</strong></div>
                 <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 12 }}>🚨 Penalty cost: <strong>{money(25000)}</strong></div>
                 <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 12 }}>🤝 19XI alliance cost: <strong>{money(50000)}</strong></div>
