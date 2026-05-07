@@ -2148,8 +2148,11 @@ export default function App() {
   const offenseLog = raceHistory.flatMap((race) =>
     race.results.filter((r) => r.offense).map((r) => ({ raceName: race.raceName, number: r.number, name: r.name, offenseNumber: r.offenseNumber, penaltyPoints: r.penaltyPoints }))
   );
+  // Admin protection is ONLY for admin dashboard routes.
+  // Public driver profile routes like /driver/18 must never redirect to the admin portal.
   const adminProtectedPaths = new Set(["/", "/appeals", "/admin/stories", "/stories", "/admin/live-control", "/admin/car-gallery", "/admin/interviews"]);
-  const isAdminProtectedPath = adminProtectedPaths.has(path);
+  const isDriverProfilePath = path.startsWith("/driver/");
+  const isAdminProtectedPath = adminProtectedPaths.has(path) && !isDriverProfilePath;
   const isAdminAuthenticated = localStorage.getItem("bcl-admin-auth") === "true";
   const logoutAdmin = () => {
     localStorage.removeItem("bcl-admin-auth");
@@ -2261,7 +2264,7 @@ export default function App() {
     );
   }
   // Driver profile pages must ALWAYS render DriverProfilePage.
-  // This keeps owner-drivers like bowhunter6758 from being redirected into the Owners Portal.
+  // This keeps bowhunter6758 and every other owner-driver from being redirected into Admin or Owners pages.
   if (path.startsWith("/driver/")) {
     const driverNumberFromPath = decodeURIComponent(rawPath.replace(/^\/driver\//i, "").split("/")[0] || "");
     const selectedProfileDriver = visibleDrivers.find(
