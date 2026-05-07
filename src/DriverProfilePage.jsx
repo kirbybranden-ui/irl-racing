@@ -360,6 +360,14 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
   const [contractOffers, setContractOffers] = useState([]);
   const [contractLoading, setContractLoading] = useState(false);
   const [contractError, setContractError] = useState("");
+  const [counterOpenOfferId, setCounterOpenOfferId] = useState("");
+  const [counterForm, setCounterForm] = useState({
+    counter_salary: "",
+    counter_bonus: "",
+    counter_contract_length: "",
+    counter_buyout_amount: "",
+    counter_notes: "",
+  });
   const [driverAccessCodeInput, setDriverAccessCodeInput] = useState("");
   const [driverAccessCodes, setDriverAccessCodes] = useState(loadLocalDriverAccessCodes);
   const [authorizedDriverNumber, setAuthorizedDriverNumber] = useState(() => localStorage.getItem("driverProfileAuthorizedNumber") || "");
@@ -594,6 +602,88 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
     if (!window.confirm(`Decline contract offer from ${offer.team}?`)) return;
     const declined = await updateOfferStatus(offer.id, "Declined");
     if (declined) alert("Contract offer declined.");
+  }
+
+  function openCounterOffer(offer) {
+    setCounterOpenOfferId(offer.id);
+    setCounterForm({
+      counter_salary: String(offer.salary || 250000),
+      counter_bonus: String(offer.signing_bonus || 0),
+      counter_contract_length: String(offer.contract_length || 1),
+      counter_buyout_amount: String(offer.buyout_amount || 0),
+      counter_notes: "",
+    });
+  }
+
+  function cancelCounterOffer() {
+    setCounterOpenOfferId("");
+    setCounterForm({
+      counter_salary: "",
+      counter_bonus: "",
+      counter_contract_length: "",
+      counter_buyout_amount: "",
+      counter_notes: "",
+    });
+  }
+
+  async function submitCounterOffer(offer) {
+    const salary = Number(counterForm.counter_salary || 0);
+    const bonus = Number(counterForm.counter_bonus || 0);
+    const length = Number(counterForm.counter_contract_length || 0);
+    const buyout = Number(counterForm.counter_buyout_amount || 0);
+
+    if (salary < 250000) {
+      alert("Minimum driver salary is $250,000.");
+      return;
+    }
+
+    if (length < 1) {
+      alert("Minimum contract length is 1 season.");
+      return;
+    }
+
+    if (buyout > salary * 1.5) {
+      alert("Counter buyout cannot exceed 1.5x the counter salary.");
+      return;
+    }
+
+    const { error } = await supabase
+      .from("contract_offers")
+      .update({
+        status: "Countered",
+        counter_salary: salary,
+        counter_bonus: bonus,
+        counter_contract_length: length,
+        counter_buyout_amount: buyout,
+        counter_notes: counterForm.counter_notes || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", offer.id);
+
+    if (error) {
+      console.error(error);
+      alert("Failed to send counter offer. Check contract_offers counter columns and RLS update policy.");
+      return;
+    }
+
+    setContractOffers((prev) =>
+      prev.map((item) =>
+        item.id === offer.id
+          ? {
+              ...item,
+              status: "Countered",
+              counter_salary: salary,
+              counter_bonus: bonus,
+              counter_contract_length: length,
+              counter_buyout_amount: buyout,
+              counter_notes: counterForm.counter_notes || null,
+            }
+          : item
+      )
+    );
+
+    cancelCounterOffer();
+    alert("Counter offer sent to the team owner.");
   }
 
   // ── Load interviews for this driver ──────────────────────────────────────
@@ -1037,11 +1127,95 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
                     <div style={{ fontSize: 12, opacity: 0.65, marginBottom: 14 }}>Expires: {new Date(offer.expires_at).toLocaleDateString()}</div>
                   )}
 
-                  {offer.status === "Pending" && (
-                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                      <button onClick={() => acceptContractOffer(offer)} style={{ ...primaryButtonStyle, background: "#22c55e" }}>Accept Offer</button>
-                      <button onClick={() => declineContractOffer(offer)} style={{ ...dangerButtonStyle }}>Decline Offer</button>
+                  {offer.status === "Countered" && (
+                    <div style={{ marginBottom: 14, background: "#1a1830", border: "1px solid #8b5cf6", borderRadius: 12, padding: 14 }}>
+                      <div style={{ fontSize: 12, fontWeight: 900, color: "#c4b5fd", marginBottom: 10 }}>COUNTER OFFER SENT</div>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 10 }}>
+                        <div><div style={{ opacity: 0.6, fontSize: 11 }}>COUNTER SALARY</div><div style={{ fontWeight: 900 }}>{money(offer.counter_salary)}</div></div>
+                        <div><div style={{ opacity: 0.6, fontSize: 11 }}>COUNTER BONUS</div><div style={{ fontWeight: 900 }}>{money(offer.counter_bonus)}</div></div>
+                        <div><div style={{ opacity: 0.6, fontSize: 11 }}>COUNTER LENGTH</div><div style={{ fontWeight: 900 }}>{offer.counter_contract_length || "—"} season(s)</div></div>
+                        <div><div style={{ opacity: 0.6, fontSize: 11 }}>COUNTER BUYOUT</div><div style={{ fontWeight: 900 }}>{money(offer.counter_buyout_amount)}</div></div>
+                      </div>
+                      {offer.counter_notes && (
+                        <div style={{ marginTop: 10, fontSize: 13, lineHeight: 1.6 }}>
+                          <strong>Driver Notes:</strong> {offer.counter_notes}
+                        </div>
+                      )}
                     </div>
+                  )}
+
+                  {offer.status === "Pending" && (
+                    <>
+                      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                        <button onClick={() => acceptContractOffer(offer)} style={{ ...primaryButtonStyle, background: "#22c55e" }}>Accept Offer</button>
+                        <button onClick={() => declineContractOffer(offer)} style={{ ...dangerButtonStyle }}>Decline Offer</button>
+                        <button onClick={() => openCounterOffer(offer)} style={secondaryButtonStyle}>Counter Offer</button>
+                      </div>
+
+                      {counterOpenOfferId === offer.id && (
+                        <div style={{ marginTop: 14, background: "#11161d", border: "1px solid #3d4859", borderRadius: 12, padding: 14 }}>
+                          <div style={{ fontSize: 15, fontWeight: 900, marginBottom: 12 }}>Submit Counter Offer</div>
+
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
+                            <div>
+                              <label style={{ display: "block", fontSize: 11, fontWeight: 800, opacity: 0.7, marginBottom: 6 }}>COUNTER SALARY</label>
+                              <input
+                                type="number"
+                                value={counterForm.counter_salary}
+                                onChange={(event) => setCounterForm((prev) => ({ ...prev, counter_salary: event.target.value }))}
+                                style={inputStyle}
+                              />
+                            </div>
+
+                            <div>
+                              <label style={{ display: "block", fontSize: 11, fontWeight: 800, opacity: 0.7, marginBottom: 6 }}>SIGNING BONUS</label>
+                              <input
+                                type="number"
+                                value={counterForm.counter_bonus}
+                                onChange={(event) => setCounterForm((prev) => ({ ...prev, counter_bonus: event.target.value }))}
+                                style={inputStyle}
+                              />
+                            </div>
+
+                            <div>
+                              <label style={{ display: "block", fontSize: 11, fontWeight: 800, opacity: 0.7, marginBottom: 6 }}>CONTRACT LENGTH</label>
+                              <input
+                                type="number"
+                                value={counterForm.counter_contract_length}
+                                onChange={(event) => setCounterForm((prev) => ({ ...prev, counter_contract_length: event.target.value }))}
+                                style={inputStyle}
+                              />
+                            </div>
+
+                            <div>
+                              <label style={{ display: "block", fontSize: 11, fontWeight: 800, opacity: 0.7, marginBottom: 6 }}>BUYOUT AMOUNT</label>
+                              <input
+                                type="number"
+                                value={counterForm.counter_buyout_amount}
+                                onChange={(event) => setCounterForm((prev) => ({ ...prev, counter_buyout_amount: event.target.value }))}
+                                style={inputStyle}
+                              />
+                            </div>
+                          </div>
+
+                          <div style={{ marginTop: 12 }}>
+                            <label style={{ display: "block", fontSize: 11, fontWeight: 800, opacity: 0.7, marginBottom: 6 }}>COUNTER NOTES</label>
+                            <textarea
+                              rows={3}
+                              value={counterForm.counter_notes}
+                              onChange={(event) => setCounterForm((prev) => ({ ...prev, counter_notes: event.target.value }))}
+                              placeholder="Tell the owner what needs to change for you to accept."
+                              style={{ ...inputStyle, resize: "vertical" }}
+                            />
+                          </div>
+
+                          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 12 }}>
+                            <button onClick={() => submitCounterOffer(offer)} style={primaryButtonStyle}>Send Counter Offer</button>
+                            <button onClick={cancelCounterOffer} style={secondaryButtonStyle}>Cancel</button>
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               ))}
