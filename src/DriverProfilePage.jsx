@@ -135,6 +135,25 @@ function getTeamFullName(team) {
   return teamFullNames[team] || team || "Team";
 }
 
+function normalizeTeamKey(team) {
+  return String(team || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function teamMatchesOwner(row, ownerTeam) {
+  const ownerFullName = getTeamFullName(ownerTeam);
+  const validOwnerKeys = new Set([
+    normalizeTeamKey(ownerTeam),
+    normalizeTeamKey(ownerFullName),
+  ]);
+
+  return [row?.team, row?.created_by_team, row?.alliance_team]
+    .map(normalizeTeamKey)
+    .some((key) => validOwnerKeys.has(key));
+}
+
 function getFinishPay(finishPos, raceName = "") {
   const finish = Number(finishPos);
   const track = String(raceName || "").toLowerCase();
@@ -316,7 +335,6 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
     const { data, error: offersError } = await supabase
       .from("contract_offers")
       .select("*")
-      .or(`team.eq.${ownerTeamName},created_by_team.eq.${ownerTeamName}`)
       .order("created_at", { ascending: false });
 
     if (offersError) {
@@ -325,7 +343,11 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
       return;
     }
 
-    setContractOffers(data || []);
+    const myOffers = (data || []).filter((offer) =>
+      teamMatchesOwner(offer, safeSelectedTeam)
+    );
+
+    setContractOffers(myOffers);
   }
 
   async function loadTechnicalAlliances() {
@@ -334,7 +356,6 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
     const { data, error: allianceLoadError } = await supabase
       .from("technical_alliances")
       .select("*")
-      .or(`team.eq.${ownerTeamName},alliance_team.eq.${ownerTeamName}`)
       .order("created_at", { ascending: false });
 
     if (allianceLoadError) {
@@ -343,7 +364,11 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
       return;
     }
 
-    setTechnicalAlliances(data || []);
+    const myAlliances = (data || []).filter((alliance) =>
+      teamMatchesOwner(alliance, safeSelectedTeam)
+    );
+
+    setTechnicalAlliances(myAlliances);
   }
 
   React.useEffect(() => {
@@ -1004,7 +1029,7 @@ OWNER APPROVED COUNTER TERMS: ${offer.counter_notes}`.trim() : offer.notes,
                     </thead>
                     <tbody>
                       {contractOffers.map((offer) => {
-                        const isCountered = offer.status === "Countered";
+                        const isCountered = String(offer.status || "").toLowerCase() === "countered";
                         return (
                           <tr key={offer.id}>
                             <td style={{ ...tdStyle, fontWeight: 900 }}>
@@ -1029,7 +1054,7 @@ OWNER APPROVED COUNTER TERMS: ${offer.counter_notes}`.trim() : offer.notes,
                             <td style={tdStyle}>
                               {offer.status === "Pending" ? (
                                 <button onClick={() => withdrawContractOffer(offer.id)} style={{ ...secondaryButtonStyle, padding: "7px 10px", fontSize: 12 }}>Withdraw</button>
-                              ) : offer.status === "Countered" ? (
+                              ) : String(offer.status || "").toLowerCase() === "countered" ? (
                                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                                   <button onClick={() => acceptCounterOffer(offer)} style={{ ...primaryButtonStyle, background: "#22c55e", padding: "7px 10px", fontSize: 12 }}>Accept Counter</button>
                                   <button onClick={() => declineCounterOffer(offer)} style={{ ...secondaryButtonStyle, background: "#7f1d1d", border: "1px solid #991b1b", padding: "7px 10px", fontSize: 12 }}>Decline Counter</button>
