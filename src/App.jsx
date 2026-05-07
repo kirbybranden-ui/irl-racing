@@ -2260,7 +2260,14 @@ export default function App() {
       />
     );
   }
+  // Driver profile pages must ALWAYS render DriverProfilePage.
+  // This keeps owner-drivers like bowhunter6758 from being redirected into the Owners Portal.
   if (path.startsWith("/driver/")) {
+    const driverNumberFromPath = decodeURIComponent(rawPath.replace(/^\/driver\//i, "").split("/")[0] || "");
+    const selectedProfileDriver = visibleDrivers.find(
+      (driver) => String(driver.number) === String(driverNumberFromPath)
+    ) || null;
+
     return (
       <>
         <div style={{ minHeight: 0, background: "#0c0f14", padding: "20px 20px 0" }}>
@@ -2268,10 +2275,25 @@ export default function App() {
             <AppUpdateBanner page="driver" />
           </div>
         </div>
-        <DriverProfilePage seasons={seasons} activeSeason={activeSeason} tracks={tracks} />
+        <DriverProfilePage
+          key={`driver-profile-${driverNumberFromPath}-${activeSeasonId}-${raceHistory.length}-${selectedProfileDriver?.points || 0}`}
+          seasons={seasons}
+          activeSeason={activeSeason}
+          tracks={tracks}
+          driver={selectedProfileDriver}
+          drivers={visibleDrivers}
+          raceHistory={raceHistory}
+          teams={teamStandings}
+          standings={visibleDrivers}
+          manufacturers={manufacturerStandings}
+          manufacturerStandings={manufacturerStandings}
+          seasonName={activeSeason?.name || ""}
+        />
       </>
     );
   }
+
+  // Owners Portal stays on its own protected route only.
   if (path === "/owners") return <OwnersPage drivers={visibleDrivers} teams={teamStandings} raceHistory={raceHistory} seasonName={activeSeason?.name || ""} />;
   if (path === "/standings") return <PublicStandings drivers={visibleDrivers} teams={teamStandings} manufacturerStandings={manufacturerStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} />;
   if (path === "/overlay/ticker" || viewMode === "overlay-ticker") return <TickerOverlay drivers={visibleDrivers} teams={teamStandings} raceHistory={raceHistory} preview={viewMode === "overlay-ticker"} seasonName={activeSeason?.name || ""} />;
