@@ -1493,7 +1493,7 @@ function StoriesAdminPage() {
 }
 
 
-const DEFAULT_DISCORD_INVITE_URL = "https://discord.gg/YOUR-LINK-HERE";
+const DEFAULT_DISCORD_INVITE_URL = "https://discord.gg/mwQ6DYuXB2";
 const DEFAULT_DISCORD_RULES = [
   "Use your real league driver name or a recognizable nickname.",
   "Race control channels are for official league communication only during events.",
@@ -1506,8 +1506,12 @@ const DEFAULT_DISCORD_RULES = [
 function getDiscordSettings() {
   try {
     const saved = JSON.parse(localStorage.getItem("bcl-discord-settings") || "{}");
+    const savedInviteUrl = String(saved.inviteUrl || "").trim();
+    const inviteUrl = !savedInviteUrl || savedInviteUrl.includes("YOUR-LINK-HERE")
+      ? DEFAULT_DISCORD_INVITE_URL
+      : savedInviteUrl;
     return {
-      inviteUrl: saved.inviteUrl || DEFAULT_DISCORD_INVITE_URL,
+      inviteUrl,
       rulesText: saved.rulesText || DEFAULT_DISCORD_RULES.join("\n"),
       announcement: saved.announcement || "Join the Budweiser Cup League Discord for race control, media, team rooms, and league updates.",
     };
