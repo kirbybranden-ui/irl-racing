@@ -49,18 +49,25 @@ const ownerNames = {
   IND: "Free Agent Pool",
 };
 
-const startingBudgets = {
-  JAM: 5000000,
-  MER: 5000000,
-  MMS: 5000000,
-  NLM: 5000000,
-  WSM: 5000000,
-  "19XI": 5000000,
-  "19XI Racing": 5000000,
-  BOM: 5000000,
-  Independent: 0,
-  IND: 0,
+const TEAM_STARTING_FUNDS = {
+  1: 300000,
+  2: 700000,
+  3: 1000000,
+  4: 1500000,
 };
+
+const TECHNICAL_ALLIANCE_COST = 50000;
+
+function getTeamStartingBudget(driverCount) {
+  if (driverCount <= 0) return 0;
+  return TEAM_STARTING_FUNDS[driverCount] || TEAM_STARTING_FUNDS[4];
+}
+
+function sameTeamName(value, team) {
+  const full = getTeamFullName(team);
+  return String(value || "").trim().toLowerCase() === String(team || "").trim().toLowerCase()
+    || String(value || "").trim().toLowerCase() === String(full || "").trim().toLowerCase();
+}
 
 const appShellStyle = { minHeight: "100vh", background: "radial-gradient(circle at top, #18202b 0%, #0d1117 38%, #090c11 100%)", color: "white", fontFamily: "Arial, sans-serif" };
 const pageContainerStyle = { maxWidth: 1180, margin: "0 auto", padding: 24 };
@@ -145,7 +152,7 @@ function getFinishPay(finishPos, raceName = "") {
   return 0;
 }
 
-function buildTeamFinancialRow(team, drivers, teams, raceHistory) {
+function buildTeamFinancialRow(team, drivers, teams, raceHistory, technicalAlliances = []) {
   const teamDrivers = drivers.filter((driver) => (driver.team || "Independent") === team);
   const teamStanding = teams.find((standing) => standing.team === team) || {};
   let raceIncome = 0;
@@ -177,8 +184,12 @@ function buildTeamFinancialRow(team, drivers, teams, raceHistory) {
     });
   });
 
-  const allianceCosts = team === "19XI" || team === "19XI Racing" ? 50000 : 0;
-  const startingBudget = startingBudgets[team] ?? 5000000;
+  const acceptedAllianceCount = (technicalAlliances || []).filter((alliance) => {
+    if (alliance.status !== "Accepted") return false;
+    return sameTeamName(alliance.team, team) || sameTeamName(alliance.alliance_team, team);
+  }).length;
+  const allianceCosts = acceptedAllianceCount * TECHNICAL_ALLIANCE_COST;
+  const startingBudget = getTeamStartingBudget(teamDrivers.length);
   const totalCosts = dnfCosts + penaltyCosts + allianceCosts;
   const netRevenue = raceIncome - totalCosts;
   const projectedBudget = startingBudget + netRevenue;
@@ -222,6 +233,10 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
   const [contractMessage, setContractMessage] = useState("");
   const [contractError, setContractError] = useState("");
   const [contractForm, setContractForm] = useState(DEFAULT_CONTRACT_FORM);
+  const [technicalAlliances, setTechnicalAlliances] = useState([]);
+  const [alliancePartner, setAlliancePartner] = useState("");
+  const [allianceMessage, setAllianceMessage] = useState("");
+  const [allianceError, setAllianceError] = useState("");
 
 
   React.useEffect(() => {
@@ -242,7 +257,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
   }, []);
 
   const safeSelectedTeam = availableTeams.includes(selectedTeam) ? selectedTeam : availableTeams[0] || selectedTeam;
-  const selected = useMemo(() => buildTeamFinancialRow(safeSelectedTeam, drivers, teams, raceHistory), [safeSelectedTeam, drivers, teams, raceHistory]);
+  const selected = useMemo(() => buildTeamFinancialRow(safeSelectedTeam, drivers, teams, raceHistory, technicalAlliances), [safeSelectedTeam, drivers, teams, raceHistory, technicalAlliances]);
   const isAuthorized = authorizedTeam === safeSelectedTeam;
 
 
@@ -255,6 +270,8 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
   const ownerTeamName = getTeamFullName(safeSelectedTeam);
   const currentTeamBalance = Number(teamFinance?.balance ?? selected.projectedBudget ?? 0);
   const pendingOfferCount = contractOffers.filter((offer) => offer.status === "Pending").length;
+  const availableAlliancePartners = availableTeams.filter((team) => team !== safeSelectedTeam);
+  const pendingAllianceCount = technicalAlliances.filter((alliance) => alliance.status === "Pending").length;
 
   function updateContractField(field, value) {
     setContractForm((current) => ({ ...current, [field]: value }));
@@ -311,10 +328,29 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
     setContractOffers(data || []);
   }
 
+  async function loadTechnicalAlliances() {
+    if (!safeSelectedTeam) return;
+
+    const { data, error: allianceLoadError } = await supabase
+      .from("technical_alliances")
+      .select("*")
+      .or(`team.eq.${ownerTeamName},alliance_team.eq.${ownerTeamName}`)
+      .order("created_at", { ascending: false });
+
+    if (allianceLoadError) {
+      console.error("Failed to load technical alliances:", allianceLoadError);
+      setTechnicalAlliances([]);
+      return;
+    }
+
+    setTechnicalAlliances(data || []);
+  }
+
   React.useEffect(() => {
     if (!isAuthorized) return;
     loadTeamFinance();
     loadContractOffers();
+    loadTechnicalAlliances();
   }, [isAuthorized, ownerTeamName]);
 
   async function submitContractOffer() {
@@ -430,6 +466,76 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
 
     setContractMessage("Contract offer withdrawn.");
     await loadContractOffers();
+  }
+
+  async function requestTechnicalAlliance() {
+    setAllianceMessage("");
+    setAllianceError("");
+
+    if (!isAuthorized) {
+      setAllianceError("Owner access required before requesting a technical alliance.");
+      return;
+    }
+
+    if (!alliancePartner) {
+      setAllianceError("Select a team to request a technical alliance with.");
+      return;
+    }
+
+    const partnerName = getTeamFullName(alliancePartner);
+    if (partnerName === ownerTeamName) {
+      setAllianceError("A team cannot form a technical alliance with itself.");
+      return;
+    }
+
+    const existing = technicalAlliances.find((alliance) => {
+      const a = String(alliance.team || "").toLowerCase();
+      const b = String(alliance.alliance_team || "").toLowerCase();
+      const mine = ownerTeamName.toLowerCase();
+      const partner = partnerName.toLowerCase();
+      return (a === mine && b === partner) || (a === partner && b === mine);
+    });
+
+    if (existing && ["Pending", "Accepted"].includes(existing.status)) {
+      setAllianceError(`There is already a ${existing.status.toLowerCase()} alliance with ${partnerName}.`);
+      return;
+    }
+
+    const { error: allianceInsertError } = await supabase.from("technical_alliances").insert([{
+      team: ownerTeamName,
+      alliance_team: partnerName,
+      cost_per_team: TECHNICAL_ALLIANCE_COST,
+      status: "Pending",
+    }]);
+
+    if (allianceInsertError) {
+      console.error("Could not request technical alliance:", allianceInsertError);
+      setAllianceError("Could not request technical alliance. Check the technical_alliances table and RLS policies.");
+      return;
+    }
+
+    setAlliancePartner("");
+    setAllianceMessage(`Technical alliance request sent to ${partnerName}. No money is charged until they accept.`);
+    await loadTechnicalAlliances();
+  }
+
+  async function updateTechnicalAllianceStatus(allianceId, status) {
+    setAllianceMessage("");
+    setAllianceError("");
+
+    const { error: allianceUpdateError } = await supabase
+      .from("technical_alliances")
+      .update({ status })
+      .eq("id", allianceId);
+
+    if (allianceUpdateError) {
+      console.error("Could not update technical alliance:", allianceUpdateError);
+      setAllianceError("Could not update this technical alliance.");
+      return;
+    }
+
+    setAllianceMessage(`Technical alliance ${status.toLowerCase()}.`);
+    await loadTechnicalAlliances();
   }
 
   async function unlockTeam() {
@@ -706,6 +812,85 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
             <div style={sectionCardStyle}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
                 <div>
+                  <h2 style={{ marginTop: 0, marginBottom: 6 }}>Technical Alliance Requests</h2>
+                  <div style={{ opacity: 0.68, fontSize: 13 }}>Each accepted alliance costs both teams {money(TECHNICAL_ALLIANCE_COST)}.</div>
+                </div>
+                <button onClick={loadTechnicalAlliances} style={secondaryButtonStyle}>Refresh Alliances</button>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "minmax(220px, 1fr) auto", gap: 10, marginTop: 14, alignItems: "end" }}>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>REQUEST ALLIANCE WITH</div>
+                  <select value={alliancePartner} onChange={(event) => setAlliancePartner(event.target.value)} style={inputStyle}>
+                    <option value="">Select partner team</option>
+                    {availableAlliancePartners.map((team) => (
+                      <option key={team} value={team}>{getTeamFullName(team)}</option>
+                    ))}
+                  </select>
+                </div>
+                <button onClick={requestTechnicalAlliance} style={primaryButtonStyle}>Request Alliance</button>
+              </div>
+
+              <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 10 }}>
+                <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 12 }}>
+                  <div style={{ fontSize: 11, opacity: 0.65 }}>Pending Requests</div>
+                  <div style={{ fontSize: 22, fontWeight: 900 }}>{pendingAllianceCount}</div>
+                </div>
+                <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 12 }}>
+                  <div style={{ fontSize: 11, opacity: 0.65 }}>Accepted Alliance Cost</div>
+                  <div style={{ fontSize: 22, fontWeight: 900, color: selected.allianceCosts ? "#f87171" : "white" }}>{money(selected.allianceCosts)}</div>
+                </div>
+              </div>
+
+              {allianceError && <div style={{ marginTop: 12, color: "#f87171", fontWeight: 900 }}>{allianceError}</div>}
+              {allianceMessage && <div style={{ marginTop: 12, color: "#4ade80", fontWeight: 900 }}>{allianceMessage}</div>}
+
+              {technicalAlliances.length === 0 ? (
+                <div style={{ opacity: 0.72, marginTop: 12 }}>No technical alliance requests involving {ownerTeamName} yet.</div>
+              ) : (
+                <div style={{ overflowX: "auto", marginTop: 12 }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <thead>
+                      <tr>
+                        <th style={thStyle}>Team</th>
+                        <th style={thStyle}>Partner</th>
+                        <th style={thStyle}>Cost Per Team</th>
+                        <th style={thStyle}>Status</th>
+                        <th style={thStyle}>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {technicalAlliances.map((alliance) => {
+                        const isIncoming = String(alliance.alliance_team || "").toLowerCase() === ownerTeamName.toLowerCase();
+                        const isPending = alliance.status === "Pending";
+                        return (
+                          <tr key={alliance.id}>
+                            <td style={{ ...tdStyle, fontWeight: 900 }}>{alliance.team}</td>
+                            <td style={tdStyle}>{alliance.alliance_team}</td>
+                            <td style={tdStyle}>{money(alliance.cost_per_team || TECHNICAL_ALLIANCE_COST)}</td>
+                            <td style={{ ...tdStyle, fontWeight: 900, color: alliance.status === "Accepted" ? "#4ade80" : alliance.status === "Pending" ? "#d4af37" : "#f87171" }}>{alliance.status}</td>
+                            <td style={tdStyle}>
+                              {isPending && isIncoming ? (
+                                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                  <button onClick={() => updateTechnicalAllianceStatus(alliance.id, "Accepted")} style={{ ...primaryButtonStyle, padding: "7px 10px", fontSize: 12 }}>Accept</button>
+                                  <button onClick={() => updateTechnicalAllianceStatus(alliance.id, "Declined")} style={{ ...secondaryButtonStyle, padding: "7px 10px", fontSize: 12 }}>Decline</button>
+                                </div>
+                              ) : isPending ? (
+                                <button onClick={() => updateTechnicalAllianceStatus(alliance.id, "Cancelled")} style={{ ...secondaryButtonStyle, padding: "7px 10px", fontSize: 12 }}>Cancel</button>
+                              ) : "—"}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div style={sectionCardStyle}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+                <div>
                   <h2 style={{ marginTop: 0, marginBottom: 6 }}>My Contract Offers</h2>
                   <div style={{ opacity: 0.68, fontSize: 13 }}>{pendingOfferCount} pending offer{pendingOfferCount === 1 ? "" : "s"}</div>
                 </div>
@@ -825,6 +1010,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
 
             <div style={sectionCardStyle}>
               <h2 style={{ marginTop: 0 }}>My Team Finance Rules</h2>
+              <div style={{ opacity: 0.72, marginBottom: 12 }}>Starting money now follows your roster-size rule: 1 driver = $300,000 · 2 drivers = $700,000 · 3 drivers = $1,000,000 · 4 drivers = $1,500,000.</div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10 }}>
                 <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 12 }}>🏆 Standard win payout: <strong>{money(250000)}</strong></div>
                 <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 12 }}>🏁 Daytona win: <strong>{money(750000)}</strong></div>
@@ -835,7 +1021,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
                 <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 12 }}>🏁 Below top 10: <strong>{money(5000)}</strong></div>
                 <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 12 }}>💥 DNF cost: <strong>{money(100000)}</strong></div>
                 <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 12 }}>🚨 Penalty cost: <strong>{money(25000)}</strong></div>
-                <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 12 }}>🤝 19XI alliance cost: <strong>{money(50000)}</strong></div>
+                <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 12 }}>🤝 Technical alliance cost: <strong>{money(50000)}</strong> per team when accepted</div>
               </div>
             </div>
           </>
