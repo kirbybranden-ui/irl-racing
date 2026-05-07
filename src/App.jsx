@@ -977,6 +977,7 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
                 <div style={{ fontSize: 22, fontWeight: 900 }}>{seasonName || "—"}</div>
               </div>
               <button onClick={() => (window.location.pathname = "/streams")} style={{ background: "#9146ff", color: "white", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>📡 Streams</button>
+              <button onClick={() => (window.location.pathname = "/discord")} style={{ background: "#5865f2", color: "white", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>💬 Discord</button>
               <button onClick={() => (window.location.pathname = "/news")} style={{ background: "#d4af37", color: "#111", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>📰 News</button>
               <button onClick={() => (window.location.pathname = "/owners")} style={{ background: "#0f766e", color: "white", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>💼 Owners</button>
               <button onClick={() => (window.location.pathname = "/submit-story")} style={{ background: "#16a34a", color: "white", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>✍️ Add Story</button>
@@ -1491,6 +1492,92 @@ function StoriesAdminPage() {
   );
 }
 
+
+const DEFAULT_DISCORD_INVITE_URL = "https://discord.gg/YOUR-LINK-HERE";
+const DEFAULT_DISCORD_RULES = [
+  "Use your real league driver name or a recognizable nickname.",
+  "Race control channels are for official league communication only during events.",
+  "Keep driver media active, competitive, and sponsor-friendly.",
+  "No harassment, hate speech, or personal attacks. Keep the trash talk racing-focused.",
+  "Team channels are for team operations, practice notes, strategy, and owner communication.",
+  "Appeals and incidents should go through the app or the proper Discord channel, not public arguments.",
+];
+
+function getDiscordSettings() {
+  try {
+    const saved = JSON.parse(localStorage.getItem("bcl-discord-settings") || "{}");
+    return {
+      inviteUrl: saved.inviteUrl || DEFAULT_DISCORD_INVITE_URL,
+      rulesText: saved.rulesText || DEFAULT_DISCORD_RULES.join("\n"),
+      announcement: saved.announcement || "Join the Budweiser Cup League Discord for race control, media, team rooms, and league updates.",
+    };
+  } catch {
+    return {
+      inviteUrl: DEFAULT_DISCORD_INVITE_URL,
+      rulesText: DEFAULT_DISCORD_RULES.join("\n"),
+      announcement: "Join the Budweiser Cup League Discord for race control, media, team rooms, and league updates.",
+    };
+  }
+}
+
+function DiscordPage() {
+  const settings = getDiscordSettings();
+  const rules = String(settings.rulesText || "").split("\n").map((rule) => rule.trim()).filter(Boolean);
+  const voiceChannels = [
+    "🏁 Race Control",
+    "🎙️ Driver Interviews",
+    "📡 Broadcast Booth",
+    "🔧 Garage / Practice",
+    "🚗 Team Owner Meetings",
+    "⚖️ Appeals Review Waiting Room",
+    "🍻 League Hangout",
+  ];
+
+  return (
+    <div style={{ minHeight: "100vh", background: "radial-gradient(circle at top, #1d2430 0%, #0d1117 42%, #090c11 100%)", color: "white", fontFamily: "Arial, sans-serif" }}>
+      <div style={{ maxWidth: 1180, margin: "0 auto", padding: 24 }}>
+        <div style={{ ...sectionCardStyle, background: "linear-gradient(135deg, #5865f2 0%, #20233a 52%, #10141b 100%)", border: "1px solid rgba(255,255,255,0.18)", borderRadius: 24, padding: 28 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 18, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+              <img src={logo} alt="League Logo" style={{ height: 64, filter: "drop-shadow(0 8px 18px rgba(0,0,0,0.35))" }} />
+              <div>
+                <div style={{ fontSize: 40, fontWeight: 900, lineHeight: 1 }}>BCL DISCORD HUB</div>
+                <div style={{ opacity: 0.82, marginTop: 8, fontSize: 16 }}>{settings.announcement}</div>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <button onClick={() => window.open(settings.inviteUrl, "_blank", "noopener,noreferrer")} style={{ background: "#ffffff", color: "#111827", border: "none", borderRadius: 12, padding: "13px 18px", fontWeight: 900, cursor: "pointer" }}>💬 Join Discord</button>
+              <button onClick={() => (window.location.pathname = "/standings")} style={{ background: "rgba(0,0,0,0.28)", color: "white", border: "1px solid rgba(255,255,255,0.24)", borderRadius: 12, padding: "13px 18px", fontWeight: 800, cursor: "pointer" }}>Back to Standings</button>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 18 }}>
+          <div style={sectionCardStyle}>
+            <h2 style={{ marginTop: 0 }}>League Discord Rules</h2>
+            <div style={{ display: "grid", gap: 10 }}>
+              {rules.map((rule, index) => (
+                <div key={`${rule}-${index}`} style={{ background: "#10141b", border: "1px solid #2a3240", borderRadius: 12, padding: 12, lineHeight: 1.45 }}>
+                  <strong style={{ color: "#d4af37" }}>#{index + 1}</strong> {rule}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div style={sectionCardStyle}>
+            <h2 style={{ marginTop: 0 }}>Suggested Voice Channels</h2>
+            <div style={{ display: "grid", gap: 10 }}>
+              {voiceChannels.map((channel) => (
+                <div key={channel} style={{ background: "#10141b", border: "1px solid #2a3240", borderRadius: 12, padding: 12, fontWeight: 800 }}>{channel}</div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [seasons, setSeasons] = useState(() => loadInitialLeagueState().seasons);
   const [openAppealCount, setOpenAppealCount] = useState(0);
@@ -1531,6 +1618,9 @@ export default function App() {
       return {};
     }
   });
+  const [discordInviteUrl, setDiscordInviteUrl] = useState(() => getDiscordSettings().inviteUrl);
+  const [discordAnnouncement, setDiscordAnnouncement] = useState(() => getDiscordSettings().announcement);
+  const [discordRulesText, setDiscordRulesText] = useState(() => getDiscordSettings().rulesText);
   const videoFileInputRef = useRef(null);
   const importFileRef = useRef(null);
   const rawPath = window.location.pathname;
@@ -2148,6 +2238,19 @@ export default function App() {
   const offenseLog = raceHistory.flatMap((race) =>
     race.results.filter((r) => r.offense).map((r) => ({ raceName: race.raceName, number: r.number, name: r.name, offenseNumber: r.offenseNumber, penaltyPoints: r.penaltyPoints }))
   );
+  const saveDiscordSettings = () => {
+    const cleanUrl = discordInviteUrl.trim() || DEFAULT_DISCORD_INVITE_URL;
+    const settings = {
+      inviteUrl: cleanUrl,
+      announcement: discordAnnouncement.trim() || "Join the Budweiser Cup League Discord for race control, media, team rooms, and league updates.",
+      rulesText: discordRulesText.trim() || DEFAULT_DISCORD_RULES.join("\n"),
+    };
+    localStorage.setItem("bcl-discord-settings", JSON.stringify(settings));
+    setDiscordInviteUrl(settings.inviteUrl);
+    setDiscordAnnouncement(settings.announcement);
+    setDiscordRulesText(settings.rulesText);
+    alert("Discord settings saved.");
+  };
   const adminProtectedPaths = new Set(["/", "/appeals", "/admin/stories", "/stories", "/admin/live-control", "/admin/car-gallery", "/admin/interviews"]);
   const isAdminProtectedPath = adminProtectedPaths.has(path);
   const isAdminAuthenticated = localStorage.getItem("bcl-admin-auth") === "true";
@@ -2197,6 +2300,7 @@ export default function App() {
 }
   if (path === "/news") return <NewsPage />;
   if (path === "/notifications") return <NotificationsPage />;
+  if (path === "/discord") return <DiscordPage />;
   // Loading gate — all routes below this need Supabase data
   if (!isHydrated) return <div style={appShellStyle}><div style={pageContainerStyle}><div style={sectionCardStyle}>Loading league data...</div></div></div>;
   if (path === "/admin/car-gallery") return <CarGalleryPage drivers={drivers} tracks={tracks} />;
@@ -2306,6 +2410,9 @@ export default function App() {
               <button onClick={() => (window.location.pathname = "/streams")} style={headerButtonStyle}>
                 🎮 Streams
               </button>
+              <button onClick={() => (window.location.pathname = "/discord")} style={headerButtonStyle}>
+                💬 Discord
+              </button>
               <button onClick={() => (window.location.pathname = "/news")} style={headerButtonStyle}>
                 📰 News
               </button>
@@ -2325,6 +2432,33 @@ export default function App() {
                 🎙️ Interviews
               </button>
             </div>
+          </div>
+        </div>
+        {/* Discord Settings */}
+        <div style={sectionCardStyle}>
+          <h2 style={{ marginTop: 0 }}>Discord Hub Settings</h2>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12, marginBottom: 14 }}>
+            <div>
+              <div style={{ marginBottom: 6, fontWeight: 700 }}>Discord Invite Link</div>
+              <input style={inputStyle} value={discordInviteUrl} onChange={(e) => setDiscordInviteUrl(e.target.value)} placeholder="https://discord.gg/your-link" />
+            </div>
+            <div>
+              <div style={{ marginBottom: 6, fontWeight: 700 }}>Discord Page Announcement</div>
+              <input style={inputStyle} value={discordAnnouncement} onChange={(e) => setDiscordAnnouncement(e.target.value)} placeholder="Join the league Discord..." />
+            </div>
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ marginBottom: 6, fontWeight: 700 }}>Discord Rules / Conduct Notes</div>
+            <textarea
+              style={{ ...inputStyle, minHeight: 130, resize: "vertical", lineHeight: 1.45 }}
+              value={discordRulesText}
+              onChange={(e) => setDiscordRulesText(e.target.value)}
+              placeholder="One rule per line"
+            />
+          </div>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <button onClick={saveDiscordSettings} style={primaryButtonStyle}>Save Discord Settings</button>
+            <button onClick={() => (window.location.pathname = "/discord")} style={secondaryButtonStyle}>View Discord Page</button>
           </div>
         </div>
         {/* Season Manager */}
