@@ -8,6 +8,7 @@ import teamLogoBOM from "./assets/teams/BOM.png";
 import teamLogoWSM from "./assets/teams/WSM.png";
 import teamLogoIND from "./assets/teams/IND.png";
 import teamLogo19XI from "./assets/teams/19XI.png";
+import teamLogoBWR from "./assets/teams/BWR.png";
 import { supabase } from "./lib/supabase";
 import { uploadCarFile, getCarUploads, deleteCarUpload } from "./lib/carUploads";
 
@@ -24,6 +25,8 @@ const teamLogos = {
   IND: teamLogoIND,
   "19XI": teamLogo19XI,
   "19XI Racing": teamLogo19XI,
+  "Big Wheel Racing": teamLogoBWR,
+  BWR: teamLogoBWR,
 };
 
 // ─── Team Full Names ───────────────────────────────────────────────────────────
@@ -39,6 +42,8 @@ const teamFullNames = {
   IND: "Independent",
   "19XI": "19XI Racing",
   "19XI Racing": "19XI Racing",
+  BWR: "Big Wheel Racing",
+  "Big Wheel Racing": "Big Wheel Racing",
 };
 function getTeamFullName(teamAbbr) {
   return teamFullNames[teamAbbr] || teamAbbr;
