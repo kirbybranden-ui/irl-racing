@@ -75,6 +75,64 @@ function getTeamFullName(teamAbbr) {
 function isInactivePlaceholderDriver(driver) {
   return String(driver?.name || "").trim().toLowerCase().startsWith("inactive-");
 }
+
+function dedupeDriversByNumber(drivers) {
+  if (!Array.isArray(drivers)) return [];
+  const preferredNamesByNumber = {
+    80: "gumby_1919",
+  };
+
+  const byNumber = new Map();
+
+  drivers.forEach((driver) => {
+    if (!driver || driver.number === undefined || driver.number === null) return;
+    const numberKey = String(Number(driver.number));
+    const preferredName = preferredNamesByNumber[numberKey];
+    const current = byNumber.get(numberKey);
+
+    if (!current) {
+      byNumber.set(numberKey, driver);
+      return;
+    }
+
+    const driverName = String(driver.name || "").trim().toLowerCase();
+    const currentName = String(current.name || "").trim().toLowerCase();
+
+    if (preferredName && driverName === preferredName.toLowerCase()) {
+      byNumber.set(numberKey, driver);
+      return;
+    }
+
+    if (preferredName && currentName === preferredName.toLowerCase()) {
+      return;
+    }
+
+    const driverHasData =
+      Number(driver.points || 0) !== 0 ||
+      Number(driver.wins || 0) !== 0 ||
+      Number(driver.top3 || 0) !== 0 ||
+      Number(driver.top5 || 0) !== 0 ||
+      Number(driver.dnfs || 0) !== 0 ||
+      Number(driver.fastestLaps || 0) !== 0 ||
+      Number(driver.totalPenalties || 0) !== 0;
+
+    const currentHasData =
+      Number(current.points || 0) !== 0 ||
+      Number(current.wins || 0) !== 0 ||
+      Number(current.top3 || 0) !== 0 ||
+      Number(current.top5 || 0) !== 0 ||
+      Number(current.dnfs || 0) !== 0 ||
+      Number(current.fastestLaps || 0) !== 0 ||
+      Number(current.totalPenalties || 0) !== 0;
+
+    if (driverHasData && !currentHasData) {
+      byNumber.set(numberKey, driver);
+    }
+  });
+
+  return Array.from(byNumber.values());
+}
+
 const defaultDrivers = [
   { id: 1,  number: 42, name: "AMP-GHOSTRIDER",           manufacturer: "Toyota",    team: "JAM"         },
   { id: 2,  number: 99, name: "RookieVet99",               manufacturer: "Toyota",    team: "JAM"         },
@@ -96,7 +154,8 @@ const defaultDrivers = [
   { id: 20, number: 76, name: "BCR_Ziggy5525",              manufacturer: "Chevrolet", team: "WSM"         },
   { id: 21, number: 86, name: "YinZerMOB_86",              manufacturer: "Chevrolet", team: "MER"         },
   { id: 23, number: 28, name: "Y2JTolbert",                manufacturer: "Ford",      team: "NLM"         },
-  { id: 25, number: 80, name: "gumby_1919",             manufacturer: "Ford",      team: "MMS"         },  { id: 26, number: 7,  name: "gunszmb",               manufacturer: "Ford",      team: "BWR"         },
+  { id: 25, number: 80, name: "gumby_1919",             manufacturer: "Ford",      team: "MMS"         },
+  { id: 26, number: 7,  name: "gunszmb",               manufacturer: "Ford",      team: "BWR"         },
   { id: 27, number: 97, name: "JPC_Racing",            manufacturer: "Ford",      team: "BWR"         },
 ];
 const defaultRaces = [
@@ -296,7 +355,7 @@ function getDriverAchievements(driver) {
   if (driver.fastestLaps >= 5) achievements.push({ badge: "⚡", name: "Speed Demon", condition: driver.fastestLaps >= 5 });
   return achievements;
 }
-function getDefaultRoster() { return defaultDrivers.map(makeDriverWithStats); }
+function getDefaultRoster() { return dedupeDriversByNumber(defaultDrivers.map(makeDriverWithStats)); }
 function getStagePoints(stageFinish) {
   if (!stageFinish || stageFinish < 1 || stageFinish > 10) return 0;
   return stagePointsTable[stageFinish - 1];
@@ -322,12 +381,13 @@ function rebuildDriversFromHistory(history, driverRoster) {
 }
 function makeSeasonId() { return `season-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`; }
 function createEmptySeason(name, roster = getDefaultRoster()) {
-  const cleanRoster = roster.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer || "", team: d.team, startingPoints: 0, manualWins: 0 }));
+  const dedupedRoster = dedupeDriversByNumber(roster);
+  const cleanRoster = dedupedRoster.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer || "", team: d.team, startingPoints: 0, manualWins: 0 }));
   return { id: makeSeasonId(), name: name || "New Season", createdAt: new Date().toISOString(), drivers: rebuildDriversFromHistory([], cleanRoster), selectedRace: "", positions: {}, stage1: {}, stage2: {}, stage3: {}, dnfMap: {}, offenseMap: {}, fastestLapMap: {}, raceHistory: [] };
 }
 function sanitizeSeason(season, fallbackName = "Season") {
   const rosterSource = Array.isArray(season?.drivers) && season.drivers.length > 0 ? season.drivers : getDefaultRoster();
-  const rosterOnly = rosterSource.map((d) => ({ id: d.id, number: Number(d.number), name: d.name, manufacturer: d.manufacturer || "", team: d.team, startingPoints: 0, manualWins: 0, retired: d.retired || false, notes: "" }));
+  const rosterOnly = dedupeDriversByNumber(rosterSource).map((d) => ({ id: d.id, number: Number(d.number), name: d.name, manufacturer: d.manufacturer || "", team: d.team, startingPoints: 0, manualWins: 0, retired: d.retired || false, notes: "" }));
   const history = Array.isArray(season?.raceHistory)
     ? season.raceHistory.map((race) => ({ ...race, raceName: normalizeTrackName(race.raceName) }))
     : [];
@@ -379,7 +439,8 @@ function loadInitialLeagueState() {
   return { seasons: [legacySeason], activeSeasonId: legacySeason.id, tracks };
 }
 function LeaderboardOverlay({ drivers, preview = false, seasonName = "" }) {
-  const sorted = [...drivers].sort((a, b) => b.points - a.points || b.wins - a.wins || b.top3 - a.top3 || a.name.localeCompare(b.name));
+  const cleanDrivers = dedupeDriversByNumber(drivers);
+  const sorted = [...cleanDrivers].sort((a, b) => b.points - a.points || b.wins - a.wins || b.top3 - a.top3 || a.name.localeCompare(b.name));
   return (
     <div style={{ minHeight: "100vh", background: preview ? "#111" : "transparent", color: "white", padding: 20, boxSizing: "border-box", fontFamily: "Arial, sans-serif" }}>
       <div style={{ maxWidth: 1000, background: "rgba(10,10,10,0.84)", border: "2px solid #d4af37", borderRadius: 16, overflow: "hidden" }}>
