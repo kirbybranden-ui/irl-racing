@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import JSZip from "jszip";
 import { supabase } from "./lib/supabase.js";
 
 const appShellStyle = { minHeight: "100vh", background: "#0c0f14", color: "white", fontFamily: "Arial, sans-serif" };
@@ -14,7 +15,8 @@ export default function CarGalleryPage({ drivers = [], tracks = [] }) {
   const [filteredUploads, setFilteredUploads] = useState([]);
   const [selectedDriver, setSelectedDriver] = useState("");
   const [selectedRace, setSelectedRace] = useState("");
-  const [downloadRace, setDownloadRace] = useState("");
+  const [zipDownloadRace, setZipDownloadRace] = useState("");
+  const [zipDownloading, setZipDownloading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
 
@@ -81,69 +83,100 @@ export default function CarGalleryPage({ drivers = [], tracks = [] }) {
     document.body.removeChild(a);
   };
 
+  const makeSafeFileName = (value) => {
+    return String(value || "car-photo")
+      .trim()
+      .replace(/[^a-z0-9._-]+/gi, "-")
+      .replace(/^-+|-+$/g, "") || "car-photo";
+  };
 
-  const safeCsvValue = (value) => `"${String(value ?? "").replace(/"/g, '""')}"`;
+  const getFileExtensionFromUpload = (upload, url) => {
+    const fromName = String(upload.file_name || "").match(/\.([a-z0-9]+)$/i)?.[1];
+    if (fromName) return fromName.toLowerCase();
 
-  const safeFileNamePart = (value) =>
-    String(value || "all-tracks")
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)/g, "") || "all-tracks";
+    const cleanUrl = String(url || "").split("?")[0];
+    const fromUrl = cleanUrl.match(/\.([a-z0-9]+)$/i)?.[1];
+    if (fromUrl) return fromUrl.toLowerCase();
 
-  const handleDownloadByTrack = () => {
-    if (!downloadRace) {
+    const fileType = String(upload.file_type || "").toLowerCase();
+    if (fileType.includes("jpeg")) return "jpg";
+    if (fileType.includes("png")) return "png";
+    if (fileType.includes("webp")) return "webp";
+    if (fileType.includes("gif")) return "gif";
+    if (fileType.includes("mp4")) return "mp4";
+    if (fileType.includes("quicktime")) return "mov";
+
+    return "jpg";
+  };
+
+  const downloadCarsZipByTrack = async () => {
+    if (!zipDownloadRace) {
       alert("Select a track/race first.");
       return;
     }
 
-    const uploadsForRace = uploads.filter((upload) => (upload.race_id || upload.race_week) === downloadRace);
+    const raceUploads = uploads.filter(u => (u.race_id || u.race_week) === zipDownloadRace);
+    const downloadableUploads = raceUploads.filter(u => u.image_url || u.file_url);
 
-    if (uploadsForRace.length === 0) {
-      alert("No car uploads found for that track/race.");
+    if (downloadableUploads.length === 0) {
+      alert("No downloadable car photos found for that track.");
       return;
     }
 
-    const headers = [
-      "Track/Race",
-      "Driver",
-      "Car Number",
-      "Team",
-      "File Name",
-      "File Type",
-      "File URL",
-      "Uploaded At",
-    ];
+    try {
+      setZipDownloading(true);
+      const zip = new JSZip();
+      const folder = zip.folder(makeSafeFileName(zipDownloadRace));
+      const usedNames = new Set();
 
-    const rows = uploadsForRace.map((upload) => {
-      const driver = drivers.find((d) => String(d.id) === String(upload.driver_id));
-      const url = upload.image_url || upload.file_url || "";
-      return [
-        upload.race_id || upload.race_week || "",
-        driver ? driver.name : (upload.driver_name || upload.uploader_name || "Unknown"),
-        driver ? driver.number : (upload.car_number || ""),
-        driver ? driver.team : (upload.team || ""),
-        upload.file_name || "",
-        upload.file_type || "",
-        url,
-        upload.uploaded_at || "",
-      ];
-    });
+      for (const upload of downloadableUploads) {
+        const driver = drivers.find(d => String(d.id) === String(upload.driver_id));
+        const url = upload.image_url || upload.file_url || "";
+        const response = await fetch(url);
 
-    const csvContent = [headers, ...rows]
-      .map((row) => row.map(safeCsvValue).join(","))
-      .join("\n");
+        if (!response.ok) {
+          console.warn("Could not download car upload:", url, response.status);
+          continue;
+        }
 
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
+        const blob = await response.blob();
+        const extension = getFileExtensionFromUpload(upload, url);
+        const driverName = driver ? `${driver.number}-${driver.name}` : (upload.driver_name || upload.uploader_name || `upload-${upload.id}`);
+        const baseName = makeSafeFileName(driverName);
+        let fileName = `${baseName}.${extension}`;
+        let counter = 2;
 
-    link.href = url;
-    link.download = `car-gallery-${safeFileNamePart(downloadRace)}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+        while (usedNames.has(fileName)) {
+          fileName = `${baseName}-${counter}.${extension}`;
+          counter += 1;
+        }
+
+        usedNames.add(fileName);
+        folder.file(fileName, blob);
+      }
+
+      if (usedNames.size === 0) {
+        alert("The ZIP could not be created because none of the files downloaded. Check that the uploaded file URLs are public.");
+        return;
+      }
+
+      const zipBlob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(zipBlob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${makeSafeFileName(zipDownloadRace)}-car-photos.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("ZIP download error:", err);
+      alert("Could not create ZIP file. Make sure jszip is installed and the car upload URLs are public.");
+    } finally {
+      setZipDownloading(false);
+    }
   };
+
 
   // Unique race values — prefer race_id, fall back to race_week
   const raceOptions = [...new Set(uploads.map(u => u.race_id || u.race_week).filter(Boolean))];
@@ -189,22 +222,33 @@ export default function CarGalleryPage({ drivers = [], tracks = [] }) {
               </div>
             </div>
           </div>
-        </div>
 
-        <div style={sectionCardStyle}>
-          <h2 style={{ marginTop: 0, marginBottom: 16 }}>Download Cars by Track</h2>
-          <p style={{ opacity: 0.75, marginTop: 0 }}>Select a track/race and download a CSV with every car upload link for that track.</p>
-          <div style={{ display: "grid", gridTemplateColumns: "minmax(220px, 1fr) auto", gap: 12, alignItems: "end" }}>
-            <div>
-              <label style={{ display: "block", marginBottom: 6, fontWeight: 700 }}>Track / Race</label>
-              <select style={inputStyle} value={downloadRace} onChange={(e) => setDownloadRace(e.target.value)}>
-                <option value="">Select Track / Race</option>
-                {raceOptions.map(r => <option key={r} value={r}>{r}</option>)}
-              </select>
+          <div style={{ marginTop: 18, paddingTop: 18, borderTop: "1px solid #2c3440" }}>
+            <h3 style={{ marginTop: 0, marginBottom: 10 }}>Download All Cars by Track</h3>
+            <div style={{ display: "grid", gridTemplateColumns: "minmax(220px, 1fr) auto", gap: 12, alignItems: "end" }}>
+              <div>
+                <label style={{ display: "block", marginBottom: 6, fontWeight: 700 }}>Select Track / Race</label>
+                <select style={inputStyle} value={zipDownloadRace} onChange={(e) => setZipDownloadRace(e.target.value)}>
+                  <option value="">Choose a track/race</option>
+                  {raceOptions.map(r => <option key={r} value={r}>{r}</option>)}
+                </select>
+              </div>
+              <button
+                onClick={downloadCarsZipByTrack}
+                disabled={zipDownloading || !zipDownloadRace}
+                style={{
+                  ...primaryButtonStyle,
+                  opacity: zipDownloading || !zipDownloadRace ? 0.55 : 1,
+                  cursor: zipDownloading || !zipDownloadRace ? "not-allowed" : "pointer",
+                  minHeight: 42,
+                }}
+              >
+                {zipDownloading ? "Building ZIP..." : "Download Track ZIP"}
+              </button>
             </div>
-            <button onClick={handleDownloadByTrack} style={{ ...primaryButtonStyle, height: 42 }}>
-              Download All for Track
-            </button>
+            <div style={{ fontSize: 12, opacity: 0.65, marginTop: 8 }}>
+              This downloads the actual uploaded car photos for the selected track into one ZIP file.
+            </div>
           </div>
         </div>
 
