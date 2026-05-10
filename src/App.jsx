@@ -96,8 +96,7 @@ const defaultDrivers = [
   { id: 20, number: 76, name: "BCR_Ziggy5525",              manufacturer: "Chevrolet", team: "WSM"         },
   { id: 21, number: 86, name: "YinZerMOB_86",              manufacturer: "Chevrolet", team: "MER"         },
   { id: 23, number: 28, name: "Y2JTolbert",                manufacturer: "Ford",      team: "NLM"         },
-  { id: 25, number: 80, name: "gumby_1919",             manufacturer: "Ford",      team: "MMS"         },
-  { id: 26, number: 7,  name: "gunszmb",               manufacturer: "Ford",      team: "BWR"         },
+  { id: 25, number: 80, name: "gumby_1919",             manufacturer: "Ford",      team: "MMS"         },  { id: 26, number: 7,  name: "gunszmb",               manufacturer: "Ford",      team: "BWR"         },
   { id: 27, number: 97, name: "JPC_Racing",            manufacturer: "Ford",      team: "BWR"         },
 ];
 const defaultRaces = [
