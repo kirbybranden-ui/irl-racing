@@ -14,6 +14,7 @@ export default function CarGalleryPage({ drivers = [], tracks = [] }) {
   const [filteredUploads, setFilteredUploads] = useState([]);
   const [selectedDriver, setSelectedDriver] = useState("");
   const [selectedRace, setSelectedRace] = useState("");
+  const [downloadRace, setDownloadRace] = useState("");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
 
@@ -80,6 +81,70 @@ export default function CarGalleryPage({ drivers = [], tracks = [] }) {
     document.body.removeChild(a);
   };
 
+
+  const safeCsvValue = (value) => `"${String(value ?? "").replace(/"/g, '""')}"`;
+
+  const safeFileNamePart = (value) =>
+    String(value || "all-tracks")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "") || "all-tracks";
+
+  const handleDownloadByTrack = () => {
+    if (!downloadRace) {
+      alert("Select a track/race first.");
+      return;
+    }
+
+    const uploadsForRace = uploads.filter((upload) => (upload.race_id || upload.race_week) === downloadRace);
+
+    if (uploadsForRace.length === 0) {
+      alert("No car uploads found for that track/race.");
+      return;
+    }
+
+    const headers = [
+      "Track/Race",
+      "Driver",
+      "Car Number",
+      "Team",
+      "File Name",
+      "File Type",
+      "File URL",
+      "Uploaded At",
+    ];
+
+    const rows = uploadsForRace.map((upload) => {
+      const driver = drivers.find((d) => String(d.id) === String(upload.driver_id));
+      const url = upload.image_url || upload.file_url || "";
+      return [
+        upload.race_id || upload.race_week || "",
+        driver ? driver.name : (upload.driver_name || upload.uploader_name || "Unknown"),
+        driver ? driver.number : (upload.car_number || ""),
+        driver ? driver.team : (upload.team || ""),
+        upload.file_name || "",
+        upload.file_type || "",
+        url,
+        upload.uploaded_at || "",
+      ];
+    });
+
+    const csvContent = [headers, ...rows]
+      .map((row) => row.map(safeCsvValue).join(","))
+      .join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = `car-gallery-${safeFileNamePart(downloadRace)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   // Unique race values — prefer race_id, fall back to race_week
   const raceOptions = [...new Set(uploads.map(u => u.race_id || u.race_week).filter(Boolean))];
 
@@ -123,6 +188,23 @@ export default function CarGalleryPage({ drivers = [], tracks = [] }) {
                 {filteredUploads.length} uploads
               </div>
             </div>
+          </div>
+        </div>
+
+        <div style={sectionCardStyle}>
+          <h2 style={{ marginTop: 0, marginBottom: 16 }}>Download Cars by Track</h2>
+          <p style={{ opacity: 0.75, marginTop: 0 }}>Select a track/race and download a CSV with every car upload link for that track.</p>
+          <div style={{ display: "grid", gridTemplateColumns: "minmax(220px, 1fr) auto", gap: 12, alignItems: "end" }}>
+            <div>
+              <label style={{ display: "block", marginBottom: 6, fontWeight: 700 }}>Track / Race</label>
+              <select style={inputStyle} value={downloadRace} onChange={(e) => setDownloadRace(e.target.value)}>
+                <option value="">Select Track / Race</option>
+                {raceOptions.map(r => <option key={r} value={r}>{r}</option>)}
+              </select>
+            </div>
+            <button onClick={handleDownloadByTrack} style={{ ...primaryButtonStyle, height: 42 }}>
+              Download All for Track
+            </button>
           </div>
         </div>
 
