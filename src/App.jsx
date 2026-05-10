@@ -360,6 +360,72 @@ function getStagePoints(stageFinish) {
   if (!stageFinish || stageFinish < 1 || stageFinish > 10) return 0;
   return stagePointsTable[stageFinish - 1];
 }
+
+function downloadRaceHistoryCsv(raceHistory = [], seasonName = "") {
+  if (!Array.isArray(raceHistory) || raceHistory.length === 0) {
+    alert("No race history to download yet.");
+    return;
+  }
+
+  const rows = raceHistory.flatMap((race) => {
+    const results = Array.isArray(race.results) ? race.results : [];
+    return results.map((result) => ({
+      Season: seasonName || "",
+      Race: race.raceName || "",
+      StageCount: race.stageCount ?? "",
+      Finish: result.finishPos ?? "",
+      CarNumber: result.number ?? "",
+      Driver: result.name || "",
+      Team: getTeamFullName(result.team || ""),
+      Manufacturer: result.manufacturer || "",
+      FinishPoints: result.finishPoints ?? 0,
+      Stage1Points: result.stage1Points ?? 0,
+      Stage2Points: result.stage2Points ?? 0,
+      Stage3Points: result.stage3Points ?? 0,
+      FastestLap: result.fastestLap ? "Yes" : "No",
+      DNF: result.dnf ? "Yes" : "No",
+      DNFReason: result.dnfReason || "",
+      Offense: result.offense ? "Yes" : "No",
+      OffenseNumber: result.offenseNumber ?? "",
+      PenaltyPoints: result.penaltyPoints ?? 0,
+      TotalRacePoints: result.totalRacePoints ?? 0,
+    }));
+  });
+
+  if (rows.length === 0) {
+    alert("Race history exists, but there are no driver results to download.");
+    return;
+  }
+
+  const headers = Object.keys(rows[0]);
+  const csv = [
+    headers.join(","),
+    ...rows.map((row) =>
+      headers
+        .map((header) => {
+          const value = String(row[header] ?? "");
+          return `"${value.replace(/"/g, '""')}"`;
+        })
+        .join(",")
+    ),
+  ].join("\n");
+
+  const safeSeasonName = String(seasonName || "season")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+  const dateStamp = new Date().toISOString().slice(0, 10);
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = `budweiser-cup-race-history-${safeSeasonName}-${dateStamp}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
 function rebuildDriversFromHistory(history, driverRoster) {
   return driverRoster.map((baseDriver) => {
     let points = 0;
@@ -3050,7 +3116,16 @@ export default function App() {
         </div>
         {/* Race History */}
         <div style={sectionCardStyle}>
-          <h2 style={{ marginTop: 0 }}>Race History</h2>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
+            <h2 style={{ margin: 0 }}>Race History</h2>
+            <button
+              type="button"
+              onClick={() => downloadRaceHistoryCsv(raceHistory, activeSeason?.name || "Season")}
+              style={primaryButtonStyle}
+            >
+              ⬇️ Download Race History CSV
+            </button>
+          </div>
           {raceHistory.length === 0 ? <div style={{ opacity: 0.75 }}>No races entered yet.</div> : (
             <div style={{ display: "grid", gap: 16 }}>
               {raceHistory.map((race) => {
