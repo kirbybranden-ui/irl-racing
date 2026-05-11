@@ -954,6 +954,98 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
     );
   }
 
+  if (subPage === "contracts") {
+    return (
+      <div style={{ ...appShellStyle, background: `radial-gradient(circle at top, ${teamTheme.glow} 0%, #0c0f14 34%, #080a0e 100%)` }}>
+        <div style={pageContainerStyle}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20, flexWrap: "wrap" }}>
+            <button onClick={() => window.location.pathname = `/driver/${driverNumber}`} style={secondaryButtonStyle}>← Back to Profile</button>
+            <div>
+              <div style={{ fontSize: 22, fontWeight: 900 }}>#{driver.number} {driver.name} — Contract Portal</div>
+              <div style={{ fontSize: 13, opacity: 0.6, marginTop: 2 }}>Private driver contract inbox</div>
+            </div>
+          </div>
+
+          <div style={{ ...sectionCardStyle, borderColor: isDriverAuthorized ? teamTheme.accent : "#2c3440" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
+              <div>
+                <h2 style={{ margin: 0 }}>📄 Driver Contract Portal</h2>
+                <div style={{ fontSize: 13, opacity: 0.65, marginTop: 4 }}>Unlock to review, accept, or decline contract offers.</div>
+              </div>
+              {isDriverAuthorized && <button onClick={lockDriverContracts} style={secondaryButtonStyle}>Lock Contracts</button>}
+            </div>
+
+            {!isDriverAuthorized ? (
+              <div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, alignItems: "end" }}>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>DRIVER CODE</div>
+                    <input value={driverAccessCodeInput} onChange={(event) => setDriverAccessCodeInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") unlockDriverContracts(); }} placeholder={`Enter #${driver.number} driver code`} style={inputStyle} />
+                  </div>
+                  <button onClick={unlockDriverContracts} style={themedPrimaryButtonStyle}>Unlock My Contracts</button>
+                </div>
+                <div style={{ marginTop: 12, fontSize: 13, opacity: 0.65, lineHeight: 1.5 }}>Contract offers are hidden until this driver unlocks the inbox with their private driver code.</div>
+                {contractError && <div style={{ marginTop: 12, color: "#f87171", fontWeight: 800 }}>{contractError}</div>}
+              </div>
+            ) : contractLoading ? (
+              <div style={{ opacity: 0.7 }}>Loading contract offers...</div>
+            ) : contractOffers.length === 0 ? (
+              <div style={{ opacity: 0.7 }}>No contract offers currently available for #{driver.number} {driver.name}.</div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                {contractOffers.map((offer) => (
+                  <div key={offer.id} style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 18 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 10 }}>
+                      <div>
+                        <div style={{ fontSize: 20, fontWeight: 900 }}>{offer.team}</div>
+                        <div style={{ fontSize: 12, opacity: 0.65 }}>{offer.brand_style || "Balanced"}</div>
+                      </div>
+                      <div style={{ background: offer.status === "Accepted" ? "#14532d" : offer.status === "Declined" ? "#7f1d1d" : offer.status === "Withdrawn" ? "#3f3f46" : "#1e3a8a", padding: "4px 12px", borderRadius: 8, fontWeight: 800, fontSize: 12 }}>{offer.status}</div>
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(165px, 1fr))", gap: 12, marginBottom: 14 }}>
+                      {[
+                        ["SALARY", money(offer.salary)],
+                        ["SIGNING BONUS", money(offer.signing_bonus)],
+                        ["CONTRACT LENGTH", `${offer.contract_length || 1} season(s)`],
+                        ["BUYOUT", money(offer.buyout_amount)],
+                        ["WIN BONUS", money(offer.win_bonus)],
+                        ["CHAMPIONSHIP BONUS", money(offer.championship_bonus)],
+                      ].map(([label, value]) => (
+                        <div key={label}>
+                          <div style={{ opacity: 0.6, fontSize: 11 }}>{label}</div>
+                          <div style={{ fontWeight: 900, color: label === "SALARY" ? teamTheme.accent : "white" }}>{value}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
+                      {offer.no_trade_clause && <span style={{ background: "#171b22", border: "1px solid #2c3440", borderRadius: 999, padding: "5px 10px", fontSize: 12 }}>No-trade clause</span>}
+                      {offer.team_option && <span style={{ background: "#171b22", border: "1px solid #2c3440", borderRadius: 999, padding: "5px 10px", fontSize: 12 }}>Team option</span>}
+                      {offer.mutual_option && <span style={{ background: "#171b22", border: "1px solid #2c3440", borderRadius: 999, padding: "5px 10px", fontSize: 12 }}>Mutual option</span>}
+                      {offer.guaranteed_seat && <span style={{ background: "#171b22", border: "1px solid #2c3440", borderRadius: 999, padding: "5px 10px", fontSize: 12 }}>Guaranteed seat</span>}
+                    </div>
+
+                    {offer.media_requirements && <div style={{ marginBottom: 14, background: "#171b22", borderRadius: 10, padding: 12, lineHeight: 1.6, fontSize: 13 }}><div style={{ fontSize: 11, opacity: 0.65, marginBottom: 6, fontWeight: 800 }}>MEDIA / BRAND REQUIREMENTS</div>{offer.media_requirements}</div>}
+                    {offer.notes && <div style={{ marginBottom: 14, background: "#11161d", borderRadius: 10, padding: 12, lineHeight: 1.6, fontSize: 13 }}><div style={{ fontSize: 11, opacity: 0.65, marginBottom: 6, fontWeight: 800 }}>OWNER NOTES</div>{offer.notes}</div>}
+                    {offer.expires_at && <div style={{ fontSize: 12, opacity: 0.65, marginBottom: 14 }}>Expires: {new Date(offer.expires_at).toLocaleDateString()}</div>}
+
+                    {offer.status === "Pending" && (
+                      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                        <button onClick={() => acceptContractOffer(offer)} style={{ ...primaryButtonStyle, background: "#22c55e" }}>Accept Offer</button>
+                        <button onClick={() => declineContractOffer(offer)} style={dangerButtonStyle}>Decline Offer</button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (subPage === "interviews") {
     return (
       <div style={{ ...appShellStyle, background: `radial-gradient(circle at top, ${teamTheme.glow} 0%, #0c0f14 34%, #080a0e 100%)` }}>
@@ -1085,12 +1177,11 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
         </div>
 
         <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 20 }}>
-          <button onClick={() => scrollToSection("driver-contract-portal")} style={themedPrimaryButtonStyle}>📄 Driver Contract Portal</button>
-          <button onClick={() => window.location.pathname = `/driver/${driverNumber}/upload`} style={secondaryButtonStyle}>📷 Upload Center</button>
-          <button onClick={() => window.location.pathname = `/driver/${driverNumber}/interviews`} style={secondaryButtonStyle}>🎙️ Interview Center</button>
-          <button onClick={() => setIsAppealModalOpen(true)} style={themedPrimaryButtonStyle}>📋 File an Appeal</button>
-          <button onClick={() => window.location.pathname = `/driver/${driverNumber}/appeals`} style={{ ...secondaryButtonStyle, position: "relative" }}>
-            📁 My Appeals
+          <button onClick={() => window.location.pathname = `/driver/${driverNumber}/contracts`} style={themedPrimaryButtonStyle}>📄 Contracts</button>
+          <button onClick={() => window.location.pathname = `/driver/${driverNumber}/upload`} style={secondaryButtonStyle}>📷 Uploads</button>
+          <button onClick={() => window.location.pathname = `/driver/${driverNumber}/interviews`} style={secondaryButtonStyle}>🎙️ Interviews</button>
+          <button onClick={() => window.location.pathname = `/driver/${driverNumber}/appeals`} style={secondaryButtonStyle}>
+            📋 Appeals
             {myAppeals.length > 0 && <span style={{ marginLeft: 8, background: myAppeals.some((a) => a.status !== "Open") ? "#22c55e" : "#3b82f6", color: "white", borderRadius: 99, padding: "2px 8px", fontSize: 11, fontWeight: 800 }}>{myAppeals.length}</span>}
           </button>
         </div>
@@ -1135,89 +1226,6 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
             ))}
           </div>
         </div>
-
-        <div id="driver-contract-portal" style={{ ...sectionCardStyle, borderColor: isDriverAuthorized ? teamTheme.accent : "#2c3440" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
-            <div>
-              <h2 style={{ margin: 0 }}>📄 Driver Contract Portal</h2>
-              <div style={{ fontSize: 13, opacity: 0.65, marginTop: 4 }}>Driver-only contract inbox. Unlock to review, accept, or decline offers.</div>
-            </div>
-            {isDriverAuthorized && <button onClick={lockDriverContracts} style={secondaryButtonStyle}>Lock Contracts</button>}
-          </div>
-
-          {!isDriverAuthorized ? (
-            <div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, alignItems: "end" }}>
-                <div>
-                  <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>DRIVER CODE</div>
-                  <input value={driverAccessCodeInput} onChange={(event) => setDriverAccessCodeInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") unlockDriverContracts(); }} placeholder={`Enter #${driver.number} driver code`} style={inputStyle} />
-                </div>
-                <button onClick={unlockDriverContracts} style={themedPrimaryButtonStyle}>Unlock My Contracts</button>
-              </div>
-              <div style={{ marginTop: 12, fontSize: 13, opacity: 0.65, lineHeight: 1.5 }}>Contract offers are hidden until this driver unlocks the inbox with their private driver code.</div>
-              {contractError && <div style={{ marginTop: 12, color: "#f87171", fontWeight: 800 }}>{contractError}</div>}
-            </div>
-          ) : contractLoading ? (
-            <div style={{ opacity: 0.7 }}>Loading contract offers...</div>
-          ) : contractOffers.length === 0 ? (
-            <div style={{ opacity: 0.7 }}>No contract offers currently available for #{driver.number} {driver.name}.</div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              {contractOffers.map((offer) => (
-                <div key={offer.id} style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 18 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 10 }}>
-                    <div>
-                      <div style={{ fontSize: 20, fontWeight: 900 }}>{offer.team}</div>
-                      <div style={{ fontSize: 12, opacity: 0.65 }}>{offer.brand_style || "Balanced"}</div>
-                    </div>
-                    <div style={{ background: offer.status === "Accepted" ? "#14532d" : offer.status === "Declined" ? "#7f1d1d" : offer.status === "Withdrawn" ? "#3f3f46" : "#1e3a8a", padding: "4px 12px", borderRadius: 8, fontWeight: 800, fontSize: 12 }}>{offer.status}</div>
-                  </div>
-
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(165px, 1fr))", gap: 12, marginBottom: 14 }}>
-                    {[
-                      ["SALARY", money(offer.salary)],
-                      ["SIGNING BONUS", money(offer.signing_bonus)],
-                      ["CONTRACT LENGTH", `${offer.contract_length || 1} season(s)`],
-                      ["BUYOUT", money(offer.buyout_amount)],
-                      ["WIN BONUS", money(offer.win_bonus)],
-                      ["CHAMPIONSHIP BONUS", money(offer.championship_bonus)],
-                    ].map(([label, value]) => (
-                      <div key={label}>
-                        <div style={{ opacity: 0.6, fontSize: 11 }}>{label}</div>
-                        <div style={{ fontWeight: 900, color: label === "SALARY" ? teamTheme.accent : "white" }}>{value}</div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
-                    {offer.no_trade_clause && <span style={{ background: "#171b22", border: "1px solid #2c3440", borderRadius: 999, padding: "5px 10px", fontSize: 12 }}>No-trade clause</span>}
-                    {offer.team_option && <span style={{ background: "#171b22", border: "1px solid #2c3440", borderRadius: 999, padding: "5px 10px", fontSize: 12 }}>Team option</span>}
-                    {offer.mutual_option && <span style={{ background: "#171b22", border: "1px solid #2c3440", borderRadius: 999, padding: "5px 10px", fontSize: 12 }}>Mutual option</span>}
-                    {offer.guaranteed_seat && <span style={{ background: "#171b22", border: "1px solid #2c3440", borderRadius: 999, padding: "5px 10px", fontSize: 12 }}>Guaranteed seat</span>}
-                  </div>
-
-                  {offer.media_requirements && <div style={{ marginBottom: 14, background: "#171b22", borderRadius: 10, padding: 12, lineHeight: 1.6, fontSize: 13 }}><div style={{ fontSize: 11, opacity: 0.65, marginBottom: 6, fontWeight: 800 }}>MEDIA / BRAND REQUIREMENTS</div>{offer.media_requirements}</div>}
-                  {offer.notes && <div style={{ marginBottom: 14, background: "#11161d", borderRadius: 10, padding: 12, lineHeight: 1.6, fontSize: 13 }}><div style={{ fontSize: 11, opacity: 0.65, marginBottom: 6, fontWeight: 800 }}>OWNER NOTES</div>{offer.notes}</div>}
-                  {offer.expires_at && <div style={{ fontSize: 12, opacity: 0.65, marginBottom: 14 }}>Expires: {new Date(offer.expires_at).toLocaleDateString()}</div>}
-
-                  {offer.status === "Pending" && (
-                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                      <button onClick={() => acceptContractOffer(offer)} style={{ ...primaryButtonStyle, background: "#22c55e" }}>Accept Offer</button>
-                      <button onClick={() => declineContractOffer(offer)} style={dangerButtonStyle}>Decline Offer</button>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div style={{ ...sectionCardStyle, borderColor: teamTheme.accent }}>
-          <h2 style={{ marginTop: 0, marginBottom: 4 }}>🎙️ Interview Center</h2>
-          <div style={{ fontSize: 13, opacity: 0.65, marginBottom: 14 }}>Interviews now open on their own driver page.</div>
-          <button onClick={() => window.location.pathname = `/driver/${driverNumber}/interviews`} style={themedPrimaryButtonStyle}>Open Interview Center</button>
-        </div>
-
         {unlockedAchievements.length > 0 && (
           <div style={{ ...sectionCardStyle, borderColor: teamTheme.accent }}>
             <h3 style={{ marginTop: 0, marginBottom: 12 }}>Achievements</h3>
@@ -1231,22 +1239,6 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
             </div>
           </div>
         )}
-
-        <div style={sectionCardStyle}>
-          <h2 style={{ marginTop: 0, marginBottom: 14 }}>📻 Garage Radio</h2>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}><strong style={{ color: teamTheme.accent }}>Race Control:</strong> Driver communications, media requests, and race-week updates will appear here.</div>
-            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}><strong style={{ color: teamTheme.accent }}>Team Message:</strong> {getTeamFullName(driver.team)} expects performance, media activity, and clean execution.</div>
-            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}><strong style={{ color: teamTheme.accent }}>Media Room:</strong> Interview requests are listed above when assigned by league admin.</div>
-          </div>
-        </div>
-
-        <div style={{ ...sectionCardStyle, borderColor: teamTheme.accent }}>
-          <h2 style={{ marginTop: 0, marginBottom: 4 }}>🚗 Upload Center</h2>
-          <div style={{ fontSize: 13, opacity: 0.65, marginBottom: 14 }}>Car uploads now open on their own driver page.</div>
-          <button onClick={() => window.location.pathname = `/driver/${driverNumber}/upload`} style={themedPrimaryButtonStyle}>Open Upload Center</button>
-        </div>
-
         {driver.notes && (
           <div style={{ ...sectionCardStyle, background: "#1a1f27", borderLeft: `4px solid ${teamTheme.accent}` }}>
             <h3 style={{ marginTop: 0, marginBottom: 8 }}>Admin Notes</h3>
