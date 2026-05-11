@@ -2441,15 +2441,7 @@ export default function App() {
   if (path === "/discord") return <DiscordPage />;
   // Loading gate — all routes below this need Supabase data
   if (!isHydrated) return <div style={appShellStyle}><div style={pageContainerStyle}><div style={sectionCardStyle}>Loading league data...</div></div></div>;
-  if (path === "/admin/car-gallery") {
-    return (
-      <CarGalleryPage
-        drivers={drivers}
-        tracks={tracks}
-        enableDownload={true}
-      />
-    );
-  }
+  if (path === "/admin/car-gallery") return <CarGalleryPage drivers={drivers} tracks={tracks} />;
   if (path === "/admin/interviews") return <InterviewsPage drivers={drivers} tracks={tracks} seasons={seasons} activeSeasonId={activeSeasonId} />;
   // Team detail page
   if (path.startsWith("/team/")) {
