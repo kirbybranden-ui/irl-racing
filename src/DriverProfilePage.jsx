@@ -797,6 +797,26 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
 
         <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 20 }}>
           <button
+            onClick={() => document.getElementById("driver-contract-portal")?.scrollIntoView({ behavior: "smooth" })}
+            style={themedPrimaryButtonStyle}
+          >
+            📄 Driver Contract Portal
+          </button>
+
+          <button
+            onClick={() => document.getElementById("driver-upload-center")?.scrollIntoView({ behavior: "smooth" })}
+            style={secondaryButtonStyle}
+          >
+            📷 Upload Center
+          </button>
+
+          <button
+            onClick={() => document.getElementById("driver-interview-center")?.scrollIntoView({ behavior: "smooth" })}
+            style={secondaryButtonStyle}
+          >
+            🎙️ Interview Center
+          </button>
+          <button
             onClick={() => {
               const section = document.getElementById("driver-contract-portal");
               if (section) section.scrollIntoView({ behavior: "smooth", block: "start" });
