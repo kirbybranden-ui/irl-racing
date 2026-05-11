@@ -8,6 +8,7 @@ import teamLogoBOM from "./assets/teams/BOM.png";
 import teamLogoWSM from "./assets/teams/WSM.png";
 import teamLogoIND from "./assets/teams/IND.png";
 import teamLogo19XI from "./assets/teams/19XI.png";
+import teamLogoBWR from "./assets/teams/BWR.png";
 import { supabase } from "./lib/supabase";
 
 const teamLogos = {
@@ -21,6 +22,7 @@ const teamLogos = {
   Independent: teamLogoIND,
   "19XI": teamLogo19XI,
   "19XI Racing": teamLogo19XI,
+  BWR: teamLogoBWR,
 };
 
 const teamFullNames = {
@@ -30,6 +32,7 @@ const teamFullNames = {
   NLM: "Nine Line Motorsports",
   BOM: "Blue Oval Motorsports",
   WSM: "Wyatt Sick6 Motorsports",
+  BWR: "Big Wheel Racing",
   IND: "Independent",
   Independent: "Independent",
   "19XI": "19XI Racing",
@@ -41,6 +44,7 @@ const ownerNames = {
   MER: "ME Racing Ownership Group",
   MMS: "Mayhem Motorsports Ownership Group",
   NLM: "Nine Line Motorsports Ownership Group",
+  BWR: "Big Wheel Racing Ownership Group",
   WSM: "Uncle_HowdySICK6",
   "19XI": "bowhunter6758",
   "19XI Racing": "bowhunter6758",
