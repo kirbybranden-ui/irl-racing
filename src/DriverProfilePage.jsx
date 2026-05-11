@@ -954,6 +954,103 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
     );
   }
 
+  if (subPage === "interviews") {
+    return (
+      <div style={{ ...appShellStyle, background: `radial-gradient(circle at top, ${teamTheme.glow} 0%, #0c0f14 34%, #080a0e 100%)` }}>
+        <div style={pageContainerStyle}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20, flexWrap: "wrap" }}>
+            <button onClick={() => window.location.pathname = `/driver/${driverNumber}`} style={secondaryButtonStyle}>← Back to Profile</button>
+            <div>
+              <div style={{ fontSize: 22, fontWeight: 900 }}>#{driver.number} {driver.name} — Interview Center</div>
+              <div style={{ fontSize: 13, opacity: 0.6, marginTop: 2 }}>{interviews.length} interview{interviews.length !== 1 ? "s" : ""} assigned</div>
+            </div>
+          </div>
+
+          <div style={{ ...sectionCardStyle, borderColor: teamTheme.accent }}>
+            <h2 style={{ marginTop: 0, marginBottom: 4 }}>🎙️ Interview Center</h2>
+            <div style={{ fontSize: 13, opacity: 0.65, marginBottom: 16 }}>Answer assigned league interviews here. Your responses go to league admin.</div>
+            {interviews.length === 0 ? (
+              <div style={{ opacity: 0.7 }}>No interviews assigned right now.</div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                {interviews.map((interview) => (
+                  <InterviewAnswerCard
+                    key={interview.id}
+                    interview={interview}
+                    accent={teamTheme.accent}
+                    onAnswered={(updated) => setInterviews((prev) => prev.map((i) => (i.id === updated.id ? updated : i)))}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (subPage === "upload") {
+    return (
+      <div style={{ ...appShellStyle, background: `radial-gradient(circle at top, ${teamTheme.glow} 0%, #0c0f14 34%, #080a0e 100%)` }}>
+        <div style={pageContainerStyle}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20, flexWrap: "wrap" }}>
+            <button onClick={() => window.location.pathname = `/driver/${driverNumber}`} style={secondaryButtonStyle}>← Back to Profile</button>
+            <div>
+              <div style={{ fontSize: 22, fontWeight: 900 }}>#{driver.number} {driver.name} — Upload Center</div>
+              <div style={{ fontSize: 13, opacity: 0.6, marginTop: 2 }}>{carUploads.length} upload{carUploads.length !== 1 ? "s" : ""} submitted</div>
+            </div>
+          </div>
+
+          <div style={{ ...sectionCardStyle, borderColor: teamTheme.accent }}>
+            <h2 style={{ marginTop: 0, marginBottom: 4 }}>🚗 Upload Center</h2>
+            <div style={{ fontSize: 13, opacity: 0.65, marginBottom: 16 }}>Upload your car photo or video for each race week. Files appear in the admin gallery.</div>
+
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 18 }}>
+              <div style={{ flex: "1 1 200px" }}>
+                <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Race Week</div>
+                <select style={inputStyle} value={selectedRaceForUpload} onChange={(e) => setSelectedRaceForUpload(e.target.value)}>
+                  <option value="">Select a race...</option>
+                  {(tracks || []).map((t) => <option key={t.name || t.raceName || t} value={t.name || t.raceName || t}>{t.name || t.raceName || t}</option>)}
+                </select>
+              </div>
+              <div>
+                <input ref={carFileInputRef} type="file" accept="image/*,video/mp4,video/quicktime" style={{ display: "none" }} onChange={handleCarUpload} />
+                <button onClick={() => carFileInputRef.current?.click()} style={{ ...themedPrimaryButtonStyle, opacity: carUploading ? 0.6 : 1 }} disabled={carUploading}>{carUploading ? "⏳ Uploading..." : "📷 Upload Photo / Video"}</button>
+              </div>
+            </div>
+
+            {carUploads.length === 0 ? (
+              <div style={{ fontSize: 13, opacity: 0.5, fontStyle: "italic" }}>No uploads yet.</div>
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 14 }}>
+                {carUploads.map((upload) => {
+                  const url = upload.image_url || upload.file_url || "";
+                  const fileType = upload.file_type || "";
+                  const isImage = fileType.startsWith("image/") || (!fileType && url.match(/\.(jpg|jpeg|png|gif|webp)$/i));
+                  const isVideo = fileType.startsWith("video/") || (!fileType && url.match(/\.(mp4|mov|avi|webm)$/i));
+                  const raceName = upload.race_week || upload.race_id || "—";
+
+                  return (
+                    <div key={upload.id} style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, overflow: "hidden" }}>
+                      <div style={{ width: "100%", paddingBottom: "75%", position: "relative", background: "#1a1f27" }}>
+                        {isImage ? <img src={url} alt="Car" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} /> : isVideo ? <video controls style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}><source src={url} type={fileType || "video/mp4"} /></video> : <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#666" }}>📄</div>}
+                      </div>
+                      <div style={{ padding: 10 }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 2 }}>{raceName}</div>
+                        <div style={{ fontSize: 11, opacity: 0.55, marginBottom: 8 }}>{upload.uploaded_at ? new Date(upload.uploaded_at).toLocaleDateString() : ""}</div>
+                        <button onClick={() => handleCarDelete(upload.id, upload.file_path || upload.cloudinary_id)} style={{ ...dangerButtonStyle, width: "100%", padding: "6px 10px", fontSize: 12 }}>Remove</button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ ...appShellStyle, background: `radial-gradient(circle at top, ${teamTheme.glow} 0%, #0c0f14 34%, #080a0e 100%)` }}>
       <div style={pageContainerStyle}>
@@ -989,8 +1086,8 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
 
         <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 20 }}>
           <button onClick={() => scrollToSection("driver-contract-portal")} style={themedPrimaryButtonStyle}>📄 Driver Contract Portal</button>
-          <button onClick={() => scrollToSection("driver-upload-center")} style={secondaryButtonStyle}>📷 Upload Center</button>
-          <button onClick={() => scrollToSection("driver-interview-center")} style={secondaryButtonStyle}>🎙️ Interview Center</button>
+          <button onClick={() => window.location.pathname = `/driver/${driverNumber}/upload`} style={secondaryButtonStyle}>📷 Upload Center</button>
+          <button onClick={() => window.location.pathname = `/driver/${driverNumber}/interviews`} style={secondaryButtonStyle}>🎙️ Interview Center</button>
           <button onClick={() => setIsAppealModalOpen(true)} style={themedPrimaryButtonStyle}>📋 File an Appeal</button>
           <button onClick={() => window.location.pathname = `/driver/${driverNumber}/appeals`} style={{ ...secondaryButtonStyle, position: "relative" }}>
             📁 My Appeals
@@ -1115,16 +1212,10 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
           )}
         </div>
 
-        <div id="driver-interview-center" style={sectionCardStyle}>
+        <div style={{ ...sectionCardStyle, borderColor: teamTheme.accent }}>
           <h2 style={{ marginTop: 0, marginBottom: 4 }}>🎙️ Interview Center</h2>
-          <div style={{ fontSize: 13, opacity: 0.65, marginBottom: 16 }}>Answer assigned league interviews here.</div>
-          {interviews.length === 0 ? (
-            <div style={{ opacity: 0.7 }}>No interviews assigned right now.</div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-              {interviews.map((interview) => <InterviewAnswerCard key={interview.id} interview={interview} accent={teamTheme.accent} onAnswered={(updated) => setInterviews((prev) => prev.map((i) => (i.id === updated.id ? updated : i)))} />)}
-            </div>
-          )}
+          <div style={{ fontSize: 13, opacity: 0.65, marginBottom: 14 }}>Interviews now open on their own driver page.</div>
+          <button onClick={() => window.location.pathname = `/driver/${driverNumber}/interviews`} style={themedPrimaryButtonStyle}>Open Interview Center</button>
         </div>
 
         {unlockedAchievements.length > 0 && (
@@ -1150,50 +1241,10 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
           </div>
         </div>
 
-        <div id="driver-upload-center" style={sectionCardStyle}>
+        <div style={{ ...sectionCardStyle, borderColor: teamTheme.accent }}>
           <h2 style={{ marginTop: 0, marginBottom: 4 }}>🚗 Upload Center</h2>
-          <div style={{ fontSize: 13, opacity: 0.65, marginBottom: 16 }}>Upload your car photo or video for each race week. Files appear in the admin gallery.</div>
-
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 18 }}>
-            <div style={{ flex: "1 1 200px" }}>
-              <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Race Week</div>
-              <select style={inputStyle} value={selectedRaceForUpload} onChange={(e) => setSelectedRaceForUpload(e.target.value)}>
-                <option value="">Select a race...</option>
-                {(tracks || []).map((t) => <option key={t.name || t.raceName || t} value={t.name || t.raceName || t}>{t.name || t.raceName || t}</option>)}
-              </select>
-            </div>
-            <div>
-              <input ref={carFileInputRef} type="file" accept="image/*,video/mp4,video/quicktime" style={{ display: "none" }} onChange={handleCarUpload} />
-              <button onClick={() => carFileInputRef.current?.click()} style={{ ...themedPrimaryButtonStyle, opacity: carUploading ? 0.6 : 1 }} disabled={carUploading}>{carUploading ? "⏳ Uploading..." : "📷 Upload Photo / Video"}</button>
-            </div>
-          </div>
-
-          {carUploads.length === 0 ? (
-            <div style={{ fontSize: 13, opacity: 0.5, fontStyle: "italic" }}>No uploads yet.</div>
-          ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 14 }}>
-              {carUploads.map((upload) => {
-                const url = upload.image_url || upload.file_url || "";
-                const fileType = upload.file_type || "";
-                const isImage = fileType.startsWith("image/") || (!fileType && url.match(/\.(jpg|jpeg|png|gif|webp)$/i));
-                const isVideo = fileType.startsWith("video/") || (!fileType && url.match(/\.(mp4|mov|avi|webm)$/i));
-                const raceName = upload.race_week || upload.race_id || "—";
-
-                return (
-                  <div key={upload.id} style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, overflow: "hidden" }}>
-                    <div style={{ width: "100%", paddingBottom: "75%", position: "relative", background: "#1a1f27" }}>
-                      {isImage ? <img src={url} alt="Car" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} /> : isVideo ? <video controls style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}><source src={url} type={fileType || "video/mp4"} /></video> : <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#666" }}>📄</div>}
-                    </div>
-                    <div style={{ padding: 10 }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 2 }}>{raceName}</div>
-                      <div style={{ fontSize: 11, opacity: 0.55, marginBottom: 8 }}>{upload.uploaded_at ? new Date(upload.uploaded_at).toLocaleDateString() : ""}</div>
-                      <button onClick={() => handleCarDelete(upload.id, upload.file_path || upload.cloudinary_id)} style={{ ...dangerButtonStyle, width: "100%", padding: "6px 10px", fontSize: 12 }}>Remove</button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+          <div style={{ fontSize: 13, opacity: 0.65, marginBottom: 14 }}>Car uploads now open on their own driver page.</div>
+          <button onClick={() => window.location.pathname = `/driver/${driverNumber}/upload`} style={themedPrimaryButtonStyle}>Open Upload Center</button>
         </div>
 
         {driver.notes && (
