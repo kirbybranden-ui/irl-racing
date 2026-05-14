@@ -898,6 +898,8 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
   const [selectedTrackInfo, setSelectedTrackInfo] = useState(null);
   const [featuredVideo, setFeaturedVideo] = useState(null);
   const [manualOnesToWatch, setManualOnesToWatch] = useState([]);
+  const [signedContracts, setSignedContracts] = useState([]);
+  const [signedContractsError, setSignedContractsError] = useState("");
   const handleDriverClick = (number) => {
     window.location.pathname = `/driver/${number}`;
   };
@@ -930,6 +932,45 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
     const interval = setInterval(loadManualOnesToWatch, 5000);
     return () => { isMounted = false; clearInterval(interval); };
   }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadSignedContracts() {
+      const { data, error } = await supabase
+        .from("contract_offers")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (!isMounted) return;
+      if (error) {
+        console.error("Failed to load signed contracts for standings:", error);
+        setSignedContractsError(error.message || "Could not load signed contracts.");
+        setSignedContracts([]);
+        return;
+      }
+
+      const publicContracts = (data || []).filter((contract) => {
+        const status = String(contract.status || "").trim().toLowerCase();
+        return ["accepted", "active", "signed"].includes(status);
+      });
+
+      setSignedContractsError("");
+      setSignedContracts(publicContracts);
+    }
+
+    loadSignedContracts();
+    const interval = setInterval(loadSignedContracts, 10000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
+
+  const formatPublicMoney = (value) => {
+    const safe = Number(value) || 0;
+    return safe.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+  };
 
   const sorted = [...drivers].sort((a, b) => b.points - a.points || b.wins - a.wins || b.top3 - a.top3 || a.name.localeCompare(b.name));
   const [leader, second, third] = sorted;
@@ -1136,6 +1177,110 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
           </div>
         </div>
         <AppUpdateBanner page="standings" />
+
+        <div style={{ background: "linear-gradient(135deg, #171b22 0%, #10141b 100%)", border: "1px solid #d4af37", borderRadius: 22, padding: 22, marginBottom: 24, boxShadow: "0 14px 34px rgba(212,175,55,0.12)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 14, alignItems: "center", flexWrap: "wrap", marginBottom: 16 }}>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 900, color: "#d4af37", letterSpacing: 1 }}>PUBLIC CONTRACT TRACKER</div>
+              <h2 style={{ margin: "6px 0 0", fontSize: 28 }}>Signed League Contracts</h2>
+              <div style={{ opacity: 0.68, marginTop: 5, fontSize: 13 }}>
+                Accepted, active, and signed contracts are shown here for the league to view.
+              </div>
+            </div>
+            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: "12px 16px", textAlign: "center" }}>
+              <div style={{ fontSize: 11, opacity: 0.65 }}>SIGNED DEALS</div>
+              <div style={{ fontSize: 26, fontWeight: 900 }}>{signedContracts.length}</div>
+            </div>
+          </div>
+
+          {signedContractsError ? (
+            <div style={{ background: "#2a1212", border: "1px solid #7f1d1d", color: "#fecaca", borderRadius: 14, padding: 14, fontWeight: 800 }}>
+              Could not load public contracts: {signedContractsError}
+            </div>
+          ) : signedContracts.length === 0 ? (
+            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14, opacity: 0.78 }}>
+              No signed contracts found yet. If contracts say Accepted in the owner portal, check Supabase RLS: public users must be allowed to SELECT accepted/signed contract rows.
+            </div>
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr>
+                    <th style={thStyle}>Driver</th>
+                    <th style={thStyle}>Team</th>
+                    <th style={thStyle}>Manufacturer</th>
+                    <th style={thStyle}>Salary</th>
+                    <th style={thStyle}>Signing Bonus</th>
+                    <th style={thStyle}>Length</th>
+                    <th style={thStyle}>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {signedContracts.map((contract) => (
+                    <tr key={contract.id}>
+                      <td style={{ ...tdStyle, fontWeight: 900 }}>#{contract.driver_number || "—"} {contract.driver_name}</td>
+                      <td style={tdStyle}>{contract.team || contract.created_by_team || "—"}</td>
+                      <td style={tdStyle}>{contract.manufacturer || "—"}</td>
+                      <td style={tdStyle}>{formatPublicMoney(contract.salary)}</td>
+                      <td style={tdStyle}>{formatPublicMoney(contract.signing_bonus)}</td>
+                      <td style={tdStyle}>{contract.contract_length || "—"} season{Number(contract.contract_length) === 1 ? "" : "s"}</td>
+                      <td style={{ ...tdStyle, fontWeight: 900, color: "#4ade80" }}>{contract.status || "Signed"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+
+        {signedContracts.length > 0 && (
+          <div style={{ background: "linear-gradient(135deg, #171b22 0%, #10141b 100%)", border: "1px solid #d4af37", borderRadius: 22, padding: 22, marginBottom: 24, boxShadow: "0 14px 34px rgba(212,175,55,0.12)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 14, alignItems: "center", flexWrap: "wrap", marginBottom: 16 }}>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 900, color: "#d4af37", letterSpacing: 1 }}>PUBLIC CONTRACT TRACKER</div>
+                <h2 style={{ margin: "6px 0 0", fontSize: 28 }}>Signed League Contracts</h2>
+                <div style={{ opacity: 0.68, marginTop: 5, fontSize: 13 }}>
+                  Accepted, active, and signed contracts are shown here for the league to view.
+                </div>
+              </div>
+              <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: "12px 16px", textAlign: "center" }}>
+                <div style={{ fontSize: 11, opacity: 0.65 }}>SIGNED DEALS</div>
+                <div style={{ fontSize: 26, fontWeight: 900 }}>{signedContracts.length}</div>
+              </div>
+            </div>
+
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr>
+                    <th style={thStyle}>Driver</th>
+                    <th style={thStyle}>Team</th>
+                    <th style={thStyle}>Manufacturer</th>
+                    <th style={thStyle}>Salary</th>
+                    <th style={thStyle}>Signing Bonus</th>
+                    <th style={thStyle}>Length</th>
+                    <th style={thStyle}>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {signedContracts.map((contract) => (
+                    <tr key={contract.id}>
+                      <td style={{ ...tdStyle, fontWeight: 900 }}>#{contract.driver_number || "—"} {contract.driver_name}</td>
+                      <td style={tdStyle}>{contract.team || contract.created_by_team || "—"}</td>
+                      <td style={tdStyle}>{contract.manufacturer || "—"}</td>
+                      <td style={tdStyle}>{formatPublicMoney(contract.salary)}</td>
+                      <td style={tdStyle}>{formatPublicMoney(contract.signing_bonus)}</td>
+                      <td style={tdStyle}>{contract.contract_length || "—"} season{Number(contract.contract_length) === 1 ? "" : "s"}</td>
+                      <td style={{ ...tdStyle, fontWeight: 900, color: "#4ade80" }}>{contract.status || "Signed"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 14, marginBottom: 24 }}>
           {[{label:"DRIVERS",value:sorted.length},{label:"TEAMS",value:teams.length},{label:"TOTAL WINS",value:totalWins},{label:"TOTAL DNFS",value:totalDnfs},{label:"POINTS AWARDED",value:totalPoints}].map((item) => (
             <div key={item.label} style={{ background: "linear-gradient(135deg, #131922 0%, #0f141b 100%)", border: "1px solid #2d3643", borderRadius: 18, padding: 18, boxShadow: "0 10px 24px rgba(0,0,0,0.18)" }}>
