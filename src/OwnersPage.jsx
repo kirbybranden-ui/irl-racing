@@ -113,6 +113,12 @@ const DEFAULT_CONTRACT_FORM = {
   win_bonus: 0,
 };
 
+const DEFAULT_INDEPENDENT_PAYMENT_FORM = {
+  driver_id: "",
+  amount: 0,
+  reason: "",
+};
+
 
 function money(value) {
   const safe = Number(value) || 0;
@@ -126,6 +132,19 @@ function loadLocalOwnerAccessCodes() {
   } catch {
     return {};
   }
+}
+
+function loadIndependentDriverPayments() {
+  try {
+    const saved = localStorage.getItem("bclIndependentDriverPayments");
+    return saved ? JSON.parse(saved) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveIndependentDriverPayments(payments) {
+  localStorage.setItem("bclIndependentDriverPayments", JSON.stringify(payments || []));
 }
 
 async function loadRemoteOwnerAccessCodes() {
@@ -164,7 +183,7 @@ function getFinishPay(finishPos, raceName = "") {
   return 0;
 }
 
-function buildTeamFinancialRow(team, drivers, teams, raceHistory, technicalAlliances = []) {
+function buildTeamFinancialRow(team, drivers, teams, raceHistory, technicalAlliances = [], independentDriverPayments = []) {
   const teamDrivers = drivers.filter((driver) => (driver.team || "Independent") === team);
   const teamStanding = teams.find((standing) => standing.team === team) || {};
   let raceIncome = 0;
@@ -201,8 +220,11 @@ function buildTeamFinancialRow(team, drivers, teams, raceHistory, technicalAllia
     return sameTeamName(alliance.team, team) || sameTeamName(alliance.alliance_team, team);
   }).length;
   const allianceCosts = acceptedAllianceCount * TECHNICAL_ALLIANCE_COST;
+  const independentPayouts = (independentDriverPayments || [])
+    .filter((payment) => sameTeamName(payment.paid_by_team, team))
+    .reduce((sum, payment) => sum + (Number(payment.amount) || 0), 0);
   const startingBudget = getTeamStartingBudget(teamDrivers.length, team);
-  const totalCosts = dnfCosts + penaltyCosts + allianceCosts;
+  const totalCosts = dnfCosts + penaltyCosts + allianceCosts + independentPayouts;
   const netRevenue = raceIncome - totalCosts;
   const projectedBudget = startingBudget + netRevenue;
 
@@ -219,6 +241,7 @@ function buildTeamFinancialRow(team, drivers, teams, raceHistory, technicalAllia
     dnfCosts,
     penaltyCosts,
     allianceCosts,
+    independentPayouts,
     totalCosts,
     startingBudget,
     netRevenue,
@@ -242,10 +265,15 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
   const [ownerAccessCodes, setOwnerAccessCodes] = useState(loadLocalOwnerAccessCodes);
   const [teamFinance, setTeamFinance] = useState(null);
   const [contractOffers, setContractOffers] = useState([]);
+  const [activeContracts, setActiveContracts] = useState([]);
   const [contractMessage, setContractMessage] = useState("");
   const [contractError, setContractError] = useState("");
   const [contractForm, setContractForm] = useState(DEFAULT_CONTRACT_FORM);
   const [technicalAlliances, setTechnicalAlliances] = useState([]);
+  const [independentDriverPayments, setIndependentDriverPayments] = useState(loadIndependentDriverPayments);
+  const [independentPaymentForm, setIndependentPaymentForm] = useState(DEFAULT_INDEPENDENT_PAYMENT_FORM);
+  const [independentPaymentMessage, setIndependentPaymentMessage] = useState("");
+  const [independentPaymentError, setIndependentPaymentError] = useState("");
   const [alliancePartner, setAlliancePartner] = useState("");
   const [allianceMessage, setAllianceMessage] = useState("");
   const [allianceError, setAllianceError] = useState("");
@@ -269,7 +297,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
   }, []);
 
   const safeSelectedTeam = availableTeams.includes(selectedTeam) ? selectedTeam : availableTeams[0] || selectedTeam;
-  const selected = useMemo(() => buildTeamFinancialRow(safeSelectedTeam, drivers, teams, raceHistory, technicalAlliances), [safeSelectedTeam, drivers, teams, raceHistory, technicalAlliances]);
+  const selected = useMemo(() => buildTeamFinancialRow(safeSelectedTeam, drivers, teams, raceHistory, technicalAlliances, independentDriverPayments), [safeSelectedTeam, drivers, teams, raceHistory, technicalAlliances, independentDriverPayments]);
   const isAuthorized = authorizedTeam === safeSelectedTeam;
 
 
@@ -278,6 +306,22 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
       .filter((driver) => !driver.retired)
       .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
   }, [drivers]);
+
+  const independentDriversForPayment = useMemo(() => {
+    return drivers
+      .filter((driver) => !driver.retired)
+      .filter((driver) => {
+        const team = String(driver.team || "Independent").trim().toLowerCase();
+        return team === "independent" || team === "ind";
+      })
+      .sort((a, b) => Number(a.number || 9999) - Number(b.number || 9999));
+  }, [drivers]);
+
+  const teamIndependentPayments = useMemo(() => {
+    return (independentDriverPayments || [])
+      .filter((payment) => sameTeamName(payment.paid_by_team, safeSelectedTeam))
+      .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+  }, [independentDriverPayments, safeSelectedTeam]);
 
   const ownerTeamName = getTeamFullName(safeSelectedTeam);
   const currentTeamBalance = Number(teamFinance?.balance ?? selected.projectedBudget ?? 0);
@@ -302,6 +346,69 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
       driver_number: driver.number || "",
       manufacturer: driver.manufacturer || "",
     }));
+  }
+
+  function updateIndependentPaymentField(field, value) {
+    setIndependentPaymentForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function submitIndependentDriverPayment() {
+    setIndependentPaymentMessage("");
+    setIndependentPaymentError("");
+
+    if (!isAuthorized) {
+      setIndependentPaymentError("Owner access required before paying an independent driver.");
+      return;
+    }
+
+    const driver = drivers.find((item) => String(item.id) === String(independentPaymentForm.driver_id));
+    const amount = Number(independentPaymentForm.amount) || 0;
+
+    if (!driver) {
+      setIndependentPaymentError("Select an independent driver before creating a payment.");
+      return;
+    }
+
+    const driverTeam = String(driver.team || "Independent").trim().toLowerCase();
+    if (driverTeam !== "independent" && driverTeam !== "ind") {
+      setIndependentPaymentError("Only Independent/IND drivers can be paid from this tool.");
+      return;
+    }
+
+    if (amount <= 0) {
+      setIndependentPaymentError("Payment amount must be greater than $0.");
+      return;
+    }
+
+    if (amount > currentTeamBalance) {
+      setIndependentPaymentError("Payment amount exceeds your available team account balance.");
+      return;
+    }
+
+    const payment = {
+      id: `ind-pay-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      paid_by_team: ownerTeamName,
+      paid_by_team_key: safeSelectedTeam,
+      driver_id: driver.id,
+      driver_name: driver.name || "",
+      driver_number: driver.number || "",
+      manufacturer: driver.manufacturer || "",
+      amount,
+      reason: independentPaymentForm.reason || "",
+      created_at: new Date().toISOString(),
+    };
+
+    const nextPayments = [payment, ...(independentDriverPayments || [])];
+    setIndependentDriverPayments(nextPayments);
+    saveIndependentDriverPayments(nextPayments);
+    setIndependentPaymentForm(DEFAULT_INDEPENDENT_PAYMENT_FORM);
+    setIndependentPaymentMessage(`Payment recorded for #${payment.driver_number} ${payment.driver_name}.`);
+  }
+
+  function deleteIndependentDriverPayment(paymentId) {
+    const nextPayments = (independentDriverPayments || []).filter((payment) => payment.id !== paymentId);
+    setIndependentDriverPayments(nextPayments);
+    saveIndependentDriverPayments(nextPayments);
   }
 
   async function loadTeamFinance() {
@@ -340,6 +447,22 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
     setContractOffers(data || []);
   }
 
+  async function loadActiveContracts() {
+    const { data, error: activeContractsError } = await supabase
+      .from("contract_offers")
+      .select("*")
+      .or("status.eq.Accepted,status.eq.Active,status.eq.accepted,status.eq.active")
+      .order("created_at", { ascending: false });
+
+    if (activeContractsError) {
+      console.error("Failed to load active contracts:", activeContractsError);
+      setActiveContracts([]);
+      return;
+    }
+
+    setActiveContracts(data || []);
+  }
+
   async function loadTechnicalAlliances() {
     if (!safeSelectedTeam) return;
 
@@ -362,6 +485,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
     if (!isAuthorized) return;
     loadTeamFinance();
     loadContractOffers();
+    loadActiveContracts();
     loadTechnicalAlliances();
   }, [isAuthorized, ownerTeamName]);
 
@@ -458,6 +582,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
     setContractMessage(`Contract offer sent to ${payload.driver_name}'s driver page.`);
     setContractForm(DEFAULT_CONTRACT_FORM);
     await loadContractOffers();
+    await loadActiveContracts();
   }
 
   async function withdrawContractOffer(offerId) {
@@ -478,6 +603,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
 
     setContractMessage("Contract offer withdrawn.");
     await loadContractOffers();
+    await loadActiveContracts();
   }
 
   async function requestTechnicalAlliance() {
@@ -667,7 +793,9 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
                 { label: "DNF Costs", value: money(selected.dnfCosts) },
                 { label: "Penalty Costs", value: money(selected.penaltyCosts) },
                 { label: "Alliance Cost", value: money(selected.allianceCosts) },
+                { label: "Independent Driver Pay", value: money(selected.independentPayouts) },
                 { label: "Net", value: money(selected.netRevenue), good: selected.netRevenue >= 0 },
+                { label: "Active Contracts", value: activeContracts.length },
                 { label: "Team Points", value: selected.points },
                 { label: "Team Wins", value: selected.wins },
               ].map((stat) => (
@@ -676,6 +804,149 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
                   <div style={{ fontSize: 22, fontWeight: 900, color: stat.good === undefined ? "white" : stat.good ? "#4ade80" : "#f87171" }}>{stat.value}</div>
                 </div>
               ))}
+            </div>
+
+            <div style={{ ...sectionCardStyle, borderColor: "#d4af37" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+                <div>
+                  <h2 style={{ marginTop: 0, marginBottom: 6 }}>Active League Contracts</h2>
+                  <div style={{ opacity: 0.68, fontSize: 13 }}>
+                    This shows every accepted/active contract currently recorded in Supabase.
+                  </div>
+                </div>
+                <button onClick={loadActiveContracts} style={secondaryButtonStyle}>Refresh Active Contracts</button>
+              </div>
+
+              {activeContracts.length === 0 ? (
+                <div style={{ opacity: 0.72, marginTop: 12 }}>
+                  No active or accepted contracts are currently listed. If a contract was only sent but not accepted, it will remain under My Contract Offers.
+                </div>
+              ) : (
+                <div style={{ overflowX: "auto", marginTop: 12 }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <thead>
+                      <tr>
+                        <th style={thStyle}>Driver</th>
+                        <th style={thStyle}>Team</th>
+                        <th style={thStyle}>Manufacturer</th>
+                        <th style={thStyle}>Salary</th>
+                        <th style={thStyle}>Bonus</th>
+                        <th style={thStyle}>Length</th>
+                        <th style={thStyle}>Buyout</th>
+                        <th style={thStyle}>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {activeContracts.map((contract) => (
+                        <tr key={contract.id}>
+                          <td style={{ ...tdStyle, fontWeight: 900 }}>#{contract.driver_number || "—"} {contract.driver_name}</td>
+                          <td style={tdStyle}>{contract.team || contract.created_by_team || "—"}</td>
+                          <td style={tdStyle}>{contract.manufacturer || "—"}</td>
+                          <td style={tdStyle}>{money(contract.salary)}</td>
+                          <td style={tdStyle}>{money(contract.signing_bonus)}</td>
+                          <td style={tdStyle}>{contract.contract_length || "—"} season{Number(contract.contract_length) === 1 ? "" : "s"}</td>
+                          <td style={tdStyle}>{money(contract.buyout_amount)}</td>
+                          <td style={{ ...tdStyle, fontWeight: 900, color: "#4ade80" }}>{contract.status}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div style={{ ...sectionCardStyle, borderColor: "#d4af37" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", alignItems: "center", marginBottom: 16 }}>
+                <div>
+                  <h2 style={{ margin: 0 }}>Pay Independent Driver</h2>
+                  <div style={{ opacity: 0.68, marginTop: 6, fontSize: 13 }}>
+                    Record one-time payments to Independent/IND drivers. Payments subtract from this team’s projected budget.
+                  </div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontSize: 11, opacity: 0.65 }}>AVAILABLE TEAM ACCOUNT</div>
+                  <div style={{ fontSize: 26, fontWeight: 900, color: "#d4af37" }}>{money(currentTeamBalance)}</div>
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14, alignItems: "end" }}>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>INDEPENDENT DRIVER</div>
+                  <select
+                    value={independentPaymentForm.driver_id}
+                    onChange={(event) => updateIndependentPaymentField("driver_id", event.target.value)}
+                    style={inputStyle}
+                  >
+                    <option value="">Select independent driver</option>
+                    {independentDriversForPayment.map((driver) => (
+                      <option key={driver.id || driver.number || driver.name} value={driver.id}>
+                        #{driver.number} {driver.name} · {driver.manufacturer || "—"}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>PAYMENT AMOUNT</div>
+                  <input
+                    type="number"
+                    min={1}
+                    value={independentPaymentForm.amount}
+                    onChange={(event) => updateIndependentPaymentField("amount", event.target.value)}
+                    style={inputStyle}
+                    placeholder="Example: 50000"
+                  />
+                </div>
+
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>REASON</div>
+                  <input
+                    value={independentPaymentForm.reason}
+                    onChange={(event) => updateIndependentPaymentField("reason", event.target.value)}
+                    style={inputStyle}
+                    placeholder="Example: Daytona appearance bonus"
+                  />
+                </div>
+
+                <button onClick={submitIndependentDriverPayment} style={primaryButtonStyle}>Pay Independent Driver</button>
+              </div>
+
+              {independentPaymentError && <div style={{ marginTop: 12, color: "#f87171", fontWeight: 900 }}>{independentPaymentError}</div>}
+              {independentPaymentMessage && <div style={{ marginTop: 12, color: "#4ade80", fontWeight: 900 }}>{independentPaymentMessage}</div>}
+
+              <div style={{ marginTop: 16 }}>
+                <h3 style={{ margin: "0 0 10px" }}>Independent Driver Payments From This Team</h3>
+                {teamIndependentPayments.length === 0 ? (
+                  <div style={{ opacity: 0.72 }}>No independent driver payments recorded by {ownerTeamName} yet.</div>
+                ) : (
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                      <thead>
+                        <tr>
+                          <th style={thStyle}>Driver</th>
+                          <th style={thStyle}>Amount</th>
+                          <th style={thStyle}>Reason</th>
+                          <th style={thStyle}>Date</th>
+                          <th style={thStyle}>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {teamIndependentPayments.map((payment) => (
+                          <tr key={payment.id}>
+                            <td style={{ ...tdStyle, fontWeight: 900 }}>#{payment.driver_number || "—"} {payment.driver_name}</td>
+                            <td style={tdStyle}>{money(payment.amount)}</td>
+                            <td style={tdStyle}>{payment.reason || "—"}</td>
+                            <td style={tdStyle}>{payment.created_at ? new Date(payment.created_at).toLocaleDateString() : "—"}</td>
+                            <td style={tdStyle}>
+                              <button onClick={() => deleteIndependentDriverPayment(payment.id)} style={{ ...secondaryButtonStyle, padding: "7px 10px", fontSize: 12 }}>Delete</button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div style={{ ...sectionCardStyle, borderColor: "#d4af37" }}>
@@ -903,6 +1174,53 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
             <div style={sectionCardStyle}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
                 <div>
+                  <h2 style={{ marginTop: 0, marginBottom: 6 }}>Active League Contracts</h2>
+                  <div style={{ opacity: 0.68, fontSize: 13 }}>
+                    View all accepted/active contracts currently recorded in the owner portal.
+                  </div>
+                </div>
+                <button onClick={loadActiveContracts} style={secondaryButtonStyle}>Refresh Active Contracts</button>
+              </div>
+
+              {activeContracts.length === 0 ? (
+                <div style={{ opacity: 0.72, marginTop: 12 }}>No active or accepted contracts are currently listed.</div>
+              ) : (
+                <div style={{ overflowX: "auto", marginTop: 12 }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <thead>
+                      <tr>
+                        <th style={thStyle}>Driver</th>
+                        <th style={thStyle}>Team</th>
+                        <th style={thStyle}>Manufacturer</th>
+                        <th style={thStyle}>Salary</th>
+                        <th style={thStyle}>Bonus</th>
+                        <th style={thStyle}>Length</th>
+                        <th style={thStyle}>Buyout</th>
+                        <th style={thStyle}>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {activeContracts.map((contract) => (
+                        <tr key={contract.id}>
+                          <td style={{ ...tdStyle, fontWeight: 900 }}>#{contract.driver_number || "—"} {contract.driver_name}</td>
+                          <td style={tdStyle}>{contract.team || contract.created_by_team || "—"}</td>
+                          <td style={tdStyle}>{contract.manufacturer || "—"}</td>
+                          <td style={tdStyle}>{money(contract.salary)}</td>
+                          <td style={tdStyle}>{money(contract.signing_bonus)}</td>
+                          <td style={tdStyle}>{contract.contract_length || "—"} season{Number(contract.contract_length) === 1 ? "" : "s"}</td>
+                          <td style={tdStyle}>{money(contract.buyout_amount)}</td>
+                          <td style={{ ...tdStyle, fontWeight: 900, color: "#4ade80" }}>{contract.status}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div style={sectionCardStyle}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+                <div>
                   <h2 style={{ marginTop: 0, marginBottom: 6 }}>My Contract Offers</h2>
                   <div style={{ opacity: 0.68, fontSize: 13 }}>{pendingOfferCount} pending offer{pendingOfferCount === 1 ? "" : "s"}</div>
                 </div>
@@ -1034,6 +1352,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
                 <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 12 }}>💥 DNF cost: <strong>{money(100000)}</strong></div>
                 <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 12 }}>🚨 Penalty cost: <strong>{money(25000)}</strong></div>
                 <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 12 }}>🤝 Technical alliance cost: <strong>{money(50000)}</strong> per team when accepted</div>
+                <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 12 }}>💵 Independent driver payments: <strong>Owner-entered amount</strong> deducted from team budget</div>
               </div>
             </div>
           </>
