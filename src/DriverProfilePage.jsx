@@ -8,6 +8,7 @@ import teamLogoWSM from "./assets/teams/WSM.png";
 import teamLogoIND from "./assets/teams/IND.png";
 import teamLogo19XI from "./assets/teams/19XI.png";
 import teamLogoBWR from "./assets/teams/BWR.png";
+import teamLogoKDM from "./assets/teams/KDM.png";
 import { supabase } from "./lib/supabase";
 import { uploadCarFile, getCarUploads, deleteCarUpload } from "./lib/carUploads";
 
@@ -26,6 +27,8 @@ const teamLogos = {
   "19XI Racing": teamLogo19XI,
   "Big Wheel Racing": teamLogoBWR,
   BWR: teamLogoBWR,
+  "Kev Din Motorsports": teamLogoKDM,
+  KDM: teamLogoKDM,
 };
 
 const teamFullNames = {
@@ -33,6 +36,7 @@ const teamFullNames = {
   "JA MOTORSPORTS": "JA Motorsports",
   MER: "ME Racing",
   KRM: "Kevin Racing Motorsports",
+  KDM: "Kev Din Motorsports",
   MMS: "Mayhem Motorsports",
   NLM: "Nine Line Motorsports",
   BOM: "Blue Oval Motorsports",
@@ -43,12 +47,15 @@ const teamFullNames = {
   "19XI Racing": "19XI Racing",
   BWR: "Big Wheel Racing",
   "Big Wheel Racing": "Big Wheel Racing",
+  "Kev Din Motorsports": "Kev Din Motorsports",
 };
 
 const teamThemes = {
   JAM: { accent: "#d4af37", glow: "rgba(212,175,55,0.28)", dark: "#2a230f" },
   "JA MOTORSPORTS": { accent: "#d4af37", glow: "rgba(212,175,55,0.28)", dark: "#2a230f" },
   MER: { accent: "#ef4444", glow: "rgba(239,68,68,0.28)", dark: "#2a1111" },
+  KDM: { accent: "#ef4444", glow: "rgba(239,68,68,0.28)", dark: "#2a1111" },
+  "Kev Din Motorsports": { accent: "#ef4444", glow: "rgba(239,68,68,0.28)", dark: "#2a1111" },
   MMS: { accent: "#22c55e", glow: "rgba(34,197,94,0.25)", dark: "#102a16" },
   NLM: { accent: "#3b82f6", glow: "rgba(59,130,246,0.26)", dark: "#0f1d35" },
   BOM: { accent: "#60a5fa", glow: "rgba(96,165,250,0.25)", dark: "#102033" },
