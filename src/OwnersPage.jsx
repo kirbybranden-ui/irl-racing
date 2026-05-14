@@ -60,9 +60,17 @@ const TEAM_STARTING_FUNDS = {
   4: 1500000,
 };
 
+const TEAM_BUDGET_OVERRIDES = {
+  JAM: 5000000,
+};
+
 const TECHNICAL_ALLIANCE_COST = 50000;
 
-function getTeamStartingBudget(driverCount) {
+function getTeamStartingBudget(driverCount, teamName = "") {
+  if (TEAM_BUDGET_OVERRIDES[teamName]) {
+    return TEAM_BUDGET_OVERRIDES[teamName];
+  }
+
   if (driverCount <= 0) return 0;
   return TEAM_STARTING_FUNDS[driverCount] || TEAM_STARTING_FUNDS[4];
 }
@@ -193,7 +201,7 @@ function buildTeamFinancialRow(team, drivers, teams, raceHistory, technicalAllia
     return sameTeamName(alliance.team, team) || sameTeamName(alliance.alliance_team, team);
   }).length;
   const allianceCosts = acceptedAllianceCount * TECHNICAL_ALLIANCE_COST;
-  const startingBudget = getTeamStartingBudget(teamDrivers.length);
+  const startingBudget = getTeamStartingBudget(teamDrivers.length, team);
   const totalCosts = dnfCosts + penaltyCosts + allianceCosts;
   const netRevenue = raceIncome - totalCosts;
   const projectedBudget = startingBudget + netRevenue;
