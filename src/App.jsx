@@ -900,6 +900,7 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
   const [manualOnesToWatch, setManualOnesToWatch] = useState([]);
   const [signedContracts, setSignedContracts] = useState([]);
   const [signedContractsError, setSignedContractsError] = useState("");
+  const [showContractsPanel, setShowContractsPanel] = useState(false);
   const handleDriverClick = (number) => {
     window.location.pathname = `/driver/${number}`;
   };
@@ -971,6 +972,60 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
     const safe = Number(value) || 0;
     return safe.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
   };
+
+  const dedupedSignedContracts = useMemo(() => {
+    const byDriver = new Map();
+
+    (signedContracts || []).forEach((contract) => {
+      const numberKey = String(contract.driver_number || "").trim();
+      const nameKey = String(contract.driver_name || "").trim().toLowerCase();
+      const key = numberKey || nameKey;
+      if (!key) return;
+
+      const existing = byDriver.get(key);
+      if (!existing) {
+        byDriver.set(key, contract);
+        return;
+      }
+
+      const existingTime = new Date(existing.updated_at || existing.created_at || 0).getTime();
+      const nextTime = new Date(contract.updated_at || contract.created_at || 0).getTime();
+      if (nextTime >= existingTime) {
+        byDriver.set(key, contract);
+      }
+    });
+
+    return Array.from(byDriver.values());
+  }, [signedContracts]);
+
+  const contractedDriverNumbers = new Set(
+    dedupedSignedContracts
+      .map((contract) => String(contract.driver_number || "").trim())
+      .filter(Boolean)
+  );
+
+  const contractedDriverNames = new Set(
+    dedupedSignedContracts
+      .map((contract) => String(contract.driver_name || "").trim().toLowerCase())
+      .filter(Boolean)
+  );
+
+  const activeRosterForContracts = useMemo(() => {
+    return dedupeDriversByNumber(drivers || [])
+      .filter((driver) => !driver.retired && !isInactivePlaceholderDriver(driver));
+  }, [drivers]);
+
+  const uncontractedDrivers = activeRosterForContracts
+    .filter((driver) => {
+      const numberKey = String(driver.number || "").trim();
+      const nameKey = String(driver.name || "").trim().toLowerCase();
+      return !contractedDriverNumbers.has(numberKey) && !contractedDriverNames.has(nameKey);
+    })
+    .sort((a, b) => {
+      const teamCompare = getTeamFullName(a.team || "Independent").localeCompare(getTeamFullName(b.team || "Independent"));
+      if (teamCompare !== 0) return teamCompare;
+      return Number(a.number || 9999) - Number(b.number || 9999);
+    });
 
   const sorted = [...drivers].sort((a, b) => b.points - a.points || b.wins - a.wins || b.top3 - a.top3 || a.name.localeCompare(b.name));
   const [leader, second, third] = sorted;
@@ -1182,7 +1237,7 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
           <div style={{ display: "flex", justifyContent: "space-between", gap: 14, alignItems: "center", flexWrap: "wrap", marginBottom: 16 }}>
             <div>
               <div style={{ fontSize: 12, fontWeight: 900, color: "#d4af37", letterSpacing: 1 }}>PUBLIC CONTRACT TRACKER</div>
-              <h2 style={{ margin: "6px 0 0", fontSize: 28 }}>Signed League Contracts</h2>
+              <h2 style={{ margin: "6px 0 0", fontSize: 28 }}>League Contract Tracker</h2>
               <div style={{ opacity: 0.68, marginTop: 5, fontSize: 13 }}>
                 Accepted, active, and signed contracts are shown here for the league to view.
               </div>
@@ -1197,7 +1252,7 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
             <div style={{ background: "#2a1212", border: "1px solid #7f1d1d", color: "#fecaca", borderRadius: 14, padding: 14, fontWeight: 800 }}>
               Could not load public contracts: {signedContractsError}
             </div>
-          ) : signedContracts.length === 0 ? (
+          ) : dedupedSignedContracts.length === 0 ? (
             <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14, opacity: 0.78 }}>
               No signed contracts found yet. If contracts say Accepted in the owner portal, check Supabase RLS: public users must be allowed to SELECT accepted/signed contract rows.
             </div>
@@ -1216,7 +1271,7 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
                   </tr>
                 </thead>
                 <tbody>
-                  {signedContracts.map((contract) => (
+                  {dedupedSignedContracts.map((contract) => (
                     <tr key={contract.id}>
                       <td style={{ ...tdStyle, fontWeight: 900 }}>#{contract.driver_number || "—"} {contract.driver_name}</td>
                       <td style={tdStyle}>{contract.team || contract.created_by_team || "—"}</td>
@@ -1264,7 +1319,7 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
                   </tr>
                 </thead>
                 <tbody>
-                  {signedContracts.map((contract) => (
+                  {dedupedSignedContracts.map((contract) => (
                     <tr key={contract.id}>
                       <td style={{ ...tdStyle, fontWeight: 900 }}>#{contract.driver_number || "—"} {contract.driver_name}</td>
                       <td style={tdStyle}>{contract.team || contract.created_by_team || "—"}</td>
