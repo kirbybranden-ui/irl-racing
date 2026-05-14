@@ -73,6 +73,15 @@ const teamFullNames = {
   KDM: "Kev Din Motorsports",
   Independent: "Independent",
 };
+const teamBudgets = {
+  JAM: 3500000,
+  "JA MOTORSPORTS": 3500000,
+};
+
+function getTeamBudget(teamAbbr) {
+  return teamBudgets[teamAbbr] || teamBudgets[getTeamFullName(teamAbbr)?.toUpperCase?.()] || 0;
+}
+
 function getTeamFullName(teamAbbr) {
   return teamFullNames[teamAbbr] || teamAbbr;
 }
@@ -2033,7 +2042,8 @@ export default function App() {
   const teamStandings = useMemo(() => {
     const teams = {};
     for (const d of visibleDrivers) {
-      if (!teams[d.team]) teams[d.team] = { team: d.team, points: 0, wins: 0, top3: 0, top5: 0, drivers: 0 };
+      if (!teams[d.team]) teams[d.team] = { team: d.team, points: 0, wins: 0, top3: 0, top5: 0, drivers: 0, budget: getTeamBudget(d.team) };
+      teams[d.team].budget = getTeamBudget(d.team);
       teams[d.team].points += d.points || 0; teams[d.team].wins += d.wins || 0;
       teams[d.team].top3 += d.top3 || 0; teams[d.team].top5 += d.top5 || 0; teams[d.team].drivers += 1;
     }
@@ -2528,7 +2538,7 @@ export default function App() {
       </>
     );
   }
-  if (path === "/owners") return <OwnersPage drivers={visibleDrivers} teams={teamStandings} raceHistory={raceHistory} seasonName={activeSeason?.name || ""} />;
+  if (path === "/owners") return <OwnersPage drivers={visibleDrivers} teams={teamStandings} teamBudgets={teamBudgets} raceHistory={raceHistory} seasonName={activeSeason?.name || ""} />;
   if (path === "/standings") return <PublicStandings drivers={visibleDrivers} teams={teamStandings} manufacturerStandings={manufacturerStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} />;
   if (path === "/overlay/ticker" || viewMode === "overlay-ticker") return <TickerOverlay drivers={visibleDrivers} teams={teamStandings} raceHistory={raceHistory} preview={viewMode === "overlay-ticker"} seasonName={activeSeason?.name || ""} />;
   return (
