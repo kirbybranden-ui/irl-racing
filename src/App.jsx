@@ -1017,7 +1017,7 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
 
   const uncontractedDrivers = activeRosterForContracts
     .filter((driver) => {
-      const numberKey = String(driver.number || "").trim();
+      const numberKey = String(driver.number || driver.driver_number || "").trim();
       const nameKey = String(driver.name || "").trim().toLowerCase();
       return !contractedDriverNumbers.has(numberKey) && !contractedDriverNames.has(nameKey);
     })
