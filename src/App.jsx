@@ -275,7 +275,7 @@ function getTeamBranding(teamName) {
 }
 
 function AdminLoginPage() {
-  const ADMIN_ACCESS_CODE = "BCLADMIN2026";
+  const ADMIN_ACCESS_CODE = "BCLADMINPASSWORD2026";
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
 
