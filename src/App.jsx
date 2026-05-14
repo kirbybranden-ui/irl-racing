@@ -10,6 +10,7 @@ import teamLogoWSM from "./assets/teams/WSM.png";
 import teamLogoIND from "./assets/teams/IND.png";
 import teamLogo19XI from "./assets/teams/19XI.png";
 import teamLogoBWR from "./assets/teams/BWR.png";
+import teamLogoKDM from "./assets/teams/KDM.png";
 import manufacturerChevrolet from "./assets/manufacturers/chevrolet.png";
 import manufacturerFord from "./assets/manufacturers/ford.png";
 import manufacturerToyota from "./assets/manufacturers/toyota.png";
@@ -48,6 +49,8 @@ MMS: teamLogoMMS,
   "19XI Racing": teamLogo19XI,
   "Big Wheel Racing": teamLogoBWR,
   BWR: teamLogoBWR,
+  "Kev Din Motorsports": teamLogoKDM,
+  KDM: teamLogoKDM,
 };
 const manufacturerLogos = {
   Chevrolet: manufacturerChevrolet,
@@ -67,6 +70,7 @@ const teamFullNames = {
   "19XI": "19XI Racing",
   "19XI Racing": "19XI Racing",
   BWR: "Big Wheel Racing",
+  KDM: "Kev Din Motorsports",
   Independent: "Independent",
 };
 function getTeamFullName(teamAbbr) {
@@ -140,7 +144,7 @@ const defaultDrivers = [
   { id: 4,  number: 81, name: "HOLDEN2DX4EV3R",            manufacturer: "Toyota",    team: "JAM"         },
   { id: 5,  number: 3,  name: "ixGusty",                   manufacturer: "Toyota",    team: "Independent" },
   { id: 6,  number: 14, name: "KapSig",                    manufacturer: "Chevrolet", team: "MER"         },
-  { id: 7,  number: 24, name: "KEVDINHO7",                 manufacturer: "Chevrolet", team: "MER"         },
+  { id: 7,  number: 24, name: "KEVDINHO7",                 manufacturer: "Chevrolet", team: "KDM"         },
   { id: 8,  number: 38, name: "It's_tricky88",             manufacturer: "Chevrolet", team: "Independent" },
   { id: 9,  number: 19, name: "American_Hero216",          manufacturer: "Toyota",    team: "19XI"        },
   { id: 10, number: 67, name: "tallishsinter94",           manufacturer: "Toyota",    team: "19XI"        },
@@ -150,9 +154,10 @@ const defaultDrivers = [
   { id: 16, number: 16,  name: "vtfan_25",                  manufacturer: "Chevrolet", team: "WSM"         },
   { id: 18, number: 72, name: "abajack91",                 manufacturer: "Ford",      team: "NLM"         },
   { id: 24, number: 21, name: "kevron-75",                manufacturer: "Ford",      team: "NLM"         },
-  { id: 19, number: 66, name: "Uncle_HowdySICK6",          manufacturer: "Chevrolet", team: "WSM"         },
+  { id: 19, number: 66, name: "UndeadHelliday",             manufacturer: "Chevrolet", team: "WSM"         },
   { id: 20, number: 76, name: "BCR_Ziggy5525",              manufacturer: "Chevrolet", team: "WSM"         },
   { id: 21, number: 86, name: "YinZerMOB_86",              manufacturer: "Chevrolet", team: "MER"         },
+  { id: 28, number: 48, name: "vanilla04gorilla",          manufacturer: "Chevrolet", team: "MER"         },
   { id: 23, number: 28, name: "Y2JTolbert",                manufacturer: "Ford",      team: "NLM"         },
   { id: 25, number: 80, name: "gumby_1919",             manufacturer: "Ford",      team: "MMS"         },
   { id: 26, number: 7,  name: "gunszmb",               manufacturer: "Ford",      team: "BWR"         },
@@ -266,6 +271,7 @@ const teamBranding = {
   "19XI": { logo: "19XI", accent: "#8b5cf6", dark: "#160b2d", fullName: "19XI Racing" },
   "19XI Racing": { logo: "19XI", accent: "#8b5cf6", dark: "#160b2d", fullName: "19XI Racing" },
   BWR: { logo: "BWR", accent: "#2563eb", dark: "#0f172a", fullName: "Big Wheel Racing" },
+  KDM: { logo: "KDM", accent: "#ef4444", dark: "#1f1315", fullName: "Kev Din Motorsports" },
   "Team C": { logo: "C", accent: "#ef4444", dark: "#1f1315" },
   "Team C": { logo: "C", accent: "#ef4444", dark: "#1f1315" },
   "Team D": { logo: "D", accent: "#22c55e", dark: "#0f1b14" },
