@@ -353,7 +353,7 @@ function AdminLoginPage() {
     if (code.trim() === ADMIN_ACCESS_CODE) {
       localStorage.setItem("bcl-admin-auth", "true");
       localStorage.setItem("bcl-admin-auth-time", new Date().toISOString());
-      window.location.pathname = "/";
+      window.location.pathname = "/admin";
       return;
     }
     setError("Invalid admin code.");
@@ -1590,7 +1590,7 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
               <button onClick={() => (window.location.pathname = "/contracts")} style={{ background: "#d4af37", color: "#111", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 900, cursor: "pointer", fontSize: 14 }}>📄 Active Contracts</button>
               <button onClick={() => (window.location.pathname = "/submit-story")} style={{ background: "#16a34a", color: "white", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>✍️ Add Story</button>
               <button onClick={() => (window.location.pathname = "/notifications")} style={{ background: "#222936", color: "white", border: "1px solid #3a4453", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>🔔 Notifications</button>
-              <button onClick={() => (window.location.pathname = "/admin-login")} style={{ background: "#111827", color: "#d4af37", border: "1px solid #d4af37", borderRadius: 12, padding: "12px 18px", fontWeight: 900, cursor: "pointer", fontSize: 14 }}>🔐 Admin Portal</button>
+              <button onClick={() => (window.location.pathname = "/admin")} style={{ background: "#111827", color: "#d4af37", border: "1px solid #d4af37", borderRadius: 12, padding: "12px 18px", fontWeight: 900, cursor: "pointer", fontSize: 14 }}>🔐 Admin Portal</button>
 </div> {/* ✅ CLOSE BUTTON ROW */}
           </div>
         </div>
@@ -2057,7 +2057,7 @@ function StoriesAdminPage() {
             </div>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
               <button onClick={loadStories} style={secondaryButtonStyle}>Refresh</button>
-              <button onClick={() => (window.location.pathname = "/")} style={secondaryButtonStyle}>Back to Admin</button>
+              <button onClick={() => (window.location.pathname = "/admin")} style={secondaryButtonStyle}>Back to Admin</button>
             </div>
           </div>
         </div>
@@ -2896,7 +2896,7 @@ export default function App() {
     setDiscordRulesText(settings.rulesText);
     alert("Discord settings saved.");
   };
-  const adminProtectedPaths = new Set(["/", "/appeals", "/admin/stories", "/stories", "/admin/live-control", "/admin/car-gallery", "/admin/interviews"]);
+  const adminProtectedPaths = new Set(["/admin", "/appeals", "/admin/stories", "/stories", "/admin/live-control", "/admin/car-gallery", "/admin/interviews"]);
   const isAdminProtectedPath = adminProtectedPaths.has(path);
   const isAdminAuthenticated = localStorage.getItem("bcl-admin-auth") === "true";
   const logoutAdmin = () => {
@@ -3027,8 +3027,11 @@ export default function App() {
   }
   if (path === "/owners") return <OwnersPage drivers={visibleDrivers} teams={teamStandings} teamBudgets={teamBudgets} raceHistory={raceHistory} seasonName={activeSeason?.name || ""} />;
   if (path === "/contracts") return <ContractsPage drivers={visibleDrivers} />;
-  if (path === "/standings") return <PublicStandings drivers={visibleDrivers} teams={teamStandings} manufacturerStandings={manufacturerStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} />;
+  if (path === "/" || path === "/standings") return <PublicStandings drivers={visibleDrivers} teams={teamStandings} manufacturerStandings={manufacturerStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} />;
   if (path === "/overlay/ticker" || viewMode === "overlay-ticker") return <TickerOverlay drivers={visibleDrivers} teams={teamStandings} raceHistory={raceHistory} preview={viewMode === "overlay-ticker"} seasonName={activeSeason?.name || ""} />;
+  if (path !== "/admin") {
+    return <PublicStandings drivers={visibleDrivers} teams={teamStandings} manufacturerStandings={manufacturerStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} />;
+  }
   return (
     <div style={appShellStyle}>
       <div style={pageContainerStyle}>
