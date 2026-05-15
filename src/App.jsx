@@ -351,8 +351,10 @@ function AdminLoginPage() {
   const handleLogin = (event) => {
     event.preventDefault();
     if (code.trim() === ADMIN_ACCESS_CODE) {
-      localStorage.setItem("bcl-admin-auth", "true");
-      localStorage.setItem("bcl-admin-auth-time", new Date().toISOString());
+      sessionStorage.setItem("bcl-admin-auth", "true");
+      sessionStorage.setItem("bcl-admin-auth-time", new Date().toISOString());
+      localStorage.removeItem("bcl-admin-auth");
+      localStorage.removeItem("bcl-admin-auth-time");
       window.location.pathname = "/admin";
       return;
     }
@@ -1590,7 +1592,7 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
               <button onClick={() => (window.location.pathname = "/contracts")} style={{ background: "#d4af37", color: "#111", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 900, cursor: "pointer", fontSize: 14 }}>📄 Active Contracts</button>
               <button onClick={() => (window.location.pathname = "/submit-story")} style={{ background: "#16a34a", color: "white", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>✍️ Add Story</button>
               <button onClick={() => (window.location.pathname = "/notifications")} style={{ background: "#222936", color: "white", border: "1px solid #3a4453", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>🔔 Notifications</button>
-              <button onClick={() => (window.location.pathname = "/admin")} style={{ background: "#111827", color: "#d4af37", border: "1px solid #d4af37", borderRadius: 12, padding: "12px 18px", fontWeight: 900, cursor: "pointer", fontSize: 14 }}>🔐 Admin Portal</button>
+              <button onClick={() => { sessionStorage.removeItem("bcl-admin-auth"); sessionStorage.removeItem("bcl-admin-auth-time"); localStorage.removeItem("bcl-admin-auth"); localStorage.removeItem("bcl-admin-auth-time"); window.location.pathname = "/admin"; }} style={{ background: "#111827", color: "#d4af37", border: "1px solid #d4af37", borderRadius: 12, padding: "12px 18px", fontWeight: 900, cursor: "pointer", fontSize: 14 }}>🔐 Admin Portal</button>
 </div> {/* ✅ CLOSE BUTTON ROW */}
           </div>
         </div>
@@ -2898,8 +2900,10 @@ export default function App() {
   };
   const adminProtectedPaths = new Set(["/admin", "/appeals", "/admin/stories", "/stories", "/admin/live-control", "/admin/car-gallery", "/admin/interviews"]);
   const isAdminProtectedPath = adminProtectedPaths.has(path);
-  const isAdminAuthenticated = localStorage.getItem("bcl-admin-auth") === "true";
+  const isAdminAuthenticated = sessionStorage.getItem("bcl-admin-auth") === "true";
   const logoutAdmin = () => {
+    sessionStorage.removeItem("bcl-admin-auth");
+    sessionStorage.removeItem("bcl-admin-auth-time");
     localStorage.removeItem("bcl-admin-auth");
     localStorage.removeItem("bcl-admin-auth-time");
     window.location.pathname = "/standings";
