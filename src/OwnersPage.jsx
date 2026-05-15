@@ -147,6 +147,27 @@ function saveIndependentDriverPayments(payments) {
   localStorage.setItem("bclIndependentDriverPayments", JSON.stringify(payments || []));
 }
 
+
+function loadLocalDriverFeedback() {
+  try {
+    const saved = localStorage.getItem("bclDriverFeedbackRatings");
+    return saved ? JSON.parse(saved) : [];
+  } catch {
+    return [];
+  }
+}
+
+function averageNumbers(values = []) {
+  const clean = values.map((value) => Number(value)).filter((value) => Number.isFinite(value));
+  if (!clean.length) return null;
+  return Math.round((clean.reduce((sum, value) => sum + value, 0) / clean.length) * 10) / 10;
+}
+
+function feedbackScoreToMorale(score) {
+  if (score === null || score === undefined) return null;
+  return Math.round(Math.max(0, Math.min(10, Number(score))) * 10);
+}
+
 async function loadRemoteOwnerAccessCodes() {
   const { data, error } = await supabase
     .from("owner_access_codes")
@@ -278,6 +299,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
   const [allianceMessage, setAllianceMessage] = useState("");
   const [allianceError, setAllianceError] = useState("");
   const [activeHqTab, setActiveHqTab] = useState("overview");
+  const [driverFeedback, setDriverFeedback] = useState(loadLocalDriverFeedback);
 
 
   React.useEffect(() => {
@@ -330,13 +352,38 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
   const availableAlliancePartners = availableTeams.filter((team) => team !== safeSelectedTeam);
   const pendingAllianceCount = technicalAlliances.filter((alliance) => alliance.status === "Pending").length;
 
+  const latestFeedbackByDriverNumber = useMemo(() => {
+    const map = new Map();
+    (driverFeedback || []).forEach((feedback) => {
+      const key = String(feedback.driver_number || "").trim();
+      if (!key) return;
+      const current = map.get(key);
+      const feedbackTime = new Date(feedback.created_at || 0).getTime();
+      const currentTime = new Date(current?.created_at || 0).getTime();
+      if (!current || feedbackTime >= currentTime) map.set(key, feedback);
+    });
+    return map;
+  }, [driverFeedback]);
+
+  const teamFeedback = useMemo(() => {
+    return selected.drivers
+      .map((driver) => latestFeedbackByDriverNumber.get(String(driver.number || "").trim()))
+      .filter(Boolean);
+  }, [selected.drivers, latestFeedbackByDriverNumber]);
+
+  const submittedHappinessAverage = useMemo(() => averageNumbers(teamFeedback.map((feedback) => feedback.team_happiness)), [teamFeedback]);
+  const submittedLeadershipAverage = useMemo(() => averageNumbers(teamFeedback.map((feedback) => feedback.leadership_confidence)), [teamFeedback]);
+  const submittedCommunicationAverage = useMemo(() => averageNumbers(teamFeedback.map((feedback) => feedback.team_communication)), [teamFeedback]);
 
   const teamMoraleScore = useMemo(() => {
     const driverCount = selected.drivers.length || 1;
     const performanceBoost = Math.min(15, Number(selected.wins || 0) * 5 + Number(selected.top3 || 0) * 2);
     const costHit = Math.min(25, Math.round((Number(selected.dnfCosts || 0) + Number(selected.penaltyCosts || 0)) / 25000));
-    return Math.max(35, Math.min(100, 72 + performanceBoost - costHit + Math.min(8, driverCount)));
-  }, [selected.drivers.length, selected.wins, selected.top3, selected.dnfCosts, selected.penaltyCosts]);
+    const autoScore = Math.max(35, Math.min(100, 72 + performanceBoost - costHit + Math.min(8, driverCount)));
+    const submittedScore = feedbackScoreToMorale(submittedHappinessAverage);
+    if (submittedScore === null) return autoScore;
+    return Math.round((autoScore * 0.45) + (submittedScore * 0.55));
+  }, [selected.drivers.length, selected.wins, selected.top3, selected.dnfCosts, selected.penaltyCosts, submittedHappinessAverage]);
 
   const mediaPressureScore = useMemo(() => {
     const rivalryHeat = pendingAllianceCount * 6;
@@ -488,6 +535,23 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
     saveIndependentDriverPayments(nextPayments);
   }
 
+  async function loadDriverFeedback() {
+    const { data, error: feedbackError } = await supabase
+      .from("driver_feedback")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (feedbackError) {
+      console.error("Failed to load driver feedback:", feedbackError);
+      setDriverFeedback(loadLocalDriverFeedback());
+      return;
+    }
+
+    const nextFeedback = data || [];
+    setDriverFeedback(nextFeedback);
+    localStorage.setItem("bclDriverFeedbackRatings", JSON.stringify(nextFeedback));
+  }
+
   async function loadTeamFinance() {
     if (!safeSelectedTeam) return;
 
@@ -564,6 +628,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
     loadContractOffers();
     loadActiveContracts();
     loadTechnicalAlliances();
+    loadDriverFeedback();
   }, [isAuthorized, ownerTeamName]);
 
   async function submitContractOffer() {
@@ -896,7 +961,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
                 <h2 style={{ marginTop: 0 }}>Team HQ Overview</h2>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 12 }}>
                   <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 16 }}><div style={{ opacity: 0.65, fontSize: 12 }}>Owner Power Rank</div><div style={{ fontSize: 30, fontWeight: 900 }}>#{myOwnerRank}</div></div>
-                  <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 16 }}><div style={{ opacity: 0.65, fontSize: 12 }}>Team Morale</div><div style={{ fontSize: 30, fontWeight: 900 }}>{teamMoraleScore}/100</div></div>
+                  <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 16 }}><div style={{ opacity: 0.65, fontSize: 12 }}>Team Morale</div><div style={{ fontSize: 30, fontWeight: 900 }}>{teamMoraleScore}/100</div><div style={{ opacity: 0.62, fontSize: 12, marginTop: 4 }}>{teamFeedback.length} driver feedback forms</div></div>
                   <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 16 }}><div style={{ opacity: 0.65, fontSize: 12 }}>Franchise Value</div><div style={{ fontSize: 30, fontWeight: 900 }}>{money(franchiseValue)}</div></div>
                   <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 16 }}><div style={{ opacity: 0.65, fontSize: 12 }}>Media Pressure</div><div style={{ fontSize: 30, fontWeight: 900 }}>{mediaPressureScore}/100</div></div>
                 </div>
@@ -906,9 +971,9 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
             {activeHqTab === "morale" && (
               <div style={sectionCardStyle}>
                 <h2 style={{ marginTop: 0 }}>Driver Morale</h2>
-                <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse" }}><thead><tr><th style={thStyle}>Driver</th><th style={thStyle}>Morale</th><th style={thStyle}>Status</th><th style={thStyle}>Owner Action</th></tr></thead><tbody>
-                  {selected.drivers.map((driver) => { const score = Math.max(40, Math.min(100, teamMoraleScore + (Number(driver.points || 0) > 0 ? 5 : 0) - (Number(driver.dnfs || 0) * 5))); const status = score >= 80 ? "Happy" : score >= 65 ? "Neutral" : score >= 50 ? "Frustrated" : "At Risk"; return (
-                    <tr key={driver.id}><td style={{ ...tdStyle, fontWeight: 900 }}>#{driver.number} {driver.name}</td><td style={tdStyle}>{score}/100</td><td style={tdStyle}>{status}</td><td style={tdStyle}>{status === "Happy" ? "Keep current plan" : status === "Neutral" ? "Public support / bonus talk" : "Schedule owner meeting"}</td></tr>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 14 }}><div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14 }}><div style={{ opacity: 0.65, fontSize: 12 }}>Avg Happiness</div><div style={{ fontSize: 26, fontWeight: 900 }}>{submittedHappinessAverage ?? "—"}/10</div></div><div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14 }}><div style={{ opacity: 0.65, fontSize: 12 }}>Avg Leadership</div><div style={{ fontSize: 26, fontWeight: 900 }}>{submittedLeadershipAverage ?? "—"}/10</div></div><div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14 }}><div style={{ opacity: 0.65, fontSize: 12 }}>Avg Communication</div><div style={{ fontSize: 26, fontWeight: 900 }}>{submittedCommunicationAverage ?? "—"}/10</div></div></div><div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse" }}><thead><tr><th style={thStyle}>Driver</th><th style={thStyle}>Morale</th><th style={thStyle}>Happiness</th><th style={thStyle}>Communication</th><th style={thStyle}>Leadership</th><th style={thStyle}>Latest Note</th><th style={thStyle}>Owner Action</th></tr></thead><tbody>
+                  {selected.drivers.map((driver) => { const feedback = latestFeedbackByDriverNumber.get(String(driver.number || "").trim()); const feedbackMorale = feedbackScoreToMorale(feedback?.team_happiness); const score = feedbackMorale ?? Math.max(40, Math.min(100, teamMoraleScore + (Number(driver.points || 0) > 0 ? 5 : 0) - (Number(driver.dnfs || 0) * 5))); const status = score >= 80 ? "Happy" : score >= 65 ? "Neutral" : score >= 50 ? "Frustrated" : "At Risk"; return (
+                    <tr key={driver.id}><td style={{ ...tdStyle, fontWeight: 900 }}>#{driver.number} {driver.name}</td><td style={tdStyle}>{score}/100<br/><span style={{ opacity: 0.6, fontSize: 11 }}>{status}</span></td><td style={tdStyle}>{feedback?.team_happiness ?? "—"}/10</td><td style={tdStyle}>{feedback?.team_communication ?? "—"}/10</td><td style={tdStyle}>{feedback?.leadership_confidence ?? "—"}/10</td><td style={tdStyle}>{feedback?.comments || "—"}</td><td style={tdStyle}>{status === "Happy" ? "Keep current plan" : status === "Neutral" ? "Public support / bonus talk" : "Schedule owner meeting"}</td></tr>
                   ); })}
                 </tbody></table></div>
               </div>
