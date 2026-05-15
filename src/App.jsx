@@ -3083,7 +3083,23 @@ export default function App() {
   if (path === "/news") return <NewsPage />;
   if (path === "/notifications") return <NotificationsPage />;
   if (path === "/discord") return <DiscordPage />;
-  if (path === "/driver-feedback") return <DriverFeedbackPage drivers={visibleDrivers} />;
+  if (path === "/driver-feedback") {
+    return (
+      <div style={appShellStyle}>
+        <div style={pageContainerStyle}>
+          <div style={sectionCardStyle}>
+            <h2 style={{ marginTop: 0 }}>Driver Feedback Moved</h2>
+            <div style={{ opacity: 0.75, lineHeight: 1.6 }}>
+              Driver feedback now lives inside each protected driver profile so only the driver can submit morale ratings.
+            </div>
+            <button onClick={() => (window.location.pathname = "/standings")} style={{ ...primaryButtonStyle, marginTop: 16 }}>
+              Back to Standings
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
   // Loading gate — all routes below this need Supabase data
   if (!isHydrated) return <div style={appShellStyle}><div style={pageContainerStyle}><div style={sectionCardStyle}>Loading league data...</div></div></div>;
   if (path === "/admin/car-gallery") {
@@ -3161,9 +3177,6 @@ export default function App() {
         <div style={{ minHeight: 0, background: "#0c0f14", padding: "20px 20px 0" }}>
           <div style={{ maxWidth: 1400, margin: "0 auto" }}>
             <AppUpdateBanner page="driver" />
-            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
-              <button onClick={() => (window.location.pathname = "/driver-feedback")} style={primaryButtonStyle}>Submit Driver Feedback</button>
-            </div>
           </div>
         </div>
         <DriverProfilePage seasons={seasons} activeSeason={activeSeason} tracks={tracks} />
