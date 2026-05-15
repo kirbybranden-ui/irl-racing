@@ -893,14 +893,231 @@ const trackOverviewData = {
   },
 };
 
+
+function ContractsPage({ drivers = [] }) {
+  const [contracts, setContracts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadContracts() {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("contract_offers")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (!isMounted) return;
+
+      if (error) {
+        console.error("Failed to load active contracts:", error);
+        setError(error.message || "Could not load active contracts.");
+        setContracts([]);
+        setLoading(false);
+        return;
+      }
+
+      const signedContracts = (data || []).filter((contract) => {
+        const status = String(contract.status || "").trim().toLowerCase();
+        return ["accepted", "active", "signed"].includes(status);
+      });
+
+      const byDriver = new Map();
+      signedContracts.forEach((contract) => {
+        const numberKey = String(contract.driver_number || "").trim();
+        const nameKey = String(contract.driver_name || "").trim().toLowerCase();
+        const key = numberKey || nameKey;
+        if (!key) return;
+
+        const existing = byDriver.get(key);
+        if (!existing) {
+          byDriver.set(key, contract);
+          return;
+        }
+
+        const existingTime = new Date(existing.updated_at || existing.created_at || 0).getTime();
+        const nextTime = new Date(contract.updated_at || contract.created_at || 0).getTime();
+        if (nextTime >= existingTime) byDriver.set(key, contract);
+      });
+
+      setContracts(Array.from(byDriver.values()));
+      setError("");
+      setLoading(false);
+    }
+
+    loadContracts();
+    const interval = setInterval(loadContracts, 10000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
+
+  const formatMoney = (value) => {
+    const safe = Number(value) || 0;
+    return safe.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+  };
+
+  const activeRoster = useMemo(() => {
+    return dedupeDriversByNumber(drivers || [])
+      .filter((driver) => !driver.retired && !isInactivePlaceholderDriver(driver));
+  }, [drivers]);
+
+  const contractedDriverNumbers = new Set(
+    contracts.map((contract) => String(contract.driver_number || "").trim()).filter(Boolean)
+  );
+
+  const contractedDriverNames = new Set(
+    contracts.map((contract) => String(contract.driver_name || "").trim().toLowerCase()).filter(Boolean)
+  );
+
+  const uncontractedDrivers = activeRoster
+    .filter((driver) => {
+      const numberKey = String(driver.number || "").trim();
+      const nameKey = String(driver.name || "").trim().toLowerCase();
+      return !contractedDriverNumbers.has(numberKey) && !contractedDriverNames.has(nameKey);
+    })
+    .sort((a, b) => {
+      const teamCompare = getTeamFullName(a.team || "Independent").localeCompare(getTeamFullName(b.team || "Independent"));
+      if (teamCompare !== 0) return teamCompare;
+      return Number(a.number || 9999) - Number(b.number || 9999);
+    });
+
+  return (
+    <div style={appShellStyle}>
+      <div style={pageContainerStyle}>
+        <div style={{ ...sectionCardStyle, background: "linear-gradient(135deg, #17191f 0%, #101216 100%)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              <img src={logo} alt="League Logo" style={{ height: 58 }} />
+              <div>
+                <div style={{ fontSize: 34, fontWeight: 900, letterSpacing: 0.5 }}>Active Contracts</div>
+                <div style={{ opacity: 0.7, marginTop: 4 }}>Official Budweiser Cup League contract board</div>
+              </div>
+            </div>
+            <button onClick={() => (window.location.pathname = "/standings")} style={primaryButtonStyle}>
+              Back to Standings
+            </button>
+          </div>
+        </div>
+
+        <div style={sectionCardStyle}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, flexWrap: "wrap", marginBottom: 16 }}>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 900, color: "#d4af37", letterSpacing: 1 }}>SIGNED / ACCEPTED DEALS</div>
+              <h2 style={{ margin: "6px 0 0", fontSize: 28 }}>Active Driver Contracts</h2>
+            </div>
+            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: "12px 16px", textAlign: "center" }}>
+              <div style={{ fontSize: 11, opacity: 0.65 }}>ACTIVE DEALS</div>
+              <div style={{ fontSize: 26, fontWeight: 900 }}>{contracts.length}</div>
+            </div>
+          </div>
+
+          {loading ? (
+            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14, opacity: 0.78 }}>Loading active contracts...</div>
+          ) : error ? (
+            <div style={{ background: "#2a1212", border: "1px solid #7f1d1d", color: "#fecaca", borderRadius: 14, padding: 14, fontWeight: 800 }}>
+              Could not load active contracts: {error}
+            </div>
+          ) : contracts.length === 0 ? (
+            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14, opacity: 0.78 }}>
+              No active contracts found yet. Accepted, active, and signed contract rows will show here.
+            </div>
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table style={tableStyle}>
+                <thead>
+                  <tr>
+                    <th style={thStyle}>Driver</th>
+                    <th style={thStyle}>Team</th>
+                    <th style={thStyle}>Manufacturer</th>
+                    <th style={thStyle}>Salary</th>
+                    <th style={thStyle}>Signing Bonus</th>
+                    <th style={thStyle}>Length</th>
+                    <th style={thStyle}>Buyout</th>
+                    <th style={thStyle}>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {contracts.map((contract) => {
+                    const driver = activeRoster.find((d) => {
+                      const numberMatch = String(d.number || "") === String(contract.driver_number || "");
+                      const nameMatch = String(d.name || "").trim().toLowerCase() === String(contract.driver_name || "").trim().toLowerCase();
+                      return numberMatch || nameMatch;
+                    });
+
+                    return (
+                      <tr key={contract.id}>
+                        <td style={{ ...tdStyle, fontWeight: 900 }}>#{contract.driver_number || driver?.number || "—"} {contract.driver_name || driver?.name || "Unknown Driver"}</td>
+                        <td style={tdStyle}>{getTeamFullName(contract.team || contract.team_name || contract.created_by_team || driver?.team || "Independent")}</td>
+                        <td style={tdStyle}>{contract.manufacturer || driver?.manufacturer || "—"}</td>
+                        <td style={tdStyle}>{formatMoney(contract.salary)}</td>
+                        <td style={tdStyle}>{formatMoney(contract.signing_bonus)}</td>
+                        <td style={tdStyle}>{contract.contract_length || contract.length || "—"} season{Number(contract.contract_length || contract.length) === 1 ? "" : "s"}</td>
+                        <td style={tdStyle}>{formatMoney(contract.buyout_amount || contract.buyout)}</td>
+                        <td style={{ ...tdStyle, fontWeight: 900, color: "#4ade80" }}>{contract.status || "Signed"}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        <div style={sectionCardStyle}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, flexWrap: "wrap", marginBottom: 16 }}>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 900, color: "#d4af37", letterSpacing: 1 }}>FREE AGENTS / NO ACTIVE DEAL</div>
+              <h2 style={{ margin: "6px 0 0", fontSize: 28 }}>Drivers Without Active Contracts</h2>
+            </div>
+            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: "12px 16px", textAlign: "center" }}>
+              <div style={{ fontSize: 11, opacity: 0.65 }}>UNSIGNED</div>
+              <div style={{ fontSize: 26, fontWeight: 900 }}>{uncontractedDrivers.length}</div>
+            </div>
+          </div>
+
+          {uncontractedDrivers.length === 0 ? (
+            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14, opacity: 0.78 }}>
+              Every active driver currently has an active contract.
+            </div>
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table style={tableStyle}>
+                <thead>
+                  <tr>
+                    <th style={thStyle}>Driver</th>
+                    <th style={thStyle}>Team</th>
+                    <th style={thStyle}>Manufacturer</th>
+                    <th style={thStyle}>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {uncontractedDrivers.map((driver) => (
+                    <tr key={driver.id || driver.number}>
+                      <td style={{ ...tdStyle, fontWeight: 900 }}>#{driver.number} {driver.name}</td>
+                      <td style={tdStyle}>{getTeamFullName(driver.team || "Independent")}</td>
+                      <td style={tdStyle}>{driver.manufacturer || "—"}</td>
+                      <td style={{ ...tdStyle, color: "#fbbf24", fontWeight: 900 }}>No active contract</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonName = "", tracks = [], raceHistory = [] }) {
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [selectedTrackInfo, setSelectedTrackInfo] = useState(null);
   const [featuredVideo, setFeaturedVideo] = useState(null);
   const [manualOnesToWatch, setManualOnesToWatch] = useState([]);
-  const [signedContracts, setSignedContracts] = useState([]);
-  const [signedContractsError, setSignedContractsError] = useState("");
-  const [showContractsPanel, setShowContractsPanel] = useState(false);
   const handleDriverClick = (number) => {
     window.location.pathname = `/driver/${number}`;
   };
@@ -933,99 +1150,6 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
     const interval = setInterval(loadManualOnesToWatch, 5000);
     return () => { isMounted = false; clearInterval(interval); };
   }, []);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    async function loadSignedContracts() {
-      const { data, error } = await supabase
-        .from("contract_offers")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (!isMounted) return;
-      if (error) {
-        console.error("Failed to load signed contracts for standings:", error);
-        setSignedContractsError(error.message || "Could not load signed contracts.");
-        setSignedContracts([]);
-        return;
-      }
-
-      const publicContracts = (data || []).filter((contract) => {
-        const status = String(contract.status || "").trim().toLowerCase();
-        return ["accepted", "active", "signed"].includes(status);
-      });
-
-      setSignedContractsError("");
-      setSignedContracts(publicContracts);
-    }
-
-    loadSignedContracts();
-    const interval = setInterval(loadSignedContracts, 10000);
-    return () => {
-      isMounted = false;
-      clearInterval(interval);
-    };
-  }, []);
-
-  const formatPublicMoney = (value) => {
-    const safe = Number(value) || 0;
-    return safe.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
-  };
-
-  const dedupedSignedContracts = useMemo(() => {
-    const byDriver = new Map();
-
-    (signedContracts || []).forEach((contract) => {
-      const numberKey = String(contract.driver_number || "").trim();
-      const nameKey = String(contract.driver_name || "").trim().toLowerCase();
-      const key = numberKey || nameKey;
-      if (!key) return;
-
-      const existing = byDriver.get(key);
-      if (!existing) {
-        byDriver.set(key, contract);
-        return;
-      }
-
-      const existingTime = new Date(existing.updated_at || existing.created_at || 0).getTime();
-      const nextTime = new Date(contract.updated_at || contract.created_at || 0).getTime();
-      if (nextTime >= existingTime) {
-        byDriver.set(key, contract);
-      }
-    });
-
-    return Array.from(byDriver.values());
-  }, [signedContracts]);
-
-  const contractedDriverNumbers = new Set(
-    dedupedSignedContracts
-      .map((contract) => String(contract.driver_number || "").trim())
-      .filter(Boolean)
-  );
-
-  const contractedDriverNames = new Set(
-    dedupedSignedContracts
-      .map((contract) => String(contract.driver_name || "").trim().toLowerCase())
-      .filter(Boolean)
-  );
-
-  const activeRosterForContracts = useMemo(() => {
-    return dedupeDriversByNumber(drivers || [])
-      .filter((driver) => !driver.retired && !isInactivePlaceholderDriver(driver));
-  }, [drivers]);
-
-  const uncontractedDrivers = activeRosterForContracts
-    .filter((driver) => {
-      const numberKey = String(driver.number || driver.driver_number || "").trim();
-      const nameKey = String(driver.name || "").trim().toLowerCase();
-      return !contractedDriverNumbers.has(numberKey) && !contractedDriverNames.has(nameKey);
-    })
-    .sort((a, b) => {
-      const teamCompare = getTeamFullName(a.team || "Independent").localeCompare(getTeamFullName(b.team || "Independent"));
-      if (teamCompare !== 0) return teamCompare;
-      return Number(a.number || 9999) - Number(b.number || 9999);
-    });
 
   const sorted = [...drivers].sort((a, b) => b.points - a.points || b.wins - a.wins || b.top3 - a.top3 || a.name.localeCompare(b.name));
   const [leader, second, third] = sorted;
@@ -1225,6 +1349,7 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
               <button onClick={() => (window.location.pathname = "/discord")} style={{ background: "#5865f2", color: "white", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>💬 Discord</button>
               <button onClick={() => (window.location.pathname = "/news")} style={{ background: "#d4af37", color: "#111", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>📰 News</button>
               <button onClick={() => (window.location.pathname = "/owners")} style={{ background: "#0f766e", color: "white", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>💼 Owners</button>
+              <button onClick={() => (window.location.pathname = "/contracts")} style={{ background: "#d4af37", color: "#111", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 900, cursor: "pointer", fontSize: 14 }}>📄 Active Contracts</button>
               <button onClick={() => (window.location.pathname = "/submit-story")} style={{ background: "#16a34a", color: "white", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>✍️ Add Story</button>
               <button onClick={() => (window.location.pathname = "/notifications")} style={{ background: "#222936", color: "white", border: "1px solid #3a4453", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>🔔 Notifications</button>
               <button onClick={() => (window.location.pathname = "/admin-login")} style={{ background: "#111827", color: "#d4af37", border: "1px solid #d4af37", borderRadius: 12, padding: "12px 18px", fontWeight: 900, cursor: "pointer", fontSize: 14 }}>🔐 Admin Portal</button>
@@ -1232,109 +1357,6 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
           </div>
         </div>
         <AppUpdateBanner page="standings" />
-
-        <div style={{ background: "linear-gradient(135deg, #171b22 0%, #10141b 100%)", border: "1px solid #d4af37", borderRadius: 22, padding: 22, marginBottom: 24, boxShadow: "0 14px 34px rgba(212,175,55,0.12)" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 14, alignItems: "center", flexWrap: "wrap", marginBottom: 16 }}>
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 900, color: "#d4af37", letterSpacing: 1 }}>PUBLIC CONTRACT TRACKER</div>
-              <h2 style={{ margin: "6px 0 0", fontSize: 28 }}>League Contract Tracker</h2>
-              <div style={{ opacity: 0.68, marginTop: 5, fontSize: 13 }}>
-                Accepted, active, and signed contracts are shown here for the league to view.
-              </div>
-            </div>
-            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: "12px 16px", textAlign: "center" }}>
-              <div style={{ fontSize: 11, opacity: 0.65 }}>SIGNED DEALS</div>
-              <div style={{ fontSize: 26, fontWeight: 900 }}>{signedContracts.length}</div>
-            </div>
-          </div>
-
-          {signedContractsError ? (
-            <div style={{ background: "#2a1212", border: "1px solid #7f1d1d", color: "#fecaca", borderRadius: 14, padding: 14, fontWeight: 800 }}>
-              Could not load public contracts: {signedContractsError}
-            </div>
-          ) : dedupedSignedContracts.length === 0 ? (
-            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14, opacity: 0.78 }}>
-              No signed contracts found yet. If contracts say Accepted in the owner portal, check Supabase RLS: public users must be allowed to SELECT accepted/signed contract rows.
-            </div>
-          ) : (
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr>
-                    <th style={thStyle}>Driver</th>
-                    <th style={thStyle}>Team</th>
-                    <th style={thStyle}>Manufacturer</th>
-                    <th style={thStyle}>Salary</th>
-                    <th style={thStyle}>Signing Bonus</th>
-                    <th style={thStyle}>Length</th>
-                    <th style={thStyle}>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {dedupedSignedContracts.map((contract) => (
-                    <tr key={contract.id}>
-                      <td style={{ ...tdStyle, fontWeight: 900 }}>#{contract.driver_number || "—"} {contract.driver_name}</td>
-                      <td style={tdStyle}>{contract.team || contract.created_by_team || "—"}</td>
-                      <td style={tdStyle}>{contract.manufacturer || "—"}</td>
-                      <td style={tdStyle}>{formatPublicMoney(contract.salary)}</td>
-                      <td style={tdStyle}>{formatPublicMoney(contract.signing_bonus)}</td>
-                      <td style={tdStyle}>{contract.contract_length || "—"} season{Number(contract.contract_length) === 1 ? "" : "s"}</td>
-                      <td style={{ ...tdStyle, fontWeight: 900, color: "#4ade80" }}>{contract.status || "Signed"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-
-
-        {signedContracts.length > 0 && (
-          <div style={{ background: "linear-gradient(135deg, #171b22 0%, #10141b 100%)", border: "1px solid #d4af37", borderRadius: 22, padding: 22, marginBottom: 24, boxShadow: "0 14px 34px rgba(212,175,55,0.12)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 14, alignItems: "center", flexWrap: "wrap", marginBottom: 16 }}>
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 900, color: "#d4af37", letterSpacing: 1 }}>PUBLIC CONTRACT TRACKER</div>
-                <h2 style={{ margin: "6px 0 0", fontSize: 28 }}>Signed League Contracts</h2>
-                <div style={{ opacity: 0.68, marginTop: 5, fontSize: 13 }}>
-                  Accepted, active, and signed contracts are shown here for the league to view.
-                </div>
-              </div>
-              <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: "12px 16px", textAlign: "center" }}>
-                <div style={{ fontSize: 11, opacity: 0.65 }}>SIGNED DEALS</div>
-                <div style={{ fontSize: 26, fontWeight: 900 }}>{signedContracts.length}</div>
-              </div>
-            </div>
-
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr>
-                    <th style={thStyle}>Driver</th>
-                    <th style={thStyle}>Team</th>
-                    <th style={thStyle}>Manufacturer</th>
-                    <th style={thStyle}>Salary</th>
-                    <th style={thStyle}>Signing Bonus</th>
-                    <th style={thStyle}>Length</th>
-                    <th style={thStyle}>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {dedupedSignedContracts.map((contract) => (
-                    <tr key={contract.id}>
-                      <td style={{ ...tdStyle, fontWeight: 900 }}>#{contract.driver_number || "—"} {contract.driver_name}</td>
-                      <td style={tdStyle}>{contract.team || contract.created_by_team || "—"}</td>
-                      <td style={tdStyle}>{contract.manufacturer || "—"}</td>
-                      <td style={tdStyle}>{formatPublicMoney(contract.salary)}</td>
-                      <td style={tdStyle}>{formatPublicMoney(contract.signing_bonus)}</td>
-                      <td style={tdStyle}>{contract.contract_length || "—"} season{Number(contract.contract_length) === 1 ? "" : "s"}</td>
-                      <td style={{ ...tdStyle, fontWeight: 900, color: "#4ade80" }}>{contract.status || "Signed"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 14, marginBottom: 24 }}>
           {[{label:"DRIVERS",value:sorted.length},{label:"TEAMS",value:teams.length},{label:"TOTAL WINS",value:totalWins},{label:"TOTAL DNFS",value:totalDnfs},{label:"POINTS AWARDED",value:totalPoints}].map((item) => (
@@ -2030,7 +2052,7 @@ export default function App() {
     hydrateFromSupabase();
     let interval = null;
     // Poll every 3s on live pages so stats stay current without a manual refresh
-    if (path === "/standings" || path === "/owners" || path.startsWith("/driver/") || path.startsWith("/team/") || path.startsWith("/manufacturer/") || path === "/overlay/drivers" || path === "/overlay/teams" || path === "/overlay/ticker") {
+    if (path === "/standings" || path === "/contracts" || path === "/owners" || path.startsWith("/driver/") || path.startsWith("/team/") || path.startsWith("/manufacturer/") || path === "/overlay/drivers" || path === "/overlay/teams" || path === "/overlay/ticker") {
       interval = setInterval(hydrateFromSupabase, 3000);
     }
     return () => { isMounted = false; if (interval) clearInterval(interval); };
@@ -2739,6 +2761,7 @@ export default function App() {
     );
   }
   if (path === "/owners") return <OwnersPage drivers={visibleDrivers} teams={teamStandings} teamBudgets={teamBudgets} raceHistory={raceHistory} seasonName={activeSeason?.name || ""} />;
+  if (path === "/contracts") return <ContractsPage drivers={visibleDrivers} />;
   if (path === "/standings") return <PublicStandings drivers={visibleDrivers} teams={teamStandings} manufacturerStandings={manufacturerStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} />;
   if (path === "/overlay/ticker" || viewMode === "overlay-ticker") return <TickerOverlay drivers={visibleDrivers} teams={teamStandings} raceHistory={raceHistory} preview={viewMode === "overlay-ticker"} seasonName={activeSeason?.name || ""} />;
   return (
