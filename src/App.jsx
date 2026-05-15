@@ -167,7 +167,7 @@ const defaultDrivers = [
   { id: 18, number: 72, name: "abajack91",                 manufacturer: "Ford",      team: "NLM"         },
   { id: 24, number: 21, name: "kevron-75",                manufacturer: "Ford",      team: "NLM"         },
   { id: 19, number: 66, name: "UndeadHelliday",             manufacturer: "Chevrolet", team: "WSM"         },
-  { id: 20, number: 76, name: "BCR_Ziggy5525",              manufacturer: "Chevrolet", team: "WSM"         },
+  { id: 20, number: 76, name: "BCR_Ziggy_76z",              manufacturer: "Chevrolet", team: "WSM"         },
   { id: 21, number: 86, name: "YinZerMOB_86",              manufacturer: "Chevrolet", team: "MER"         },
   { id: 28, number: 48, name: "vanilla04gorilla",          manufacturer: "Chevrolet", team: "MER"         },
   { id: 23, number: 28, name: "Y2JTolbert",                manufacturer: "Ford",      team: "NLM"         },
