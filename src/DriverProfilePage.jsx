@@ -432,6 +432,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
   const [driverAccessCodeInput, setDriverAccessCodeInput] = useState("");
   const [driverAccessCodes, setDriverAccessCodes] = useState(loadLocalDriverAccessCodes);
   const [authorizedDriverNumber, setAuthorizedDriverNumber] = useState(() => localStorage.getItem("driverProfileAuthorizedNumber") || "");
+  const [pendingDriverPath, setPendingDriverPath] = useState("");
   const [feedbackForm, setFeedbackForm] = useState({
     team_happiness: 8,
     equipment_quality: 8,
@@ -764,12 +765,27 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
     setAuthorizedDriverNumber(driverAccessKey);
     setDriverAccessCodeInput("");
     setContractError("");
+
+    if (pendingDriverPath) {
+      window.location.pathname = pendingDriverPath;
+    }
+  }
+
+  function openProtectedDriverSection(path) {
+    if (isDriverAuthorized) {
+      window.location.pathname = path;
+      return;
+    }
+    setPendingDriverPath(path);
+    setDriverAccessCodeInput("");
+    setContractError("");
   }
 
   function lockDriverContracts() {
     localStorage.removeItem("driverProfileAuthorizedNumber");
     setAuthorizedDriverNumber("");
     setDriverAccessCodeInput("");
+    setPendingDriverPath("");
     setContractOffers([]);
   }
 
@@ -1115,9 +1131,9 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
               <div>
                 <h2 style={{ margin: 0 }}>📄 Driver Contract Portal</h2>
-                <div style={{ fontSize: 13, opacity: 0.65, marginTop: 4 }}>Unlock to review, accept, or decline contract offers.</div>
+                <div style={{ fontSize: 13, opacity: 0.65, marginTop: 4 }}>Review, accept, or decline contract offers. Driver access is already authorized.</div>
               </div>
-              {isDriverAuthorized && <button onClick={lockDriverContracts} style={secondaryButtonStyle}>Lock Contracts</button>}
+              {isDriverAuthorized && <button onClick={lockDriverContracts} style={secondaryButtonStyle}>Lock Driver Access</button>}
             </div>
 
             {!isDriverAuthorized ? (
@@ -1321,15 +1337,19 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
           </div>
         </div>
 
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 20 }}>
-          <button onClick={() => window.location.pathname = `/driver/${driverNumber}/contracts`} style={themedPrimaryButtonStyle}>📄 Contracts</button>
-          <button onClick={() => window.location.pathname = `/driver/${driverNumber}/upload`} style={secondaryButtonStyle}>📷 Uploads</button>
-          <button onClick={() => window.location.pathname = `/driver/${driverNumber}/interviews`} style={secondaryButtonStyle}>🎙️ Interviews</button>
-          <button onClick={() => window.location.pathname = `/driver/${driverNumber}/appeals`} style={secondaryButtonStyle}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 20, alignItems: "center" }}>
+          <button onClick={() => openProtectedDriverSection(`/driver/${driverNumber}/contracts`)} style={themedPrimaryButtonStyle}>📄 Contracts</button>
+          <button onClick={() => openProtectedDriverSection(`/driver/${driverNumber}/upload`)} style={secondaryButtonStyle}>📷 Uploads</button>
+          <button onClick={() => openProtectedDriverSection(`/driver/${driverNumber}/interviews`)} style={secondaryButtonStyle}>🎙️ Interviews</button>
+          <button onClick={() => openProtectedDriverSection(`/driver/${driverNumber}/appeals`)} style={secondaryButtonStyle}>
             📋 Appeals
             {myAppeals.length > 0 && <span style={{ marginLeft: 8, background: myAppeals.some((a) => a.status !== "Open") ? "#22c55e" : "#3b82f6", color: "white", borderRadius: 99, padding: "2px 8px", fontSize: 11, fontWeight: 800 }}>{myAppeals.length}</span>}
           </button>
-          <button onClick={() => window.location.pathname = `/driver/${driverNumber}/feedback`} style={secondaryButtonStyle}>😊 Driver Feedback</button>
+          <button onClick={() => openProtectedDriverSection(`/driver/${driverNumber}/feedback`)} style={secondaryButtonStyle}>😊 Driver Feedback</button>
+          <div style={{ marginLeft: "auto", background: isDriverAuthorized ? "#14532d" : "#1f2937", color: isDriverAuthorized ? "#86efac" : "#d1d5db", border: `1px solid ${isDriverAuthorized ? "#22c55e" : "#374151"}`, borderRadius: 999, padding: "8px 12px", fontSize: 12, fontWeight: 900 }}>
+            {isDriverAuthorized ? "✅ Driver Access Authorized" : "🔒 Driver Access Locked"}
+          </div>
+          {isDriverAuthorized && <button onClick={lockDriverContracts} style={secondaryButtonStyle}>Lock Driver Access</button>}
         </div>
 
         <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 20 }}>
