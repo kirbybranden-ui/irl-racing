@@ -445,6 +445,9 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
   const [feedbackMessage, setFeedbackMessage] = useState("");
   const [feedbackError, setFeedbackError] = useState("");
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
+  const [driverAssignments, setDriverAssignments] = useState([]);
+  const [driverAssignmentMessage, setDriverAssignmentMessage] = useState("");
+  const [driverAssignmentError, setDriverAssignmentError] = useState("");
 
   const driverAccessKey = driver ? String(driver.number) : String(driverNumber);
   const isDriverAuthorized = authorizedDriverNumber === driverAccessKey;
@@ -743,6 +746,34 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
     return () => clearInterval(interval);
   }, [driver?.id]);
 
+  useEffect(() => {
+    if (!driver?.number || !isDriverAuthorized) {
+      setDriverAssignments([]);
+      return;
+    }
+
+    async function loadDriverAssignments() {
+      const { data, error } = await supabase
+        .from("driver_tasks")
+        .select("*")
+        .eq("driver_number", String(driver.number))
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Failed to load driver assignments:", error);
+        setDriverAssignmentError("Could not load assignments. Check driver_tasks RLS select policy.");
+        setDriverAssignments([]);
+        return;
+      }
+
+      setDriverAssignments(data || []);
+    }
+
+    loadDriverAssignments();
+    const interval = setInterval(loadDriverAssignments, 15000);
+    return () => clearInterval(interval);
+  }, [driver?.number, isDriverAuthorized]);
+
   async function unlockDriverContracts() {
     const latestCodes = await loadRemoteDriverAccessCodes();
     setDriverAccessCodes(latestCodes);
@@ -898,6 +929,25 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
     else alert("Failed to delete upload.");
   }
 
+  async function updateDriverAssignmentStatus(taskId, status) {
+    setDriverAssignmentMessage("");
+    setDriverAssignmentError("");
+
+    const { error } = await supabase
+      .from("driver_tasks")
+      .update({ status })
+      .eq("id", taskId);
+
+    if (error) {
+      console.error("Could not update driver assignment:", error);
+      setDriverAssignmentError("Could not update assignment. Check driver_tasks RLS update policy.");
+      return;
+    }
+
+    setDriverAssignments((current) => current.map((task) => task.id === taskId ? { ...task, status } : task));
+    setDriverAssignmentMessage(status === "Completed" ? "Assignment marked complete." : `Assignment marked ${status}.`);
+  }
+
   function updateFeedbackField(field, value) {
     setFeedbackForm((current) => ({ ...current, [field]: value }));
   }
@@ -960,7 +1010,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
     ["future_confidence", "Future Confidence", "Do you believe this team can win?"],
   ];
 
-  const protectedDriverPages = ["contracts", "upload", "interviews", "appeals", "feedback"];
+  const protectedDriverPages = ["contracts", "upload", "interviews", "appeals", "feedback", "assignments"];
 
   if (protectedDriverPages.includes(subPage) && !isDriverAuthorized) {
     return (
@@ -970,14 +1020,14 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
             <button onClick={() => window.location.pathname = `/driver/${driverNumber}`} style={secondaryButtonStyle}>← Back to Profile</button>
             <div>
               <div style={{ fontSize: 22, fontWeight: 900 }}>#{driver.number} {driver.name} — Driver Access Required</div>
-              <div style={{ fontSize: 13, opacity: 0.6, marginTop: 2 }}>Unlock to use contracts, uploads, interviews, appeals, and driver feedback.</div>
+              <div style={{ fontSize: 13, opacity: 0.6, marginTop: 2 }}>Unlock to use contracts, uploads, interviews, appeals, assignments, and driver feedback.</div>
             </div>
           </div>
 
           <div style={{ ...sectionCardStyle, borderColor: teamTheme.accent }}>
             <h2 style={{ marginTop: 0 }}>🔒 Driver Access Locked</h2>
             <div style={{ fontSize: 14, opacity: 0.72, lineHeight: 1.6, marginBottom: 16 }}>
-              Enter the private driver access code for #{driver.number} {driver.name}. This keeps other people from answering interviews, submitting happiness feedback, uploading files, or managing contracts.
+              Enter the private driver access code for #{driver.number} {driver.name}. This keeps other people from answering interviews, submitting happiness feedback, viewing assignments, uploading files, or managing contracts.
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, alignItems: "end" }}>
@@ -1084,6 +1134,73 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
             <button onClick={() => window.location.pathname = "/standings"} style={secondaryButtonStyle}>← Back to Standings</button>
             <div style={{ marginTop: 16, marginBottom: 16, fontWeight: 700 }}>Driver #{driverNumber} not found in {selectedSeason?.name}</div>
             <div style={{ opacity: 0.75 }}>Check the standings page to select a valid driver.</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (subPage === "assignments") {
+    return (
+      <div style={{ ...appShellStyle, background: `radial-gradient(circle at top, ${teamTheme.glow} 0%, #0c0f14 34%, #080a0e 100%)` }}>
+        <div style={pageContainerStyle}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20, flexWrap: "wrap" }}>
+            <button onClick={() => window.location.pathname = `/driver/${driverNumber}`} style={secondaryButtonStyle}>← Back to Profile</button>
+            <div>
+              <div style={{ fontSize: 22, fontWeight: 900 }}>#{driver.number} {driver.name} — Team Assignments</div>
+              <div style={{ fontSize: 13, opacity: 0.6, marginTop: 2 }}>Tasks assigned by your team owner</div>
+            </div>
+          </div>
+
+          <div style={{ ...sectionCardStyle, borderColor: teamTheme.accent }}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", flexWrap: "wrap", marginBottom: 16 }}>
+              <div>
+                <h2 style={{ margin: 0 }}>🎯 Team Assignments</h2>
+                <div style={{ fontSize: 13, opacity: 0.65, marginTop: 6 }}>Review owner-issued tasks, accept them, reject them, or mark them complete.</div>
+              </div>
+              <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 999, padding: "8px 12px", fontSize: 12, fontWeight: 900 }}>
+                {driverAssignments.length} assignment{driverAssignments.length !== 1 ? "s" : ""}
+              </div>
+            </div>
+
+            {driverAssignmentMessage && <div style={{ color: "#4ade80", marginBottom: 12, fontWeight: 900 }}>{driverAssignmentMessage}</div>}
+            {driverAssignmentError && <div style={{ color: "#f87171", marginBottom: 12, fontWeight: 900 }}>{driverAssignmentError}</div>}
+
+            {driverAssignments.length === 0 ? (
+              <div style={{ opacity: 0.72 }}>No team assignments have been sent to you yet.</div>
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 14 }}>
+                {driverAssignments.map((task) => {
+                  const status = String(task.status || "Assigned");
+                  const completed = status === "Completed";
+                  const rejected = status === "Rejected";
+                  const accepted = status === "Accepted";
+                  const cardBorder = completed ? "#22c55e" : rejected ? "#ef4444" : accepted ? teamTheme.accent : "#2c3440";
+                  const cardBg = completed ? "#102a16" : rejected ? "#2a1111" : "#0f1319";
+                  return (
+                    <div key={task.id} style={{ background: cardBg, border: `1px solid ${cardBorder}`, borderRadius: 14, padding: 16 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start", marginBottom: 10 }}>
+                        <div>
+                          <div style={{ fontSize: 11, fontWeight: 900, opacity: 0.65, textTransform: "uppercase" }}>{task.team || getTeamFullName(driver.team)} • {status}</div>
+                          <div style={{ fontSize: 19, fontWeight: 900, marginTop: 5 }}>{completed ? "✅ " : rejected ? "❌ " : "🎯 "}{task.title}</div>
+                        </div>
+                      </div>
+
+                      {task.description && <div style={{ opacity: 0.78, fontSize: 13, lineHeight: 1.55, marginBottom: 12 }}>{task.description}</div>}
+                      {task.due_race && <div style={{ fontSize: 12, opacity: 0.65, marginBottom: 6 }}>Due: {task.due_race}</div>}
+                      <div style={{ fontSize: 13, fontWeight: 900, color: teamTheme.accent, marginBottom: 12 }}>Reward: {task.reward || "—"}</div>
+
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        {status === "Assigned" && <button onClick={() => updateDriverAssignmentStatus(task.id, "Accepted")} style={themedPrimaryButtonStyle}>Accept</button>}
+                        {!completed && !rejected && <button onClick={() => updateDriverAssignmentStatus(task.id, "Completed")} style={{ ...primaryButtonStyle, background: "#22c55e" }}>Mark Complete</button>}
+                        {!completed && !rejected && <button onClick={() => updateDriverAssignmentStatus(task.id, "Rejected")} style={dangerButtonStyle}>Reject</button>}
+                        {(completed || rejected) && <button onClick={() => updateDriverAssignmentStatus(task.id, "Assigned")} style={secondaryButtonStyle}>Reopen</button>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1384,6 +1501,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
             📋 Appeals
             {myAppeals.length > 0 && <span style={{ marginLeft: 8, background: myAppeals.some((a) => a.status !== "Open") ? "#22c55e" : "#3b82f6", color: "white", borderRadius: 99, padding: "2px 8px", fontSize: 11, fontWeight: 800 }}>{myAppeals.length}</span>}
           </button>
+          <button onClick={() => openProtectedDriverSection(`/driver/${driverNumber}/assignments`)} style={secondaryButtonStyle}>🎯 Assignments</button>
           <button onClick={() => openProtectedDriverSection(`/driver/${driverNumber}/feedback`)} style={secondaryButtonStyle}>😊 Driver Feedback</button>
           <div style={{ marginLeft: "auto", background: isDriverAuthorized ? "#14532d" : "#1f2937", color: isDriverAuthorized ? "#86efac" : "#d1d5db", border: `1px solid ${isDriverAuthorized ? "#22c55e" : "#374151"}`, borderRadius: 999, padding: "8px 12px", fontSize: 12, fontWeight: 900 }}>
             {isDriverAuthorized ? "✅ Driver Access Authorized" : "🔒 Driver Access Locked"}
@@ -1593,6 +1711,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
             <button style={secondaryButtonStyle} onClick={() => window.location.pathname = `/driver/${driver.number}`}>Driver Home</button>
             <button style={secondaryButtonStyle} onClick={() => window.location.pathname = `/driver/${driver.number}/appeals`}>Appeals</button>
+            <button style={secondaryButtonStyle} onClick={() => window.location.pathname = `/driver/${driver.number}/assignments`}>Assignments</button>
             <button style={secondaryButtonStyle} onClick={() => window.location.pathname = "/streams"}>Race Broadcasts</button>
             <button style={secondaryButtonStyle} onClick={() => window.location.pathname = "/standings"}>League Standings</button>
           </div>
