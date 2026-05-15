@@ -1588,7 +1588,7 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
               <button onClick={() => (window.location.pathname = "/streams")} style={{ background: "#9146ff", color: "white", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>📡 Streams</button>
               <button onClick={() => (window.location.pathname = "/discord")} style={{ background: "#5865f2", color: "white", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>💬 Discord</button>
               <button onClick={() => (window.location.pathname = "/news")} style={{ background: "#d4af37", color: "#111", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>📰 News</button>
-              <button onClick={() => (window.location.pathname = "/owners")} style={{ background: "#0f766e", color: "white", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>💼 Owners</button>
+              <button onClick={() => (window.location.pathname = "/team-hq")} style={{ background: "#0f766e", color: "white", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>🏢 Team HQ</button>
               <button onClick={() => (window.location.pathname = "/contracts")} style={{ background: "#d4af37", color: "#111", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 900, cursor: "pointer", fontSize: 14 }}>📄 Active Contracts</button>
               <button onClick={() => (window.location.pathname = "/submit-story")} style={{ background: "#16a34a", color: "white", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>✍️ Add Story</button>
               <button onClick={() => (window.location.pathname = "/notifications")} style={{ background: "#222936", color: "white", border: "1px solid #3a4453", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>🔔 Notifications</button>
@@ -2292,7 +2292,7 @@ export default function App() {
     hydrateFromSupabase();
     let interval = null;
     // Poll every 3s on live pages so stats stay current without a manual refresh
-    if (path === "/standings" || path === "/contracts" || path === "/owners" || path.startsWith("/driver/") || path.startsWith("/team/") || path.startsWith("/manufacturer/") || path === "/overlay/drivers" || path === "/overlay/teams" || path === "/overlay/ticker") {
+    if (path === "/standings" || path === "/contracts" || path === "/owners" || path === "/team-hq" || path.startsWith("/driver/") || path.startsWith("/team/") || path.startsWith("/manufacturer/") || path === "/overlay/drivers" || path === "/overlay/teams" || path === "/overlay/ticker") {
       interval = setInterval(hydrateFromSupabase, 3000);
     }
     return () => { isMounted = false; if (interval) clearInterval(interval); };
@@ -2591,7 +2591,7 @@ export default function App() {
   const copyOwnerCode = async (team) => {
     const code = ownerAccessCodes[team];
     if (!code) return;
-    const message = `${getTeamFullName(team)} owner portal: go to /owners, select ${getTeamFullName(team)}, and use code ${code}`;
+    const message = `${getTeamFullName(team)} owner portal: go to /team-hq, select ${getTeamFullName(team)}, and use code ${code}`;
     try {
       await navigator.clipboard.writeText(message);
       alert("Owner code copied.");
@@ -3029,7 +3029,7 @@ export default function App() {
       </>
     );
   }
-  if (path === "/owners") return <OwnersPage drivers={visibleDrivers} teams={teamStandings} teamBudgets={teamBudgets} raceHistory={raceHistory} seasonName={activeSeason?.name || ""} />;
+  if (path === "/owners" || path === "/team-hq") return <OwnersPage drivers={visibleDrivers} teams={teamStandings} teamBudgets={teamBudgets} raceHistory={raceHistory} seasonName={activeSeason?.name || ""} />;
   if (path === "/contracts") return <ContractsPage drivers={visibleDrivers} />;
   if (path === "/" || path === "/standings") return <PublicStandings drivers={visibleDrivers} teams={teamStandings} manufacturerStandings={manufacturerStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} />;
   if (path === "/overlay/ticker" || viewMode === "overlay-ticker") return <TickerOverlay drivers={visibleDrivers} teams={teamStandings} raceHistory={raceHistory} preview={viewMode === "overlay-ticker"} seasonName={activeSeason?.name || ""} />;
@@ -3058,8 +3058,8 @@ export default function App() {
               <button onClick={() => (window.location.pathname = "/standings")} style={headerButtonStyle}>
                 Standings
               </button>
-              <button onClick={() => (window.location.pathname = "/owners")} style={headerButtonStyle}>
-                💼 Owners
+              <button onClick={() => (window.location.pathname = "/team-hq")} style={headerButtonStyle}>
+                🏢 Team HQ
               </button>
               <button onClick={logoutAdmin} style={{ ...headerButtonStyle, border: "1px solid #b42318", color: "#fecaca" }}>
                 Logout
@@ -3152,7 +3152,7 @@ export default function App() {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap", marginBottom: 14 }}>
             <div>
               <h2 style={{ margin: 0 }}>💼 Owner Portal Access</h2>
-              <div style={{ fontSize: 13, opacity: 0.7, marginTop: 6 }}>Admin sees all owner codes here. Owners use these codes on /owners and only unlock their own team view.</div>
+              <div style={{ fontSize: 13, opacity: 0.7, marginTop: 6 }}>Admin sees all owner codes here. Owners use these codes on /team-hq and only unlock their own team view.</div>
             </div>
             <button onClick={generateAllOwnerCodes} style={primaryButtonStyle}>Generate Codes for All Teams</button>
           </div>
