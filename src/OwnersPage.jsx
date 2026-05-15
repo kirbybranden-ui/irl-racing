@@ -304,6 +304,10 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
   const [taskMessage, setTaskMessage] = useState("");
   const [taskError, setTaskError] = useState("");
   const [newTaskForm, setNewTaskForm] = useState({ title: "", description: "", reward: "", reward_value: 0, task_type: "Performance" });
+  const [driverTasks, setDriverTasks] = useState([]);
+  const [driverTaskMessage, setDriverTaskMessage] = useState("");
+  const [driverTaskError, setDriverTaskError] = useState("");
+  const [newDriverTaskForm, setNewDriverTaskForm] = useState({ driver_number: "", title: "", description: "", reward: "", due_race: "" });
 
 
   React.useEffect(() => {
@@ -442,10 +446,13 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
   const completedTaskCount = ownerTasks.filter((task) => task.completed).length;
   const openTaskCount = Math.max(0, ownerTasks.length - completedTaskCount);
   const taskCompletionRate = ownerTasks.length ? Math.round((completedTaskCount / ownerTasks.length) * 100) : 0;
+  const openDriverTaskCount = driverTasks.filter((task) => String(task.status || "Assigned") !== "Completed").length;
+  const completedDriverTaskCount = driverTasks.filter((task) => String(task.status || "") === "Completed").length;
 
   const hqTabs = [
     ["overview", "Overview"],
-    ["tasks", "Tasks"],
+    ["tasks", "Owner Tasks"],
+    ["assignments", "Driver Assignments"],
     ["contracts", "Contracts"],
     ["morale", "Morale"],
     ["manufacturer", "Manufacturer"],
@@ -748,6 +755,111 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
     setActiveHqTab("tasks");
   }
 
+  async function loadDriverTasks() {
+    if (!safeSelectedTeam) return;
+
+    const { data, error: driverTasksLoadError } = await supabase
+      .from("driver_tasks")
+      .select("*")
+      .eq("team", ownerTeamName)
+      .order("created_at", { ascending: false });
+
+    if (driverTasksLoadError) {
+      console.error("Failed to load driver assignments:", driverTasksLoadError);
+      setDriverTaskError("Could not load driver assignments. Check driver_tasks table RLS select policy.");
+      setDriverTasks([]);
+      return;
+    }
+
+    setDriverTasks(data || []);
+  }
+
+  async function addDriverTask(event) {
+    event.preventDefault();
+    setDriverTaskMessage("");
+    setDriverTaskError("");
+
+    if (!isAuthorized) {
+      setDriverTaskError("Owner access required before assigning driver tasks.");
+      return;
+    }
+
+    const driver = selected.drivers.find((item) => String(item.number) === String(newDriverTaskForm.driver_number));
+
+    if (!driver) {
+      setDriverTaskError("Select one of your team drivers before assigning a task.");
+      return;
+    }
+
+    if (!String(newDriverTaskForm.title || "").trim()) {
+      setDriverTaskError("Driver assignment needs a title.");
+      return;
+    }
+
+    const payload = {
+      team: ownerTeamName,
+      driver_number: String(driver.number || ""),
+      driver_name: driver.name || "",
+      title: String(newDriverTaskForm.title || "").trim(),
+      description: String(newDriverTaskForm.description || "").trim(),
+      reward: String(newDriverTaskForm.reward || "").trim(),
+      status: "Assigned",
+      assigned_by: ownerTeamName,
+      due_race: String(newDriverTaskForm.due_race || "").trim(),
+      created_at: new Date().toISOString(),
+    };
+
+    const { error: insertDriverTaskError } = await supabase.from("driver_tasks").insert([payload]);
+
+    if (insertDriverTaskError) {
+      console.error("Could not create driver assignment:", insertDriverTaskError);
+      setDriverTaskError("Could not create driver assignment. Check driver_tasks table RLS insert policy.");
+      return;
+    }
+
+    setNewDriverTaskForm({ driver_number: "", title: "", description: "", reward: "", due_race: "" });
+    setDriverTaskMessage(`Assignment sent to #${payload.driver_number} ${payload.driver_name}.`);
+    await loadDriverTasks();
+  }
+
+  async function updateDriverTaskStatus(taskId, status) {
+    setDriverTaskMessage("");
+    setDriverTaskError("");
+
+    const { error: updateDriverTaskError } = await supabase
+      .from("driver_tasks")
+      .update({ status })
+      .eq("id", taskId);
+
+    if (updateDriverTaskError) {
+      console.error("Could not update driver assignment:", updateDriverTaskError);
+      setDriverTaskError("Could not update driver assignment. Check driver_tasks table RLS update policy.");
+      return;
+    }
+
+    setDriverTasks((current) => current.map((task) => task.id === taskId ? { ...task, status } : task));
+  }
+
+  async function deleteDriverTask(taskId) {
+    if (!window.confirm("Delete this driver assignment?")) return;
+    setDriverTaskMessage("");
+    setDriverTaskError("");
+
+    const { error: deleteDriverTaskError } = await supabase
+      .from("driver_tasks")
+      .delete()
+      .eq("id", taskId);
+
+    if (deleteDriverTaskError) {
+      console.error("Could not delete driver assignment:", deleteDriverTaskError);
+      setDriverTaskError("Could not delete driver assignment. Check driver_tasks table RLS delete policy.");
+      return;
+    }
+
+    setDriverTasks((current) => current.filter((task) => task.id !== taskId));
+    setDriverTaskMessage("Driver assignment deleted.");
+  }
+
   React.useEffect(() => {
     if (!isAuthorized) return;
     loadTeamFinance();
@@ -756,6 +868,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
     loadTechnicalAlliances();
     loadDriverFeedback();
     loadOwnerTasks();
+    loadDriverTasks();
   }, [isAuthorized, ownerTeamName]);
 
   async function submitContractOffer() {
@@ -1158,6 +1271,86 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
                         </div>
                       </div>
                     ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeHqTab === "assignments" && (
+              <div style={sectionCardStyle}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start", marginBottom: 16 }}>
+                  <div>
+                    <h2 style={{ margin: 0 }}>🎯 Driver Assignments</h2>
+                    <div style={{ opacity: 0.68, fontSize: 13, marginTop: 6 }}>Send weekly tasks directly to your drivers. They appear on each driver profile under Assignments.</div>
+                  </div>
+                  <button onClick={loadDriverTasks} style={secondaryButtonStyle}>Refresh Assignments</button>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 18 }}>
+                  <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14 }}><div style={{ opacity: 0.65, fontSize: 12 }}>Open Assignments</div><div style={{ fontSize: 28, fontWeight: 900 }}>{openDriverTaskCount}</div></div>
+                  <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14 }}><div style={{ opacity: 0.65, fontSize: 12 }}>Completed</div><div style={{ fontSize: 28, fontWeight: 900 }}>{completedDriverTaskCount}</div></div>
+                </div>
+
+                <form onSubmit={addDriverTask} style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 16, marginBottom: 18 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 12 }}>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>DRIVER</div>
+                      <select value={newDriverTaskForm.driver_number} onChange={(event) => setNewDriverTaskForm((current) => ({ ...current, driver_number: event.target.value }))} style={inputStyle}>
+                        <option value="">Select driver...</option>
+                        {selected.drivers.map((driver) => (
+                          <option key={`${driver.number}-${driver.name}`} value={driver.number}>#{driver.number} {driver.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>ASSIGNMENT TITLE</div>
+                      <input value={newDriverTaskForm.title} onChange={(event) => setNewDriverTaskForm((current) => ({ ...current, title: event.target.value }))} placeholder="Finish inside the Top 10" style={inputStyle} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>DUE RACE</div>
+                      <input value={newDriverTaskForm.due_race} onChange={(event) => setNewDriverTaskForm((current) => ({ ...current, due_race: event.target.value }))} placeholder="Daytona (Night)" style={inputStyle} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>REWARD</div>
+                      <input value={newDriverTaskForm.reward} onChange={(event) => setNewDriverTaskForm((current) => ({ ...current, reward: event.target.value }))} placeholder="+$25,000 bonus / +5 morale" style={inputStyle} />
+                    </div>
+                  </div>
+                  <div style={{ marginTop: 12 }}>
+                    <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>DESCRIPTION</div>
+                    <textarea value={newDriverTaskForm.description} onChange={(event) => setNewDriverTaskForm((current) => ({ ...current, description: event.target.value }))} placeholder="Explain what this driver needs to accomplish." style={{ ...inputStyle, minHeight: 80, resize: "vertical" }} />
+                  </div>
+                  <button type="submit" style={{ ...primaryButtonStyle, marginTop: 12 }}>Send Driver Assignment</button>
+                  {driverTaskMessage && <div style={{ marginTop: 12, color: "#4ade80", fontWeight: 800 }}>{driverTaskMessage}</div>}
+                  {driverTaskError && <div style={{ marginTop: 12, color: "#f87171", fontWeight: 800 }}>{driverTaskError}</div>}
+                </form>
+
+                {driverTasks.length === 0 ? (
+                  <div style={{ opacity: 0.72 }}>No driver assignments created yet.</div>
+                ) : (
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 12 }}>
+                    {driverTasks.map((task) => {
+                      const status = String(task.status || "Assigned");
+                      const completed = status === "Completed";
+                      return (
+                        <div key={task.id} style={{ background: completed ? "#102a16" : "#0f1319", border: `1px solid ${completed ? "#22c55e" : "#2c3440"}`, borderRadius: 14, padding: 16 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
+                            <div>
+                              <div style={{ fontSize: 11, fontWeight: 900, opacity: 0.65, textTransform: "uppercase" }}>#{task.driver_number} {task.driver_name} • {status}</div>
+                              <div style={{ fontSize: 18, fontWeight: 900, marginTop: 4 }}>{completed ? "✅ " : "🎯 "}{task.title}</div>
+                            </div>
+                            <button onClick={() => updateDriverTaskStatus(task.id, completed ? "Assigned" : "Completed")} style={completed ? secondaryButtonStyle : primaryButtonStyle}>{completed ? "Reopen" : "Complete"}</button>
+                          </div>
+                          {task.description && <div style={{ opacity: 0.75, fontSize: 13, lineHeight: 1.5, marginTop: 10 }}>{task.description}</div>}
+                          <div style={{ marginTop: 12, display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                            <div>
+                              {task.due_race && <div style={{ fontSize: 12, opacity: 0.65 }}>Due: {task.due_race}</div>}
+                              <div style={{ fontSize: 13, fontWeight: 800, color: "#d4af37" }}>Reward: {task.reward || "—"}</div>
+                            </div>
+                            <button onClick={() => deleteDriverTask(task.id)} style={{ ...dangerButtonStyle, padding: "7px 10px", fontSize: 12 }}>Delete</button>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
