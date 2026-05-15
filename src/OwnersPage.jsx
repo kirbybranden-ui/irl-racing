@@ -277,6 +277,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
   const [alliancePartner, setAlliancePartner] = useState("");
   const [allianceMessage, setAllianceMessage] = useState("");
   const [allianceError, setAllianceError] = useState("");
+  const [activeHqTab, setActiveHqTab] = useState("overview");
 
 
   React.useEffect(() => {
@@ -328,6 +329,82 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
   const pendingOfferCount = contractOffers.filter((offer) => offer.status === "Pending").length;
   const availableAlliancePartners = availableTeams.filter((team) => team !== safeSelectedTeam);
   const pendingAllianceCount = technicalAlliances.filter((alliance) => alliance.status === "Pending").length;
+
+
+  const teamMoraleScore = useMemo(() => {
+    const driverCount = selected.drivers.length || 1;
+    const performanceBoost = Math.min(15, Number(selected.wins || 0) * 5 + Number(selected.top3 || 0) * 2);
+    const costHit = Math.min(25, Math.round((Number(selected.dnfCosts || 0) + Number(selected.penaltyCosts || 0)) / 25000));
+    return Math.max(35, Math.min(100, 72 + performanceBoost - costHit + Math.min(8, driverCount)));
+  }, [selected.drivers.length, selected.wins, selected.top3, selected.dnfCosts, selected.penaltyCosts]);
+
+  const mediaPressureScore = useMemo(() => {
+    const rivalryHeat = pendingAllianceCount * 6;
+    const performanceHeat = Number(selected.wins || 0) > 0 ? 8 : 0;
+    const penaltyHeat = Math.min(25, Math.round(Number(selected.penaltyCosts || 0) / 25000) * 4);
+    return Math.max(10, Math.min(100, 28 + rivalryHeat + performanceHeat + penaltyHeat));
+  }, [pendingAllianceCount, selected.wins, selected.penaltyCosts]);
+
+  const franchiseValue = useMemo(() => {
+    return Math.max(500000, Math.round(
+      Number(selected.projectedBudget || 0) +
+      Number(selected.points || 0) * 15000 +
+      Number(selected.wins || 0) * 350000 +
+      Number(selected.top3 || 0) * 90000 +
+      selected.drivers.length * 175000 +
+      activeContracts.filter((contract) => sameTeamName(contract.team || contract.created_by_team, safeSelectedTeam)).length * 125000 +
+      teamMoraleScore * 5000
+    ));
+  }, [selected.projectedBudget, selected.points, selected.wins, selected.top3, selected.drivers.length, activeContracts, safeSelectedTeam, teamMoraleScore]);
+
+  const ownerPowerRankings = useMemo(() => {
+    return availableTeams.map((team) => {
+      const row = buildTeamFinancialRow(team, drivers, teams, raceHistory, technicalAlliances, independentDriverPayments);
+      const score =
+        Number(row.points || 0) * 3 +
+        Number(row.wins || 0) * 35 +
+        Number(row.top3 || 0) * 12 +
+        Math.round(Number(row.projectedBudget || 0) / 100000) +
+        row.drivers.length * 8;
+      return { team, score, row };
+    }).sort((a, b) => b.score - a.score);
+  }, [availableTeams, drivers, teams, raceHistory, technicalAlliances, independentDriverPayments]);
+
+  const myOwnerRank = Math.max(1, ownerPowerRankings.findIndex((item) => item.team === safeSelectedTeam) + 1);
+
+  const manufacturerContract = useMemo(() => {
+    const counts = selected.drivers.reduce((acc, driver) => {
+      const mfr = driver.manufacturer || "Unassigned";
+      acc[mfr] = (acc[mfr] || 0) + 1;
+      return acc;
+    }, {});
+    const manufacturer = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] || "Unassigned";
+    const supportAmount = manufacturer === "Toyota" ? 750000 : manufacturer === "Chevrolet" ? 650000 : manufacturer === "Ford" ? 600000 : 250000;
+    return {
+      manufacturer,
+      supportAmount,
+      winBonus: manufacturer === "Toyota" ? 125000 : 100000,
+      expectation: selected.drivers.length >= 4 ? "Win races and finish top 3 in owner standings" : "Build weekly speed and show growth",
+    };
+  }, [selected.drivers]);
+
+  const hqTabs = [
+    ["overview", "Overview"],
+    ["contracts", "Contracts"],
+    ["morale", "Morale"],
+    ["manufacturer", "Manufacturer"],
+    ["development", "Development"],
+    ["rivalries", "Rivalries"],
+    ["media", "Media"],
+    ["value", "Franchise Value"],
+    ["rankings", "Power Rankings"],
+  ];
+
+  const tabButtonStyle = (tab) => ({
+    ...(activeHqTab === tab ? primaryButtonStyle : secondaryButtonStyle),
+    padding: "9px 12px",
+    fontSize: 12,
+  });
 
   function updateContractField(field, value) {
     setContractForm((current) => ({ ...current, [field]: value }));
@@ -717,8 +794,8 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
             <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
               <img src={logo} alt="League Logo" style={{ height: 58 }} />
               <div>
-                <div style={{ fontSize: 34, fontWeight: 900, lineHeight: 1 }}>Owners Portal</div>
-                <div style={{ opacity: 0.72, marginTop: 5 }}>{seasonName || "Active Season"} · Private Team View</div>
+                <div style={{ fontSize: 34, fontWeight: 900, lineHeight: 1 }}>Team HQ</div>
+                <div style={{ opacity: 0.72, marginTop: 5 }}>{seasonName || "Active Season"} · Owner Command Center · Contracts · Morale · Franchise Mode</div>
               </div>
             </div>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
@@ -731,7 +808,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
         <div style={{ ...sectionCardStyle, borderColor: isAuthorized ? "#d4af37" : "#3d4859" }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16, alignItems: "end" }}>
             <div>
-              <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>OWNER TEAM</div>
+              <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>TEAM HQ</div>
               <select value={safeSelectedTeam} onChange={(event) => switchTeam(event.target.value)} style={inputStyle}>
                 {availableTeams.map((team) => <option key={team} value={team}>{getTeamFullName(team)}</option>)}
               </select>
@@ -752,7 +829,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
           </div>
           {!isAuthorized && (
             <div style={{ marginTop: 14, fontSize: 13, opacity: 0.75, lineHeight: 1.5 }}>
-              Owners only see the team they unlock. Owner codes are generated and managed from the admin portal.
+              Team HQ replaces the old owner portal. Owners unlock their team to manage contracts, budget, morale, alliances, and franchise systems.
             </div>
           )}
           {error && <div style={{ marginTop: 12, color: "#f87171", fontWeight: 800 }}>{error}</div>}
@@ -760,8 +837,8 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
 
         {!isAuthorized ? (
           <div style={{ ...sectionCardStyle, textAlign: "center", padding: 34 }}>
-            <div style={{ fontSize: 28, fontWeight: 900, marginBottom: 8 }}>Locked Owner View</div>
-            <div style={{ opacity: 0.72 }}>Unlock your team to view roster, budget, payouts, penalties, and race financials.</div>
+            <div style={{ fontSize: 28, fontWeight: 900, marginBottom: 8 }}>Locked Team HQ</div>
+            <div style={{ opacity: 0.72 }}>Unlock your team to view contracts, roster, budget, morale, manufacturer support, rivalries, and franchise value.</div>
           </div>
         ) : (
           <>
@@ -806,6 +883,97 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
               ))}
             </div>
 
+            <div style={{ ...sectionCardStyle, marginBottom: 20 }}>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {hqTabs.map(([tab, label]) => (
+                  <button key={tab} onClick={() => setActiveHqTab(tab)} style={tabButtonStyle(tab)}>{label}</button>
+                ))}
+              </div>
+            </div>
+
+            {activeHqTab === "overview" && (
+              <div style={{ ...sectionCardStyle, borderColor: "#d4af37" }}>
+                <h2 style={{ marginTop: 0 }}>Team HQ Overview</h2>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 12 }}>
+                  <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 16 }}><div style={{ opacity: 0.65, fontSize: 12 }}>Owner Power Rank</div><div style={{ fontSize: 30, fontWeight: 900 }}>#{myOwnerRank}</div></div>
+                  <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 16 }}><div style={{ opacity: 0.65, fontSize: 12 }}>Team Morale</div><div style={{ fontSize: 30, fontWeight: 900 }}>{teamMoraleScore}/100</div></div>
+                  <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 16 }}><div style={{ opacity: 0.65, fontSize: 12 }}>Franchise Value</div><div style={{ fontSize: 30, fontWeight: 900 }}>{money(franchiseValue)}</div></div>
+                  <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 16 }}><div style={{ opacity: 0.65, fontSize: 12 }}>Media Pressure</div><div style={{ fontSize: 30, fontWeight: 900 }}>{mediaPressureScore}/100</div></div>
+                </div>
+              </div>
+            )}
+
+            {activeHqTab === "morale" && (
+              <div style={sectionCardStyle}>
+                <h2 style={{ marginTop: 0 }}>Driver Morale</h2>
+                <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse" }}><thead><tr><th style={thStyle}>Driver</th><th style={thStyle}>Morale</th><th style={thStyle}>Status</th><th style={thStyle}>Owner Action</th></tr></thead><tbody>
+                  {selected.drivers.map((driver) => { const score = Math.max(40, Math.min(100, teamMoraleScore + (Number(driver.points || 0) > 0 ? 5 : 0) - (Number(driver.dnfs || 0) * 5))); const status = score >= 80 ? "Happy" : score >= 65 ? "Neutral" : score >= 50 ? "Frustrated" : "At Risk"; return (
+                    <tr key={driver.id}><td style={{ ...tdStyle, fontWeight: 900 }}>#{driver.number} {driver.name}</td><td style={tdStyle}>{score}/100</td><td style={tdStyle}>{status}</td><td style={tdStyle}>{status === "Happy" ? "Keep current plan" : status === "Neutral" ? "Public support / bonus talk" : "Schedule owner meeting"}</td></tr>
+                  ); })}
+                </tbody></table></div>
+              </div>
+            )}
+
+            {activeHqTab === "manufacturer" && (
+              <div style={sectionCardStyle}>
+                <h2 style={{ marginTop: 0 }}>Manufacturer Contract</h2>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+                  <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 16 }}><div style={{ opacity: 0.65 }}>Manufacturer</div><div style={{ fontSize: 26, fontWeight: 900 }}>{manufacturerContract.manufacturer}</div></div>
+                  <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 16 }}><div style={{ opacity: 0.65 }}>Support Money</div><div style={{ fontSize: 26, fontWeight: 900 }}>{money(manufacturerContract.supportAmount)}</div></div>
+                  <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 16 }}><div style={{ opacity: 0.65 }}>Win Bonus</div><div style={{ fontSize: 26, fontWeight: 900 }}>{money(manufacturerContract.winBonus)}</div></div>
+                </div>
+                <div style={{ marginTop: 12, opacity: 0.76 }}>Expectation: {manufacturerContract.expectation}</div>
+              </div>
+            )}
+
+            {activeHqTab === "development" && (
+              <div style={sectionCardStyle}>
+                <h2 style={{ marginTop: 0 }}>Driver Development Program</h2>
+                <p style={{ opacity: 0.72 }}>Use this section for prospects, reserve drivers, test drivers, and future signings. Database saving can be added next with a development_drivers table.</p>
+                <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 16 }}>Recommended next action: add a prospect form with name, number, potential rating, cost, and notes.</div>
+              </div>
+            )}
+
+            {activeHqTab === "rivalries" && (
+              <div style={sectionCardStyle}>
+                <h2 style={{ marginTop: 0 }}>Team Rivalries</h2>
+                <p style={{ opacity: 0.72 }}>Rivalries can be built from technical alliances, incidents, and owner media comments.</p>
+                <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 16 }}>Current rivalry heat: {mediaPressureScore}/100</div>
+              </div>
+            )}
+
+            {activeHqTab === "media" && (
+              <div style={sectionCardStyle}>
+                <h2 style={{ marginTop: 0 }}>Owner Media Pressure</h2>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+                  <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 16 }}><div style={{ opacity: 0.65 }}>Fan Approval</div><div style={{ fontSize: 26, fontWeight: 900 }}>{Math.max(35, 100 - mediaPressureScore + selected.wins * 8)}/100</div></div>
+                  <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 16 }}><div style={{ opacity: 0.65 }}>Sponsor Approval</div><div style={{ fontSize: 26, fontWeight: 900 }}>{Math.max(40, 90 - Math.round(mediaPressureScore / 2))}/100</div></div>
+                  <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 16 }}><div style={{ opacity: 0.65 }}>Media Heat</div><div style={{ fontSize: 26, fontWeight: 900 }}>{mediaPressureScore}/100</div></div>
+                </div>
+              </div>
+            )}
+
+            {activeHqTab === "value" && (
+              <div style={sectionCardStyle}>
+                <h2 style={{ marginTop: 0 }}>Franchise Value</h2>
+                <div style={{ fontSize: 42, fontWeight: 900, color: "#d4af37" }}>{money(franchiseValue)}</div>
+                <p style={{ opacity: 0.72 }}>Value is estimated from team budget, points, wins, top 3s, roster size, active contracts, and morale.</p>
+              </div>
+            )}
+
+            {activeHqTab === "rankings" && (
+              <div style={sectionCardStyle}>
+                <h2 style={{ marginTop: 0 }}>Owner Power Rankings</h2>
+                <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse" }}><thead><tr><th style={thStyle}>Rank</th><th style={thStyle}>Team</th><th style={thStyle}>Owner Score</th><th style={thStyle}>Budget</th><th style={thStyle}>Points</th><th style={thStyle}>Wins</th></tr></thead><tbody>
+                  {ownerPowerRankings.map((item, index) => (
+                    <tr key={item.team}><td style={tdStyle}>#{index + 1}</td><td style={{ ...tdStyle, fontWeight: 900 }}>{getTeamFullName(item.team)}</td><td style={tdStyle}>{item.score}</td><td style={tdStyle}>{money(item.row.projectedBudget)}</td><td style={tdStyle}>{item.row.points}</td><td style={tdStyle}>{item.row.wins}</td></tr>
+                  ))}
+                </tbody></table></div>
+              </div>
+            )}
+
+            {activeHqTab === "contracts" && (
+              <>
             <div style={{ ...sectionCardStyle, borderColor: "#d4af37" }}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
                 <div>
@@ -1091,6 +1259,8 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
                 <button onClick={() => { setContractForm(DEFAULT_CONTRACT_FORM); setContractError(""); setContractMessage(""); }} style={secondaryButtonStyle}>Reset Form</button>
               </div>
             </div>
+              </>
+            )}
 
             <div style={sectionCardStyle}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
