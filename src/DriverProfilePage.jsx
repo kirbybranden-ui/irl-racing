@@ -772,13 +772,9 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
   }
 
   function openProtectedDriverSection(path) {
-    if (isDriverAuthorized) {
-      window.location.pathname = path;
-      return;
-    }
-    setPendingDriverPath(path);
-    setDriverAccessCodeInput("");
-    setContractError("");
+    // Always move to the requested tool page.
+    // If the driver is not unlocked yet, the protected page will show the access-code screen first.
+    window.location.pathname = path;
   }
 
   function lockDriverContracts() {
@@ -963,6 +959,49 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
     ["manufacturer_support", "Manufacturer Support", "How strong is manufacturer support?"],
     ["future_confidence", "Future Confidence", "Do you believe this team can win?"],
   ];
+
+  const protectedDriverPages = ["contracts", "upload", "interviews", "appeals", "feedback"];
+
+  if (protectedDriverPages.includes(subPage) && !isDriverAuthorized) {
+    return (
+      <div style={{ ...appShellStyle, background: `radial-gradient(circle at top, ${teamTheme.glow} 0%, #0c0f14 34%, #080a0e 100%)` }}>
+        <div style={pageContainerStyle}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20, flexWrap: "wrap" }}>
+            <button onClick={() => window.location.pathname = `/driver/${driverNumber}`} style={secondaryButtonStyle}>← Back to Profile</button>
+            <div>
+              <div style={{ fontSize: 22, fontWeight: 900 }}>#{driver.number} {driver.name} — Driver Access Required</div>
+              <div style={{ fontSize: 13, opacity: 0.6, marginTop: 2 }}>Unlock to use contracts, uploads, interviews, appeals, and driver feedback.</div>
+            </div>
+          </div>
+
+          <div style={{ ...sectionCardStyle, borderColor: teamTheme.accent }}>
+            <h2 style={{ marginTop: 0 }}>🔒 Driver Access Locked</h2>
+            <div style={{ fontSize: 14, opacity: 0.72, lineHeight: 1.6, marginBottom: 16 }}>
+              Enter the private driver access code for #{driver.number} {driver.name}. This keeps other people from answering interviews, submitting happiness feedback, uploading files, or managing contracts.
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, alignItems: "end" }}>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>DRIVER ACCESS CODE</div>
+                <input
+                  value={driverAccessCodeInput}
+                  onChange={(event) => setDriverAccessCodeInput(event.target.value)}
+                  onKeyDown={(event) => { if (event.key === "Enter") unlockDriverContracts(); }}
+                  placeholder={`Enter #${driver.number} driver code`}
+                  type="password"
+                  style={inputStyle}
+                  autoFocus
+                />
+              </div>
+              <button onClick={unlockDriverContracts} style={themedPrimaryButtonStyle}>Unlock Driver Access</button>
+            </div>
+
+            {contractError && <div style={{ marginTop: 12, color: "#f87171", fontWeight: 800 }}>{contractError}</div>}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (subPage === "appeals") {
     return (
