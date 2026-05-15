@@ -300,6 +300,10 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
   const [allianceError, setAllianceError] = useState("");
   const [activeHqTab, setActiveHqTab] = useState("overview");
   const [driverFeedback, setDriverFeedback] = useState(loadLocalDriverFeedback);
+  const [ownerTasks, setOwnerTasks] = useState([]);
+  const [taskMessage, setTaskMessage] = useState("");
+  const [taskError, setTaskError] = useState("");
+  const [newTaskForm, setNewTaskForm] = useState({ title: "", description: "", reward: "", reward_value: 0, task_type: "Performance" });
 
 
   React.useEffect(() => {
@@ -435,8 +439,13 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
     };
   }, [selected.drivers]);
 
+  const completedTaskCount = ownerTasks.filter((task) => task.completed).length;
+  const openTaskCount = Math.max(0, ownerTasks.length - completedTaskCount);
+  const taskCompletionRate = ownerTasks.length ? Math.round((completedTaskCount / ownerTasks.length) * 100) : 0;
+
   const hqTabs = [
     ["overview", "Overview"],
+    ["tasks", "Tasks"],
     ["contracts", "Contracts"],
     ["morale", "Morale"],
     ["manufacturer", "Manufacturer"],
@@ -622,6 +631,123 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
     setTechnicalAlliances(data || []);
   }
 
+  async function loadOwnerTasks() {
+    if (!safeSelectedTeam) return;
+
+    const { data, error: tasksLoadError } = await supabase
+      .from("owner_tasks")
+      .select("*")
+      .in("team", [ownerTeamName, safeSelectedTeam])
+      .order("completed", { ascending: true })
+      .order("created_at", { ascending: false });
+
+    if (tasksLoadError) {
+      console.error("Failed to load owner tasks:", tasksLoadError);
+      setTaskError("Could not load owner tasks. Check owner_tasks table RLS select policy.");
+      setOwnerTasks([]);
+      return;
+    }
+
+    setTaskError("");
+    setOwnerTasks(data || []);
+  }
+
+  async function addOwnerTask(event) {
+    event?.preventDefault?.();
+    setTaskMessage("");
+    setTaskError("");
+
+    if (!isAuthorized) {
+      setTaskError("Owner access required before creating tasks.");
+      return;
+    }
+
+    const title = String(newTaskForm.title || "").trim();
+    if (!title) {
+      setTaskError("Task title is required.");
+      return;
+    }
+
+    const payload = {
+      team: ownerTeamName,
+      title,
+      description: String(newTaskForm.description || "").trim(),
+      reward: String(newTaskForm.reward || "").trim(),
+      completed: false,
+      reward_value: Number(newTaskForm.reward_value || 0),
+      task_type: String(newTaskForm.task_type || "Performance"),
+      created_at: new Date().toISOString(),
+    };
+
+    const { error: insertTaskError } = await supabase.from("owner_tasks").insert([payload]);
+
+    if (insertTaskError) {
+      console.error("Could not create owner task:", insertTaskError);
+      setTaskError("Could not create task. Check owner_tasks table RLS insert policy.");
+      return;
+    }
+
+    setNewTaskForm({ title: "", description: "", reward: "", reward_value: 0, task_type: "Performance" });
+    setTaskMessage("Owner task created.");
+    await loadOwnerTasks();
+  }
+
+  async function toggleOwnerTask(task) {
+    setTaskMessage("");
+    setTaskError("");
+
+    const { error: updateTaskError } = await supabase
+      .from("owner_tasks")
+      .update({ completed: !task.completed })
+      .eq("id", task.id);
+
+    if (updateTaskError) {
+      console.error("Could not update owner task:", updateTaskError);
+      setTaskError("Could not update task. Check owner_tasks table RLS update policy.");
+      return;
+    }
+
+    setOwnerTasks((current) => current.map((item) => item.id === task.id ? { ...item, completed: !item.completed } : item));
+  }
+
+  async function deleteOwnerTask(taskId) {
+    if (!window.confirm("Delete this owner task?")) return;
+    setTaskMessage("");
+    setTaskError("");
+
+    const { error: deleteTaskError } = await supabase
+      .from("owner_tasks")
+      .delete()
+      .eq("id", taskId);
+
+    if (deleteTaskError) {
+      console.error("Could not delete owner task:", deleteTaskError);
+      setTaskError("Could not delete task. Check owner_tasks table RLS delete policy.");
+      return;
+    }
+
+    setOwnerTasks((current) => current.filter((task) => task.id !== taskId));
+    setTaskMessage("Owner task deleted.");
+  }
+
+  function addSuggestedTasks() {
+    const suggestions = [
+      { title: "Finish with one car inside the Top 10", description: "Set a weekly performance target for the next race weekend.", reward: "+5 team morale", reward_value: 5, task_type: "Performance" },
+      { title: "Complete all assigned driver interviews", description: "Keep media activity strong and improve sponsor confidence.", reward: "+10 fan approval", reward_value: 10, task_type: "Media" },
+      { title: "Avoid penalties this race week", description: "Keep the organization clean and reduce owner pressure.", reward: "$50,000 sponsor confidence bonus", reward_value: 50000, task_type: "Financial" },
+      { title: "Keep driver happiness above 75", description: "Use feedback, communication, and owner support to protect morale.", reward: "+5 franchise value score", reward_value: 5, task_type: "Morale" },
+    ];
+
+    const firstEmptySuggestion = suggestions.find((suggestion) => !ownerTasks.some((task) => String(task.title || "").toLowerCase() === suggestion.title.toLowerCase()));
+    if (!firstEmptySuggestion) {
+      setTaskMessage("Suggested tasks already exist for this team.");
+      return;
+    }
+
+    setNewTaskForm(firstEmptySuggestion);
+    setActiveHqTab("tasks");
+  }
+
   React.useEffect(() => {
     if (!isAuthorized) return;
     loadTeamFinance();
@@ -629,6 +755,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
     loadActiveContracts();
     loadTechnicalAlliances();
     loadDriverFeedback();
+    loadOwnerTasks();
   }, [isAuthorized, ownerTeamName]);
 
   async function submitContractOffer() {
@@ -938,6 +1065,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
                 { label: "Independent Driver Pay", value: money(selected.independentPayouts) },
                 { label: "Net", value: money(selected.netRevenue), good: selected.netRevenue >= 0 },
                 { label: "Active Contracts", value: activeContracts.length },
+                { label: "Open Tasks", value: openTaskCount },
                 { label: "Team Points", value: selected.points },
                 { label: "Team Wins", value: selected.wins },
               ].map((stat) => (
@@ -955,6 +1083,85 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
                 ))}
               </div>
             </div>
+
+            {activeHqTab === "tasks" && (
+              <div style={sectionCardStyle}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start", marginBottom: 16 }}>
+                  <div>
+                    <h2 style={{ margin: 0 }}>✅ Owner Tasks</h2>
+                    <div style={{ opacity: 0.68, fontSize: 13, marginTop: 6 }}>Weekly owner objectives for performance, morale, media, finances, and franchise growth.</div>
+                  </div>
+                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                    <button onClick={loadOwnerTasks} style={secondaryButtonStyle}>Refresh Tasks</button>
+                    <button onClick={addSuggestedTasks} style={primaryButtonStyle}>Use Suggested Task</button>
+                  </div>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 18 }}>
+                  <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14 }}><div style={{ opacity: 0.65, fontSize: 12 }}>Open Tasks</div><div style={{ fontSize: 28, fontWeight: 900 }}>{openTaskCount}</div></div>
+                  <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14 }}><div style={{ opacity: 0.65, fontSize: 12 }}>Completed</div><div style={{ fontSize: 28, fontWeight: 900 }}>{completedTaskCount}</div></div>
+                  <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14 }}><div style={{ opacity: 0.65, fontSize: 12 }}>Completion Rate</div><div style={{ fontSize: 28, fontWeight: 900 }}>{taskCompletionRate}%</div></div>
+                </div>
+
+                <form onSubmit={addOwnerTask} style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 16, marginBottom: 18 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 12 }}>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>TASK TITLE</div>
+                      <input value={newTaskForm.title} onChange={(event) => setNewTaskForm((current) => ({ ...current, title: event.target.value }))} placeholder="Finish with two cars in the Top 10" style={inputStyle} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>TASK TYPE</div>
+                      <select value={newTaskForm.task_type} onChange={(event) => setNewTaskForm((current) => ({ ...current, task_type: event.target.value }))} style={inputStyle}>
+                        <option value="Performance">Performance</option>
+                        <option value="Media">Media</option>
+                        <option value="Morale">Morale</option>
+                        <option value="Financial">Financial</option>
+                        <option value="Development">Development</option>
+                        <option value="Rivalry">Rivalry</option>
+                      </select>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>REWARD</div>
+                      <input value={newTaskForm.reward} onChange={(event) => setNewTaskForm((current) => ({ ...current, reward: event.target.value }))} placeholder="+5 morale / $50,000 bonus" style={inputStyle} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>REWARD VALUE</div>
+                      <input type="number" value={newTaskForm.reward_value} onChange={(event) => setNewTaskForm((current) => ({ ...current, reward_value: event.target.value }))} style={inputStyle} />
+                    </div>
+                  </div>
+                  <div style={{ marginTop: 12 }}>
+                    <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>DESCRIPTION</div>
+                    <textarea value={newTaskForm.description} onChange={(event) => setNewTaskForm((current) => ({ ...current, description: event.target.value }))} placeholder="Explain what the owner needs to accomplish this week." style={{ ...inputStyle, minHeight: 80, resize: "vertical" }} />
+                  </div>
+                  <button type="submit" style={{ ...primaryButtonStyle, marginTop: 12 }}>Add Owner Task</button>
+                  {taskMessage && <div style={{ marginTop: 12, color: "#4ade80", fontWeight: 800 }}>{taskMessage}</div>}
+                  {taskError && <div style={{ marginTop: 12, color: "#f87171", fontWeight: 800 }}>{taskError}</div>}
+                </form>
+
+                {ownerTasks.length === 0 ? (
+                  <div style={{ opacity: 0.72 }}>No owner tasks created yet. Add a task or click “Use Suggested Task.”</div>
+                ) : (
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12 }}>
+                    {ownerTasks.map((task) => (
+                      <div key={task.id} style={{ background: task.completed ? "#102a16" : "#0f1319", border: `1px solid ${task.completed ? "#22c55e" : "#2c3440"}`, borderRadius: 14, padding: 16 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
+                          <div>
+                            <div style={{ fontSize: 11, fontWeight: 900, opacity: 0.65, textTransform: "uppercase" }}>{task.task_type || "Task"}</div>
+                            <div style={{ fontSize: 18, fontWeight: 900, marginTop: 4 }}>{task.completed ? "✅ " : "⬜ "}{task.title}</div>
+                          </div>
+                          <button onClick={() => toggleOwnerTask(task)} style={task.completed ? secondaryButtonStyle : primaryButtonStyle}>{task.completed ? "Mark Open" : "Complete"}</button>
+                        </div>
+                        {task.description && <div style={{ opacity: 0.75, fontSize: 13, lineHeight: 1.5, marginTop: 10 }}>{task.description}</div>}
+                        <div style={{ marginTop: 12, display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                          <div style={{ fontSize: 13, fontWeight: 800, color: "#d4af37" }}>Reward: {task.reward || "—"}</div>
+                          <button onClick={() => deleteOwnerTask(task.id)} style={{ ...dangerButtonStyle, padding: "7px 10px", fontSize: 12 }}>Delete</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {activeHqTab === "overview" && (
               <div style={{ ...sectionCardStyle, borderColor: "#d4af37" }}>
