@@ -432,6 +432,18 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
   const [driverAccessCodeInput, setDriverAccessCodeInput] = useState("");
   const [driverAccessCodes, setDriverAccessCodes] = useState(loadLocalDriverAccessCodes);
   const [authorizedDriverNumber, setAuthorizedDriverNumber] = useState(() => localStorage.getItem("driverProfileAuthorizedNumber") || "");
+  const [feedbackForm, setFeedbackForm] = useState({
+    team_happiness: 8,
+    equipment_quality: 8,
+    team_communication: 8,
+    leadership_confidence: 8,
+    manufacturer_support: 8,
+    future_confidence: 8,
+    comments: "",
+  });
+  const [feedbackMessage, setFeedbackMessage] = useState("");
+  const [feedbackError, setFeedbackError] = useState("");
+  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
 
   const driverAccessKey = driver ? String(driver.number) : String(driverNumber);
   const isDriverAuthorized = authorizedDriverNumber === driverAccessKey;
@@ -874,6 +886,68 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
     else alert("Failed to delete upload.");
   }
 
+  function updateFeedbackField(field, value) {
+    setFeedbackForm((current) => ({ ...current, [field]: value }));
+  }
+
+  async function submitDriverFeedback(event) {
+    event.preventDefault();
+    setFeedbackMessage("");
+    setFeedbackError("");
+
+    if (!driver) {
+      setFeedbackError("Driver profile could not be loaded.");
+      return;
+    }
+
+    const payload = {
+      driver_id: String(driver.id),
+      driver_name: driver.name || "",
+      driver_number: String(driver.number || ""),
+      team: getTeamFullName(driver.team || "Independent"),
+      team_key: driver.team || "Independent",
+      manufacturer: driver.manufacturer || "",
+      team_happiness: Number(feedbackForm.team_happiness) || 0,
+      equipment_quality: Number(feedbackForm.equipment_quality) || 0,
+      team_communication: Number(feedbackForm.team_communication) || 0,
+      leadership_confidence: Number(feedbackForm.leadership_confidence) || 0,
+      manufacturer_support: Number(feedbackForm.manufacturer_support) || 0,
+      future_confidence: Number(feedbackForm.future_confidence) || 0,
+      comments: feedbackForm.comments || "",
+      created_at: new Date().toISOString(),
+    };
+
+    setFeedbackSubmitting(true);
+    const { error } = await supabase.from("driver_feedback").insert([payload]);
+    setFeedbackSubmitting(false);
+
+    if (error) {
+      console.error("Driver feedback insert failed:", error);
+      try {
+        const saved = JSON.parse(localStorage.getItem("bclDriverFeedbackRatings") || "[]");
+        localStorage.setItem("bclDriverFeedbackRatings", JSON.stringify([{ ...payload, id: `local-${Date.now()}` }, ...saved]));
+        setFeedbackMessage("Feedback saved on this browser. Add or check the driver_feedback table in Supabase to make it visible in Team HQ everywhere.");
+        setFeedbackForm((current) => ({ ...current, comments: "" }));
+        return;
+      } catch {
+        setFeedbackError("Could not save feedback. Check your driver_feedback Supabase table and RLS policies.");
+        return;
+      }
+    }
+
+    setFeedbackMessage("Feedback submitted. Your team owner will see the updated morale signal in Team HQ.");
+    setFeedbackForm((current) => ({ ...current, comments: "" }));
+  }
+
+  const feedbackRatingFields = [
+    ["team_happiness", "Team Happiness", "How happy are you with your organization?"],
+    ["equipment_quality", "Equipment Quality", "How competitive is your equipment?"],
+    ["team_communication", "Team Communication", "How well does the team work together?"],
+    ["leadership_confidence", "Owner Leadership", "How confident are you in ownership?"],
+    ["manufacturer_support", "Manufacturer Support", "How strong is manufacturer support?"],
+    ["future_confidence", "Future Confidence", "Do you believe this team can win?"],
+  ];
+
   if (subPage === "appeals") {
     return (
       <div style={appShellStyle}>
@@ -956,6 +1030,70 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
             <div style={{ marginTop: 16, marginBottom: 16, fontWeight: 700 }}>Driver #{driverNumber} not found in {selectedSeason?.name}</div>
             <div style={{ opacity: 0.75 }}>Check the standings page to select a valid driver.</div>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (subPage === "feedback") {
+    return (
+      <div style={{ ...appShellStyle, background: `radial-gradient(circle at top, ${teamTheme.glow} 0%, #0c0f14 34%, #080a0e 100%)` }}>
+        <div style={pageContainerStyle}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20, flexWrap: "wrap" }}>
+            <button onClick={() => window.location.pathname = `/driver/${driverNumber}`} style={secondaryButtonStyle}>← Back to Profile</button>
+            <div>
+              <div style={{ fontSize: 22, fontWeight: 900 }}>#{driver.number} {driver.name} — Driver Feedback</div>
+              <div style={{ fontSize: 13, opacity: 0.6, marginTop: 2 }}>Submit morale ratings for Team HQ</div>
+            </div>
+          </div>
+
+          <form onSubmit={submitDriverFeedback} style={{ ...sectionCardStyle, borderColor: teamTheme.accent }}>
+            <h2 style={{ marginTop: 0, marginBottom: 4 }}>😊 Driver Happiness Survey</h2>
+            <div style={{ fontSize: 13, opacity: 0.65, marginBottom: 16 }}>
+              Rate your team experience from 1–10. These ratings feed the Team HQ morale system for {getTeamFullName(driver.team)}.
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14 }}>
+              {feedbackRatingFields.map(([field, label, help]) => (
+                <div key={field} style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "baseline" }}>
+                    <div style={{ fontWeight: 900 }}>{label}</div>
+                    <div style={{ color: teamTheme.accent, fontWeight: 900 }}>{feedbackForm[field]}/10</div>
+                  </div>
+                  <div style={{ opacity: 0.65, fontSize: 12, margin: "6px 0 10px" }}>{help}</div>
+                  <input
+                    type="range"
+                    min="1"
+                    max="10"
+                    value={feedbackForm[field]}
+                    onChange={(event) => updateFeedbackField(field, event.target.value)}
+                    style={{ width: "100%" }}
+                  />
+                </div>
+              ))}
+            </div>
+
+            <div style={{ marginTop: 18 }}>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>OPTIONAL OWNER NOTE</label>
+              <textarea
+                value={feedbackForm.comments}
+                onChange={(event) => updateFeedbackField("comments", event.target.value)}
+                placeholder="What should ownership know?"
+                rows={4}
+                style={{ ...inputStyle, resize: "vertical" }}
+              />
+            </div>
+
+            {feedbackMessage && <div style={{ color: "#4ade80", marginTop: 12, fontWeight: 900 }}>{feedbackMessage}</div>}
+            {feedbackError && <div style={{ color: "#f87171", marginTop: 12, fontWeight: 900 }}>{feedbackError}</div>}
+
+            <div style={{ display: "flex", gap: 10, marginTop: 18, flexWrap: "wrap" }}>
+              <button type="submit" disabled={feedbackSubmitting} style={{ ...themedPrimaryButtonStyle, opacity: feedbackSubmitting ? 0.65 : 1 }}>
+                {feedbackSubmitting ? "Submitting..." : "Submit Driver Feedback"}
+              </button>
+              <button type="button" onClick={() => window.location.pathname = `/driver/${driverNumber}`} style={secondaryButtonStyle}>Back to Profile</button>
+            </div>
+          </form>
         </div>
       </div>
     );
@@ -1191,6 +1329,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
             📋 Appeals
             {myAppeals.length > 0 && <span style={{ marginLeft: 8, background: myAppeals.some((a) => a.status !== "Open") ? "#22c55e" : "#3b82f6", color: "white", borderRadius: 99, padding: "2px 8px", fontSize: 11, fontWeight: 800 }}>{myAppeals.length}</span>}
           </button>
+          <button onClick={() => window.location.pathname = `/driver/${driverNumber}/feedback`} style={secondaryButtonStyle}>😊 Driver Feedback</button>
         </div>
 
         <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 20 }}>
