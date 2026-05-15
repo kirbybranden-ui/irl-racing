@@ -238,6 +238,57 @@ function normalizeTrackName(name) {
   }
   return raw;
 }
+
+function getEasternDateParts(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+
+  return {
+    dateKey: `${values.year}-${values.month}-${values.day}`,
+    hour: Number(values.hour || 0),
+    minute: Number(values.minute || 0),
+  };
+}
+
+function hasRaceRolledOver(track, date = new Date()) {
+  if (!track?.date) return false;
+
+  const easternNow = getEasternDateParts(date);
+  const raceDate = String(track.date).slice(0, 10);
+
+  if (easternNow.dateKey > raceDate) return true;
+  if (easternNow.dateKey < raceDate) return false;
+
+  return easternNow.hour > 22 || (easternNow.hour === 22 && easternNow.minute >= 0);
+}
+
+function getSortedTracksByDate(tracks = []) {
+  return [...tracks].sort((a, b) => {
+    if (a.date && b.date) return new Date(`${a.date}T12:00:00`) - new Date(`${b.date}T12:00:00`);
+    if (a.date) return -1;
+    if (b.date) return 1;
+    return String(a.name || "").localeCompare(String(b.name || ""));
+  });
+}
+
+function getUpcomingRaceByDate(tracks = []) {
+  const sortedTracks = getSortedTracksByDate(tracks);
+  return sortedTracks.find((track) => !hasRaceRolledOver(track)) || null;
+}
+
+function isRaceCompleteByDateOrHistory(track, completedRaces = new Set()) {
+  return completedRaces.has(track?.name) || hasRaceRolledOver(track);
+}
+
 function sanitizeTracks(rawTracks) {
   if (!Array.isArray(rawTracks)) return null;
   const cleaned = rawTracks
@@ -444,6 +495,31 @@ function downloadRaceHistoryCsv(raceHistory = [], seasonName = "") {
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
 }
+
+async function createRaceDataBackup({ seasonSnapshot, raceSnapshot, backupType = "save-points" }) {
+  try {
+    const { error } = await supabase.from("race_data_backups").insert({
+      backup_type: backupType,
+      season_id: seasonSnapshot?.id || null,
+      season_name: seasonSnapshot?.name || "Season",
+      race_name: raceSnapshot?.raceName || seasonSnapshot?.selectedRace || "Race",
+      snapshot: seasonSnapshot,
+      race_snapshot: raceSnapshot,
+      created_at: new Date().toISOString(),
+    });
+
+    if (error) {
+      console.error("Race data backup failed:", error);
+      return { ok: false, error };
+    }
+
+    return { ok: true };
+  } catch (error) {
+    console.error("Race data backup crashed:", error);
+    return { ok: false, error };
+  }
+}
+
 function rebuildDriversFromHistory(history, driverRoster) {
   return driverRoster.map((baseDriver) => {
     let points = 0;
@@ -1321,13 +1397,10 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
   const totalPoints = sorted.reduce((s, d) => s + (d.points || 0), 0);
   const totalWins = sorted.reduce((s, d) => s + (d.wins || 0), 0);
   const totalDnfs = sorted.reduce((s, d) => s + (d.dnfs || 0), 0);
-  // Sort tracks by date, mark completed ones
+  // Sort tracks by date and roll the upcoming race after 10:00 PM Eastern on race day.
   const completedRaces = new Set((raceHistory || []).map(r => r.raceName));
-  const sortedTracks = [...tracks].sort((a, b) => {
-    if (a.date && b.date) return new Date(a.date) - new Date(b.date);
-    return 0;
-  });
-  const nextRace = sortedTracks.find(t => !completedRaces.has(t.name));
+  const sortedTracks = getSortedTracksByDate(tracks);
+  const nextRace = getUpcomingRaceByDate(sortedTracks);
 
   const autoOnesToWatch = sorted
     .filter((driver) => !driver.retired && !isInactivePlaceholderDriver(driver))
@@ -1556,7 +1629,7 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {sortedTracks.map((track, i) => {
-                  const completed = completedRaces.has(track.name);
+                  const completed = isRaceCompleteByDateOrHistory(track, completedRaces);
                   const isNext = track.name === nextRace?.name;
                   return (
                     <div key={track.name} onClick={() => setSelectedTrackInfo(getTrackOverview(track.name))} style={{ display: "flex", alignItems: "center", gap: 14, padding: "10px 14px", borderRadius: 12, background: isNext ? "rgba(212,175,55,0.12)" : "rgba(255,255,255,0.03)", border: `1px solid ${isNext ? "#d4af37" : completed ? "#1a3a1a" : "#1e2530"}`, cursor: "pointer" }}>
@@ -2724,7 +2797,7 @@ export default function App() {
     drivers.forEach((d) => { counts[d.id] = countPriorOffenses(raceHistory, d.id, editingRaceName); });
     return counts;
   }, [raceHistory, drivers, editingRaceName]);
-  const submitResults = () => {
+  const submitResults = async () => {
     if (!activeSeason) return;
     if (!selectedRace.trim()) { alert("Please select a race."); return; }
     if (raceHistory.some((r) => r.raceName === selectedRace && editingRaceName !== selectedRace)) { alert("That race has already been entered."); return; }
@@ -2750,10 +2823,41 @@ export default function App() {
         isWin: finishPos === 1, isTop3: finishPos >= 1 && finishPos <= 3, isTop5: finishPos >= 1 && finishPos <= 5, dnf, dnfReason: dnf ? (dnfReasons[driver.id] || "Unknown") : null,
       };
     }).sort((a, b) => { if (a.finishPos === null) return 1; if (b.finishPos === null) return -1; return a.finishPos - b.finishPos; });
-    const updatedRace = { raceName: selectedRace, stageCount, results: raceResults };
+    const updatedRace = {
+      raceName: selectedRace,
+      stageCount,
+      results: raceResults,
+      savedAt: new Date().toISOString(),
+    };
     const newHistory = editingRaceName ? raceHistory.map((r) => r.raceName === editingRaceName ? updatedRace : r) : [...raceHistory, updatedRace];
     const rosterOnly = drivers.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer || "", team: d.team, startingPoints: 0, manualWins: 0, retired: d.retired || false }));
-    replaceActiveSeason({ ...activeSeason, raceHistory: newHistory, drivers: rebuildDriversFromHistory(newHistory, rosterOnly), selectedRace: "", positions: {}, stage1: {}, stage2: {}, stage3: {}, dnfMap: {}, offenseMap: {}, fastestLapMap: {} });
+    const rebuiltDrivers = rebuildDriversFromHistory(newHistory, rosterOnly);
+    const updatedSeason = {
+      ...activeSeason,
+      raceHistory: newHistory,
+      drivers: rebuiltDrivers,
+      selectedRace: "",
+      positions: {},
+      stage1: {},
+      stage2: {},
+      stage3: {},
+      dnfMap: {},
+      offenseMap: {},
+      fastestLapMap: {},
+    };
+
+    replaceActiveSeason(updatedSeason);
+
+    const backupResult = await createRaceDataBackup({
+      seasonSnapshot: updatedSeason,
+      raceSnapshot: updatedRace,
+      backupType: editingRaceName ? "edit-race-save-points" : "save-points",
+    });
+
+    if (!backupResult.ok) {
+      alert("Race points saved, but the automatic backup failed. Make sure the race_data_backups table exists in Supabase.");
+    }
+
     setEditingRaceName(null);
   };
   const handleEditRace = (race) => {
@@ -2815,13 +2919,9 @@ export default function App() {
   return <LiveControlPanel />;
 }
   if (path === "/streams" || path === "/stream") {
-  // Build next race
-  const completedRaces = new Set((activeSeason?.raceHistory || []).map(r => r.raceName));
-  const sortedTracks = [...(tracks || [])].sort((a, b) => {
-    if (a.date && b.date) return new Date(a.date) - new Date(b.date);
-    return 0;
-  });
-  const nextRace = sortedTracks.find(t => !completedRaces.has(t.name));
+  // Build next race from the schedule date and roll after 10:00 PM Eastern on race day.
+  const sortedTracks = getSortedTracksByDate(tracks || []);
+  const nextRace = getUpcomingRaceByDate(sortedTracks);
 
   // Track helper (uses your existing trackOverviewData)
   function getTrackOverview(race) {
