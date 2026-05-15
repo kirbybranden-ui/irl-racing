@@ -309,6 +309,21 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
   const [driverTaskMessage, setDriverTaskMessage] = useState("");
   const [driverTaskError, setDriverTaskError] = useState("");
   const [newDriverTaskForm, setNewDriverTaskForm] = useState({ driver_number: "", title: "", description: "", reward: "", due_race: "" });
+  const [teamRivalries, setTeamRivalries] = useState([]);
+  const [rivalryMessage, setRivalryMessage] = useState("");
+  const [rivalryError, setRivalryError] = useState("");
+  const [rivalryForm, setRivalryForm] = useState({
+    rivalry_name: "",
+    rivalry_type: "Individual Team Rivalry",
+    team_a: "",
+    team_b: "",
+    teams_a: [],
+    teams_b: [],
+    manufacturer_a: "",
+    manufacturer_b: "",
+    storyline: "",
+    rivalry_level: 50,
+  });
 
 
   React.useEffect(() => {
@@ -443,6 +458,42 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
       expectation: selected.drivers.length >= 4 ? "Win races and finish top 3 in owner standings" : "Build weekly speed and show growth",
     };
   }, [selected.drivers]);
+
+  const manufacturerTeamMap = useMemo(() => {
+    const map = { Toyota: [], Ford: [], Chevrolet: [] };
+    availableTeams.forEach((team) => {
+      const teamDrivers = drivers.filter((driver) => sameTeamName(driver.team, team));
+      const counts = teamDrivers.reduce((acc, driver) => {
+        const mfr = driver.manufacturer || "Unassigned";
+        acc[mfr] = (acc[mfr] || 0) + 1;
+        return acc;
+      }, {});
+      const mainManufacturer = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0];
+      if (map[mainManufacturer]) map[mainManufacturer].push(team);
+    });
+    return map;
+  }, [availableTeams, drivers]);
+
+  const visibleRivalries = useMemo(() => {
+    const currentTeamNames = [safeSelectedTeam, ownerTeamName].map((item) => String(item || "").toLowerCase());
+    const currentManufacturer = String(manufacturerContract.manufacturer || "").toLowerCase();
+
+    return (teamRivalries || []).filter((rivalry) => {
+      const rivalryType = String(rivalry.rivalry_type || rivalry.type || "Individual Team Rivalry");
+      if (rivalryType === "Manufacturer Rivalry") {
+        return [rivalry.manufacturer_a, rivalry.manufacturer_b].some((mfr) => String(mfr || "").toLowerCase() === currentManufacturer);
+      }
+
+      const rivalryTeams = [
+        rivalry.team_a,
+        rivalry.team_b,
+        ...(Array.isArray(rivalry.teams_a) ? rivalry.teams_a : []),
+        ...(Array.isArray(rivalry.teams_b) ? rivalry.teams_b : []),
+      ].map((item) => String(item || "").toLowerCase());
+
+      return currentTeamNames.some((team) => rivalryTeams.includes(team));
+    });
+  }, [teamRivalries, safeSelectedTeam, ownerTeamName, manufacturerContract.manufacturer]);
 
   const completedTaskCount = ownerTasks.filter((task) => task.completed).length;
   const openTaskCount = Math.max(0, ownerTasks.length - completedTaskCount);
@@ -861,6 +912,173 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
     setDriverTaskMessage("Driver assignment deleted.");
   }
 
+  function updateRivalryForm(field, value) {
+    setRivalryForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function updateRivalryTeamList(field, event) {
+    const values = Array.from(event.target.selectedOptions, (option) => option.value);
+    setRivalryForm((current) => ({ ...current, [field]: values }));
+  }
+
+  function getManufacturerTeams(manufacturer) {
+    return manufacturerTeamMap[manufacturer] || [];
+  }
+
+  async function loadTeamRivalries() {
+    const { data, error: rivalryLoadError } = await supabase
+      .from("team_rivalries")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (rivalryLoadError) {
+      console.error("Failed to load team rivalries:", rivalryLoadError);
+      setRivalryError("Could not load rivalries. Check team_rivalries table and RLS select policy.");
+      setTeamRivalries([]);
+      return;
+    }
+
+    setRivalryError("");
+    setTeamRivalries(data || []);
+  }
+
+  async function createTeamRivalry(event) {
+    event?.preventDefault?.();
+    setRivalryMessage("");
+    setRivalryError("");
+
+    if (!isAuthorized) {
+      setRivalryError("Owner access required before creating rivalries.");
+      return;
+    }
+
+    const rivalryType = rivalryForm.rivalry_type || "Individual Team Rivalry";
+    let payload = {
+      rivalry_name: String(rivalryForm.rivalry_name || "").trim(),
+      rivalry_type: rivalryType,
+      storyline: String(rivalryForm.storyline || "").trim(),
+      rivalry_level: Math.max(1, Math.min(100, Number(rivalryForm.rivalry_level || 50))),
+      status: "Active",
+      created_at: new Date().toISOString(),
+    };
+
+    if (rivalryType === "Manufacturer Rivalry") {
+      const manufacturerA = String(rivalryForm.manufacturer_a || "").trim();
+      const manufacturerB = String(rivalryForm.manufacturer_b || "").trim();
+
+      if (!manufacturerA || !manufacturerB) {
+        setRivalryError("Select both manufacturers before creating a manufacturer rivalry.");
+        return;
+      }
+
+      if (manufacturerA === manufacturerB) {
+        setRivalryError("A manufacturer cannot be in a rivalry with itself.");
+        return;
+      }
+
+      const teamsA = getManufacturerTeams(manufacturerA).map(getTeamFullName);
+      const teamsB = getManufacturerTeams(manufacturerB).map(getTeamFullName);
+
+      payload = {
+        ...payload,
+        rivalry_name: payload.rivalry_name || `${manufacturerA} vs ${manufacturerB}`,
+        manufacturer_a: manufacturerA,
+        manufacturer_b: manufacturerB,
+        teams_a: teamsA,
+        teams_b: teamsB,
+        team_a: `${manufacturerA} Camp`,
+        team_b: `${manufacturerB} Camp`,
+      };
+    } else {
+      const teamsA = (rivalryForm.teams_a && rivalryForm.teams_a.length ? rivalryForm.teams_a : rivalryForm.team_a ? [rivalryForm.team_a] : []).map(getTeamFullName);
+      const teamsB = (rivalryForm.teams_b && rivalryForm.teams_b.length ? rivalryForm.teams_b : rivalryForm.team_b ? [rivalryForm.team_b] : []).map(getTeamFullName);
+
+      if (teamsA.length === 0 || teamsB.length === 0) {
+        setRivalryError("Select at least one team on each side of the rivalry.");
+        return;
+      }
+
+      const overlap = teamsA.some((team) => teamsB.includes(team));
+      if (overlap) {
+        setRivalryError("The same team cannot be on both sides of a rivalry.");
+        return;
+      }
+
+      payload = {
+        ...payload,
+        rivalry_name: payload.rivalry_name || `${teamsA.join(", ")} vs ${teamsB.join(", ")}`,
+        team_a: teamsA[0],
+        team_b: teamsB[0],
+        teams_a: teamsA,
+        teams_b: teamsB,
+        manufacturer_a: null,
+        manufacturer_b: null,
+      };
+    }
+
+    const { error: insertRivalryError } = await supabase.from("team_rivalries").insert([payload]);
+
+    if (insertRivalryError) {
+      console.error("Could not create rivalry:", insertRivalryError);
+      setRivalryError("Could not create rivalry. Check team_rivalries table columns and RLS insert policy.");
+      return;
+    }
+
+    setRivalryForm({
+      rivalry_name: "",
+      rivalry_type: "Individual Team Rivalry",
+      team_a: "",
+      team_b: "",
+      teams_a: [],
+      teams_b: [],
+      manufacturer_a: "",
+      manufacturer_b: "",
+      storyline: "",
+      rivalry_level: 50,
+    });
+    setRivalryMessage("Rivalry created.");
+    await loadTeamRivalries();
+  }
+
+  async function updateTeamRivalryStatus(rivalryId, status) {
+    setRivalryMessage("");
+    setRivalryError("");
+
+    const { error: rivalryUpdateError } = await supabase
+      .from("team_rivalries")
+      .update({ status })
+      .eq("id", rivalryId);
+
+    if (rivalryUpdateError) {
+      console.error("Could not update rivalry:", rivalryUpdateError);
+      setRivalryError("Could not update rivalry status. Check RLS update policy.");
+      return;
+    }
+
+    setTeamRivalries((current) => current.map((rivalry) => rivalry.id === rivalryId ? { ...rivalry, status } : rivalry));
+    setRivalryMessage(`Rivalry marked ${String(status).toLowerCase()}.`);
+  }
+
+  async function deleteTeamRivalry(rivalryId) {
+    if (!window.confirm("Delete this rivalry?")) return;
+    setRivalryMessage("");
+    setRivalryError("");
+
+    const { error: rivalryDeleteError } = await supabase
+      .from("team_rivalries")
+      .delete()
+      .eq("id", rivalryId);
+
+    if (rivalryDeleteError) {
+      console.error("Could not delete rivalry:", rivalryDeleteError);
+      setRivalryError("Could not delete rivalry. Check RLS delete policy.");
+      return;
+    }
+
+    setTeamRivalries((current) => current.filter((rivalry) => rivalry.id !== rivalryId));
+    setRivalryMessage("Rivalry deleted.");
+  }
+
   React.useEffect(() => {
     if (!isAuthorized) return;
     loadTeamFinance();
@@ -870,6 +1088,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
     loadDriverFeedback();
     loadOwnerTasks();
     loadDriverTasks();
+    loadTeamRivalries();
   }, [isAuthorized, ownerTeamName]);
 
   async function submitContractOffer() {
@@ -1402,9 +1621,126 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
 
             {activeHqTab === "rivalries" && (
               <div style={sectionCardStyle}>
-                <h2 style={{ marginTop: 0 }}>Team Rivalries</h2>
-                <p style={{ opacity: 0.72 }}>Rivalries can be built from technical alliances, incidents, and owner media comments.</p>
-                <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 16 }}>Current rivalry heat: {mediaPressureScore}/100</div>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+                  <div>
+                    <h2 style={{ marginTop: 0, marginBottom: 6 }}>Team Rivalries</h2>
+                    <p style={{ opacity: 0.72, marginTop: 0 }}>Create individual team rivalries or full manufacturer wars.</p>
+                  </div>
+                  <button onClick={loadTeamRivalries} style={secondaryButtonStyle}>Refresh Rivalries</button>
+                </div>
+
+                <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 16, marginBottom: 16 }}>
+                  <div style={{ opacity: 0.65, fontSize: 12 }}>CURRENT RIVALRY HEAT</div>
+                  <div style={{ fontSize: 28, fontWeight: 900 }}>{Math.min(100, mediaPressureScore + visibleRivalries.length * 5)}/100</div>
+                  <div style={{ opacity: 0.62, fontSize: 12, marginTop: 4 }}>{visibleRivalries.length} rivalry/rivalries connected to this team or manufacturer.</div>
+                </div>
+
+                <form onSubmit={createTeamRivalry} style={{ background: "#10151d", border: "1px solid #2c3440", borderRadius: 14, padding: 16, marginBottom: 18 }}>
+                  <h3 style={{ marginTop: 0 }}>Create Rivalry</h3>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>RIVALRY TYPE</div>
+                      <select value={rivalryForm.rivalry_type} onChange={(event) => updateRivalryForm("rivalry_type", event.target.value)} style={inputStyle}>
+                        <option value="Individual Team Rivalry">Individual Team Rivalry</option>
+                        <option value="Manufacturer Rivalry">Manufacturer Rivalry</option>
+                      </select>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>RIVALRY NAME</div>
+                      <input value={rivalryForm.rivalry_name} onChange={(event) => updateRivalryForm("rivalry_name", event.target.value)} placeholder="Example: Ford vs Toyota War" style={inputStyle} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>RIVALRY LEVEL</div>
+                      <input type="number" min="1" max="100" value={rivalryForm.rivalry_level} onChange={(event) => updateRivalryForm("rivalry_level", event.target.value)} style={inputStyle} />
+                    </div>
+                  </div>
+
+                  {rivalryForm.rivalry_type === "Manufacturer Rivalry" ? (
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, marginTop: 12 }}>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>MANUFACTURER A</div>
+                        <select value={rivalryForm.manufacturer_a} onChange={(event) => updateRivalryForm("manufacturer_a", event.target.value)} style={inputStyle}>
+                          <option value="">Select Manufacturer A</option>
+                          <option value="Toyota">Toyota</option>
+                          <option value="Ford">Ford</option>
+                          <option value="Chevrolet">Chevrolet</option>
+                        </select>
+                        {rivalryForm.manufacturer_a && <div style={{ opacity: 0.62, fontSize: 12, marginTop: 6 }}>Teams: {(manufacturerTeamMap[rivalryForm.manufacturer_a] || []).map(getTeamFullName).join(", ") || "No teams found"}</div>}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>MANUFACTURER B</div>
+                        <select value={rivalryForm.manufacturer_b} onChange={(event) => updateRivalryForm("manufacturer_b", event.target.value)} style={inputStyle}>
+                          <option value="">Select Manufacturer B</option>
+                          <option value="Toyota">Toyota</option>
+                          <option value="Ford">Ford</option>
+                          <option value="Chevrolet">Chevrolet</option>
+                        </select>
+                        {rivalryForm.manufacturer_b && <div style={{ opacity: 0.62, fontSize: 12, marginTop: 6 }}>Teams: {(manufacturerTeamMap[rivalryForm.manufacturer_b] || []).map(getTeamFullName).join(", ") || "No teams found"}</div>}
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12, marginTop: 12 }}>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>SIDE A TEAM(S)</div>
+                        <select multiple value={rivalryForm.teams_a} onChange={(event) => updateRivalryTeamList("teams_a", event)} style={{ ...inputStyle, minHeight: 140 }}>
+                          {availableTeams.map((team) => <option key={team} value={team}>{getTeamFullName(team)}</option>)}
+                        </select>
+                        <div style={{ opacity: 0.55, fontSize: 11, marginTop: 6 }}>Hold Command/Ctrl to select multiple teams.</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>SIDE B TEAM(S)</div>
+                        <select multiple value={rivalryForm.teams_b} onChange={(event) => updateRivalryTeamList("teams_b", event)} style={{ ...inputStyle, minHeight: 140 }}>
+                          {availableTeams.map((team) => <option key={team} value={team}>{getTeamFullName(team)}</option>)}
+                        </select>
+                        <div style={{ opacity: 0.55, fontSize: 11, marginTop: 6 }}>Use this for team vs team or alliance vs alliance.</div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div style={{ marginTop: 12 }}>
+                    <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>STORYLINE / NOTES</div>
+                    <textarea value={rivalryForm.storyline} onChange={(event) => updateRivalryForm("storyline", event.target.value)} placeholder="Example: Toyota camp believes Ford teams raced too aggressively at EchoPark." style={{ ...inputStyle, minHeight: 90, resize: "vertical" }} />
+                  </div>
+
+                  {rivalryError && <div style={{ marginTop: 12, color: "#f87171", fontWeight: 900 }}>{rivalryError}</div>}
+                  {rivalryMessage && <div style={{ marginTop: 12, color: "#4ade80", fontWeight: 900 }}>{rivalryMessage}</div>}
+
+                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 14 }}>
+                    <button type="submit" style={primaryButtonStyle}>Create Rivalry</button>
+                    <button type="button" onClick={() => setRivalryForm({ rivalry_name: "", rivalry_type: "Individual Team Rivalry", team_a: "", team_b: "", teams_a: [], teams_b: [], manufacturer_a: "", manufacturer_b: "", storyline: "", rivalry_level: 50 })} style={secondaryButtonStyle}>Reset</button>
+                  </div>
+                </form>
+
+                {visibleRivalries.length === 0 ? (
+                  <div style={{ opacity: 0.72 }}>No rivalries connected to this team yet.</div>
+                ) : (
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12 }}>
+                    {visibleRivalries.map((rivalry) => {
+                      const type = rivalry.rivalry_type || "Individual Team Rivalry";
+                      const sideA = type === "Manufacturer Rivalry" ? `${rivalry.manufacturer_a} Camp` : (Array.isArray(rivalry.teams_a) && rivalry.teams_a.length ? rivalry.teams_a.join(", ") : rivalry.team_a);
+                      const sideB = type === "Manufacturer Rivalry" ? `${rivalry.manufacturer_b} Camp` : (Array.isArray(rivalry.teams_b) && rivalry.teams_b.length ? rivalry.teams_b.join(", ") : rivalry.team_b);
+                      return (
+                        <div key={rivalry.id} style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 16 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 8 }}>
+                            <div style={{ fontWeight: 900, fontSize: 16 }}>{rivalry.rivalry_name || `${sideA} vs ${sideB}`}</div>
+                            <span style={{ background: type === "Manufacturer Rivalry" ? "#7c2d12" : "#1e3a8a", borderRadius: 999, padding: "3px 9px", fontSize: 11, fontWeight: 900 }}>{type}</span>
+                          </div>
+                          <div style={{ opacity: 0.75, fontSize: 13, lineHeight: 1.5 }}><strong>{sideA || "Side A"}</strong> vs <strong>{sideB || "Side B"}</strong></div>
+                          <div style={{ marginTop: 10 }}>
+                            <div style={{ opacity: 0.6, fontSize: 11 }}>HEAT LEVEL</div>
+                            <div style={{ fontSize: 24, fontWeight: 900 }}>{rivalry.rivalry_level || 50}/100</div>
+                          </div>
+                          {rivalry.storyline && <div style={{ marginTop: 10, opacity: 0.78, fontSize: 13, lineHeight: 1.5 }}>{rivalry.storyline}</div>}
+                          <div style={{ marginTop: 10, opacity: 0.6, fontSize: 12 }}>Status: {rivalry.status || "Active"}</div>
+                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
+                            <button onClick={() => updateTeamRivalryStatus(rivalry.id, rivalry.status === "Active" ? "Paused" : "Active")} style={{ ...secondaryButtonStyle, padding: "7px 10px", fontSize: 12 }}>{rivalry.status === "Active" ? "Pause" : "Activate"}</button>
+                            <button onClick={() => deleteTeamRivalry(rivalry.id)} style={{ ...dangerButtonStyle, padding: "7px 10px", fontSize: 12 }}>Delete</button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
 
