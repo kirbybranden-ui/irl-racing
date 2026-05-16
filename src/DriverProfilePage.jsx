@@ -415,7 +415,11 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
     ? allSeasons.find((s) => s && s.id === activeSeason.id) || activeSeason
     : allSeasons[0] || null;
 
-  const driver = selectedSeason?.drivers?.find((d) => d && String(d.number) === String(driverNumber)) || null;
+  const sanitizedDrivers = (selectedSeason?.drivers || []).filter(
+  (d) => Number(d?.number) !== 76 && String(d?.name || "").toLowerCase() !== "bcr_ziggy5525"
+);
+
+const driver = sanitizedDrivers.find((d) => d && String(d.number) === String(driverNumber)) || null;
   const teamTheme = getTeamTheme(driver?.team);
   const themedPrimaryButtonStyle = { ...primaryButtonStyle, background: teamTheme.accent };
 
