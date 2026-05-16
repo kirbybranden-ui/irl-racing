@@ -93,6 +93,15 @@ function isInactivePlaceholderDriver(driver) {
   return String(driver?.name || "").trim().toLowerCase().startsWith("inactive-");
 }
 
+const REMOVED_DRIVER_NUMBERS = new Set([76]);
+const REMOVED_DRIVER_NAMES = new Set(["bcr_ziggy5525", "bcr_ziggy", "ziggy"]);
+
+function isRemovedLeagueDriver(driver) {
+  const number = Number(driver?.number ?? driver?.driver_number ?? driver?.carNumber ?? driver?.car_number);
+  const name = String(driver?.name ?? driver?.driver_name ?? "").trim().toLowerCase();
+  return REMOVED_DRIVER_NUMBERS.has(number) || REMOVED_DRIVER_NAMES.has(name) || name.includes("ziggy");
+}
+
 function dedupeDriversByNumber(drivers) {
   if (!Array.isArray(drivers)) return [];
   const preferredNamesByNumber = {
@@ -103,6 +112,7 @@ function dedupeDriversByNumber(drivers) {
 
   drivers.forEach((driver) => {
     if (!driver || driver.number === undefined || driver.number === null) return;
+    if (isRemovedLeagueDriver(driver)) return;
     const numberKey = String(Number(driver.number));
     const preferredName = preferredNamesByNumber[numberKey];
     const current = byNumber.get(numberKey);
@@ -523,12 +533,24 @@ async function createRaceDataBackup({ seasonSnapshot, raceSnapshot, backupType =
   }
 }
 
+function cleanRaceHistoryForRemovedDrivers(history = []) {
+  if (!Array.isArray(history)) return [];
+  return history.map((race) => ({
+    ...race,
+    results: Array.isArray(race.results)
+      ? race.results.filter((result) => !isRemovedLeagueDriver(result))
+      : [],
+  }));
+}
+
 function rebuildDriversFromHistory(history, driverRoster) {
-  return driverRoster.map((baseDriver) => {
+  const cleanHistory = cleanRaceHistoryForRemovedDrivers(history);
+  const cleanRoster = dedupeDriversByNumber(driverRoster).filter((driver) => !isRemovedLeagueDriver(driver));
+  return cleanRoster.map((baseDriver) => {
     let points = 0;
     let wins = 0;
     let top3 = 0, top5 = 0, dnfs = 0, fastestLaps = 0, totalPenalties = 0;
-    history.forEach((race) => {
+    cleanHistory.forEach((race) => {
       const result = race.results?.find((r) => r.driverId === baseDriver.id);
       if (!result) return;
       points += result.totalRacePoints || 0;
@@ -551,9 +573,11 @@ function createEmptySeason(name, roster = getDefaultRoster()) {
 function sanitizeSeason(season, fallbackName = "Season") {
   const rosterSource = Array.isArray(season?.drivers) && season.drivers.length > 0 ? season.drivers : getDefaultRoster();
   const rosterOnly = dedupeDriversByNumber(rosterSource).map((d) => ({ id: d.id, number: Number(d.number), name: d.name, manufacturer: d.manufacturer || "", team: d.team, startingPoints: 0, manualWins: 0, retired: d.retired || false, notes: "" }));
-  const history = Array.isArray(season?.raceHistory)
-    ? season.raceHistory.map((race) => ({ ...race, raceName: normalizeTrackName(race.raceName) }))
-    : [];
+  const history = cleanRaceHistoryForRemovedDrivers(
+    Array.isArray(season?.raceHistory)
+      ? season.raceHistory.map((race) => ({ ...race, raceName: normalizeTrackName(race.raceName) }))
+      : []
+  );
   return {
     id: season?.id || makeSeasonId(), name: season?.name || fallbackName, createdAt: season?.createdAt || new Date().toISOString(),
     drivers: rebuildDriversFromHistory(history, rosterOnly), selectedRace: normalizeTrackName(season?.selectedRace || ""),
@@ -2019,7 +2043,7 @@ function patchMissingDrivers(cleanSeasons) {
     );
     // Update any drivers whose name/number/manufacturer/team has changed in defaultDrivers
     const updatedDrivers = season.drivers
-      .filter((d) => !isInactivePlaceholderDriver(d))
+      .filter((d) => !isInactivePlaceholderDriver(d) && !isRemovedLeagueDriver(d))
       .map((d) => {
         const canonical = defaultDrivers.find((dd) => dd.id === d.id);
         let updatedTeam = d.team === "KRM" ? "MER" : d.team;
@@ -2119,7 +2143,7 @@ function SubmitStoryPage() {
               </div>
               <div>
                 <div style={{ marginBottom: 6, fontWeight: 800 }}>Driver / Team Mentioned</div>
-                <input style={inputStyle} value={driverName} onChange={(e) => setDriverName(e.target.value)} placeholder="Example: #76 BCR_Ziggy5525 / WSM" />
+                <input style={inputStyle} value={driverName} onChange={(e) => setDriverName(e.target.value)} placeholder="Example: #46 BigDiehl21 / WSM" />
               </div>
             </div>
             <div style={{ marginBottom: 12 }}>
@@ -2383,7 +2407,7 @@ export default function App() {
   // ─── Computed values (must be before all hooks) ───────────────────────────
   const activeSeason = seasons.find((s) => s.id === activeSeasonId) || seasons[0] || null;
   const drivers = activeSeason?.drivers || [];
-  const visibleDrivers = drivers.filter((d) => !isInactivePlaceholderDriver(d));
+  const visibleDrivers = drivers.filter((d) => !isInactivePlaceholderDriver(d) && !isRemovedLeagueDriver(d));
   const activeDrivers = visibleDrivers.filter((d) => !d.retired);
   const ownerPortalTeams = useMemo(() => {
     const fixedTeams = ["JAM", "MER", "MMS", "NLM", "WSM", "19XI"];
