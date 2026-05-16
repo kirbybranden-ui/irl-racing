@@ -174,7 +174,7 @@ const defaultDrivers = [
   { id: 25, number: 80, name: "gumby_1919",             manufacturer: "Ford",      team: "MMS"         },
   { id: 26, number: 7,  name: "gunszmb",               manufacturer: "Ford",      team: "BWR"         },
   { id: 27, number: 97, name: "JPC_Racing",            manufacturer: "Ford",      team: "BWR"         },
-  { id: 28, number: 46, name: "BigDiehl21",            manufacturer: "Chevrolet",      team: "WSM"         },
+  { id: 46, number: 46, name: "BigDiehl21", manufacturer: "Chevrolet", team: "WSM" },
 ];
 const defaultRaces = [
   { name: "Preseason - Michigan", stageCount: 2, date: "2026-04-25" },
@@ -2015,19 +2015,23 @@ function patchMissingDrivers(cleanSeasons) {
     const existingIds  = new Set(season.drivers.map((d) => d.id));
     const existingNums = new Set(season.drivers.map((d) => String(d.number)));
     const missing = defaultDrivers.filter(
-      (d) => !existingIds.has(d.id) && !existingNums.has(String(d.number))
+      (d) => Number(d.number) !== 76 && !existingNums.has(String(d.number))
     );
     // Update any drivers whose name/number/manufacturer/team has changed in defaultDrivers
     const updatedDrivers = season.drivers
       .filter((d) => !isInactivePlaceholderDriver(d))
+      .filter((d) => Number(d.number) !== 76 && String(d.name || "").trim().toLowerCase() !== "bcr_ziggy5525")
       .map((d) => {
-        const canonical = defaultDrivers.find((dd) => dd.id === d.id);
+        const canonical = defaultDrivers.find(
+          (dd) => dd.id === d.id || String(dd.number) === String(d.number)
+        );
         let updatedTeam = d.team === "KRM" ? "MER" : d.team;
         if (!canonical) {
           return { ...d, team: updatedTeam };
         }
         return {
           ...d,
+          id: canonical.id,
           name: canonical.name,
           number: canonical.number,
           manufacturer: canonical.manufacturer,
@@ -2119,7 +2123,7 @@ function SubmitStoryPage() {
               </div>
               <div>
                 <div style={{ marginBottom: 6, fontWeight: 800 }}>Driver / Team Mentioned</div>
-                <input style={inputStyle} value={driverName} onChange={(e) => setDriverName(e.target.value)} placeholder="Example: #76 BCR_Ziggy5525 / WSM" />
+                <input style={inputStyle} value={driverName} onChange={(e) => setDriverName(e.target.value)} placeholder="Example: #46 BigDiehl21 / WSM" />
               </div>
             </div>
             <div style={{ marginBottom: 12 }}>
