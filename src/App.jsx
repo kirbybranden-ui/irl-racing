@@ -25,6 +25,7 @@ import { supabase } from "./lib/supabase";
 import CarGalleryPage from "./CarGalleryPage";
 import PaintSchemeVotePage from "./PaintSchemeVotePage";
 import InterviewsPage from "./InterviewsPage";
+import PublicInterviewsPage from "./InterviewsPage_public_interview_center";
 import NewsPage from "./NewsPage";
 import NotificationsPage from "./NotificationsPage";
 import StreamPage from "./pages/StreamPage";
@@ -1726,6 +1727,7 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
               <button onClick={() => (window.location.pathname = "/streams")} style={{ background: "#9146ff", color: "white", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>📡 Streams</button>
               <button onClick={() => (window.location.pathname = "/discord")} style={{ background: "#5865f2", color: "white", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>💬 Discord</button>
               <button onClick={() => (window.location.pathname = "/news")} style={{ background: "#d4af37", color: "#111", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>📰 News</button>
+              <button onClick={() => (window.location.pathname = "/interviews")} style={{ background: "#c8102e", color: "white", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 900, cursor: "pointer", fontSize: 14 }}>🎤 Interviews</button>
               <button onClick={() => (window.location.pathname = "/paint-scheme-vote")} style={{ background: "#f97316", color: "white", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 900, cursor: "pointer", fontSize: 14 }}>🎨 Paint Scheme Vote</button>
               <button onClick={() => window.open("https://discord.gg/uvbBJBR5Tz", "_blank")} style={{ background: "#2563eb", color: "white", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 900, cursor: "pointer", fontSize: 14 }}>📺 CW Channel</button>
               <button onClick={() => (window.location.pathname = "/team-hq")} style={{ background: "#0f766e", color: "white", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>🏢 Team HQ</button>
@@ -2436,7 +2438,7 @@ export default function App() {
     hydrateFromSupabase();
     let interval = null;
     // Poll every 3s on live pages so stats stay current without a manual refresh
-    if (path === "/standings" || path === "/contracts" || path === "/owners" || path === "/team-hq" || path === "/driver-feedback" || path === "/paint-scheme-vote" || path.startsWith("/driver/") || path.startsWith("/team/") || path.startsWith("/manufacturer/") || path === "/overlay/drivers" || path === "/overlay/teams" || path === "/overlay/ticker") {
+    if (path === "/standings" || path === "/contracts" || path === "/owners" || path === "/team-hq" || path === "/driver-feedback" || path === "/paint-scheme-vote" || path === "/interviews" || path.startsWith("/driver/") || path.startsWith("/team/") || path.startsWith("/manufacturer/") || path === "/overlay/drivers" || path === "/overlay/teams" || path === "/overlay/ticker") {
       interval = setInterval(hydrateFromSupabase, 3000);
     }
     return () => { isMounted = false; if (interval) clearInterval(interval); };
@@ -3091,6 +3093,7 @@ export default function App() {
   if (path === "/paint-scheme-vote") return <PaintSchemeVotePage drivers={visibleDrivers} tracks={tracks} />;
   if (path === "/notifications") return <NotificationsPage />;
   if (path === "/discord") return <DiscordPage />;
+  if (path === "/interviews") return <PublicInterviewsPage />;
   if (path === "/driver-feedback") {
     return (
       <div style={appShellStyle}>
