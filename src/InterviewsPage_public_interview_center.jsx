@@ -71,20 +71,27 @@ const qaStyle = {
 
 function normalizeInterviewRows(rows = []) {
   return rows
-    .filter((row) => row && row.answered === true)
+    .filter(Boolean)
     .map((row) => {
-      const qa = Array.isArray(row.questions_and_answers)
-        ? row.questions_and_answers.filter((item) => {
-            const question = String(item?.question || "").trim();
-            const answer = String(item?.answer || "").trim();
-            return question && answer;
-          })
+      const rawQa = Array.isArray(row.questions_and_answers)
+        ? row.questions_and_answers
         : [];
+
+      const qa = rawQa.filter((item) => {
+        const question = String(item?.question || "").trim();
+        const answer = String(item?.answer || "").trim();
+        return question && answer;
+      });
 
       return {
         ...row,
         questions_and_answers: qa,
       };
+    })
+    .filter((row) => {
+      const answeredFlag = row.answered === true || String(row.status || "").toLowerCase() === "answered";
+      const hasAnsweredQa = row.questions_and_answers.length > 0;
+      return answeredFlag || hasAnsweredQa;
     })
     .filter((row) => row.questions_and_answers.length > 0);
 }
@@ -121,14 +128,13 @@ export default function PublicInterviewsPage() {
       const { data, error: loadError } = await supabase
         .from("interviews")
         .select("*")
-        .eq("answered", true)
         .order("created_at", { ascending: false });
 
       if (!isMounted) return;
 
       if (loadError) {
         console.error("Failed to load public interviews:", loadError);
-        setError("Could not load interviews. Check the interviews table RLS select policy.");
+        setError(loadError?.message || "Could not load interviews. Check the interviews table RLS select policy.");
         setInterviews([]);
         setLoading(false);
         return;
