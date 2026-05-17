@@ -1,247 +1,256 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "./lib/supabase";
 
-const pageContainerStyle = {
+const pageStyle = {
   minHeight: "100vh",
-  background: "#0b1020",
+  background: "#0c0f14",
   color: "white",
-  padding: "24px",
   fontFamily: "Arial, sans-serif",
 };
 
-const headerStyle = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  flexWrap: "wrap",
-  gap: "12px",
-  marginBottom: "24px",
+const containerStyle = {
+  maxWidth: 1200,
+  margin: "0 auto",
+  padding: 20,
 };
 
-const titleStyle = {
-  fontSize: "2.2rem",
-  fontWeight: 900,
-  margin: 0,
-};
-
-const subTextStyle = {
-  color: "#9ca3af",
-  marginTop: 6,
+const heroStyle = {
+  background: "linear-gradient(135deg, #171b22 0%, #10141b 100%)",
+  border: "1px solid #2c3440",
+  borderRadius: 18,
+  padding: 22,
+  marginBottom: 20,
+  boxShadow: "0 8px 24px rgba(0,0,0,0.25)",
 };
 
 const buttonStyle = {
-  background: "#c8102e",
-  color: "white",
+  background: "#d4af37",
+  color: "#111",
   border: "none",
+  borderRadius: 10,
   padding: "10px 16px",
-  borderRadius: "10px",
-  fontWeight: 700,
+  fontWeight: 900,
   cursor: "pointer",
 };
 
-const controlsRowStyle = {
-  display: "flex",
-  gap: "12px",
-  flexWrap: "wrap",
-  marginBottom: "20px",
+const secondaryButtonStyle = {
+  background: "#222936",
+  color: "white",
+  border: "1px solid #3a4453",
+  borderRadius: 10,
+  padding: "10px 14px",
+  fontWeight: 800,
+  cursor: "pointer",
 };
 
 const inputStyle = {
-  background: "#111827",
+  background: "#0f1319",
   color: "white",
-  border: "1px solid #374151",
-  borderRadius: "10px",
-  padding: "10px 14px",
-  minWidth: "240px",
-};
-
-const selectStyle = {
-  background: "#111827",
-  color: "white",
-  border: "1px solid #374151",
-  borderRadius: "10px",
-  padding: "10px 14px",
-};
-
-const gridStyle = {
-  display: "grid",
-  gap: "16px",
+  border: "1px solid #313947",
+  borderRadius: 10,
+  padding: "10px 12px",
+  minWidth: 230,
 };
 
 const cardStyle = {
-  background: "#111827",
-  border: "1px solid #1f2937",
-  borderRadius: "18px",
-  padding: "20px",
-  boxShadow: "0 4px 20px rgba(0,0,0,0.25)",
+  background: "#171b22",
+  border: "1px solid #2c3440",
+  borderRadius: 16,
+  padding: 18,
+  marginBottom: 16,
+  boxShadow: "0 8px 24px rgba(0,0,0,0.22)",
 };
 
-const driverHeaderStyle = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  flexWrap: "wrap",
-  gap: "10px",
-  marginBottom: "12px",
+const qaStyle = {
+  background: "#0f1319",
+  border: "1px solid #263041",
+  borderRadius: 12,
+  padding: 14,
+  marginTop: 12,
 };
 
-const raceBadgeStyle = {
-  background: "#c8102e",
-  color: "white",
-  padding: "6px 10px",
-  borderRadius: "999px",
-  fontSize: "0.85rem",
-  fontWeight: 700,
-};
+function normalizeInterviewRows(rows = []) {
+  return rows
+    .filter((row) => row && row.answered === true)
+    .map((row) => {
+      const qa = Array.isArray(row.questions_and_answers)
+        ? row.questions_and_answers.filter((item) => {
+            const question = String(item?.question || "").trim();
+            const answer = String(item?.answer || "").trim();
+            return question && answer;
+          })
+        : [];
 
-const questionStyle = {
-  marginTop: "12px",
-  lineHeight: 1.6,
-  color: "#e5e7eb",
-};
+      return {
+        ...row,
+        questions_and_answers: qa,
+      };
+    })
+    .filter((row) => row.questions_and_answers.length > 0);
+}
 
-const answerStyle = {
-  marginTop: "10px",
-  lineHeight: 1.7,
-  color: "#f9fafb",
-  background: "#0f172a",
-  borderLeft: "4px solid #c8102e",
-  padding: "14px",
-  borderRadius: "10px",
-};
+function getInterviewTypeLabel(type) {
+  const cleanType = String(type || "").toLowerCase();
+  if (cleanType === "pre") return "🎤 PRE-RACE";
+  if (cleanType === "post") return "🏆 POST-RACE";
+  return "🎙️ INTERVIEW";
+}
 
-export default function InterviewsPage() {
+function getInterviewTypeColor(type) {
+  const cleanType = String(type || "").toLowerCase();
+  if (cleanType === "pre") return "#3b82f6";
+  if (cleanType === "post") return "#22c55e";
+  return "#d4af37";
+}
+
+export default function PublicInterviewsPage() {
   const [interviews, setInterviews] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [selectedRace, setSelectedRace] = useState("All Races");
+  const [selectedType, setSelectedType] = useState("All Types");
 
   useEffect(() => {
-    loadInterviews();
-  }, []);
+    let isMounted = true;
 
-  async function loadInterviews() {
-    setLoading(true);
+    async function loadAnsweredInterviews() {
+      setLoading(true);
+      setError("");
 
-    const { data, error } = await supabase
-      .from("interviews")
-      .select("*")
-      .order("created_at", { ascending: false });
+      const { data, error: loadError } = await supabase
+        .from("interviews")
+        .select("*")
+        .eq("answered", true)
+        .order("created_at", { ascending: false });
 
-    if (error) {
-      console.error("Failed to load interviews:", error);
+      if (!isMounted) return;
+
+      if (loadError) {
+        console.error("Failed to load public interviews:", loadError);
+        setError("Could not load interviews. Check the interviews table RLS select policy.");
+        setInterviews([]);
+        setLoading(false);
+        return;
+      }
+
+      setInterviews(normalizeInterviewRows(data || []));
       setLoading(false);
-      return;
     }
 
-    const answeredOnly = (data || []).filter(
-      (item) => item.answer && item.answer.trim() !== ""
-    );
+    loadAnsweredInterviews();
 
-    setInterviews(answeredOnly);
-    setLoading(false);
-  }
+    const interval = setInterval(loadAnsweredInterviews, 15000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
 
-  const races = useMemo(() => {
-    const unique = Array.from(
-      new Set(interviews.map((item) => item.race_name || "Unknown Race"))
-    );
-
-    return ["All Races", ...unique];
+  const raceOptions = useMemo(() => {
+    const races = Array.from(new Set(interviews.map((item) => item.race_name || "Unknown Race"))).sort();
+    return ["All Races", ...races];
   }, [interviews]);
 
   const filteredInterviews = useMemo(() => {
+    const searchText = search.trim().toLowerCase();
+
     return interviews.filter((item) => {
-      const matchesSearch =
-        `${item.driver_name || ""} ${item.question || ""} ${item.answer || ""}`
-          .toLowerCase()
-          .includes(search.toLowerCase());
+      const qaText = (item.questions_and_answers || [])
+        .map((qa) => `${qa.question || ""} ${qa.answer || ""}`)
+        .join(" ")
+        .toLowerCase();
 
-      const matchesRace =
-        selectedRace === "All Races"
-          ? true
-          : (item.race_name || "Unknown Race") === selectedRace;
+      const combined = `${item.driver_name || ""} ${item.driver_number || ""} ${item.race_name || ""} ${item.type || ""} ${qaText}`.toLowerCase();
 
-      return matchesSearch && matchesRace;
+      const matchesSearch = !searchText || combined.includes(searchText);
+      const matchesRace = selectedRace === "All Races" || (item.race_name || "Unknown Race") === selectedRace;
+      const matchesType = selectedType === "All Types" || String(item.type || "").toLowerCase() === selectedType;
+
+      return matchesSearch && matchesRace && matchesType;
     });
-  }, [interviews, search, selectedRace]);
+  }, [interviews, search, selectedRace, selectedType]);
 
   return (
-    <div style={pageContainerStyle}>
-      <div style={headerStyle}>
-        <div>
-          <h1 style={titleStyle}>🎤 Driver Interview Center</h1>
+    <div style={pageStyle}>
+      <div style={containerStyle}>
+        <div style={heroStyle}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 14, flexWrap: "wrap", alignItems: "center" }}>
+            <div>
+              <div style={{ fontSize: 34, fontWeight: 950, letterSpacing: "-0.03em" }}>🎙️ Driver Interview Center</div>
+              <div style={{ opacity: 0.72, marginTop: 6 }}>Answered pre-race and post-race interviews from the Budweiser Cup League.</div>
+            </div>
 
-          <p style={subTextStyle}>
-            Public driver interviews from the Budweiser Cup League.
-          </p>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <button type="button" onClick={() => (window.location.pathname = "/standings")} style={secondaryButtonStyle}>
+                ← Standings
+              </button>
+              <button type="button" onClick={() => window.location.reload()} style={buttonStyle}>
+                Refresh
+              </button>
+            </div>
+          </div>
         </div>
 
-        <button
-          style={buttonStyle}
-          onClick={() => (window.location.href = "/standings")}
-        >
-          ← Back to Standings
-        </button>
-      </div>
+        <div style={{ ...cardStyle, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search driver, race, question, or quote..."
+            style={{ ...inputStyle, flex: "1 1 280px" }}
+          />
 
-      <div style={controlsRowStyle}>
-        <input
-          type="text"
-          placeholder="Search drivers or interview quotes..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          style={inputStyle}
-        />
+          <select value={selectedRace} onChange={(event) => setSelectedRace(event.target.value)} style={inputStyle}>
+            {raceOptions.map((race) => (
+              <option key={race} value={race}>{race}</option>
+            ))}
+          </select>
 
-        <select
-          value={selectedRace}
-          onChange={(e) => setSelectedRace(e.target.value)}
-          style={selectStyle}
-        >
-          {races.map((race) => (
-            <option key={race} value={race}>
-              {race}
-            </option>
-          ))}
-        </select>
-      </div>
+          <select value={selectedType} onChange={(event) => setSelectedType(event.target.value)} style={inputStyle}>
+            <option value="All Types">All Types</option>
+            <option value="pre">Pre-Race</option>
+            <option value="post">Post-Race</option>
+          </select>
+        </div>
 
-      {loading ? (
-        <p>Loading interviews...</p>
-      ) : filteredInterviews.length === 0 ? (
-        <p>No answered interviews found.</p>
-      ) : (
-        <div style={gridStyle}>
-          {filteredInterviews.map((item) => (
-            <div key={item.id} style={cardStyle}>
-              <div style={driverHeaderStyle}>
+        {loading && <div style={cardStyle}>Loading answered interviews...</div>}
+        {!loading && error && <div style={{ ...cardStyle, borderColor: "#7f1d1d", color: "#fecaca" }}>{error}</div>}
+        {!loading && !error && filteredInterviews.length === 0 && (
+          <div style={cardStyle}>No answered interviews found yet.</div>
+        )}
+
+        {!loading && !error && filteredInterviews.map((interview) => {
+          const accent = getInterviewTypeColor(interview.type);
+
+          return (
+            <div key={interview.id} style={{ ...cardStyle, borderTop: `4px solid ${accent}` }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start" }}>
                 <div>
-                  <h2 style={{ margin: 0 }}>
-                    #{item.driver_number || "--"} {item.driver_name || "Unknown Driver"}
-                  </h2>
+                  <div style={{ fontSize: 24, fontWeight: 950 }}>
+                    #{interview.driver_number || "--"} {interview.driver_name || "Unknown Driver"}
+                  </div>
+                  <div style={{ opacity: 0.7, marginTop: 4 }}>{interview.race_name || "Budweiser Cup League"}</div>
+                </div>
 
-                  <div style={{ color: "#9ca3af", marginTop: 4 }}>
-                    {item.team || "Independent"}
+                <div style={{ background: accent, color: "white", borderRadius: 999, padding: "7px 12px", fontWeight: 900, fontSize: 12 }}>
+                  {getInterviewTypeLabel(interview.type)}
+                </div>
+              </div>
+
+              {(interview.questions_and_answers || []).map((qa, index) => (
+                <div key={`${interview.id}-${index}`} style={qaStyle}>
+                  <div style={{ color: "#facc15", fontWeight: 900, lineHeight: 1.5 }}>
+                    Q: {qa.question}
+                  </div>
+                  <div style={{ marginTop: 10, lineHeight: 1.65, color: "#e5e7eb", whiteSpace: "pre-wrap" }}>
+                    <strong style={{ color: "white" }}>A:</strong> {qa.answer}
                   </div>
                 </div>
-
-                <div style={raceBadgeStyle}>
-                  {item.race_name || "Budweiser Cup League"}
-                </div>
-              </div>
-
-              <div style={questionStyle}>
-                <strong>Q:</strong> {item.question}
-              </div>
-
-              <div style={answerStyle}>
-                <strong>A:</strong> {item.answer}
-              </div>
+              ))}
             </div>
-          ))}
-        </div>
-      )}
+          );
+        })}
+      </div>
     </div>
   );
 }
