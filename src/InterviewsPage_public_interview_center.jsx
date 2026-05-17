@@ -6,6 +6,7 @@ export default function InterviewsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [raceFilter, setRaceFilter] = useState("All");
+  const [typeFilter, setTypeFilter] = useState("All");
 
   useEffect(() => {
     loadInterviews();
@@ -95,15 +96,22 @@ export default function InterviewsPage() {
 
       const raceName = interview.race_name || interview.race || "Unknown Race";
 
+      const interviewType = String(
+        interview.type || interview.interview_type || ""
+      ).toLowerCase();
+
       const matchesSearch =
         driverText.includes(search.toLowerCase()) ||
         qaText.includes(search.toLowerCase());
 
       const matchesRace = raceFilter === "All" || raceName === raceFilter;
 
-      return matchesSearch && matchesRace;
+      const matchesType =
+        typeFilter === "All" || interviewType.includes(typeFilter);
+
+      return matchesSearch && matchesRace && matchesType;
     });
-  }, [answeredInterviews, search, raceFilter]);
+  }, [answeredInterviews, search, raceFilter, typeFilter]);
 
   return (
     <div
@@ -187,6 +195,22 @@ export default function InterviewsPage() {
               </option>
             ))}
           </select>
+
+          <select
+            value={typeFilter}
+            onChange={(event) => setTypeFilter(event.target.value)}
+            style={{
+              background: "#0f1319",
+              color: "white",
+              border: "1px solid #313947",
+              borderRadius: 10,
+              padding: "10px 12px",
+            }}
+          >
+            <option value="All">All Interviews</option>
+            <option value="pre">Pre-Race</option>
+            <option value="post">Post-Race</option>
+          </select>
         </div>
 
         {loading ? (
@@ -207,6 +231,9 @@ export default function InterviewsPage() {
             {filteredInterviews.map((interview) => {
               const raceName =
                 interview.race_name || interview.race || "Unknown Race";
+
+              const interviewType =
+                interview.type || interview.interview_type || "Interview";
 
               return (
                 <div
@@ -234,7 +261,7 @@ export default function InterviewsPage() {
                       </h2>
 
                       <div style={{ opacity: 0.7, marginTop: 4 }}>
-                        {interview.type || "Interview"} • {raceName}
+                        {interviewType} • {raceName}
                       </div>
                     </div>
 
