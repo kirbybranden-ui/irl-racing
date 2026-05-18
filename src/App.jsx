@@ -2182,10 +2182,6 @@ function PreviousRaceWinnerAdminPanel({ drivers = [], raceHistory = [] }) {
 
 
 
-  const [cloudinaryReady, setCloudinaryReady] = useState(Boolean(window.cloudinary));
-  const imageWidgetRef = useRef(null);
-  const videoWidgetRef = useRef(null);
-
   const latestRace = Array.isArray(raceHistory) && raceHistory.length > 0 ? raceHistory[raceHistory.length - 1] : null;
   const latestWinner = latestRace?.results?.find((result) => Number(result.finishPos) === 1 || result.isWin) || null;
 
@@ -2345,7 +2341,6 @@ function PreviousRaceWinnerAdminPanel({ drivers = [], raceHistory = [] }) {
     </div>
   );
 }
-
 
 function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonName = "", tracks = [], raceHistory = [] }) {
   const [scheduleOpen, setScheduleOpen] = useState(false);
