@@ -726,7 +726,199 @@ function AppUpdateBanner({ page = "all" }) {
 }
 
 
-function DriverFeedbackPage({ drivers = [] }) {
+
+function MemorialDayPage({ drivers = [] }) {
+  const [tributes, setTributes] = useState([]);
+  const [form, setForm] = useState({
+    driver_id: "",
+    honoree_name: "",
+    relationship: "",
+    branch: "",
+    accomplishments: "",
+    story: "",
+  });
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
+  const activeDrivers = useMemo(() => {
+    return dedupeDriversByNumber(drivers || [])
+      .filter((driver) => !driver.retired && !isInactivePlaceholderDriver(driver))
+      .sort((a, b) => Number(a.number || 9999) - Number(b.number || 9999));
+  }, [drivers]);
+
+  async function loadTributes() {
+    const { data, error } = await supabase
+      .from("memorial_day_tributes")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Could not load memorial tributes:", error);
+      try {
+        setTributes(JSON.parse(localStorage.getItem("bclMemorialDayTributes") || "[]"));
+      } catch {
+        setTributes([]);
+      }
+      return;
+    }
+
+    setTributes(data || []);
+  }
+
+  useEffect(() => {
+    loadTributes();
+  }, []);
+
+  function updateField(field, value) {
+    setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  async function submitTribute(event) {
+    event.preventDefault();
+    setMessage("");
+    setError("");
+
+    const driver = activeDrivers.find((item) => String(item.id) === String(form.driver_id));
+
+    if (!driver) {
+      setError("Select your driver before submitting.");
+      return;
+    }
+
+    if (!form.honoree_name.trim() || !form.story.trim()) {
+      setError("Please add who you are driving for and a short story.");
+      return;
+    }
+
+    const payload = {
+      driver_id: String(driver.id),
+      driver_name: driver.name || "",
+      driver_number: String(driver.number || ""),
+      team: getTeamFullName(driver.team || "Independent"),
+      manufacturer: driver.manufacturer || "",
+      honoree_name: form.honoree_name.trim(),
+      relationship: form.relationship.trim(),
+      branch: form.branch.trim(),
+      accomplishments: form.accomplishments.trim(),
+      story: form.story.trim(),
+      status: "approved",
+      created_at: new Date().toISOString(),
+    };
+
+    const { error: insertError } = await supabase.from("memorial_day_tributes").insert([payload]);
+
+    if (insertError) {
+      console.error("Could not save memorial tribute:", insertError);
+      try {
+        const saved = JSON.parse(localStorage.getItem("bclMemorialDayTributes") || "[]");
+        localStorage.setItem("bclMemorialDayTributes", JSON.stringify([{ ...payload, id: `local-${Date.now()}` }, ...saved]));
+        setMessage("Tribute saved on this browser. Check Supabase table/RLS to make it visible everywhere.");
+      } catch {
+        setError("Could not save tribute. Check the memorial_day_tributes table and RLS policies.");
+        return;
+      }
+    } else {
+      setMessage("Memorial Day tribute submitted.");
+    }
+
+    setForm({
+      driver_id: "",
+      honoree_name: "",
+      relationship: "",
+      branch: "",
+      accomplishments: "",
+      story: "",
+    });
+
+    await loadTributes();
+  }
+
+  return (
+    <div style={{ ...appShellStyle, background: "radial-gradient(circle at top left, rgba(30,64,175,0.32), transparent 34%), radial-gradient(circle at top right, rgba(185,28,28,0.28), transparent 32%), #07111f" }}>
+      <div style={{ ...pageContainerStyle, maxWidth: 1180 }}>
+        <div style={{ ...sectionCardStyle, border: "1px solid rgba(255,255,255,0.16)", background: "linear-gradient(135deg, rgba(127,29,29,0.82), rgba(15,23,42,0.96), rgba(30,64,175,0.78))" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 900, letterSpacing: 2, color: "#facc15" }}>BUDWEISER CUP LEAGUE</div>
+              <h1 style={{ margin: "8px 0", fontSize: 42, lineHeight: 1 }}>🇺🇸 Memorial Day Tribute Wall</h1>
+              <p style={{ margin: 0, opacity: 0.86, maxWidth: 760 }}>
+                Drivers can share who they are driving for and honor their service, sacrifice, and accomplishments.
+              </p>
+            </div>
+            <button type="button" onClick={() => (window.location.pathname = "/standings")} style={secondaryButtonStyle}>Back to Standings</button>
+          </div>
+        </div>
+
+        <form onSubmit={submitTribute} style={sectionCardStyle}>
+          <h2 style={{ marginTop: 0 }}>Submit Driver Tribute</h2>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14 }}>
+            <div>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>DRIVER</label>
+              <select value={form.driver_id} onChange={(event) => updateField("driver_id", event.target.value)} style={inputStyle}>
+                <option value="">Choose driver</option>
+                {activeDrivers.map((driver) => (
+                  <option key={driver.id} value={driver.id}>#{driver.number} {driver.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>WHO ARE YOU DRIVING FOR?</label>
+              <input value={form.honoree_name} onChange={(event) => updateField("honoree_name", event.target.value)} placeholder="Name of honoree" style={inputStyle} />
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>RELATIONSHIP</label>
+              <input value={form.relationship} onChange={(event) => updateField("relationship", event.target.value)} placeholder="Father, grandfather, friend, etc." style={inputStyle} />
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>BRANCH / SERVICE</label>
+              <input value={form.branch} onChange={(event) => updateField("branch", event.target.value)} placeholder="Army, Navy, Marines, Air Force, etc." style={inputStyle} />
+            </div>
+          </div>
+
+          <div style={{ marginTop: 14 }}>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>ACCOMPLISHMENTS</label>
+            <input value={form.accomplishments} onChange={(event) => updateField("accomplishments", event.target.value)} placeholder="Service awards, deployments, family legacy, community impact..." style={inputStyle} />
+          </div>
+
+          <div style={{ marginTop: 14 }}>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>SHORT STORY</label>
+            <textarea value={form.story} onChange={(event) => updateField("story", event.target.value)} rows={5} placeholder="Tell the story of who you are honoring." style={{ ...inputStyle, resize: "vertical" }} />
+          </div>
+
+          {message && <div style={{ color: "#4ade80", marginTop: 12, fontWeight: 900 }}>{message}</div>}
+          {error && <div style={{ color: "#f87171", marginTop: 12, fontWeight: 900 }}>{error}</div>}
+
+          <div style={{ marginTop: 16 }}>
+            <button type="submit" style={primaryButtonStyle}>Submit Tribute</button>
+          </div>
+        </form>
+
+        <div style={sectionCardStyle}>
+          <h2 style={{ marginTop: 0 }}>Tribute Wall</h2>
+          {tributes.length === 0 ? (
+            <div style={{ opacity: 0.72 }}>No tributes submitted yet.</div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 14 }}>
+              {tributes.map((tribute) => (
+                <div key={tribute.id || `${tribute.driver_name}-${tribute.honoree_name}`} style={{ background: "#0f1319", border: "1px solid #334155", borderRadius: 16, padding: 16 }}>
+                  <div style={{ color: "#facc15", fontWeight: 900 }}>#{tribute.driver_number} {tribute.driver_name}</div>
+                  <h3 style={{ margin: "8px 0" }}>Driving for {tribute.honoree_name}</h3>
+                  <div style={{ opacity: 0.75, fontSize: 13 }}>{tribute.relationship || "Honoree"} {tribute.branch ? `• ${tribute.branch}` : ""}</div>
+                  {tribute.accomplishments && <p style={{ fontWeight: 800 }}>{tribute.accomplishments}</p>}
+                  <p style={{ lineHeight: 1.45 }}>{tribute.story}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+function MemorialDayPage drivers={activeSeason?.drivers || []}
+DriverFeedbackPage({ drivers = [] }) {
   const [form, setForm] = useState({
     driver_id: "",
     team_happiness: 8,
@@ -1769,7 +1961,7 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
               <button onClick={() => (window.location.pathname = "/paint-scheme-vote")} style={{ background: "#f97316", color: "white", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 900, cursor: "pointer", fontSize: 14 }}>🎨 Paint Scheme Vote</button>
               <button
                 type="button"
-                onClick={() => (window.location.href = "/memorial-day")}
+                onClick={() => (window.location.pathname = "/memorial-day")}
                 style={{
                   ...secondaryButtonStyle,
                   background: "linear-gradient(135deg, #b91c1c, #1d4ed8)",
