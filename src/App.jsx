@@ -616,6 +616,8 @@ function buildLegacySeasonFromLocalStorage() {
     return sanitizeSeason({ id: makeSeasonId(), name: "Season 1", createdAt: new Date().toISOString(), drivers, raceHistory, selectedRace, positions, stage1, stage2, stage3, dnfMap, offenseMap: {}, fastestLapMap: {} });
   } catch { return createEmptySeason("Season 1"); }
 }
+
+
 function loadInitialLeagueState() {
   let tracks = defaultRaces;
   try {
