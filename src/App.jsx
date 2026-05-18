@@ -1444,7 +1444,6 @@ function ContractsPage({ drivers = [] }) {
     const interval = setInterval(loadAll, 10000);
     return () => {
       isMounted = false;
-      clearInterval(interval);
     };
   }, []);
 
@@ -1790,13 +1789,16 @@ function PaintSchemeWinnerStandingsCard({ tracks = [], drivers = [] }) {
   const [raceName, setRaceName] = useState("");
   const [loading, setLoading] = useState(true);
 
+  const previousRace = useMemo(() => getPreviousCompletedRaceForPaintWinner(tracks), [JSON.stringify((tracks || []).map((track) => ({ name: track?.name, date: track?.date })))]);
+  const previousRaceName = previousRace?.name || "";
+  const driversKeyForPaintWinner = useMemo(() => JSON.stringify((drivers || []).map((driver) => ({ id: driver?.id, number: driver?.number, name: driver?.name, team: driver?.team }))), [drivers]);
+  const showWinnerWindow = shouldShowPreviousPaintWinner();
+
   useEffect(() => {
     let isMounted = true;
 
     async function loadWinner() {
-      setLoading(true);
-
-      if (!shouldShowPreviousPaintWinner()) {
+      if (!showWinnerWindow) {
         if (isMounted) {
           setWinner(null);
           setRaceName("");
@@ -1805,8 +1807,7 @@ function PaintSchemeWinnerStandingsCard({ tracks = [], drivers = [] }) {
         return;
       }
 
-      const previousRace = getPreviousCompletedRaceForPaintWinner(tracks);
-      if (!previousRace?.name) {
+      if (!previousRaceName) {
         if (isMounted) {
           setWinner(null);
           setRaceName("");
@@ -1832,12 +1833,12 @@ function PaintSchemeWinnerStandingsCard({ tracks = [], drivers = [] }) {
 
       const raceUploads = (uploadData || [])
         .filter((upload) => isPaintImageUploadForStandings(upload))
-        .filter((upload) => getPaintUploadRaceForStandings(upload) === previousRace.name);
+        .filter((upload) => getPaintUploadRaceForStandings(upload) === previousRaceName);
 
       if (raceUploads.length === 0) {
         if (isMounted) {
           setWinner(null);
-          setRaceName(previousRace.name);
+          setRaceName(previousRaceName);
           setLoading(false);
         }
         return;
@@ -1867,7 +1868,7 @@ function PaintSchemeWinnerStandingsCard({ tracks = [], drivers = [] }) {
 
       if (isMounted) {
         setWinner(enrichedWinner);
-        setRaceName(previousRace.name);
+        setRaceName(previousRaceName);
         setLoading(false);
       }
     }
@@ -1877,7 +1878,7 @@ function PaintSchemeWinnerStandingsCard({ tracks = [], drivers = [] }) {
     return () => {
       isMounted = false;
     };
-  }, [tracks, drivers]);
+  }, [previousRaceName, showWinnerWindow, driversKeyForPaintWinner]);
 
   if (loading || !winner) return null;
 
