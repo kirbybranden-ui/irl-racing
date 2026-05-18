@@ -1767,6 +1767,17 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
               <button onClick={() => (window.location.pathname = "/news")} style={{ background: "#d4af37", color: "#111", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>📰 News</button>
               <button onClick={() => (window.location.pathname = "/interviews")} style={{ background: "#c8102e", color: "white", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 900, cursor: "pointer", fontSize: 14 }}>🎤 Interviews</button>
               <button onClick={() => (window.location.pathname = "/paint-scheme-vote")} style={{ background: "#f97316", color: "white", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 900, cursor: "pointer", fontSize: 14 }}>🎨 Paint Scheme Vote</button>
+              <button
+                type="button"
+                onClick={() => (window.location.href = "/memorial-day")}
+                style={{
+                  ...secondaryButtonStyle,
+                  background: "linear-gradient(135deg, #b91c1c, #1d4ed8)",
+                  border: "1px solid rgba(255,255,255,0.22)",
+                }}
+              >
+                🇺🇸 Memorial Day
+              </button>
               <button onClick={() => window.open("https://discord.gg/uvbBJBR5Tz", "_blank")} style={{ background: "#2563eb", color: "white", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 900, cursor: "pointer", fontSize: 14 }}>📺 CW Channel</button>
               <button onClick={() => (window.location.pathname = "/team-hq")} style={{ background: "#0f766e", color: "white", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>🏢 Team HQ</button>
               <button onClick={() => (window.location.pathname = "/contracts")} style={{ background: "#d4af37", color: "#111", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 900, cursor: "pointer", fontSize: 14 }}>📄 Active Contracts</button>
@@ -4020,13 +4031,3 @@ export default function App() {
   );
 }
 
-
-/* Memorial Day button snippet added manually */
-
-<button
-  type="button"
-  onClick={() => (window.location.href = "/memorial-day")}
-  style={secondaryButtonStyle}
->
-  🇺🇸 Memorial Day
-</button>
