@@ -40,6 +40,14 @@ function hasRaceRolledOver(track, date = new Date()) {
   return easternNow.hour >= 22;
 }
 
+function isVotingLocked(selectedRace, tracks = []) {
+  const matchingTrack = (tracks || []).find((track) => String(track.name || "") === String(selectedRace || ""));
+  if (!matchingTrack?.date) return false;
+
+  return hasRaceRolledOver(matchingTrack);
+}
+
+
 function getUpcomingRaceName(tracks = []) {
   const sorted = [...(tracks || [])].sort((a, b) => {
     if (a.date && b.date) return new Date(`${a.date}T12:00:00`) - new Date(`${b.date}T12:00:00`);
@@ -159,6 +167,11 @@ export default function PaintSchemeVotePage({ drivers = [], tracks = [] }) {
     setMessage("");
     setError("");
 
+    if (votingLocked) {
+      setError("Voting is closed for this race week. Winner has already been awarded.");
+      return;
+    }
+
     if (myVoteForRace) {
       setError("You already voted for this race week's Paint Scheme of the Week.");
       return;
@@ -182,6 +195,10 @@ export default function PaintSchemeVotePage({ drivers = [], tracks = [] }) {
     setMessage(`Vote submitted for ${getDriverLabel(upload)}.`);
     await loadData();
   }
+
+  const votingLocked = useMemo(() => {
+    return isVotingLocked(selectedRace, tracks);
+  }, [selectedRace, tracks]);
 
   const winner = leaderboard[0] || null;
 
@@ -228,6 +245,34 @@ export default function PaintSchemeVotePage({ drivers = [], tracks = [] }) {
           {message && <div style={{ color: "#4ade80", marginTop: 14, fontWeight: 900 }}>{message}</div>}
           {error && <div style={{ color: "#f87171", marginTop: 14, fontWeight: 900 }}>{error}</div>}
           {myVoteForRace && <div style={{ marginTop: 14, opacity: 0.78 }}>✅ You already voted for this race week.</div>}
+
+          {votingLocked && winner && (
+            <div
+              style={{
+                marginTop: 18,
+                background: "linear-gradient(135deg, rgba(212,175,55,0.22), rgba(120,90,20,0.18))",
+                border: "1px solid #d4af37",
+                borderRadius: 16,
+                padding: 18,
+              }}
+            >
+              <div style={{ fontSize: 12, fontWeight: 900, opacity: 0.72, marginBottom: 6 }}>
+                🏁 OFFICIAL RESULT
+              </div>
+
+              <div style={{ fontSize: 28, fontWeight: 900, color: "#d4af37" }}>
+                Paint Scheme of the Week Winner
+              </div>
+
+              <div style={{ marginTop: 8, fontSize: 18, fontWeight: 800 }}>
+                {getDriverLabel(winner)}
+              </div>
+
+              <div style={{ marginTop: 6, opacity: 0.72 }}>
+                {voteCountByUpload.get(String(winner.id)) || 0} votes • Voting closed at 10:00 PM EST
+              </div>
+            </div>
+          )}
         </div>
 
         {loading ? (
@@ -258,14 +303,14 @@ export default function PaintSchemeVotePage({ drivers = [], tracks = [] }) {
                       </div>
                       <button
                         onClick={() => voteForUpload(upload)}
-                        disabled={Boolean(myVoteForRace) || votingUploadId === upload.id}
+                        disabled={votingLocked || Boolean(myVoteForRace) || votingUploadId === upload.id}
                         style={{
                           ...primaryButtonStyle,
-                          opacity: Boolean(myVoteForRace) || votingUploadId === upload.id ? 0.55 : 1,
-                          cursor: Boolean(myVoteForRace) || votingUploadId === upload.id ? "not-allowed" : "pointer",
+                          opacity: votingLocked || Boolean(myVoteForRace) || votingUploadId === upload.id ? 0.55 : 1,
+                          cursor: votingLocked || Boolean(myVoteForRace) || votingUploadId === upload.id ? "not-allowed" : "pointer",
                         }}
                       >
-                        {isMyPick ? "✅ Your Vote" : votingUploadId === upload.id ? "Voting..." : "Vote"}
+                        {votingLocked ? "🏁 Voting Closed" : isMyPick ? "✅ Your Vote" : votingUploadId === upload.id ? "Voting..." : "Vote"}
                       </button>
                     </div>
                   </div>
