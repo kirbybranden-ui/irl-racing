@@ -1724,6 +1724,206 @@ function ContractsPage({ drivers = [] }) {
   );
 }
 
+
+function getEasternDateTimePartsForPaintWinner(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+
+  return {
+    dateKey: `${values.year}-${values.month}-${values.day}`,
+    weekday: values.weekday,
+    hour: Number(values.hour || 0),
+    minute: Number(values.minute || 0),
+  };
+}
+
+function shouldShowPreviousPaintWinner(date = new Date()) {
+  const eastern = getEasternDateTimePartsForPaintWinner(date);
+
+  // Hide starting Wednesday at 12:00 AM Eastern.
+  // It will stay hidden Wednesday, Thursday, and Friday until a new race/weekend winner cycle starts.
+  if (eastern.weekday === "Wed" || eastern.weekday === "Thu" || eastern.weekday === "Fri") return false;
+
+  return true;
+}
+
+function getPreviousCompletedRaceForPaintWinner(tracks = [], date = new Date()) {
+  const easternNow = getEasternDateTimePartsForPaintWinner(date);
+
+  const sorted = [...(tracks || [])]
+    .filter((track) => track?.date)
+    .sort((a, b) => new Date(`${a.date}T12:00:00`) - new Date(`${b.date}T12:00:00`));
+
+  const completed = sorted.filter((track) => {
+    const raceDate = String(track.date || "").slice(0, 10);
+    if (!raceDate) return false;
+    if (easternNow.dateKey > raceDate) return true;
+    if (easternNow.dateKey < raceDate) return false;
+    return easternNow.hour >= 22;
+  });
+
+  return completed[completed.length - 1] || null;
+}
+
+function getPaintUploadRaceForStandings(upload) {
+  return upload?.race_id || upload?.race_week || upload?.race_name || "";
+}
+
+function isPaintImageUploadForStandings(upload) {
+  const url = upload?.image_url || upload?.file_url || "";
+  const fileType = String(upload?.file_type || "").toLowerCase();
+  return fileType.startsWith("image/") || url.match(/\.(jpg|jpeg|png|gif|webp)(\?|$)/i);
+}
+
+function PaintSchemeWinnerStandingsCard({ tracks = [], drivers = [] }) {
+  const [winner, setWinner] = useState(null);
+  const [raceName, setRaceName] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadWinner() {
+      setLoading(true);
+
+      if (!shouldShowPreviousPaintWinner()) {
+        if (isMounted) {
+          setWinner(null);
+          setRaceName("");
+          setLoading(false);
+        }
+        return;
+      }
+
+      const previousRace = getPreviousCompletedRaceForPaintWinner(tracks);
+      if (!previousRace?.name) {
+        if (isMounted) {
+          setWinner(null);
+          setRaceName("");
+          setLoading(false);
+        }
+        return;
+      }
+
+      const [{ data: uploadData, error: uploadError }, { data: voteData, error: voteError }] = await Promise.all([
+        supabase.from("car_uploads").select("*").order("uploaded_at", { ascending: false }),
+        supabase.from("paint_scheme_votes").select("*").order("created_at", { ascending: false }),
+      ]);
+
+      if (uploadError || voteError) {
+        console.error("Could not load previous paint scheme winner:", uploadError || voteError);
+        if (isMounted) {
+          setWinner(null);
+          setRaceName("");
+          setLoading(false);
+        }
+        return;
+      }
+
+      const raceUploads = (uploadData || [])
+        .filter((upload) => isPaintImageUploadForStandings(upload))
+        .filter((upload) => getPaintUploadRaceForStandings(upload) === previousRace.name);
+
+      if (raceUploads.length === 0) {
+        if (isMounted) {
+          setWinner(null);
+          setRaceName(previousRace.name);
+          setLoading(false);
+        }
+        return;
+      }
+
+      const counts = new Map();
+      (voteData || []).forEach((vote) => {
+        const key = String(vote.upload_id || "");
+        counts.set(key, (counts.get(key) || 0) + 1);
+      });
+
+      const sorted = [...raceUploads].sort((a, b) => {
+        const voteDiff = (counts.get(String(b.id)) || 0) - (counts.get(String(a.id)) || 0);
+        if (voteDiff !== 0) return voteDiff;
+        return new Date(b.uploaded_at || 0) - new Date(a.uploaded_at || 0);
+      });
+
+      const winningUpload = sorted[0];
+      const driver = (drivers || []).find((item) => String(item.id) === String(winningUpload.driver_id));
+      const enrichedWinner = {
+        ...winningUpload,
+        voteCount: counts.get(String(winningUpload.id)) || 0,
+        driverLabel: driver ? `#${driver.number} ${driver.name}` : winningUpload.driver_name || winningUpload.uploader_name || "Unknown Driver",
+        teamLabel: driver?.team || winningUpload.team || winningUpload.team_key || "—",
+        imageUrl: winningUpload.image_url || winningUpload.file_url || "",
+      };
+
+      if (isMounted) {
+        setWinner(enrichedWinner);
+        setRaceName(previousRace.name);
+        setLoading(false);
+      }
+    }
+
+    loadWinner();
+    const interval = setInterval(loadWinner, 60000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [tracks, drivers]);
+
+  if (loading || !winner) return null;
+
+  return (
+    <div
+      style={{
+        background: "linear-gradient(135deg, rgba(212,175,55,0.18), rgba(15,23,42,0.96))",
+        border: "1px solid #d4af37",
+        borderRadius: 18,
+        padding: 16,
+        marginBottom: 20,
+        boxShadow: "0 12px 30px rgba(0,0,0,0.24)",
+        display: "grid",
+        gridTemplateColumns: "minmax(180px, 320px) 1fr",
+        gap: 18,
+        alignItems: "center",
+      }}
+    >
+      <div style={{ borderRadius: 14, overflow: "hidden", background: "#0f1319", border: "1px solid rgba(255,255,255,0.12)" }}>
+        <img src={winner.imageUrl} alt={winner.driverLabel} style={{ width: "100%", height: 190, objectFit: "cover", display: "block" }} />
+      </div>
+
+      <div>
+        <div style={{ color: "#d4af37", fontSize: 12, fontWeight: 900, letterSpacing: 1.6, textTransform: "uppercase" }}>
+          Previous Week Winner
+        </div>
+        <div style={{ fontSize: 30, fontWeight: 900, marginTop: 6 }}>
+          🎨 Paint Scheme of the Week
+        </div>
+        <div style={{ fontSize: 20, fontWeight: 900, marginTop: 8 }}>
+          {winner.driverLabel}
+        </div>
+        <div style={{ opacity: 0.75, marginTop: 4 }}>
+          {winner.teamLabel} • {raceName} • {winner.voteCount} votes
+        </div>
+        <div style={{ opacity: 0.62, fontSize: 12, marginTop: 10 }}>
+          Display automatically hides Wednesday at 12:00 AM Eastern.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonName = "", tracks = [], raceHistory = [] }) {
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [selectedTrackInfo, setSelectedTrackInfo] = useState(null);
@@ -1979,6 +2179,7 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
           </div>
         </div>
         <AppUpdateBanner page="standings" />
+        <PaintSchemeWinnerStandingsCard tracks={tracks} drivers={drivers} />
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 14, marginBottom: 24 }}>
           {[{label:"DRIVERS",value:sorted.length},{label:"TEAMS",value:teams.length},{label:"TOTAL WINS",value:totalWins},{label:"TOTAL DNFS",value:totalDnfs},{label:"POINTS AWARDED",value:totalPoints}].map((item) => (
