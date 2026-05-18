@@ -501,6 +501,43 @@ function downloadRaceHistoryCsv(raceHistory = [], seasonName = "") {
   URL.revokeObjectURL(url);
 }
 
+function makeLeagueBackupPayload({ tracks = [], seasons = [], activeSeasonId = "", reason = "manual-backup", raceSnapshot = null }) {
+  return {
+    backupVersion: 1,
+    appName: "Budweiser Cup League",
+    reason,
+    backedUpAt: new Date().toISOString(),
+    activeSeasonId,
+    tracks,
+    seasons,
+    raceSnapshot,
+  };
+}
+
+function downloadLeagueBackupFile(backupPayload, label = "backup") {
+  const safeLabel = String(label || "backup")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+  const dateStamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const blob = new Blob([JSON.stringify(backupPayload, null, 2)], {
+    type: "application/json;charset=utf-8;",
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = `budweiser-cup-results-${safeLabel}-${dateStamp}.json`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+function isValidLeagueBackup(backup) {
+  return !!backup && Array.isArray(backup.seasons) && backup.seasons.length > 0 && !!backup.activeSeasonId;
+}
+
 async function createRaceDataBackup({ seasonSnapshot, raceSnapshot, backupType = "save-points" }) {
   try {
     const { error } = await supabase.from("race_data_backups").insert({
@@ -2346,6 +2383,7 @@ export default function App() {
   const [openStoryCount, setOpenStoryCount] = useState(0);
   const [activeSeasonId, setActiveSeasonId] = useState(() => loadInitialLeagueState().activeSeasonId);
   const [tracks, setTracks] = useState(() => loadInitialLeagueState().tracks);
+  const backupFileInputRef = useRef(null);
   const [isHydrated, setIsHydrated] = useState(false);
   const [viewMode, setViewMode] = useState("admin");
   const [editingRaceName, setEditingRaceName] = useState(null);
@@ -2542,6 +2580,59 @@ export default function App() {
     patchActiveSeason({ selectedRace: "", positions: {}, stage1: {}, stage2: {}, stage3: {}, dnfMap: {}, offenseMap: {}, fastestLapMap: {} });
     setEditingRaceName(null);
   };
+  const handleDownloadLeagueBackup = () => {
+    const backupPayload = makeLeagueBackupPayload({
+      tracks,
+      seasons,
+      activeSeasonId,
+      reason: "manual-admin-backup",
+      raceSnapshot: null,
+    });
+
+    downloadLeagueBackupFile(backupPayload, "manual-backup");
+  };
+
+  const handleRestoreLeagueBackup = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const backup = JSON.parse(text);
+
+      if (!isValidLeagueBackup(backup)) {
+        alert("This backup file is missing seasons or activeSeasonId.");
+        return;
+      }
+
+      const cleanTracks = sanitizeTracks(backup.tracks) || tracks;
+      const cleanSeasons = backup.seasons.map((season, index) => sanitizeSeason(season, `Season ${index + 1}`));
+      const activeExists = cleanSeasons.some((season) => season.id === backup.activeSeasonId);
+      const nextActiveSeasonId = activeExists ? backup.activeSeasonId : cleanSeasons[0].id;
+
+      setTracks(cleanTracks);
+      setSeasons(cleanSeasons);
+      setActiveSeasonId(nextActiveSeasonId);
+
+      localStorage.setItem("irl-tracks", JSON.stringify(cleanTracks));
+      localStorage.setItem("irl-seasons", JSON.stringify(cleanSeasons));
+      localStorage.setItem("irl-activeSeasonId", nextActiveSeasonId);
+
+      await saveLeagueState({
+        tracks: cleanTracks,
+        seasons: cleanSeasons,
+        activeSeasonId: nextActiveSeasonId,
+      });
+
+      alert("Backup restored successfully. Refresh the page if the standings do not update immediately.");
+    } catch (error) {
+      console.error("Could not restore league backup:", error);
+      alert("Could not restore this backup file. Make sure it is a Budweiser Cup League JSON backup.");
+    } finally {
+      event.target.value = "";
+    }
+  };
+
   const resetEditorStates = () => { setEditingRaceName(null); setEditingDriverId(null); setEditDriverForm({ name: "", number: "", team: "" }); };
   const downloadBackupObject = (payload, filePrefix = "pcl-backup") => {
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
@@ -2995,7 +3086,19 @@ export default function App() {
       fastestLapMap: {},
     };
 
+    const updatedSeasons = seasons.map((season) => (season.id === activeSeasonId ? updatedSeason : season));
+
     replaceActiveSeason(updatedSeason);
+
+    const automaticBackupPayload = makeLeagueBackupPayload({
+      tracks,
+      seasons: updatedSeasons,
+      activeSeasonId,
+      reason: editingRaceName ? "automatic-edit-race-results" : "automatic-save-race-results",
+      raceSnapshot: updatedRace,
+    });
+
+    downloadLeagueBackupFile(automaticBackupPayload, editingRaceName ? "auto-edit-race-results" : "auto-race-results");
 
     const backupResult = await createRaceDataBackup({
       seasonSnapshot: updatedSeason,
@@ -3004,7 +3107,7 @@ export default function App() {
     });
 
     if (!backupResult.ok) {
-      alert("Race points saved, but the automatic backup failed. Make sure the race_data_backups table exists in Supabase.");
+      alert("Race points saved and a JSON backup downloaded, but the Supabase backup failed. Make sure the race_data_backups table exists in Supabase.");
     }
 
     setEditingRaceName(null);
@@ -3803,13 +3906,36 @@ export default function App() {
         <div style={sectionCardStyle}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
             <h2 style={{ margin: 0 }}>Race History</h2>
-            <button
-              type="button"
-              onClick={() => downloadRaceHistoryCsv(raceHistory, activeSeason?.name || "Season")}
-              style={primaryButtonStyle}
-            >
-              ⬇️ Download Race History CSV
-            </button>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <button
+                type="button"
+                onClick={() => downloadRaceHistoryCsv(raceHistory, activeSeason?.name || "Season")}
+                style={primaryButtonStyle}
+              >
+                ⬇️ Download Race History CSV
+              </button>
+              <button
+                type="button"
+                onClick={handleDownloadLeagueBackup}
+                style={secondaryButtonStyle}
+              >
+                💾 Backup Results
+              </button>
+              <button
+                type="button"
+                onClick={() => backupFileInputRef.current?.click()}
+                style={secondaryButtonStyle}
+              >
+                ♻️ Restore From Backup
+              </button>
+              <input
+                ref={backupFileInputRef}
+                type="file"
+                accept="application/json"
+                onChange={handleRestoreLeagueBackup}
+                style={{ display: "none" }}
+              />
+            </div>
           </div>
           {raceHistory.length === 0 ? <div style={{ opacity: 0.75 }}>No races entered yet.</div> : (
             <div style={{ display: "grid", gap: 16 }}>
