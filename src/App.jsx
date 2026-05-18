@@ -917,8 +917,7 @@ function MemorialDayPage({ drivers = [] }) {
 }
 
 
-function MemorialDayPage drivers={activeSeason?.drivers || []}
-DriverFeedbackPage({ drivers = [] }) {
+function DriverFeedbackPage({ drivers = [] }) {
   const [form, setForm] = useState({
     driver_id: "",
     team_happiness: 8,
@@ -3503,6 +3502,8 @@ export default function App() {
   }
   if (path === "/owners" || path === "/team-hq") return <OwnersPage drivers={visibleDrivers} teams={teamStandings} teamBudgets={teamBudgets} raceHistory={raceHistory} seasonName={activeSeason?.name || ""} />;
   if (path === "/contracts") return <ContractsPage drivers={visibleDrivers} />;
+  if (path === "/memorial-day") return <MemorialDayPage drivers={visibleDrivers} />;
+
   if (path === "/" || path === "/standings") return <PublicStandings drivers={visibleDrivers} teams={teamStandings} manufacturerStandings={manufacturerStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} />;
   if (path === "/overlay/ticker" || viewMode === "overlay-ticker") return <TickerOverlay drivers={visibleDrivers} teams={teamStandings} raceHistory={raceHistory} preview={viewMode === "overlay-ticker"} seasonName={activeSeason?.name || ""} />;
   if (path !== "/admin") {
