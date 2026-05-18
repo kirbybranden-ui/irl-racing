@@ -769,6 +769,101 @@ function MemorialDayPage({ drivers = [] }) {
     loadTributes();
   }, []);
 
+  useEffect(() => {
+    if (window.cloudinary) {
+      setCloudinaryReady(true);
+      return;
+    }
+
+    const existing = document.getElementById("cloudinary-widget-script");
+    if (existing) {
+      existing.addEventListener("load", () => setCloudinaryReady(true));
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.id = "cloudinary-widget-script";
+    script.src = "https://widget.cloudinary.com/v2.0/global/all.js";
+    script.async = true;
+    script.onload = () => setCloudinaryReady(true);
+    script.onerror = () => console.error("Cloudinary widget failed to load");
+    document.body.appendChild(script);
+  }, []);
+
+  useEffect(() => {
+    if (!cloudinaryReady || !window.cloudinary) return;
+
+    imageWidgetRef.current = window.cloudinary.createUploadWidget(
+      {
+        cloudName: "dpu05oykz",
+        uploadPreset: "dpu05oykz",
+        resourceType: "image",
+        folder: "previous-race-winners",
+        maxFileSize: 15000000,
+        clientAllowedFormats: ["jpg", "jpeg", "png", "webp", "gif"],
+      },
+      (error, result) => {
+        if (error) {
+          console.error("Previous race winner image upload failed:", error);
+          alert("Image upload failed: " + (error.message || "Unknown error"));
+          return;
+        }
+
+        if (result?.event === "success") {
+          setForm((current) => ({
+            ...current,
+            mediaUrl: result.info.secure_url,
+            mediaType: "image",
+          }));
+          alert("✅ Winner picture uploaded.");
+        }
+      }
+    );
+
+    videoWidgetRef.current = window.cloudinary.createUploadWidget(
+      {
+        cloudName: "dpu05oykz",
+        uploadPreset: "dpu05oykz",
+        resourceType: "video",
+        folder: "previous-race-winners",
+        maxFileSize: 200000000,
+        clientAllowedFormats: ["mp4", "mov", "avi", "mkv", "webm"],
+      },
+      (error, result) => {
+        if (error) {
+          console.error("Previous race winner video upload failed:", error);
+          alert("Video upload failed: " + (error.message || "Unknown error"));
+          return;
+        }
+
+        if (result?.event === "success") {
+          setForm((current) => ({
+            ...current,
+            mediaUrl: result.info.secure_url,
+            mediaType: "video",
+          }));
+          alert("✅ Winner video uploaded.");
+        }
+      }
+    );
+  }, [cloudinaryReady]);
+
+  function openWinnerImageUploader() {
+    if (!cloudinaryReady || !imageWidgetRef.current) {
+      alert("Uploader is still loading. Try again in a moment.");
+      return;
+    }
+    imageWidgetRef.current.open();
+  }
+
+  function openWinnerVideoUploader() {
+    if (!cloudinaryReady || !videoWidgetRef.current) {
+      alert("Uploader is still loading. Try again in a moment.");
+      return;
+    }
+    videoWidgetRef.current.open();
+  }
+
   function updateField(field, value) {
     setForm((current) => ({ ...current, [field]: value }));
   }
@@ -1923,6 +2018,234 @@ function PaintSchemeWinnerStandingsCard({ tracks = [], drivers = [] }) {
 }
 
 
+
+function PreviousRaceWinnerStandingsCard() {
+  const [winner, setWinner] = useState(null);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("bclPreviousRaceWinner");
+      setWinner(saved ? JSON.parse(saved) : null);
+    } catch {
+      setWinner(null);
+    }
+  }, []);
+
+  if (!winner) return null;
+
+  return (
+    <div
+      style={{
+        background: "linear-gradient(135deg, rgba(34,197,94,0.18), rgba(15,23,42,0.96))",
+        border: "1px solid #22c55e",
+        borderRadius: 18,
+        padding: 16,
+        marginBottom: 20,
+        boxShadow: "0 12px 30px rgba(0,0,0,0.24)",
+      }}
+    >
+      {winner.mediaUrl && (
+        <div style={{ marginBottom: 14, borderRadius: 16, overflow: "hidden", border: "1px solid rgba(255,255,255,0.14)", background: "#0f1319" }}>
+          {winner.mediaType === "video" ? (
+            <video controls src={winner.mediaUrl} style={{ width: "100%", maxHeight: 420, display: "block", objectFit: "cover" }} />
+          ) : (
+            <img src={winner.mediaUrl} alt={`${winner.name} previous race winner`} style={{ width: "100%", maxHeight: 420, display: "block", objectFit: "cover" }} />
+          )}
+        </div>
+      )}
+
+      <div style={{ color: "#22c55e", fontSize: 12, fontWeight: 900, letterSpacing: 1.6, textTransform: "uppercase" }}>
+        Previous Race Winner
+      </div>
+      <div style={{ fontSize: 30, fontWeight: 900, marginTop: 6 }}>
+        🏁 {winner.raceName || "Last Race"}
+      </div>
+      <div style={{ fontSize: 22, fontWeight: 900, marginTop: 8 }}>
+        #{winner.number} {winner.name}
+      </div>
+      <div style={{ opacity: 0.75, marginTop: 4 }}>
+        {winner.team || "—"} • {winner.manufacturer || "—"} • {winner.points || 0} points
+      </div>
+      {winner.note && <div style={{ marginTop: 10, lineHeight: 1.5, opacity: 0.82 }}>{winner.note}</div>}
+    </div>
+  );
+}
+
+function PreviousRaceWinnerAdminPanel({ drivers = [], raceHistory = [] }) {
+  const [form, setForm] = useState(() => {
+    try {
+      const saved = localStorage.getItem("bclPreviousRaceWinner");
+      return saved ? JSON.parse(saved) : { raceName: "", driverId: "", number: "", name: "", team: "", manufacturer: "", points: "", note: "", mediaUrl: "", mediaType: "" };
+    } catch {
+      return { raceName: "", driverId: "", number: "", name: "", team: "", manufacturer: "", points: "", note: "", mediaUrl: "", mediaType: "" };
+    }
+  });
+
+  const [cloudinaryReady, setCloudinaryReady] = useState(Boolean(window.cloudinary));
+  const imageWidgetRef = useRef(null);
+  const videoWidgetRef = useRef(null);
+
+  const latestRace = Array.isArray(raceHistory) && raceHistory.length > 0 ? raceHistory[raceHistory.length - 1] : null;
+  const latestWinner = latestRace?.results?.find((result) => Number(result.finishPos) === 1 || result.isWin) || null;
+
+  function updateField(field, value) {
+    setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function chooseDriver(driverId) {
+    const driver = (drivers || []).find((item) => String(item.id) === String(driverId));
+    if (!driver) {
+      updateField("driverId", driverId);
+      return;
+    }
+
+    setForm((current) => ({
+      ...current,
+      driverId,
+      number: driver.number || "",
+      name: driver.name || "",
+      team: driver.team || "",
+      manufacturer: driver.manufacturer || "",
+    }));
+  }
+
+  function autofillFromLatestRace() {
+    if (!latestRace || !latestWinner) {
+      alert("No race winner found in race history yet.");
+      return;
+    }
+
+    setForm({
+      raceName: latestRace.raceName || "",
+      driverId: latestWinner.driverId || "",
+      number: latestWinner.number || "",
+      name: latestWinner.name || "",
+      team: latestWinner.team || "",
+      manufacturer: latestWinner.manufacturer || "",
+      points: latestWinner.totalRacePoints ?? "",
+      note: form.note || "",
+      mediaUrl: form.mediaUrl || "",
+      mediaType: form.mediaType || "",
+    });
+  }
+
+  function saveWinner() {
+    if (!form.raceName || !form.name || !form.number) {
+      alert("Add the race name, driver name, and number before saving.");
+      return;
+    }
+
+    localStorage.setItem("bclPreviousRaceWinner", JSON.stringify({ ...form, updatedAt: new Date().toISOString() }));
+    alert("Previous race winner saved. Refresh /standings to see it.");
+  }
+
+  function clearWinner() {
+    if (!window.confirm("Clear the previous race winner from standings?")) return;
+    localStorage.removeItem("bclPreviousRaceWinner");
+    setForm({ raceName: "", driverId: "", number: "", name: "", team: "", manufacturer: "", points: "", note: "", mediaUrl: "", mediaType: "" });
+    alert("Previous race winner cleared.");
+  }
+
+  return (
+    <div style={sectionCardStyle}>
+      <h2 style={{ marginTop: 0 }}>🏁 Previous Race Winner</h2>
+      <div style={{ opacity: 0.72, marginBottom: 14 }}>
+        Feed the winner card shown on /standings. You can auto-fill from the latest saved race or enter it manually.
+      </div>
+
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
+        <button type="button" onClick={autofillFromLatestRace} style={secondaryButtonStyle}>
+          Auto-Fill From Latest Race
+        </button>
+        <button type="button" onClick={saveWinner} style={primaryButtonStyle}>
+          Save Winner to Standings
+        </button>
+        <button type="button" onClick={clearWinner} style={dangerButtonStyle}>
+          Clear Winner
+        </button>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+        <div>
+          <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>RACE NAME</label>
+          <input value={form.raceName || ""} onChange={(event) => updateField("raceName", event.target.value)} placeholder="Daytona (Night)" style={inputStyle} />
+        </div>
+
+        <div>
+          <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>SELECT DRIVER</label>
+          <select value={form.driverId || ""} onChange={(event) => chooseDriver(event.target.value)} style={inputStyle}>
+            <option value="">Manual / choose driver</option>
+            {(drivers || []).map((driver) => (
+              <option key={driver.id} value={driver.id}>#{driver.number} {driver.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>NUMBER</label>
+          <input value={form.number || ""} onChange={(event) => updateField("number", event.target.value)} placeholder="16" style={inputStyle} />
+        </div>
+
+        <div>
+          <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>DRIVER NAME</label>
+          <input value={form.name || ""} onChange={(event) => updateField("name", event.target.value)} placeholder="Driver name" style={inputStyle} />
+        </div>
+
+        <div>
+          <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>TEAM</label>
+          <input value={form.team || ""} onChange={(event) => updateField("team", event.target.value)} placeholder="WSM" style={inputStyle} />
+        </div>
+
+        <div>
+          <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>MANUFACTURER</label>
+          <input value={form.manufacturer || ""} onChange={(event) => updateField("manufacturer", event.target.value)} placeholder="Chevrolet" style={inputStyle} />
+        </div>
+
+        <div>
+          <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>POINTS</label>
+          <input value={form.points || ""} onChange={(event) => updateField("points", event.target.value)} placeholder="55" style={inputStyle} />
+        </div>
+      </div>
+
+      <div style={{ marginTop: 14, background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14 }}>
+        <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 10 }}>WINNER MEDIA OPTIONAL</label>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+          <button type="button" onClick={openWinnerImageUploader} style={{ ...secondaryButtonStyle, opacity: cloudinaryReady ? 1 : 0.6 }}>
+            {cloudinaryReady ? "📷 Upload Winner Picture" : "⏳ Loading Uploader"}
+          </button>
+          <button type="button" onClick={openWinnerVideoUploader} style={{ ...secondaryButtonStyle, background: "#dc2626", border: "1px solid #ef4444", opacity: cloudinaryReady ? 1 : 0.6 }}>
+            {cloudinaryReady ? "🎥 Upload Winner Video" : "⏳ Loading Uploader"}
+          </button>
+          {form.mediaUrl && (
+            <button type="button" onClick={() => setForm((current) => ({ ...current, mediaUrl: "", mediaType: "" }))} style={dangerButtonStyle}>
+              Remove Media
+            </button>
+          )}
+        </div>
+
+        {form.mediaUrl && (
+          <div style={{ marginTop: 12 }}>
+            <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 8 }}>
+              Current media: {form.mediaType === "video" ? "Video" : "Picture"}
+            </div>
+            {form.mediaType === "video" ? (
+              <video controls src={form.mediaUrl} style={{ width: "100%", maxWidth: 520, borderRadius: 12, border: "1px solid #2c3440" }} />
+            ) : (
+              <img src={form.mediaUrl} alt="Winner media preview" style={{ width: "100%", maxWidth: 520, borderRadius: 12, border: "1px solid #2c3440" }} />
+            )}
+          </div>
+        )}
+      </div>
+
+      <div style={{ marginTop: 12 }}>
+        <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>SHORT NOTE OPTIONAL</label>
+        <textarea value={form.note || ""} onChange={(event) => updateField("note", event.target.value)} rows={3} placeholder="Example: Survived Daytona chaos and delivered WSM its first win." style={{ ...inputStyle, resize: "vertical" }} />
+      </div>
+    </div>
+  );
+}
+
+
 function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonName = "", tracks = [], raceHistory = [] }) {
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [selectedTrackInfo, setSelectedTrackInfo] = useState(null);
@@ -2179,6 +2502,7 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
         </div>
         <AppUpdateBanner page="standings" />
         <PaintSchemeWinnerStandingsCard tracks={tracks} drivers={drivers} />
+        <PreviousRaceWinnerStandingsCard />
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 14, marginBottom: 24 }}>
           {[{label:"DRIVERS",value:sorted.length},{label:"TEAMS",value:teams.length},{label:"TOTAL WINS",value:totalWins},{label:"TOTAL DNFS",value:totalDnfs},{label:"POINTS AWARDED",value:totalPoints}].map((item) => (
@@ -3906,6 +4230,8 @@ export default function App() {
             </table>
           </div>
         </div>
+
+        <PreviousRaceWinnerAdminPanel drivers={visibleDrivers} raceHistory={raceHistory} />
 
         {/* Ones to Watch Manager */}
         <div style={sectionCardStyle}>
