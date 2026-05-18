@@ -85,6 +85,28 @@ function money(value) {
   });
 }
 
+const DEFAULT_RENEGOTIATION_FORM = {
+  requested_salary: 250000,
+  requested_signing_bonus: 0,
+  requested_contract_length: 1,
+  requested_buyout_amount: 375000,
+  requested_win_bonus: 0,
+  requested_championship_bonus: 0,
+  message: "",
+};
+
+function clampScore(value, min = 0, max = 100) {
+  return Math.max(min, Math.min(max, Math.round(Number(value) || 0)));
+}
+
+function getSatisfactionStatus(score) {
+  if (score >= 90) return { label: "Fully Bought In", color: "#22c55e", bg: "#102a16" };
+  if (score >= 75) return { label: "Happy", color: "#4ade80", bg: "#102a16" };
+  if (score >= 60) return { label: "Stable", color: "#d4af37", bg: "#2a240f" };
+  if (score >= 40) return { label: "Frustrated", color: "#f97316", bg: "#311707" };
+  return { label: "At Risk", color: "#ef4444", bg: "#2a1111" };
+}
+
 function loadLocalDriverAccessCodes() {
   try {
     const saved = localStorage.getItem("driverProfileAccessCodes");
@@ -433,6 +455,10 @@ const driver = sanitizedDrivers.find((d) => d && String(d.number) === String(dri
   const [contractOffers, setContractOffers] = useState([]);
   const [contractLoading, setContractLoading] = useState(false);
   const [contractError, setContractError] = useState("");
+  const [renegotiationForm, setRenegotiationForm] = useState(DEFAULT_RENEGOTIATION_FORM);
+  const [renegotiationMessage, setRenegotiationMessage] = useState("");
+  const [renegotiationError, setRenegotiationError] = useState("");
+  const [renegotiationSubmitting, setRenegotiationSubmitting] = useState(false);
   const [driverAccessCodeInput, setDriverAccessCodeInput] = useState("");
   const [driverAccessCodes, setDriverAccessCodes] = useState(loadLocalDriverAccessCodes);
   const [authorizedDriverNumber, setAuthorizedDriverNumber] = useState(() => localStorage.getItem("driverProfileAuthorizedNumber") || "");
@@ -581,6 +607,73 @@ const driver = sanitizedDrivers.find((d) => d && String(d.number) === String(dri
 
     return { currentWins: currentWinStreak, longestWins: longestWinStreak, currentPodiums: currentPodiumStreak, longestPodiums: longestPodiumStreak, currentDnfs: currentDnfStreak, longestDnfs: longestDnfStreak };
   }, [raceBreakdown]);
+
+  const activeContract = useMemo(() => {
+    const acceptedStatuses = ["accepted", "active"];
+    return (contractOffers || []).find((offer) => acceptedStatuses.includes(String(offer.status || "").toLowerCase())) || null;
+  }, [contractOffers]);
+
+  const driverSatisfaction = useMemo(() => {
+    const starts = raceBreakdown.length || 0;
+    const averageFinish = starts
+      ? raceBreakdown
+          .filter((race) => race.finishPos)
+          .reduce((sum, race) => sum + Number(race.finishPos || 0), 0) / Math.max(1, raceBreakdown.filter((race) => race.finishPos).length)
+      : 0;
+
+    const top10s = raceBreakdown.filter((race) => Number(race.finishPos || 999) <= 10).length;
+    const completedAssignments = driverAssignments.filter((task) => String(task.status || "") === "Completed").length;
+    const rejectedAssignments = driverAssignments.filter((task) => String(task.status || "") === "Rejected").length;
+    const answeredInterviews = interviews.filter((interview) => interview.answered).length;
+    const pendingContractOffers = contractOffers.filter((offer) => String(offer.status || "") === "Pending").length;
+    const acceptedContractBonus = activeContract ? 8 : 0;
+
+    let score = 62;
+    score += Number(calculatedStats.wins || 0) * 10;
+    score += Number(calculatedStats.top3 || 0) * 5;
+    score += Number(calculatedStats.top5 || 0) * 3;
+    score += top10s * 2;
+    score += completedAssignments * 3;
+    score += answeredInterviews * 1;
+    score += pendingContractOffers * 2;
+    score += acceptedContractBonus;
+
+    if (averageFinish && averageFinish <= 5) score += 8;
+    else if (averageFinish && averageFinish <= 10) score += 5;
+    else if (averageFinish && averageFinish > 18) score -= 8;
+
+    score -= Number(calculatedStats.dnfs || 0) * 9;
+    score -= Number(calculatedStats.totalPenalties || 0) * 4;
+    score -= rejectedAssignments * 5;
+
+    const finalScore = clampScore(score);
+    const status = getSatisfactionStatus(finalScore);
+
+    let summary = "Driver is steady, but the next few races can swing the mood quickly.";
+    if (finalScore >= 90) summary = "Driver is fully bought into the program and performing like a cornerstone piece.";
+    else if (finalScore >= 75) summary = "Driver morale is strong and performance is trending in the right direction.";
+    else if (finalScore >= 60) summary = "Driver is stable, but wins, clean races, and contract clarity would help.";
+    else if (finalScore >= 40) summary = "Driver frustration is building. Results, communication, or contract talks may be needed.";
+    else summary = "Driver is at risk. Ownership should address performance, penalties, or contract concerns quickly.";
+
+    return {
+      score: finalScore,
+      status: status.label,
+      color: status.color,
+      bg: status.bg,
+      summary,
+      factors: [
+        `Wins: ${calculatedStats.wins || 0}`,
+        `Top 5s: ${calculatedStats.top5 || 0}`,
+        `Top 10s: ${top10s}`,
+        `DNFs: ${calculatedStats.dnfs || 0}`,
+        `Penalties: ${calculatedStats.totalPenalties || 0}`,
+        `Assignments completed: ${completedAssignments}`,
+        activeContract ? "Active contract on file" : "No active contract loaded",
+      ],
+    };
+  }, [raceBreakdown, driverAssignments, interviews, contractOffers, activeContract, calculatedStats]);
+
 
   const careerStats = useMemo(() => {
     if (!driver || !Array.isArray(seasons)) return { wins: 0, points: 0, podiums: 0, races: 0 };
@@ -897,6 +990,86 @@ const driver = sanitizedDrivers.find((d) => d && String(d.number) === String(dri
     if (!window.confirm(`Decline contract offer from ${offer.team}?`)) return;
     const declined = await updateOfferStatus(offer.id, "Declined");
     if (declined) alert("Contract offer declined.");
+  }
+
+  function updateRenegotiationField(field, value) {
+    setRenegotiationForm((current) => ({ ...current, [field]: value }));
+  }
+
+  async function submitRenegotiationRequest(event) {
+    event?.preventDefault?.();
+    setRenegotiationMessage("");
+    setRenegotiationError("");
+
+    if (!isDriverAuthorized) {
+      setRenegotiationError("Driver access required before requesting a renegotiation.");
+      return;
+    }
+
+    const requestedSalary = Number(renegotiationForm.requested_salary) || 0;
+    const requestedSigningBonus = Number(renegotiationForm.requested_signing_bonus) || 0;
+    const requestedLength = Number(renegotiationForm.requested_contract_length) || 0;
+    const requestedBuyout = Number(renegotiationForm.requested_buyout_amount) || 0;
+    const requestedWinBonus = Number(renegotiationForm.requested_win_bonus) || 0;
+    const requestedChampionshipBonus = Number(renegotiationForm.requested_championship_bonus) || 0;
+
+    if (requestedSalary < 250000) {
+      setRenegotiationError("Requested salary must be at least $250,000.");
+      return;
+    }
+
+    if (requestedLength < 1) {
+      setRenegotiationError("Requested contract length must be at least 1 season.");
+      return;
+    }
+
+    if (requestedSigningBonus < 0 || requestedBuyout < 0 || requestedWinBonus < 0 || requestedChampionshipBonus < 0) {
+      setRenegotiationError("Contract money fields cannot be negative.");
+      return;
+    }
+
+    if (requestedBuyout > requestedSalary * 1.5) {
+      setRenegotiationError("Requested buyout cannot exceed 1.5x the requested salary.");
+      return;
+    }
+
+    const teamName = getTeamFullName(driver.team || "Independent");
+    const payload = {
+      driver_name: driver.name || "",
+      driver_number: String(driver.number || ""),
+      team: teamName,
+      manufacturer: driver.manufacturer || "",
+      salary: requestedSalary,
+      signing_bonus: requestedSigningBonus,
+      contract_length: requestedLength,
+      buyout_amount: requestedBuyout,
+      win_bonus: requestedWinBonus,
+      championship_bonus: requestedChampionshipBonus,
+      status: "Renegotiation Requested",
+      created_by_team: teamName,
+      brand_style: "Driver Requested Renegotiation",
+      media_requirements: "",
+      no_trade_clause: false,
+      team_option: false,
+      mutual_option: false,
+      guaranteed_seat: false,
+      notes: `${renegotiationForm.message || "Driver requested a new contract conversation."}\n\nDriver Satisfaction: ${driverSatisfaction.score}/100 (${driverSatisfaction.status})`,
+      created_at: new Date().toISOString(),
+    };
+
+    setRenegotiationSubmitting(true);
+    const { data, error } = await supabase.from("contract_offers").insert([payload]).select().single();
+    setRenegotiationSubmitting(false);
+
+    if (error) {
+      console.error("Renegotiation request failed:", error);
+      setRenegotiationError("Could not send renegotiation request. Check contract_offers RLS insert policy.");
+      return;
+    }
+
+    setContractOffers((current) => [data || payload, ...(current || [])]);
+    setRenegotiationForm(DEFAULT_RENEGOTIATION_FORM);
+    setRenegotiationMessage("Renegotiation request sent to Team HQ.");
   }
 
   async function handleCarUpload(e) {
@@ -1296,6 +1469,24 @@ const driver = sanitizedDrivers.find((d) => d && String(d.number) === String(dri
               {isDriverAuthorized && <button onClick={lockDriverContracts} style={secondaryButtonStyle}>Lock Driver Access</button>}
             </div>
 
+            {isDriverAuthorized && (
+              <div style={{ background: driverSatisfaction.bg, border: `1px solid ${driverSatisfaction.color}`, borderRadius: 14, padding: 16, marginBottom: 16 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 14, flexWrap: "wrap", alignItems: "center" }}>
+                  <div>
+                    <div style={{ fontSize: 12, opacity: 0.7, fontWeight: 900 }}>DRIVER SATISFACTION</div>
+                    <div style={{ fontSize: 24, fontWeight: 900, color: driverSatisfaction.color }}>{driverSatisfaction.status}</div>
+                    <div style={{ fontSize: 13, opacity: 0.78, marginTop: 5 }}>{driverSatisfaction.summary}</div>
+                  </div>
+                  <div style={{ minWidth: 170 }}>
+                    <div style={{ textAlign: "right", fontSize: 28, fontWeight: 900, color: driverSatisfaction.color }}>{driverSatisfaction.score}/100</div>
+                    <div style={{ background: "#0f1319", borderRadius: 999, height: 10, overflow: "hidden", border: "1px solid #2c3440" }}>
+                      <div style={{ width: `${driverSatisfaction.score}%`, height: "100%", background: driverSatisfaction.color }} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {!isDriverAuthorized ? (
               <div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, alignItems: "end" }}>
@@ -1360,6 +1551,63 @@ const driver = sanitizedDrivers.find((d) => d && String(d.number) === String(dri
                   </div>
                 ))}
               </div>
+            )}
+
+            {isDriverAuthorized && (
+              <form onSubmit={submitRenegotiationRequest} style={{ background: "#0f1319", border: `1px solid ${teamTheme.accent}`, borderRadius: 14, padding: 18, marginTop: 18 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start", marginBottom: 14 }}>
+                  <div>
+                    <h3 style={{ margin: 0 }}>🤝 Request Contract Renegotiation</h3>
+                    <div style={{ fontSize: 13, opacity: 0.66, marginTop: 5 }}>Send a driver-side request to Team HQ. Ownership can review the request in the contracts list.</div>
+                  </div>
+                  {activeContract && <div style={{ fontSize: 12, fontWeight: 900, color: "#4ade80" }}>Active deal loaded</div>}
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(175px, 1fr))", gap: 12 }}>
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 900, opacity: 0.7, marginBottom: 7 }}>REQUESTED SALARY</div>
+                    <input type="number" min="250000" value={renegotiationForm.requested_salary} onChange={(event) => updateRenegotiationField("requested_salary", event.target.value)} style={inputStyle} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 900, opacity: 0.7, marginBottom: 7 }}>SIGNING BONUS</div>
+                    <input type="number" min="0" value={renegotiationForm.requested_signing_bonus} onChange={(event) => updateRenegotiationField("requested_signing_bonus", event.target.value)} style={inputStyle} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 900, opacity: 0.7, marginBottom: 7 }}>LENGTH</div>
+                    <input type="number" min="1" value={renegotiationForm.requested_contract_length} onChange={(event) => updateRenegotiationField("requested_contract_length", event.target.value)} style={inputStyle} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 900, opacity: 0.7, marginBottom: 7 }}>BUYOUT</div>
+                    <input type="number" min="0" value={renegotiationForm.requested_buyout_amount} onChange={(event) => updateRenegotiationField("requested_buyout_amount", event.target.value)} style={inputStyle} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 900, opacity: 0.7, marginBottom: 7 }}>WIN BONUS</div>
+                    <input type="number" min="0" value={renegotiationForm.requested_win_bonus} onChange={(event) => updateRenegotiationField("requested_win_bonus", event.target.value)} style={inputStyle} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 900, opacity: 0.7, marginBottom: 7 }}>CHAMPIONSHIP BONUS</div>
+                    <input type="number" min="0" value={renegotiationForm.requested_championship_bonus} onChange={(event) => updateRenegotiationField("requested_championship_bonus", event.target.value)} style={inputStyle} />
+                  </div>
+                </div>
+
+                <div style={{ marginTop: 12 }}>
+                  <div style={{ fontSize: 11, fontWeight: 900, opacity: 0.7, marginBottom: 7 }}>MESSAGE TO OWNER</div>
+                  <textarea
+                    value={renegotiationForm.message}
+                    onChange={(event) => updateRenegotiationField("message", event.target.value)}
+                    placeholder="Explain why you want to renegotiate..."
+                    rows={4}
+                    style={{ ...inputStyle, resize: "vertical" }}
+                  />
+                </div>
+
+                {renegotiationMessage && <div style={{ marginTop: 12, color: "#4ade80", fontWeight: 900 }}>{renegotiationMessage}</div>}
+                {renegotiationError && <div style={{ marginTop: 12, color: "#f87171", fontWeight: 900 }}>{renegotiationError}</div>}
+
+                <button type="submit" disabled={renegotiationSubmitting} style={{ ...themedPrimaryButtonStyle, marginTop: 14, opacity: renegotiationSubmitting ? 0.65 : 1 }}>
+                  {renegotiationSubmitting ? "Sending Request..." : "Send Renegotiation Request"}
+                </button>
+              </form>
             )}
           </div>
         </div>
@@ -1527,6 +1775,31 @@ const driver = sanitizedDrivers.find((d) => d && String(d.number) === String(dri
               <div style={{ fontSize: 24, fontWeight: 800, color: stat.label === "POINTS" ? teamTheme.accent : "white" }}>{stat.value}</div>
             </div>
           ))}
+        </div>
+
+        <div style={{ ...sectionCardStyle, borderColor: driverSatisfaction.color, background: `linear-gradient(135deg, #171b22 0%, ${driverSatisfaction.bg} 100%)` }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "flex-start", flexWrap: "wrap", marginBottom: 14 }}>
+            <div>
+              <h2 style={{ margin: 0 }}>😊 Driver Satisfaction</h2>
+              <div style={{ fontSize: 13, opacity: 0.7, marginTop: 6 }}>Performance, clean races, assignments, interviews, and contract stability all feed this score.</div>
+            </div>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: 34, fontWeight: 900, color: driverSatisfaction.color }}>{driverSatisfaction.score}/100</div>
+              <div style={{ fontSize: 13, fontWeight: 900 }}>{driverSatisfaction.status}</div>
+            </div>
+          </div>
+
+          <div style={{ background: "#0f1319", borderRadius: 999, height: 14, overflow: "hidden", border: "1px solid #2c3440", marginBottom: 14 }}>
+            <div style={{ width: `${driverSatisfaction.score}%`, height: "100%", background: driverSatisfaction.color, transition: "width 0.3s" }} />
+          </div>
+
+          <div style={{ fontSize: 14, lineHeight: 1.6, opacity: 0.86, marginBottom: 14 }}>{driverSatisfaction.summary}</div>
+
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {driverSatisfaction.factors.map((factor) => (
+              <span key={factor} style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 999, padding: "6px 10px", fontSize: 12, fontWeight: 800 }}>{factor}</span>
+            ))}
+          </div>
         </div>
 
         <div style={{ ...sectionCardStyle, borderColor: teamTheme.accent }}>
