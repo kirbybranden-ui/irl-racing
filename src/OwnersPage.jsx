@@ -126,6 +126,34 @@ function money(value) {
   return safe.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 }
 
+function clampScore(value, min = 0, max = 100) {
+  return Math.max(min, Math.min(max, Math.round(Number(value) || 0)));
+}
+
+function getManufacturerSatisfactionStatus(score) {
+  if (score >= 90) return { label: "Elite Partner", color: "#4ade80", note: "Factory is all-in and willing to provide premium support." };
+  if (score >= 80) return { label: "Strong", color: "#22c55e", note: "Manufacturer support is strong and expectations are high." };
+  if (score >= 60) return { label: "Stable", color: "#d4af37", note: "Relationship is healthy, but results still matter." };
+  if (score >= 40) return { label: "Concerned", color: "#f59e0b", note: "Factory pressure is building. Better weekends are needed." };
+  return { label: "Critical", color: "#f87171", note: "Support is at risk without quick improvement." };
+}
+
+function getManufacturerSupportTier(score) {
+  if (score >= 90) return "Tier 1 Factory Support";
+  if (score >= 80) return "Priority Support";
+  if (score >= 60) return "Standard Support";
+  if (score >= 40) return "Reduced Support Watch";
+  return "At-Risk Support";
+}
+
+function getManufacturerBonusAmount(score) {
+  if (score >= 90) return 500000;
+  if (score >= 80) return 250000;
+  if (score >= 60) return 0;
+  if (score >= 40) return -100000;
+  return -250000;
+}
+
 function loadLocalOwnerAccessCodes() {
   try {
     const saved = localStorage.getItem("ownerPortalAccessCodes");
@@ -450,14 +478,83 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
       return acc;
     }, {});
     const manufacturer = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] || "Unassigned";
-    const supportAmount = manufacturer === "Toyota" ? 750000 : manufacturer === "Chevrolet" ? 650000 : manufacturer === "Ford" ? 600000 : 250000;
+    const alignedDriverCount = counts[manufacturer] || 0;
+    const totalDriverCount = selected.drivers.length || 0;
+    const alignmentScore = totalDriverCount ? Math.round((alignedDriverCount / totalDriverCount) * 100) : 0;
+
+    let stagePointTotal = 0;
+    let top5Count = 0;
+    let top10Count = 0;
+    let dnfCount = 0;
+    let penaltyCount = 0;
+    let startCount = 0;
+
+    const selectedDriverIds = new Set(selected.drivers.map((driver) => String(driver.id)));
+    (raceHistory || []).forEach((race) => {
+      (race.results || []).forEach((result) => {
+        if (!selectedDriverIds.has(String(result.driverId))) return;
+        startCount += 1;
+        const finish = Number(result.finishPos);
+        if (finish > 0 && finish <= 5) top5Count += 1;
+        if (finish > 0 && finish <= 10) top10Count += 1;
+        if (result.dnf) dnfCount += 1;
+        if (result.offense || Number(result.penaltyPoints || 0) > 0) penaltyCount += 1;
+      });
+
+      ["stage1", "stage2", "stage3", "stage1Results", "stage2Results", "stage3Results"].forEach((stageKey) => {
+        const stageRows = Array.isArray(race[stageKey]) ? race[stageKey] : [];
+        stageRows.forEach((stageResult, index) => {
+          const driverId = stageResult.driverId || stageResult.id;
+          if (!selectedDriverIds.has(String(driverId))) return;
+          const explicitPoints = Number(stageResult.points);
+          if (Number.isFinite(explicitPoints) && explicitPoints > 0) {
+            stagePointTotal += explicitPoints;
+          } else if (index < 10) {
+            stagePointTotal += Math.max(1, 10 - index);
+          }
+        });
+      });
+    });
+
+    const baseSupportAmount = manufacturer === "Toyota" ? 750000 : manufacturer === "Chevrolet" ? 650000 : manufacturer === "Ford" ? 600000 : 250000;
+    const allianceBonus = (technicalAlliances || []).filter((alliance) => alliance.status === "Accepted").length * 3;
+    const mediaBonus = Math.min(8, completedTaskCount + completedDriverTaskCount);
+    const performanceScore =
+      Number(selected.wins || 0) * 8 +
+      top5Count * 3 +
+      top10Count * 1 +
+      Math.min(12, Math.round(stagePointTotal / 5));
+    const penaltyHit = dnfCount * 7 + penaltyCount * 5;
+    const moraleBonus = Math.round((teamMoraleScore - 70) / 5);
+    const satisfactionScore = clampScore(62 + performanceScore + allianceBonus + mediaBonus + moraleBonus + Math.round((alignmentScore - 60) / 5) - penaltyHit);
+    const satisfactionStatus = getManufacturerSatisfactionStatus(satisfactionScore);
+    const supportAdjustment = getManufacturerBonusAmount(satisfactionScore);
+    const supportAmount = Math.max(0, baseSupportAmount + supportAdjustment);
+
     return {
       manufacturer,
+      alignedDriverCount,
+      totalDriverCount,
+      alignmentScore,
+      baseSupportAmount,
       supportAmount,
+      supportAdjustment,
       winBonus: manufacturer === "Toyota" ? 125000 : 100000,
       expectation: selected.drivers.length >= 4 ? "Win races and finish top 3 in owner standings" : "Build weekly speed and show growth",
+      satisfactionScore,
+      satisfactionStatus,
+      supportTier: getManufacturerSupportTier(satisfactionScore),
+      performanceScore,
+      stagePointTotal,
+      top5Count,
+      top10Count,
+      dnfCount,
+      penaltyCount,
+      startCount,
+      allianceBonus,
+      mediaBonus,
     };
-  }, [selected.drivers]);
+  }, [selected.drivers, selected.wins, raceHistory, technicalAlliances, completedTaskCount, completedDriverTaskCount, teamMoraleScore]);
 
   const manufacturerTeamMap = useMemo(() => {
     const map = { Toyota: [], Ford: [], Chevrolet: [] };
@@ -1601,13 +1698,58 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
 
             {activeHqTab === "manufacturer" && (
               <div style={sectionCardStyle}>
-                <h2 style={{ marginTop: 0 }}>Manufacturer Contract</h2>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 14, flexWrap: "wrap", alignItems: "flex-start", marginBottom: 16 }}>
+                  <div>
+                    <h2 style={{ marginTop: 0, marginBottom: 6 }}>🏭 Manufacturer Contract</h2>
+                    <div style={{ opacity: 0.72, fontSize: 13 }}>Factory relationship meter based on performance, loyalty, morale, alliances, media activity, DNFs, and penalties.</div>
+                  </div>
+                  <div style={{ background: "#0f1319", border: `1px solid ${manufacturerContract.satisfactionStatus.color}`, borderRadius: 16, padding: "12px 16px", minWidth: 210 }}>
+                    <div style={{ opacity: 0.65, fontSize: 12, fontWeight: 800 }}>SATISFACTION STATUS</div>
+                    <div style={{ fontSize: 24, fontWeight: 900, color: manufacturerContract.satisfactionStatus.color }}>{manufacturerContract.satisfactionStatus.label}</div>
+                  </div>
+                </div>
+
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
                   <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 16 }}><div style={{ opacity: 0.65 }}>Manufacturer</div><div style={{ fontSize: 26, fontWeight: 900 }}>{manufacturerContract.manufacturer}</div></div>
+                  <div style={{ background: "#0f1319", border: `1px solid ${manufacturerContract.satisfactionStatus.color}`, borderRadius: 14, padding: 16 }}><div style={{ opacity: 0.65 }}>Satisfaction</div><div style={{ fontSize: 32, fontWeight: 900, color: manufacturerContract.satisfactionStatus.color }}>{manufacturerContract.satisfactionScore}/100</div></div>
+                  <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 16 }}><div style={{ opacity: 0.65 }}>Support Tier</div><div style={{ fontSize: 22, fontWeight: 900 }}>{manufacturerContract.supportTier}</div></div>
                   <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 16 }}><div style={{ opacity: 0.65 }}>Support Money</div><div style={{ fontSize: 26, fontWeight: 900 }}>{money(manufacturerContract.supportAmount)}</div></div>
+                  <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 16 }}><div style={{ opacity: 0.65 }}>Support Adjustment</div><div style={{ fontSize: 26, fontWeight: 900, color: manufacturerContract.supportAdjustment >= 0 ? "#4ade80" : "#f87171" }}>{manufacturerContract.supportAdjustment >= 0 ? "+" : ""}{money(manufacturerContract.supportAdjustment)}</div></div>
                   <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 16 }}><div style={{ opacity: 0.65 }}>Win Bonus</div><div style={{ fontSize: 26, fontWeight: 900 }}>{money(manufacturerContract.winBonus)}</div></div>
                 </div>
-                <div style={{ marginTop: 12, opacity: 0.76 }}>Expectation: {manufacturerContract.expectation}</div>
+
+                <div style={{ marginTop: 16, background: "#10141b", border: "1px solid #2c3440", borderRadius: 16, padding: 16 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, marginBottom: 8 }}>
+                    <strong>Manufacturer Satisfaction Meter</strong>
+                    <span style={{ color: manufacturerContract.satisfactionStatus.color, fontWeight: 900 }}>{manufacturerContract.satisfactionScore}%</span>
+                  </div>
+                  <div style={{ height: 14, background: "#0b0f15", border: "1px solid #2c3440", borderRadius: 999, overflow: "hidden" }}>
+                    <div style={{ width: `${manufacturerContract.satisfactionScore}%`, height: "100%", background: manufacturerContract.satisfactionStatus.color }} />
+                  </div>
+                  <div style={{ marginTop: 10, opacity: 0.76 }}>{manufacturerContract.satisfactionStatus.note}</div>
+                  <div style={{ marginTop: 8, opacity: 0.76 }}>Expectation: {manufacturerContract.expectation}</div>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginTop: 16 }}>
+                  <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14 }}><div style={{ opacity: 0.65, fontSize: 12 }}>Brand Alignment</div><div style={{ fontSize: 24, fontWeight: 900 }}>{manufacturerContract.alignmentScore}%</div><div style={{ opacity: 0.62, fontSize: 12 }}>{manufacturerContract.alignedDriverCount}/{manufacturerContract.totalDriverCount || 0} drivers aligned</div></div>
+                  <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14 }}><div style={{ opacity: 0.65, fontSize: 12 }}>Performance Score</div><div style={{ fontSize: 24, fontWeight: 900 }}>+{manufacturerContract.performanceScore}</div><div style={{ opacity: 0.62, fontSize: 12 }}>Wins, top 5s, top 10s, stage points</div></div>
+                  <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14 }}><div style={{ opacity: 0.65, fontSize: 12 }}>Stage Points</div><div style={{ fontSize: 24, fontWeight: 900 }}>{manufacturerContract.stagePointTotal}</div></div>
+                  <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14 }}><div style={{ opacity: 0.65, fontSize: 12 }}>Top 5 / Top 10</div><div style={{ fontSize: 24, fontWeight: 900 }}>{manufacturerContract.top5Count} / {manufacturerContract.top10Count}</div></div>
+                  <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14 }}><div style={{ opacity: 0.65, fontSize: 12 }}>DNFs</div><div style={{ fontSize: 24, fontWeight: 900, color: manufacturerContract.dnfCount ? "#f87171" : "#4ade80" }}>{manufacturerContract.dnfCount}</div></div>
+                  <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14 }}><div style={{ opacity: 0.65, fontSize: 12 }}>Penalties</div><div style={{ fontSize: 24, fontWeight: 900, color: manufacturerContract.penaltyCount ? "#f87171" : "#4ade80" }}>{manufacturerContract.penaltyCount}</div></div>
+                </div>
+
+                <div style={{ marginTop: 16, background: "#0f1319", border: "1px solid #2c3440", borderRadius: 16, padding: 16 }}>
+                  <h3 style={{ marginTop: 0 }}>How To Improve Satisfaction</h3>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10, fontSize: 13 }}>
+                    <div style={{ background: "#10141b", borderRadius: 12, padding: 12 }}>🏁 Win races and stack top 5/top 10 finishes.</div>
+                    <div style={{ background: "#10141b", borderRadius: 12, padding: 12 }}>🎯 Score stage points and keep cars near the front.</div>
+                    <div style={{ background: "#10141b", borderRadius: 12, padding: 12 }}>🤝 Keep technical alliances active and productive.</div>
+                    <div style={{ background: "#10141b", borderRadius: 12, padding: 12 }}>🎙️ Complete owner and driver media assignments.</div>
+                    <div style={{ background: "#10141b", borderRadius: 12, padding: 12 }}>✅ Keep morale strong through driver feedback.</div>
+                    <div style={{ background: "#10141b", borderRadius: 12, padding: 12 }}>⚠️ Avoid DNFs, penalties, and factory embarrassment.</div>
+                  </div>
+                </div>
               </div>
             )}
 
