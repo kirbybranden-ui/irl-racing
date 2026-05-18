@@ -1873,11 +1873,9 @@ function PaintSchemeWinnerStandingsCard({ tracks = [], drivers = [] }) {
     }
 
     loadWinner();
-    const interval = setInterval(loadWinner, 60000);
 
     return () => {
       isMounted = false;
-      clearInterval(interval);
     };
   }, [tracks, drivers]);
 
