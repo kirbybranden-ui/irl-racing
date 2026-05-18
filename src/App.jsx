@@ -4019,3 +4019,14 @@ export default function App() {
     </div>
   );
 }
+
+
+/* Memorial Day button snippet added manually */
+
+<button
+  type="button"
+  onClick={() => (window.location.href = "/memorial-day")}
+  style={secondaryButtonStyle}
+>
+  🇺🇸 Memorial Day
+</button>
