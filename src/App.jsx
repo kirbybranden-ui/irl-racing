@@ -175,6 +175,7 @@ const defaultDrivers = [
   { id: 25, number: 80, name: "gumby_1919",             manufacturer: "Ford",      team: "MMS"         },
   { id: 26, number: 7,  name: "gunszmb",               manufacturer: "Ford",      team: "BWR"         },
   { id: 27, number: 97, name: "JPC_Racing",            manufacturer: "Ford",      team: "BWR"         },
+  { id: 51, number: 51, name: "MARE951",                  manufacturer: "Chevrolet", team: "BWR"         },
   { id: 46, number: 46, name: "BigDiehl21", manufacturer: "Chevrolet", team: "WSM" },
 ];
 const defaultRaces = [
