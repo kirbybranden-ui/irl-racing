@@ -768,102 +768,6 @@ function MemorialDayPage({ drivers = [] }) {
   useEffect(() => {
     loadTributes();
   }, []);
-
-  useEffect(() => {
-    if (window.cloudinary) {
-      setCloudinaryReady(true);
-      return;
-    }
-
-    const existing = document.getElementById("cloudinary-widget-script");
-    if (existing) {
-      existing.addEventListener("load", () => setCloudinaryReady(true));
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.id = "cloudinary-widget-script";
-    script.src = "https://widget.cloudinary.com/v2.0/global/all.js";
-    script.async = true;
-    script.onload = () => setCloudinaryReady(true);
-    script.onerror = () => console.error("Cloudinary widget failed to load");
-    document.body.appendChild(script);
-  }, []);
-
-  useEffect(() => {
-    if (!cloudinaryReady || !window.cloudinary) return;
-
-    imageWidgetRef.current = window.cloudinary.createUploadWidget(
-      {
-        cloudName: "dpu05oykz",
-        uploadPreset: "dpu05oykz",
-        resourceType: "image",
-        folder: "previous-race-winners",
-        maxFileSize: 15000000,
-        clientAllowedFormats: ["jpg", "jpeg", "png", "webp", "gif"],
-      },
-      (error, result) => {
-        if (error) {
-          console.error("Previous race winner image upload failed:", error);
-          alert("Image upload failed: " + (error.message || "Unknown error"));
-          return;
-        }
-
-        if (result?.event === "success") {
-          setForm((current) => ({
-            ...current,
-            mediaUrl: result.info.secure_url,
-            mediaType: "image",
-          }));
-          alert("✅ Winner picture uploaded.");
-        }
-      }
-    );
-
-    videoWidgetRef.current = window.cloudinary.createUploadWidget(
-      {
-        cloudName: "dpu05oykz",
-        uploadPreset: "dpu05oykz",
-        resourceType: "video",
-        folder: "previous-race-winners",
-        maxFileSize: 200000000,
-        clientAllowedFormats: ["mp4", "mov", "avi", "mkv", "webm"],
-      },
-      (error, result) => {
-        if (error) {
-          console.error("Previous race winner video upload failed:", error);
-          alert("Video upload failed: " + (error.message || "Unknown error"));
-          return;
-        }
-
-        if (result?.event === "success") {
-          setForm((current) => ({
-            ...current,
-            mediaUrl: result.info.secure_url,
-            mediaType: "video",
-          }));
-          alert("✅ Winner video uploaded.");
-        }
-      }
-    );
-  }, [cloudinaryReady]);
-
-  function openWinnerImageUploader() {
-    if (!cloudinaryReady || !imageWidgetRef.current) {
-      alert("Uploader is still loading. Try again in a moment.");
-      return;
-    }
-    imageWidgetRef.current.open();
-  }
-
-  function openWinnerVideoUploader() {
-    if (!cloudinaryReady || !videoWidgetRef.current) {
-      alert("Uploader is still loading. Try again in a moment.");
-      return;
-    }
-    videoWidgetRef.current.open();
-  }
-
   function updateField(field, value) {
     setForm((current) => ({ ...current, [field]: value }));
   }
@@ -2112,7 +2016,7 @@ function PreviousRaceWinnerAdminPanel({ drivers = [], raceHistory = [] }) {
     imageWidgetRef.current = window.cloudinary.createUploadWidget(
       {
         cloudName: "dpu05oykz",
-        uploadPreset: "dpu05oykz",
+        uploadPreset: "car_uploads",
         resourceType: "image",
         folder: "previous-race-winners",
         maxFileSize: 15000000,
@@ -2139,8 +2043,8 @@ function PreviousRaceWinnerAdminPanel({ drivers = [], raceHistory = [] }) {
     videoWidgetRef.current = window.cloudinary.createUploadWidget(
       {
         cloudName: "dpu05oykz",
-        uploadPreset: "dpu05oykz",
-        resourceType: "video",
+        uploadPreset: "car_uploads",
+        resourceType: "auto",
         folder: "previous-race-winners",
         maxFileSize: 200000000,
         clientAllowedFormats: ["mp4", "mov", "avi", "mkv", "webm"],
