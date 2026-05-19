@@ -726,6 +726,292 @@ function AppUpdateBanner({ page = "all" }) {
 }
 
 
+
+function MemorialDayPage({ drivers = [] }) {
+  const [tributes, setTributes] = useState([]);
+  const [form, setForm] = useState({
+    driver_id: "",
+    honoree_name: "",
+    relationship: "",
+    branch: "",
+    accomplishments: "",
+    story: "",
+  });
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
+  const activeDrivers = useMemo(() => {
+    return dedupeDriversByNumber(drivers || [])
+      .filter((driver) => !driver.retired && !isInactivePlaceholderDriver(driver))
+      .sort((a, b) => Number(a.number || 9999) - Number(b.number || 9999));
+  }, [drivers]);
+
+  async function loadTributes() {
+    const { data, error } = await supabase
+      .from("memorial_day_tributes")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Could not load memorial tributes:", error);
+      try {
+        setTributes(JSON.parse(localStorage.getItem("bclMemorialDayTributes") || "[]"));
+      } catch {
+        setTributes([]);
+      }
+      return;
+    }
+
+    setTributes(data || []);
+  }
+
+  useEffect(() => {
+    loadTributes();
+  }, []);
+
+  useEffect(() => {
+    if (window.cloudinary) {
+      setCloudinaryReady(true);
+      return;
+    }
+
+    const existing = document.getElementById("cloudinary-widget-script");
+    if (existing) {
+      existing.addEventListener("load", () => setCloudinaryReady(true));
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.id = "cloudinary-widget-script";
+    script.src = "https://widget.cloudinary.com/v2.0/global/all.js";
+    script.async = true;
+    script.onload = () => setCloudinaryReady(true);
+    script.onerror = () => console.error("Cloudinary widget failed to load");
+    document.body.appendChild(script);
+  }, []);
+
+  useEffect(() => {
+    if (!cloudinaryReady || !window.cloudinary) return;
+
+    imageWidgetRef.current = window.cloudinary.createUploadWidget(
+      {
+        cloudName: "dpu05oykz",
+        uploadPreset: "dpu05oykz",
+        resourceType: "image",
+        folder: "previous-race-winners",
+        maxFileSize: 15000000,
+        clientAllowedFormats: ["jpg", "jpeg", "png", "webp", "gif"],
+      },
+      (error, result) => {
+        if (error) {
+          console.error("Previous race winner image upload failed:", error);
+          alert("Image upload failed: " + (error.message || "Unknown error"));
+          return;
+        }
+
+        if (result?.event === "success") {
+          setForm((current) => ({
+            ...current,
+            mediaUrl: result.info.secure_url,
+            mediaType: "image",
+          }));
+          alert("✅ Winner picture uploaded.");
+        }
+      }
+    );
+
+    videoWidgetRef.current = window.cloudinary.createUploadWidget(
+      {
+        cloudName: "dpu05oykz",
+        uploadPreset: "dpu05oykz",
+        resourceType: "video",
+        folder: "previous-race-winners",
+        maxFileSize: 200000000,
+        clientAllowedFormats: ["mp4", "mov", "avi", "mkv", "webm"],
+      },
+      (error, result) => {
+        if (error) {
+          console.error("Previous race winner video upload failed:", error);
+          alert("Video upload failed: " + (error.message || "Unknown error"));
+          return;
+        }
+
+        if (result?.event === "success") {
+          setForm((current) => ({
+            ...current,
+            mediaUrl: result.info.secure_url,
+            mediaType: "video",
+          }));
+          alert("✅ Winner video uploaded.");
+        }
+      }
+    );
+  }, [cloudinaryReady]);
+
+  function openWinnerImageUploader() {
+    if (!cloudinaryReady || !imageWidgetRef.current) {
+      alert("Uploader is still loading. Try again in a moment.");
+      return;
+    }
+    imageWidgetRef.current.open();
+  }
+
+  function openWinnerVideoUploader() {
+    if (!cloudinaryReady || !videoWidgetRef.current) {
+      alert("Uploader is still loading. Try again in a moment.");
+      return;
+    }
+    videoWidgetRef.current.open();
+  }
+
+  function updateField(field, value) {
+    setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  async function submitTribute(event) {
+    event.preventDefault();
+    setMessage("");
+    setError("");
+
+    const driver = activeDrivers.find((item) => String(item.id) === String(form.driver_id));
+
+    if (!driver) {
+      setError("Select your driver before submitting.");
+      return;
+    }
+
+    if (!form.honoree_name.trim() || !form.story.trim()) {
+      setError("Please add who you are driving for and a short story.");
+      return;
+    }
+
+    const payload = {
+      driver_id: String(driver.id),
+      driver_name: driver.name || "",
+      driver_number: String(driver.number || ""),
+      team: getTeamFullName(driver.team || "Independent"),
+      manufacturer: driver.manufacturer || "",
+      honoree_name: form.honoree_name.trim(),
+      relationship: form.relationship.trim(),
+      branch: form.branch.trim(),
+      accomplishments: form.accomplishments.trim(),
+      story: form.story.trim(),
+      status: "approved",
+      created_at: new Date().toISOString(),
+    };
+
+    const { error: insertError } = await supabase.from("memorial_day_tributes").insert([payload]);
+
+    if (insertError) {
+      console.error("Could not save memorial tribute:", insertError);
+      try {
+        const saved = JSON.parse(localStorage.getItem("bclMemorialDayTributes") || "[]");
+        localStorage.setItem("bclMemorialDayTributes", JSON.stringify([{ ...payload, id: `local-${Date.now()}` }, ...saved]));
+        setMessage("Tribute saved on this browser. Check Supabase table/RLS to make it visible everywhere.");
+      } catch {
+        setError("Could not save tribute. Check the memorial_day_tributes table and RLS policies.");
+        return;
+      }
+    } else {
+      setMessage("Memorial Day tribute submitted.");
+    }
+
+    setForm({
+      driver_id: "",
+      honoree_name: "",
+      relationship: "",
+      branch: "",
+      accomplishments: "",
+      story: "",
+    });
+
+    await loadTributes();
+  }
+
+  return (
+    <div style={{ ...appShellStyle, background: "radial-gradient(circle at top left, rgba(30,64,175,0.32), transparent 34%), radial-gradient(circle at top right, rgba(185,28,28,0.28), transparent 32%), #07111f" }}>
+      <div style={{ ...pageContainerStyle, maxWidth: 1180 }}>
+        <div style={{ ...sectionCardStyle, border: "1px solid rgba(255,255,255,0.16)", background: "linear-gradient(135deg, rgba(127,29,29,0.82), rgba(15,23,42,0.96), rgba(30,64,175,0.78))" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 900, letterSpacing: 2, color: "#facc15" }}>BUDWEISER CUP LEAGUE</div>
+              <h1 style={{ margin: "8px 0", fontSize: 42, lineHeight: 1 }}>🇺🇸 Memorial Day Tribute Wall</h1>
+              <p style={{ margin: 0, opacity: 0.86, maxWidth: 760 }}>
+                Drivers can share who they are driving for and honor their service, sacrifice, and accomplishments.
+              </p>
+            </div>
+            <button type="button" onClick={() => (window.location.pathname = "/standings")} style={secondaryButtonStyle}>Back to Standings</button>
+          </div>
+        </div>
+
+        <form onSubmit={submitTribute} style={sectionCardStyle}>
+          <h2 style={{ marginTop: 0 }}>Submit Driver Tribute</h2>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14 }}>
+            <div>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>DRIVER</label>
+              <select value={form.driver_id} onChange={(event) => updateField("driver_id", event.target.value)} style={inputStyle}>
+                <option value="">Choose driver</option>
+                {activeDrivers.map((driver) => (
+                  <option key={driver.id} value={driver.id}>#{driver.number} {driver.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>WHO ARE YOU DRIVING FOR?</label>
+              <input value={form.honoree_name} onChange={(event) => updateField("honoree_name", event.target.value)} placeholder="Name of honoree" style={inputStyle} />
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>RELATIONSHIP</label>
+              <input value={form.relationship} onChange={(event) => updateField("relationship", event.target.value)} placeholder="Father, grandfather, friend, etc." style={inputStyle} />
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>BRANCH / SERVICE</label>
+              <input value={form.branch} onChange={(event) => updateField("branch", event.target.value)} placeholder="Army, Navy, Marines, Air Force, etc." style={inputStyle} />
+            </div>
+          </div>
+
+          <div style={{ marginTop: 14 }}>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>ACCOMPLISHMENTS</label>
+            <input value={form.accomplishments} onChange={(event) => updateField("accomplishments", event.target.value)} placeholder="Service awards, deployments, family legacy, community impact..." style={inputStyle} />
+          </div>
+
+          <div style={{ marginTop: 14 }}>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>SHORT STORY</label>
+            <textarea value={form.story} onChange={(event) => updateField("story", event.target.value)} rows={5} placeholder="Tell the story of who you are honoring." style={{ ...inputStyle, resize: "vertical" }} />
+          </div>
+
+          {message && <div style={{ color: "#4ade80", marginTop: 12, fontWeight: 900 }}>{message}</div>}
+          {error && <div style={{ color: "#f87171", marginTop: 12, fontWeight: 900 }}>{error}</div>}
+
+          <div style={{ marginTop: 16 }}>
+            <button type="submit" style={primaryButtonStyle}>Submit Tribute</button>
+          </div>
+        </form>
+
+        <div style={sectionCardStyle}>
+          <h2 style={{ marginTop: 0 }}>Tribute Wall</h2>
+          {tributes.length === 0 ? (
+            <div style={{ opacity: 0.72 }}>No tributes submitted yet.</div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 14 }}>
+              {tributes.map((tribute) => (
+                <div key={tribute.id || `${tribute.driver_name}-${tribute.honoree_name}`} style={{ background: "#0f1319", border: "1px solid #334155", borderRadius: 16, padding: 16 }}>
+                  <div style={{ color: "#facc15", fontWeight: 900 }}>#{tribute.driver_number} {tribute.driver_name}</div>
+                  <h3 style={{ margin: "8px 0" }}>Driving for {tribute.honoree_name}</h3>
+                  <div style={{ opacity: 0.75, fontSize: 13 }}>{tribute.relationship || "Honoree"} {tribute.branch ? `• ${tribute.branch}` : ""}</div>
+                  {tribute.accomplishments && <p style={{ fontWeight: 800 }}>{tribute.accomplishments}</p>}
+                  <p style={{ lineHeight: 1.45 }}>{tribute.story}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 function DriverFeedbackPage({ drivers = [] }) {
   const [form, setForm] = useState({
     driver_id: "",
@@ -1253,7 +1539,6 @@ function ContractsPage({ drivers = [] }) {
     const interval = setInterval(loadAll, 10000);
     return () => {
       isMounted = false;
-      clearInterval(interval);
     };
   }, []);
 
@@ -1534,195 +1819,528 @@ function ContractsPage({ drivers = [] }) {
 }
 
 
-function MemorialDayPage({ drivers = [] }) {
-  const [tributes, setTributes] = useState([]);
-  const [form, setForm] = useState({
-    driver_id: "",
-    honoree_name: "",
-    relationship: "",
-    branch: "",
-    accomplishments: "",
-    story: "",
+function getEasternDateTimePartsForPaintWinner(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+
+  return {
+    dateKey: `${values.year}-${values.month}-${values.day}`,
+    weekday: values.weekday,
+    hour: Number(values.hour || 0),
+    minute: Number(values.minute || 0),
+  };
+}
+
+function shouldShowPreviousPaintWinner(date = new Date()) {
+  const eastern = getEasternDateTimePartsForPaintWinner(date);
+
+  // Hide starting Wednesday at 12:00 AM Eastern.
+  // It will stay hidden Wednesday, Thursday, and Friday until a new race/weekend winner cycle starts.
+  if (eastern.weekday === "Wed" || eastern.weekday === "Thu" || eastern.weekday === "Fri") return false;
+
+  return true;
+}
+
+function getPreviousCompletedRaceForPaintWinner(tracks = [], date = new Date()) {
+  const easternNow = getEasternDateTimePartsForPaintWinner(date);
+
+  const sorted = [...(tracks || [])]
+    .filter((track) => track?.date)
+    .sort((a, b) => new Date(`${a.date}T12:00:00`) - new Date(`${b.date}T12:00:00`));
+
+  const completed = sorted.filter((track) => {
+    const raceDate = String(track.date || "").slice(0, 10);
+    if (!raceDate) return false;
+    if (easternNow.dateKey > raceDate) return true;
+    if (easternNow.dateKey < raceDate) return false;
+    return easternNow.hour >= 22;
   });
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
 
-  const activeDrivers = useMemo(() => {
-    return (drivers || [])
-      .filter((driver) => !driver.retired && !isInactivePlaceholderDriver(driver))
-      .sort((a, b) => Number(a.number || 9999) - Number(b.number || 9999));
-  }, [drivers]);
+  return completed[completed.length - 1] || null;
+}
 
-  async function loadTributes() {
-    const { data, error } = await supabase
-      .from("memorial_day_tributes")
-      .select("*")
-      .order("created_at", { ascending: false });
+function getPaintUploadRaceForStandings(upload) {
+  return upload?.race_id || upload?.race_week || upload?.race_name || "";
+}
 
-    if (error) {
-      console.error("Could not load memorial tributes:", error);
-      try {
-        setTributes(JSON.parse(localStorage.getItem("bclMemorialDayTributes") || "[]"));
-      } catch {
-        setTributes([]);
-      }
-      return;
-    }
+function isPaintImageUploadForStandings(upload) {
+  const url = upload?.image_url || upload?.file_url || "";
+  const fileType = String(upload?.file_type || "").toLowerCase();
+  return fileType.startsWith("image/") || url.match(/\.(jpg|jpeg|png|gif|webp)(\?|$)/i);
+}
 
-    setTributes(data || []);
-  }
+function PaintSchemeWinnerStandingsCard({ tracks = [], drivers = [] }) {
+  const [winner, setWinner] = useState(null);
+  const [raceName, setRaceName] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  const previousRace = useMemo(() => getPreviousCompletedRaceForPaintWinner(tracks), [JSON.stringify((tracks || []).map((track) => ({ name: track?.name, date: track?.date })))]);
+  const previousRaceName = previousRace?.name || "";
+  const driversKeyForPaintWinner = useMemo(() => JSON.stringify((drivers || []).map((driver) => ({ id: driver?.id, number: driver?.number, name: driver?.name, team: driver?.team }))), [drivers]);
+  const showWinnerWindow = shouldShowPreviousPaintWinner();
 
   useEffect(() => {
-    loadTributes();
-  }, []);
+    let isMounted = true;
 
-  function updateField(field, value) {
-    setForm((current) => ({ ...current, [field]: value }));
-  }
-
-  async function submitTribute(event) {
-    event.preventDefault();
-    setMessage("");
-    setError("");
-
-    const driver = activeDrivers.find((item) => String(item.id) === String(form.driver_id));
-
-    if (!driver) {
-      setError("Select your driver before submitting.");
-      return;
-    }
-
-    if (!form.honoree_name.trim() || !form.story.trim()) {
-      setError("Please add who you are driving for and a short story.");
-      return;
-    }
-
-    const payload = {
-      driver_id: String(driver.id),
-      driver_name: driver.name || "",
-      driver_number: String(driver.number || ""),
-      team: getTeamFullName(driver.team || "Independent"),
-      manufacturer: driver.manufacturer || "",
-      honoree_name: form.honoree_name.trim(),
-      relationship: form.relationship.trim(),
-      branch: form.branch.trim(),
-      accomplishments: form.accomplishments.trim(),
-      story: form.story.trim(),
-      status: "approved",
-      created_at: new Date().toISOString(),
-    };
-
-    const { error: insertError } = await supabase.from("memorial_day_tributes").insert([payload]);
-
-    if (insertError) {
-      console.error("Could not save memorial tribute:", insertError);
-      try {
-        const saved = JSON.parse(localStorage.getItem("bclMemorialDayTributes") || "[]");
-        localStorage.setItem("bclMemorialDayTributes", JSON.stringify([{ ...payload, id: `local-${Date.now()}` }, ...saved]));
-        setMessage("Tribute saved on this browser. Check Supabase table/RLS to make it visible everywhere.");
-      } catch {
-        setError("Could not save tribute. Check the memorial_day_tributes table and RLS policies.");
+    async function loadWinner() {
+      if (!showWinnerWindow) {
+        if (isMounted) {
+          setWinner(null);
+          setRaceName("");
+          setLoading(false);
+        }
         return;
       }
-    } else {
-      setMessage("Memorial Day tribute submitted.");
+
+      if (!previousRaceName) {
+        if (isMounted) {
+          setWinner(null);
+          setRaceName("");
+          setLoading(false);
+        }
+        return;
+      }
+
+      const [{ data: uploadData, error: uploadError }, { data: voteData, error: voteError }] = await Promise.all([
+        supabase.from("car_uploads").select("*").order("uploaded_at", { ascending: false }),
+        supabase.from("paint_scheme_votes").select("*").order("created_at", { ascending: false }),
+      ]);
+
+      if (uploadError || voteError) {
+        console.error("Could not load previous paint scheme winner:", uploadError || voteError);
+        if (isMounted) {
+          setWinner(null);
+          setRaceName("");
+          setLoading(false);
+        }
+        return;
+      }
+
+      const raceUploads = (uploadData || [])
+        .filter((upload) => isPaintImageUploadForStandings(upload))
+        .filter((upload) => getPaintUploadRaceForStandings(upload) === previousRaceName);
+
+      if (raceUploads.length === 0) {
+        if (isMounted) {
+          setWinner(null);
+          setRaceName(previousRaceName);
+          setLoading(false);
+        }
+        return;
+      }
+
+      const counts = new Map();
+      (voteData || []).forEach((vote) => {
+        const key = String(vote.upload_id || "");
+        counts.set(key, (counts.get(key) || 0) + 1);
+      });
+
+      const sorted = [...raceUploads].sort((a, b) => {
+        const voteDiff = (counts.get(String(b.id)) || 0) - (counts.get(String(a.id)) || 0);
+        if (voteDiff !== 0) return voteDiff;
+        return new Date(b.uploaded_at || 0) - new Date(a.uploaded_at || 0);
+      });
+
+      const winningUpload = sorted[0];
+      const driver = (drivers || []).find((item) => String(item.id) === String(winningUpload.driver_id));
+      const enrichedWinner = {
+        ...winningUpload,
+        voteCount: counts.get(String(winningUpload.id)) || 0,
+        driverLabel: driver ? `#${driver.number} ${driver.name}` : winningUpload.driver_name || winningUpload.uploader_name || "Unknown Driver",
+        teamLabel: driver?.team || winningUpload.team || winningUpload.team_key || "—",
+        imageUrl: winningUpload.image_url || winningUpload.file_url || "",
+      };
+
+      if (isMounted) {
+        setWinner(enrichedWinner);
+        setRaceName(previousRaceName);
+        setLoading(false);
+      }
     }
 
-    setForm({
-      driver_id: "",
-      honoree_name: "",
-      relationship: "",
-      branch: "",
-      accomplishments: "",
-      story: "",
-    });
+    loadWinner();
 
-    await loadTributes();
-  }
+    return () => {
+      isMounted = false;
+    };
+  }, [previousRaceName, showWinnerWindow, driversKeyForPaintWinner]);
+
+  if (loading || !winner) return null;
 
   return (
-    <div style={{ ...appShellStyle, background: "radial-gradient(circle at top left, rgba(30,64,175,0.34), transparent 34%), radial-gradient(circle at top right, rgba(185,28,28,0.30), transparent 32%), #07111f" }}>
-      <div style={{ ...pageContainerStyle, maxWidth: 1180 }}>
-        <div style={{ ...sectionCardStyle, border: "1px solid rgba(255,255,255,0.16)", background: "linear-gradient(135deg, rgba(127,29,29,0.86), rgba(15,23,42,0.96), rgba(30,64,175,0.82))" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 900, letterSpacing: 2, color: "#facc15" }}>BUDWEISER CUP LEAGUE</div>
-              <h1 style={{ margin: "8px 0", fontSize: 42, lineHeight: 1 }}>🇺🇸 Memorial Day Tribute Wall</h1>
-              <p style={{ margin: 0, opacity: 0.86, maxWidth: 760 }}>
-                Drivers can share who they are driving for and honor their service, sacrifice, and accomplishments.
-              </p>
-            </div>
-            <button type="button" onClick={() => (window.location.pathname = "/standings")} style={secondaryButtonStyle}>Back to Standings</button>
-          </div>
+    <div
+      style={{
+        background: "linear-gradient(135deg, rgba(212,175,55,0.18), rgba(15,23,42,0.96))",
+        border: "1px solid #d4af37",
+        borderRadius: 18,
+        padding: 16,
+        marginBottom: 20,
+        boxShadow: "0 12px 30px rgba(0,0,0,0.24)",
+        display: "grid",
+        gridTemplateColumns: "minmax(180px, 320px) 1fr",
+        gap: 18,
+        alignItems: "center",
+      }}
+    >
+      <div style={{ borderRadius: 14, overflow: "hidden", background: "#0f1319", border: "1px solid rgba(255,255,255,0.12)" }}>
+        <img src={winner.imageUrl} alt={winner.driverLabel} style={{ width: "100%", height: 190, objectFit: "cover", display: "block" }} />
+      </div>
+
+      <div>
+        <div style={{ color: "#d4af37", fontSize: 12, fontWeight: 900, letterSpacing: 1.6, textTransform: "uppercase" }}>
+          Previous Week Winner
         </div>
-
-        <form onSubmit={submitTribute} style={sectionCardStyle}>
-          <h2 style={{ marginTop: 0 }}>Submit Driver Tribute</h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14 }}>
-            <div>
-              <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>DRIVER</label>
-              <select value={form.driver_id} onChange={(event) => updateField("driver_id", event.target.value)} style={inputStyle}>
-                <option value="">Choose driver</option>
-                {activeDrivers.map((driver) => (
-                  <option key={driver.id} value={driver.id}>#{driver.number} {driver.name}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>WHO ARE YOU DRIVING FOR?</label>
-              <input value={form.honoree_name} onChange={(event) => updateField("honoree_name", event.target.value)} placeholder="Name of honoree" style={inputStyle} />
-            </div>
-            <div>
-              <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>RELATIONSHIP</label>
-              <input value={form.relationship} onChange={(event) => updateField("relationship", event.target.value)} placeholder="Father, grandfather, friend, teammate, etc." style={inputStyle} />
-            </div>
-            <div>
-              <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>BRANCH / SERVICE</label>
-              <input value={form.branch} onChange={(event) => updateField("branch", event.target.value)} placeholder="Army, Navy, Marines, Air Force, etc." style={inputStyle} />
-            </div>
-          </div>
-
-          <div style={{ marginTop: 14 }}>
-            <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>ACCOMPLISHMENTS</label>
-            <input value={form.accomplishments} onChange={(event) => updateField("accomplishments", event.target.value)} placeholder="Service awards, deployments, family legacy, community impact..." style={inputStyle} />
-          </div>
-
-          <div style={{ marginTop: 14 }}>
-            <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>SHORT STORY</label>
-            <textarea value={form.story} onChange={(event) => updateField("story", event.target.value)} rows={5} placeholder="Tell the story of who you are honoring." style={{ ...inputStyle, resize: "vertical" }} />
-          </div>
-
-          {message && <div style={{ color: "#4ade80", marginTop: 12, fontWeight: 900 }}>{message}</div>}
-          {error && <div style={{ color: "#f87171", marginTop: 12, fontWeight: 900 }}>{error}</div>}
-
-          <div style={{ marginTop: 16 }}>
-            <button type="submit" style={primaryButtonStyle}>Submit Tribute</button>
-          </div>
-        </form>
-
-        <div style={sectionCardStyle}>
-          <h2 style={{ marginTop: 0 }}>Tribute Wall</h2>
-          {tributes.length === 0 ? (
-            <div style={{ opacity: 0.72 }}>No tributes submitted yet.</div>
-          ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 14 }}>
-              {tributes.map((tribute) => (
-                <div key={tribute.id || `${tribute.driver_name}-${tribute.honoree_name}`} style={{ background: "#0f1319", border: "1px solid #334155", borderRadius: 16, padding: 16 }}>
-                  <div style={{ color: "#facc15", fontWeight: 900 }}>#{tribute.driver_number} {tribute.driver_name}</div>
-                  <h3 style={{ margin: "8px 0" }}>Driving for {tribute.honoree_name}</h3>
-                  <div style={{ opacity: 0.75, fontSize: 13 }}>{tribute.relationship || "Honoree"} {tribute.branch ? `• ${tribute.branch}` : ""}</div>
-                  {tribute.accomplishments && <p style={{ fontWeight: 800 }}>{tribute.accomplishments}</p>}
-                  <p style={{ lineHeight: 1.45 }}>{tribute.story}</p>
-                </div>
-              ))}
-            </div>
-          )}
+        <div style={{ fontSize: 30, fontWeight: 900, marginTop: 6 }}>
+          🎨 Paint Scheme of the Week
+        </div>
+        <div style={{ fontSize: 20, fontWeight: 900, marginTop: 8 }}>
+          {winner.driverLabel}
+        </div>
+        <div style={{ opacity: 0.75, marginTop: 4 }}>
+          {winner.teamLabel} • {raceName} • {winner.voteCount} votes
+        </div>
+        <div style={{ opacity: 0.62, fontSize: 12, marginTop: 10 }}>
+          Display automatically hides Wednesday at 12:00 AM Eastern.
         </div>
       </div>
     </div>
   );
 }
 
+
+
+function PreviousRaceWinnerStandingsCard() {
+  const [winner, setWinner] = useState(null);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("bclPreviousRaceWinner");
+      setWinner(saved ? JSON.parse(saved) : null);
+    } catch {
+      setWinner(null);
+    }
+  }, []);
+
+  if (!winner) return null;
+
+  return (
+    <div
+      style={{
+        background: "linear-gradient(135deg, rgba(34,197,94,0.18), rgba(15,23,42,0.96))",
+        border: "1px solid #22c55e",
+        borderRadius: 18,
+        padding: 16,
+        marginBottom: 20,
+        boxShadow: "0 12px 30px rgba(0,0,0,0.24)",
+      }}
+    >
+      {winner.mediaUrl && (
+        <div style={{ marginBottom: 14, borderRadius: 16, overflow: "hidden", border: "1px solid rgba(255,255,255,0.14)", background: "#0f1319" }}>
+          {winner.mediaType === "video" ? (
+            <video controls src={winner.mediaUrl} style={{ width: "100%", maxHeight: 420, display: "block", objectFit: "cover" }} />
+          ) : (
+            <img src={winner.mediaUrl} alt={`${winner.name} previous race winner`} style={{ width: "100%", maxHeight: 420, display: "block", objectFit: "cover" }} />
+          )}
+        </div>
+      )}
+
+      <div style={{ color: "#22c55e", fontSize: 12, fontWeight: 900, letterSpacing: 1.6, textTransform: "uppercase" }}>
+        Previous Race Winner
+      </div>
+      <div style={{ fontSize: 30, fontWeight: 900, marginTop: 6 }}>
+        🏁 {winner.raceName || "Last Race"}
+      </div>
+      <div style={{ fontSize: 22, fontWeight: 900, marginTop: 8 }}>
+        #{winner.number} {winner.name}
+      </div>
+      <div style={{ opacity: 0.75, marginTop: 4 }}>
+        {winner.team || "—"} • {winner.manufacturer || "—"} • {winner.points || 0} points
+      </div>
+      {winner.note && <div style={{ marginTop: 10, lineHeight: 1.5, opacity: 0.82 }}>{winner.note}</div>}
+    </div>
+  );
+}
+
+function PreviousRaceWinnerAdminPanel({ drivers = [], raceHistory = [] }) {
+  const [form, setForm] = useState(() => {
+    try {
+      const saved = localStorage.getItem("bclPreviousRaceWinner");
+      return saved ? JSON.parse(saved) : { raceName: "", driverId: "", number: "", name: "", team: "", manufacturer: "", points: "", note: "", mediaUrl: "", mediaType: "" };
+    } catch {
+      return { raceName: "", driverId: "", number: "", name: "", team: "", manufacturer: "", points: "", note: "", mediaUrl: "", mediaType: "" };
+    }
+  });
+
+  const [cloudinaryReady, setCloudinaryReady] = useState(Boolean(window.cloudinary));
+  const imageWidgetRef = useRef(null);
+  const videoWidgetRef = useRef(null);
+
+  useEffect(() => {
+    if (window.cloudinary) {
+      setCloudinaryReady(true);
+      return;
+    }
+
+    const existing = document.getElementById("cloudinary-widget-script");
+    if (existing) {
+      existing.addEventListener("load", () => setCloudinaryReady(true));
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.id = "cloudinary-widget-script";
+    script.src = "https://widget.cloudinary.com/v2.0/global/all.js";
+    script.async = true;
+    script.onload = () => setCloudinaryReady(true);
+    script.onerror = () => console.error("Cloudinary widget failed to load");
+    document.body.appendChild(script);
+  }, []);
+
+  useEffect(() => {
+    if (!cloudinaryReady || !window.cloudinary) return;
+
+    imageWidgetRef.current = window.cloudinary.createUploadWidget(
+      {
+        cloudName: "dpu05oykz",
+        uploadPreset: "dpu05oykz",
+        resourceType: "image",
+        folder: "previous-race-winners",
+        maxFileSize: 15000000,
+        clientAllowedFormats: ["jpg", "jpeg", "png", "webp", "gif"],
+      },
+      (error, result) => {
+        if (error) {
+          console.error("Previous race winner image upload failed:", error);
+          alert("Image upload failed: " + (error.message || "Unknown error"));
+          return;
+        }
+
+        if (result?.event === "success") {
+          setForm((current) => ({
+            ...current,
+            mediaUrl: result.info.secure_url,
+            mediaType: "image",
+          }));
+          alert("✅ Winner picture uploaded.");
+        }
+      }
+    );
+
+    videoWidgetRef.current = window.cloudinary.createUploadWidget(
+      {
+        cloudName: "dpu05oykz",
+        uploadPreset: "dpu05oykz",
+        resourceType: "video",
+        folder: "previous-race-winners",
+        maxFileSize: 200000000,
+        clientAllowedFormats: ["mp4", "mov", "avi", "mkv", "webm"],
+      },
+      (error, result) => {
+        if (error) {
+          console.error("Previous race winner video upload failed:", error);
+          alert("Video upload failed: " + (error.message || "Unknown error"));
+          return;
+        }
+
+        if (result?.event === "success") {
+          setForm((current) => ({
+            ...current,
+            mediaUrl: result.info.secure_url,
+            mediaType: "video",
+          }));
+          alert("✅ Winner video uploaded.");
+        }
+      }
+    );
+  }, [cloudinaryReady]);
+
+  function openWinnerImageUploader() {
+    if (!cloudinaryReady || !imageWidgetRef.current) {
+      alert("Uploader is still loading. Try again in a moment.");
+      return;
+    }
+    imageWidgetRef.current.open();
+  }
+
+  function openWinnerVideoUploader() {
+    if (!cloudinaryReady || !videoWidgetRef.current) {
+      alert("Uploader is still loading. Try again in a moment.");
+      return;
+    }
+    videoWidgetRef.current.open();
+  }
+
+
+
+  const latestRace = Array.isArray(raceHistory) && raceHistory.length > 0 ? raceHistory[raceHistory.length - 1] : null;
+  const latestWinner = latestRace?.results?.find((result) => Number(result.finishPos) === 1 || result.isWin) || null;
+
+  function updateField(field, value) {
+    setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function chooseDriver(driverId) {
+    const driver = (drivers || []).find((item) => String(item.id) === String(driverId));
+    if (!driver) {
+      updateField("driverId", driverId);
+      return;
+    }
+
+    setForm((current) => ({
+      ...current,
+      driverId,
+      number: driver.number || "",
+      name: driver.name || "",
+      team: driver.team || "",
+      manufacturer: driver.manufacturer || "",
+    }));
+  }
+
+  function autofillFromLatestRace() {
+    if (!latestRace || !latestWinner) {
+      alert("No race winner found in race history yet.");
+      return;
+    }
+
+    setForm({
+      raceName: latestRace.raceName || "",
+      driverId: latestWinner.driverId || "",
+      number: latestWinner.number || "",
+      name: latestWinner.name || "",
+      team: latestWinner.team || "",
+      manufacturer: latestWinner.manufacturer || "",
+      points: latestWinner.totalRacePoints ?? "",
+      note: form.note || "",
+      mediaUrl: form.mediaUrl || "",
+      mediaType: form.mediaType || "",
+    });
+  }
+
+  function saveWinner() {
+    if (!form.raceName || !form.name || !form.number) {
+      alert("Add the race name, driver name, and number before saving.");
+      return;
+    }
+
+    localStorage.setItem("bclPreviousRaceWinner", JSON.stringify({ ...form, updatedAt: new Date().toISOString() }));
+    alert("Previous race winner saved. Refresh /standings to see it.");
+  }
+
+  function clearWinner() {
+    if (!window.confirm("Clear the previous race winner from standings?")) return;
+    localStorage.removeItem("bclPreviousRaceWinner");
+    setForm({ raceName: "", driverId: "", number: "", name: "", team: "", manufacturer: "", points: "", note: "", mediaUrl: "", mediaType: "" });
+    alert("Previous race winner cleared.");
+  }
+
+  return (
+    <div style={sectionCardStyle}>
+      <h2 style={{ marginTop: 0 }}>🏁 Previous Race Winner</h2>
+      <div style={{ opacity: 0.72, marginBottom: 14 }}>
+        Feed the winner card shown on /standings. You can auto-fill from the latest saved race or enter it manually.
+      </div>
+
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
+        <button type="button" onClick={autofillFromLatestRace} style={secondaryButtonStyle}>
+          Auto-Fill From Latest Race
+        </button>
+        <button type="button" onClick={saveWinner} style={primaryButtonStyle}>
+          Save Winner to Standings
+        </button>
+        <button type="button" onClick={clearWinner} style={dangerButtonStyle}>
+          Clear Winner
+        </button>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+        <div>
+          <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>RACE NAME</label>
+          <input value={form.raceName || ""} onChange={(event) => updateField("raceName", event.target.value)} placeholder="Daytona (Night)" style={inputStyle} />
+        </div>
+
+        <div>
+          <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>SELECT DRIVER</label>
+          <select value={form.driverId || ""} onChange={(event) => chooseDriver(event.target.value)} style={inputStyle}>
+            <option value="">Manual / choose driver</option>
+            {(drivers || []).map((driver) => (
+              <option key={driver.id} value={driver.id}>#{driver.number} {driver.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>NUMBER</label>
+          <input value={form.number || ""} onChange={(event) => updateField("number", event.target.value)} placeholder="16" style={inputStyle} />
+        </div>
+
+        <div>
+          <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>DRIVER NAME</label>
+          <input value={form.name || ""} onChange={(event) => updateField("name", event.target.value)} placeholder="Driver name" style={inputStyle} />
+        </div>
+
+        <div>
+          <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>TEAM</label>
+          <input value={form.team || ""} onChange={(event) => updateField("team", event.target.value)} placeholder="WSM" style={inputStyle} />
+        </div>
+
+        <div>
+          <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>MANUFACTURER</label>
+          <input value={form.manufacturer || ""} onChange={(event) => updateField("manufacturer", event.target.value)} placeholder="Chevrolet" style={inputStyle} />
+        </div>
+
+        <div>
+          <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>POINTS</label>
+          <input value={form.points || ""} onChange={(event) => updateField("points", event.target.value)} placeholder="55" style={inputStyle} />
+        </div>
+      </div>
+
+      <div style={{ marginTop: 14, background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14 }}>
+        <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 10 }}>WINNER MEDIA OPTIONAL</label>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+          <button type="button" onClick={openWinnerImageUploader} style={{ ...secondaryButtonStyle, opacity: cloudinaryReady ? 1 : 0.6 }}>
+            {cloudinaryReady ? "📷 Upload Winner Picture" : "⏳ Loading Uploader"}
+          </button>
+          <button type="button" onClick={openWinnerVideoUploader} style={{ ...secondaryButtonStyle, background: "#dc2626", border: "1px solid #ef4444", opacity: cloudinaryReady ? 1 : 0.6 }}>
+            {cloudinaryReady ? "🎥 Upload Winner Video" : "⏳ Loading Uploader"}
+          </button>
+          {form.mediaUrl && (
+            <button type="button" onClick={() => setForm((current) => ({ ...current, mediaUrl: "", mediaType: "" }))} style={dangerButtonStyle}>
+              Remove Media
+            </button>
+          )}
+        </div>
+
+        {form.mediaUrl && (
+          <div style={{ marginTop: 12 }}>
+            <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 8 }}>
+              Current media: {form.mediaType === "video" ? "Video" : "Picture"}
+            </div>
+            {form.mediaType === "video" ? (
+              <video controls src={form.mediaUrl} style={{ width: "100%", maxWidth: 520, borderRadius: 12, border: "1px solid #2c3440" }} />
+            ) : (
+              <img src={form.mediaUrl} alt="Winner media preview" style={{ width: "100%", maxWidth: 520, borderRadius: 12, border: "1px solid #2c3440" }} />
+            )}
+          </div>
+        )}
+      </div>
+
+      <div style={{ marginTop: 12 }}>
+        <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>SHORT NOTE OPTIONAL</label>
+        <textarea value={form.note || ""} onChange={(event) => updateField("note", event.target.value)} rows={3} placeholder="Example: Survived Daytona chaos and delivered WSM its first win." style={{ ...inputStyle, resize: "vertical" }} />
+      </div>
+    </div>
+  );
+}
 
 function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonName = "", tracks = [], raceHistory = [] }) {
   const [scheduleOpen, setScheduleOpen] = useState(false);
@@ -1958,6 +2576,17 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
               <button onClick={() => (window.location.pathname = "/news")} style={{ background: "#d4af37", color: "#111", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>📰 News</button>
               <button onClick={() => (window.location.pathname = "/interviews")} style={{ background: "#c8102e", color: "white", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 900, cursor: "pointer", fontSize: 14 }}>🎤 Interviews</button>
               <button onClick={() => (window.location.pathname = "/paint-scheme-vote")} style={{ background: "#f97316", color: "white", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 900, cursor: "pointer", fontSize: 14 }}>🎨 Paint Scheme Vote</button>
+              <button
+                type="button"
+                onClick={() => (window.location.pathname = "/memorial-day")}
+                style={{
+                  ...secondaryButtonStyle,
+                  background: "linear-gradient(135deg, #b91c1c, #1d4ed8)",
+                  border: "1px solid rgba(255,255,255,0.22)",
+                }}
+              >
+                🇺🇸 Memorial Day
+              </button>
               <button onClick={() => window.open("https://discord.gg/uvbBJBR5Tz", "_blank")} style={{ background: "#2563eb", color: "white", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 900, cursor: "pointer", fontSize: 14 }}>📺 CW Channel</button>
               <button onClick={() => (window.location.pathname = "/team-hq")} style={{ background: "#0f766e", color: "white", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>🏢 Team HQ</button>
               <button onClick={() => (window.location.pathname = "/contracts")} style={{ background: "#d4af37", color: "#111", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 900, cursor: "pointer", fontSize: 14 }}>📄 Active Contracts</button>
@@ -1968,6 +2597,8 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
           </div>
         </div>
         <AppUpdateBanner page="standings" />
+        <PaintSchemeWinnerStandingsCard tracks={tracks} drivers={drivers} />
+        <PreviousRaceWinnerStandingsCard />
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 14, marginBottom: 24 }}>
           {[{label:"DRIVERS",value:sorted.length},{label:"TEAMS",value:teams.length},{label:"TOTAL WINS",value:totalWins},{label:"TOTAL DNFS",value:totalDnfs},{label:"POINTS AWARDED",value:totalPoints}].map((item) => (
@@ -3492,6 +4123,7 @@ export default function App() {
   if (path === "/owners" || path === "/team-hq") return <OwnersPage drivers={visibleDrivers} teams={teamStandings} teamBudgets={teamBudgets} raceHistory={raceHistory} seasonName={activeSeason?.name || ""} />;
   if (path === "/contracts") return <ContractsPage drivers={visibleDrivers} />;
   if (path === "/memorial-day") return <MemorialDayPage drivers={visibleDrivers} />;
+
   if (path === "/" || path === "/standings") return <PublicStandings drivers={visibleDrivers} teams={teamStandings} manufacturerStandings={manufacturerStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} />;
   if (path === "/overlay/ticker" || viewMode === "overlay-ticker") return <TickerOverlay drivers={visibleDrivers} teams={teamStandings} raceHistory={raceHistory} preview={viewMode === "overlay-ticker"} seasonName={activeSeason?.name || ""} />;
   if (path !== "/admin") {
@@ -3694,6 +4326,8 @@ export default function App() {
             </table>
           </div>
         </div>
+
+        <PreviousRaceWinnerAdminPanel drivers={visibleDrivers} raceHistory={raceHistory} />
 
         {/* Ones to Watch Manager */}
         <div style={sectionCardStyle}>
@@ -4211,3 +4845,4 @@ export default function App() {
     </div>
   );
 }
+
