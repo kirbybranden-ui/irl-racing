@@ -1927,15 +1927,41 @@ function PreviousRaceWinnerStandingsCard() {
   const [winner, setWinner] = useState(null);
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem("bclPreviousRaceWinner");
-      setWinner(saved ? JSON.parse(saved) : null);
-    } catch {
-      setWinner(null);
+    let isMounted = true;
+
+    async function loadWinner() {
+      const { data, error } = await supabase
+        .from("previous_race_winner")
+        .select("*")
+        .eq("id", 1)
+        .maybeSingle();
+
+      if (!isMounted) return;
+
+      if (error) {
+        console.error("Could not load previous race winner:", error);
+        setWinner(null);
+        return;
+      }
+
+      setWinner(data || null);
     }
+
+    loadWinner();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   if (!winner) return null;
+
+  const mediaUrl = winner.media_url || winner.mediaUrl || "";
+  const mediaType = winner.media_type || winner.mediaType || "";
+  const raceName = winner.race_name || winner.raceName || "Last Race";
+  const driverName = winner.driver_name || winner.name || "";
+  const driverNumber = winner.driver_number || winner.number || "";
+  const votePoints = winner.points || 0;
 
   return (
     <div
@@ -1948,12 +1974,12 @@ function PreviousRaceWinnerStandingsCard() {
         boxShadow: "0 12px 30px rgba(0,0,0,0.24)",
       }}
     >
-      {winner.mediaUrl && (
+      {mediaUrl && (
         <div style={{ marginBottom: 14, borderRadius: 16, overflow: "hidden", border: "1px solid rgba(255,255,255,0.14)", background: "#0f1319" }}>
-          {winner.mediaType === "video" ? (
-            <video controls src={winner.mediaUrl} style={{ width: "100%", maxHeight: 420, display: "block", objectFit: "cover" }} />
+          {mediaType === "video" ? (
+            <video controls src={mediaUrl} style={{ width: "100%", maxHeight: 420, display: "block", objectFit: "cover" }} />
           ) : (
-            <img src={winner.mediaUrl} alt={`${winner.name} previous race winner`} style={{ width: "100%", maxHeight: 420, display: "block", objectFit: "cover" }} />
+            <img src={mediaUrl} alt={`${driverName} previous race winner`} style={{ width: "100%", maxHeight: 420, display: "block", objectFit: "cover" }} />
           )}
         </div>
       )}
@@ -1962,28 +1988,25 @@ function PreviousRaceWinnerStandingsCard() {
         Previous Race Winner
       </div>
       <div style={{ fontSize: 30, fontWeight: 900, marginTop: 6 }}>
-        🏁 {winner.raceName || "Last Race"}
+        🏁 {raceName}
       </div>
       <div style={{ fontSize: 22, fontWeight: 900, marginTop: 8 }}>
-        #{winner.number} {winner.name}
+        #{driverNumber} {driverName}
       </div>
       <div style={{ opacity: 0.75, marginTop: 4 }}>
-        {winner.team || "—"} • {winner.manufacturer || "—"} • {winner.points || 0} points
+        {winner.team || "—"} • {winner.manufacturer || "—"} • {votePoints} points
       </div>
       {winner.note && <div style={{ marginTop: 10, lineHeight: 1.5, opacity: 0.82 }}>{winner.note}</div>}
     </div>
   );
 }
 
+
 function PreviousRaceWinnerAdminPanel({ drivers = [], raceHistory = [] }) {
-  const [form, setForm] = useState(() => {
-    try {
-      const saved = localStorage.getItem("bclPreviousRaceWinner");
-      return saved ? JSON.parse(saved) : { raceName: "", driverId: "", number: "", name: "", team: "", manufacturer: "", points: "", note: "", mediaUrl: "", mediaType: "" };
-    } catch {
-      return { raceName: "", driverId: "", number: "", name: "", team: "", manufacturer: "", points: "", note: "", mediaUrl: "", mediaType: "" };
-    }
-  });
+  const [form, setForm] = useState({ raceName: "", driverId: "", number: "", name: "", team: "", manufacturer: "", points: "", note: "", mediaUrl: "", mediaType: "" });
+  const [savingWinner, setSavingWinner] = useState(false);
+  const [winnerMessage, setWinnerMessage] = useState("");
+  const [winnerError, setWinnerError] = useState("");
 
   const [cloudinaryReady, setCloudinaryReady] = useState(Boolean(window.cloudinary));
   const imageWidgetRef = useRef(null);
@@ -2089,6 +2112,48 @@ function PreviousRaceWinnerAdminPanel({ drivers = [], raceHistory = [] }) {
   const latestRace = Array.isArray(raceHistory) && raceHistory.length > 0 ? raceHistory[raceHistory.length - 1] : null;
   const latestWinner = latestRace?.results?.find((result) => Number(result.finishPos) === 1 || result.isWin) || null;
 
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadSavedWinner() {
+      const { data, error } = await supabase
+        .from("previous_race_winner")
+        .select("*")
+        .eq("id", 1)
+        .maybeSingle();
+
+      if (!isMounted) return;
+
+      if (error) {
+        console.error("Could not load saved previous race winner:", error);
+        setWinnerError("Could not load saved winner. Check previous_race_winner RLS select policy.");
+        return;
+      }
+
+      if (data) {
+        setForm({
+          raceName: data.race_name || "",
+          driverId: data.driver_id || "",
+          number: data.driver_number || "",
+          name: data.driver_name || "",
+          team: data.team || "",
+          manufacturer: data.manufacturer || "",
+          points: data.points || "",
+          note: data.note || "",
+          mediaUrl: data.media_url || "",
+          mediaType: data.media_type || "",
+        });
+      }
+    }
+
+    loadSavedWinner();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+
   function updateField(field, value) {
     setForm((current) => ({ ...current, [field]: value }));
   }
@@ -2130,20 +2195,70 @@ function PreviousRaceWinnerAdminPanel({ drivers = [], raceHistory = [] }) {
     });
   }
 
-  function saveWinner() {
+  async function saveWinner() {
+    setWinnerMessage("");
+    setWinnerError("");
+
     if (!form.raceName || !form.name || !form.number) {
       alert("Add the race name, driver name, and number before saving.");
       return;
     }
 
-    localStorage.setItem("bclPreviousRaceWinner", JSON.stringify({ ...form, updatedAt: new Date().toISOString() }));
-    alert("Previous race winner saved. Refresh /standings to see it.");
+    const payload = {
+      id: 1,
+      race_name: form.raceName || "",
+      driver_id: form.driverId ? String(form.driverId) : null,
+      driver_number: String(form.number || ""),
+      driver_name: form.name || "",
+      team: form.team || "",
+      manufacturer: form.manufacturer || "",
+      points: Number(form.points || 0),
+      note: form.note || "",
+      media_url: form.mediaUrl || "",
+      media_type: form.mediaType || "",
+      active: true,
+      updated_at: new Date().toISOString(),
+    };
+
+    setSavingWinner(true);
+
+    const { error } = await supabase
+      .from("previous_race_winner")
+      .upsert(payload, { onConflict: "id" });
+
+    setSavingWinner(false);
+
+    if (error) {
+      console.error("Could not save previous race winner:", error);
+      setWinnerError("Could not save winner. Check previous_race_winner table and RLS upsert policy.");
+      alert("Could not save winner. Check previous_race_winner table and RLS policy.");
+      return;
+    }
+
+    setWinnerMessage("Previous race winner saved to /standings.");
+    alert("Previous race winner saved to /standings.");
   }
 
-  function clearWinner() {
+  async function clearWinner() {
     if (!window.confirm("Clear the previous race winner from standings?")) return;
-    localStorage.removeItem("bclPreviousRaceWinner");
+
+    setWinnerMessage("");
+    setWinnerError("");
+
+    const { error } = await supabase
+      .from("previous_race_winner")
+      .delete()
+      .eq("id", 1);
+
+    if (error) {
+      console.error("Could not clear previous race winner:", error);
+      setWinnerError("Could not clear winner. Check previous_race_winner RLS delete policy.");
+      alert("Could not clear winner. Check previous_race_winner RLS delete policy.");
+      return;
+    }
+
     setForm({ raceName: "", driverId: "", number: "", name: "", team: "", manufacturer: "", points: "", note: "", mediaUrl: "", mediaType: "" });
+    setWinnerMessage("Previous race winner cleared from /standings.");
     alert("Previous race winner cleared.");
   }
 
@@ -2159,12 +2274,15 @@ function PreviousRaceWinnerAdminPanel({ drivers = [], raceHistory = [] }) {
           Auto-Fill From Latest Race
         </button>
         <button type="button" onClick={saveWinner} style={primaryButtonStyle}>
-          Save Winner to Standings
+          {savingWinner ? "Saving..." : "Save Winner to Standings"}
         </button>
         <button type="button" onClick={clearWinner} style={dangerButtonStyle}>
           Clear Winner
         </button>
       </div>
+
+      {winnerMessage && <div style={{ color: "#4ade80", marginBottom: 12, fontWeight: 900 }}>{winnerMessage}</div>}
+      {winnerError && <div style={{ color: "#f87171", marginBottom: 12, fontWeight: 900 }}>{winnerError}</div>}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
         <div>
