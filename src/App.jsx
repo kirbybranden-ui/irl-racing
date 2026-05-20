@@ -53,8 +53,8 @@ MMS: teamLogoMMS,
   BWR: teamLogoBWR,
   "Kev Din Motorsports": teamLogoKDM,
   KDM: teamLogoKDM,
-  "BayouX Motorsports": teamLogoIND,
-  BMX: teamLogoIND,
+  "BayouX Motorsports": teamLogoBXM,
+  BXM: teamLogoBXM,
 };
 const manufacturerLogos = {
   Chevrolet: manufacturerChevrolet,
