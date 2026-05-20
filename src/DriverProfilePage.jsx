@@ -9,6 +9,7 @@ import teamLogoIND from "./assets/teams/IND.png";
 import teamLogo19XI from "./assets/teams/19XI.png";
 import teamLogoBWR from "./assets/teams/BWR.png";
 import teamLogoKDM from "./assets/teams/KDM.png";
+import teamLogoBXM from "./assets/teams/BXM.png";
 import { supabase } from "./lib/supabase";
 import { uploadCarFile, getCarUploads, deleteCarUpload } from "./lib/carUploads";
 
@@ -29,8 +30,8 @@ const teamLogos = {
   BWR: teamLogoBWR,
   "Kev Din Motorsports": teamLogoKDM,
   KDM: teamLogoKDM,
-  BMX: teamLogoIND,
-  "BayouX Motorsports": teamLogoIND,
+  BXM: teamLogoBXM,
+  "BayouX Motorsports": teamLogoBXM,
 };
 
 const teamFullNames = {
@@ -50,7 +51,7 @@ const teamFullNames = {
   BWR: "Big Wheel Racing",
   "Big Wheel Racing": "Big Wheel Racing",
   "Kev Din Motorsports": "Kev Din Motorsports",
-  BMX: "BayouX Motorsports",
+  BXM: "BayouX Motorsports",
   "BayouX Motorsports": "BayouX Motorsports",
 };
 
@@ -70,7 +71,7 @@ const teamThemes = {
   "19XI Racing": { accent: "#a855f7", glow: "rgba(168,85,247,0.28)", dark: "#251138" },
   IND: { accent: "#9ca3af", glow: "rgba(156,163,175,0.24)", dark: "#1f2937" },
   Independent: { accent: "#9ca3af", glow: "rgba(156,163,175,0.24)", dark: "#1f2937" },
-  BMX: { accent: "#2563eb", glow: "rgba(37,99,235,0.28)", dark: "#0f172a" },
+  BXM: { accent: "#2563eb", glow: "rgba(37,99,235,0.28)", dark: "#0f172a" },
   "BayouX Motorsports": { accent: "#2563eb", glow: "rgba(37,99,235,0.28)", dark: "#0f172a" },
 };
 
