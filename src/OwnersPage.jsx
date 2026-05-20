@@ -23,6 +23,8 @@ const teamLogos = {
   "19XI": teamLogo19XI,
   "19XI Racing": teamLogo19XI,
   BWR: teamLogoBWR,
+  BMX: teamLogoIND,
+  "BayouX Motorsports": teamLogoIND,
 };
 
 const teamFullNames = {
@@ -37,6 +39,8 @@ const teamFullNames = {
   Independent: "Independent",
   "19XI": "19XI Racing",
   "19XI Racing": "19XI Racing",
+  BMX: "BayouX Motorsports",
+  "BayouX Motorsports": "BayouX Motorsports",
 };
 
 const ownerNames = {
@@ -51,6 +55,8 @@ const ownerNames = {
   BOM: "Blue Oval Motorsports",
   Independent: "Free Agent Pool",
   IND: "Free Agent Pool",
+  BMX: "BayouX Motorsports Ownership Group",
+  "BayouX Motorsports": "BayouX Motorsports Ownership Group",
 };
 
 const TEAM_STARTING_FUNDS = {
@@ -62,6 +68,8 @@ const TEAM_STARTING_FUNDS = {
 
 const TEAM_BUDGET_OVERRIDES = {
   JAM: 5000000,
+  BMX: 700000,
+  "BayouX Motorsports": 700000,
 };
 
 const TECHNICAL_ALLIANCE_COST = 50000;
