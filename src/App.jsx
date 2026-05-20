@@ -76,7 +76,7 @@ const teamFullNames = {
   "19XI Racing": "19XI Racing",
   BWR: "Big Wheel Racing",
   KDM: "Kev Din Motorsports",
-  BMX: "BayouX Motorsports",
+  BXM: "BayouX Motorsports",
   "BayouX Motorsports": "BayouX Motorsports",
   Independent: "Independent",
 };
@@ -182,8 +182,8 @@ const defaultDrivers = [
   { id: 27, number: 97, name: "JPC_Racing",            manufacturer: "Ford",      team: "BWR"         },
   { id: 51, number: 51, name: "MARE951",                  manufacturer: "Chevrolet", team: "BWR"         },
   { id: 46, number: 46, name: "BigDiehl21", manufacturer: "Chevrolet", team: "WSM" },
-  { id: 34, number: 34, name: "CaJunThrottle28", manufacturer: "Ford", team: "BMX" },
-  { id: 54, number: 4, name: "TheCruiser54", manufacturer: "Ford", team: "BMX" },
+  { id: 34, number: 34, name: "CaJunThrottle28", manufacturer: "Ford", team: "BXM" },
+  { id: 54, number: 4, name: "TheCruiser54", manufacturer: "Ford", team: "BXM" },
 ];
 const defaultRaces = [
   { name: "Preseason - Michigan", stageCount: 2, date: "2026-04-25" },
