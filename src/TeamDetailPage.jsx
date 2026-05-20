@@ -52,6 +52,14 @@ function getTeamFullName(team) {
     MMS: "Mayhem Motorsports",
     NLM: "Nine Line Motorsports",
     BOM: "Blue Oval Motorsports",
+    WSM: "Wyatt Sick6 Motorsports",
+    BWR: "Big Wheel Racing",
+    KDM: "Kev Din Motorsports",
+    BMX: "BayouX Motorsports",
+    "BayouX Motorsports": "BayouX Motorsports",
+    "19XI": "19XI Racing",
+    "19XI Racing": "19XI Racing",
+    IND: "Independent",
     Independent: "Independent",
   };
 
