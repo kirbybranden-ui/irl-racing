@@ -54,8 +54,9 @@ MMS: teamLogoMMS,
   BWR: teamLogoBWR,
   "Kev Din Motorsports": teamLogoKDM,
   KDM: teamLogoKDM,
-  "BayouX Motorsports": teamLogoBXM,
+  BMX: teamLogoBXM,
   BXM: teamLogoBXM,
+  "BayouX Motorsports": teamLogoBXM,
 };
 const manufacturerLogos = {
   Chevrolet: manufacturerChevrolet,
@@ -76,6 +77,7 @@ const teamFullNames = {
   "19XI Racing": "19XI Racing",
   BWR: "Big Wheel Racing",
   KDM: "Kev Din Motorsports",
+  BMX: "BayouX Motorsports",
   BXM: "BayouX Motorsports",
   "BayouX Motorsports": "BayouX Motorsports",
   Independent: "Independent",
@@ -182,8 +184,8 @@ const defaultDrivers = [
   { id: 27, number: 97, name: "JPC_Racing",            manufacturer: "Ford",      team: "BWR"         },
   { id: 51, number: 51, name: "MARE951",                  manufacturer: "Chevrolet", team: "BWR"         },
   { id: 46, number: 46, name: "BigDiehl21", manufacturer: "Chevrolet", team: "WSM" },
-  { id: 34, number: 34, name: "CaJunThrottle28", manufacturer: "Ford", team: "BXM" },
-  { id: 54, number: 4, name: "TheCruiser54", manufacturer: "Ford", team: "BXM" },
+  { id: 34, number: 34, name: "CaJunThrottle28", manufacturer: "Ford", team: "BMX" },
+  { id: 54, number: 4, name: "TheCruiser54", manufacturer: "Ford", team: "BMX" },
 ];
 const defaultRaces = [
   { name: "Preseason - Michigan", stageCount: 2, date: "2026-04-25" },
@@ -345,6 +347,9 @@ const teamBranding = {
   "19XI Racing": { logo: "19XI", accent: "#8b5cf6", dark: "#160b2d", fullName: "19XI Racing" },
   BWR: { logo: "BWR", accent: "#2563eb", dark: "#0f172a", fullName: "Big Wheel Racing" },
   KDM: { logo: "KDM", accent: "#ef4444", dark: "#1f1315", fullName: "Kev Din Motorsports" },
+  BMX: { logo: "BXM", accent: "#2563eb", dark: "#0f172a", fullName: "BayouX Motorsports" },
+  BXM: { logo: "BXM", accent: "#2563eb", dark: "#0f172a", fullName: "BayouX Motorsports" },
+  "BayouX Motorsports": { logo: "BXM", accent: "#2563eb", dark: "#0f172a", fullName: "BayouX Motorsports" },
   "Team C": { logo: "C", accent: "#ef4444", dark: "#1f1315" },
   "Team C": { logo: "C", accent: "#ef4444", dark: "#1f1315" },
   "Team D": { logo: "D", accent: "#22c55e", dark: "#0f1b14" },
@@ -568,6 +573,95 @@ async function createRaceDataBackup({ seasonSnapshot, raceSnapshot, backupType =
     return { ok: false, error };
   }
 }
+
+function makeRaceResultsLedgerRows({ season, race, tracks = [] }) {
+  if (!season || !race || !Array.isArray(race.results)) return [];
+
+  const raceDate = (tracks || []).find((track) => track?.name === race.raceName)?.date || null;
+  const rosterById = new Map((season.drivers || []).map((driver) => [String(driver.id), driver]));
+
+  return race.results.map((result) => {
+    const rosterDriver = rosterById.get(String(result.driverId)) || {};
+    return {
+      season_id: String(season.id || ""),
+      season_name: season.name || "Season",
+      race_name: race.raceName || "",
+      race_date: raceDate,
+      driver_id: String(result.driverId || rosterDriver.id || ""),
+      driver_number: String(result.number || rosterDriver.number || ""),
+      driver_name: result.name || rosterDriver.name || "",
+      team: result.team || rosterDriver.team || "",
+      manufacturer: result.manufacturer || rosterDriver.manufacturer || "",
+      finish_pos: result.finishPos ?? null,
+      finish_points: Number(result.finishPoints || 0),
+      stage1_finish: result.stage1Pos ?? null,
+      stage1_points: Number(result.stage1Points || 0),
+      stage2_finish: result.stage2Pos ?? null,
+      stage2_points: Number(result.stage2Points || 0),
+      stage3_finish: result.stage3Pos ?? null,
+      stage3_points: Number(result.stage3Points || 0),
+      fastest_lap: Boolean(result.fastestLap),
+      dnf: Boolean(result.dnf),
+      dnf_reason: result.dnfReason || null,
+      offense: Boolean(result.offense),
+      offense_number: Number(result.offenseNumber || 0),
+      penalty_points: Number(result.penaltyPoints || 0),
+      total_race_points: Number(result.totalRacePoints || 0),
+      updated_at: new Date().toISOString(),
+    };
+  });
+}
+
+async function saveRaceResultsLedger({ season, race, tracks = [] }) {
+  const rows = makeRaceResultsLedgerRows({ season, race, tracks });
+
+  if (!rows.length) {
+    return { ok: true, skipped: true };
+  }
+
+  try {
+    const { error: deleteError } = await supabase
+      .from("race_results")
+      .delete()
+      .eq("season_id", String(season.id || ""))
+      .eq("race_name", race.raceName || "");
+
+    if (deleteError) {
+      console.error("Could not clear old race_results rows:", deleteError);
+      return { ok: false, error: deleteError };
+    }
+
+    const { error: insertError } = await supabase
+      .from("race_results")
+      .insert(rows);
+
+    if (insertError) {
+      console.error("Could not save race_results ledger:", insertError);
+      return { ok: false, error: insertError };
+    }
+
+    return { ok: true };
+  } catch (error) {
+    console.error("race_results ledger save crashed:", error);
+    return { ok: false, error };
+  }
+}
+
+async function syncAllRaceResultsLedger({ seasons = [], tracks = [] }) {
+  try {
+    for (const season of seasons || []) {
+      for (const race of season?.raceHistory || []) {
+        const result = await saveRaceResultsLedger({ season, race, tracks });
+        if (!result.ok) return result;
+      }
+    }
+    return { ok: true };
+  } catch (error) {
+    console.error("Full race_results sync crashed:", error);
+    return { ok: false, error };
+  }
+}
+
 
 function rebuildDriversFromHistory(history, driverRoster) {
   return driverRoster.map((baseDriver) => {
@@ -3475,7 +3569,16 @@ export default function App() {
         activeSeasonId: nextActiveSeasonId,
       });
 
-      alert("Backup restored successfully. Refresh the page if the standings do not update immediately.");
+      const ledgerSyncResult = await syncAllRaceResultsLedger({
+        seasons: cleanSeasons,
+        tracks: cleanTracks,
+      });
+
+      if (!ledgerSyncResult.ok) {
+        alert("Backup restored, but the race_results table did not fully sync. Check the race_results table/RLS.");
+      } else {
+        alert("Backup restored successfully and race_results table synced. Refresh the page if the standings do not update immediately.");
+      }
     } catch (error) {
       console.error("Could not restore league backup:", error);
       alert("Could not restore this backup file. Make sure it is a Budweiser Cup League JSON backup.");
@@ -3535,12 +3638,22 @@ export default function App() {
           const cleanTracks = sanitizeTracks(parsed.tracks);
           if (cleanTracks && cleanTracks.length > 0) setTracks(cleanTracks);
           setRenameSeasonName(cleanSeasons.find((s) => s.id === nextId)?.name || cleanSeasons[0].name);
-          resetEditorStates(); alert("Full league backup imported.");
+          resetEditorStates();
+          syncAllRaceResultsLedger({ seasons: cleanSeasons, tracks: cleanTracks && cleanTracks.length > 0 ? cleanTracks : tracks })
+            .then((result) => {
+              if (!result.ok) alert("Full league backup imported, but race_results table did not fully sync.");
+              else alert("Full league backup imported and race_results table synced.");
+            });
         } else if (parsed?.season) {
           const imported = sanitizeSeason(parsed.season, "Imported Season");
           if (!window.confirm(`Import season "${imported.name}"?`)) return;
           setSeasons((prev) => { const exists = prev.some((s) => s.id === imported.id); return exists ? prev.map((s) => s.id === imported.id ? imported : s) : [...prev, imported]; });
-          setActiveSeasonId(imported.id); setRenameSeasonName(imported.name); resetEditorStates(); alert("Season backup imported.");
+          setActiveSeasonId(imported.id); setRenameSeasonName(imported.name); resetEditorStates();
+          syncAllRaceResultsLedger({ seasons: [imported], tracks })
+            .then((result) => {
+              if (!result.ok) alert("Season backup imported, but race_results table did not fully sync.");
+              else alert("Season backup imported and race_results table synced.");
+            });
         } else throw new Error("Invalid backup file.");
       } catch (err) { console.error("Import failed:", err); alert("Could not import that backup file."); }
       finally { if (event.target) event.target.value = ""; }
@@ -3907,7 +4020,7 @@ export default function App() {
       const penaltyPoints = offense ? getOffensePenaltyPoints(offenseNumber) : 0;
       const totalRacePoints = finishPoints + stage1Points + stage2Points + stage3Points + fastestLapPoints - penaltyPoints;
       return {
-        driverId: driver.id, name: driver.name, number: driver.number, team: driver.team,
+        driverId: driver.id, name: driver.name, number: driver.number, team: driver.team, manufacturer: driver.manufacturer || "",
         finishPos: finishPos || null, stage1Pos: stage1Pos || null, stage2Pos: stage2Pos || null, stage3Pos: stageCount === 3 ? stage3Pos || null : null,
         finishPoints, stage1Points, stage2Points, stage3Points, fastestLap, fastestLapPoints,
         offense, offenseNumber, penaltyPoints, totalRacePoints,
@@ -3957,8 +4070,18 @@ export default function App() {
       backupType: editingRaceName ? "edit-race-save-points" : "save-points",
     });
 
-    if (!backupResult.ok) {
-      alert("Race points saved and a JSON backup downloaded, but the Supabase backup failed. Make sure the race_data_backups table exists in Supabase.");
+    const ledgerResult = await saveRaceResultsLedger({
+      season: updatedSeason,
+      race: updatedRace,
+      tracks,
+    });
+
+    if (!backupResult.ok && !ledgerResult.ok) {
+      alert("Race points saved locally and a JSON backup downloaded, but Supabase backup AND race_results ledger failed. Check race_data_backups and race_results tables/RLS.");
+    } else if (!backupResult.ok) {
+      alert("Race points saved and race_results ledger updated, but the Supabase JSON backup failed. Check race_data_backups table/RLS.");
+    } else if (!ledgerResult.ok) {
+      alert("Race points saved and a JSON backup downloaded, but race_results ledger failed. Check race_results table/RLS.");
     }
 
     setEditingRaceName(null);
