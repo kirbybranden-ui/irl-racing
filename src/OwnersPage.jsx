@@ -9,6 +9,7 @@ import teamLogoWSM from "./assets/teams/WSM.png";
 import teamLogoIND from "./assets/teams/IND.png";
 import teamLogo19XI from "./assets/teams/19XI.png";
 import teamLogoBWR from "./assets/teams/BWR.png";
+import teamLogoBXM from "./assets/teams/BXM.png";
 import { supabase } from "./lib/supabase";
 
 const teamLogos = {
@@ -23,8 +24,9 @@ const teamLogos = {
   "19XI": teamLogo19XI,
   "19XI Racing": teamLogo19XI,
   BWR: teamLogoBWR,
-  BMX: teamLogoIND,
-  "BayouX Motorsports": teamLogoIND,
+  BMX: teamLogoBXM,
+  BXM: teamLogoBXM,
+  "BayouX Motorsports": teamLogoBXM,
 };
 
 const teamFullNames = {
@@ -40,6 +42,7 @@ const teamFullNames = {
   "19XI": "19XI Racing",
   "19XI Racing": "19XI Racing",
   BMX: "BayouX Motorsports",
+  BXM: "BayouX Motorsports",
   "BayouX Motorsports": "BayouX Motorsports",
 };
 
@@ -56,6 +59,7 @@ const ownerNames = {
   Independent: "Free Agent Pool",
   IND: "Free Agent Pool",
   BMX: "BayouX Motorsports Ownership Group",
+  BXM: "BayouX Motorsports Ownership Group",
   "BayouX Motorsports": "BayouX Motorsports Ownership Group",
 };
 
@@ -69,6 +73,7 @@ const TEAM_STARTING_FUNDS = {
 const TEAM_BUDGET_OVERRIDES = {
   JAM: 5000000,
   BMX: 700000,
+  BXM: 700000,
   "BayouX Motorsports": 700000,
 };
 
