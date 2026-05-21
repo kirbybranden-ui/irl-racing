@@ -3137,26 +3137,55 @@ function SubmitStoryPage() {
 function StoriesAdminPage() {
   const [stories, setStories] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [storyLoadError, setStoryLoadError] = useState("");
 
-  const loadStories = async () => {
-    setLoading(true);
+  const loadStories = async ({ showLoading = false } = {}) => {
+    if (showLoading) setLoading(true);
+    setStoryLoadError("");
+
     const { data, error } = await supabase
       .from("story_submissions")
       .select("*")
       .order("created_at", { ascending: false });
-    setLoading(false);
+
     if (error) {
       console.error("Failed to load stories:", error);
-      alert("Could not load stories. Make sure the story_submissions Supabase table exists.");
+      setStoryLoadError("Could not load stories. Check the story_submissions table and RLS select policy.");
+      if (showLoading) setLoading(false);
       return;
     }
+
     setStories(data || []);
+    setLoading(false);
   };
 
   useEffect(() => {
-    loadStories();
-    const interval = setInterval(loadStories, 5000);
-    return () => clearInterval(interval);
+    let isMounted = true;
+
+    async function initialLoad() {
+      const { data, error } = await supabase
+        .from("story_submissions")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (!isMounted) return;
+
+      if (error) {
+        console.error("Failed to load stories:", error);
+        setStoryLoadError("Could not load stories. Check the story_submissions table and RLS select policy.");
+      } else {
+        setStories(data || []);
+        setStoryLoadError("");
+      }
+
+      setLoading(false);
+    }
+
+    initialLoad();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const updateStoryStatus = async (storyId, status) => {
@@ -3169,7 +3198,7 @@ function StoriesAdminPage() {
       alert("Could not update that story.");
       return;
     }
-    await loadStories();
+    await loadStories({ showLoading: false });
   };
 
   const openStories = stories.filter((story) => String(story.status || "Open") === "Open");
@@ -3187,7 +3216,7 @@ function StoriesAdminPage() {
               </div>
             </div>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <button onClick={loadStories} style={secondaryButtonStyle}>Refresh</button>
+              <button onClick={() => loadStories({ showLoading: false })} style={secondaryButtonStyle}>Refresh</button>
               <button onClick={() => (window.location.pathname = "/admin")} style={secondaryButtonStyle}>Back to Admin</button>
             </div>
           </div>
@@ -3197,6 +3226,12 @@ function StoriesAdminPage() {
           <div style={statBoxStyle}><div style={{ opacity: 0.65, fontSize: 12 }}>OPEN STORIES</div><div style={{ fontSize: 30, fontWeight: 900 }}>{openStories.length}</div></div>
           <div style={statBoxStyle}><div style={{ opacity: 0.65, fontSize: 12 }}>TOTAL SUBMITTED</div><div style={{ fontSize: 30, fontWeight: 900 }}>{stories.length}</div></div>
         </div>
+
+        {storyLoadError && (
+          <div style={{ ...sectionCardStyle, borderColor: "#7f1d1d", color: "#f87171", fontWeight: 900 }}>
+            {storyLoadError}
+          </div>
+        )}
 
         {loading ? (
           <div style={sectionCardStyle}>Loading stories...</div>
