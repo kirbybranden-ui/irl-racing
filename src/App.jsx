@@ -741,6 +741,33 @@ function loadInitialLeagueState() {
   const legacySeason = buildLegacySeasonFromLocalStorage();
   return { seasons: [legacySeason], activeSeasonId: legacySeason.id, tracks };
 }
+
+function isUsableLeagueState(state) {
+  return !!state && Array.isArray(state.seasons) && state.seasons.length > 0 && !!state.activeSeasonId;
+}
+
+function makeLeagueStateSignature({ seasons = [], activeSeasonId = "", tracks = [] }) {
+  return JSON.stringify({ seasons, activeSeasonId, tracks });
+}
+
+function normalizeLoadedLeagueState(savedState) {
+  if (!isUsableLeagueState(savedState)) return null;
+
+  let cleanSeasons = savedState.seasons.map((season, index) => sanitizeSeason(season, `Season ${index + 1}`));
+  cleanSeasons = patchMissingDrivers(cleanSeasons);
+
+  if (!cleanSeasons.length) return null;
+
+  const activeExists = cleanSeasons.some((season) => season.id === savedState.activeSeasonId);
+  const cleanTracks = sanitizeTracks(savedState.tracks) || defaultRaces;
+
+  return {
+    seasons: cleanSeasons,
+    activeSeasonId: activeExists ? savedState.activeSeasonId : cleanSeasons[0].id,
+    tracks: cleanTracks,
+  };
+}
+
 function LeaderboardOverlay({ drivers, preview = false, seasonName = "" }) {
   const cleanDrivers = dedupeDriversByNumber(drivers);
   const sorted = [...cleanDrivers].sort((a, b) => b.points - a.points || b.wins - a.wins || b.top3 - a.top3 || a.name.localeCompare(b.name));
@@ -3358,13 +3385,15 @@ function DiscordPage() {
 }
 
 export default function App() {
-  const [seasons, setSeasons] = useState(() => loadInitialLeagueState().seasons);
+  const [seasons, setSeasons] = useState([]);
   const [openAppealCount, setOpenAppealCount] = useState(0);
   const [openStoryCount, setOpenStoryCount] = useState(0);
-  const [activeSeasonId, setActiveSeasonId] = useState(() => loadInitialLeagueState().activeSeasonId);
-  const [tracks, setTracks] = useState(() => loadInitialLeagueState().tracks);
+  const [activeSeasonId, setActiveSeasonId] = useState("");
+  const [tracks, setTracks] = useState(defaultRaces);
   const backupFileInputRef = useRef(null);
   const [isHydrated, setIsHydrated] = useState(false);
+  const loadedStateSignatureRef = useRef("");
+  const saveInFlightRef = useRef(false);
   const [viewMode, setViewMode] = useState("admin");
   const [editingRaceName, setEditingRaceName] = useState(null);
   const [newSeasonName, setNewSeasonName] = useState("");
@@ -3433,34 +3462,43 @@ export default function App() {
   // ─── ALL useEffect hooks (must be before any early returns) ───────────────
   useEffect(() => {
     let isMounted = true;
+
     async function hydrateFromSupabase() {
       try {
         const savedState = await loadLeagueState();
         if (!isMounted) return;
-        if (savedState?.seasons && Array.isArray(savedState.seasons)) {
-          let cleanSeasons = savedState.seasons.map((s, i) => sanitizeSeason(s, `Season ${i + 1}`));
-          cleanSeasons = patchMissingDrivers(cleanSeasons);
-          if (cleanSeasons.length > 0) {
-            setSeasons(cleanSeasons);
-            const activeExists = cleanSeasons.some((s) => s.id === savedState.activeSeasonId);
-            setActiveSeasonId(activeExists ? savedState.activeSeasonId : cleanSeasons[0].id);
-          }
+
+        const normalizedState = normalizeLoadedLeagueState(savedState);
+
+        if (normalizedState) {
+          setSeasons(normalizedState.seasons);
+          setActiveSeasonId(normalizedState.activeSeasonId);
+          setTracks(normalizedState.tracks);
+          loadedStateSignatureRef.current = makeLeagueStateSignature(normalizedState);
+        } else {
+          // Emergency only: this keeps the app usable if Supabase is empty or unreachable,
+          // but it does NOT automatically write defaults back over the real saved points.
+          const fallbackState = loadInitialLeagueState();
+          setSeasons(fallbackState.seasons || []);
+          setActiveSeasonId(fallbackState.activeSeasonId || "");
+          setTracks(fallbackState.tracks || defaultRaces);
+          loadedStateSignatureRef.current = makeLeagueStateSignature(fallbackState);
         }
-        const cleanTracks = sanitizeTracks(savedState?.tracks);
-        if (cleanTracks && cleanTracks.length > 0) setTracks(cleanTracks);
       } catch (error) {
-        console.error("Supabase load failed:", error);
+        console.error("Supabase load failed. Defaults were NOT saved over league points:", error);
+        if (!isMounted) return;
+        const fallbackState = loadInitialLeagueState();
+        setSeasons(fallbackState.seasons || []);
+        setActiveSeasonId(fallbackState.activeSeasonId || "");
+        setTracks(fallbackState.tracks || defaultRaces);
+        loadedStateSignatureRef.current = makeLeagueStateSignature(fallbackState);
       } finally {
         if (isMounted) setIsHydrated(true);
       }
     }
+
     hydrateFromSupabase();
-    let interval = null;
-    // Poll every 3s on live pages so stats stay current without a manual refresh
-    if (path === "/standings" || path === "/contracts" || path === "/owners" || path === "/team-hq" || path === "/driver-feedback" || path === "/paint-scheme-vote" || path === "/interviews" || path.startsWith("/driver/") || path.startsWith("/team/") || path.startsWith("/manufacturer/") || path === "/overlay/drivers" || path === "/overlay/teams" || path === "/overlay/ticker") {
-      interval = setInterval(hydrateFromSupabase, 3000);
-    }
-    return () => { isMounted = false; if (interval) clearInterval(interval); };
+    return () => { isMounted = false; };
   }, []);
   useEffect(() => {
     async function loadOpenAppeals() {
@@ -3508,9 +3546,28 @@ export default function App() {
 
   useEffect(() => {
     if (!isHydrated) return;
-    const timeout = setTimeout(() => {
-      saveLeagueState({ seasons, activeSeasonId, tracks }).catch((e) => console.error("Supabase save failed:", e));
+    if (!Array.isArray(seasons) || seasons.length === 0 || !activeSeasonId) return;
+
+    const nextState = { seasons, activeSeasonId, tracks };
+    const nextSignature = makeLeagueStateSignature(nextState);
+
+    // This is the lock that prevents page load, refresh, failed Supabase loads,
+    // or default/localStorage hydration from wiping the permanent points table.
+    if (!loadedStateSignatureRef.current || nextSignature === loadedStateSignatureRef.current) return;
+
+    const timeout = setTimeout(async () => {
+      if (saveInFlightRef.current) return;
+      saveInFlightRef.current = true;
+      try {
+        await saveLeagueState(nextState);
+        loadedStateSignatureRef.current = nextSignature;
+      } catch (e) {
+        console.error("Supabase save failed. Existing points were not cleared:", e);
+      } finally {
+        saveInFlightRef.current = false;
+      }
     }, 250);
+
     return () => clearTimeout(timeout);
   }, [seasons, activeSeasonId, tracks, isHydrated]);
   useEffect(() => {
@@ -3594,15 +3651,18 @@ export default function App() {
       setSeasons(cleanSeasons);
       setActiveSeasonId(nextActiveSeasonId);
 
-      localStorage.setItem("irl-tracks", JSON.stringify(cleanTracks));
-      localStorage.setItem("irl-seasons", JSON.stringify(cleanSeasons));
-      localStorage.setItem("irl-activeSeasonId", nextActiveSeasonId);
+      localStorage.setItem("bcl-last-good-tracks", JSON.stringify(cleanTracks));
+      localStorage.setItem("bcl-last-good-seasons", JSON.stringify(cleanSeasons));
+      localStorage.setItem("bcl-last-good-activeSeasonId", nextActiveSeasonId);
 
-      await saveLeagueState({
+      const restoredState = {
         tracks: cleanTracks,
         seasons: cleanSeasons,
         activeSeasonId: nextActiveSeasonId,
-      });
+      };
+
+      await saveLeagueState(restoredState);
+      loadedStateSignatureRef.current = makeLeagueStateSignature(restoredState);
 
       const ledgerSyncResult = await syncAllRaceResultsLedger({
         seasons: cleanSeasons,
