@@ -127,6 +127,20 @@ const DEFAULT_CONTRACT_FORM = {
   win_bonus: 0,
 };
 
+const MASTER_ACCESS_CODE = "BCLADMINPASSWORD2026";
+
+const OWNER_DRIVER_CODES = {
+  JAM: "ROOKIEVET99",
+  NLM: "HIGHLANDER713",
+  MER: "RACINGIS_LIFE87",
+  WSM: "UNDEADHELLIDAY",
+  BWR: "JPC_RACING",
+  "19XI": "BOWHUNTER6758",
+  BMX: "CAJUNTHROTTLE28",
+  BXM: "CAJUNTHROTTLE28",
+  KDM: "KEVDINHO7",
+};
+
 const DEFAULT_INDEPENDENT_PAYMENT_FORM = {
   driver_id: "",
   amount: 0,
@@ -213,14 +227,14 @@ function feedbackScoreToMorale(score) {
 async function loadRemoteOwnerAccessCodes() {
   const { data, error } = await supabase
     .from("owner_access_codes")
-    .select("team, code, active")
+    .select("team, code, temp_code, active")
     .eq("active", true);
   if (error) {
     console.error("Failed to load owner access codes:", error);
     return loadLocalOwnerAccessCodes();
   }
   const nextCodes = {};
-  (data || []).forEach((row) => { if (row.team && row.code) nextCodes[row.team] = row.code; });
+  (data || []).forEach((row) => { if (row.team && (row.temp_code || row.code)) nextCodes[row.team] = row.temp_code || row.code; });
   localStorage.setItem("ownerPortalAccessCodes", JSON.stringify(nextCodes));
   return nextCodes;
 }
