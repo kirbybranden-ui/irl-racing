@@ -404,8 +404,576 @@ function AdminLoginPage() {
             {error && <div style={{ color: "#f87171", marginTop: 10, fontWeight: 800 }}>{error}</div>}
             <div style={{ display: "flex", gap: 10, marginTop: 18, flexWrap: "wrap" }}>
               <button type="submit" style={primaryButtonStyle}>Unlock Admin Portal</button>
-              
+              <button type="button" onClick={() => (window.location.pathname = "/standings")} style={secondaryButtonStyle}>Back to Standings</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}
 
+function renderTeamBadge(teamName, size = 44) {
+  const brand = getTeamBranding(teamName);
+  const logoSrc = teamLogos[teamName];
+  if (logoSrc) {
+    return (
+      <div style={{ width: size, height: size, minWidth: size, borderRadius: "50%", overflow: "hidden", border: "2px solid rgba(255,255,255,0.15)", boxShadow: "0 6px 16px rgba(0,0,0,0.25)", background: "#111" }}>
+        <img src={logoSrc} alt={teamName} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+      </div>
+    );
+  }
+  return (
+    <div style={{ width: size, height: size, minWidth: size, borderRadius: "50%", background: `linear-gradient(135deg, ${brand.accent} 0%, ${brand.dark} 100%)`, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, color: "white", border: "2px solid rgba(255,255,255,0.15)", boxShadow: "0 6px 16px rgba(0,0,0,0.25)", fontSize: size * 0.28 }}>
+      {brand.logo}
+    </div>
+  );
+}
+function makeDriverWithStats(driver) {
+  return { ...driver, manufacturer: driver.manufacturer || "", manufacturerLogo: driver.manufacturerLogo || manufacturerLogos[driver.manufacturer] || null, startingPoints: 0, manualWins: 0, points: 0, wins: 0, top3: 0, top5: 0, dnfs: 0, retired: driver.retired || false, notes: "" };
+}
+function getDriverAchievements(driver) {
+  const achievements = [];
+  if (driver.wins >= 1) achievements.push({ badge: "🏆", name: "First Win", condition: driver.wins >= 1 });
+  if (driver.wins >= 3) achievements.push({ badge: "🥇", name: "Hat Trick", condition: driver.wins >= 3 });
+  if (driver.wins >= 5) achievements.push({ badge: "👑", name: "Dominator", condition: driver.wins >= 5 });
+  if (driver.top3 >= 10) achievements.push({ badge: "🎯", name: "Podium Master", condition: driver.top3 >= 10 });
+  if (driver.points >= 100) achievements.push({ badge: "⭐", name: "Century Club", condition: driver.points >= 100 });
+  if (driver.fastestLaps >= 5) achievements.push({ badge: "⚡", name: "Speed Demon", condition: driver.fastestLaps >= 5 });
+  return achievements;
+}
+function getDefaultRoster() { return dedupeDriversByNumber(defaultDrivers.map(makeDriverWithStats)); }
+function getStagePoints(stageFinish) {
+  if (!stageFinish || stageFinish < 1 || stageFinish > 10) return 0;
+  return stagePointsTable[stageFinish - 1];
+}
+
+function downloadRaceHistoryCsv(raceHistory = [], seasonName = "") {
+  if (!Array.isArray(raceHistory) || raceHistory.length === 0) {
+    alert("No race history to download yet.");
+    return;
+  }
+
+  const rows = raceHistory.flatMap((race) => {
+    const results = Array.isArray(race.results) ? race.results : [];
+    return results.map((result) => ({
+      Season: seasonName || "",
+      Race: race.raceName || "",
+      StageCount: race.stageCount ?? "",
+      Finish: result.finishPos ?? "",
+      CarNumber: result.number ?? "",
+      Driver: result.name || "",
+      Team: getTeamFullName(result.team || ""),
+      Manufacturer: result.manufacturer || "",
+      FinishPoints: result.finishPoints ?? 0,
+      Stage1Points: result.stage1Points ?? 0,
+      Stage2Points: result.stage2Points ?? 0,
+      Stage3Points: result.stage3Points ?? 0,
+      FastestLap: result.fastestLap ? "Yes" : "No",
+      DNF: result.dnf ? "Yes" : "No",
+      DNFReason: result.dnfReason || "",
+      Offense: result.offense ? "Yes" : "No",
+      OffenseNumber: result.offenseNumber ?? "",
+      PenaltyPoints: result.penaltyPoints ?? 0,
+      TotalRacePoints: result.totalRacePoints ?? 0,
+    }));
+  });
+
+  if (rows.length === 0) {
+    alert("Race history exists, but there are no driver results to download.");
+    return;
+  }
+
+  const headers = Object.keys(rows[0]);
+  const csv = [
+    headers.join(","),
+    ...rows.map((row) =>
+      headers
+        .map((header) => {
+          const value = String(row[header] ?? "");
+          return `"${value.replace(/"/g, '""')}"`;
+        })
+        .join(",")
+    ),
+  ].join("\n");
+
+  const safeSeasonName = String(seasonName || "season")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+  const dateStamp = new Date().toISOString().slice(0, 10);
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = `budweiser-cup-race-history-${safeSeasonName}-${dateStamp}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+function makeLeagueBackupPayload({ tracks = [], seasons = [], activeSeasonId = "", reason = "manual-backup", raceSnapshot = null }) {
+  return {
+    backupVersion: 1,
+    appName: "Budweiser Cup League",
+    reason,
+    backedUpAt: new Date().toISOString(),
+    activeSeasonId,
+    tracks,
+    seasons,
+    raceSnapshot,
+  };
+}
+
+function downloadLeagueBackupFile(backupPayload, label = "backup") {
+  const safeLabel = String(label || "backup")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+  const dateStamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const blob = new Blob([JSON.stringify(backupPayload, null, 2)], {
+    type: "application/json;charset=utf-8;",
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = `budweiser-cup-results-${safeLabel}-${dateStamp}.json`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+function isValidLeagueBackup(backup) {
+  return !!backup && Array.isArray(backup.seasons) && backup.seasons.length > 0 && !!backup.activeSeasonId;
+}
+
+async function createRaceDataBackup({ seasonSnapshot, raceSnapshot, backupType = "save-points" }) {
+  try {
+    const { error } = await supabase.from("race_data_backups").insert({
+      backup_type: backupType,
+      season_id: seasonSnapshot?.id || null,
+      season_name: seasonSnapshot?.name || "Season",
+      race_name: raceSnapshot?.raceName || seasonSnapshot?.selectedRace || "Race",
+      snapshot: seasonSnapshot,
+      race_snapshot: raceSnapshot,
+      created_at: new Date().toISOString(),
+    });
+
+    if (error) {
+      console.error("Race data backup failed:", error);
+      return { ok: false, error };
+    }
+
+    return { ok: true };
+  } catch (error) {
+    console.error("Race data backup crashed:", error);
+    return { ok: false, error };
+  }
+}
+
+function makeRaceResultsLedgerRows({ season, race, tracks = [] }) {
+  if (!season || !race || !Array.isArray(race.results)) return [];
+
+  const raceDate = (tracks || []).find((track) => track?.name === race.raceName)?.date || null;
+  const rosterById = new Map((season.drivers || []).map((driver) => [String(driver.id), driver]));
+
+  return race.results.map((result) => {
+    const rosterDriver = rosterById.get(String(result.driverId)) || {};
+    return {
+      season_id: String(season.id || ""),
+      season_name: season.name || "Season",
+      race_name: race.raceName || "",
+      race_date: raceDate,
+      driver_id: String(result.driverId || rosterDriver.id || ""),
+      driver_number: String(result.number || rosterDriver.number || ""),
+      driver_name: result.name || rosterDriver.name || "",
+      team: result.team || rosterDriver.team || "",
+      manufacturer: result.manufacturer || rosterDriver.manufacturer || "",
+      finish_pos: result.finishPos ?? null,
+      finish_points: Number(result.finishPoints || 0),
+      stage1_finish: result.stage1Pos ?? null,
+      stage1_points: Number(result.stage1Points || 0),
+      stage2_finish: result.stage2Pos ?? null,
+      stage2_points: Number(result.stage2Points || 0),
+      stage3_finish: result.stage3Pos ?? null,
+      stage3_points: Number(result.stage3Points || 0),
+      fastest_lap: Boolean(result.fastestLap),
+      dnf: Boolean(result.dnf),
+      dnf_reason: result.dnfReason || null,
+      offense: Boolean(result.offense),
+      offense_number: Number(result.offenseNumber || 0),
+      penalty_points: Number(result.penaltyPoints || 0),
+      total_race_points: Number(result.totalRacePoints || 0),
+      updated_at: new Date().toISOString(),
+    };
+  });
+}
+
+async function saveRaceResultsLedger({ season, race, tracks = [] }) {
+  const rows = makeRaceResultsLedgerRows({ season, race, tracks });
+
+  if (!rows.length) {
+    return { ok: true, skipped: true };
+  }
+
+  try {
+    const { error: deleteError } = await supabase
+      .from("race_results")
+      .delete()
+      .eq("season_id", String(season.id || ""))
+      .eq("race_name", race.raceName || "");
+
+    if (deleteError) {
+      console.error("Could not clear old race_results rows:", deleteError);
+      return { ok: false, error: deleteError };
+    }
+
+    const { error: insertError } = await supabase
+      .from("race_results")
+      .insert(rows);
+
+    if (insertError) {
+      console.error("Could not save race_results ledger:", insertError);
+      return { ok: false, error: insertError };
+    }
+
+    return { ok: true };
+  } catch (error) {
+    console.error("race_results ledger save crashed:", error);
+    return { ok: false, error };
+  }
+}
+
+async function syncAllRaceResultsLedger({ seasons = [], tracks = [] }) {
+  try {
+    for (const season of seasons || []) {
+      for (const race of season?.raceHistory || []) {
+        const result = await saveRaceResultsLedger({ season, race, tracks });
+        if (!result.ok) return result;
+      }
+    }
+    return { ok: true };
+  } catch (error) {
+    console.error("Full race_results sync crashed:", error);
+    return { ok: false, error };
+  }
+}
+
+
+function rebuildDriversFromHistory(history, driverRoster) {
+  return driverRoster.map((baseDriver) => {
+    let points = 0;
+    let wins = 0;
+    let top3 = 0, top5 = 0, dnfs = 0, fastestLaps = 0, totalPenalties = 0;
+    history.forEach((race) => {
+      const result = race.results?.find((r) => r.driverId === baseDriver.id);
+      if (!result) return;
+      points += result.totalRacePoints || 0;
+      wins += result.isWin ? 1 : 0;
+      top3 += result.isTop3 ? 1 : 0;
+      top5 += result.isTop5 ? 1 : 0;
+      dnfs += result.dnf ? 1 : 0;
+      fastestLaps += result.fastestLap ? 1 : 0;
+      totalPenalties += result.penaltyPoints || 0;
+    });
+    return { ...baseDriver, manufacturerLogo: baseDriver.manufacturerLogo || manufacturerLogos[baseDriver.manufacturer] || null, startingPoints: 0, manualWins: 0, points, wins, top3, top5, dnfs, fastestLaps, totalPenalties, retired: baseDriver.retired || false, notes: "" };
+  });
+}
+function makeSeasonId() { return `season-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`; }
+function createEmptySeason(name, roster = getDefaultRoster()) {
+  const dedupedRoster = dedupeDriversByNumber(roster);
+  const cleanRoster = dedupedRoster.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer || "", team: d.team, startingPoints: 0, manualWins: 0 }));
+  return { id: makeSeasonId(), name: name || "New Season", createdAt: new Date().toISOString(), drivers: rebuildDriversFromHistory([], cleanRoster), selectedRace: "", positions: {}, stage1: {}, stage2: {}, stage3: {}, dnfMap: {}, offenseMap: {}, fastestLapMap: {}, raceHistory: [] };
+}
+function sanitizeSeason(season, fallbackName = "Season") {
+  const rosterSource = Array.isArray(season?.drivers) && season.drivers.length > 0 ? season.drivers : getDefaultRoster();
+  const rosterOnly = dedupeDriversByNumber(rosterSource).map((d) => ({ id: d.id, number: Number(d.number), name: d.name, manufacturer: d.manufacturer || "", team: d.team, startingPoints: 0, manualWins: 0, retired: d.retired || false, notes: "" }));
+  const history = Array.isArray(season?.raceHistory)
+    ? season.raceHistory.map((race) => ({ ...race, raceName: normalizeTrackName(race.raceName) }))
+    : [];
+  return {
+    id: season?.id || makeSeasonId(), name: season?.name || fallbackName, createdAt: season?.createdAt || new Date().toISOString(),
+    drivers: rebuildDriversFromHistory(history, rosterOnly), selectedRace: normalizeTrackName(season?.selectedRace || ""),
+    positions: season?.positions || {}, stage1: season?.stage1 || {}, stage2: season?.stage2 || {}, stage3: season?.stage3 || {},
+    dnfMap: season?.dnfMap || {}, offenseMap: season?.offenseMap || {}, fastestLapMap: season?.fastestLapMap || {}, raceHistory: history,
+  };
+}
+function buildLegacySeasonFromLocalStorage() {
+  const keys = ["irl-drivers","irl-raceHistory","irl-selectedRace","irl-positions","irl-stage1","irl-stage2","irl-stage3","irl-dnfMap"];
+  const hasLegacy = keys.some((k) => localStorage.getItem(k));
+  if (!hasLegacy) return createEmptySeason("Season 1");
+  try {
+    const drivers = JSON.parse(localStorage.getItem("irl-drivers") || "null") || getDefaultRoster();
+    const raceHistory = JSON.parse(localStorage.getItem("irl-raceHistory") || "null") || [];
+    const selectedRace = localStorage.getItem("irl-selectedRace") || "";
+    const positions = JSON.parse(localStorage.getItem("irl-positions") || "null") || {};
+    const stage1 = JSON.parse(localStorage.getItem("irl-stage1") || "null") || {};
+    const stage2 = JSON.parse(localStorage.getItem("irl-stage2") || "null") || {};
+    const stage3 = JSON.parse(localStorage.getItem("irl-stage3") || "null") || {};
+    const dnfMap = JSON.parse(localStorage.getItem("irl-dnfMap") || "null") || {};
+    return sanitizeSeason({ id: makeSeasonId(), name: "Season 1", createdAt: new Date().toISOString(), drivers, raceHistory, selectedRace, positions, stage1, stage2, stage3, dnfMap, offenseMap: {}, fastestLapMap: {} });
+  } catch { return createEmptySeason("Season 1"); }
+}
+function loadInitialLeagueState() {
+  let tracks = defaultRaces;
+  try {
+    const savedTracks = localStorage.getItem("irl-tracks");
+    if (savedTracks) {
+      const parsed = sanitizeTracks(JSON.parse(savedTracks));
+      if (parsed && parsed.length > 0) tracks = parsed;
+    }
+  } catch { /* fall through */ }
+  try {
+    const savedSeasons = localStorage.getItem("irl-seasons");
+    const savedActiveSeasonId = localStorage.getItem("irl-activeSeasonId");
+    if (savedSeasons) {
+      const parsed = JSON.parse(savedSeasons);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        const cleanSeasons = parsed.map((s, i) => sanitizeSeason(s, `Season ${i + 1}`));
+        const activeExists = cleanSeasons.some((s) => s.id === savedActiveSeasonId);
+        return { seasons: cleanSeasons, activeSeasonId: activeExists ? savedActiveSeasonId : cleanSeasons[0].id, tracks };
+      }
+    }
+  } catch { /* fall through */ }
+  const legacySeason = buildLegacySeasonFromLocalStorage();
+  return { seasons: [legacySeason], activeSeasonId: legacySeason.id, tracks };
+}
+
+function isUsableLeagueState(state) {
+  return !!state && Array.isArray(state.seasons) && state.seasons.length > 0 && !!state.activeSeasonId;
+}
+
+function makeLeagueStateSignature({ seasons = [], activeSeasonId = "", tracks = [] }) {
+  return JSON.stringify({ seasons, activeSeasonId, tracks });
+}
+
+function normalizeLoadedLeagueState(savedState) {
+  if (!isUsableLeagueState(savedState)) return null;
+
+  let cleanSeasons = savedState.seasons.map((season, index) => sanitizeSeason(season, `Season ${index + 1}`));
+  cleanSeasons = patchMissingDrivers(cleanSeasons);
+
+  if (!cleanSeasons.length) return null;
+
+  const activeExists = cleanSeasons.some((season) => season.id === savedState.activeSeasonId);
+  const cleanTracks = sanitizeTracks(savedState.tracks) || defaultRaces;
+
+  return {
+    seasons: cleanSeasons,
+    activeSeasonId: activeExists ? savedState.activeSeasonId : cleanSeasons[0].id,
+    tracks: cleanTracks,
+  };
+}
+
+function LeaderboardOverlay({ drivers, preview = false, seasonName = "" }) {
+  const cleanDrivers = dedupeDriversByNumber(drivers);
+  const sorted = [...cleanDrivers].sort((a, b) => b.points - a.points || b.wins - a.wins || b.top3 - a.top3 || a.name.localeCompare(b.name));
+  return (
+    <div style={{ minHeight: "100vh", background: preview ? "#111" : "transparent", color: "white", padding: 20, boxSizing: "border-box", fontFamily: "Arial, sans-serif" }}>
+      <div style={{ maxWidth: 1000, background: "rgba(10,10,10,0.84)", border: "2px solid #d4af37", borderRadius: 16, overflow: "hidden" }}>
+        <div style={{ padding: "14px 18px", background: "#0f1218", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", fontSize: 28, fontWeight: 800 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}><img src={logo} alt="League Logo" style={{ height: 42 }} />Driver Standings</div>
+          <div style={{ fontSize: 14, opacity: 0.78 }}>{seasonName}</div>
+        </div>
+        <table style={tableStyle}><thead><tr><th style={thStyle}>Pos</th><th style={thStyle}>#</th><th style={thStyle}>Driver</th><th style={thStyle}>Team</th><th style={thStyle}>Mfr</th><th style={thStyle}>Points</th><th style={thStyle}>Wins</th><th style={thStyle}>Top 3</th><th style={thStyle}>Top 5</th></tr></thead>
+          <tbody>{sorted.map((d, i) => <tr key={d.id}><td style={tdStyle}>{i+1}</td><td style={{...tdStyle, display: "flex", alignItems: "center", justifyContent: "center"}}><div style={{width: 32, height: 32, borderRadius: "50%", background: "#404854", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 12, color: "#fff", border: "2px solid #b8a059"}}>{d.number}</div></td><td style={tdStyle}>{d.name}</td><td style={tdStyle}>{getTeamFullName(d.team)}</td><td style={tdStyle}>{d.manufacturer || "—"}</td><td style={tdStyle}>{d.points}</td><td style={tdStyle}>{d.wins}</td><td style={tdStyle}>{d.top3}</td><td style={tdStyle}>{d.top5}</td></tr>)}</tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+function TeamOverlay({ teams, preview = false, seasonName = "" }) {
+  return (
+    <div style={{ minHeight: "100vh", background: preview ? "#111" : "transparent", color: "white", padding: 20, boxSizing: "border-box", fontFamily: "Arial, sans-serif" }}>
+      <div style={{ maxWidth: 900, background: "rgba(10,10,10,0.84)", border: "2px solid #d4af37", borderRadius: 16, overflow: "hidden" }}>
+        <div style={{ padding: "14px 18px", background: "#0f1218", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", fontSize: 28, fontWeight: 800 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}><img src={logo} alt="League Logo" style={{ height: 42 }} />Team Standings</div>
+          <div style={{ fontSize: 14, opacity: 0.78 }}>{seasonName}</div>
+        </div>
+        <table style={tableStyle}><thead><tr><th style={thStyle}>Pos</th><th style={thStyle}>Team</th><th style={thStyle}>Points</th><th style={thStyle}>Wins</th><th style={thStyle}>Top 3</th><th style={thStyle}>Top 5</th></tr></thead>
+          <tbody>{teams.map((t, i) => <tr key={t.team} onClick={() => (window.location.href = `/team/${t.team}`)} style={{ cursor: "pointer" }}><td style={tdStyle}>{i+1}</td><td style={tdStyle}>{getTeamFullName(t.team)}</td><td style={tdStyle}>{t.points}</td><td style={tdStyle}>{t.wins}</td><td style={tdStyle}>{t.top3}</td><td style={tdStyle}>{t.top5}</td></tr>)}</tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function AppUpdateBanner({ page = "all" }) {
+  const [banner, setBanner] = useState(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadBanner() {
+      const { data, error } = await supabase
+        .from("app_update_banners")
+        .select("*")
+        .in("page", ["all", page])
+        .eq("active", true)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!isMounted) return;
+      if (!error) setBanner(data || null);
+    }
+
+    loadBanner();
+    return () => {
+      isMounted = false;
+    };
+  }, [page]);
+
+  if (!banner) return null;
+
+  return (
+    <div
+      style={{
+        background: "linear-gradient(90deg, #d4af37 0%, #facc15 45%, #f59e0b 100%)",
+        color: "#111",
+        border: "1px solid rgba(255,255,255,0.18)",
+        borderRadius: 16,
+        padding: "14px 20px",
+        marginBottom: 20,
+        fontWeight: 900,
+        fontSize: 14,
+        boxShadow: "0 10px 30px rgba(212,175,55,0.25)",
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        lineHeight: 1.35,
+      }}
+    >
+      <span style={{ fontSize: 18 }}>🚨</span>
+      <span>{banner.message}</span>
+    </div>
+  );
+}
+
+
+
+function MemorialDayPage({ drivers = [] }) {
+  const [tributes, setTributes] = useState([]);
+  const [form, setForm] = useState({
+    driver_id: "",
+    honoree_name: "",
+    relationship: "",
+    branch: "",
+    accomplishments: "",
+    story: "",
+  });
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
+  const activeDrivers = useMemo(() => {
+    return dedupeDriversByNumber(drivers || [])
+      .filter((driver) => !driver.retired && !isInactivePlaceholderDriver(driver))
+      .sort((a, b) => Number(a.number || 9999) - Number(b.number || 9999));
+  }, [drivers]);
+
+  async function loadTributes() {
+    const { data, error } = await supabase
+      .from("memorial_day_tributes")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Could not load memorial tributes:", error);
+      try {
+        setTributes(JSON.parse(localStorage.getItem("bclMemorialDayTributes") || "[]"));
+      } catch {
+        setTributes([]);
+      }
+      return;
+    }
+
+    setTributes(data || []);
+  }
+
+  useEffect(() => {
+    loadTributes();
+  }, []);
+  function updateField(field, value) {
+    setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  async function submitTribute(event) {
+    event.preventDefault();
+    setMessage("");
+    setError("");
+
+    const driver = activeDrivers.find((item) => String(item.id) === String(form.driver_id));
+
+    if (!driver) {
+      setError("Select your driver before submitting.");
+      return;
+    }
+
+    if (!form.honoree_name.trim() || !form.story.trim()) {
+      setError("Please add who you are driving for and a short story.");
+      return;
+    }
+
+    const payload = {
+      driver_id: String(driver.id),
+      driver_name: driver.name || "",
+      driver_number: String(driver.number || ""),
+      team: getTeamFullName(driver.team || "Independent"),
+      manufacturer: driver.manufacturer || "",
+      honoree_name: form.honoree_name.trim(),
+      relationship: form.relationship.trim(),
+      branch: form.branch.trim(),
+      accomplishments: form.accomplishments.trim(),
+      story: form.story.trim(),
+      status: "approved",
+      created_at: new Date().toISOString(),
+    };
+
+    const { error: insertError } = await supabase.from("memorial_day_tributes").insert([payload]);
+
+    if (insertError) {
+      console.error("Could not save memorial tribute:", insertError);
+      try {
+        const saved = JSON.parse(localStorage.getItem("bclMemorialDayTributes") || "[]");
+        localStorage.setItem("bclMemorialDayTributes", JSON.stringify([{ ...payload, id: `local-${Date.now()}` }, ...saved]));
+        setMessage("Tribute saved on this browser. Check Supabase table/RLS to make it visible everywhere.");
+      } catch {
+        setError("Could not save tribute. Check the memorial_day_tributes table and RLS policies.");
+        return;
+      }
+    } else {
+      setMessage("Memorial Day tribute submitted.");
+    }
+
+    setForm({
+      driver_id: "",
+      honoree_name: "",
+      relationship: "",
+      branch: "",
+      accomplishments: "",
+      story: "",
+    });
+
+    await loadTributes();
+  }
+
+  return (
+    <div style={{ ...appShellStyle, background: "radial-gradient(circle at top left, rgba(30,64,175,0.32), transparent 34%), radial-gradient(circle at top right, rgba(185,28,28,0.28), transparent 32%), #07111f" }}>
+      <div style={{ ...pageContainerStyle, maxWidth: 1180 }}>
+        <div style={{ ...sectionCardStyle, border: "1px solid rgba(255,255,255,0.16)", background: "linear-gradient(135deg, rgba(127,29,29,0.82), rgba(15,23,42,0.96), rgba(30,64,175,0.78))" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 900, letterSpacing: 2, color: "#facc15" }}>BUDWEISER CUP LEAGUE</div>
+              <h1 style={{ margin: "8px 0", fontSize: 42, lineHeight: 1 }}>🇺🇸 Memorial Day Tribute Wall</h1>
+              <p style={{ margin: 0, opacity: 0.86, maxWidth: 760 }}>
+                Drivers can share who they are driving for and honor their service, sacrifice, and accomplishments.
+              </p>
+            </div>
+            <button type="button" onClick={() => (window.location.pathname = "/standings")} style={secondaryButtonStyle}>Back to Standings</button>
           </div>
         </div>
 
@@ -2159,8 +2727,9 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
               <button onClick={() => (window.location.pathname = "/news")} style={{ background: "#d4af37", color: "#111", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>📰 News</button>
               <button onClick={() => (window.location.pathname = "/interviews")} style={{ background: "#c8102e", color: "white", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 900, cursor: "pointer", fontSize: 14 }}>🎤 Interviews</button>
               <button onClick={() => (window.location.pathname = "/paint-scheme-vote")} style={{ background: "#f97316", color: "white", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 900, cursor: "pointer", fontSize: 14 }}>🎨 Paint Scheme Vote</button>
-<button onClick={() => (window.location.pathname = "/team-hq")} style={{ background: "#0f766e", color: "white", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>🏢 Team HQ</button>
+              <button onClick={() => (window.location.pathname = "/team-hq")} style={{ background: "#0f766e", color: "white", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>🏢 Team HQ</button>
               <button onClick={() => (window.location.pathname = "/contracts")} style={{ background: "#d4af37", color: "#111", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 900, cursor: "pointer", fontSize: 14 }}>📄 Active Contracts</button>
+              <button onClick={() => document.getElementById("points-penalties-section")?.scrollIntoView({ behavior: "smooth", block: "start" })} style={{ background: "#334155", color: "white", border: "1px solid #d4af37", borderRadius: 12, padding: "12px 18px", fontWeight: 900, cursor: "pointer", fontSize: 14 }}>📊 Points & Penalties</button>
               <button onClick={() => (window.location.pathname = "/submit-story")} style={{ background: "#16a34a", color: "white", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>✍️ Add Story</button>
               <button onClick={() => (window.location.pathname = "/notifications")} style={{ background: "#222936", color: "white", border: "1px solid #3a4453", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>🔔 Notifications</button>
               <button onClick={() => { sessionStorage.removeItem("bcl-admin-auth"); sessionStorage.removeItem("bcl-admin-auth-time"); localStorage.removeItem("bcl-admin-auth"); localStorage.removeItem("bcl-admin-auth-time"); window.location.pathname = "/admin"; }} style={{ background: "#111827", color: "#d4af37", border: "1px solid #d4af37", borderRadius: 12, padding: "12px 18px", fontWeight: 900, cursor: "pointer", fontSize: 14 }}>🔐 Admin Portal</button>
@@ -4368,6 +4937,29 @@ export default function App() {
         </div>
         {/* Driver Standings */}
         <div style={sectionCardStyle}>
+
+          <div id="points-penalties-section" style={sectionCardStyle}>
+            <h2 style={{ marginTop: 0 }}>📊 Points & Penalties</h2>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 14 }}>
+              <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14 }}>
+                <h3 style={{ marginTop: 0, color: "#d4af37" }}>Race Finish Points</h3>
+                <p style={{ opacity: 0.82, lineHeight: 1.5 }}>Winner receives 55 points. 2nd receives 35 points, then points decrease by 1 per position through the field.</p>
+              </div>
+              <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14 }}>
+                <h3 style={{ marginTop: 0, color: "#d4af37" }}>Stage Points</h3>
+                <p style={{ opacity: 0.82, lineHeight: 1.5 }}>Top 10 stage finishers receive points: 10, 9, 8, 7, 6, 5, 4, 3, 2, 1.</p>
+              </div>
+              <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14 }}>
+                <h3 style={{ marginTop: 0, color: "#d4af37" }}>Penalty Points</h3>
+                <p style={{ opacity: 0.82, lineHeight: 1.5 }}>Penalty deductions increase by offense: 1st -5, 2nd -10, 3rd -15, 4th+ -25.</p>
+              </div>
+              <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14 }}>
+                <h3 style={{ marginTop: 0, color: "#d4af37" }}>Total Formula</h3>
+                <p style={{ opacity: 0.82, lineHeight: 1.5 }}>Finish Points + Stage Points + Bonuses - Penalties = Total Points.</p>
+              </div>
+            </div>
+          </div>
+
           <h2 style={{ marginTop: 0 }}>Driver Standings</h2>
           <div style={{ overflowX: "auto" }}>
             <table style={tableStyle}>
