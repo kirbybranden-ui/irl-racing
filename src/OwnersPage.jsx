@@ -242,31 +242,59 @@ async function loadRemoteOwnerAccessCodes() {
 }
 
 async function loadRemoteOwnerDriverAccessCodes() {
-  const { data, error } = await supabase
-    .from("driver_access_codes")
-    .select("driver_number, driver_name, code, temp_code, active")
-    .eq("active", true);
-
-  if (error) {
-    console.error("Failed to load driver access codes for owner portal:", error);
+  const localCodes = (() => {
     try {
       return JSON.parse(localStorage.getItem("driverProfileAccessCodes") || "{}");
     } catch {
       return {};
     }
+  })();
+
+  async function fetchCodes(selectColumns) {
+    const { data, error } = await supabase
+      .from("driver_access_codes")
+      .select(selectColumns)
+      .eq("active", true);
+
+    if (error) {
+      console.error(`Failed to load driver access codes for owner portal with ${selectColumns}:`, error);
+      return null;
+    }
+
+    return data || [];
   }
 
-  const nextCodes = {};
-  (data || []).forEach((row) => {
-    const code = row.temp_code || row.code;
+  let rows = await fetchCodes("driver_number, driver_name, code, temp_code, active");
+
+  if (!rows) {
+    rows = await fetchCodes("driver_number, driver_name, access_code, temp_code, active");
+  }
+
+  if (!rows) {
+    return localCodes;
+  }
+
+  const nextCodes = { ...localCodes };
+
+  rows.forEach((row) => {
+    const code = row.temp_code || row.code || row.access_code;
     if (!code) return;
-    if (row.driver_number) nextCodes[String(row.driver_number).trim().toLowerCase()] = code;
-    if (row.driver_name) nextCodes[String(row.driver_name).trim().toLowerCase()] = code;
+
+    if (row.driver_number) {
+      nextCodes[String(row.driver_number).trim()] = code;
+      nextCodes[String(row.driver_number).trim().toLowerCase()] = code;
+    }
+
+    if (row.driver_name) {
+      nextCodes[String(row.driver_name).trim()] = code;
+      nextCodes[String(row.driver_name).trim().toLowerCase()] = code;
+    }
   });
 
   localStorage.setItem("driverProfileAccessCodes", JSON.stringify(nextCodes));
   return nextCodes;
 }
+
 
 function normalizeAccessCode(value) {
   return String(value || "").trim().toUpperCase();
@@ -274,10 +302,27 @@ function normalizeAccessCode(value) {
 
 function getOwnerDriverCodesForTeam(team, driverCodes = {}) {
   const keys = OWNER_DRIVER_KEYS[team] || OWNER_DRIVER_KEYS[getTeamFullName(team)] || [];
-  return keys
-    .map((key) => driverCodes[String(key).trim().toLowerCase()])
-    .filter(Boolean)
-    .map(normalizeAccessCode);
+  const normalizedKeys = keys.map((key) => String(key || "").trim().toLowerCase());
+  const codes = [];
+
+  normalizedKeys.forEach((key) => {
+    const direct = driverCodes[key] || driverCodes[key.toUpperCase()] || driverCodes[key.replace(/\s+/g, "_")];
+    if (direct) codes.push(direct);
+  });
+
+  Object.entries(driverCodes || {}).forEach(([rawKey, code]) => {
+    const key = String(rawKey || "").trim().toLowerCase();
+    if (!code) return;
+
+    const matchesOwnerKey = normalizedKeys.some((ownerKey) => {
+      if (!ownerKey) return false;
+      return key === ownerKey || key.includes(ownerKey) || ownerKey.includes(key);
+    });
+
+    if (matchesOwnerKey) codes.push(code);
+  });
+
+  return Array.from(new Set(codes.map(normalizeAccessCode).filter(Boolean)));
 }
 
 
