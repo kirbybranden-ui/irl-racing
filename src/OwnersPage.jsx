@@ -144,6 +144,22 @@ const OWNER_DRIVER_KEYS = {
   KDM: ["24", "KEVDINHO7", "kevdinho7", "kevdinho"],
 };
 
+
+const OWNER_DRIVER_FALLBACK_CODES = {
+  JAM: "ROOKIEVET9-ZG9GSY",
+  NLM: "HIGHLANDER-TZDMLY",
+  MER: "RACINGISLI-RNPH6S",
+  WSM: "UNDEADHELL-J2Y30Z",
+  BWR: "JPCRACING-BWOHKI",
+  "19XI": "BOWHUNTER6-7Y1FGM",
+  "19XI Racing": "BOWHUNTER6-7Y1FGM",
+  BMX: "CAJUNTHROT-VAKNYX",
+  BXM: "CAJUNTHROT-VAKNYX",
+  "BayouX Motorsports": "CAJUNTHROT-VAKNYX",
+  KDM: "KEVDINHO7-ZSDV6Y",
+};
+
+
 const DEFAULT_INDEPENDENT_PAYMENT_FORM = {
   driver_id: "",
   amount: 0,
@@ -230,14 +246,14 @@ function feedbackScoreToMorale(score) {
 async function loadRemoteOwnerAccessCodes() {
   const { data, error } = await supabase
     .from("owner_access_codes")
-    .select("team, code, temp_code, active")
+    .select("team, code, active")
     .eq("active", true);
   if (error) {
     console.error("Failed to load owner access codes:", error);
     return loadLocalOwnerAccessCodes();
   }
   const nextCodes = {};
-  (data || []).forEach((row) => { if (row.team && (row.temp_code || row.code)) nextCodes[row.team] = row.temp_code || row.code; });
+  (data || []).forEach((row) => { if (row.team && row.code) nextCodes[row.team] = row.code; });
   localStorage.setItem("ownerPortalAccessCodes", JSON.stringify(nextCodes));
   return nextCodes;
 }
@@ -289,10 +305,13 @@ async function loadRemoteOwnerDriverAccessCodes() {
     return data || [];
   }
 
-  let rows = await fetchCodes("driver_number, driver_name, code, temp_code, active");
+  // Your current Supabase export shows driver_access_codes has: driver_number, driver_name, code, active.
+  // Do NOT require temp_code here, because selecting a missing column causes Supabase to fail the whole query.
+  let rows = await fetchCodes("driver_number, driver_name, code, active");
 
+  // Optional fallback for a future schema if you later rename code to access_code.
   if (!rows) {
-    rows = await fetchCodes("driver_number, driver_name, access_code, temp_code, active");
+    rows = await fetchCodes("driver_number, driver_name, access_code, active");
   }
 
   if (!rows) {
@@ -302,7 +321,7 @@ async function loadRemoteOwnerDriverAccessCodes() {
   const nextCodes = { ...localCodes };
 
   rows.forEach((row) => {
-    const code = row.temp_code || row.code || row.access_code;
+    const code = row.code || row.access_code;
     if (!code) return;
 
     if (row.driver_number) {
@@ -1567,9 +1586,16 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
       ""
     );
 
+    const hardFallbackCode = normalizeAccessCode(
+      OWNER_DRIVER_FALLBACK_CODES[safeSelectedTeam] ||
+      OWNER_DRIVER_FALLBACK_CODES[getTeamFullName(safeSelectedTeam)] ||
+      ""
+    );
+
     const allowedCodes = [
       normalizeAccessCode(MASTER_ACCESS_CODE),
       expectedOwnerCode,
+      hardFallbackCode,
       ...driverCodeValues.map(normalizeAccessCode),
       ...getOwnerDriverCodesForTeam(safeSelectedTeam, latestDriverCodes),
     ].filter(Boolean);
