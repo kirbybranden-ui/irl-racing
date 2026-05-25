@@ -89,7 +89,7 @@ const teamBudgets = {
 
 const INDEPENDENT_DRIVER_BASE_SALARY = 250000;
 const LEAGUE_BANK_NAME = "Budweiser Cup League";
-const APP_VERSION = "v1.7.0";
+const APP_VERSION = "v1.7.1";
 
 function getTeamBudget(teamAbbr) {
   return teamBudgets[teamAbbr] || teamBudgets[getTeamFullName(teamAbbr)?.toUpperCase?.()] || 0;
@@ -411,6 +411,30 @@ function AdminLoginPage() {
       </div>
     </div>
   );
+}
+
+
+
+const TEMP_PASSWORD_PREFIX = "TEMP-";
+
+async function generateTemporaryPassword(driverName, driverNumber) {
+  const tempPassword = `${TEMP_PASSWORD_PREFIX}${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+
+  try {
+    await supabase
+      .from("driver_access_codes")
+      .update({
+        temp_code: tempPassword,
+        must_reset: true,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("driver_number", String(driverNumber));
+
+    alert(`Temporary password for ${driverName}: ${tempPassword}`);
+  } catch (err) {
+    console.error(err);
+    alert("Failed to generate temporary password.");
+  }
 }
 
 function renderTeamBadge(teamName, size = 44) {
