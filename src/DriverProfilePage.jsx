@@ -117,6 +117,8 @@ function getSatisfactionStatus(score) {
   return { label: "At Risk", color: "#ef4444", bg: "#2a1111" };
 }
 
+const MASTER_ACCESS_CODE = "BCLADMINPASSWORD2026";
+
 function loadLocalDriverAccessCodes() {
   try {
     const saved = localStorage.getItem("driverProfileAccessCodes");
@@ -129,7 +131,7 @@ function loadLocalDriverAccessCodes() {
 async function loadRemoteDriverAccessCodes() {
   const { data, error } = await supabase
     .from("driver_access_codes")
-    .select("driver_number, driver_name, code, active")
+    .select("driver_number, driver_name, code, temp_code, must_reset, active")
     .eq("active", true);
 
   if (error) {
@@ -139,8 +141,8 @@ async function loadRemoteDriverAccessCodes() {
 
   const nextCodes = {};
   (data || []).forEach((row) => {
-    if (row.driver_number && row.code) nextCodes[String(row.driver_number)] = row.code;
-    if (row.driver_name && row.code) nextCodes[String(row.driver_name).toLowerCase()] = row.code;
+    if (row.driver_number && (row.temp_code || row.code)) nextCodes[String(row.driver_number)] = row.temp_code || row.code;
+    if (row.driver_name && (row.temp_code || row.code)) nextCodes[String(row.driver_name).toLowerCase()] = row.temp_code || row.code;
   });
 
   localStorage.setItem("driverProfileAccessCodes", JSON.stringify(nextCodes));
