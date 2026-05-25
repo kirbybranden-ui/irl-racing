@@ -119,6 +119,10 @@ function getSatisfactionStatus(score) {
 
 const MASTER_ACCESS_CODE = "BCLADMINPASSWORD2026";
 
+function normalizeAccessCode(value) {
+  return String(value || "").trim().toUpperCase();
+}
+
 function loadLocalDriverAccessCodes() {
   try {
     const saved = localStorage.getItem("driverProfileAccessCodes");
@@ -907,8 +911,8 @@ const driver = sanitizedDrivers.find((d) => d && String(d.number) === String(dri
     const latestCodes = await loadRemoteDriverAccessCodes();
     setDriverAccessCodes(latestCodes);
 
-    const expectedByNumber = String(latestCodes[driverAccessKey] || driverAccessCodes[driverAccessKey] || "").trim().toUpperCase();
-    const expectedByName = String(driver?.name ? latestCodes[String(driver.name).toLowerCase()] || driverAccessCodes[String(driver.name).toLowerCase()] || "" : "").trim().toUpperCase();
+    const expectedByNumber = normalizeAccessCode(latestCodes[driverAccessKey] || driverAccessCodes[driverAccessKey] || "");
+    const expectedByName = normalizeAccessCode(driver?.name ? latestCodes[String(driver.name).toLowerCase()] || driverAccessCodes[String(driver.name).toLowerCase()] || "" : "");
     const expected = expectedByNumber || expectedByName;
 
     if (!expected) {
@@ -916,7 +920,7 @@ const driver = sanitizedDrivers.find((d) => d && String(d.number) === String(dri
       return;
     }
 
-    if (String(driverAccessCodeInput).trim().toUpperCase() !== expected && String(driverAccessCodeInput).trim().toUpperCase() !== MASTER_ACCESS_CODE) {
+    if (normalizeAccessCode(driverAccessCodeInput) !== expected && normalizeAccessCode(driverAccessCodeInput) !== normalizeAccessCode(MASTER_ACCESS_CODE)) {
       setContractError("Incorrect driver access code.");
       return;
     }
@@ -953,13 +957,17 @@ const driver = sanitizedDrivers.find((d) => d && String(d.number) === String(dri
       return;
     }
 
-    const { error } = await supabase
-      .from("driver_access_codes")
-      .update({
-        code: nextPassword,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("driver_number", String(driver.number));
+    async function updatePassword(payload) {
+      return await supabase
+        .from("driver_access_codes")
+        .update(payload)
+        .eq("driver_number", String(driver.number));
+    }
+
+    let { error } = await updatePassword({
+      code: nextPassword,
+      updated_at: new Date().toISOString(),
+    });
 
     if (error) {
       console.error("Could not change driver password:", error);
@@ -970,6 +978,8 @@ const driver = sanitizedDrivers.find((d) => d && String(d.number) === String(dri
     const nextCodes = {
       ...driverAccessCodes,
       [String(driver.number)]: nextPassword,
+      [String(driver.number).toLowerCase()]: nextPassword,
+      [String(driver.name || "")]: nextPassword,
       [String(driver.name || "").toLowerCase()]: nextPassword,
     };
 
@@ -977,7 +987,7 @@ const driver = sanitizedDrivers.find((d) => d && String(d.number) === String(dri
     setDriverAccessCodes(nextCodes);
     setNewDriverPassword("");
     setConfirmDriverPassword("");
-    setPasswordChangeMessage("Password updated. Use the new password next time.");
+    setPasswordChangeMessage("Password updated. This new password now works anywhere the original driver password worked.");
   }
 
   function openProtectedDriverSection(path) {
@@ -1877,6 +1887,8 @@ const driver = sanitizedDrivers.find((d) => d && String(d.number) === String(dri
           </div>
           {isDriverAuthorized && <button onClick={lockDriverContracts} style={secondaryButtonStyle}>Lock Driver Access</button>}
         </div>
+
+        {passwordManagerCard}
 
         <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 20 }}>
           {[
