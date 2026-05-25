@@ -129,20 +129,36 @@ function loadLocalDriverAccessCodes() {
 }
 
 async function loadRemoteDriverAccessCodes() {
-  const { data, error } = await supabase
-    .from("driver_access_codes")
-    .select("driver_number, driver_name, code, temp_code, must_reset, active")
-    .eq("active", true);
+  async function fetchCodes(selectColumns) {
+    const { data, error } = await supabase
+      .from("driver_access_codes")
+      .select(selectColumns)
+      .eq("active", true);
 
-  if (error) {
-    console.error("Failed to load driver access codes:", error);
+    if (error) {
+      console.error(`Failed to load driver access codes with ${selectColumns}:`, error);
+      return null;
+    }
+
+    return data || [];
+  }
+
+  let rows = await fetchCodes("driver_number, driver_name, code, active");
+
+  if (!rows) {
+    rows = await fetchCodes("driver_number, driver_name, access_code, active");
+  }
+
+  if (!rows) {
     return loadLocalDriverAccessCodes();
   }
 
   const nextCodes = {};
-  (data || []).forEach((row) => {
-    if (row.driver_number && (row.temp_code || row.code)) nextCodes[String(row.driver_number)] = row.temp_code || row.code;
-    if (row.driver_name && (row.temp_code || row.code)) nextCodes[String(row.driver_name).toLowerCase()] = row.temp_code || row.code;
+  rows.forEach((row) => {
+    const code = row.code || row.access_code;
+    if (!code) return;
+    if (row.driver_number) nextCodes[String(row.driver_number)] = code;
+    if (row.driver_name) nextCodes[String(row.driver_name).toLowerCase()] = code;
   });
 
   localStorage.setItem("driverProfileAccessCodes", JSON.stringify(nextCodes));
@@ -472,6 +488,10 @@ const driver = sanitizedDrivers.find((d) => d && String(d.number) === String(dri
   const [renegotiationError, setRenegotiationError] = useState("");
   const [renegotiationSubmitting, setRenegotiationSubmitting] = useState(false);
   const [driverAccessCodeInput, setDriverAccessCodeInput] = useState("");
+  const [newDriverPassword, setNewDriverPassword] = useState("");
+  const [confirmDriverPassword, setConfirmDriverPassword] = useState("");
+  const [passwordChangeMessage, setPasswordChangeMessage] = useState("");
+  const [passwordChangeError, setPasswordChangeError] = useState("");
   const [driverAccessCodes, setDriverAccessCodes] = useState(loadLocalDriverAccessCodes);
   const [authorizedDriverNumber, setAuthorizedDriverNumber] = useState(() => localStorage.getItem("driverProfileAuthorizedNumber") || "");
   const [pendingDriverPath, setPendingDriverPath] = useState("");
@@ -896,7 +916,7 @@ const driver = sanitizedDrivers.find((d) => d && String(d.number) === String(dri
       return;
     }
 
-    if (String(driverAccessCodeInput).trim().toUpperCase() !== expected) {
+    if (String(driverAccessCodeInput).trim().toUpperCase() !== expected && String(driverAccessCodeInput).trim().toUpperCase() !== MASTER_ACCESS_CODE) {
       setContractError("Incorrect driver access code.");
       return;
     }
@@ -909,6 +929,55 @@ const driver = sanitizedDrivers.find((d) => d && String(d.number) === String(dri
     if (pendingDriverPath) {
       window.location.pathname = pendingDriverPath;
     }
+  }
+
+  async function changeDriverPassword() {
+    setPasswordChangeMessage("");
+    setPasswordChangeError("");
+
+    if (!isDriverAuthorized || !driver) {
+      setPasswordChangeError("Unlock driver access before changing the password.");
+      return;
+    }
+
+    const nextPassword = String(newDriverPassword || "").trim();
+    const confirmPassword = String(confirmDriverPassword || "").trim();
+
+    if (nextPassword.length < 6) {
+      setPasswordChangeError("Password must be at least 6 characters.");
+      return;
+    }
+
+    if (nextPassword !== confirmPassword) {
+      setPasswordChangeError("Passwords do not match.");
+      return;
+    }
+
+    const { error } = await supabase
+      .from("driver_access_codes")
+      .update({
+        code: nextPassword,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("driver_number", String(driver.number));
+
+    if (error) {
+      console.error("Could not change driver password:", error);
+      setPasswordChangeError("Could not change password. Check driver_access_codes RLS update policy.");
+      return;
+    }
+
+    const nextCodes = {
+      ...driverAccessCodes,
+      [String(driver.number)]: nextPassword,
+      [String(driver.name || "").toLowerCase()]: nextPassword,
+    };
+
+    localStorage.setItem("driverProfileAccessCodes", JSON.stringify(nextCodes));
+    setDriverAccessCodes(nextCodes);
+    setNewDriverPassword("");
+    setConfirmDriverPassword("");
+    setPasswordChangeMessage("Password updated. Use the new password next time.");
   }
 
   function openProtectedDriverSection(path) {
@@ -1242,6 +1311,40 @@ const driver = sanitizedDrivers.find((d) => d && String(d.number) === String(dri
     );
   }
 
+  const passwordManagerCard = isDriverAuthorized ? (
+    <div style={{ ...sectionCardStyle, borderColor: teamTheme.accent }}>
+      <h2 style={{ marginTop: 0 }}>🔑 Driver Password</h2>
+      <p style={{ opacity: 0.72, lineHeight: 1.5 }}>
+        Change your driver profile password here. This same password can also unlock your owner/team page if you are assigned as a team owner.
+      </p>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, alignItems: "end" }}>
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>NEW PASSWORD</div>
+          <input
+            type="password"
+            value={newDriverPassword}
+            onChange={(event) => setNewDriverPassword(event.target.value)}
+            placeholder="Enter new password"
+            style={inputStyle}
+          />
+        </div>
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>CONFIRM PASSWORD</div>
+          <input
+            type="password"
+            value={confirmDriverPassword}
+            onChange={(event) => setConfirmDriverPassword(event.target.value)}
+            placeholder="Confirm new password"
+            style={inputStyle}
+          />
+        </div>
+        <button type="button" onClick={changeDriverPassword} style={themedPrimaryButtonStyle}>Update Password</button>
+      </div>
+      {passwordChangeMessage && <div style={{ color: "#4ade80", marginTop: 12, fontWeight: 800 }}>{passwordChangeMessage}</div>}
+      {passwordChangeError && <div style={{ color: "#f87171", marginTop: 12, fontWeight: 800 }}>{passwordChangeError}</div>}
+    </div>
+  ) : null;
+
   if (subPage === "appeals") {
     return (
       <div style={appShellStyle}>
@@ -1253,6 +1356,8 @@ const driver = sanitizedDrivers.find((d) => d && String(d.number) === String(dri
               <div style={{ fontSize: 13, opacity: 0.6, marginTop: 2 }}>{myAppeals.length} appeal{myAppeals.length !== 1 ? "s" : ""} total</div>
             </div>
           </div>
+
+          {passwordManagerCard}
 
           <div style={{ marginBottom: 20 }}>
             <button onClick={() => setIsAppealModalOpen(true)} style={themedPrimaryButtonStyle}>📋 File New Appeal</button>
@@ -1858,7 +1963,9 @@ const driver = sanitizedDrivers.find((d) => d && String(d.number) === String(dri
           </div>
         )}
 
-        <div style={sectionCardStyle}>
+        {passwordManagerCard}
+
+          <div style={sectionCardStyle}>
           <h2 style={{ marginTop: 0, marginBottom: 16 }}>Season Overview</h2>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12, marginBottom: 16 }}>
             <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}>
