@@ -802,15 +802,6 @@ function TeamOverlay({ teams, preview = false, seasonName = "" }) {
   );
 }
 
-
-<div style={{ ...sectionCardStyle }}>
-  <h2 style={{ marginTop: 0 }}>Points & Penalties</h2>
-  <p><strong>Stage Points:</strong> 1st: 10, 2nd: 9, 3rd: 8, 4th: 7, 5th: 6, 6th: 5, 7th: 4, 8th: 3, 9th: 2, 10th: 1</p>
-  <p><strong>Penalty System:</strong> 1st offense: -5 | 2nd offense: -10 | 3rd offense: -15 | 4th+ offense: -25</p>
-  <p><strong>Total Formula:</strong> Finish Points + Stage Points + Bonuses - Penalties = Total Points</p>
-</div>
-
-
 function AppUpdateBanner({ page = "all" }) {
   const [banner, setBanner] = useState(null);
 
@@ -2503,6 +2494,7 @@ function PreviousRaceWinnerAdminPanel({ drivers = [], raceHistory = [] }) {
 }
 
 function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonName = "", tracks = [], raceHistory = [] }) {
+  const [standingsTab, setStandingsTab] = useState("drivers");
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [selectedTrackInfo, setSelectedTrackInfo] = useState(null);
   const [featuredVideo, setFeaturedVideo] = useState(null);
@@ -2908,7 +2900,36 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
           </div>
         )}
 
-        <div style={{ background: "#151a22", border: "1px solid #2d3643", borderRadius: 22, padding: 18, marginBottom: 22, boxShadow: "0 10px 28px rgba(0,0,0,0.22)" }}>
+        
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 22 }}>
+          {[
+            { key: "drivers", label: "Driver Standings" },
+            { key: "teams", label: "Team Standings" },
+            { key: "manufacturers", label: "Manufacturer Standings" },
+            { key: "points", label: "Points & Penalties" },
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setStandingsTab(tab.key)}
+              style={{
+                background: standingsTab === tab.key ? "#d4af37" : "#1f2937",
+                color: standingsTab === tab.key ? "#111" : "white",
+                border: standingsTab === tab.key ? "1px solid #d4af37" : "1px solid #3d4859",
+                borderRadius: 12,
+                padding: "12px 18px",
+                fontWeight: 900,
+                cursor: "pointer",
+                fontSize: 14,
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {standingsTab === "drivers" && (
+<div style={{ background: "#151a22", border: "1px solid #2d3643", borderRadius: 22, padding: 18, marginBottom: 22, boxShadow: "0 10px 28px rgba(0,0,0,0.22)" }}>
           <div style={{ fontSize: 26, fontWeight: 900, marginBottom: 14 }}>Driver Standings</div>
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -2938,7 +2959,10 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
             </table>
           </div>
         </div>
-        <div style={{ background: "#151a22", border: "1px solid #2d3643", borderRadius: 22, padding: 18, marginBottom: 22, boxShadow: "0 10px 28px rgba(0,0,0,0.22)" }}>
+        
+        )}
+        {standingsTab === "teams" && (
+<div style={{ background: "#151a22", border: "1px solid #2d3643", borderRadius: 22, padding: 18, marginBottom: 22, boxShadow: "0 10px 28px rgba(0,0,0,0.22)" }}>
           <div style={{ fontSize: 26, fontWeight: 900, marginBottom: 14 }}>Team Standings</div>
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -2959,7 +2983,10 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
             </table>
           </div>
         </div>
-        <div style={{ background: "#151a22", border: "1px solid #2d3643", borderRadius: 22, padding: 18, boxShadow: "0 10px 28px rgba(0,0,0,0.22)" }}>
+        
+        )}
+        {standingsTab === "manufacturers" && (
+<div style={{ background: "#151a22", border: "1px solid #2d3643", borderRadius: 22, padding: 18, boxShadow: "0 10px 28px rgba(0,0,0,0.22)" }}>
           <div style={{ fontSize: 26, fontWeight: 900, marginBottom: 14 }}>Manufacturer Standings</div>
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -2989,6 +3016,32 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
             </table>
           </div>
         </div>
+        )}
+
+        {standingsTab === "points" && (
+          <div style={{ background: "#151a22", border: "1px solid #2d3643", borderRadius: 22, padding: 18, marginBottom: 22, boxShadow: "0 10px 28px rgba(0,0,0,0.22)" }}>
+            <div style={{ fontSize: 26, fontWeight: 900, marginBottom: 14 }}>Points & Penalties</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 14 }}>
+              <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14 }}>
+                <h3 style={{ marginTop: 0, color: "#d4af37" }}>Race Finish Points</h3>
+                <p style={{ opacity: 0.82, lineHeight: 1.5 }}>Winner receives 55 points. 2nd receives 35 points, then points decrease by 1 per position through the field.</p>
+              </div>
+              <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14 }}>
+                <h3 style={{ marginTop: 0, color: "#d4af37" }}>Stage Points</h3>
+                <p style={{ opacity: 0.82, lineHeight: 1.5 }}>Top 10 stage finishers receive points: 10, 9, 8, 7, 6, 5, 4, 3, 2, 1.</p>
+              </div>
+              <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14 }}>
+                <h3 style={{ marginTop: 0, color: "#d4af37" }}>Penalty Points</h3>
+                <p style={{ opacity: 0.82, lineHeight: 1.5 }}>Penalty deductions increase by offense: 1st -5, 2nd -10, 3rd -15, 4th+ -25.</p>
+              </div>
+              <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14 }}>
+                <h3 style={{ marginTop: 0, color: "#d4af37" }}>Total Formula</h3>
+                <p style={{ opacity: 0.82, lineHeight: 1.5 }}>Finish Points + Stage Points + Bonuses - Penalties = Total Points.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   );
