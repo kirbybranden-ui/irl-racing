@@ -2497,6 +2497,7 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
   const [selectedTrackInfo, setSelectedTrackInfo] = useState(null);
   const [featuredVideo, setFeaturedVideo] = useState(null);
   const [manualOnesToWatch, setManualOnesToWatch] = useState([]);
+  const [standingsTab, setStandingsTab] = useState("drivers");
   const handleDriverClick = (number) => {
     window.location.pathname = `/driver/${number}`;
   };
@@ -2910,6 +2911,25 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
           </div>
         )}
 
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 18 }}>
+          {[
+            ["drivers", "Driver Standings"],
+            ["teams", "Team Standings"],
+            ["manufacturers", "Manufacturer Standings"],
+            ["pointsRules", "Points & Penalties"],
+          ].map(([tabKey, label]) => (
+            <button
+              key={tabKey}
+              type="button"
+              onClick={() => setStandingsTab(tabKey)}
+              style={standingsTab === tabKey ? activeHeaderButtonStyle : headerButtonStyle}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {standingsTab === "drivers" && (
         <div style={{ background: "#151a22", border: "1px solid #2d3643", borderRadius: 22, padding: 18, marginBottom: 22, boxShadow: "0 10px 28px rgba(0,0,0,0.22)" }}>
           <div style={{ fontSize: 26, fontWeight: 900, marginBottom: 14 }}>Driver Standings</div>
           <div style={{ overflowX: "auto" }}>
@@ -2940,6 +2960,9 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
             </table>
           </div>
         </div>
+        )}
+
+        {standingsTab === "teams" && (
         <div style={{ background: "#151a22", border: "1px solid #2d3643", borderRadius: 22, padding: 18, marginBottom: 22, boxShadow: "0 10px 28px rgba(0,0,0,0.22)" }}>
           <div style={{ fontSize: 26, fontWeight: 900, marginBottom: 14 }}>Team Standings</div>
           <div style={{ overflowX: "auto" }}>
@@ -2961,6 +2984,9 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
             </table>
           </div>
         </div>
+        )}
+
+        {standingsTab === "manufacturers" && (
         <div style={{ background: "#151a22", border: "1px solid #2d3643", borderRadius: 22, padding: 18, boxShadow: "0 10px 28px rgba(0,0,0,0.22)" }}>
           <div style={{ fontSize: 26, fontWeight: 900, marginBottom: 14 }}>Manufacturer Standings</div>
           <div style={{ overflowX: "auto" }}>
@@ -2991,6 +3017,46 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
             </table>
           </div>
         </div>
+        )}
+
+        {standingsTab === "pointsRules" && (
+          <div style={{ background: "#151a22", border: "1px solid #2d3643", borderRadius: 22, padding: 18, marginBottom: 22, boxShadow: "0 10px 28px rgba(0,0,0,0.22)" }}>
+            <div style={{ fontSize: 26, fontWeight: 900, marginBottom: 8 }}>Points & Penalties</div>
+            <div style={{ opacity: 0.72, marginBottom: 18, lineHeight: 1.45 }}>
+              Public breakdown of how Budweiser Cup League standings points are calculated.
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14 }}>
+              <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 16, padding: 16 }}>
+                <div style={{ color: "#d4af37", fontSize: 18, fontWeight: 900, marginBottom: 10 }}>Race Finish Points</div>
+                <p style={{ marginTop: 0, lineHeight: 1.45 }}>
+                  The race winner earns 55 points. Second place earns 35 points, then each position drops by 1 point through 35th. Positions 36th through 40th earn 1 point.
+                </p>
+              </div>
+
+              <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 16, padding: 16 }}>
+                <div style={{ color: "#d4af37", fontSize: 18, fontWeight: 900, marginBottom: 10 }}>Stage Points</div>
+                <p style={{ marginTop: 0, lineHeight: 1.45 }}>
+                  Top 10 in each points-paying stage receive: 1st 10, 2nd 9, 3rd 8, 4th 7, 5th 6, 6th 5, 7th 4, 8th 3, 9th 2, 10th 1.
+                </p>
+              </div>
+
+              <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 16, padding: 16 }}>
+                <div style={{ color: "#f87171", fontSize: 18, fontWeight: 900, marginBottom: 10 }}>Penalty Points</div>
+                <p style={{ marginTop: 0, lineHeight: 1.45 }}>
+                  Penalties are deducted by offense count: 1st offense -5, 2nd offense -10, 3rd offense -15, and 4th offense or more -25.
+                </p>
+              </div>
+
+              <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 16, padding: 16 }}>
+                <div style={{ color: "#d4af37", fontSize: 18, fontWeight: 900, marginBottom: 10 }}>Total Points Formula</div>
+                <p style={{ marginTop: 0, lineHeight: 1.45 }}>
+                  Finish Points + Stage Points - Penalties = Total Race Points. Season standings are rebuilt from saved race history totals.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
