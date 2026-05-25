@@ -131,17 +131,17 @@ const DEFAULT_CONTRACT_FORM = {
 const MASTER_ACCESS_CODE = "BCLADMINPASSWORD2026";
 
 const OWNER_DRIVER_KEYS = {
-  JAM: ["99", "rookievet99", "rookievet"],
-  NLM: ["6", "highlander713", "highlander"],
-  MER: ["87", "racingis_life87", "racingislife", "racingis_life"],
-  WSM: ["66", "undeadhelliday", "undeadhelliday"],
-  BWR: ["97", "jpc_racing", "jpc racing", "jpc"],
-  "19XI": ["18", "bowhunter6758", "bowhunter"],
-  "19XI Racing": ["18", "bowhunter6758", "bowhunter"],
-  BMX: ["34", "cajunthrottle28", "cajun"],
-  BXM: ["34", "cajunthrottle28", "cajun"],
-  "BayouX Motorsports": ["34", "cajunthrottle28", "cajun"],
-  KDM: ["24", "kevdinho7", "kevdinho"],
+  JAM: ["99", "RookieVet99", "rookievet99", "rookievet"],
+  NLM: ["6", "Highlander713", "highlander713", "highlander"],
+  MER: ["87", "Racingis_life87", "racingis_life87", "racingislife", "racingis_life"],
+  WSM: ["66", "UndeadHelliday", "undeadhelliday"],
+  BWR: ["97", "JPC_Racing", "jpc_racing", "jpc racing", "jpc"],
+  "19XI": ["18", "bowhunter6758", "Bowhunter6758", "bowhunter"],
+  "19XI Racing": ["18", "bowhunter6758", "Bowhunter6758", "bowhunter"],
+  BMX: ["34", "CaJunThrottle28", "cajunthrottle28", "cajun"],
+  BXM: ["34", "CaJunThrottle28", "cajunthrottle28", "cajun"],
+  "BayouX Motorsports": ["34", "CaJunThrottle28", "cajunthrottle28", "cajun"],
+  KDM: ["24", "KEVDINHO7", "kevdinho7", "kevdinho"],
 };
 
 const DEFAULT_INDEPENDENT_PAYMENT_FORM = {
@@ -1541,13 +1541,23 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
     const assignedOwnerNumber = assignedOwner?.owner_driver_number ? String(assignedOwner.owner_driver_number).trim() : "";
     const assignedOwnerName = assignedOwner?.owner_driver_name ? String(assignedOwner.owner_driver_name).trim().toLowerCase() : "";
 
-    const assignedOwnerCodes = [
-      assignedOwnerNumber ? latestDriverCodes[assignedOwnerNumber] : "",
-      assignedOwnerNumber ? latestDriverCodes[assignedOwnerNumber.toLowerCase()] : "",
-      assignedOwnerName ? latestDriverCodes[assignedOwnerName] : "",
-    ].filter(Boolean).map(normalizeAccessCode);
+    const manualOwnerKeys = OWNER_DRIVER_KEYS[safeSelectedTeam] || OWNER_DRIVER_KEYS[getTeamFullName(safeSelectedTeam)] || [];
+    const allOwnerKeys = [
+      assignedOwnerNumber,
+      assignedOwnerName,
+      ...manualOwnerKeys,
+    ]
+      .filter(Boolean)
+      .map((value) => String(value).trim());
 
-    const fallbackOwnerDriverCodes = getOwnerDriverCodesForTeam(safeSelectedTeam, latestDriverCodes);
+    const driverCodeValues = [];
+    allOwnerKeys.forEach((key) => {
+      const cleanKey = String(key).trim();
+      const lowerKey = cleanKey.toLowerCase();
+      if (latestDriverCodes[cleanKey]) driverCodeValues.push(latestDriverCodes[cleanKey]);
+      if (latestDriverCodes[lowerKey]) driverCodeValues.push(latestDriverCodes[lowerKey]);
+      if (latestDriverCodes[cleanKey.toUpperCase()]) driverCodeValues.push(latestDriverCodes[cleanKey.toUpperCase()]);
+    });
 
     const expectedOwnerCode = normalizeAccessCode(
       latestOwnerCodes[safeSelectedTeam] ||
@@ -1560,16 +1570,16 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
     const allowedCodes = [
       normalizeAccessCode(MASTER_ACCESS_CODE),
       expectedOwnerCode,
-      ...assignedOwnerCodes,
-      ...fallbackOwnerDriverCodes,
+      ...driverCodeValues.map(normalizeAccessCode),
+      ...getOwnerDriverCodesForTeam(safeSelectedTeam, latestDriverCodes),
     ].filter(Boolean);
 
     if (!allowedCodes.includes(enteredCode)) {
-      setError(
-        assignedOwner
-          ? `Incorrect code for this team. Use ${assignedOwner.owner_driver_name}'s driver profile password, a temp password, or the master admin password.`
-          : "Incorrect code for this team. No owner assignment was found, so use the old owner code, fallback owner driver password, or master admin password."
-      );
+      const ownerNameForMessage =
+        assignedOwner?.owner_driver_name ||
+        (safeSelectedTeam === "JAM" ? "RookieVet99" : "the assigned owner driver");
+
+      setError(`Incorrect code for this team. Use ${ownerNameForMessage}'s driver profile password, a temp password, or the master admin password.`);
       return;
     }
 
