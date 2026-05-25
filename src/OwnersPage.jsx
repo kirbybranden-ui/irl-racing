@@ -47,20 +47,21 @@ const teamFullNames = {
 };
 
 const ownerNames = {
-  JAM: "JA Motorsports Ownership Group",
-  MER: "ME Racing Ownership Group",
+  JAM: "RookieVet",
+  MER: "RacingIsLife",
   MMS: "Mayhem Motorsports Ownership Group",
-  NLM: "Nine Line Motorsports Ownership Group",
-  BWR: "Big Wheel Racing Ownership Group",
-  WSM: "Uncle_HowdySICK6",
-  "19XI": "bowhunter6758",
-  "19XI Racing": "bowhunter6758",
+  NLM: "Highlander",
+  BWR: "JPC Racing",
+  WSM: "UndeadHelliday",
+  "19XI": "Bowhunter",
+  "19XI Racing": "Bowhunter",
   BOM: "Blue Oval Motorsports",
   Independent: "Free Agent Pool",
   IND: "Free Agent Pool",
-  BMX: "BayouX Motorsports Ownership Group",
-  BXM: "BayouX Motorsports Ownership Group",
-  "BayouX Motorsports": "BayouX Motorsports Ownership Group",
+  BMX: "Cajun",
+  BXM: "Cajun",
+  "BayouX Motorsports": "Cajun",
+  KDM: "Kevdinho",
 };
 
 const TEAM_STARTING_FUNDS = {
@@ -239,6 +240,30 @@ async function loadRemoteOwnerAccessCodes() {
   (data || []).forEach((row) => { if (row.team && (row.temp_code || row.code)) nextCodes[row.team] = row.temp_code || row.code; });
   localStorage.setItem("ownerPortalAccessCodes", JSON.stringify(nextCodes));
   return nextCodes;
+}
+
+
+async function loadTeamOwnerAssignments() {
+  const { data, error } = await supabase
+    .from("team_owner_assignments")
+    .select("*");
+
+  if (error) {
+    console.error("Failed to load team owner assignments:", error);
+    return [];
+  }
+
+  return data || [];
+}
+
+function getAssignedOwnerForTeam(team, assignments = []) {
+  const normalizedTeam = String(team || "").trim().toLowerCase();
+  const normalizedFullName = String(getTeamFullName(team) || "").trim().toLowerCase();
+
+  return (assignments || []).find((assignment) => {
+    const assignmentTeam = String(assignment.team || "").trim().toLowerCase();
+    return assignmentTeam === normalizedTeam || assignmentTeam === normalizedFullName;
+  }) || null;
 }
 
 async function loadRemoteOwnerDriverAccessCodes() {
@@ -1503,13 +1528,26 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
     const enteredCode = normalizeAccessCode(accessCode);
 
     if (!enteredCode) {
-      setError("Enter your owner, driver, temporary, or master access code.");
+      setError("Enter your owner driver password, temporary password, or master admin password.");
       return;
     }
 
     const latestOwnerCodes = await loadRemoteOwnerAccessCodes();
     const latestDriverCodes = await loadRemoteOwnerDriverAccessCodes();
+    const teamOwnerAssignments = await loadTeamOwnerAssignments();
     setOwnerAccessCodes(latestOwnerCodes);
+
+    const assignedOwner = getAssignedOwnerForTeam(safeSelectedTeam, teamOwnerAssignments);
+    const assignedOwnerNumber = assignedOwner?.owner_driver_number ? String(assignedOwner.owner_driver_number).trim() : "";
+    const assignedOwnerName = assignedOwner?.owner_driver_name ? String(assignedOwner.owner_driver_name).trim().toLowerCase() : "";
+
+    const assignedOwnerCodes = [
+      assignedOwnerNumber ? latestDriverCodes[assignedOwnerNumber] : "",
+      assignedOwnerNumber ? latestDriverCodes[assignedOwnerNumber.toLowerCase()] : "",
+      assignedOwnerName ? latestDriverCodes[assignedOwnerName] : "",
+    ].filter(Boolean).map(normalizeAccessCode);
+
+    const fallbackOwnerDriverCodes = getOwnerDriverCodesForTeam(safeSelectedTeam, latestDriverCodes);
 
     const expectedOwnerCode = normalizeAccessCode(
       latestOwnerCodes[safeSelectedTeam] ||
@@ -1519,15 +1557,19 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
       ""
     );
 
-    const ownerDriverCodes = getOwnerDriverCodesForTeam(safeSelectedTeam, latestDriverCodes);
     const allowedCodes = [
       normalizeAccessCode(MASTER_ACCESS_CODE),
       expectedOwnerCode,
-      ...ownerDriverCodes,
+      ...assignedOwnerCodes,
+      ...fallbackOwnerDriverCodes,
     ].filter(Boolean);
 
     if (!allowedCodes.includes(enteredCode)) {
-      setError("Incorrect code for this team. Use the owner's driver profile password, a temp password, or the master admin password.");
+      setError(
+        assignedOwner
+          ? `Incorrect code for this team. Use ${assignedOwner.owner_driver_name}'s driver profile password, a temp password, or the master admin password.`
+          : "Incorrect code for this team. No owner assignment was found, so use the old owner code, fallback owner driver password, or master admin password."
+      );
       return;
     }
 
