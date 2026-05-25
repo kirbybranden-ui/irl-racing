@@ -89,7 +89,7 @@ const teamBudgets = {
 
 const INDEPENDENT_DRIVER_BASE_SALARY = 250000;
 const LEAGUE_BANK_NAME = "Budweiser Cup League";
-const APP_VERSION = "v1.7.1";
+const APP_VERSION = "v1.7.2";
 
 function getTeamBudget(teamAbbr) {
   return teamBudgets[teamAbbr] || teamBudgets[getTeamFullName(teamAbbr)?.toUpperCase?.()] || 0;
@@ -411,30 +411,6 @@ function AdminLoginPage() {
       </div>
     </div>
   );
-}
-
-
-
-const TEMP_PASSWORD_PREFIX = "TEMP-";
-
-async function generateTemporaryPassword(driverName, driverNumber) {
-  const tempPassword = `${TEMP_PASSWORD_PREFIX}${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
-
-  try {
-    await supabase
-      .from("driver_access_codes")
-      .update({
-        temp_code: tempPassword,
-        must_reset: true,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("driver_number", String(driverNumber));
-
-    alert(`Temporary password for ${driverName}: ${tempPassword}`);
-  } catch (err) {
-    console.error(err);
-    alert("Failed to generate temporary password.");
-  }
 }
 
 function renderTeamBadge(teamName, size = 44) {
@@ -3485,6 +3461,11 @@ export default function App() {
   const [pendingDrivers, setPendingDrivers] = useState([]);
   const [featuredVideo, setFeaturedVideo] = useState(null);
   const [manualWatchPicks, setManualWatchPicks] = useState([]);
+  const [ownerAssignments, setOwnerAssignments] = useState([]);
+  const [selectedOwnerTeam, setSelectedOwnerTeam] = useState("");
+  const [selectedOwnerDriverNumber, setSelectedOwnerDriverNumber] = useState("");
+  const [ownerAssignmentMessage, setOwnerAssignmentMessage] = useState("");
+  const [ownerAssignmentError, setOwnerAssignmentError] = useState("");
   const [watchDriverId, setWatchDriverId] = useState("");
   const [watchReason, setWatchReason] = useState("");
   const [watchBadge, setWatchBadge] = useState("DIRECTOR PICK");
@@ -3534,7 +3515,60 @@ export default function App() {
   const raceHistory = activeSeason?.raceHistory || [];
   const selectedRaceData = tracks.find((r) => r.name === selectedRace);
   const stageCount = selectedRaceData ? selectedRaceData.stageCount : 2;
-  // ─── ALL useEffect hooks (must be before any early returns) ───────────────
+  // ─── ALL 
+  async function loadOwnerAssignments() {
+    const { data, error } = await supabase
+      .from("team_owner_assignments")
+      .select("*")
+      .order("team", { ascending: true });
+
+    if (error) {
+      console.error("Could not load team owner assignments:", error);
+      setOwnerAssignmentError("Could not load owner assignments. Check the team_owner_assignments table and RLS select policy.");
+      return;
+    }
+
+    setOwnerAssignments(data || []);
+  }
+
+  async function saveOwnerAssignment() {
+    setOwnerAssignmentMessage("");
+    setOwnerAssignmentError("");
+
+    if (!selectedOwnerTeam || !selectedOwnerDriverNumber) {
+      setOwnerAssignmentError("Select a team and an owner driver first.");
+      return;
+    }
+
+    const ownerDriver = visibleDrivers.find((driver) => String(driver.number) === String(selectedOwnerDriverNumber));
+
+    if (!ownerDriver) {
+      setOwnerAssignmentError("Could not find that driver in the active roster.");
+      return;
+    }
+
+    const payload = {
+      team: selectedOwnerTeam,
+      owner_driver_number: String(ownerDriver.number),
+      owner_driver_name: ownerDriver.name || "",
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error } = await supabase
+      .from("team_owner_assignments")
+      .upsert(payload, { onConflict: "team" });
+
+    if (error) {
+      console.error("Could not save team owner assignment:", error);
+      setOwnerAssignmentError("Could not save owner assignment. Check the team_owner_assignments table and RLS upsert policy.");
+      return;
+    }
+
+    setOwnerAssignmentMessage(`${ownerDriver.name} is now assigned as owner of ${getTeamFullName(selectedOwnerTeam)}.`);
+    await loadOwnerAssignments();
+  }
+
+useEffect hooks (must be before any early returns) ───────────────
   useEffect(() => {
     let isMounted = true;
 
@@ -4506,6 +4540,72 @@ export default function App() {
             </div>
           </div>
         </div>
+
+        <div style={sectionCardStyle}>
+          <h2 style={{ marginTop: 0 }}>Team Owner Assignments</h2>
+          <p style={{ opacity: 0.75, marginTop: 0 }}>
+            Assign which driver owns each team. That driver’s profile password will unlock the matching owner/team page. The admin master password still unlocks every team.
+          </p>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12, alignItems: "end" }}>
+            <div>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>TEAM</label>
+              <select value={selectedOwnerTeam} onChange={(event) => setSelectedOwnerTeam(event.target.value)} style={inputStyle}>
+                <option value="">Select team</option>
+                {teamStandings
+                  .filter((team) => team.team !== "Independent" && team.team !== "IND")
+                  .map((team) => (
+                    <option key={team.team} value={team.team}>{getTeamFullName(team.team)}</option>
+                  ))}
+              </select>
+            </div>
+
+            <div>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>OWNER DRIVER</label>
+              <select value={selectedOwnerDriverNumber} onChange={(event) => setSelectedOwnerDriverNumber(event.target.value)} style={inputStyle}>
+                <option value="">Select owner driver</option>
+                {visibleDrivers
+                  .filter((driver) => !driver.retired && !isInactivePlaceholderDriver(driver))
+                  .sort((a, b) => Number(a.number || 9999) - Number(b.number || 9999))
+                  .map((driver) => (
+                    <option key={driver.id} value={driver.number}>#{driver.number} — {driver.name}</option>
+                  ))}
+              </select>
+            </div>
+
+            <button type="button" onClick={saveOwnerAssignment} style={primaryButtonStyle}>Save Owner Assignment</button>
+          </div>
+
+          {ownerAssignmentMessage && <div style={{ color: "#4ade80", marginTop: 12, fontWeight: 900 }}>{ownerAssignmentMessage}</div>}
+          {ownerAssignmentError && <div style={{ color: "#f87171", marginTop: 12, fontWeight: 900 }}>{ownerAssignmentError}</div>}
+
+          <div style={{ marginTop: 18, overflowX: "auto" }}>
+            <table style={tableStyle}>
+              <thead>
+                <tr>
+                  <th style={thStyle}>Team</th>
+                  <th style={thStyle}>Assigned Owner Driver</th>
+                  <th style={thStyle}>Driver #</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ownerAssignments.length === 0 ? (
+                  <tr><td style={tdStyle} colSpan={3}>No owner assignments saved yet.</td></tr>
+                ) : (
+                  ownerAssignments.map((assignment) => (
+                    <tr key={assignment.team}>
+                      <td style={tdStyle}>{getTeamFullName(assignment.team)}</td>
+                      <td style={tdStyle}>{assignment.owner_driver_name}</td>
+                      <td style={tdStyle}>#{assignment.owner_driver_number}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+
         {/* Discord Settings */}
         <div style={sectionCardStyle}>
           <h2 style={{ marginTop: 0 }}>Discord Hub Settings</h2>
