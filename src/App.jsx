@@ -3568,7 +3568,7 @@ export default function App() {
     await loadOwnerAssignments();
   }
 
-useEffect hooks (must be before any early returns) ───────────────
+// useEffect hooks (must be before any early returns) ───────────────
   useEffect(() => {
     let isMounted = true;
 
