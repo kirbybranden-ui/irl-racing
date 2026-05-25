@@ -129,16 +129,18 @@ const DEFAULT_CONTRACT_FORM = {
 
 const MASTER_ACCESS_CODE = "BCLADMINPASSWORD2026";
 
-const OWNER_DRIVER_CODES = {
-  JAM: "ROOKIEVET99",
-  NLM: "HIGHLANDER713",
-  MER: "RACINGIS_LIFE87",
-  WSM: "UNDEADHELLIDAY",
-  BWR: "JPC_RACING",
-  "19XI": "BOWHUNTER6758",
-  BMX: "CAJUNTHROTTLE28",
-  BXM: "CAJUNTHROTTLE28",
-  KDM: "KEVDINHO7",
+const OWNER_DRIVER_KEYS = {
+  JAM: ["99", "rookievet99", "rookievet"],
+  NLM: ["6", "highlander713", "highlander"],
+  MER: ["87", "racingis_life87", "racingislife", "racingis_life"],
+  WSM: ["66", "undeadhelliday", "undeadhelliday"],
+  BWR: ["97", "jpc_racing", "jpc racing", "jpc"],
+  "19XI": ["18", "bowhunter6758", "bowhunter"],
+  "19XI Racing": ["18", "bowhunter6758", "bowhunter"],
+  BMX: ["34", "cajunthrottle28", "cajun"],
+  BXM: ["34", "cajunthrottle28", "cajun"],
+  "BayouX Motorsports": ["34", "cajunthrottle28", "cajun"],
+  KDM: ["24", "kevdinho7", "kevdinho"],
 };
 
 const DEFAULT_INDEPENDENT_PAYMENT_FORM = {
@@ -238,6 +240,46 @@ async function loadRemoteOwnerAccessCodes() {
   localStorage.setItem("ownerPortalAccessCodes", JSON.stringify(nextCodes));
   return nextCodes;
 }
+
+async function loadRemoteOwnerDriverAccessCodes() {
+  const { data, error } = await supabase
+    .from("driver_access_codes")
+    .select("driver_number, driver_name, code, temp_code, active")
+    .eq("active", true);
+
+  if (error) {
+    console.error("Failed to load driver access codes for owner portal:", error);
+    try {
+      return JSON.parse(localStorage.getItem("driverProfileAccessCodes") || "{}");
+    } catch {
+      return {};
+    }
+  }
+
+  const nextCodes = {};
+  (data || []).forEach((row) => {
+    const code = row.temp_code || row.code;
+    if (!code) return;
+    if (row.driver_number) nextCodes[String(row.driver_number).trim().toLowerCase()] = code;
+    if (row.driver_name) nextCodes[String(row.driver_name).trim().toLowerCase()] = code;
+  });
+
+  localStorage.setItem("driverProfileAccessCodes", JSON.stringify(nextCodes));
+  return nextCodes;
+}
+
+function normalizeAccessCode(value) {
+  return String(value || "").trim().toUpperCase();
+}
+
+function getOwnerDriverCodesForTeam(team, driverCodes = {}) {
+  const keys = OWNER_DRIVER_KEYS[team] || OWNER_DRIVER_KEYS[getTeamFullName(team)] || [];
+  return keys
+    .map((key) => driverCodes[String(key).trim().toLowerCase()])
+    .filter(Boolean)
+    .map(normalizeAccessCode);
+}
+
 
 function getTeamFullName(team) {
   return teamFullNames[team] || team || "Team";
@@ -1413,17 +1455,37 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
   }
 
   async function unlockTeam() {
-    const latestCodes = await loadRemoteOwnerAccessCodes();
-    setOwnerAccessCodes(latestCodes);
-    const expected = String(latestCodes[safeSelectedTeam] || ownerAccessCodes[safeSelectedTeam] || "").trim().toUpperCase();
-    if (!expected) {
-      setError("No owner code has been generated for this team yet. Contact league admin.");
+    const enteredCode = normalizeAccessCode(accessCode);
+
+    if (!enteredCode) {
+      setError("Enter your owner, driver, temporary, or master access code.");
       return;
     }
-    if (String(accessCode).trim().toUpperCase() !== expected) {
-      setError("Incorrect owner code for this team.");
+
+    const latestOwnerCodes = await loadRemoteOwnerAccessCodes();
+    const latestDriverCodes = await loadRemoteOwnerDriverAccessCodes();
+    setOwnerAccessCodes(latestOwnerCodes);
+
+    const expectedOwnerCode = normalizeAccessCode(
+      latestOwnerCodes[safeSelectedTeam] ||
+      latestOwnerCodes[getTeamFullName(safeSelectedTeam)] ||
+      ownerAccessCodes[safeSelectedTeam] ||
+      ownerAccessCodes[getTeamFullName(safeSelectedTeam)] ||
+      ""
+    );
+
+    const ownerDriverCodes = getOwnerDriverCodesForTeam(safeSelectedTeam, latestDriverCodes);
+    const allowedCodes = [
+      normalizeAccessCode(MASTER_ACCESS_CODE),
+      expectedOwnerCode,
+      ...ownerDriverCodes,
+    ].filter(Boolean);
+
+    if (!allowedCodes.includes(enteredCode)) {
+      setError("Incorrect code for this team. Use the owner's driver profile password, a temp password, or the master admin password.");
       return;
     }
+
     localStorage.setItem("ownerPortalTeam", safeSelectedTeam);
     localStorage.setItem("ownerPortalAuthorizedTeam", safeSelectedTeam);
     setAuthorizedTeam(safeSelectedTeam);
