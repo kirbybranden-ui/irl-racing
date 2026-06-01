@@ -15,6 +15,15 @@ const exportButtonStyle = { background: "#1e293b", color: "#d4af37", border: "1p
 
 const emptyQuestions = () => ["", "", ""];
 
+const removedDriverNumbers = new Set(["16"]);
+const removedDriverNames = new Set(["vtfan_25"]);
+
+function isRemovedLeagueInterview(interview) {
+  const numberKey = String(interview?.driver_number ?? "").trim();
+  const nameKey = String(interview?.driver_name ?? "").trim().toLowerCase();
+  return removedDriverNumbers.has(numberKey) || removedDriverNames.has(nameKey);
+}
+
 // ─── Facebook export helpers ─────────────────────────────────────────────────
 function buildFacebookText(interview) {
   const isPre = interview.type === "pre";
@@ -247,7 +256,7 @@ export default function InterviewsPage({ drivers = [], tracks = [], seasons = []
   async function loadInterviews() {
     const { data, error } = await supabase
       .from("interviews").select("*").order("generated_at", { ascending: false });
-    if (!error) setInterviews(data || []);
+    if (!error) setInterviews((data || []).filter((interview) => !isRemovedLeagueInterview(interview)));
     setLoading(false);
   }
 
