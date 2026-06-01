@@ -19,10 +19,6 @@ export default function InterviewsPage() {
 
   useEffect(() => {
     loadInterviews();
-
-    const interval = setInterval(loadInterviews, 15000);
-
-    return () => clearInterval(interval);
   }, []);
 
   async function loadInterviews() {
