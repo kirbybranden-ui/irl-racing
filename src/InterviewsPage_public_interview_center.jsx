@@ -18,7 +18,7 @@ export default function InterviewsPage() {
     const { data, error } = await supabase
       .from("interviews")
       .select("*")
-      .limit(100);
+      .order("generated_at", { ascending: false });
 
     if (error) {
       console.error("Could not load interviews:", error);
