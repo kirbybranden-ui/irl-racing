@@ -8,8 +8,21 @@ export default function InterviewsPage() {
   const [raceFilter, setRaceFilter] = useState("All");
   const [typeFilter, setTypeFilter] = useState("All");
 
+  const removedDriverNumbers = new Set(["16"]);
+  const removedDriverNames = new Set(["vtfan_25"]);
+
+  function isRemovedLeagueInterview(interview) {
+    const numberKey = String(interview?.driver_number ?? "").trim();
+    const nameKey = String(interview?.driver_name ?? "").trim().toLowerCase();
+    return removedDriverNumbers.has(numberKey) || removedDriverNames.has(nameKey);
+  }
+
   useEffect(() => {
     loadInterviews();
+
+    const interval = setInterval(loadInterviews, 15000);
+
+    return () => clearInterval(interval);
   }, []);
 
   async function loadInterviews() {
@@ -26,7 +39,7 @@ export default function InterviewsPage() {
       return;
     }
 
-    setInterviews(data || []);
+    setInterviews((data || []).filter((interview) => !isRemovedLeagueInterview(interview)));
     setLoading(false);
   }
 
