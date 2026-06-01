@@ -102,8 +102,22 @@ function isInactivePlaceholderDriver(driver) {
   return String(driver?.name || "").trim().toLowerCase().startsWith("inactive-");
 }
 
+const removedDriverNumbers = new Set(["16"]);
+const removedDriverNames = new Set(["vtfan_25"]);
+
+function isRemovedLeagueDriver(driver) {
+  const numberKey = String(driver?.number ?? driver?.driver_number ?? "").trim();
+  const nameKey = String(driver?.name ?? driver?.driver_name ?? "").trim().toLowerCase();
+  return removedDriverNumbers.has(numberKey) || removedDriverNames.has(nameKey);
+}
+
+function filterRemovedLeagueDrivers(drivers = []) {
+  return Array.isArray(drivers) ? drivers.filter((driver) => !isRemovedLeagueDriver(driver)) : [];
+}
+
 function dedupeDriversByNumber(drivers) {
   if (!Array.isArray(drivers)) return [];
+  drivers = filterRemovedLeagueDrivers(drivers);
   const preferredNamesByNumber = {
     80: "gumby_1919",
   };
@@ -173,7 +187,6 @@ const defaultDrivers = [
   { id: 11, number: 6,  name: "Highlander713",             manufacturer: "Ford",      team: "NLM"         },
   { id: 12, number: 23, name: "Orly_Revo23",               manufacturer: "Ford",      team: "MMS"         },
   { id: 13, number: 87, name: "Racingis_life87",           manufacturer: "Chevrolet", team: "MER"         },
-  { id: 16, number: 16,  name: "vtfan_25",                  manufacturer: "Chevrolet", team: "WSM"         },
   { id: 18, number: 72, name: "abajack91",                 manufacturer: "Ford",      team: "NLM"         },
   { id: 24, number: 21, name: "kevron-75",                manufacturer: "Ford",      team: "NLM"         },
   { id: 19, number: 66, name: "UndeadHelliday",             manufacturer: "Chevrolet", team: "WSM"         },
@@ -3078,11 +3091,12 @@ function patchMissingDrivers(cleanSeasons) {
     const existingIds  = new Set(season.drivers.map((d) => d.id));
     const existingNums = new Set(season.drivers.map((d) => String(d.number)));
     const missing = defaultDrivers.filter(
-      (d) => Number(d.number) !== 76 && !existingNums.has(String(d.number))
+      (d) => !isRemovedLeagueDriver(d) && Number(d.number) !== 76 && !existingNums.has(String(d.number))
     );
     // Update any drivers whose name/number/manufacturer/team has changed in defaultDrivers
     const updatedDrivers = season.drivers
       .filter((d) => !isInactivePlaceholderDriver(d))
+      .filter((d) => !isRemovedLeagueDriver(d))
       .filter((d) => Number(d.number) !== 76 && String(d.name || "").trim().toLowerCase() !== "bcr_ziggy5525")
       .map((d) => {
         const canonical = defaultDrivers.find(
