@@ -737,6 +737,17 @@ function apply2026DriverNumberAdjustments(roster = [], history = []) {
     normalizedRoster.push(knightDriver);
   }
 
+  // Normalize Cruiser so old saved #4 rows and newer #54 rows collapse into one driver.
+  normalizedRoster.forEach((driver) => {
+    const nameKey = String(driver?.name || "").trim().toLowerCase();
+    if (nameKey === "thecruiser54") {
+      driver.id = 54;
+      driver.number = 54;
+      driver.manufacturer = "Ford";
+      driver.team = driver.team === "BMX" ? "BXM" : (driver.team || "BXM");
+    }
+  });
+
   const adjustedHistory = Array.isArray(history)
     ? history.map((race) => ({
         ...race,
@@ -751,6 +762,9 @@ function apply2026DriverNumberAdjustments(roster = [], history = []) {
               }
               if (resultName === "knighttrain41") {
                 return { ...result, number: 34, manufacturer: "Ford", team: "BXM" };
+              }
+              if (resultName === "thecruiser54") {
+                return { ...result, driverId: 54, number: 54, name: "TheCruiser54", manufacturer: "Ford", team: result.team === "BMX" ? "BXM" : (result.team || "BXM") };
               }
               return result;
             })
@@ -2605,7 +2619,7 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
     return () => { isMounted = false; clearInterval(interval); };
   }, []);
 
-  const sorted = [...drivers].sort((a, b) => b.points - a.points || b.wins - a.wins || b.top3 - a.top3 || a.name.localeCompare(b.name));
+  const sorted = dedupeDriversByNumber(drivers).sort((a, b) => b.points - a.points || b.wins - a.wins || b.top3 - a.top3 || a.name.localeCompare(b.name));
   const [leader, second, third] = sorted;
   const totalPoints = sorted.reduce((s, d) => s + (d.points || 0), 0);
   const totalWins = sorted.reduce((s, d) => s + (d.wins || 0), 0);
@@ -3159,9 +3173,9 @@ function patchMissingDrivers(cleanSeasons) {
       .filter((d) => !isRemovedLeagueDriver(d))
       .filter((d) => Number(d.number) !== 76 && String(d.name || "").trim().toLowerCase() !== "bcr_ziggy5525")
       .map((d) => {
-        const canonical = defaultDrivers.find(
-          (dd) => dd.id === d.id || String(dd.number) === String(d.number)
-        );
+        const canonical =
+          defaultDrivers.find((dd) => dd.id === d.id) ||
+          defaultDrivers.find((dd) => String(dd.number) === String(d.number));
         let updatedTeam = d.team === "KRM" ? "MER" : d.team;
         if (!canonical) {
           return { ...d, team: updatedTeam };
@@ -3176,10 +3190,10 @@ function patchMissingDrivers(cleanSeasons) {
         };
       });
     if (missing.length === 0 && updatedDrivers.every((d, i) => d === season.drivers[i])) return season;
-    const newRoster = [
+    const newRoster = dedupeDriversByNumber([
       ...updatedDrivers.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer || "", team: d.team, startingPoints: 0, manualWins: 0, retired: d.retired || false, notes: "" })),
       ...missing.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer || "", team: d.team, startingPoints: 0, manualWins: 0, retired: false, notes: "" })),
-    ];
+    ]);
     return { ...season, drivers: rebuildDriversFromHistory(season.raceHistory || [], newRoster) };
   });
 }
