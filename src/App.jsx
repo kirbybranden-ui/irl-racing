@@ -200,7 +200,7 @@ const defaultDrivers = [
   { id: 46, number: 46, name: "BigDiehl21", manufacturer: "Chevrolet", team: "WSM" },
   { id: 34, number: 12, name: "CaJunThrottle28", manufacturer: "Ford", team: "BXM" },
   { id: 35, number: 34, name: "KnightTrain41", manufacturer: "Ford", team: "BXM" },
-  { id: 36, number: 54, name: "TheCruiser54", manufacturer: "Ford", team: "BMX" },
+  { id: 54, number: 54, name: "TheCruiser54", manufacturer: "Ford", team: "BXM" },
 ];
 const defaultRaces = [
   { name: "Preseason - Michigan", stageCount: 2, date: "2026-04-25" },
