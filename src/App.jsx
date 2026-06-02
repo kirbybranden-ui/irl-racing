@@ -198,7 +198,8 @@ const defaultDrivers = [
   { id: 27, number: 97, name: "JPC_Racing",            manufacturer: "Ford",      team: "BWR"         },
   { id: 51, number: 51, name: "MARE951",                  manufacturer: "Chevrolet", team: "BWR"         },
   { id: 46, number: 46, name: "BigDiehl21", manufacturer: "Chevrolet", team: "WSM" },
-  { id: 34, number: 34, name: "CaJunThrottle28", manufacturer: "Ford", team: "BMX" },
+  { id: 34, number: 12, name: "CaJunThrottle28", manufacturer: "Ford", team: "BXM" },
+  { id: 3412, number: 34, name: "KnightTrain41", manufacturer: "Ford", team: "BXM" },
   { id: 54, number: 4, name: "TheCruiser54", manufacturer: "Ford", team: "BMX" },
 ];
 const defaultRaces = [
@@ -702,12 +703,71 @@ function createEmptySeason(name, roster = getDefaultRoster()) {
   const cleanRoster = dedupedRoster.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer || "", team: d.team, startingPoints: 0, manualWins: 0 }));
   return { id: makeSeasonId(), name: name || "New Season", createdAt: new Date().toISOString(), drivers: rebuildDriversFromHistory([], cleanRoster), selectedRace: "", positions: {}, stage1: {}, stage2: {}, stage3: {}, dnfMap: {}, offenseMap: {}, fastestLapMap: {}, raceHistory: [] };
 }
+function apply2026DriverNumberAdjustments(roster = [], history = []) {
+  const normalizedRoster = Array.isArray(roster) ? roster.map((driver) => ({ ...driver })) : [];
+
+  const cajunDriver = normalizedRoster.find((driver) => {
+    const nameKey = String(driver?.name || "").trim().toLowerCase();
+    const numberKey = String(driver?.number ?? "").trim();
+    return nameKey === "cajunthrottle28" || (numberKey === "34" && nameKey !== "knighttrain41");
+  });
+
+  if (cajunDriver) {
+    cajunDriver.number = 12;
+    cajunDriver.manufacturer = cajunDriver.manufacturer || "Ford";
+    cajunDriver.team = cajunDriver.team === "BMX" ? "BXM" : (cajunDriver.team || "BXM");
+  }
+
+  let knightDriver = normalizedRoster.find((driver) => String(driver?.name || "").trim().toLowerCase() === "knighttrain41");
+  if (knightDriver) {
+    knightDriver.number = 34;
+    knightDriver.manufacturer = "Ford";
+    knightDriver.team = "BXM";
+  } else {
+    knightDriver = {
+      id: 3412,
+      number: 34,
+      name: "KnightTrain41",
+      manufacturer: "Ford",
+      team: "BXM",
+      startingPoints: 0,
+      manualWins: 0,
+      retired: false,
+    };
+    normalizedRoster.push(knightDriver);
+  }
+
+  const adjustedHistory = Array.isArray(history)
+    ? history.map((race) => ({
+        ...race,
+        results: Array.isArray(race?.results)
+          ? race.results.map((result) => {
+              const resultName = String(result?.name || "").trim().toLowerCase();
+              if (cajunDriver && String(result?.driverId) === String(cajunDriver.id)) {
+                return { ...result, number: 12, name: cajunDriver.name || "CaJunThrottle28", manufacturer: cajunDriver.manufacturer || "Ford", team: cajunDriver.team || "BXM" };
+              }
+              if (resultName === "cajunthrottle28" && String(result?.number) === "34") {
+                return { ...result, number: 12, manufacturer: result.manufacturer || "Ford", team: result.team === "BMX" ? "BXM" : (result.team || "BXM") };
+              }
+              if (resultName === "knighttrain41") {
+                return { ...result, number: 34, manufacturer: "Ford", team: "BXM" };
+              }
+              return result;
+            })
+          : [],
+      }))
+    : [];
+
+  return { roster: normalizedRoster, history: adjustedHistory };
+}
 function sanitizeSeason(season, fallbackName = "Season") {
   const rosterSource = Array.isArray(season?.drivers) && season.drivers.length > 0 ? season.drivers : getDefaultRoster();
-  const rosterOnly = dedupeDriversByNumber(rosterSource).map((d) => ({ id: d.id, number: Number(d.number), name: d.name, manufacturer: d.manufacturer || "", team: d.team, startingPoints: 0, manualWins: 0, retired: d.retired || false, notes: "" }));
-  const history = Array.isArray(season?.raceHistory)
+  const normalizedHistory = Array.isArray(season?.raceHistory)
     ? season.raceHistory.map((race) => ({ ...race, raceName: normalizeTrackName(race.raceName) }))
     : [];
+  const adjusted = apply2026DriverNumberAdjustments(rosterSource, normalizedHistory);
+  const rosterOnly = dedupeDriversByNumber(adjusted.roster).map((d) => ({ id: d.id, number: Number(d.number), name: d.name, manufacturer: d.manufacturer || "", team: d.team, startingPoints: 0, manualWins: 0, retired: d.retired || false, notes: "" }));
+  const history = adjusted.history;
   return {
     id: season?.id || makeSeasonId(), name: season?.name || fallbackName, createdAt: season?.createdAt || new Date().toISOString(),
     drivers: rebuildDriversFromHistory(history, rosterOnly), selectedRace: normalizeTrackName(season?.selectedRace || ""),
