@@ -247,6 +247,71 @@ function scrollToSection(id) {
   document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
+
+function isClosedOrRemovedDriver(driver) {
+  const numberKey = String(driver?.number ?? driver?.driver_number ?? "").trim();
+  const nameKey = String(driver?.name ?? driver?.driver_name ?? "").trim().toLowerCase();
+  return (
+    numberKey === "66" ||
+    numberKey === "76" ||
+    nameKey === "undeadhelliday" ||
+    nameKey === "bcr_ziggy5525"
+  );
+}
+
+function normalizeBigDiehlKdmDriver(driver) {
+  const nameKey = String(driver?.name ?? driver?.driver_name ?? "").trim().toLowerCase();
+  if (Number(driver?.id) === 46 || nameKey === "bigdiehl21") {
+    return {
+      ...driver,
+      id: 46,
+      number: 39,
+      name: "BigDiehl21",
+      manufacturer: "Chevrolet",
+      manufacturerLogo: driver?.manufacturerLogo || null,
+      team: "KDM",
+      retired: false,
+    };
+  }
+
+  return driver;
+}
+
+function normalizeBigDiehlKdmResult(result) {
+  const nameKey = String(result?.name ?? result?.driver_name ?? "").trim().toLowerCase();
+  if (Number(result?.driverId) === 46 || Number(result?.driver_id) === 46 || nameKey === "bigdiehl21") {
+    return {
+      ...result,
+      driverId: 46,
+      number: 39,
+      name: "BigDiehl21",
+      manufacturer: "Chevrolet",
+      team: "KDM",
+    };
+  }
+
+  return result;
+}
+
+function normalizeDriverProfileRoster(drivers = []) {
+  if (!Array.isArray(drivers)) return [];
+  return drivers
+    .filter((driver) => !isClosedOrRemovedDriver(driver))
+    .map(normalizeBigDiehlKdmDriver);
+}
+
+function normalizeDriverProfileRaceHistory(raceHistory = []) {
+  if (!Array.isArray(raceHistory)) return [];
+  return raceHistory.map((race) => ({
+    ...race,
+    results: Array.isArray(race?.results)
+      ? race.results
+          .filter((result) => !isClosedOrRemovedDriver(result))
+          .map(normalizeBigDiehlKdmResult)
+      : [],
+  }));
+}
+
 function InterviewAnswerCard({ interview, onAnswered, accent = "#d4af37" }) {
   const isPre = interview.type === "pre";
   const qa = Array.isArray(interview.questions_and_answers) ? interview.questions_and_answers : [];
@@ -326,7 +391,9 @@ function AppealModal({ isOpen, onClose, selectedSeason }) {
   const [cloudinaryReady, setCloudinaryReady] = useState(false);
   const widgetRef = useRef(null);
 
-  const drivers = selectedSeason?.drivers ? [...selectedSeason.drivers].sort((a, b) => Number(a.number) - Number(b.number)) : [];
+  const drivers = selectedSeason?.drivers
+    ? normalizeDriverProfileRoster(selectedSeason.drivers).sort((a, b) => Number(a.number) - Number(b.number))
+    : [];
   const trackOptions = ["Bristol (Night)", "Charlotte", "Daytona (Night)", "Homestead", "Indianapolis", "Iowa", "Kansas", "Michigan", "Nashville", "New Hampshire", "North Wilksboro", "Phoenix", "Pocono", "Preseason - Dover", "Preseason - Michigan", "Preseason - EchoPark Speedway", "Richmond", "Talladega", "Texas", "Las Vegas"];
 
   async function handleSubmit() {
@@ -461,7 +528,8 @@ function AppealModal({ isOpen, onClose, selectedSeason }) {
 
 export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }) {
   const pathParts = window.location.pathname.split("/");
-  const driverNumber = pathParts[2];
+  const requestedDriverNumber = pathParts[2];
+  const driverNumber = String(requestedDriverNumber) === "46" ? "39" : requestedDriverNumber;
   const subPage = pathParts[3];
 
   const allSeasons = Array.isArray(seasons) ? seasons : [];
@@ -469,11 +537,10 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
     ? allSeasons.find((s) => s && s.id === activeSeason.id) || activeSeason
     : allSeasons[0] || null;
 
-  const sanitizedDrivers = (selectedSeason?.drivers || []).filter(
-  (d) => Number(d?.number) !== 76 && String(d?.name || "").toLowerCase() !== "bcr_ziggy5525"
-);
+  const sanitizedDrivers = normalizeDriverProfileRoster(selectedSeason?.drivers || []);
+  const normalizedRaceHistory = normalizeDriverProfileRaceHistory(selectedSeason?.raceHistory || []);
 
-const driver = sanitizedDrivers.find((d) => d && String(d.number) === String(driverNumber)) || null;
+  const driver = sanitizedDrivers.find((d) => d && String(d.number) === String(driverNumber)) || null;
   const teamTheme = getTeamTheme(driver?.team);
   const themedPrimaryButtonStyle = { ...primaryButtonStyle, background: teamTheme.accent };
 
@@ -520,13 +587,13 @@ const driver = sanitizedDrivers.find((d) => d && String(d.number) === String(dri
 
   const raceBreakdown = useMemo(() => {
     if (!selectedSeason || !driver) return [];
-    return (selectedSeason.raceHistory || [])
+    return normalizedRaceHistory
       .map((race) => {
         const result = (race.results || []).find((r) => r && r.driverId === driver.id);
         return { raceName: race.raceName, stageCount: race.stageCount, ...result };
       })
       .filter((r) => r && r.driverId === driver.id);
-  }, [selectedSeason, driver]);
+  }, [normalizedRaceHistory, selectedSeason, driver]);
 
   const calculatedStats = useMemo(() => ({
     points: driver?.points || 0,
@@ -540,7 +607,7 @@ const driver = sanitizedDrivers.find((d) => d && String(d.number) === String(dri
 
   const recentForm = useMemo(() => {
     if (!selectedSeason || !driver) return [];
-    return (selectedSeason.raceHistory || [])
+    return normalizedRaceHistory
       .filter((r) => r.results?.some((res) => res.driverId === driver.id))
       .slice(-5)
       .map((r) => {
@@ -569,13 +636,13 @@ const driver = sanitizedDrivers.find((d) => d && String(d.number) === String(dri
 
   const driverRanking = useMemo(() => {
     if (!selectedSeason || !driver) return 0;
-    const sorted = [...(selectedSeason.drivers || [])].sort((a, b) => Number(b.points || 0) - Number(a.points || 0));
+    const sorted = [...sanitizedDrivers].sort((a, b) => Number(b.points || 0) - Number(a.points || 0));
     return sorted.findIndex((d) => d.id === driver.id) + 1;
   }, [selectedSeason, driver]);
 
   const championshipPicture = useMemo(() => {
     if (!selectedSeason || !driver) return { rank: 0, pointsBehindLeader: 0, status: "No Data", color: teamTheme.accent, bg: teamTheme.dark };
-    const sorted = [...(selectedSeason.drivers || [])].sort((a, b) => Number(b.points || 0) - Number(a.points || 0));
+    const sorted = [...sanitizedDrivers].sort((a, b) => Number(b.points || 0) - Number(a.points || 0));
     const leader = sorted[0];
     const rank = sorted.findIndex((d) => d.id === driver.id) + 1;
     const totalDrivers = sorted.length || 1;
@@ -589,7 +656,7 @@ const driver = sanitizedDrivers.find((d) => d && String(d.number) === String(dri
 
   const pointsGap = useMemo(() => {
     if (!selectedSeason || !driver) return { ahead: 0, behind: 0 };
-    const sorted = [...(selectedSeason.drivers || [])].sort((a, b) => Number(b.points || 0) - Number(a.points || 0));
+    const sorted = [...sanitizedDrivers].sort((a, b) => Number(b.points || 0) - Number(a.points || 0));
     const driverIdx = sorted.findIndex((d) => d.id === driver.id);
     if (driverIdx <= 0) return { ahead: 0, behind: driverIdx === 0 && sorted[1] ? Number(driver.points || 0) - Number(sorted[1].points || 0) : 0 };
     const ahead = Number(sorted[driverIdx - 1]?.points || 0) - Number(driver.points || 0);
@@ -731,7 +798,7 @@ const driver = sanitizedDrivers.find((d) => d && String(d.number) === String(dri
 
   const teamStats = useMemo(() => {
     if (!selectedSeason || !driver) return null;
-    const teammates = (selectedSeason.drivers || []).filter((d) => d.team === driver.team && d.id !== driver.id);
+    const teammates = sanitizedDrivers.filter((d) => d.team === driver.team && d.id !== driver.id);
     if (!teammates.length) return null;
     return teammates.sort((a, b) => Number(b.points || 0) - Number(a.points || 0))[0];
   }, [selectedSeason, driver]);
