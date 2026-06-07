@@ -344,6 +344,42 @@ const primaryButtonStyle = { background: "#d4af37", color: "#111", border: "none
 const secondaryButtonStyle = { background: "#2a3140", color: "white", border: "1px solid #3d4859", borderRadius: 10, padding: "10px 16px", fontWeight: 700, cursor: "pointer" };
 const dangerButtonStyle = { background: "#b42318", color: "white", border: "none", borderRadius: 10, padding: "10px 16px", fontWeight: 700, cursor: "pointer" };
 const inputStyle = { width: "100%", background: "#0f1319", color: "white", border: "1px solid #313947", borderRadius: 10, padding: "10px 12px", boxSizing: "border-box" };
+const racePositionInputStyle = {
+  ...inputStyle,
+  width: 110,
+  minWidth: 110,
+  maxWidth: 130,
+  padding: "10px 12px",
+  fontSize: 16,
+  fontWeight: 800,
+  textAlign: "center",
+};
+const racePenaltyInputStyle = {
+  ...inputStyle,
+  width: 130,
+  minWidth: 130,
+  maxWidth: 150,
+  padding: "10px 12px",
+  fontSize: 15,
+  fontWeight: 800,
+  textAlign: "center",
+};
+const raceNotesInputStyle = {
+  ...inputStyle,
+  width: 260,
+  minWidth: 260,
+  padding: "10px 12px",
+  fontSize: 14,
+};
+const raceEntryThStyle = {
+  ...thStyle,
+  minWidth: 115,
+  textAlign: "center",
+};
+const raceEntryTdStyle = {
+  ...tdStyle,
+  minWidth: 115,
+};
 const tableStyle = { width: "100%", borderCollapse: "collapse" };
 const thStyle = { textAlign: "left", padding: 10, borderBottom: "1px solid #313947", background: "#10141b", fontSize: 13 };
 const tdStyle = { padding: 10, borderBottom: "1px solid #252c38", verticalAlign: "top", fontSize: 14 };
@@ -5279,16 +5315,16 @@ export default function App() {
             </div>
           </div>
           <div style={{ overflowX: "auto" }}>
-            <table style={tableStyle}>
+            <table style={{ ...tableStyle, minWidth: 1550 }}>
               <thead>
                 <tr>
-                  <th style={thStyle}>#</th><th style={thStyle}>Driver</th><th style={thStyle}>Team</th>
-                  <th style={thStyle}>Finish</th>
-                  {stageCount >= 1 && <th style={thStyle}>Stage 1</th>}
-                  {stageCount >= 2 && <th style={thStyle}>Stage 2</th>}
-                  {stageCount === 3 && <th style={thStyle}>Stage 3</th>}
-                  <th style={thStyle}>DNF</th><th style={thStyle}>Fastest Lap</th>
-                  <th style={thStyle}>Offense</th><th style={thStyle}>Manual Penalty</th><th style={thStyle}>Points Preview</th><th style={thStyle}>Notes</th><th style={thStyle}>Move</th><th style={thStyle}>Offense #</th>
+                  <th style={{ ...thStyle, minWidth: 72 }}>#</th><th style={{ ...thStyle, minWidth: 190 }}>Driver</th><th style={{ ...thStyle, minWidth: 170 }}>Team</th>
+                  <th style={raceEntryThStyle}>Finish</th>
+                  {stageCount >= 1 && <th style={raceEntryThStyle}>Stage 1</th>}
+                  {stageCount >= 2 && <th style={raceEntryThStyle}>Stage 2</th>}
+                  {stageCount === 3 && <th style={raceEntryThStyle}>Stage 3</th>}
+                  <th style={{ ...thStyle, minWidth: 90 }}>DNF</th><th style={{ ...thStyle, minWidth: 110 }}>Fastest Lap</th>
+                  <th style={{ ...thStyle, minWidth: 110 }}>Offense</th><th style={{ ...thStyle, minWidth: 145 }}>Manual Penalty</th><th style={{ ...thStyle, minWidth: 120 }}>Points Preview</th><th style={{ ...thStyle, minWidth: 280 }}>Notes</th><th style={{ ...thStyle, minWidth: 90 }}>Move</th><th style={{ ...thStyle, minWidth: 120 }}>Offense #</th>
                 </tr>
               </thead>
               <tbody>
@@ -5300,10 +5336,10 @@ export default function App() {
                       <td style={{...tdStyle, display: "flex", alignItems: "center", justifyContent: "center"}}><div style={{width: 36, height: 36, borderRadius: "50%", background: "#404854", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 14, color: "#fff", border: "2px solid #b8a059"}}>{driver.number}</div></td>
                       <td style={tdStyle}>{driver.name}</td>
                       <td style={tdStyle}>{getTeamFullName(driver.team)} <span style={{ fontSize: 11, opacity: 0.5 }}>({driver.team})</span></td>
-                      <td style={tdStyle}><input type="number" min="1" max="40" style={inputStyle} value={positions[driver.id] || ""} onChange={(e) => handlePositionChange(driver.id, e.target.value)} /></td>
-                      {stageCount >= 1 && <td style={tdStyle}><input type="number" min="1" max="10" style={inputStyle} value={stage1[driver.id] || ""} onChange={(e) => handleStage1Change(driver.id, e.target.value)} /></td>}
-                      {stageCount >= 2 && <td style={tdStyle}><input type="number" min="1" max="10" style={inputStyle} value={stage2[driver.id] || ""} onChange={(e) => handleStage2Change(driver.id, e.target.value)} /></td>}
-                      {stageCount === 3 && <td style={tdStyle}><input type="number" min="1" max="10" style={inputStyle} value={stage3[driver.id] || ""} onChange={(e) => handleStage3Change(driver.id, e.target.value)} /></td>}
+                      <td style={raceEntryTdStyle}><input type="number" min="1" max="40" style={racePositionInputStyle} value={positions[driver.id] || ""} onChange={(e) => handlePositionChange(driver.id, e.target.value)} /></td>
+                      {stageCount >= 1 && <td style={raceEntryTdStyle}><input type="number" min="1" max="10" style={racePositionInputStyle} value={stage1[driver.id] || ""} onChange={(e) => handleStage1Change(driver.id, e.target.value)} /></td>}
+                      {stageCount >= 2 && <td style={raceEntryTdStyle}><input type="number" min="1" max="10" style={racePositionInputStyle} value={stage2[driver.id] || ""} onChange={(e) => handleStage2Change(driver.id, e.target.value)} /></td>}
+                      {stageCount === 3 && <td style={raceEntryTdStyle}><input type="number" min="1" max="10" style={racePositionInputStyle} value={stage3[driver.id] || ""} onChange={(e) => handleStage3Change(driver.id, e.target.value)} /></td>}
                       <td style={tdStyle}>
                         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                           <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -5330,9 +5366,9 @@ export default function App() {
                       </td>
                       <td style={tdStyle}><label style={{ display: "flex", alignItems: "center", gap: 8 }}><input type="radio" name="fastestLap" checked={!!fastestLapMap[driver.id]} onChange={() => handleFastestLapChange(driver.id)} />FL +1</label></td>
                       <td style={tdStyle}><label style={{ display: "flex", alignItems: "center", gap: 8 }}><input type="checkbox" checked={!!offenseMap[driver.id]} onChange={(e) => handleOffenseChange(driver.id, e.target.checked)} />Offense</label></td>
-                      <td style={tdStyle}><input type="number" min="0" style={{ ...inputStyle, minWidth: 96 }} value={penaltyMap[driver.id] || ""} onChange={(e) => handleManualPenaltyChange(driver.id, e.target.value)} placeholder="0" /></td>
+                      <td style={tdStyle}><input type="number" min="0" style={racePenaltyInputStyle} value={penaltyMap[driver.id] || ""} onChange={(e) => handleManualPenaltyChange(driver.id, e.target.value)} placeholder="0" /></td>
                       <td style={{ ...tdStyle, fontWeight: 900, color: "#d4af37" }}>{(() => { const fp = positions[driver.id] ? pointsTable[(Number(positions[driver.id]) || 1) - 1] || 0 : 0; const sp = getStagePoints(stage1[driver.id]) + getStagePoints(stage2[driver.id]) + (stageCount === 3 ? getStagePoints(stage3[driver.id]) : 0); const fl = fastestLapMap[driver.id] ? 1 : 0; const op = thisOffense ? getOffensePenaltyPoints(thisOffense) : 0; const mp = Number(penaltyMap[driver.id] || 0); return fp + sp + fl - op - mp; })()}</td>
-                      <td style={tdStyle}><input style={{ ...inputStyle, minWidth: 180 }} value={resultNotesMap[driver.id] || ""} onChange={(e) => handleResultNoteChange(driver.id, e.target.value)} placeholder="Penalty note, ruling, etc." /></td>
+                      <td style={tdStyle}><input style={raceNotesInputStyle} value={resultNotesMap[driver.id] || ""} onChange={(e) => handleResultNoteChange(driver.id, e.target.value)} placeholder="Penalty note, ruling, etc." /></td>
                       <td style={tdStyle}><div style={{ display: "flex", gap: 6 }}><button type="button" onClick={() => moveDriverFinishPosition(driver.id, -1)} style={{ ...secondaryButtonStyle, padding: "6px 9px" }}>↑</button><button type="button" onClick={() => moveDriverFinishPosition(driver.id, 1)} style={{ ...secondaryButtonStyle, padding: "6px 9px" }}>↓</button></div></td>
                       <td style={{ ...tdStyle, color: thisOffense ? "#f87171" : "inherit" }}>
                         {thisOffense ? `#${thisOffense} (-${getOffensePenaltyPoints(thisOffense)} pts)` : prior > 0 ? `${prior} prior` : "—"}
