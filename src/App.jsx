@@ -89,7 +89,7 @@ const teamBudgets = {
 
 const INDEPENDENT_DRIVER_BASE_SALARY = 250000;
 const LEAGUE_BANK_NAME = "Budweiser Cup League";
-const APP_VERSION = "v1.7.2";
+const APP_VERSION = "v1.7.3";
 
 function getTeamBudget(teamAbbr) {
   return teamBudgets[teamAbbr] || teamBudgets[getTeamFullName(teamAbbr)?.toUpperCase?.()] || 0;
@@ -102,8 +102,8 @@ function isInactivePlaceholderDriver(driver) {
   return String(driver?.name || "").trim().toLowerCase().startsWith("inactive-");
 }
 
-const removedDriverNumbers = new Set(["16"]);
-const removedDriverNames = new Set(["vtfan_25"]);
+const removedDriverNumbers = new Set(["16", "66"]);
+const removedDriverNames = new Set(["vtfan_25", "undeadhelliday"]);
 
 function isRemovedLeagueDriver(driver) {
   const numberKey = String(driver?.number ?? driver?.driver_number ?? "").trim();
@@ -189,7 +189,6 @@ const defaultDrivers = [
   { id: 13, number: 87, name: "Racingis_life87",           manufacturer: "Chevrolet", team: "MER"         },
   { id: 18, number: 72, name: "abajack91",                 manufacturer: "Ford",      team: "NLM"         },
   { id: 24, number: 21, name: "kevron-75",                manufacturer: "Ford",      team: "NLM"         },
-  { id: 19, number: 66, name: "UndeadHelliday",             manufacturer: "Chevrolet", team: "WSM"         },
   { id: 21, number: 86, name: "YinZerMOB_86",              manufacturer: "Chevrolet", team: "MER"         },
   { id: 28, number: 48, name: "vanilla04gorilla",          manufacturer: "Chevrolet", team: "MER"         },
   { id: 23, number: 28, name: "Y2JTolbert",                manufacturer: "Ford",      team: "NLM"         },
@@ -197,7 +196,7 @@ const defaultDrivers = [
   { id: 26, number: 7,  name: "gunszmb",               manufacturer: "Ford",      team: "BWR"         },
   { id: 27, number: 97, name: "JPC_Racing",            manufacturer: "Ford",      team: "BWR"         },
   { id: 51, number: 51, name: "MARE951",                  manufacturer: "Chevrolet", team: "BWR"         },
-  { id: 46, number: 46, name: "BigDiehl21", manufacturer: "Chevrolet", team: "WSM" },
+  { id: 46, number: 39, name: "BigDiehl21", manufacturer: "Chevrolet", team: "KDM" },
   { id: 34, number: 12, name: "CaJunThrottle28", manufacturer: "Ford", team: "BXM" },
   { id: 35, number: 34, name: "KnightTrain41", manufacturer: "Ford", team: "BXM" },
   { id: 54, number: 54, name: "TheCruiser54", manufacturer: "Ford", team: "BXM" },
@@ -703,8 +702,69 @@ function createEmptySeason(name, roster = getDefaultRoster()) {
   const cleanRoster = dedupedRoster.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer || "", team: d.team, startingPoints: 0, manualWins: 0 }));
   return { id: makeSeasonId(), name: name || "New Season", createdAt: new Date().toISOString(), drivers: rebuildDriversFromHistory([], cleanRoster), selectedRace: "", positions: {}, stage1: {}, stage2: {}, stage3: {}, dnfMap: {}, offenseMap: {}, fastestLapMap: {}, raceHistory: [] };
 }
+function applyWsmClosureKdmTransfer(roster = [], history = []) {
+  const isUndeadHelliday = (item = {}) => {
+    const numberKey = String(item?.number ?? item?.driver_number ?? "").trim();
+    const nameKey = String(item?.name ?? item?.driver_name ?? "").trim().toLowerCase();
+    const idKey = String(item?.id ?? item?.driverId ?? item?.driver_id ?? "").trim();
+    return numberKey === "66" || nameKey === "undeadhelliday" || idKey === "19";
+  };
+
+  const isBigDiehl = (item = {}) => {
+    const numberKey = String(item?.number ?? item?.driver_number ?? "").trim();
+    const nameKey = String(item?.name ?? item?.driver_name ?? "").trim().toLowerCase();
+    const idKey = String(item?.id ?? item?.driverId ?? item?.driver_id ?? "").trim();
+    return nameKey === "bigdiehl21" || idKey === "46" || numberKey === "46";
+  };
+
+  const normalizedRoster = Array.isArray(roster)
+    ? roster
+        .filter((driver) => !isUndeadHelliday(driver))
+        .map((driver) => {
+          if (isBigDiehl(driver)) {
+            return {
+              ...driver,
+              id: 46,
+              number: 39,
+              name: "BigDiehl21",
+              manufacturer: "Chevrolet",
+              team: "KDM",
+              retired: false,
+            };
+          }
+          return driver;
+        })
+    : [];
+
+  const adjustedHistory = Array.isArray(history)
+    ? history.map((race) => ({
+        ...race,
+        results: Array.isArray(race?.results)
+          ? race.results
+              .filter((result) => !isUndeadHelliday(result))
+              .map((result) => {
+                if (isBigDiehl(result)) {
+                  return {
+                    ...result,
+                    driverId: 46,
+                    number: 39,
+                    name: "BigDiehl21",
+                    manufacturer: "Chevrolet",
+                    team: "KDM",
+                  };
+                }
+                return result;
+              })
+          : [],
+      }))
+    : [];
+
+  return { roster: normalizedRoster, history: adjustedHistory };
+}
 function apply2026DriverNumberAdjustments(roster = [], history = []) {
-  const normalizedRoster = Array.isArray(roster) ? roster.map((driver) => ({ ...driver })) : [];
+  const wsmClosureTransfer = applyWsmClosureKdmTransfer(roster, history);
+  const normalizedRoster = Array.isArray(wsmClosureTransfer.roster) ? wsmClosureTransfer.roster.map((driver) => ({ ...driver })) : [];
+  const normalizedHistory = Array.isArray(wsmClosureTransfer.history) ? wsmClosureTransfer.history : [];
 
   const cajunDriver = normalizedRoster.find((driver) => {
     const nameKey = String(driver?.name || "").trim().toLowerCase();
@@ -748,8 +808,8 @@ function apply2026DriverNumberAdjustments(roster = [], history = []) {
     }
   });
 
-  const adjustedHistory = Array.isArray(history)
-    ? history.map((race) => ({
+  const adjustedHistory = Array.isArray(normalizedHistory)
+    ? normalizedHistory.map((race) => ({
         ...race,
         results: Array.isArray(race?.results)
           ? race.results.map((result) => {
@@ -3274,7 +3334,7 @@ function SubmitStoryPage() {
               </div>
               <div>
                 <div style={{ marginBottom: 6, fontWeight: 800 }}>Driver / Team Mentioned</div>
-                <input style={inputStyle} value={driverName} onChange={(e) => setDriverName(e.target.value)} placeholder="Example: #46 BigDiehl21 / WSM" />
+                <input style={inputStyle} value={driverName} onChange={(e) => setDriverName(e.target.value)} placeholder="Example: #39 BigDiehl21 / KDM" />
               </div>
             </div>
             <div style={{ marginBottom: 12 }}>
