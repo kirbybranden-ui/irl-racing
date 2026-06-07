@@ -1038,6 +1038,128 @@ function AppUpdateBanner({ page = "all" }) {
 }
 
 
+const defaultTickerItems = [
+  { category: "BREAKING", message: "WSM Motorsports has officially closed operations" },
+  { category: "TRANSACTION", message: "BigDiehl21 signs with Kev Din Motorsports and moves to the No. 39 Chevrolet" },
+  { category: "TRANSACTION", message: "BayouX Motorsports signs KnightTrain41 to pilot the No. 34 Ford" },
+  { category: "TEAM UPDATE", message: "CaJunThrottle28 moves from the No. 34 to the No. 12 Ford" },
+  { category: "RESULTS", message: "Michigan weekend complete — Pocono Raceway is up next" },
+  { category: "APP UPDATE", message: "Driver password reset support, interview sync improvements, and Race Control groundwork added" },
+];
+
+function LeagueTicker({ page = "standings", fallbackItems = defaultTickerItems }) {
+  const [items, setItems] = useState([]);
+  const [loadError, setLoadError] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadTicker() {
+      const nowIso = new Date().toISOString();
+      const { data, error } = await supabase
+        .from("ticker_messages")
+        .select("*")
+        .eq("active", true)
+        .in("page", ["all", page])
+        .or(`expires_at.is.null,expires_at.gt.${nowIso}`)
+        .order("pinned", { ascending: false })
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: false });
+
+      if (!isMounted) return;
+
+      if (error) {
+        console.error("Could not load ticker messages:", error);
+        setLoadError(true);
+        setItems(fallbackItems || []);
+        return;
+      }
+
+      setLoadError(false);
+      setItems(data?.length ? data : (fallbackItems || []));
+    }
+
+    loadTicker();
+    const interval = setInterval(loadTicker, 30000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [page, fallbackItems]);
+
+  const cleanItems = (items || [])
+    .map((item) => ({
+      category: String(item.category || item.type || "NEWS").trim().toUpperCase(),
+      message: String(item.message || "").trim(),
+      pinned: Boolean(item.pinned),
+    }))
+    .filter((item) => item.message);
+
+  if (!cleanItems.length) return null;
+
+  const tickerText = cleanItems
+    .map((item) => `${item.pinned ? "📌 " : ""}${item.category}: ${item.message}`)
+    .join("   •   ");
+
+  return (
+    <div
+      style={{
+        background: "linear-gradient(90deg, #080b10 0%, #111827 50%, #080b10 100%)",
+        border: "1px solid rgba(212,175,55,0.82)",
+        borderRadius: 16,
+        overflow: "hidden",
+        marginBottom: 18,
+        boxShadow: "0 10px 30px rgba(0,0,0,0.35)",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "stretch", minHeight: 46 }}>
+        <div
+          style={{
+            background: "linear-gradient(135deg, #d4af37 0%, #f59e0b 100%)",
+            color: "#111",
+            padding: "12px 16px",
+            fontWeight: 1000,
+            letterSpacing: 0.8,
+            fontSize: 13,
+            whiteSpace: "nowrap",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+          }}
+        >
+          🏁 LEAGUE TICKER
+        </div>
+        <div style={{ flex: 1, overflow: "hidden", position: "relative", display: "flex", alignItems: "center" }}>
+          <div
+            style={{
+              display: "inline-block",
+              paddingLeft: "100%",
+              whiteSpace: "nowrap",
+              animation: "bcl-ticker-scroll 55s linear infinite",
+              color: "#facc15",
+              fontWeight: 900,
+              fontSize: 14,
+              textShadow: "0 1px 12px rgba(250,204,21,0.25)",
+            }}
+          >
+            {tickerText}
+            {loadError ? "   •   USING FALLBACK TICKER — CHECK SUPABASE TICKER_MESSAGES TABLE" : ""}
+          </div>
+        </div>
+      </div>
+      <style>
+        {`
+          @keyframes bcl-ticker-scroll {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-100%); }
+          }
+        `}
+      </style>
+    </div>
+  );
+}
+
+
 
 function MemorialDayPage({ drivers = [] }) {
   const [tributes, setTributes] = useState([]);
@@ -2919,6 +3041,7 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
 </div> {/* ✅ CLOSE BUTTON ROW */}
           </div>
         </div>
+        <LeagueTicker page="standings" />
         <AppUpdateBanner page="standings" />
         <PaintSchemeWinnerStandingsCard tracks={tracks} drivers={drivers} />
         <PreviousRaceWinnerStandingsCard />
@@ -3659,6 +3782,19 @@ export default function App() {
   const [videoDescription, setVideoDescription] = useState("");
   const [videoUploading, setVideoUploading] = useState(false);
   const [driverAccessCodes, setDriverAccessCodes] = useState([]);
+  const [tickerMessages, setTickerMessages] = useState([]);
+  const [tickerForm, setTickerForm] = useState({
+    message: "",
+    category: "NEWS",
+    page: "standings",
+    sort_order: "0",
+    active: true,
+    pinned: false,
+    expires_at: "",
+  });
+  const [editingTickerId, setEditingTickerId] = useState(null);
+  const [tickerStatus, setTickerStatus] = useState("");
+  const [tickerError, setTickerError] = useState("");
   const [ownerAccessCodes, setOwnerAccessCodes] = useState(() => {
     try {
       const saved = localStorage.getItem("ownerPortalAccessCodes");
@@ -3755,6 +3891,172 @@ export default function App() {
     await loadOwnerAssignments();
   }
 
+
+  async function loadTickerMessages() {
+    setTickerError("");
+    const { data, error } = await supabase
+      .from("ticker_messages")
+      .select("*")
+      .order("pinned", { ascending: false })
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Could not load ticker messages:", error);
+      setTickerError("Could not load ticker messages. Create the ticker_messages table and check RLS policies.");
+      return;
+    }
+
+    setTickerMessages(data || []);
+  }
+
+  function resetTickerForm() {
+    setEditingTickerId(null);
+    setTickerForm({
+      message: "",
+      category: "NEWS",
+      page: "standings",
+      sort_order: "0",
+      active: true,
+      pinned: false,
+      expires_at: "",
+    });
+  }
+
+  function editTickerMessage(item) {
+    setEditingTickerId(item.id);
+    setTickerForm({
+      message: item.message || "",
+      category: item.category || "NEWS",
+      page: item.page || "standings",
+      sort_order: String(item.sort_order ?? 0),
+      active: item.active !== false,
+      pinned: Boolean(item.pinned),
+      expires_at: item.expires_at ? String(item.expires_at).slice(0, 16) : "",
+    });
+    setTickerStatus("");
+    setTickerError("");
+  }
+
+  async function saveTickerMessage(event) {
+    event?.preventDefault?.();
+    setTickerStatus("");
+    setTickerError("");
+
+    if (!tickerForm.message.trim()) {
+      setTickerError("Ticker message cannot be blank.");
+      return;
+    }
+
+    const payload = {
+      message: tickerForm.message.trim(),
+      category: (tickerForm.category || "NEWS").trim().toUpperCase(),
+      page: tickerForm.page || "standings",
+      sort_order: Number(tickerForm.sort_order || 0),
+      active: Boolean(tickerForm.active),
+      pinned: Boolean(tickerForm.pinned),
+      expires_at: tickerForm.expires_at ? new Date(tickerForm.expires_at).toISOString() : null,
+      updated_at: new Date().toISOString(),
+    };
+
+    let result;
+    if (editingTickerId) {
+      result = await supabase.from("ticker_messages").update(payload).eq("id", editingTickerId);
+    } else {
+      result = await supabase.from("ticker_messages").insert([{ ...payload, created_at: new Date().toISOString() }]);
+    }
+
+    if (result.error) {
+      console.error("Could not save ticker message:", result.error);
+      setTickerError("Could not save ticker message. Check ticker_messages insert/update RLS policies.");
+      return;
+    }
+
+    setTickerStatus(editingTickerId ? "Ticker message updated." : "Ticker message added.");
+    resetTickerForm();
+    await loadTickerMessages();
+  }
+
+  async function deleteTickerMessage(id) {
+    if (!window.confirm("Delete this ticker message?")) return;
+    setTickerStatus("");
+    setTickerError("");
+
+    const { error } = await supabase.from("ticker_messages").delete().eq("id", id);
+
+    if (error) {
+      console.error("Could not delete ticker message:", error);
+      setTickerError("Could not delete ticker message. Check ticker_messages delete RLS policy.");
+      return;
+    }
+
+    setTickerStatus("Ticker message deleted.");
+    await loadTickerMessages();
+  }
+
+  async function toggleTickerActive(item) {
+    setTickerStatus("");
+    setTickerError("");
+
+    const { error } = await supabase
+      .from("ticker_messages")
+      .update({ active: item.active === false, updated_at: new Date().toISOString() })
+      .eq("id", item.id);
+
+    if (error) {
+      console.error("Could not update ticker active state:", error);
+      setTickerError("Could not update ticker message. Check ticker_messages update RLS policy.");
+      return;
+    }
+
+    await loadTickerMessages();
+  }
+
+  async function toggleTickerPinned(item) {
+    setTickerStatus("");
+    setTickerError("");
+
+    const { error } = await supabase
+      .from("ticker_messages")
+      .update({ pinned: !item.pinned, updated_at: new Date().toISOString() })
+      .eq("id", item.id);
+
+    if (error) {
+      console.error("Could not update ticker pinned state:", error);
+      setTickerError("Could not update ticker pin. Check ticker_messages update RLS policy.");
+      return;
+    }
+
+    await loadTickerMessages();
+  }
+
+  async function seedWeeklyTickerMessages() {
+    setTickerStatus("");
+    setTickerError("");
+
+    const seedItems = [
+      { category: "BREAKING", message: "WSM Motorsports has officially closed operations", page: "standings", sort_order: 1, active: true, pinned: true },
+      { category: "TRANSACTION", message: "BigDiehl21 signs with Kev Din Motorsports and moves to the No. 39 Chevrolet", page: "standings", sort_order: 2, active: true, pinned: true },
+      { category: "TRANSACTION", message: "BayouX Motorsports signs KnightTrain41 to pilot the No. 34 Ford", page: "standings", sort_order: 3, active: true, pinned: false },
+      { category: "TEAM UPDATE", message: "CaJunThrottle28 moves from the No. 34 to the No. 12 Ford", page: "standings", sort_order: 4, active: true, pinned: false },
+      { category: "RESULTS", message: "TheCruiser54 scores a podium for BXM at Michigan", page: "standings", sort_order: 5, active: true, pinned: false },
+      { category: "RACE CONTROL", message: "Race Control Center, editable results, and penalty tools are in development", page: "standings", sort_order: 6, active: true, pinned: false },
+      { category: "APP UPDATE", message: "Driver password reset support and interview sync improvements are now active", page: "standings", sort_order: 7, active: true, pinned: false },
+      { category: "NEXT EVENT", message: "Pocono Raceway is up next for the Budweiser Cup League", page: "standings", sort_order: 8, active: true, pinned: false },
+    ].map((item) => ({ ...item, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }));
+
+    const { error } = await supabase.from("ticker_messages").insert(seedItems);
+
+    if (error) {
+      console.error("Could not seed ticker messages:", error);
+      setTickerError("Could not seed ticker messages. Check ticker_messages table and insert RLS policy.");
+      return;
+    }
+
+    setTickerStatus("Weekly ticker messages added.");
+    await loadTickerMessages();
+  }
+
 // useEffect hooks (must be before any early returns) ───────────────
   useEffect(() => {
     let isMounted = true;
@@ -3831,6 +4133,10 @@ export default function App() {
     const interval = setInterval(loadPendingDrivers, 5000);
     return () => clearInterval(interval);
   }, []);
+  useEffect(() => {
+    loadTickerMessages();
+  }, []);
+
   useEffect(() => {
     if (!isHydrated) return;
     const cleanTracks = sanitizeTracks(tracks);
@@ -4867,6 +5173,150 @@ export default function App() {
           </div>
         </div>
 
+
+        {/* League Ticker Manager */}
+        <div style={sectionCardStyle}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap", marginBottom: 14 }}>
+            <div>
+              <h2 style={{ margin: 0 }}>🏁 League Ticker Banner</h2>
+              <div style={{ fontSize: 13, opacity: 0.7, marginTop: 6 }}>
+                Manage the scrolling ticker shown at the top of /standings. Use categories like BREAKING, TRANSACTION, RACE CONTROL, APP UPDATE, and NEXT EVENT.
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <button type="button" onClick={loadTickerMessages} style={secondaryButtonStyle}>Refresh Ticker</button>
+              <button type="button" onClick={seedWeeklyTickerMessages} style={primaryButtonStyle}>Add This Week's Headlines</button>
+            </div>
+          </div>
+
+          <form onSubmit={saveTickerMessage} style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14, marginBottom: 16 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+              <div>
+                <div style={{ marginBottom: 6, fontWeight: 800 }}>Category</div>
+                <select
+                  style={inputStyle}
+                  value={tickerForm.category}
+                  onChange={(event) => setTickerForm((current) => ({ ...current, category: event.target.value }))}
+                >
+                  <option value="BREAKING">BREAKING</option>
+                  <option value="NEWS">NEWS</option>
+                  <option value="TRANSACTION">TRANSACTION</option>
+                  <option value="TEAM UPDATE">TEAM UPDATE</option>
+                  <option value="RACE CONTROL">RACE CONTROL</option>
+                  <option value="RESULTS">RESULTS</option>
+                  <option value="APP UPDATE">APP UPDATE</option>
+                  <option value="NEXT EVENT">NEXT EVENT</option>
+                  <option value="SPONSOR">SPONSOR</option>
+                </select>
+              </div>
+              <div>
+                <div style={{ marginBottom: 6, fontWeight: 800 }}>Page</div>
+                <select
+                  style={inputStyle}
+                  value={tickerForm.page}
+                  onChange={(event) => setTickerForm((current) => ({ ...current, page: event.target.value }))}
+                >
+                  <option value="standings">/standings only</option>
+                  <option value="all">All pages using ticker</option>
+                </select>
+              </div>
+              <div>
+                <div style={{ marginBottom: 6, fontWeight: 800 }}>Sort Order</div>
+                <input
+                  type="number"
+                  style={inputStyle}
+                  value={tickerForm.sort_order}
+                  onChange={(event) => setTickerForm((current) => ({ ...current, sort_order: event.target.value }))}
+                />
+              </div>
+              <div>
+                <div style={{ marginBottom: 6, fontWeight: 800 }}>Auto-Expire</div>
+                <input
+                  type="datetime-local"
+                  style={inputStyle}
+                  value={tickerForm.expires_at}
+                  onChange={(event) => setTickerForm((current) => ({ ...current, expires_at: event.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div style={{ marginTop: 12 }}>
+              <div style={{ marginBottom: 6, fontWeight: 800 }}>Ticker Message</div>
+              <input
+                style={inputStyle}
+                value={tickerForm.message}
+                onChange={(event) => setTickerForm((current) => ({ ...current, message: event.target.value }))}
+                placeholder="Example: WSM Motorsports closes operations • BigDiehl21 signs with KDM"
+              />
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap", marginTop: 14 }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 800 }}>
+                <input
+                  type="checkbox"
+                  checked={tickerForm.active}
+                  onChange={(event) => setTickerForm((current) => ({ ...current, active: event.target.checked }))}
+                />
+                Active
+              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 800 }}>
+                <input
+                  type="checkbox"
+                  checked={tickerForm.pinned}
+                  onChange={(event) => setTickerForm((current) => ({ ...current, pinned: event.target.checked }))}
+                />
+                Pin First
+              </label>
+              <button type="submit" style={primaryButtonStyle}>{editingTickerId ? "Save Ticker Message" : "Add Ticker Message"}</button>
+              {editingTickerId && <button type="button" onClick={resetTickerForm} style={secondaryButtonStyle}>Cancel Edit</button>}
+            </div>
+
+            {tickerStatus && <div style={{ color: "#4ade80", marginTop: 12, fontWeight: 900 }}>{tickerStatus}</div>}
+            {tickerError && <div style={{ color: "#f87171", marginTop: 12, fontWeight: 900 }}>{tickerError}</div>}
+          </form>
+
+          <div style={{ overflowX: "auto" }}>
+            <table style={tableStyle}>
+              <thead>
+                <tr>
+                  <th style={thStyle}>Status</th>
+                  <th style={thStyle}>Pinned</th>
+                  <th style={thStyle}>Order</th>
+                  <th style={thStyle}>Category</th>
+                  <th style={thStyle}>Message</th>
+                  <th style={thStyle}>Page</th>
+                  <th style={thStyle}>Expires</th>
+                  <th style={thStyle}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tickerMessages.length === 0 ? (
+                  <tr><td style={tdStyle} colSpan={8}>No ticker messages saved yet. Use “Add This Week's Headlines” to seed the current league ticker.</td></tr>
+                ) : (
+                  tickerMessages.map((item) => (
+                    <tr key={item.id}>
+                      <td style={{ ...tdStyle, color: item.active === false ? "#f87171" : "#4ade80", fontWeight: 900 }}>{item.active === false ? "Inactive" : "Active"}</td>
+                      <td style={tdStyle}>{item.pinned ? "📌 Yes" : "—"}</td>
+                      <td style={tdStyle}>{item.sort_order ?? 0}</td>
+                      <td style={{ ...tdStyle, fontWeight: 900 }}>{item.category || "NEWS"}</td>
+                      <td style={tdStyle}>{item.message}</td>
+                      <td style={tdStyle}>{item.page || "standings"}</td>
+                      <td style={tdStyle}>{item.expires_at ? new Date(item.expires_at).toLocaleString() : "—"}</td>
+                      <td style={tdStyle}>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          <button type="button" onClick={() => editTickerMessage(item)} style={secondaryButtonStyle}>Edit</button>
+                          <button type="button" onClick={() => toggleTickerActive(item)} style={secondaryButtonStyle}>{item.active === false ? "Activate" : "Disable"}</button>
+                          <button type="button" onClick={() => toggleTickerPinned(item)} style={secondaryButtonStyle}>{item.pinned ? "Unpin" : "Pin"}</button>
+                          <button type="button" onClick={() => deleteTickerMessage(item.id)} style={dangerButtonStyle}>Delete</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
 
         {/* Discord Settings */}
         <div style={sectionCardStyle}>
