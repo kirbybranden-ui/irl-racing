@@ -3660,6 +3660,9 @@ export default function App() {
   const dnfMap = activeSeason?.dnfMap || {};
   const offenseMap = activeSeason?.offenseMap || {};
   const fastestLapMap = activeSeason?.fastestLapMap || {};
+  const penaltyMap = activeSeason?.penaltyMap || {};
+  const resultNotesMap = activeSeason?.resultNotesMap || {};
+  const raceDrafts = activeSeason?.raceDrafts || [];
   const raceHistory = activeSeason?.raceHistory || [];
   const selectedRaceData = tracks.find((r) => r.name === selectedRace);
   const stageCount = selectedRaceData ? selectedRaceData.stageCount : 2;
@@ -3871,7 +3874,7 @@ export default function App() {
   const replaceActiveSeason = (next) => setSeasons((prev) => prev.map((s) => (s.id === activeSeasonId ? next : s)));
   const patchActiveSeason = (patch) => setSeasons((prev) => prev.map((s) => (s.id === activeSeasonId ? { ...s, ...patch } : s)));
   const clearInputs = () => {
-    patchActiveSeason({ selectedRace: "", positions: {}, stage1: {}, stage2: {}, stage3: {}, dnfMap: {}, offenseMap: {}, fastestLapMap: {} });
+    patchActiveSeason({ selectedRace: "", positions: {}, stage1: {}, stage2: {}, stage3: {}, dnfMap: {}, offenseMap: {}, fastestLapMap: {}, penaltyMap: {}, resultNotesMap: {} });
     setEditingRaceName(null);
   };
   const handleDownloadLeagueBackup = () => {
@@ -4225,7 +4228,18 @@ export default function App() {
   const handleStage3Change = (id, v) => patchActiveSeason({ stage3: { ...stage3, [id]: v === "" ? "" : Number(v) } });
   const handleDnfChange = (id, checked) => patchActiveSeason({ dnfMap: { ...dnfMap, [id]: checked } });
   const handleOffenseChange = (id, checked) => patchActiveSeason({ offenseMap: { ...offenseMap, [id]: checked } });
+  const handleManualPenaltyChange = (id, value) => patchActiveSeason({ penaltyMap: { ...penaltyMap, [id]: value === "" ? "" : Number(value) } });
+  const handleResultNoteChange = (id, value) => patchActiveSeason({ resultNotesMap: { ...resultNotesMap, [id]: value } });
   const handleFastestLapChange = (id) => patchActiveSeason({ fastestLapMap: fastestLapMap[id] ? {} : { [id]: true } });
+  const moveDriverFinishPosition = (driverId, direction) => {
+    const current = Number(positions[driverId] || 0);
+    if (!current) return;
+    const next = Math.max(1, Math.min(activeDrivers.length || 40, current + direction));
+    const swappedDriver = activeDrivers.find((driver) => Number(positions[driver.id]) === next);
+    const nextPositions = { ...positions, [driverId]: next };
+    if (swappedDriver) nextPositions[swappedDriver.id] = current;
+    patchActiveSeason({ positions: nextPositions });
+  };
   const retireDriver = (driverId) => {
     if (!activeSeason) return;
     const driver = drivers.find((d) => d.id === driverId);
@@ -4293,7 +4307,7 @@ export default function App() {
     if (!window.confirm(warning)) return;
     setTracks((prev) => prev.filter((t) => t.name !== trackName));
     if (selectedRace === trackName) {
-      patchActiveSeason({ selectedRace: "", positions: {}, stage1: {}, stage2: {}, stage3: {}, dnfMap: {}, offenseMap: {}, fastestLapMap: {} });
+      patchActiveSeason({ selectedRace: "", positions: {}, stage1: {}, stage2: {}, stage3: {}, dnfMap: {}, offenseMap: {}, fastestLapMap: {}, penaltyMap: {}, resultNotesMap: {} });
       setEditingRaceName(null);
     }
   };
@@ -4353,36 +4367,93 @@ export default function App() {
     drivers.forEach((d) => { counts[d.id] = countPriorOffenses(raceHistory, d.id, editingRaceName); });
     return counts;
   }, [raceHistory, drivers, editingRaceName]);
-  const submitResults = async () => {
-    if (!activeSeason) return;
-    if (!selectedRace.trim()) { alert("Please select a race."); return; }
-    if (raceHistory.some((r) => r.raceName === selectedRace && editingRaceName !== selectedRace)) { alert("That race has already been entered."); return; }
-    const raceResults = drivers.map((driver) => {
+  const buildRaceResultsFromCurrentInputs = () => {
+    return drivers.map((driver) => {
       const finishPos = positions[driver.id];
       const stage1Pos = stage1[driver.id], stage2Pos = stage2[driver.id], stage3Pos = stage3[driver.id];
       const dnf = !!dnfMap[driver.id];
       const fastestLap = !!fastestLapMap[driver.id];
       const offense = !!offenseMap[driver.id];
+      const manualPenaltyPoints = Number(penaltyMap[driver.id] || 0);
       const finishPoints = finishPos && finishPos >= 1 && finishPos <= pointsTable.length ? pointsTable[finishPos - 1] : 0;
       const stage1Points = getStagePoints(stage1Pos), stage2Points = getStagePoints(stage2Pos);
       const stage3Points = stageCount === 3 ? getStagePoints(stage3Pos) : 0;
       const fastestLapPoints = fastestLap ? 1 : 0;
       const priorOffenses = countPriorOffenses(raceHistory, driver.id, editingRaceName);
       const offenseNumber = offense ? priorOffenses + 1 : 0;
-      const penaltyPoints = offense ? getOffensePenaltyPoints(offenseNumber) : 0;
+      const offensePenalty = offense ? getOffensePenaltyPoints(offenseNumber) : 0;
+      const penaltyPoints = offensePenalty + manualPenaltyPoints;
       const totalRacePoints = finishPoints + stage1Points + stage2Points + stage3Points + fastestLapPoints - penaltyPoints;
       return {
         driverId: driver.id, name: driver.name, number: driver.number, team: driver.team, manufacturer: driver.manufacturer || "",
         finishPos: finishPos || null, stage1Pos: stage1Pos || null, stage2Pos: stage2Pos || null, stage3Pos: stageCount === 3 ? stage3Pos || null : null,
         finishPoints, stage1Points, stage2Points, stage3Points, fastestLap, fastestLapPoints,
-        offense, offenseNumber, penaltyPoints, totalRacePoints,
-        isWin: finishPos === 1, isTop3: finishPos >= 1 && finishPos <= 3, isTop5: finishPos >= 1 && finishPos <= 5, dnf, dnfReason: dnf ? (dnfReasons[driver.id] || "Unknown") : null,
+        offense, offenseNumber, offensePenalty, manualPenaltyPoints, penaltyPoints, totalRacePoints,
+        isWin: finishPos === 1, isTop3: finishPos >= 1 && finishPos <= 3, isTop5: finishPos >= 1 && finishPos <= 5,
+        dnf, dnfReason: dnf ? (dnfReasons[driver.id] || "Unknown") : null,
+        notes: resultNotesMap[driver.id] || "",
       };
     }).sort((a, b) => { if (a.finishPos === null) return 1; if (b.finishPos === null) return -1; return a.finishPos - b.finishPos; });
+  };
+
+  const buildRaceFromCurrentInputs = () => ({
+    raceName: selectedRace,
+    stageCount,
+    results: buildRaceResultsFromCurrentInputs(),
+    savedAt: new Date().toISOString(),
+  });
+
+  const saveResultsDraft = () => {
+    if (!activeSeason) return;
+    if (!selectedRace.trim()) { alert("Please select a race before saving a draft."); return; }
+    const draft = {
+      ...buildRaceFromCurrentInputs(),
+      id: `draft-${selectedRace.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-${Date.now()}`,
+      status: "Draft",
+      draftSavedAt: new Date().toISOString(),
+      posted: false,
+    };
+    const nextDrafts = [draft, ...(raceDrafts || []).filter((item) => item.raceName !== selectedRace)];
+    patchActiveSeason({ raceDrafts: nextDrafts });
+    alert("Admin-only results draft saved. Standings were not updated.");
+  };
+
+  const loadResultsDraft = (draft) => {
+    const np = {}, ns1 = {}, ns2 = {}, ns3 = {}, nd = {}, no = {}, nf = {}, nr = {}, pm = {}, notes = {};
+    (draft.results || []).forEach((r) => {
+      np[r.driverId] = r.finishPos || ""; ns1[r.driverId] = r.stage1Pos || ""; ns2[r.driverId] = r.stage2Pos || ""; ns3[r.driverId] = r.stage3Pos || "";
+      nd[r.driverId] = !!r.dnf; no[r.driverId] = !!r.offense;
+      if (r.fastestLap) nf[r.driverId] = true;
+      if (r.dnfReason) nr[r.driverId] = r.dnfReason;
+      if (r.manualPenaltyPoints) pm[r.driverId] = r.manualPenaltyPoints;
+      if (r.notes) notes[r.driverId] = r.notes;
+    });
+    setDnfReasons(nr);
+    patchActiveSeason({ selectedRace: draft.raceName, positions: np, stage1: ns1, stage2: ns2, stage3: ns3, dnfMap: nd, offenseMap: no, fastestLapMap: nf, penaltyMap: pm, resultNotesMap: notes });
+    setEditingRaceName(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const deleteResultsDraft = (draftId) => {
+    if (!activeSeason || !window.confirm("Delete this admin-only results draft?")) return;
+    patchActiveSeason({ raceDrafts: (raceDrafts || []).filter((draft) => draft.id !== draftId) });
+  };
+
+  const postResultsDraft = async (draft) => {
+    if (!draft) return;
+    loadResultsDraft(draft);
+    setTimeout(() => submitResults(draft), 0);
+  };
+
+  const submitResults = async (draftOverride = null) => {
+    if (!activeSeason) return;
+    const raceToPost = draftOverride || buildRaceFromCurrentInputs();
+    if (!raceToPost.raceName.trim()) { alert("Please select a race."); return; }
+    if (raceHistory.some((r) => r.raceName === raceToPost.raceName && editingRaceName !== raceToPost.raceName)) { alert("That race has already been entered."); return; }
     const updatedRace = {
-      raceName: selectedRace,
-      stageCount,
-      results: raceResults,
+      ...raceToPost,
+      status: "Posted",
+      postedAt: new Date().toISOString(),
       savedAt: new Date().toISOString(),
     };
     const newHistory = editingRaceName ? raceHistory.map((r) => r.raceName === editingRaceName ? updatedRace : r) : [...raceHistory, updatedRace];
@@ -4391,6 +4462,7 @@ export default function App() {
     const updatedSeason = {
       ...activeSeason,
       raceHistory: newHistory,
+      raceDrafts: (raceDrafts || []).filter((draft) => draft.id !== draftOverride?.id && draft.raceName !== updatedRace.raceName),
       drivers: rebuiltDrivers,
       selectedRace: "",
       positions: {},
@@ -4400,6 +4472,8 @@ export default function App() {
       dnfMap: {},
       offenseMap: {},
       fastestLapMap: {},
+      penaltyMap: {},
+      resultNotesMap: {},
     };
 
     const updatedSeasons = seasons.map((season) => (season.id === activeSeasonId ? updatedSeason : season));
@@ -4410,16 +4484,16 @@ export default function App() {
       tracks,
       seasons: updatedSeasons,
       activeSeasonId,
-      reason: editingRaceName ? "automatic-edit-race-results" : "automatic-save-race-results",
+      reason: editingRaceName ? "automatic-edit-race-results" : "automatic-post-race-results",
       raceSnapshot: updatedRace,
     });
 
-    downloadLeagueBackupFile(automaticBackupPayload, editingRaceName ? "auto-edit-race-results" : "auto-race-results");
+    downloadLeagueBackupFile(automaticBackupPayload, editingRaceName ? "auto-edit-race-results" : "auto-post-race-results");
 
     const backupResult = await createRaceDataBackup({
       seasonSnapshot: updatedSeason,
       raceSnapshot: updatedRace,
-      backupType: editingRaceName ? "edit-race-save-points" : "save-points",
+      backupType: editingRaceName ? "edit-race-save-points" : "post-points-to-standings",
     });
 
     const ledgerResult = await saveRaceResultsLedger({
@@ -4429,25 +4503,29 @@ export default function App() {
     });
 
     if (!backupResult.ok && !ledgerResult.ok) {
-      alert("Race points saved locally and a JSON backup downloaded, but Supabase backup AND race_results ledger failed. Check race_data_backups and race_results tables/RLS.");
+      alert("Race points posted locally and a JSON backup downloaded, but Supabase backup AND race_results ledger failed. Check race_data_backups and race_results tables/RLS.");
     } else if (!backupResult.ok) {
-      alert("Race points saved and race_results ledger updated, but the Supabase JSON backup failed. Check race_data_backups table/RLS.");
+      alert("Race points posted and race_results ledger updated, but the Supabase JSON backup failed. Check race_data_backups table/RLS.");
     } else if (!ledgerResult.ok) {
-      alert("Race points saved and a JSON backup downloaded, but race_results ledger failed. Check race_results table/RLS.");
+      alert("Race points posted and a JSON backup downloaded, but race_results ledger failed. Check race_results table/RLS.");
+    } else {
+      alert("Race results posted to standings.");
     }
 
     setEditingRaceName(null);
   };
   const handleEditRace = (race) => {
-    const np = {}, ns1 = {}, ns2 = {}, ns3 = {}, nd = {}, no = {}, nf = {}, nr = {};
+    const np = {}, ns1 = {}, ns2 = {}, ns3 = {}, nd = {}, no = {}, nf = {}, nr = {}, pm = {}, notes = {};
     race.results.forEach((r) => {
       np[r.driverId] = r.finishPos || ""; ns1[r.driverId] = r.stage1Pos || ""; ns2[r.driverId] = r.stage2Pos || ""; ns3[r.driverId] = r.stage3Pos || "";
       nd[r.driverId] = !!r.dnf; no[r.driverId] = !!r.offense;
       if (r.fastestLap) nf[r.driverId] = true;
       if (r.dnfReason) nr[r.driverId] = r.dnfReason;
+      if (r.manualPenaltyPoints) pm[r.driverId] = r.manualPenaltyPoints;
+      if (r.notes) notes[r.driverId] = r.notes;
     });
     setDnfReasons(nr);
-    patchActiveSeason({ selectedRace: race.raceName, positions: np, stage1: ns1, stage2: ns2, stage3: ns3, dnfMap: nd, offenseMap: no, fastestLapMap: nf });
+    patchActiveSeason({ selectedRace: race.raceName, positions: np, stage1: ns1, stage2: ns2, stage3: ns3, dnfMap: nd, offenseMap: no, fastestLapMap: nf, penaltyMap: pm, resultNotesMap: notes });
     setEditingRaceName(race.raceName);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -5210,7 +5288,7 @@ export default function App() {
                   {stageCount >= 2 && <th style={thStyle}>Stage 2</th>}
                   {stageCount === 3 && <th style={thStyle}>Stage 3</th>}
                   <th style={thStyle}>DNF</th><th style={thStyle}>Fastest Lap</th>
-                  <th style={thStyle}>Offense</th><th style={thStyle}>Offense #</th>
+                  <th style={thStyle}>Offense</th><th style={thStyle}>Manual Penalty</th><th style={thStyle}>Points Preview</th><th style={thStyle}>Notes</th><th style={thStyle}>Move</th><th style={thStyle}>Offense #</th>
                 </tr>
               </thead>
               <tbody>
@@ -5252,6 +5330,10 @@ export default function App() {
                       </td>
                       <td style={tdStyle}><label style={{ display: "flex", alignItems: "center", gap: 8 }}><input type="radio" name="fastestLap" checked={!!fastestLapMap[driver.id]} onChange={() => handleFastestLapChange(driver.id)} />FL +1</label></td>
                       <td style={tdStyle}><label style={{ display: "flex", alignItems: "center", gap: 8 }}><input type="checkbox" checked={!!offenseMap[driver.id]} onChange={(e) => handleOffenseChange(driver.id, e.target.checked)} />Offense</label></td>
+                      <td style={tdStyle}><input type="number" min="0" style={{ ...inputStyle, minWidth: 96 }} value={penaltyMap[driver.id] || ""} onChange={(e) => handleManualPenaltyChange(driver.id, e.target.value)} placeholder="0" /></td>
+                      <td style={{ ...tdStyle, fontWeight: 900, color: "#d4af37" }}>{(() => { const fp = positions[driver.id] ? pointsTable[(Number(positions[driver.id]) || 1) - 1] || 0 : 0; const sp = getStagePoints(stage1[driver.id]) + getStagePoints(stage2[driver.id]) + (stageCount === 3 ? getStagePoints(stage3[driver.id]) : 0); const fl = fastestLapMap[driver.id] ? 1 : 0; const op = thisOffense ? getOffensePenaltyPoints(thisOffense) : 0; const mp = Number(penaltyMap[driver.id] || 0); return fp + sp + fl - op - mp; })()}</td>
+                      <td style={tdStyle}><input style={{ ...inputStyle, minWidth: 180 }} value={resultNotesMap[driver.id] || ""} onChange={(e) => handleResultNoteChange(driver.id, e.target.value)} placeholder="Penalty note, ruling, etc." /></td>
+                      <td style={tdStyle}><div style={{ display: "flex", gap: 6 }}><button type="button" onClick={() => moveDriverFinishPosition(driver.id, -1)} style={{ ...secondaryButtonStyle, padding: "6px 9px" }}>↑</button><button type="button" onClick={() => moveDriverFinishPosition(driver.id, 1)} style={{ ...secondaryButtonStyle, padding: "6px 9px" }}>↓</button></div></td>
                       <td style={{ ...tdStyle, color: thisOffense ? "#f87171" : "inherit" }}>
                         {thisOffense ? `#${thisOffense} (-${getOffensePenaltyPoints(thisOffense)} pts)` : prior > 0 ? `${prior} prior` : "—"}
                       </td>
@@ -5262,10 +5344,43 @@ export default function App() {
             </table>
           </div>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 18 }}>
-            <button onClick={submitResults} style={primaryButtonStyle}>{editingRaceName ? "Update Race" : "Submit Results"}</button>
+            <button onClick={saveResultsDraft} style={secondaryButtonStyle}>Save Admin-Only Draft</button>
+            <button onClick={() => submitResults()} style={primaryButtonStyle}>{editingRaceName ? "Update Posted Race" : "Post to Standings"}</button>
             {editingRaceName && <button onClick={clearInputs} style={secondaryButtonStyle}>Cancel Edit</button>}
             <button onClick={clearInputs} style={secondaryButtonStyle}>Clear Inputs</button>
             <button onClick={resetSeason} style={dangerButtonStyle}>Archive + Reset Active Season</button>
+          </div>
+        </div>
+        {/* Admin-Only Results Drafts */}
+        <div style={sectionCardStyle}>
+          <h2 style={{ marginTop: 0 }}>Admin-Only Results Drafts</h2>
+          <div style={{ opacity: 0.78, marginBottom: 14 }}>Drafts let you capture finishing points, penalties, DNFs, and notes without changing public standings. Post only when race control is ready.</div>
+          <div style={{ overflowX: "auto" }}>
+            <table style={tableStyle}>
+              <thead><tr><th style={thStyle}>Race</th><th style={thStyle}>Saved</th><th style={thStyle}>Leader</th><th style={thStyle}>Rows</th><th style={thStyle}>Actions</th></tr></thead>
+              <tbody>
+                {(raceDrafts || []).length === 0 ? (
+                  <tr><td style={tdStyle} colSpan={5}><div style={{ opacity: 0.7 }}>No private drafts saved.</div></td></tr>
+                ) : (raceDrafts || []).map((draft) => {
+                  const leader = (draft.results || []).find((result) => result.finishPos === 1) || (draft.results || [])[0];
+                  return (
+                    <tr key={draft.id || draft.raceName}>
+                      <td style={{ ...tdStyle, fontWeight: 900 }}>{draft.raceName}</td>
+                      <td style={tdStyle}>{draft.draftSavedAt ? new Date(draft.draftSavedAt).toLocaleString() : "—"}</td>
+                      <td style={tdStyle}>{leader ? `#${leader.number} ${leader.name} (${leader.totalRacePoints} pts)` : "—"}</td>
+                      <td style={tdStyle}>{(draft.results || []).length}</td>
+                      <td style={tdStyle}>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          <button type="button" onClick={() => loadResultsDraft(draft)} style={secondaryButtonStyle}>Load/Edit</button>
+                          <button type="button" onClick={() => postResultsDraft(draft)} style={primaryButtonStyle}>Post to Standings</button>
+                          <button type="button" onClick={() => deleteResultsDraft(draft.id)} style={dangerButtonStyle}>Delete</button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
         {/* Driver Standings */}
