@@ -287,8 +287,7 @@ export default function PaintSchemeVotePage({ drivers = [], tracks = [] }) {
     setSubmitting(true);
     const payload = {
       race_name: raceName,
-      upload_id: selectedUpload.id,
-      voted_upload_id: selectedUpload.id,
+      upload_id: String(selectedUpload.id || ""),
       voter_driver_number: String(unlockedDriver.number || ""),
       voter_driver_name: unlockedDriver.name || "",
       voted_driver_number: String(votedDriverNumber || ""),
@@ -302,7 +301,7 @@ export default function PaintSchemeVotePage({ drivers = [], tracks = [] }) {
 
     if (insertError) {
       console.error("Paint scheme vote insert failed:", insertError);
-      setError("Could not submit vote. Check paint_scheme_votes insert policy and columns.");
+      setError(insertError?.message || JSON.stringify(insertError));
       return;
     }
 
