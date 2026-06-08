@@ -2158,19 +2158,20 @@ function ContractsPage({ drivers = [] }) {
 
 
 
-const PAINT_SCHEME_TEAM_PAYOUT_CAP = 150000;
+const PAINT_SCHEME_WEEKLY_TEAM_PAYOUT_CAP = 150000;
+const PAINT_SCHEME_SEASON_TEAM_PAYOUT_CAP = 750000;
 
 function getPaintSchemePayout(position) {
   const pos = Number(position);
-  if (pos === 1) return { team: 50000, driver: 10000 };
-  if (pos === 2) return { team: 40000, driver: 8000 };
-  if (pos === 3) return { team: 30000, driver: 6000 };
-  if (pos === 4) return { team: 25000, driver: 5000 };
-  if (pos === 5) return { team: 20000, driver: 4000 };
-  if (pos >= 6 && pos <= 10) return { team: 15000, driver: 3000 };
-  if (pos >= 11 && pos <= 20) return { team: 10000, driver: 2000 };
-  if (pos >= 21 && pos <= 30) return { team: 5000, driver: 1000 };
-  if (pos >= 31 && pos <= 40) return { team: 2500, driver: 500 };
+  if (pos === 1) return { team: 20000, driver: 5000 };
+  if (pos === 2) return { team: 16000, driver: 4000 };
+  if (pos === 3) return { team: 12000, driver: 3000 };
+  if (pos === 4) return { team: 10000, driver: 2500 };
+  if (pos === 5) return { team: 8000, driver: 2000 };
+  if (pos >= 6 && pos <= 10) return { team: 6000, driver: 1500 };
+  if (pos >= 11 && pos <= 20) return { team: 4000, driver: 1000 };
+  if (pos >= 21 && pos <= 30) return { team: 2000, driver: 500 };
+  if (pos >= 31 && pos <= 40) return { team: 1000, driver: 250 };
   return { team: 0, driver: 0 };
 }
 
@@ -2208,24 +2209,47 @@ function isPaintUploadEligibleForPayout(upload, deadline = getNextFridayMidnight
   return new Date(updatedAt).getTime() <= new Date(deadline).getTime();
 }
 
-function applyPaintSchemeTeamCap(rows = [], cap = PAINT_SCHEME_TEAM_PAYOUT_CAP) {
+function getPaintSchemeSeasonPaidByTeam(payouts = []) {
   const paidByTeam = new Map();
+  (payouts || []).forEach((payout) => {
+    (payout.rows || []).forEach((row) => {
+      const teamKey = String(row.team || "Independent");
+      paidByTeam.set(teamKey, (paidByTeam.get(teamKey) || 0) + Number(row.teamPayout || 0));
+    });
+  });
+  return paidByTeam;
+}
+
+function applyPaintSchemeTeamCaps(
+  rows = [],
+  weeklyCap = PAINT_SCHEME_WEEKLY_TEAM_PAYOUT_CAP,
+  seasonCap = PAINT_SCHEME_SEASON_TEAM_PAYOUT_CAP,
+  seasonPaidByTeam = new Map()
+) {
+  const weeklyPaidByTeam = new Map();
   return rows.map((row) => {
     const teamKey = String(row.team || "Independent");
-    const alreadyPaid = paidByTeam.get(teamKey) || 0;
-    const remaining = Math.max(0, cap - alreadyPaid);
-    const cappedTeamPayout = Math.min(Number(row.teamPayout || 0), remaining);
-    paidByTeam.set(teamKey, alreadyPaid + cappedTeamPayout);
+    const alreadyPaidThisWeek = weeklyPaidByTeam.get(teamKey) || 0;
+    const alreadyPaidThisSeason = seasonPaidByTeam.get(teamKey) || 0;
+    const weeklyRemaining = Math.max(0, weeklyCap - alreadyPaidThisWeek);
+    const seasonRemaining = Math.max(0, seasonCap - alreadyPaidThisSeason - alreadyPaidThisWeek);
+    const capRemaining = Math.min(weeklyRemaining, seasonRemaining);
+    const originalTeamPayout = Number(row.teamPayout || 0);
+    const cappedTeamPayout = Math.min(originalTeamPayout, capRemaining);
+    weeklyPaidByTeam.set(teamKey, alreadyPaidThisWeek + cappedTeamPayout);
     return {
       ...row,
-      originalTeamPayout: Number(row.teamPayout || 0),
+      originalTeamPayout,
       teamPayout: cappedTeamPayout,
-      teamCapApplied: cappedTeamPayout < Number(row.teamPayout || 0),
+      teamWeeklyCapApplied: cappedTeamPayout < originalTeamPayout && weeklyRemaining <= seasonRemaining,
+      teamSeasonCapApplied: cappedTeamPayout < originalTeamPayout && seasonRemaining < weeklyRemaining,
+      teamCapApplied: cappedTeamPayout < originalTeamPayout,
+      teamSeasonPaidBeforeAward: alreadyPaidThisSeason,
     };
   });
 }
 
-function buildPaintSchemePayoutRows(rankedUploads = [], drivers = [], deadline = getNextFridayMidnightDeadline()) {
+function buildPaintSchemePayoutRows(rankedUploads = [], drivers = [], deadline = getNextFridayMidnightDeadline(), seasonPayouts = []) {
   const rows = rankedUploads
     .filter((upload) => isPaintUploadEligibleForPayout(upload, deadline))
     .slice(0, 40)
@@ -2252,7 +2276,7 @@ function buildPaintSchemePayoutRows(rankedUploads = [], drivers = [], deadline =
         driverPayout: payout.driver,
       };
     });
-  return applyPaintSchemeTeamCap(rows);
+  return applyPaintSchemeTeamCaps(rows, PAINT_SCHEME_WEEKLY_TEAM_PAYOUT_CAP, PAINT_SCHEME_SEASON_TEAM_PAYOUT_CAP, getPaintSchemeSeasonPaidByTeam(seasonPayouts));
 }
 
 function getEasternDateTimePartsForPaintWinner(date = new Date()) {
@@ -4363,7 +4387,7 @@ export default function App() {
       });
 
     const ineligibleCount = rankedUploads.filter((upload) => !isPaintUploadEligibleForPayout(upload, deadline)).length;
-    const rows = buildPaintSchemePayoutRows(rankedUploads, visibleDrivers, deadline);
+    const rows = buildPaintSchemePayoutRows(rankedUploads, visibleDrivers, deadline, activeSeason?.paintSchemePayouts || []);
     setPaintPayoutRows(rows);
     if (!rows.length) setPaintPayoutStatus(`No eligible paint scheme uploads found for ${raceName}. Uploads must be updated by Friday at 12:00 AM ET.`);
     else if (ineligibleCount > 0) setPaintPayoutStatus(`${ineligibleCount} paint scheme upload(s) missed the Friday 12:00 AM ET deadline and were excluded from payout.`);
@@ -4426,7 +4450,8 @@ export default function App() {
       rows,
       totalTeamPayout: totalTeam,
       totalDriverPayout: totalDriver,
-      teamPayoutCap: PAINT_SCHEME_TEAM_PAYOUT_CAP,
+      weeklyTeamPayoutCap: PAINT_SCHEME_WEEKLY_TEAM_PAYOUT_CAP,
+      seasonTeamPayoutCap: PAINT_SCHEME_SEASON_TEAM_PAYOUT_CAP,
       deadlineRule: "Friday 12:00 AM ET. Uploads not updated by then are not eligible for payout.",
     };
 
@@ -4447,6 +4472,9 @@ export default function App() {
       team_payout: row.teamPayout,
       original_team_payout: row.originalTeamPayout,
       team_cap_applied: row.teamCapApplied,
+      team_weekly_cap_applied: row.teamWeeklyCapApplied,
+      team_season_cap_applied: row.teamSeasonCapApplied,
+      team_season_paid_before_award: row.teamSeasonPaidBeforeAward,
       driver_payout: row.driverPayout,
       updated_at_deadline: row.deadline,
       upload_updated_at: row.updatedAt,
@@ -5717,7 +5745,7 @@ export default function App() {
             <div>
               <h2 style={{ margin: 0 }}>🎨 Paint Scheme Payouts</h2>
               <div style={{ fontSize: 13, opacity: 0.7, marginTop: 6 }}>
-                Preview vote rankings, then award tiered payouts. Voting/payout eligibility closes Friday at 12:00 AM ET. Uploads not updated by then are excluded. Team payouts are capped at {money(PAINT_SCHEME_TEAM_PAYOUT_CAP)} per team.
+                Preview vote rankings, then award tiered payouts. Voting/payout eligibility closes Friday at 12:00 AM ET. Uploads not updated by then are excluded. Team payouts are capped at {money(PAINT_SCHEME_WEEKLY_TEAM_PAYOUT_CAP)} per team per week and {money(PAINT_SCHEME_SEASON_TEAM_PAYOUT_CAP)} per team per season. Payout tiers now start at {money(20000)} to the team and {money(5000)} to the driver for P1.
               </div>
             </div>
             <button onClick={() => loadPaintSchemePayoutPreview()} disabled={paintPayoutLoading} style={secondaryButtonStyle}>{paintPayoutLoading ? "Loading..." : "Preview Rankings"}</button>
@@ -5758,7 +5786,7 @@ export default function App() {
                       <td style={tdStyle}>{getTeamFullName(row.team)}</td>
                       <td style={tdStyle}>{row.votes}</td>
                       <td style={tdStyle}>{row.updatedAt ? new Date(row.updatedAt).toLocaleString() : "—"}</td>
-                      <td style={{ ...tdStyle, color: "#4ade80", fontWeight: 900 }}>{money(row.teamPayout)}{row.teamCapApplied ? <div style={{ color: "#fbbf24", fontSize: 11 }}>Team cap applied</div> : null}</td>
+                      <td style={{ ...tdStyle, color: "#4ade80", fontWeight: 900 }}>{money(row.teamPayout)}{row.teamWeeklyCapApplied ? <div style={{ color: "#fbbf24", fontSize: 11 }}>Weekly team cap applied</div> : null}{row.teamSeasonCapApplied ? <div style={{ color: "#fbbf24", fontSize: 11 }}>Season team cap applied</div> : null}</td>
                       <td style={{ ...tdStyle, color: "#d4af37", fontWeight: 900 }}>{money(row.driverPayout)}</td>
                     </tr>
                   ))}
