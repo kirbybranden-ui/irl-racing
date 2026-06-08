@@ -136,12 +136,23 @@ export default function PaintSchemeVotePage({ drivers = [], tracks = [] }) {
 
   const votingClosed = isVotingClosedNow();
 
-  const voterHasAlreadyVoted = useMemo(() => {
-    if (!unlockedDriver) return false;
-    return (votes || []).some((vote) => String(vote.voter_driver_number || "") === String(unlockedDriver.number || ""));
-  }, [votes, unlockedDriver]);
+  const existingVoteForRace = useMemo(() => {
+    if (!unlockedDriver) return null;
+    return (votes || []).find((vote) => {
+      const sameDriver = String(vote.voter_driver_number || "") === String(unlockedDriver.number || "");
+      const sameRace = String(vote.race_name || "") === String(raceName || "");
+      return sameDriver && sameRace;
+    }) || null;
+  }, [votes, unlockedDriver, raceName]);
+
+  const voterHasAlreadyVoted = Boolean(existingVoteForRace);
 
   const selectedUpload = uploads.find((upload) => String(upload.id) === String(selectedUploadId));
+
+  const currentVoteUpload = useMemo(() => {
+    if (!existingVoteForRace) return null;
+    return uploads.find((upload) => String(upload.id) === String(existingVoteForRace.upload_id || "")) || null;
+  }, [existingVoteForRace, uploads]);
 
   useEffect(() => {
     if (!raceName && tracks?.length) setRaceName(getDefaultRaceName(tracks));
@@ -263,11 +274,6 @@ export default function PaintSchemeVotePage({ drivers = [], tracks = [] }) {
       return;
     }
 
-    if (voterHasAlreadyVoted) {
-      setError("Your driver profile has already voted for this race week. Votes lock after submission.");
-      return;
-    }
-
     if (!selectedUpload) {
       setError("Select a paint scheme before submitting your vote.");
       return;
@@ -280,7 +286,7 @@ export default function PaintSchemeVotePage({ drivers = [], tracks = [] }) {
     }
 
     const confirmed = window.confirm(
-      `Submit vote for #${votedDriverNumber} ${selectedUpload.displayDriverName}?\n\nThis vote will be logged to your driver profile and cannot be changed.`
+      `${voterHasAlreadyVoted ? "Change" : "Submit"} vote for #${votedDriverNumber} ${selectedUpload.displayDriverName}?\n\nOne active vote is allowed per driver per race week. You may change it until voting closes.`
     );
     if (!confirmed) return;
 
@@ -296,16 +302,20 @@ export default function PaintSchemeVotePage({ drivers = [], tracks = [] }) {
       created_at: new Date().toISOString(),
     };
 
-    const { error: insertError } = await supabase.from("paint_scheme_votes").insert(payload);
+    const voteRequest = existingVoteForRace?.id
+      ? supabase.from("paint_scheme_votes").update(payload).eq("id", existingVoteForRace.id)
+      : supabase.from("paint_scheme_votes").insert(payload);
+
+    const { error: voteError } = await voteRequest;
     setSubmitting(false);
 
-    if (insertError) {
-      console.error("Paint scheme vote insert failed:", insertError);
-      setError(insertError?.message || JSON.stringify(insertError));
+    if (voteError) {
+      console.error("Paint scheme vote submit/change failed:", voteError);
+      setError(voteError?.message || JSON.stringify(voteError));
       return;
     }
 
-    setStatus(`Vote submitted and locked for #${unlockedDriver.number} ${unlockedDriver.name}.`);
+    setStatus(`Vote ${voterHasAlreadyVoted ? "changed" : "submitted"} for #${unlockedDriver.number} ${unlockedDriver.name}.`);
     setSelectedUploadId("");
     await loadPaintSchemeData();
   }
@@ -331,7 +341,7 @@ export default function PaintSchemeVotePage({ drivers = [], tracks = [] }) {
               "One vote per driver account per race week.",
               "Drivers may not vote for themselves.",
               "Votes are logged by driver number, driver name, timestamp, and race week.",
-              "Votes lock immediately after submission.",
+              "Votes may be changed until voting closes.",
               "Voting closes Friday at 12:00 AM ET.",
               "Cars not updated by the deadline are ineligible for payout.",
             ].map((rule) => (
@@ -385,7 +395,7 @@ export default function PaintSchemeVotePage({ drivers = [], tracks = [] }) {
               <div style={{ opacity: 0.7, marginTop: 5 }}>{uploads.length} eligible image upload(s) found for {raceName || "this race week"}.</div>
             </div>
             {votingClosed && <div style={{ background: "#431407", border: "1px solid #f97316", color: "#fed7aa", borderRadius: 12, padding: "10px 12px", fontWeight: 900 }}>Voting Closed</div>}
-            {unlockedDriver && voterHasAlreadyVoted && <div style={{ background: "#1e293b", border: "1px solid #64748b", borderRadius: 12, padding: "10px 12px", fontWeight: 900 }}>Vote Already Submitted</div>}
+            {unlockedDriver && voterHasAlreadyVoted && <div style={{ background: "#1e293b", border: "1px solid #64748b", borderRadius: 12, padding: "10px 12px", fontWeight: 900 }}>Current Vote: #{currentVoteUpload?.displayDriverNumber || existingVoteForRace?.voted_driver_number || "—"} {currentVoteUpload?.displayDriverName || existingVoteForRace?.voted_driver_name || "Unknown"}</div>}
           </div>
 
           {uploads.length === 0 ? (
@@ -401,7 +411,7 @@ export default function PaintSchemeVotePage({ drivers = [], tracks = [] }) {
                   <button
                     key={upload.id}
                     type="button"
-                    disabled={!unlockedDriver || votingClosed || voterHasAlreadyVoted || isSelf}
+                    disabled={!unlockedDriver || votingClosed || isSelf}
                     onClick={() => setSelectedUploadId(upload.id)}
                     style={{
                       textAlign: "left",
@@ -410,7 +420,7 @@ export default function PaintSchemeVotePage({ drivers = [], tracks = [] }) {
                       border: selected ? "2px solid #d4af37" : "1px solid #2c3440",
                       borderRadius: 16,
                       padding: 12,
-                      cursor: !unlockedDriver || votingClosed || voterHasAlreadyVoted || isSelf ? "not-allowed" : "pointer",
+                      cursor: !unlockedDriver || votingClosed || isSelf ? "not-allowed" : "pointer",
                       opacity: isSelf ? 0.48 : 1,
                     }}
                   >
@@ -433,10 +443,10 @@ export default function PaintSchemeVotePage({ drivers = [], tracks = [] }) {
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 18 }}>
             <button
               onClick={submitVote}
-              disabled={!unlockedDriver || !selectedUploadId || votingClosed || voterHasAlreadyVoted || submitting}
-              style={{ ...primaryButtonStyle, opacity: !unlockedDriver || !selectedUploadId || votingClosed || voterHasAlreadyVoted || submitting ? 0.55 : 1 }}
+              disabled={!unlockedDriver || !selectedUploadId || votingClosed || submitting}
+              style={{ ...primaryButtonStyle, opacity: !unlockedDriver || !selectedUploadId || votingClosed || submitting ? 0.55 : 1 }}
             >
-              {submitting ? "Submitting..." : "Submit Locked Vote"}
+              {submitting ? "Submitting..." : voterHasAlreadyVoted ? "Change Vote" : "Submit Vote"}
             </button>
             <button onClick={() => setSelectedUploadId("")} style={secondaryButtonStyle}>Clear Selection</button>
           </div>
