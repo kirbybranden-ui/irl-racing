@@ -1818,7 +1818,7 @@ function ContractsPage({ drivers = [] }) {
 
     const signedContracts = (data || []).filter((contract) => {
       const status = String(contract.status || "").trim().toLowerCase();
-      return ["accepted", "active", "signed"].includes(status);
+      return ["accepted", "active", "signed", "for-cause board review"].includes(status);
     });
 
     const byDriver = new Map();
@@ -2100,7 +2100,7 @@ function ContractsPage({ drivers = [] }) {
                         <td style={tdStyle}>{formatMoney(contract.signing_bonus)}</td>
                         <td style={tdStyle}>{contract.contract_length || contract.length || "—"} season{Number(contract.contract_length || contract.length) === 1 ? "" : "s"}</td>
                         <td style={tdStyle}>{formatMoney(contract.buyout_amount || contract.buyout)}</td>
-                        <td style={{ ...tdStyle, fontWeight: 900, color: "#4ade80" }}>{contract.status || "Signed"}</td>
+                        <td style={{ ...tdStyle, fontWeight: 900, color: String(contract.status || "").toLowerCase().includes("for-cause") ? "#fbbf24" : "#4ade80" }}>{contract.status || "Signed"}</td>
                       </tr>
                     );
                   })}
@@ -3773,6 +3773,10 @@ export default function App() {
   const [selectedOwnerDriverNumber, setSelectedOwnerDriverNumber] = useState("");
   const [ownerAssignmentMessage, setOwnerAssignmentMessage] = useState("");
   const [ownerAssignmentError, setOwnerAssignmentError] = useState("");
+  const [forCauseRequests, setForCauseRequests] = useState([]);
+  const [forCauseMessage, setForCauseMessage] = useState("");
+  const [forCauseError, setForCauseError] = useState("");
+  const [forCauseBusyId, setForCauseBusyId] = useState(null);
   const [watchDriverId, setWatchDriverId] = useState("");
   const [watchReason, setWatchReason] = useState("");
   const [watchBadge, setWatchBadge] = useState("DIRECTOR PICK");
@@ -3889,6 +3893,65 @@ export default function App() {
 
     setOwnerAssignmentMessage(`${ownerDriver.name} is now assigned as owner of ${getTeamFullName(selectedOwnerTeam)}.`);
     await loadOwnerAssignments();
+  }
+
+
+  async function loadForCauseRequests() {
+    setForCauseError("");
+    const { data, error } = await supabase
+      .from("contract_offers")
+      .select("*")
+      .eq("status", "For-Cause Board Review")
+      .order("updated_at", { ascending: false });
+
+    if (error) {
+      console.error("Could not load for-cause termination requests:", error);
+      setForCauseError("Could not load for-cause requests. Check contract_offers RLS/select policy.");
+      setForCauseRequests([]);
+      return;
+    }
+
+    setForCauseRequests(data || []);
+  }
+
+  async function updateForCauseRequest(contract, decision) {
+    setForCauseMessage("");
+    setForCauseError("");
+
+    const approved = decision === "approve";
+    const confirmed = window.confirm(approved
+      ? `Approve for-cause termination for #${contract.driver_number || "—"} ${contract.driver_name || "this driver"}? No payout will be charged.`
+      : `Deny for-cause termination for #${contract.driver_number || "—"} ${contract.driver_name || "this driver"}? Contract will return to Accepted status.`
+    );
+    if (!confirmed) return;
+
+    const priorNotes = String(contract.notes || "").trim();
+    const decisionNote = `[BOARD DECISION - ${new Date().toISOString()}] ${approved ? "Approved for-cause termination. No payout owed." : "Denied for-cause termination. Standard contract remains active."}`;
+
+    setForCauseBusyId(contract.id);
+    const { error } = await supabase
+      .from("contract_offers")
+      .update({
+        status: approved ? "Terminated For Cause" : "Accepted",
+        termination_type: approved ? "For Cause Approved" : "For Cause Denied",
+        termination_reviewed_at: new Date().toISOString(),
+        termination_reviewed_by: "Board/Admin",
+        termination_cost: approved ? 0 : null,
+        notes: priorNotes ? `${priorNotes}\n\n${decisionNote}` : decisionNote,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", contract.id);
+
+    setForCauseBusyId(null);
+
+    if (error) {
+      console.error("Could not update for-cause request:", error);
+      setForCauseError("Could not update request. Check contract_offers RLS/update policy and termination columns.");
+      return;
+    }
+
+    setForCauseMessage(approved ? "For-cause termination approved. No payout charged." : "For-cause termination denied. Contract returned to Accepted status.");
+    await loadForCauseRequests();
   }
 
 
@@ -4135,6 +4198,7 @@ export default function App() {
   }, []);
   useEffect(() => {
     loadTickerMessages();
+    loadForCauseRequests();
   }, []);
 
   useEffect(() => {
@@ -5173,6 +5237,57 @@ export default function App() {
           </div>
         </div>
 
+
+        <div style={sectionCardStyle}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap", marginBottom: 14 }}>
+            <div>
+              <h2 style={{ margin: 0 }}>⚖️ Board Review: For-Cause Terminations</h2>
+              <div style={{ fontSize: 13, opacity: 0.7, marginTop: 6 }}>
+                Owners can request termination without payout. The Board approves or denies it here.
+              </div>
+            </div>
+            <button type="button" onClick={loadForCauseRequests} style={secondaryButtonStyle}>Refresh Requests</button>
+          </div>
+
+          {forCauseMessage && <div style={{ color: "#4ade80", fontWeight: 900, marginBottom: 10 }}>{forCauseMessage}</div>}
+          {forCauseError && <div style={{ color: "#f87171", fontWeight: 900, marginBottom: 10 }}>{forCauseError}</div>}
+
+          {forCauseRequests.length === 0 ? (
+            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14, opacity: 0.78 }}>
+              No pending for-cause termination requests.
+            </div>
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table style={tableStyle}>
+                <thead>
+                  <tr>
+                    <th style={thStyle}>Driver</th>
+                    <th style={thStyle}>Team</th>
+                    <th style={thStyle}>Cause</th>
+                    <th style={thStyle}>Requested</th>
+                    <th style={thStyle}>Decision</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {forCauseRequests.map((request) => (
+                    <tr key={request.id}>
+                      <td style={{ ...tdStyle, fontWeight: 900 }}>#{request.driver_number || "—"} {request.driver_name || "Unknown Driver"}</td>
+                      <td style={tdStyle}>{getTeamFullName(request.team || request.created_by_team || request.termination_requested_by || "—")}</td>
+                      <td style={{ ...tdStyle, maxWidth: 420, whiteSpace: "pre-wrap" }}>{request.termination_cause || "See contract notes."}</td>
+                      <td style={tdStyle}>{request.termination_requested_at ? new Date(request.termination_requested_at).toLocaleString() : "—"}</td>
+                      <td style={tdStyle}>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          <button type="button" disabled={forCauseBusyId === request.id} onClick={() => updateForCauseRequest(request, "approve")} style={primaryButtonStyle}>Approve No Payout</button>
+                          <button type="button" disabled={forCauseBusyId === request.id} onClick={() => updateForCauseRequest(request, "deny")} style={dangerButtonStyle}>Deny</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
 
         {/* League Ticker Manager */}
         <div style={sectionCardStyle}>
