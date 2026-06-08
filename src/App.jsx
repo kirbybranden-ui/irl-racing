@@ -1818,7 +1818,7 @@ function ContractsPage({ drivers = [] }) {
 
     const signedContracts = (data || []).filter((contract) => {
       const status = String(contract.status || "").trim().toLowerCase();
-      return ["accepted", "active", "signed", "for-cause board review"].includes(status);
+      return ["accepted", "active", "signed"].includes(status);
     });
 
     const byDriver = new Map();
@@ -2100,7 +2100,7 @@ function ContractsPage({ drivers = [] }) {
                         <td style={tdStyle}>{formatMoney(contract.signing_bonus)}</td>
                         <td style={tdStyle}>{contract.contract_length || contract.length || "—"} season{Number(contract.contract_length || contract.length) === 1 ? "" : "s"}</td>
                         <td style={tdStyle}>{formatMoney(contract.buyout_amount || contract.buyout)}</td>
-                        <td style={{ ...tdStyle, fontWeight: 900, color: String(contract.status || "").toLowerCase().includes("for-cause") ? "#fbbf24" : "#4ade80" }}>{contract.status || "Signed"}</td>
+                        <td style={{ ...tdStyle, fontWeight: 900, color: "#4ade80" }}>{contract.status || "Signed"}</td>
                       </tr>
                     );
                   })}
@@ -2156,6 +2156,104 @@ function ContractsPage({ drivers = [] }) {
   );
 }
 
+
+
+const PAINT_SCHEME_TEAM_PAYOUT_CAP = 150000;
+
+function getPaintSchemePayout(position) {
+  const pos = Number(position);
+  if (pos === 1) return { team: 50000, driver: 10000 };
+  if (pos === 2) return { team: 40000, driver: 8000 };
+  if (pos === 3) return { team: 30000, driver: 6000 };
+  if (pos === 4) return { team: 25000, driver: 5000 };
+  if (pos === 5) return { team: 20000, driver: 4000 };
+  if (pos >= 6 && pos <= 10) return { team: 15000, driver: 3000 };
+  if (pos >= 11 && pos <= 20) return { team: 10000, driver: 2000 };
+  if (pos >= 21 && pos <= 30) return { team: 5000, driver: 1000 };
+  if (pos >= 31 && pos <= 40) return { team: 2500, driver: 500 };
+  return { team: 0, driver: 0 };
+}
+
+function getNextFridayMidnightDeadline(date = new Date()) {
+  const easternParts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const values = Object.fromEntries(easternParts.map((part) => [part.type, part.value]));
+  const currentUtc = new Date(`${values.year}-${values.month}-${values.day}T${values.hour}:${values.minute}:${values.second}-04:00`);
+  const dayIndex = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 }[values.weekday] ?? 0;
+  let daysUntilFriday = (5 - dayIndex + 7) % 7;
+  const passedFridayMidnight = dayIndex === 5 && (Number(values.hour) > 0 || Number(values.minute) > 0 || Number(values.second) > 0);
+  if (passedFridayMidnight) daysUntilFriday = 7;
+  const deadline = new Date(currentUtc);
+  deadline.setUTCDate(deadline.getUTCDate() + daysUntilFriday);
+  deadline.setUTCHours(4, 0, 0, 0); // Friday 12:00 AM Eastern during the season.
+  return deadline;
+}
+
+function getPaintUploadUpdatedAt(upload) {
+  return upload.updated_at || upload.modified_at || upload.uploaded_at || upload.created_at || upload.inserted_at || null;
+}
+
+function isPaintUploadEligibleForPayout(upload, deadline = getNextFridayMidnightDeadline()) {
+  const updatedAt = getPaintUploadUpdatedAt(upload);
+  if (!updatedAt) return false;
+  return new Date(updatedAt).getTime() <= new Date(deadline).getTime();
+}
+
+function applyPaintSchemeTeamCap(rows = [], cap = PAINT_SCHEME_TEAM_PAYOUT_CAP) {
+  const paidByTeam = new Map();
+  return rows.map((row) => {
+    const teamKey = String(row.team || "Independent");
+    const alreadyPaid = paidByTeam.get(teamKey) || 0;
+    const remaining = Math.max(0, cap - alreadyPaid);
+    const cappedTeamPayout = Math.min(Number(row.teamPayout || 0), remaining);
+    paidByTeam.set(teamKey, alreadyPaid + cappedTeamPayout);
+    return {
+      ...row,
+      originalTeamPayout: Number(row.teamPayout || 0),
+      teamPayout: cappedTeamPayout,
+      teamCapApplied: cappedTeamPayout < Number(row.teamPayout || 0),
+    };
+  });
+}
+
+function buildPaintSchemePayoutRows(rankedUploads = [], drivers = [], deadline = getNextFridayMidnightDeadline()) {
+  const rows = rankedUploads
+    .filter((upload) => isPaintUploadEligibleForPayout(upload, deadline))
+    .slice(0, 40)
+    .map((upload, index) => {
+      const rank = index + 1;
+      const payout = getPaintSchemePayout(rank);
+      const matchedDriver = (drivers || []).find((driver) =>
+        String(driver.id) === String(upload.driver_id) ||
+        String(driver.number) === String(upload.driver_number || upload.car_number || upload.number) ||
+        String(driver.name || '').trim().toLowerCase() === String(upload.driver_name || upload.uploader_name || '').trim().toLowerCase()
+      );
+      return {
+        rank,
+        uploadId: upload.id,
+        driverId: matchedDriver?.id || upload.driver_id || null,
+        driverNumber: matchedDriver?.number || upload.driver_number || upload.car_number || upload.number || '',
+        driverName: matchedDriver?.name || upload.driver_name || upload.uploader_name || 'Unknown Driver',
+        team: matchedDriver?.team || upload.team || upload.team_key || 'Independent',
+        votes: Number(upload.voteCount || 0),
+        imageUrl: upload.image_url || upload.file_url || '',
+        updatedAt: getPaintUploadUpdatedAt(upload),
+        deadline: deadline.toISOString(),
+        teamPayout: payout.team,
+        driverPayout: payout.driver,
+      };
+    });
+  return applyPaintSchemeTeamCap(rows);
+}
 
 function getEasternDateTimePartsForPaintWinner(date = new Date()) {
   const parts = new Intl.DateTimeFormat("en-US", {
@@ -3773,10 +3871,6 @@ export default function App() {
   const [selectedOwnerDriverNumber, setSelectedOwnerDriverNumber] = useState("");
   const [ownerAssignmentMessage, setOwnerAssignmentMessage] = useState("");
   const [ownerAssignmentError, setOwnerAssignmentError] = useState("");
-  const [forCauseRequests, setForCauseRequests] = useState([]);
-  const [forCauseMessage, setForCauseMessage] = useState("");
-  const [forCauseError, setForCauseError] = useState("");
-  const [forCauseBusyId, setForCauseBusyId] = useState(null);
   const [watchDriverId, setWatchDriverId] = useState("");
   const [watchReason, setWatchReason] = useState("");
   const [watchBadge, setWatchBadge] = useState("DIRECTOR PICK");
@@ -3799,6 +3893,11 @@ export default function App() {
   const [editingTickerId, setEditingTickerId] = useState(null);
   const [tickerStatus, setTickerStatus] = useState("");
   const [tickerError, setTickerError] = useState("");
+  const [paintPayoutRace, setPaintPayoutRace] = useState("");
+  const [paintPayoutRows, setPaintPayoutRows] = useState([]);
+  const [paintPayoutStatus, setPaintPayoutStatus] = useState("");
+  const [paintPayoutError, setPaintPayoutError] = useState("");
+  const [paintPayoutLoading, setPaintPayoutLoading] = useState(false);
   const [ownerAccessCodes, setOwnerAccessCodes] = useState(() => {
     try {
       const saved = localStorage.getItem("ownerPortalAccessCodes");
@@ -3893,65 +3992,6 @@ export default function App() {
 
     setOwnerAssignmentMessage(`${ownerDriver.name} is now assigned as owner of ${getTeamFullName(selectedOwnerTeam)}.`);
     await loadOwnerAssignments();
-  }
-
-
-  async function loadForCauseRequests() {
-    setForCauseError("");
-    const { data, error } = await supabase
-      .from("contract_offers")
-      .select("*")
-      .eq("status", "For-Cause Board Review")
-      .order("updated_at", { ascending: false });
-
-    if (error) {
-      console.error("Could not load for-cause termination requests:", error);
-      setForCauseError("Could not load for-cause requests. Check contract_offers RLS/select policy.");
-      setForCauseRequests([]);
-      return;
-    }
-
-    setForCauseRequests(data || []);
-  }
-
-  async function updateForCauseRequest(contract, decision) {
-    setForCauseMessage("");
-    setForCauseError("");
-
-    const approved = decision === "approve";
-    const confirmed = window.confirm(approved
-      ? `Approve for-cause termination for #${contract.driver_number || "—"} ${contract.driver_name || "this driver"}? No payout will be charged.`
-      : `Deny for-cause termination for #${contract.driver_number || "—"} ${contract.driver_name || "this driver"}? Contract will return to Accepted status.`
-    );
-    if (!confirmed) return;
-
-    const priorNotes = String(contract.notes || "").trim();
-    const decisionNote = `[BOARD DECISION - ${new Date().toISOString()}] ${approved ? "Approved for-cause termination. No payout owed." : "Denied for-cause termination. Standard contract remains active."}`;
-
-    setForCauseBusyId(contract.id);
-    const { error } = await supabase
-      .from("contract_offers")
-      .update({
-        status: approved ? "Terminated For Cause" : "Accepted",
-        termination_type: approved ? "For Cause Approved" : "For Cause Denied",
-        termination_reviewed_at: new Date().toISOString(),
-        termination_reviewed_by: "Board/Admin",
-        termination_cost: approved ? 0 : null,
-        notes: priorNotes ? `${priorNotes}\n\n${decisionNote}` : decisionNote,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", contract.id);
-
-    setForCauseBusyId(null);
-
-    if (error) {
-      console.error("Could not update for-cause request:", error);
-      setForCauseError("Could not update request. Check contract_offers RLS/update policy and termination columns.");
-      return;
-    }
-
-    setForCauseMessage(approved ? "For-cause termination approved. No payout charged." : "For-cause termination denied. Contract returned to Accepted status.");
-    await loadForCauseRequests();
   }
 
 
@@ -4198,7 +4238,6 @@ export default function App() {
   }, []);
   useEffect(() => {
     loadTickerMessages();
-    loadForCauseRequests();
   }, []);
 
   useEffect(() => {
@@ -4279,6 +4318,151 @@ export default function App() {
   }, [selectedRace, activeSeasonId]); // eslint-disable-line react-hooks/exhaustive-deps
   const replaceActiveSeason = (next) => setSeasons((prev) => prev.map((s) => (s.id === activeSeasonId ? next : s)));
   const patchActiveSeason = (patch) => setSeasons((prev) => prev.map((s) => (s.id === activeSeasonId ? { ...s, ...patch } : s)));
+  async function loadPaintSchemePayoutPreview(raceNameOverride = paintPayoutRace) {
+    const raceName = raceNameOverride || getPreviousCompletedRaceForPaintWinner(tracks)?.name || selectedRace || "";
+    setPaintPayoutRace(raceName);
+    setPaintPayoutStatus("");
+    setPaintPayoutError("");
+    setPaintPayoutRows([]);
+
+    if (!raceName) {
+      setPaintPayoutError("Select a race first.");
+      return [];
+    }
+
+    setPaintPayoutLoading(true);
+    const [{ data: uploadData, error: uploadError }, { data: voteData, error: voteError }] = await Promise.all([
+      supabase.from("car_uploads").select("*").order("uploaded_at", { ascending: false }),
+      supabase.from("paint_scheme_votes").select("*").eq("race_name", raceName).order("created_at", { ascending: false }),
+    ]);
+    setPaintPayoutLoading(false);
+
+    if (uploadError || voteError) {
+      console.error("Could not load paint scheme payout preview:", uploadError || voteError);
+      setPaintPayoutError("Could not load paint scheme uploads/votes. Check car_uploads, paint_scheme_votes, and RLS policies.");
+      return [];
+    }
+
+    const raceUploads = (uploadData || [])
+      .filter((upload) => isPaintImageUploadForStandings(upload))
+      .filter((upload) => getPaintUploadRaceForStandings(upload) === raceName);
+
+    const counts = new Map();
+    (voteData || []).forEach((vote) => {
+      const key = String(vote.upload_id || vote.voted_upload_id || "");
+      counts.set(key, (counts.get(key) || 0) + 1);
+    });
+
+    const deadline = getNextFridayMidnightDeadline(new Date());
+    const rankedUploads = raceUploads
+      .map((upload) => ({ ...upload, voteCount: counts.get(String(upload.id)) || 0 }))
+      .sort((a, b) => {
+        const voteDiff = Number(b.voteCount || 0) - Number(a.voteCount || 0);
+        if (voteDiff !== 0) return voteDiff;
+        return new Date(getPaintUploadUpdatedAt(b) || 0) - new Date(getPaintUploadUpdatedAt(a) || 0);
+      });
+
+    const ineligibleCount = rankedUploads.filter((upload) => !isPaintUploadEligibleForPayout(upload, deadline)).length;
+    const rows = buildPaintSchemePayoutRows(rankedUploads, visibleDrivers, deadline);
+    setPaintPayoutRows(rows);
+    if (!rows.length) setPaintPayoutStatus(`No eligible paint scheme uploads found for ${raceName}. Uploads must be updated by Friday at 12:00 AM ET.`);
+    else if (ineligibleCount > 0) setPaintPayoutStatus(`${ineligibleCount} paint scheme upload(s) missed the Friday 12:00 AM ET deadline and were excluded from payout.`);
+    return rows;
+  }
+
+  async function awardPaintSchemePayouts() {
+    const raceName = paintPayoutRace || getPreviousCompletedRaceForPaintWinner(tracks)?.name || selectedRace || "";
+    setPaintPayoutStatus("");
+    setPaintPayoutError("");
+
+    if (!raceName) {
+      setPaintPayoutError("Select a race first.");
+      return;
+    }
+
+    const alreadyPaid = (activeSeason?.paintSchemePayouts || []).some((payout) => payout.raceName === raceName);
+    if (alreadyPaid) {
+      setPaintPayoutError(`${raceName} has already been awarded. Remove the payout record before awarding again.`);
+      return;
+    }
+
+    const rows = paintPayoutRows.length ? paintPayoutRows : await loadPaintSchemePayoutPreview(raceName);
+    if (!rows.length) {
+      setPaintPayoutError("No payout rows available.");
+      return;
+    }
+
+    const totalTeam = rows.reduce((sum, row) => sum + Number(row.teamPayout || 0), 0);
+    const totalDriver = rows.reduce((sum, row) => sum + Number(row.driverPayout || 0), 0);
+    const confirmed = window.confirm(
+      `Award paint scheme payouts for ${raceName}?\n\nTeam payouts: ${money(totalTeam)}\nDriver payouts: ${money(totalDriver)}\nRows: ${rows.length}`
+    );
+    if (!confirmed) return;
+
+    const nextDrivers = (drivers || []).map((driver) => {
+      const row = rows.find((item) =>
+        String(item.driverId) === String(driver.id) ||
+        String(item.driverNumber) === String(driver.number) ||
+        String(item.driverName || '').trim().toLowerCase() === String(driver.name || '').trim().toLowerCase()
+      );
+      if (!row) return driver;
+      return {
+        ...driver,
+        paintSchemeVotesReceived: Number(driver.paintSchemeVotesReceived || 0) + Number(row.votes || 0),
+        paintSchemeSeasonVotes: Number(driver.paintSchemeSeasonVotes || 0) + Number(row.votes || 0),
+        paintSchemeDriverEarnings: Number(driver.paintSchemeDriverEarnings || 0) + Number(row.driverPayout || 0),
+        paintSchemeTeamEarnings: Number(driver.paintSchemeTeamEarnings || 0) + Number(row.teamPayout || 0),
+        paintSchemeWins: Number(driver.paintSchemeWins || 0) + (row.rank === 1 ? 1 : 0),
+        paintSchemeTop5s: Number(driver.paintSchemeTop5s || 0) + (row.rank <= 5 ? 1 : 0),
+        paintSchemeTop10s: Number(driver.paintSchemeTop10s || 0) + (row.rank <= 10 ? 1 : 0),
+        paintSchemeLastAwardedRace: raceName,
+      };
+    });
+
+    const payoutRecord = {
+      id: `paint-${Date.now()}`,
+      raceName,
+      awardedAt: new Date().toISOString(),
+      rows,
+      totalTeamPayout: totalTeam,
+      totalDriverPayout: totalDriver,
+      teamPayoutCap: PAINT_SCHEME_TEAM_PAYOUT_CAP,
+      deadlineRule: "Friday 12:00 AM ET. Uploads not updated by then are not eligible for payout.",
+    };
+
+    patchActiveSeason({
+      drivers: nextDrivers,
+      paintSchemePayouts: [...(activeSeason?.paintSchemePayouts || []), payoutRecord],
+    });
+
+    const auditRows = rows.map((row) => ({
+      race_name: raceName,
+      rank: row.rank,
+      upload_id: row.uploadId,
+      driver_id: row.driverId,
+      driver_number: String(row.driverNumber || ""),
+      driver_name: row.driverName,
+      team: row.team,
+      votes: row.votes,
+      team_payout: row.teamPayout,
+      original_team_payout: row.originalTeamPayout,
+      team_cap_applied: row.teamCapApplied,
+      driver_payout: row.driverPayout,
+      updated_at_deadline: row.deadline,
+      upload_updated_at: row.updatedAt,
+      awarded_at: new Date().toISOString(),
+    }));
+
+    const { error } = await supabase.from("paint_scheme_payouts").insert(auditRows);
+    if (error) {
+      console.error("Paint scheme payout audit insert failed:", error);
+      setPaintPayoutStatus(`Payout applied to league state, but audit table insert failed. Check paint_scheme_payouts RLS/table.`);
+      return;
+    }
+
+    setPaintPayoutStatus(`Paint scheme payouts awarded for ${raceName}. Team total ${money(totalTeam)}. Driver total ${money(totalDriver)}.`);
+  }
+
   const clearInputs = () => {
     patchActiveSeason({ selectedRace: "", positions: {}, stage1: {}, stage2: {}, stage3: {}, dnfMap: {}, offenseMap: {}, fastestLapMap: {}, penaltyMap: {}, resultNotesMap: {} });
     setEditingRaceName(null);
@@ -5238,57 +5422,6 @@ export default function App() {
         </div>
 
 
-        <div style={sectionCardStyle}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap", marginBottom: 14 }}>
-            <div>
-              <h2 style={{ margin: 0 }}>⚖️ Board Review: For-Cause Terminations</h2>
-              <div style={{ fontSize: 13, opacity: 0.7, marginTop: 6 }}>
-                Owners can request termination without payout. The Board approves or denies it here.
-              </div>
-            </div>
-            <button type="button" onClick={loadForCauseRequests} style={secondaryButtonStyle}>Refresh Requests</button>
-          </div>
-
-          {forCauseMessage && <div style={{ color: "#4ade80", fontWeight: 900, marginBottom: 10 }}>{forCauseMessage}</div>}
-          {forCauseError && <div style={{ color: "#f87171", fontWeight: 900, marginBottom: 10 }}>{forCauseError}</div>}
-
-          {forCauseRequests.length === 0 ? (
-            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14, opacity: 0.78 }}>
-              No pending for-cause termination requests.
-            </div>
-          ) : (
-            <div style={{ overflowX: "auto" }}>
-              <table style={tableStyle}>
-                <thead>
-                  <tr>
-                    <th style={thStyle}>Driver</th>
-                    <th style={thStyle}>Team</th>
-                    <th style={thStyle}>Cause</th>
-                    <th style={thStyle}>Requested</th>
-                    <th style={thStyle}>Decision</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {forCauseRequests.map((request) => (
-                    <tr key={request.id}>
-                      <td style={{ ...tdStyle, fontWeight: 900 }}>#{request.driver_number || "—"} {request.driver_name || "Unknown Driver"}</td>
-                      <td style={tdStyle}>{getTeamFullName(request.team || request.created_by_team || request.termination_requested_by || "—")}</td>
-                      <td style={{ ...tdStyle, maxWidth: 420, whiteSpace: "pre-wrap" }}>{request.termination_cause || "See contract notes."}</td>
-                      <td style={tdStyle}>{request.termination_requested_at ? new Date(request.termination_requested_at).toLocaleString() : "—"}</td>
-                      <td style={tdStyle}>
-                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                          <button type="button" disabled={forCauseBusyId === request.id} onClick={() => updateForCauseRequest(request, "approve")} style={primaryButtonStyle}>Approve No Payout</button>
-                          <button type="button" disabled={forCauseBusyId === request.id} onClick={() => updateForCauseRequest(request, "deny")} style={dangerButtonStyle}>Deny</button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-
         {/* League Ticker Manager */}
         <div style={sectionCardStyle}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap", marginBottom: 14 }}>
@@ -5577,6 +5710,63 @@ export default function App() {
         </div>
 
         <PreviousRaceWinnerAdminPanel drivers={visibleDrivers} raceHistory={raceHistory} />
+
+
+        <div style={sectionCardStyle}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap", marginBottom: 14 }}>
+            <div>
+              <h2 style={{ margin: 0 }}>🎨 Paint Scheme Payouts</h2>
+              <div style={{ fontSize: 13, opacity: 0.7, marginTop: 6 }}>
+                Preview vote rankings, then award tiered payouts. Voting/payout eligibility closes Friday at 12:00 AM ET. Uploads not updated by then are excluded. Team payouts are capped at {money(PAINT_SCHEME_TEAM_PAYOUT_CAP)} per team.
+              </div>
+            </div>
+            <button onClick={() => loadPaintSchemePayoutPreview()} disabled={paintPayoutLoading} style={secondaryButtonStyle}>{paintPayoutLoading ? "Loading..." : "Preview Rankings"}</button>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12, marginBottom: 14 }}>
+            <div>
+              <div style={{ marginBottom: 6, fontWeight: 700 }}>Race / Vote Week</div>
+              <select style={inputStyle} value={paintPayoutRace} onChange={(event) => setPaintPayoutRace(event.target.value)}>
+                <option value="">Auto-select previous completed race</option>
+                {(tracks || []).map((track) => <option key={track.name} value={track.name}>{track.name}</option>)}
+              </select>
+            </div>
+            <div style={{ display: "flex", alignItems: "end", gap: 10, flexWrap: "wrap" }}>
+              <button onClick={awardPaintSchemePayouts} disabled={!paintPayoutRows.length} style={{ ...primaryButtonStyle, opacity: paintPayoutRows.length ? 1 : 0.55 }}>Award Paint Scheme Payouts</button>
+            </div>
+          </div>
+          {paintPayoutStatus && <div style={{ color: "#4ade80", fontWeight: 900, marginBottom: 10 }}>{paintPayoutStatus}</div>}
+          {paintPayoutError && <div style={{ color: "#f87171", fontWeight: 900, marginBottom: 10 }}>{paintPayoutError}</div>}
+          {paintPayoutRows.length > 0 && (
+            <div style={{ overflowX: "auto" }}>
+              <table style={tableStyle}>
+                <thead>
+                  <tr>
+                    <th style={thStyle}>Rank</th>
+                    <th style={thStyle}>Driver</th>
+                    <th style={thStyle}>Team</th>
+                    <th style={thStyle}>Votes</th>
+                    <th style={thStyle}>Updated By Deadline</th>
+                    <th style={thStyle}>Team Payout</th>
+                    <th style={thStyle}>Driver Payout</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paintPayoutRows.map((row) => (
+                    <tr key={`${row.rank}-${row.uploadId}`}>
+                      <td style={{ ...tdStyle, fontWeight: 900 }}>P{row.rank}</td>
+                      <td style={{ ...tdStyle, fontWeight: 900 }}>#{row.driverNumber} {row.driverName}</td>
+                      <td style={tdStyle}>{getTeamFullName(row.team)}</td>
+                      <td style={tdStyle}>{row.votes}</td>
+                      <td style={tdStyle}>{row.updatedAt ? new Date(row.updatedAt).toLocaleString() : "—"}</td>
+                      <td style={{ ...tdStyle, color: "#4ade80", fontWeight: 900 }}>{money(row.teamPayout)}{row.teamCapApplied ? <div style={{ color: "#fbbf24", fontSize: 11 }}>Team cap applied</div> : null}</td>
+                      <td style={{ ...tdStyle, color: "#d4af37", fontWeight: 900 }}>{money(row.driverPayout)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
 
         {/* Ones to Watch Manager */}
         <div style={sectionCardStyle}>
