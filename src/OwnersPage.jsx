@@ -101,7 +101,6 @@ const sectionCardStyle = { background: "#171b22", border: "1px solid #2c3440", b
 const primaryButtonStyle = { background: "#d4af37", color: "#111", border: "none", borderRadius: 10, padding: "10px 16px", fontWeight: 800, cursor: "pointer" };
 const secondaryButtonStyle = { background: "#2a3140", color: "white", border: "1px solid #3d4859", borderRadius: 10, padding: "10px 16px", fontWeight: 800, cursor: "pointer" };
 const dangerButtonStyle = { background: "#b42318", color: "white", border: "none", borderRadius: 10, padding: "10px 16px", fontWeight: 700, cursor: "pointer" };
-const warningButtonStyle = { background: "#f59e0b", color: "#111", border: "none", borderRadius: 10, padding: "10px 16px", fontWeight: 800, cursor: "pointer" };
 const inputStyle = { width: "100%", background: "#0f1319", color: "white", border: "1px solid #313947", borderRadius: 10, padding: "10px 12px", boxSizing: "border-box" };
 const thStyle = { textAlign: "left", padding: 10, borderBottom: "1px solid #313947", background: "#10141b", fontSize: 12, letterSpacing: 0.4 };
 const tdStyle = { padding: 10, borderBottom: "1px solid #252c38", verticalAlign: "top", fontSize: 13 };
@@ -478,9 +477,6 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
   const [contractMessage, setContractMessage] = useState("");
   const [contractError, setContractError] = useState("");
   const [contractForm, setContractForm] = useState(DEFAULT_CONTRACT_FORM);
-  const [terminationTarget, setTerminationTarget] = useState(null);
-  const [terminationCause, setTerminationCause] = useState("");
-  const [terminationBusyId, setTerminationBusyId] = useState(null);
   const [technicalAlliances, setTechnicalAlliances] = useState([]);
   const [independentDriverPayments, setIndependentDriverPayments] = useState(loadIndependentDriverPayments);
   const [independentPaymentForm, setIndependentPaymentForm] = useState(DEFAULT_INDEPENDENT_PAYMENT_FORM);
@@ -929,7 +925,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
     const { data, error: activeContractsError } = await supabase
       .from("contract_offers")
       .select("*")
-      .or("status.eq.Accepted,status.eq.Active,status.eq.Signed,status.eq.accepted,status.eq.active,status.eq.signed,status.eq.For-Cause Board Review")
+      .or("status.eq.Accepted,status.eq.Active,status.eq.accepted,status.eq.active")
       .order("created_at", { ascending: false });
 
     if (activeContractsError) {
@@ -1473,150 +1469,6 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
     }
 
     setContractMessage("Contract offer withdrawn.");
-    await loadContractOffers();
-    await loadActiveContracts();
-  }
-
-
-  function getContractTerminationCost(contract) {
-    const remainingSalary = Number(contract?.salary || 0);
-    const buyout = Number(contract?.buyout_amount ?? contract?.buyout ?? remainingSalary * 1.5) || 0;
-    return { remainingSalary, buyout, total: remainingSalary + buyout };
-  }
-
-  function canManageContract(contract) {
-    return sameTeamName(contract?.team || contract?.created_by_team, safeSelectedTeam);
-  }
-
-  async function payDriverOutOfContract(contract) {
-    setContractMessage("");
-    setContractError("");
-
-    if (!isAuthorized) {
-      setContractError("Owner access required before terminating a contract.");
-      return;
-    }
-
-    if (!canManageContract(contract)) {
-      setContractError("You can only terminate contracts for your own team.");
-      return;
-    }
-
-    const cost = getContractTerminationCost(contract);
-    if (cost.total > currentTeamBalance) {
-      setContractError(`Not enough team funds. Paying this driver out costs ${money(cost.total)}.`);
-      return;
-    }
-
-    const confirmed = window.confirm(
-      `Pay #${contract.driver_number || "—"} ${contract.driver_name || "this driver"} out of the contract?\n\n` +
-      `Remaining salary: ${money(cost.remainingSalary)}\n` +
-      `Buyout: ${money(cost.buyout)}\n` +
-      `Total due now: ${money(cost.total)}\n\n` +
-      `This will immediately deduct funds and mark the contract terminated.`
-    );
-    if (!confirmed) return;
-
-    setTerminationBusyId(contract.id);
-
-    const { error: contractError } = await supabase
-      .from("contract_offers")
-      .update({
-        status: "Terminated - Paid Out",
-        termination_type: "Paid Out",
-        termination_cost: cost.total,
-        termination_remaining_salary: cost.remainingSalary,
-        termination_buyout: cost.buyout,
-        terminated_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", contract.id);
-
-    if (contractError) {
-      console.error("Could not terminate contract:", contractError);
-      setContractError("Could not terminate this contract. Check contract_offers RLS/update policy and termination columns.");
-      setTerminationBusyId(null);
-      return;
-    }
-
-    if (teamFinance?.id) {
-      const { error: financeError } = await supabase
-        .from("team_finances")
-        .update({
-          balance: Number(teamFinance.balance || 0) - cost.total,
-          payroll_spent: Number(teamFinance.payroll_spent || 0) + cost.remainingSalary,
-          buyout_spent: Number(teamFinance.buyout_spent || 0) + cost.buyout,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", teamFinance.id);
-
-      if (financeError) {
-        console.error("Contract terminated but finance update failed:", financeError);
-        setContractError("Contract was terminated, but team funds were not deducted. Check team_finances RLS/update policy and buyout_spent column.");
-        setTerminationBusyId(null);
-        await loadActiveContracts();
-        return;
-      }
-    }
-
-    setContractMessage(`Contract terminated and ${money(cost.total)} was deducted from ${ownerTeamName}.`);
-    setTerminationBusyId(null);
-    await loadTeamFinance();
-    await loadContractOffers();
-    await loadActiveContracts();
-  }
-
-  async function requestForCauseTermination(contract) {
-    setContractMessage("");
-    setContractError("");
-
-    if (!isAuthorized) {
-      setContractError("Owner access required before requesting for-cause termination.");
-      return;
-    }
-
-    if (!canManageContract(contract)) {
-      setContractError("You can only request for-cause termination for your own team.");
-      return;
-    }
-
-    const cause = String(terminationCause || "").trim();
-    if (!cause || cause.length < 15) {
-      setContractError("Provide written cause with at least 15 characters before submitting to the Board.");
-      return;
-    }
-
-    const confirmed = window.confirm(`Submit a Board request to terminate #${contract.driver_number || "—"} ${contract.driver_name || "this driver"} for cause without payout?`);
-    if (!confirmed) return;
-
-    const priorNotes = String(contract.notes || "").trim();
-    const boardNote = `[FOR-CAUSE TERMINATION REQUEST - ${new Date().toISOString()}]\nRequested by: ${ownerTeamName}\nCause: ${cause}`;
-
-    setTerminationBusyId(contract.id);
-    const { error } = await supabase
-      .from("contract_offers")
-      .update({
-        status: "For-Cause Board Review",
-        termination_type: "For Cause Requested",
-        termination_cause: cause,
-        termination_requested_by: ownerTeamName,
-        termination_requested_at: new Date().toISOString(),
-        notes: priorNotes ? `${priorNotes}\n\n${boardNote}` : boardNote,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", contract.id);
-
-    if (error) {
-      console.error("Could not submit for-cause request:", error);
-      setContractError("Could not submit for-cause request. Check contract_offers RLS/update policy and termination columns.");
-      setTerminationBusyId(null);
-      return;
-    }
-
-    setTerminationTarget(null);
-    setTerminationCause("");
-    setTerminationBusyId(null);
-    setContractMessage("For-cause termination request submitted to the Board. Driver remains under contract until approved.");
     await loadContractOffers();
     await loadActiveContracts();
   }
@@ -2304,7 +2156,6 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
                         <th style={thStyle}>Length</th>
                         <th style={thStyle}>Buyout</th>
                         <th style={thStyle}>Status</th>
-                        <th style={thStyle}>Termination Options</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -2317,31 +2168,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
                           <td style={tdStyle}>{money(contract.signing_bonus)}</td>
                           <td style={tdStyle}>{contract.contract_length || "—"} season{Number(contract.contract_length) === 1 ? "" : "s"}</td>
                           <td style={tdStyle}>{money(contract.buyout_amount)}</td>
-                          <td style={{ ...tdStyle, fontWeight: 900, color: String(contract.status || "").includes("For-Cause") ? "#fbbf24" : "#4ade80" }}>{contract.status}</td>
-                          <td style={tdStyle}>
-                            {canManageContract(contract) ? (
-                              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                                <button
-                                  type="button"
-                                  onClick={() => payDriverOutOfContract(contract)}
-                                  disabled={terminationBusyId === contract.id}
-                                  style={dangerButtonStyle}
-                                >
-                                  Pay Driver Out
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => { setTerminationTarget(contract); setTerminationCause(contract.termination_cause || ""); }}
-                                  disabled={terminationBusyId === contract.id}
-                                  style={warningButtonStyle}
-                                >
-                                  Request For Cause
-                                </button>
-                              </div>
-                            ) : (
-                              <span style={{ opacity: 0.55 }}>Other team</span>
-                            )}
-                          </td>
+                          <td style={{ ...tdStyle, fontWeight: 900, color: "#4ade80" }}>{contract.status}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -2349,29 +2176,6 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
                 </div>
               )}
             </div>
-
-            {terminationTarget && (
-              <div style={{ ...sectionCardStyle, borderColor: "#f59e0b", background: "#17130a" }}>
-                <h2 style={{ marginTop: 0 }}>Request Board Approval: For-Cause Termination</h2>
-                <p style={{ opacity: 0.76, marginTop: 0 }}>
-                  The driver stays under contract while the Board reviews this request. If approved, no remaining salary or buyout is paid. If denied, you can still use Pay Driver Out.
-                </p>
-                <div style={{ marginBottom: 10, fontWeight: 900 }}>
-                  #{terminationTarget.driver_number || "—"} {terminationTarget.driver_name} • {ownerTeamName}
-                </div>
-                <textarea
-                  rows={5}
-                  value={terminationCause}
-                  onChange={(event) => setTerminationCause(event.target.value)}
-                  style={inputStyle}
-                  placeholder="Provide written cause for the Board. Example: repeated missed races, conduct issue, team standards violation, refusal to meet contract duties..."
-                />
-                <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
-                  <button type="button" onClick={() => requestForCauseTermination(terminationTarget)} style={warningButtonStyle}>Submit To Board</button>
-                  <button type="button" onClick={() => { setTerminationTarget(null); setTerminationCause(""); }} style={secondaryButtonStyle}>Cancel</button>
-                </div>
-              </div>
-            )}
 
             <div style={{ ...sectionCardStyle, borderColor: "#d4af37" }}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", alignItems: "center", marginBottom: 16 }}>
