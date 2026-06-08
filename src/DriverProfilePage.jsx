@@ -605,6 +605,17 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
     totalPenalties: driver?.totalPenalties || 0,
   }), [driver]);
 
+  const paintSchemeStats = useMemo(() => ({
+    votesReceived: Number(driver?.paintSchemeVotesReceived || 0),
+    seasonVotes: Number(driver?.paintSchemeSeasonVotes || driver?.paintSchemeVotesReceived || 0),
+    wins: Number(driver?.paintSchemeWins || 0),
+    top5s: Number(driver?.paintSchemeTop5s || 0),
+    top10s: Number(driver?.paintSchemeTop10s || 0),
+    driverEarnings: Number(driver?.paintSchemeDriverEarnings || 0),
+    teamEarnings: Number(driver?.paintSchemeTeamEarnings || 0),
+    lastAwardedRace: driver?.paintSchemeLastAwardedRace || "—",
+  }), [driver]);
+
   const recentForm = useMemo(() => {
     if (!selectedSeason || !driver) return [];
     return normalizedRaceHistory
@@ -1971,6 +1982,35 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
               <div style={{ fontSize: 24, fontWeight: 800, color: stat.label === "POINTS" ? teamTheme.accent : "white" }}>{stat.value}</div>
             </div>
           ))}
+        </div>
+
+        <div style={{ ...sectionCardStyle, borderColor: teamTheme.accent }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap", marginBottom: 14 }}>
+            <div>
+              <h2 style={{ margin: 0 }}>🎨 Paint Scheme Profile</h2>
+              <div style={{ fontSize: 13, opacity: 0.68, marginTop: 6 }}>Votes and payouts logged from Paint Scheme of the Week awards.</div>
+            </div>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: 28, fontWeight: 900, color: teamTheme.accent }}>{money(paintSchemeStats.driverEarnings)}</div>
+              <div style={{ fontSize: 12, opacity: 0.68 }}>Driver paint earnings</div>
+            </div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(145px, 1fr))", gap: 12 }}>
+            {[
+              ["Season Votes", paintSchemeStats.seasonVotes],
+              ["Career Votes", paintSchemeStats.votesReceived],
+              ["Wins", paintSchemeStats.wins],
+              ["Top 5s", paintSchemeStats.top5s],
+              ["Top 10s", paintSchemeStats.top10s],
+              ["Team Earned", money(paintSchemeStats.teamEarnings)],
+            ].map(([label, value]) => (
+              <div key={label} style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14 }}>
+                <div style={{ fontSize: 11, opacity: 0.65, fontWeight: 900, marginBottom: 6 }}>{label}</div>
+                <div style={{ fontSize: 20, fontWeight: 900 }}>{value}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ marginTop: 12, fontSize: 12, opacity: 0.68 }}>Last payout race: {paintSchemeStats.lastAwardedRace}</div>
         </div>
 
         <div style={{ ...sectionCardStyle, borderColor: driverSatisfaction.color, background: `linear-gradient(135deg, #171b22 0%, ${driverSatisfaction.bg} 100%)` }}>
