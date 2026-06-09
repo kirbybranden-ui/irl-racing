@@ -581,9 +581,23 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
   const [driverAssignments, setDriverAssignments] = useState([]);
   const [driverAssignmentMessage, setDriverAssignmentMessage] = useState("");
   const [driverAssignmentError, setDriverAssignmentError] = useState("");
+  const [unreadMessages, setUnreadMessages] = useState(0);
+  const [driverMessages, setDriverMessages] = useState([]);
+  const [messagesLoading, setMessagesLoading] = useState(false);
+  const [messageRecipientNumber, setMessageRecipientNumber] = useState("");
+  const [messageSubject, setMessageSubject] = useState("");
+  const [messageBody, setMessageBody] = useState("");
+  const [messageNotice, setMessageNotice] = useState("");
+  const [messageError, setMessageError] = useState("");
 
   const driverAccessKey = driver ? String(driver.number) : String(driverNumber);
   const isDriverAuthorized = authorizedDriverNumber === driverAccessKey;
+  const authorizedDriver = sanitizedDrivers.find((item) => String(item.number) === String(authorizedDriverNumber)) || null;
+  const messageRecipientOptions = useMemo(() => {
+    return sanitizedDrivers
+      .filter((item) => item && String(item.number) !== String(driver?.number || driverNumber))
+      .sort((a, b) => Number(a.number || 9999) - Number(b.number || 9999));
+  }, [sanitizedDrivers, driver?.number, driverNumber]);
 
   const raceBreakdown = useMemo(() => {
     if (!selectedSeason || !driver) return [];
@@ -985,6 +999,151 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
     return () => clearInterval(interval);
   }, [driver?.number, isDriverAuthorized]);
 
+  useEffect(() => {
+    if (!driver?.number) {
+      setUnreadMessages(0);
+      return;
+    }
+
+    async function loadUnreadMessages() {
+      const { count, error } = await supabase
+        .from("chat_messages")
+        .select("*", { count: "exact", head: true })
+        .eq("recipient_driver_number", String(driver.number))
+        .eq("is_read", false);
+
+      if (error) {
+        console.error("Failed to load unread messages:", error);
+        setUnreadMessages(0);
+        return;
+      }
+
+      setUnreadMessages(count || 0);
+    }
+
+    loadUnreadMessages();
+    const interval = setInterval(loadUnreadMessages, 30000);
+    return () => clearInterval(interval);
+  }, [driver?.number]);
+
+  useEffect(() => {
+    if (subPage !== "messages" || !driver?.number || !isDriverAuthorized) return;
+
+    const queryParams = new URLSearchParams(window.location.search);
+    const toNumber = queryParams.get("to");
+    if (toNumber) setMessageRecipientNumber(String(toNumber));
+
+    loadDriverMessages(true);
+    const interval = setInterval(() => loadDriverMessages(false), 30000);
+    return () => clearInterval(interval);
+  }, [subPage, driver?.number, isDriverAuthorized]);
+
+  async function loadDriverMessages(markIncomingAsRead = false) {
+    if (!driver?.number) return;
+
+    setMessagesLoading(true);
+    const currentNumber = String(driver.number);
+    const { data, error } = await supabase
+      .from("chat_messages")
+      .select("*")
+      .or(`sender_driver_number.eq.${currentNumber},recipient_driver_number.eq.${currentNumber}`)
+      .order("created_at", { ascending: false })
+      .limit(150);
+
+    if (error) {
+      console.error("Failed to load driver messages:", error);
+      setMessageError("Could not load messages. Check chat_messages RLS select policy.");
+      setDriverMessages([]);
+      setMessagesLoading(false);
+      return;
+    }
+
+    setDriverMessages(data || []);
+    setMessagesLoading(false);
+
+    if (markIncomingAsRead) {
+      const unreadIncomingIds = (data || [])
+        .filter((message) => String(message.recipient_driver_number) === currentNumber && !message.is_read)
+        .map((message) => message.id)
+        .filter(Boolean);
+
+      if (unreadIncomingIds.length) {
+        const { error: updateError } = await supabase
+          .from("chat_messages")
+          .update({ is_read: true })
+          .in("id", unreadIncomingIds);
+
+        if (updateError) {
+          console.error("Failed to mark messages read:", updateError);
+        } else {
+          setUnreadMessages(0);
+          setDriverMessages((current) => current.map((message) => unreadIncomingIds.includes(message.id) ? { ...message, is_read: true } : message));
+        }
+      }
+    }
+  }
+
+  async function sendDriverMessage(event) {
+    event?.preventDefault?.();
+    setMessageNotice("");
+    setMessageError("");
+
+    if (!isDriverAuthorized || !driver) {
+      setMessageError("Unlock your driver profile before sending messages.");
+      return;
+    }
+
+    const recipient = sanitizedDrivers.find((item) => String(item.number) === String(messageRecipientNumber));
+    const body = String(messageBody || "").trim();
+
+    if (!recipient) {
+      setMessageError("Choose the driver you want to message.");
+      return;
+    }
+
+    if (!body) {
+      setMessageError("Type a message before sending.");
+      return;
+    }
+
+    if (body.length > 1200) {
+      setMessageError("Keep messages under 1,200 characters to save database space.");
+      return;
+    }
+
+    const payload = {
+      sender_driver_number: String(driver.number),
+      sender_name: driver.name || `#${driver.number}`,
+      recipient_driver_number: String(recipient.number),
+      subject: String(messageSubject || "").trim() || null,
+      message: body,
+      is_read: false,
+      created_at: new Date().toISOString(),
+    };
+
+    const { error } = await supabase.from("chat_messages").insert([payload]);
+
+    if (error) {
+      console.error("Failed to send message:", error);
+      setMessageError("Could not send message. Check chat_messages insert policy and columns.");
+      return;
+    }
+
+    setMessageBody("");
+    setMessageSubject("");
+    setMessageNotice(`Message sent to #${recipient.number} ${recipient.name}.`);
+    await loadDriverMessages(false);
+  }
+
+  function startMessageFromProfile() {
+    if (authorizedDriverNumber && String(authorizedDriverNumber) !== String(driver?.number || driverNumber)) {
+      window.location.href = `/driver/${authorizedDriverNumber}/messages?to=${driver?.number || driverNumber}`;
+      return;
+    }
+
+    openProtectedDriverSection(`/driver/${driverNumber}/messages`);
+  }
+
   async function unlockDriverContracts() {
     const latestCodes = await loadRemoteDriverAccessCodes();
     setDriverAccessCodes(latestCodes);
@@ -1356,7 +1515,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
     ["future_confidence", "Future Confidence", "Do you believe this team can win?"],
   ];
 
-  const protectedDriverPages = ["contracts", "upload", "interviews", "appeals", "feedback", "assignments"];
+  const protectedDriverPages = ["contracts", "upload", "interviews", "appeals", "feedback", "assignments", "messages"];
 
   if (protectedDriverPages.includes(subPage) && !isDriverAuthorized) {
     return (
@@ -1366,14 +1525,14 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
             <button onClick={() => window.location.pathname = `/driver/${driverNumber}`} style={secondaryButtonStyle}>← Back to Profile</button>
             <div>
               <div style={{ fontSize: 22, fontWeight: 900 }}>#{driver.number} {driver.name} — Driver Access Required</div>
-              <div style={{ fontSize: 13, opacity: 0.6, marginTop: 2 }}>Unlock to use contracts, uploads, interviews, appeals, assignments, and driver feedback.</div>
+              <div style={{ fontSize: 13, opacity: 0.6, marginTop: 2 }}>Unlock to use contracts, uploads, interviews, appeals, assignments, messages, and driver feedback.</div>
             </div>
           </div>
 
           <div style={{ ...sectionCardStyle, borderColor: teamTheme.accent }}>
             <h2 style={{ marginTop: 0 }}>🔒 Driver Access Locked</h2>
             <div style={{ fontSize: 14, opacity: 0.72, lineHeight: 1.6, marginBottom: 16 }}>
-              Enter the private driver access code for #{driver.number} {driver.name}. This keeps other people from answering interviews, submitting happiness feedback, viewing assignments, uploading files, or managing contracts.
+              Enter the private driver access code for #{driver.number} {driver.name}. This keeps other people from answering interviews, submitting happiness feedback, viewing assignments, reading messages, uploading files, or managing contracts.
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, alignItems: "end" }}>
@@ -1432,6 +1591,102 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
       {passwordChangeError && <div style={{ color: "#f87171", marginTop: 12, fontWeight: 800 }}>{passwordChangeError}</div>}
     </div>
   ) : null;
+
+  if (subPage === "messages") {
+    const groupedMessages = driverMessages.reduce((groups, message) => {
+      const otherNumber = String(message.sender_driver_number) === String(driver.number)
+        ? String(message.recipient_driver_number || "")
+        : String(message.sender_driver_number || "");
+      if (!groups[otherNumber]) groups[otherNumber] = [];
+      groups[otherNumber].push(message);
+      return groups;
+    }, {});
+
+    return (
+      <div style={appShellStyle}>
+        <div style={pageContainerStyle}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20, flexWrap: "wrap" }}>
+            <button onClick={() => window.location.pathname = `/driver/${driverNumber}`} style={secondaryButtonStyle}>← Back to Profile</button>
+            <div>
+              <div style={{ fontSize: 22, fontWeight: 900 }}>#{driver.number} {driver.name} — Message Center</div>
+              <div style={{ fontSize: 13, opacity: 0.6, marginTop: 2 }}>Direct driver messages. Message text is only visible after driver access is unlocked.</div>
+            </div>
+            {isDriverAuthorized && <button onClick={lockDriverContracts} style={{ ...secondaryButtonStyle, marginLeft: "auto" }}>Lock Driver Access</button>}
+          </div>
+
+          {passwordManagerCard}
+
+          <form onSubmit={sendDriverMessage} style={{ ...sectionCardStyle, borderColor: teamTheme.accent }}>
+            <h2 style={{ marginTop: 0 }}>✉️ Send Direct Message</h2>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, marginBottom: 12 }}>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>TO DRIVER</div>
+                <select value={messageRecipientNumber} onChange={(event) => setMessageRecipientNumber(event.target.value)} style={inputStyle}>
+                  <option value="">Choose driver</option>
+                  {messageRecipientOptions.map((item) => (
+                    <option key={item.id || item.number} value={String(item.number)}>#{item.number} {item.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>SUBJECT OPTIONAL</div>
+                <input value={messageSubject} onChange={(event) => setMessageSubject(event.target.value)} placeholder="Race strategy, contract, practice, etc." style={inputStyle} maxLength={120} />
+              </div>
+            </div>
+            <textarea value={messageBody} onChange={(event) => setMessageBody(event.target.value)} placeholder="Type your message..." rows={5} style={{ ...inputStyle, resize: "vertical" }} maxLength={1200} />
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginTop: 12 }}>
+              <button type="submit" style={themedPrimaryButtonStyle}>Send Message</button>
+              <div style={{ fontSize: 12, opacity: 0.65 }}>{messageBody.length}/1200 characters</div>
+            </div>
+            {messageNotice && <div style={{ color: "#4ade80", marginTop: 12, fontWeight: 800 }}>{messageNotice}</div>}
+            {messageError && <div style={{ color: "#f87171", marginTop: 12, fontWeight: 800 }}>{messageError}</div>}
+          </form>
+
+          <div style={sectionCardStyle}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
+              <div>
+                <h2 style={{ margin: 0 }}>📩 Inbox</h2>
+                <div style={{ fontSize: 13, opacity: 0.65, marginTop: 4 }}>{driverMessages.length} message{driverMessages.length !== 1 ? "s" : ""} loaded</div>
+              </div>
+              <button type="button" onClick={() => loadDriverMessages(true)} style={secondaryButtonStyle}>{messagesLoading ? "Refreshing..." : "Refresh"}</button>
+            </div>
+
+            {driverMessages.length === 0 ? (
+              <div style={{ opacity: 0.72 }}>No direct messages yet.</div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                {Object.entries(groupedMessages).map(([otherNumber, messages]) => {
+                  const otherDriver = sanitizedDrivers.find((item) => String(item.number) === String(otherNumber));
+                  return (
+                    <div key={otherNumber || "unknown"} style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14 }}>
+                      <div style={{ fontSize: 15, fontWeight: 900, marginBottom: 10 }}>
+                        Conversation with {otherDriver ? `#${otherDriver.number} ${otherDriver.name}` : `#${otherNumber || "Unknown"}`}
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                        {messages.map((message) => {
+                          const sentByMe = String(message.sender_driver_number) === String(driver.number);
+                          return (
+                            <div key={message.id || `${message.created_at}-${message.message}`} style={{ marginLeft: sentByMe ? "auto" : 0, maxWidth: "82%", background: sentByMe ? teamTheme.dark : "#151b24", border: `1px solid ${sentByMe ? teamTheme.accent : "#313947"}`, borderRadius: 12, padding: 12 }}>
+                              <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 6 }}>
+                                <div style={{ fontSize: 12, fontWeight: 900, color: sentByMe ? teamTheme.accent : "#e5e7eb" }}>{sentByMe ? "You" : (message.sender_name || `#${message.sender_driver_number}`)}</div>
+                                <div style={{ fontSize: 11, opacity: 0.55 }}>{message.created_at ? new Date(message.created_at).toLocaleString() : ""}</div>
+                              </div>
+                              {message.subject && <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 6 }}>{message.subject}</div>}
+                              <div style={{ fontSize: 14, lineHeight: 1.55, whiteSpace: "pre-wrap" }}>{message.message}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (subPage === "appeals") {
     return (
@@ -1931,6 +2186,11 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
                 <div style={{ fontSize: 15, fontWeight: 900, marginTop: 4, color: teamTheme.accent }}>{getTeamFullName(driver.team)}</div>
                 <div style={{ fontSize: 12, opacity: 0.65, marginTop: 2 }}>{driver.team}</div>
                 <div style={{ marginTop: 12, display: "inline-flex", padding: "6px 12px", borderRadius: 999, background: teamTheme.glow, border: `1px solid ${teamTheme.accent}`, fontSize: 12, fontWeight: 900 }}>{reputation.archetype}</div>
+                {unreadMessages > 0 && (
+                  <div style={{ marginTop: 10, display: "inline-flex", padding: "7px 12px", borderRadius: 999, background: "#ef4444", color: "white", border: "1px solid #fecaca", fontSize: 12, fontWeight: 900 }}>
+                    🔔 {unreadMessages} New Message{unreadMessages !== 1 ? "s" : ""}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1960,6 +2220,10 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
           </button>
           <button onClick={() => openProtectedDriverSection(`/driver/${driverNumber}/assignments`)} style={secondaryButtonStyle}>🎯 Assignments</button>
           <button onClick={() => openProtectedDriverSection(`/driver/${driverNumber}/feedback`)} style={secondaryButtonStyle}>😊 Driver Feedback</button>
+          <button onClick={() => openProtectedDriverSection(`/driver/${driverNumber}/messages`)} style={unreadMessages > 0 ? themedPrimaryButtonStyle : secondaryButtonStyle}>📩 Messages{unreadMessages > 0 ? ` (${unreadMessages})` : ""}</button>
+          {authorizedDriverNumber && String(authorizedDriverNumber) !== String(driver.number) && (
+            <button onClick={startMessageFromProfile} style={themedPrimaryButtonStyle}>✉️ Message Driver</button>
+          )}
           <div style={{ marginLeft: "auto", background: isDriverAuthorized ? "#14532d" : "#1f2937", color: isDriverAuthorized ? "#86efac" : "#d1d5db", border: `1px solid ${isDriverAuthorized ? "#22c55e" : "#374151"}`, borderRadius: 999, padding: "8px 12px", fontSize: 12, fontWeight: 900 }}>
             {isDriverAuthorized ? "✅ Driver Access Authorized" : "🔒 Driver Access Locked"}
           </div>
@@ -2227,6 +2491,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
             <button style={secondaryButtonStyle} onClick={() => window.location.pathname = `/driver/${driver.number}`}>Driver Home</button>
             <button style={secondaryButtonStyle} onClick={() => window.location.pathname = `/driver/${driver.number}/appeals`}>Appeals</button>
             <button style={secondaryButtonStyle} onClick={() => window.location.pathname = `/driver/${driver.number}/assignments`}>Assignments</button>
+            <button style={secondaryButtonStyle} onClick={() => window.location.pathname = `/driver/${driver.number}/messages`}>Messages</button>
             <button style={secondaryButtonStyle} onClick={() => window.location.pathname = "/streams"}>Race Broadcasts</button>
             <button style={secondaryButtonStyle} onClick={() => window.location.pathname = "/standings"}>League Standings</button>
           </div>
