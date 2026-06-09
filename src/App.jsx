@@ -2929,6 +2929,187 @@ function PreviousRaceWinnerAdminPanel({ drivers = [], raceHistory = [] }) {
   );
 }
 
+
+
+function LeagueMessageCenterLandingPage({ drivers = [] }) {
+  const [selectedDriverNumber, setSelectedDriverNumber] = useState("");
+  const [driverCode, setDriverCode] = useState("");
+  const [error, setError] = useState("");
+  const [unreadCounts, setUnreadCounts] = useState({});
+  const activeDrivers = useMemo(() => {
+    return dedupeDriversByNumber(drivers || [])
+      .filter((driver) => !driver.retired && !isInactivePlaceholderDriver(driver))
+      .sort((a, b) => Number(a.number || 9999) - Number(b.number || 9999));
+  }, [drivers]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadUnreadCounts() {
+      const nextCounts = {};
+      for (const driver of activeDrivers) {
+        const driverNumber = String(driver.number || "");
+        if (!driverNumber) continue;
+
+        const { count, error: countError } = await supabase
+          .from("league_messages")
+          .select("*", { count: "exact", head: true })
+          .or(`recipient_type.eq.league,recipient_driver_number.eq.${driverNumber},recipient_team.eq.${driver.team},recipient_manufacturer.eq.${driver.manufacturer}`)
+          .eq("archived", false);
+
+        if (!countError) nextCounts[driverNumber] = count || 0;
+      }
+
+      if (isMounted) setUnreadCounts(nextCounts);
+    }
+
+    if (activeDrivers.length) loadUnreadCounts();
+    const interval = setInterval(loadUnreadCounts, 30000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [activeDrivers]);
+
+  async function unlockMessageCenter(event) {
+    event?.preventDefault?.();
+    setError("");
+
+    const driver = activeDrivers.find((item) => String(item.number) === String(selectedDriverNumber));
+    if (!driver) {
+      setError("Choose your driver first.");
+      return;
+    }
+
+    const enteredCode = String(driverCode || "").trim().toUpperCase();
+    if (!enteredCode) {
+      setError("Enter your driver access code.");
+      return;
+    }
+
+    const { data, error: codeError } = await supabase
+      .from("driver_access_codes")
+      .select("driver_number, driver_name, code, active")
+      .eq("active", true)
+      .or(`driver_number.eq.${String(driver.number)},driver_name.ilike.${driver.name}`)
+      .limit(10);
+
+    if (codeError) {
+      console.error("Could not verify driver access code:", codeError);
+      setError("Could not verify access. Check driver_access_codes select policy.");
+      return;
+    }
+
+    const match = (data || []).some((row) => {
+      const rowDriverNumber = String(row.driver_number || "");
+      const rowDriverName = String(row.driver_name || "").trim().toLowerCase();
+      const rowCode = String(row.code || "").trim().toUpperCase();
+      return (
+        rowCode === enteredCode &&
+        (rowDriverNumber === String(driver.number) || rowDriverName === String(driver.name || "").trim().toLowerCase())
+      );
+    });
+
+    const adminMatch = enteredCode === "BCLADMINPASSWORD2026";
+
+    if (!match && !adminMatch) {
+      setError("Incorrect driver access code.");
+      return;
+    }
+
+    localStorage.setItem("driverProfileAuthorizedNumber", String(driver.number));
+    window.location.pathname = `/driver/${driver.number}/messages`;
+  }
+
+  return (
+    <div style={appShellStyle}>
+      <div style={{ ...pageContainerStyle, maxWidth: 980 }}>
+        <div style={{ ...sectionCardStyle, background: "linear-gradient(135deg, #17191f 0%, #101216 100%)", border: "1px solid #d4af37" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 900, color: "#d4af37", letterSpacing: 1.4 }}>BUDWEISER CUP LEAGUE</div>
+              <h1 style={{ margin: "6px 0", fontSize: 34 }}>📩 League Message Center</h1>
+              <p style={{ margin: 0, opacity: 0.72, lineHeight: 1.5 }}>
+                Direct messages, Race Control notices, owner/team messages, contract alerts, and assignments all live here.
+              </p>
+            </div>
+            <button onClick={() => (window.location.pathname = "/standings")} style={secondaryButtonStyle}>Back to Standings</button>
+          </div>
+        </div>
+
+        <form onSubmit={unlockMessageCenter} style={sectionCardStyle}>
+          <h2 style={{ marginTop: 0 }}>Driver Login Required</h2>
+          <p style={{ opacity: 0.72, lineHeight: 1.5 }}>
+            Drivers can see message counts publicly, but must unlock their profile before reading or sending messages.
+          </p>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12, alignItems: "end" }}>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 900, opacity: 0.72, marginBottom: 8 }}>DRIVER</div>
+              <select value={selectedDriverNumber} onChange={(event) => setSelectedDriverNumber(event.target.value)} style={inputStyle}>
+                <option value="">Choose driver</option>
+                {activeDrivers.map((driver) => {
+                  const count = unreadCounts[String(driver.number)] || 0;
+                  return (
+                    <option key={driver.id || driver.number} value={driver.number}>
+                      #{driver.number} {driver.name}{count ? ` — ${count} message${count === 1 ? "" : "s"}` : ""}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 900, opacity: 0.72, marginBottom: 8 }}>DRIVER ACCESS CODE</div>
+              <input
+                type="password"
+                value={driverCode}
+                onChange={(event) => setDriverCode(event.target.value)}
+                placeholder="Enter driver password"
+                style={inputStyle}
+              />
+            </div>
+
+            <button type="submit" style={primaryButtonStyle}>Open Message Center</button>
+          </div>
+
+          {error && <div style={{ color: "#f87171", fontWeight: 900, marginTop: 12 }}>{error}</div>}
+        </form>
+
+        <div style={sectionCardStyle}>
+          <h2 style={{ marginTop: 0 }}>Message Counts</h2>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 10 }}>
+            {activeDrivers.map((driver) => {
+              const count = unreadCounts[String(driver.number)] || 0;
+              return (
+                <button
+                  key={driver.id || driver.number}
+                  type="button"
+                  onClick={() => setSelectedDriverNumber(String(driver.number))}
+                  style={{
+                    textAlign: "left",
+                    background: count ? "rgba(239,68,68,0.12)" : "#0f1319",
+                    border: count ? "1px solid #ef4444" : "1px solid #313947",
+                    color: "white",
+                    borderRadius: 12,
+                    padding: 12,
+                    cursor: "pointer",
+                  }}
+                >
+                  <div style={{ fontWeight: 900 }}>#{driver.number} {driver.name}</div>
+                  <div style={{ fontSize: 12, opacity: 0.72, marginTop: 4 }}>
+                    {count ? `🔔 ${count} message${count === 1 ? "" : "s"}` : "No messages showing"}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonName = "", tracks = [], raceHistory = [] }) {
   const [standingsTab, setStandingsTab] = useState("drivers");
   const [scheduleOpen, setScheduleOpen] = useState(false);
@@ -3168,6 +3349,7 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
               <button onClick={() => (window.location.pathname = "/contracts")} style={{ background: "#d4af37", color: "#111", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 900, cursor: "pointer", fontSize: 14 }}>📄 Active Contracts</button>
               <button onClick={() => (window.location.pathname = "/submit-story")} style={{ background: "#16a34a", color: "white", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>✍️ Add Story</button>
               <button onClick={() => (window.location.pathname = "/notifications")} style={{ background: "#222936", color: "white", border: "1px solid #3a4453", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>🔔 Notifications</button>
+              <button onClick={() => (window.location.pathname = "/message-center")} style={{ background: "#ef4444", color: "white", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 900, cursor: "pointer", fontSize: 14 }}>📩 Message Center</button>
               <button onClick={() => { sessionStorage.removeItem("bcl-admin-auth"); sessionStorage.removeItem("bcl-admin-auth-time"); localStorage.removeItem("bcl-admin-auth"); localStorage.removeItem("bcl-admin-auth-time"); window.location.pathname = "/admin"; }} style={{ background: "#111827", color: "#d4af37", border: "1px solid #d4af37", borderRadius: 12, padding: "12px 18px", fontWeight: 900, cursor: "pointer", fontSize: 14 }}>🔐 Admin Portal</button>
 </div> {/* ✅ CLOSE BUTTON ROW */}
           </div>
@@ -5333,6 +5515,7 @@ export default function App() {
   if (path === "/contracts") return <ContractsPage drivers={visibleDrivers} />;
   if (path === "/memorial-day") return <MemorialDayPage drivers={visibleDrivers} />;
 
+  if (path === "/message-center") return <LeagueMessageCenterLandingPage drivers={visibleDrivers} />;
   if (path === "/" || path === "/standings") return <PublicStandings drivers={visibleDrivers} teams={teamStandings} manufacturerStandings={manufacturerStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} />;
   if (path === "/overlay/ticker" || viewMode === "overlay-ticker") return <TickerOverlay drivers={visibleDrivers} teams={teamStandings} raceHistory={raceHistory} preview={viewMode === "overlay-ticker"} seasonName={activeSeason?.name || ""} />;
   if (path !== "/admin") {
