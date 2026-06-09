@@ -589,6 +589,11 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
   const [messageBody, setMessageBody] = useState("");
   const [messageNotice, setMessageNotice] = useState("");
   const [messageError, setMessageError] = useState("");
+  const [teamInterestForm, setTeamInterestForm] = useState({ interested_team: "", interest_level: "High", message: "" });
+  const [teamInterestHistory, setTeamInterestHistory] = useState([]);
+  const [teamInterestNotice, setTeamInterestNotice] = useState("");
+  const [teamInterestError, setTeamInterestError] = useState("");
+  const [teamInterestSubmitting, setTeamInterestSubmitting] = useState(false);
 
   const driverAccessKey = driver ? String(driver.number) : String(driverNumber);
   const isDriverAuthorized = authorizedDriverNumber === driverAccessKey;
@@ -598,6 +603,14 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
       .filter((item) => item && String(item.number) !== String(driver?.number || driverNumber))
       .sort((a, b) => Number(a.number || 9999) - Number(b.number || 9999));
   }, [sanitizedDrivers, driver?.number, driverNumber]);
+
+  const teamInterestOptions = useMemo(() => {
+    const teams = Array.from(new Set((sanitizedDrivers || [])
+      .map((item) => item?.team || "")
+      .filter((team) => team && team !== "Independent" && team !== "IND")
+    ));
+    return teams.sort((a, b) => getTeamFullName(a).localeCompare(getTeamFullName(b)));
+  }, [sanitizedDrivers]);
 
   const raceBreakdown = useMemo(() => {
     if (!selectedSeason || !driver) return [];
@@ -1084,6 +1097,103 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
     }
   }
 
+  useEffect(() => {
+    if (!driver?.number || !isDriverAuthorized) {
+      setTeamInterestHistory([]);
+      return;
+    }
+
+    async function loadTeamInterestHistory() {
+      const { data, error } = await supabase
+        .from("team_interest")
+        .select("*")
+        .eq("driver_number", String(driver.number))
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Could not load team interest history:", error);
+        setTeamInterestHistory([]);
+        return;
+      }
+
+      setTeamInterestHistory(data || []);
+    }
+
+    loadTeamInterestHistory();
+    const interval = setInterval(loadTeamInterestHistory, 30000);
+    return () => clearInterval(interval);
+  }, [driver?.number, isDriverAuthorized]);
+
+  function updateTeamInterestField(field, value) {
+    setTeamInterestForm((current) => ({ ...current, [field]: value }));
+  }
+
+  async function submitTeamInterest(event) {
+    event?.preventDefault?.();
+    setTeamInterestNotice("");
+    setTeamInterestError("");
+
+    if (!isDriverAuthorized || !driver) {
+      setTeamInterestError("Unlock driver access before expressing team interest.");
+      return;
+    }
+
+    const interestedTeam = String(teamInterestForm.interested_team || "").trim();
+    const message = String(teamInterestForm.message || "").trim();
+
+    if (!interestedTeam) {
+      setTeamInterestError("Choose the team you are interested in.");
+      return;
+    }
+
+    if (message.length > 1000) {
+      setTeamInterestError("Keep the message under 1,000 characters.");
+      return;
+    }
+
+    const payload = {
+      driver_number: String(driver.number),
+      driver_name: driver.name || "",
+      current_team: driver.team || "Independent",
+      current_manufacturer: driver.manufacturer || "",
+      interested_team: interestedTeam,
+      interest_level: teamInterestForm.interest_level || "Medium",
+      message,
+      status: "Open",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    setTeamInterestSubmitting(true);
+    const { data, error } = await supabase.from("team_interest").insert([payload]).select().single();
+    setTeamInterestSubmitting(false);
+
+    if (error) {
+      console.error("Could not submit team interest:", error);
+      setTeamInterestError("Could not submit team interest. Check team_interest insert policy and columns.");
+      return;
+    }
+
+    // Also create a Message Center notice for the owner/team inbox.
+    await supabase.from("league_messages").insert([{
+      message_type: "team_interest",
+      sender_type: "driver",
+      sender_driver_number: String(driver.number),
+      sender_name: driver.name || `#${driver.number}`,
+      recipient_type: "team",
+      recipient_team: interestedTeam,
+      subject: `Team Interest: #${driver.number} ${driver.name || "Driver"}`,
+      message: message || `${driver.name || `#${driver.number}`} expressed ${teamInterestForm.interest_level || "Medium"} interest in ${getTeamFullName(interestedTeam)}.`,
+      related_page: `/owner`,
+      related_id: data?.id || null,
+      created_at: new Date().toISOString(),
+    }]);
+
+    setTeamInterestHistory((current) => [data || payload, ...(current || [])]);
+    setTeamInterestForm({ interested_team: "", interest_level: "High", message: "" });
+    setTeamInterestNotice(`Interest sent to ${getTeamFullName(interestedTeam)}.`);
+  }
+
   async function sendDriverMessage(event) {
     event?.preventDefault?.();
     setMessageNotice("");
@@ -1519,7 +1629,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
     ["future_confidence", "Future Confidence", "Do you believe this team can win?"],
   ];
 
-  const protectedDriverPages = ["contracts", "upload", "interviews", "appeals", "feedback", "assignments", "messages"];
+  const protectedDriverPages = ["contracts", "upload", "interviews", "appeals", "feedback", "assignments", "messages", "team-interest"];
 
   if (protectedDriverPages.includes(subPage) && !isDriverAuthorized) {
     return (
@@ -1595,6 +1705,96 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
       {passwordChangeError && <div style={{ color: "#f87171", marginTop: 12, fontWeight: 800 }}>{passwordChangeError}</div>}
     </div>
   ) : null;
+
+  if (subPage === "team-interest") {
+    return (
+      <div style={appShellStyle}>
+        <div style={pageContainerStyle}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20, flexWrap: "wrap" }}>
+            <button onClick={() => window.location.pathname = `/driver/${driverNumber}`} style={secondaryButtonStyle}>← Back to Profile</button>
+            <div>
+              <div style={{ fontSize: 22, fontWeight: 900 }}>#{driver.number} {driver.name} — Team Interest</div>
+              <div style={{ fontSize: 13, opacity: 0.6, marginTop: 2 }}>Privately notify owners that you are interested in their organization.</div>
+            </div>
+            {isDriverAuthorized && <button onClick={lockDriverContracts} style={{ ...secondaryButtonStyle, marginLeft: "auto" }}>Lock Driver Access</button>}
+          </div>
+
+          {passwordManagerCard}
+
+          <form onSubmit={submitTeamInterest} style={{ ...sectionCardStyle, borderColor: teamTheme.accent }}>
+            <h2 style={{ marginTop: 0 }}>🤝 Express Interest in a Team</h2>
+            <p style={{ opacity: 0.72, lineHeight: 1.5 }}>
+              This sends a private interest card to the selected team owner inside Team HQ. It does not change your current team or contract.
+            </p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, marginBottom: 12 }}>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>TEAM</div>
+                <select value={teamInterestForm.interested_team} onChange={(event) => updateTeamInterestField("interested_team", event.target.value)} style={inputStyle}>
+                  <option value="">Choose team</option>
+                  {teamInterestOptions.map((team) => (
+                    <option key={team} value={team}>{getTeamFullName(team)}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>INTEREST LEVEL</div>
+                <select value={teamInterestForm.interest_level} onChange={(event) => updateTeamInterestField("interest_level", event.target.value)} style={inputStyle}>
+                  <option value="Low">Low</option>
+                  <option value="Medium">Medium</option>
+                  <option value="High">High</option>
+                  <option value="Priority Target">Priority Target</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>MESSAGE TO OWNER OPTIONAL</div>
+              <textarea
+                value={teamInterestForm.message}
+                onChange={(event) => updateTeamInterestField("message", event.target.value)}
+                placeholder="Tell the owner why you're interested, what you bring, or what kind of deal you'd consider..."
+                rows={5}
+                style={{ ...inputStyle, resize: "vertical" }}
+                maxLength={1000}
+              />
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginTop: 12 }}>
+              <button type="submit" disabled={teamInterestSubmitting} style={{ ...themedPrimaryButtonStyle, opacity: teamInterestSubmitting ? 0.65 : 1 }}>
+                {teamInterestSubmitting ? "Sending..." : "Send Team Interest"}
+              </button>
+              <div style={{ fontSize: 12, opacity: 0.65 }}>{teamInterestForm.message.length}/1000 characters</div>
+            </div>
+            {teamInterestNotice && <div style={{ color: "#4ade80", marginTop: 12, fontWeight: 800 }}>{teamInterestNotice}</div>}
+            {teamInterestError && <div style={{ color: "#f87171", marginTop: 12, fontWeight: 800 }}>{teamInterestError}</div>}
+          </form>
+
+          <div style={sectionCardStyle}>
+            <h2 style={{ marginTop: 0 }}>📋 My Team Interest History</h2>
+            {teamInterestHistory.length === 0 ? (
+              <div style={{ opacity: 0.72 }}>No team interest submitted yet.</div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {teamInterestHistory.map((interest) => (
+                  <div key={interest.id || `${interest.interested_team}-${interest.created_at}`} style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                      <div>
+                        <div style={{ fontSize: 16, fontWeight: 900 }}>{getTeamFullName(interest.interested_team)}</div>
+                        <div style={{ fontSize: 12, opacity: 0.65, marginTop: 3 }}>Level: {interest.interest_level || "Medium"}</div>
+                      </div>
+                      <div style={{ textAlign: "right" }}>
+                        <div style={{ background: interest.status === "Closed" ? "#374151" : "#14532d", color: interest.status === "Closed" ? "#d1d5db" : "#86efac", borderRadius: 999, padding: "5px 10px", fontSize: 12, fontWeight: 900 }}>{interest.status || "Open"}</div>
+                        <div style={{ fontSize: 11, opacity: 0.55, marginTop: 6 }}>{interest.created_at ? new Date(interest.created_at).toLocaleString() : ""}</div>
+                      </div>
+                    </div>
+                    {interest.message && <div style={{ marginTop: 10, fontSize: 14, lineHeight: 1.55, whiteSpace: "pre-wrap" }}>{interest.message}</div>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (subPage === "messages") {
     const groupedMessages = driverMessages.reduce((groups, message) => {
@@ -2225,6 +2425,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
           <button onClick={() => openProtectedDriverSection(`/driver/${driverNumber}/assignments`)} style={secondaryButtonStyle}>🎯 Assignments</button>
           <button onClick={() => openProtectedDriverSection(`/driver/${driverNumber}/feedback`)} style={secondaryButtonStyle}>😊 Driver Feedback</button>
           <button onClick={() => openProtectedDriverSection(`/driver/${driverNumber}/messages`)} style={unreadMessages > 0 ? themedPrimaryButtonStyle : secondaryButtonStyle}>📩 Messages{unreadMessages > 0 ? ` (${unreadMessages})` : ""}</button>
+          <button onClick={() => openProtectedDriverSection(`/driver/${driverNumber}/team-interest`)} style={secondaryButtonStyle}>🤝 Team Interest</button>
           {authorizedDriverNumber && String(authorizedDriverNumber) !== String(driver.number) && (
             <button onClick={startMessageFromProfile} style={themedPrimaryButtonStyle}>✉️ Message Driver</button>
           )}
