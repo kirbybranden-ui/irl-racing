@@ -498,6 +498,15 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
   const [teamRivalries, setTeamRivalries] = useState([]);
   const [rivalryMessage, setRivalryMessage] = useState("");
   const [rivalryError, setRivalryError] = useState("");
+  const [teamMessageForm, setTeamMessageForm] = useState({
+    recipient_mode: "team",
+    driver_number: "",
+    subject: "",
+    message: "",
+  });
+  const [teamMessageStatus, setTeamMessageStatus] = useState("");
+  const [teamMessageError, setTeamMessageError] = useState("");
+
   const [rivalryForm, setRivalryForm] = useState({
     rivalry_name: "",
     rivalry_type: "Individual Team Rivalry",
@@ -773,6 +782,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
     ["contracts", "Contracts"],
     ["morale", "Morale"],
     ["manufacturer", "Manufacturer"],
+    ["messages", "Message Center"],
     ["development", "Development"],
     ["rivalries", "Rivalries"],
     ["media", "Media"],
@@ -788,6 +798,81 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
 
   function updateContractField(field, value) {
     setContractForm((current) => ({ ...current, [field]: value }));
+  }
+
+
+  function updateTeamMessageField(field, value) {
+    setTeamMessageForm((current) => ({ ...current, [field]: value }));
+  }
+
+  async function sendTeamMessage(event) {
+    event?.preventDefault?.();
+    setTeamMessageStatus("");
+    setTeamMessageError("");
+
+    if (!isAuthorized) {
+      setTeamMessageError("Unlock Team HQ before sending messages.");
+      return;
+    }
+
+    const body = String(teamMessageForm.message || "").trim();
+    const subject = String(teamMessageForm.subject || "").trim();
+    const mode = String(teamMessageForm.recipient_mode || "team");
+
+    if (!body) {
+      setTeamMessageError("Type a message before sending.");
+      return;
+    }
+
+    if (body.length > 1200) {
+      setTeamMessageError("Keep messages under 1,200 characters to save database space.");
+      return;
+    }
+
+    const basePayload = {
+      message_type: "team_hq",
+      sender_type: "owner",
+      sender_name: `${ownerNames[safeSelectedTeam] || ownerTeamName} / ${ownerTeamName}`,
+      subject: subject || null,
+      message: body,
+      is_read: false,
+      archived: false,
+      created_at: new Date().toISOString(),
+    };
+
+    let payloads = [];
+
+    if (mode === "driver") {
+      const target = selected.drivers.find((driver) => String(driver.number) === String(teamMessageForm.driver_number));
+      if (!target) {
+        setTeamMessageError("Choose a driver from your team.");
+        return;
+      }
+      payloads = [{
+        ...basePayload,
+        recipient_type: "driver",
+        recipient_driver_number: String(target.number),
+        recipient_team: safeSelectedTeam,
+        recipient_manufacturer: target.manufacturer || null,
+      }];
+    } else {
+      payloads = [{
+        ...basePayload,
+        recipient_type: "team",
+        recipient_team: safeSelectedTeam,
+      }];
+    }
+
+    const { error } = await supabase.from("league_messages").insert(payloads);
+
+    if (error) {
+      console.error("Could not send team message:", error);
+      setTeamMessageError("Could not send message. Check league_messages insert policy and columns.");
+      return;
+    }
+
+    setTeamMessageForm({ recipient_mode: "team", driver_number: "", subject: "", message: "" });
+    setTeamMessageStatus(mode === "driver" ? "Message sent to driver." : "Message sent to your team.");
   }
 
   function selectContractDriver(driverId) {
@@ -1892,6 +1977,53 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
                     })}
                   </div>
                 )}
+              </div>
+            )}
+
+
+            {activeHqTab === "messages" && (
+              <div style={sectionCardStyle}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start", marginBottom: 16 }}>
+                  <div>
+                    <h2 style={{ margin: 0 }}>📩 Team Message Center</h2>
+                    <div style={{ opacity: 0.68, fontSize: 13, marginTop: 6 }}>Send official Team HQ messages to your full roster or to one driver.</div>
+                  </div>
+                </div>
+
+                <form onSubmit={sendTeamMessage}>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, marginBottom: 12 }}>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 900, opacity: 0.7, marginBottom: 8 }}>SEND TO</div>
+                      <select value={teamMessageForm.recipient_mode} onChange={(event) => updateTeamMessageField("recipient_mode", event.target.value)} style={inputStyle}>
+                        <option value="team">Entire Team</option>
+                        <option value="driver">Specific Driver</option>
+                      </select>
+                    </div>
+                    {teamMessageForm.recipient_mode === "driver" && (
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 900, opacity: 0.7, marginBottom: 8 }}>DRIVER</div>
+                        <select value={teamMessageForm.driver_number} onChange={(event) => updateTeamMessageField("driver_number", event.target.value)} style={inputStyle}>
+                          <option value="">Choose driver</option>
+                          {selected.drivers.map((driver) => (
+                            <option key={driver.id || driver.number} value={String(driver.number)}>#{driver.number} {driver.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 900, opacity: 0.7, marginBottom: 8 }}>SUBJECT</div>
+                      <input value={teamMessageForm.subject} onChange={(event) => updateTeamMessageField("subject", event.target.value)} placeholder="Strategy, meeting, contract, warning..." style={inputStyle} maxLength={120} />
+                    </div>
+                  </div>
+
+                  <textarea value={teamMessageForm.message} onChange={(event) => updateTeamMessageField("message", event.target.value)} placeholder="Type your Team HQ message..." rows={6} style={{ ...inputStyle, resize: "vertical" }} maxLength={1200} />
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginTop: 12 }}>
+                    <button type="submit" style={primaryButtonStyle}>Send Team Message</button>
+                    <div style={{ fontSize: 12, opacity: 0.65 }}>{teamMessageForm.message.length}/1200 characters</div>
+                  </div>
+                  {teamMessageStatus && <div style={{ color: "#4ade80", marginTop: 12, fontWeight: 900 }}>{teamMessageStatus}</div>}
+                  {teamMessageError && <div style={{ color: "#f87171", marginTop: 12, fontWeight: 900 }}>{teamMessageError}</div>}
+                </form>
               </div>
             )}
 
