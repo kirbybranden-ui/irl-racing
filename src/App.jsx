@@ -2931,6 +2931,190 @@ function PreviousRaceWinnerAdminPanel({ drivers = [], raceHistory = [] }) {
 
 
 
+
+
+function AdminLeagueMessageComposer({ drivers = [], teams = [] }) {
+  const [form, setForm] = useState({
+    recipient_type: "league",
+    recipient_driver_number: "",
+    recipient_team: "",
+    recipient_manufacturer: "Toyota",
+    subject: "",
+    message: "",
+  });
+  const [status, setStatus] = useState("");
+  const [error, setError] = useState("");
+
+  const activeDrivers = useMemo(() => {
+    return dedupeDriversByNumber(drivers || [])
+      .filter((driver) => !driver.retired && !isInactivePlaceholderDriver(driver))
+      .sort((a, b) => Number(a.number || 9999) - Number(b.number || 9999));
+  }, [drivers]);
+
+  const activeTeams = useMemo(() => {
+    const teamSet = new Set();
+    (teams || []).forEach((team) => {
+      const key = team?.team || team;
+      if (key && key !== "Independent" && key !== "IND") teamSet.add(key);
+    });
+    activeDrivers.forEach((driver) => {
+      if (driver.team && driver.team !== "Independent" && driver.team !== "IND") teamSet.add(driver.team);
+    });
+    return Array.from(teamSet).sort((a, b) => getTeamFullName(a).localeCompare(getTeamFullName(b)));
+  }, [teams, activeDrivers]);
+
+  function updateField(field, value) {
+    setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  async function sendAdminMessage(event) {
+    event?.preventDefault?.();
+    setStatus("");
+    setError("");
+
+    const body = String(form.message || "").trim();
+    const subject = String(form.subject || "").trim();
+    const recipientType = String(form.recipient_type || "league");
+
+    if (!body) {
+      setError("Type a message before sending.");
+      return;
+    }
+
+    if (body.length > 1500) {
+      setError("Keep admin messages under 1,500 characters to save database space.");
+      return;
+    }
+
+    const basePayload = {
+      message_type: recipientType === "manufacturer" ? "manufacturer" : recipientType === "owners" ? "owner_notice" : "race_control",
+      sender_type: "admin",
+      sender_name: recipientType === "manufacturer" ? `${form.recipient_manufacturer} Manufacturer Office` : "Race Control / League Board",
+      subject: subject || null,
+      message: body,
+      is_read: false,
+      archived: false,
+      created_at: new Date().toISOString(),
+    };
+
+    let payload = { ...basePayload, recipient_type: recipientType };
+
+    if (recipientType === "driver") {
+      if (!form.recipient_driver_number) {
+        setError("Choose a driver.");
+        return;
+      }
+      const driver = activeDrivers.find((item) => String(item.number) === String(form.recipient_driver_number));
+      payload = {
+        ...payload,
+        recipient_driver_number: String(form.recipient_driver_number),
+        recipient_team: driver?.team || null,
+        recipient_manufacturer: driver?.manufacturer || null,
+      };
+    }
+
+    if (recipientType === "team") {
+      if (!form.recipient_team) {
+        setError("Choose a team.");
+        return;
+      }
+      payload = { ...payload, recipient_team: form.recipient_team };
+    }
+
+    if (recipientType === "manufacturer") {
+      if (!form.recipient_manufacturer) {
+        setError("Choose a manufacturer.");
+        return;
+      }
+      payload = { ...payload, recipient_manufacturer: form.recipient_manufacturer };
+    }
+
+    const { error: insertError } = await supabase.from("league_messages").insert([payload]);
+
+    if (insertError) {
+      console.error("Could not send admin message:", insertError);
+      setError("Could not send message. Check league_messages insert policy and columns.");
+      return;
+    }
+
+    setForm((current) => ({ ...current, subject: "", message: "" }));
+    setStatus("League Message Center notice sent.");
+  }
+
+  return (
+    <div style={{ ...sectionCardStyle, border: "1px solid #d4af37" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start", marginBottom: 16 }}>
+        <div>
+          <h2 style={{ margin: 0 }}>📢 League Message Center Sender</h2>
+          <div style={{ opacity: 0.72, fontSize: 13, marginTop: 6 }}>Send official messages from the Board, Race Control, owners group, teams, or manufacturers.</div>
+        </div>
+        <button type="button" onClick={() => (window.location.pathname = "/message-center")} style={secondaryButtonStyle}>Open Public Message Center</button>
+      </div>
+
+      <form onSubmit={sendAdminMessage}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, marginBottom: 12 }}>
+          <div>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.72, marginBottom: 8 }}>SEND TO</label>
+            <select value={form.recipient_type} onChange={(event) => updateField("recipient_type", event.target.value)} style={inputStyle}>
+              <option value="league">Entire League</option>
+              <option value="owners">Owners Only</option>
+              <option value="driver">Specific Driver</option>
+              <option value="team">Specific Team</option>
+              <option value="manufacturer">Manufacturer Group</option>
+            </select>
+          </div>
+
+          {form.recipient_type === "driver" && (
+            <div>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.72, marginBottom: 8 }}>DRIVER</label>
+              <select value={form.recipient_driver_number} onChange={(event) => updateField("recipient_driver_number", event.target.value)} style={inputStyle}>
+                <option value="">Choose driver</option>
+                {activeDrivers.map((driver) => (
+                  <option key={driver.id || driver.number} value={String(driver.number)}>#{driver.number} {driver.name} — {getTeamFullName(driver.team)} / {driver.manufacturer}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {form.recipient_type === "team" && (
+            <div>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.72, marginBottom: 8 }}>TEAM</label>
+              <select value={form.recipient_team} onChange={(event) => updateField("recipient_team", event.target.value)} style={inputStyle}>
+                <option value="">Choose team</option>
+                {activeTeams.map((team) => <option key={team} value={team}>{getTeamFullName(team)}</option>)}
+              </select>
+            </div>
+          )}
+
+          {form.recipient_type === "manufacturer" && (
+            <div>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.72, marginBottom: 8 }}>MANUFACTURER</label>
+              <select value={form.recipient_manufacturer} onChange={(event) => updateField("recipient_manufacturer", event.target.value)} style={inputStyle}>
+                <option value="Toyota">Toyota</option>
+                <option value="Ford">Ford</option>
+                <option value="Chevrolet">Chevrolet</option>
+              </select>
+            </div>
+          )}
+
+          <div>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.72, marginBottom: 8 }}>SUBJECT</label>
+            <input value={form.subject} onChange={(event) => updateField("subject", event.target.value)} placeholder="Penalty, meeting, race control notice..." style={inputStyle} maxLength={120} />
+          </div>
+        </div>
+
+        <textarea value={form.message} onChange={(event) => updateField("message", event.target.value)} placeholder="Type the official league message..." rows={5} style={{ ...inputStyle, resize: "vertical" }} maxLength={1500} />
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginTop: 12 }}>
+          <button type="submit" style={primaryButtonStyle}>Send League Message</button>
+          <div style={{ fontSize: 12, opacity: 0.65 }}>{form.message.length}/1500 characters</div>
+        </div>
+        {status && <div style={{ color: "#4ade80", marginTop: 12, fontWeight: 900 }}>{status}</div>}
+        {error && <div style={{ color: "#f87171", marginTop: 12, fontWeight: 900 }}>{error}</div>}
+      </form>
+    </div>
+  );
+}
+
 function LeagueMessageCenterLandingPage({ drivers = [] }) {
   const [selectedDriverNumber, setSelectedDriverNumber] = useState("");
   const [driverCode, setDriverCode] = useState("");
@@ -5576,6 +5760,8 @@ export default function App() {
             </div>
           </div>
         </div>
+
+        <AdminLeagueMessageComposer drivers={visibleDrivers} teams={teamStandings} />
 
         <div style={sectionCardStyle}>
           <h2 style={{ marginTop: 0 }}>Team Owner Assignments</h2>
