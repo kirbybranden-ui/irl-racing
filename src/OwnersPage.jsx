@@ -477,6 +477,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
   const [activeContracts, setActiveContracts] = useState([]);
   const [contractMessage, setContractMessage] = useState("");
   const [contractError, setContractError] = useState("");
+  const [terminationBusyId, setTerminationBusyId] = useState("");
   const [contractForm, setContractForm] = useState(DEFAULT_CONTRACT_FORM);
   const [technicalAlliances, setTechnicalAlliances] = useState([]);
   const [independentDriverPayments, setIndependentDriverPayments] = useState(loadIndependentDriverPayments);
@@ -1267,6 +1268,205 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
     }
 
     setActiveContracts(data || []);
+  }
+
+  function canManageContract(contract) {
+    if (!contract) return false;
+    const contractTeam = contract.team || contract.created_by_team || "";
+    return sameTeamName(contractTeam, safeSelectedTeam) || sameTeamName(contractTeam, ownerTeamName);
+  }
+
+  function calculateContractTerminationCost(contract) {
+    const salary = Number(contract?.salary || 0);
+    const contractLength = Math.max(1, Number(contract?.contract_length || 1));
+    const remainingSalary = salary * contractLength;
+    const fallbackBuyout = Math.round(salary * 1.5);
+    const buyout = Number(contract?.buyout_amount ?? fallbackBuyout) || 0;
+    return { remainingSalary, buyout, total: remainingSalary + buyout };
+  }
+
+  async function moveTerminatedDriverToFreeAgency(contract) {
+    if (!contract?.driver_number) return;
+
+    const payload = {
+      driver_number: String(contract.driver_number),
+      driver_name: contract.driver_name || "",
+      team: "Independent",
+      manufacturer: contract.manufacturer || "",
+      contract_offer_id: contract.id || null,
+      active: true,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error } = await supabase
+      .from("driver_team_assignments")
+      .upsert(payload, { onConflict: "driver_number" });
+
+    if (error) {
+      console.error("Contract terminated, but driver_team_assignments was not updated:", error);
+    }
+  }
+
+  async function notifyDriverOfTermination(contract, type, note = "") {
+    if (!contract?.driver_number) return;
+
+    const message = type === "paid"
+      ? `${ownerTeamName} has terminated your contract with a paid buyout. You have been moved to the free agent / Independent pool.`
+      : `${ownerTeamName} has submitted a Board request to terminate your contract for cause. Reason: ${note}`;
+
+    const { error } = await supabase.from("league_messages").insert([{
+      message_type: "contract",
+      sender_type: "owner",
+      sender_name: `${ownerNames[safeSelectedTeam] || ownerTeamName} / ${ownerTeamName}`,
+      recipient_type: "driver",
+      recipient_driver_number: String(contract.driver_number),
+      recipient_team: contract.team || contract.created_by_team || ownerTeamName,
+      recipient_manufacturer: contract.manufacturer || null,
+      subject: type === "paid" ? "Contract Terminated" : "For-Cause Termination Requested",
+      message,
+      archived: false,
+      created_at: new Date().toISOString(),
+    }]);
+
+    if (error) console.error("Could not send termination Message Center notice:", error);
+  }
+
+  async function terminateContractPaidOut(contract) {
+    setContractMessage("");
+    setContractError("");
+
+    if (!isAuthorized) {
+      setContractError("Owner access required before terminating a contract.");
+      return;
+    }
+
+    if (!canManageContract(contract)) {
+      setContractError("You can only terminate contracts for your own team.");
+      return;
+    }
+
+    const cost = calculateContractTerminationCost(contract);
+    if (cost.total > currentTeamBalance) {
+      setContractError(`This termination costs ${money(cost.total)}, but ${ownerTeamName} only has ${money(currentTeamBalance)} available.`);
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Terminate #${contract.driver_number || "—"} ${contract.driver_name || "this driver"}?\n\n` +
+      `Remaining salary: ${money(cost.remainingSalary)}\n` +
+      `Buyout: ${money(cost.buyout)}\n` +
+      `Total due now: ${money(cost.total)}\n\n` +
+      `This will mark the contract terminated, deduct funds, and move the driver to Independent / free agency.`
+    );
+    if (!confirmed) return;
+
+    setTerminationBusyId(contract.id);
+
+    const { error: contractUpdateError } = await supabase
+      .from("contract_offers")
+      .update({
+        status: "Terminated - Paid Out",
+        termination_type: "Paid Out",
+        termination_cost: cost.total,
+        termination_remaining_salary: cost.remainingSalary,
+        termination_buyout: cost.buyout,
+        terminated_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", contract.id);
+
+    if (contractUpdateError) {
+      console.error("Could not terminate contract:", contractUpdateError);
+      setContractError("Could not terminate this contract. Run the contract termination SQL and check contract_offers update policy.");
+      setTerminationBusyId("");
+      return;
+    }
+
+    if (teamFinance?.id) {
+      const { error: financeUpdateError } = await supabase
+        .from("team_finances")
+        .update({
+          balance: Number(teamFinance.balance || 0) - cost.total,
+          payroll_spent: Number(teamFinance.payroll_spent || 0) + cost.remainingSalary,
+          buyout_spent: Number(teamFinance.buyout_spent || 0) + cost.buyout,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", teamFinance.id);
+
+      if (financeUpdateError) {
+        console.error("Contract terminated but finance update failed:", financeUpdateError);
+        setContractError("Contract was terminated, but team funds were not deducted. Check team_finances RLS/update policy and buyout_spent column.");
+        setTerminationBusyId("");
+        await loadActiveContracts();
+        return;
+      }
+    }
+
+    await moveTerminatedDriverToFreeAgency(contract);
+    await notifyDriverOfTermination(contract, "paid");
+
+    setContractMessage(`Contract terminated. ${money(cost.total)} was deducted from ${ownerTeamName}, and the driver was moved to Independent / free agency.`);
+    setTerminationBusyId("");
+    await loadTeamFinance();
+    await loadContractOffers();
+    await loadActiveContracts();
+  }
+
+  async function requestForCauseTermination(contract) {
+    setContractMessage("");
+    setContractError("");
+
+    if (!isAuthorized) {
+      setContractError("Owner access required before requesting for-cause termination.");
+      return;
+    }
+
+    if (!canManageContract(contract)) {
+      setContractError("You can only request termination for your own team.");
+      return;
+    }
+
+    const cause = window.prompt(`Reason for requesting for-cause termination of #${contract.driver_number || "—"} ${contract.driver_name || "this driver"}:`);
+    const cleanCause = String(cause || "").trim();
+
+    if (!cleanCause || cleanCause.length < 15) {
+      setContractError("For-cause requests need a written reason of at least 15 characters.");
+      return;
+    }
+
+    const confirmed = window.confirm(`Submit this for-cause termination request to the Board?`);
+    if (!confirmed) return;
+
+    setTerminationBusyId(contract.id);
+
+    const priorNotes = String(contract.notes || "").trim();
+    const boardNote = `[FOR-CAUSE TERMINATION REQUEST - ${new Date().toISOString()}]\nRequested by: ${ownerTeamName}\nCause: ${cleanCause}`;
+
+    const { error } = await supabase
+      .from("contract_offers")
+      .update({
+        status: "Termination Requested - For Cause",
+        termination_type: "For Cause Requested",
+        termination_cause: cleanCause,
+        termination_requested_at: new Date().toISOString(),
+        notes: priorNotes ? `${priorNotes}\n\n${boardNote}` : boardNote,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", contract.id);
+
+    if (error) {
+      console.error("Could not request for-cause termination:", error);
+      setContractError("Could not submit for-cause request. Run the contract termination SQL and check contract_offers update policy.");
+      setTerminationBusyId("");
+      return;
+    }
+
+    await notifyDriverOfTermination(contract, "cause", cleanCause);
+
+    setContractMessage("For-cause termination request sent to the Board. No payout was deducted yet.");
+    setTerminationBusyId("");
+    await loadContractOffers();
+    await loadActiveContracts();
   }
 
   async function loadTechnicalAlliances() {
@@ -2638,6 +2838,14 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
 
             {activeHqTab === "contracts" && (
               <>
+            <div style={{ ...sectionCardStyle, borderColor: "#b42318" }}>
+              <h2 style={{ marginTop: 0 }}>🚨 Contract Termination / Driver Release</h2>
+              <div style={{ opacity: 0.74, lineHeight: 1.6 }}>
+                Owners can terminate their own active contracts. A paid termination deducts remaining salary plus buyout from the team account and moves the driver to Independent / free agency. A for-cause request sends the issue to the Board without deducting money immediately.
+              </div>
+              {contractError && <div style={{ marginTop: 12, color: "#f87171", fontWeight: 900 }}>{contractError}</div>}
+              {contractMessage && <div style={{ marginTop: 12, color: "#4ade80", fontWeight: 900 }}>{contractMessage}</div>}
+            </div>
             <div style={{ ...sectionCardStyle, borderColor: "#d4af37" }}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
                 <div>
@@ -2666,21 +2874,49 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
                         <th style={thStyle}>Length</th>
                         <th style={thStyle}>Buyout</th>
                         <th style={thStyle}>Status</th>
+                        <th style={thStyle}>Action</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {activeContracts.map((contract) => (
-                        <tr key={contract.id}>
-                          <td style={{ ...tdStyle, fontWeight: 900 }}>#{contract.driver_number || "—"} {contract.driver_name}</td>
-                          <td style={tdStyle}>{contract.team || contract.created_by_team || "—"}</td>
-                          <td style={tdStyle}>{contract.manufacturer || "—"}</td>
-                          <td style={tdStyle}>{money(contract.salary)}</td>
-                          <td style={tdStyle}>{money(contract.signing_bonus)}</td>
-                          <td style={tdStyle}>{contract.contract_length || "—"} season{Number(contract.contract_length) === 1 ? "" : "s"}</td>
-                          <td style={tdStyle}>{money(contract.buyout_amount)}</td>
-                          <td style={{ ...tdStyle, fontWeight: 900, color: "#4ade80" }}>{contract.status}</td>
-                        </tr>
-                      ))}
+                      {activeContracts.map((contract) => {
+                        const canTerminate = canManageContract(contract);
+                        const cost = calculateContractTerminationCost(contract);
+                        return (
+                          <tr key={contract.id}>
+                            <td style={{ ...tdStyle, fontWeight: 900 }}>#{contract.driver_number || "—"} {contract.driver_name}</td>
+                            <td style={tdStyle}>{contract.team || contract.created_by_team || "—"}</td>
+                            <td style={tdStyle}>{contract.manufacturer || "—"}</td>
+                            <td style={tdStyle}>{money(contract.salary)}</td>
+                            <td style={tdStyle}>{money(contract.signing_bonus)}</td>
+                            <td style={tdStyle}>{contract.contract_length || "—"} season{Number(contract.contract_length) === 1 ? "" : "s"}</td>
+                            <td style={tdStyle}>{money(contract.buyout_amount)}</td>
+                            <td style={{ ...tdStyle, fontWeight: 900, color: String(contract.status || "").includes("Terminated") ? "#f87171" : "#4ade80" }}>{contract.status}</td>
+                            <td style={tdStyle}>
+                              {canTerminate ? (
+                                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                  <button
+                                    type="button"
+                                    disabled={terminationBusyId === contract.id}
+                                    onClick={() => terminateContractPaidOut(contract)}
+                                    title={`Cost: ${money(cost.total)}`}
+                                    style={{ ...dangerButtonStyle, padding: "7px 10px", fontSize: 12, opacity: terminationBusyId === contract.id ? 0.6 : 1 }}
+                                  >
+                                    {terminationBusyId === contract.id ? "Processing..." : "Terminate / Pay Out"}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={terminationBusyId === contract.id}
+                                    onClick={() => requestForCauseTermination(contract)}
+                                    style={{ ...secondaryButtonStyle, padding: "7px 10px", fontSize: 12, opacity: terminationBusyId === contract.id ? 0.6 : 1 }}
+                                  >
+                                    For Cause Request
+                                  </button>
+                                </div>
+                              ) : "—"}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -3031,21 +3267,49 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
                         <th style={thStyle}>Length</th>
                         <th style={thStyle}>Buyout</th>
                         <th style={thStyle}>Status</th>
+                        <th style={thStyle}>Action</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {activeContracts.map((contract) => (
-                        <tr key={contract.id}>
-                          <td style={{ ...tdStyle, fontWeight: 900 }}>#{contract.driver_number || "—"} {contract.driver_name}</td>
-                          <td style={tdStyle}>{contract.team || contract.created_by_team || "—"}</td>
-                          <td style={tdStyle}>{contract.manufacturer || "—"}</td>
-                          <td style={tdStyle}>{money(contract.salary)}</td>
-                          <td style={tdStyle}>{money(contract.signing_bonus)}</td>
-                          <td style={tdStyle}>{contract.contract_length || "—"} season{Number(contract.contract_length) === 1 ? "" : "s"}</td>
-                          <td style={tdStyle}>{money(contract.buyout_amount)}</td>
-                          <td style={{ ...tdStyle, fontWeight: 900, color: "#4ade80" }}>{contract.status}</td>
-                        </tr>
-                      ))}
+                      {activeContracts.map((contract) => {
+                        const canTerminate = canManageContract(contract);
+                        const cost = calculateContractTerminationCost(contract);
+                        return (
+                          <tr key={contract.id}>
+                            <td style={{ ...tdStyle, fontWeight: 900 }}>#{contract.driver_number || "—"} {contract.driver_name}</td>
+                            <td style={tdStyle}>{contract.team || contract.created_by_team || "—"}</td>
+                            <td style={tdStyle}>{contract.manufacturer || "—"}</td>
+                            <td style={tdStyle}>{money(contract.salary)}</td>
+                            <td style={tdStyle}>{money(contract.signing_bonus)}</td>
+                            <td style={tdStyle}>{contract.contract_length || "—"} season{Number(contract.contract_length) === 1 ? "" : "s"}</td>
+                            <td style={tdStyle}>{money(contract.buyout_amount)}</td>
+                            <td style={{ ...tdStyle, fontWeight: 900, color: String(contract.status || "").includes("Terminated") ? "#f87171" : "#4ade80" }}>{contract.status}</td>
+                            <td style={tdStyle}>
+                              {canTerminate ? (
+                                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                  <button
+                                    type="button"
+                                    disabled={terminationBusyId === contract.id}
+                                    onClick={() => terminateContractPaidOut(contract)}
+                                    title={`Cost: ${money(cost.total)}`}
+                                    style={{ ...dangerButtonStyle, padding: "7px 10px", fontSize: 12, opacity: terminationBusyId === contract.id ? 0.6 : 1 }}
+                                  >
+                                    {terminationBusyId === contract.id ? "Processing..." : "Terminate / Pay Out"}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={terminationBusyId === contract.id}
+                                    onClick={() => requestForCauseTermination(contract)}
+                                    style={{ ...secondaryButtonStyle, padding: "7px 10px", fontSize: 12, opacity: terminationBusyId === contract.id ? 0.6 : 1 }}
+                                  >
+                                    For Cause Request
+                                  </button>
+                                </div>
+                              ) : "—"}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
