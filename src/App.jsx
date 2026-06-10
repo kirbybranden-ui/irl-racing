@@ -3117,6 +3117,245 @@ function AdminLeagueMessageComposer({ drivers = [], teams = [] }) {
   );
 }
 
+
+function AdminLeagueMessageDashboard({ drivers = [], teams = [] }) {
+  const [messages, setMessages] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [status, setStatus] = useState("");
+  const [filter, setFilter] = useState("all");
+  const [search, setSearch] = useState("");
+  const [selectedMessage, setSelectedMessage] = useState(null);
+
+  const activeDrivers = useMemo(() => {
+    return dedupeDriversByNumber(drivers || [])
+      .filter((driver) => !driver.retired && !isInactivePlaceholderDriver(driver))
+      .sort((a, b) => Number(a.number || 9999) - Number(b.number || 9999));
+  }, [drivers]);
+
+  function getRecipientLabel(message) {
+    const type = String(message?.recipient_type || "").toLowerCase();
+    if (message?.recipient_driver_number) {
+      const driver = activeDrivers.find((item) => String(item.number) === String(message.recipient_driver_number));
+      return `#${message.recipient_driver_number}${driver?.name ? ` ${driver.name}` : ""}`;
+    }
+    if (type === "team" || message?.recipient_team) return getTeamFullName(message.recipient_team || "Team");
+    if (type === "manufacturer" || message?.recipient_manufacturer) return `${message.recipient_manufacturer || "Manufacturer"} Drivers`;
+    if (type === "owners") return "Owners Only";
+    if (type === "league") return "Entire League";
+    return message?.recipient_type || "Unknown";
+  }
+
+  function getMessageCategory(message) {
+    const type = String(message?.recipient_type || "").toLowerCase();
+    if (type === "owners") return "owners";
+    if (type === "team" || message?.recipient_team) return "team";
+    if (type === "driver" || message?.recipient_driver_number) return "driver";
+    if (type === "manufacturer" || message?.recipient_manufacturer) return "manufacturer";
+    if (type === "league") return "league";
+    return "other";
+  }
+
+  const filteredMessages = useMemo(() => {
+    const term = String(search || "").trim().toLowerCase();
+    return (messages || [])
+      .filter((message) => {
+        if (filter !== "all" && getMessageCategory(message) !== filter) return false;
+        if (!term) return true;
+        const haystack = [
+          message.subject,
+          message.message,
+          message.sender_name,
+          message.recipient_type,
+          message.recipient_driver_number,
+          message.recipient_team,
+          message.recipient_manufacturer,
+          getRecipientLabel(message),
+        ].join(" ").toLowerCase();
+        return haystack.includes(term);
+      });
+  }, [messages, filter, search, activeDrivers]);
+
+  const summary = useMemo(() => {
+    const rows = messages || [];
+    return {
+      total: rows.length,
+      unread: rows.filter((message) => !message.is_read).length,
+      owners: rows.filter((message) => getMessageCategory(message) === "owners" || getMessageCategory(message) === "team").length,
+      drivers: rows.filter((message) => getMessageCategory(message) === "driver").length,
+      broadcasts: rows.filter((message) => ["league", "manufacturer"].includes(getMessageCategory(message))).length,
+    };
+  }, [messages]);
+
+  async function loadAdminMessages() {
+    setLoading(true);
+    setError("");
+    const { data, error: loadError } = await supabase
+      .from("league_messages")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(300);
+
+    if (loadError) {
+      console.error("Could not load admin message dashboard:", loadError);
+      setError("Could not load messages. Check league_messages select policy.");
+      setMessages([]);
+      setLoading(false);
+      return;
+    }
+
+    setMessages(data || []);
+    setLoading(false);
+  }
+
+  async function archiveMessage(messageId) {
+    if (!messageId) return;
+    if (!window.confirm("Archive this message from the admin dashboard?")) return;
+    setStatus("");
+    setError("");
+
+    const { error: archiveError } = await supabase
+      .from("league_messages")
+      .update({ archived: true })
+      .eq("id", messageId);
+
+    if (archiveError) {
+      console.error("Could not archive message:", archiveError);
+      setError("Could not archive message. Check league_messages update policy.");
+      return;
+    }
+
+    setMessages((current) => current.map((message) => message.id === messageId ? { ...message, archived: true } : message));
+    setStatus("Message archived.");
+  }
+
+  useEffect(() => {
+    loadAdminMessages();
+    const interval = setInterval(loadAdminMessages, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div style={{ ...sectionCardStyle, border: "1px solid #3d4859" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start", marginBottom: 16 }}>
+        <div>
+          <h2 style={{ margin: 0 }}>📬 Admin Message Dashboard</h2>
+          <div style={{ opacity: 0.72, fontSize: 13, marginTop: 6 }}>
+            Board view for messages sent to owners, teams, drivers, manufacturers, and the entire league.
+          </div>
+        </div>
+        <button type="button" onClick={loadAdminMessages} style={secondaryButtonStyle} disabled={loading}>
+          {loading ? "Refreshing..." : "Refresh Messages"}
+        </button>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10, marginBottom: 14 }}>
+        <div style={statBoxStyle}><div style={{ opacity: 0.65, fontSize: 12, fontWeight: 900 }}>TOTAL</div><div style={{ fontSize: 24, fontWeight: 900 }}>{summary.total}</div></div>
+        <div style={statBoxStyle}><div style={{ opacity: 0.65, fontSize: 12, fontWeight: 900 }}>UNREAD</div><div style={{ fontSize: 24, fontWeight: 900, color: "#f87171" }}>{summary.unread}</div></div>
+        <div style={statBoxStyle}><div style={{ opacity: 0.65, fontSize: 12, fontWeight: 900 }}>OWNERS / TEAMS</div><div style={{ fontSize: 24, fontWeight: 900 }}>{summary.owners}</div></div>
+        <div style={statBoxStyle}><div style={{ opacity: 0.65, fontSize: 12, fontWeight: 900 }}>DRIVERS</div><div style={{ fontSize: 24, fontWeight: 900 }}>{summary.drivers}</div></div>
+        <div style={statBoxStyle}><div style={{ opacity: 0.65, fontSize: 12, fontWeight: 900 }}>BROADCASTS</div><div style={{ fontSize: 24, fontWeight: 900 }}>{summary.broadcasts}</div></div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10, marginBottom: 14 }}>
+        <div>
+          <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.72, marginBottom: 8 }}>FILTER</label>
+          <select value={filter} onChange={(event) => setFilter(event.target.value)} style={inputStyle}>
+            <option value="all">All Messages</option>
+            <option value="owners">Owners Only</option>
+            <option value="team">Teams</option>
+            <option value="driver">Drivers</option>
+            <option value="manufacturer">Manufacturers</option>
+            <option value="league">Entire League</option>
+          </select>
+        </div>
+        <div>
+          <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.72, marginBottom: 8 }}>SEARCH</label>
+          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search subject, recipient, team, driver..." style={inputStyle} />
+        </div>
+      </div>
+
+      {status && <div style={{ color: "#4ade80", marginBottom: 12, fontWeight: 900 }}>{status}</div>}
+      {error && <div style={{ color: "#f87171", marginBottom: 12, fontWeight: 900 }}>{error}</div>}
+
+      {filteredMessages.length === 0 ? (
+        <div style={{ opacity: 0.72 }}>No messages found.</div>
+      ) : (
+        <div style={{ overflowX: "auto" }}>
+          <table style={tableStyle}>
+            <thead>
+              <tr>
+                <th style={thStyle}>Date</th>
+                <th style={thStyle}>To</th>
+                <th style={thStyle}>From</th>
+                <th style={thStyle}>Subject</th>
+                <th style={thStyle}>Read</th>
+                <th style={thStyle}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredMessages.map((message) => {
+                const archived = Boolean(message.archived);
+                return (
+                  <tr key={message.id} style={{ opacity: archived ? 0.45 : 1 }}>
+                    <td style={tdStyle}>{message.created_at ? new Date(message.created_at).toLocaleString() : "—"}</td>
+                    <td style={tdStyle}>{getRecipientLabel(message)}</td>
+                    <td style={tdStyle}>{message.sender_name || message.sender_type || "League"}</td>
+                    <td style={tdStyle}>
+                      <div style={{ fontWeight: 900 }}>{message.subject || "No subject"}</div>
+                      <div style={{ opacity: 0.65, fontSize: 12, marginTop: 4 }}>{String(message.message || "").slice(0, 90)}{String(message.message || "").length > 90 ? "..." : ""}</div>
+                    </td>
+                    <td style={tdStyle}>
+                      <span style={{ display: "inline-flex", borderRadius: 999, padding: "4px 9px", fontSize: 11, fontWeight: 900, background: message.is_read ? "#102a16" : "#2a1111", color: message.is_read ? "#4ade80" : "#f87171", border: `1px solid ${message.is_read ? "#22c55e" : "#ef4444"}` }}>
+                        {message.is_read ? "Read" : "Unread"}
+                      </span>
+                    </td>
+                    <td style={tdStyle}>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <button type="button" onClick={() => setSelectedMessage(message)} style={secondaryButtonStyle}>View</button>
+                        {!archived && <button type="button" onClick={() => archiveMessage(message.id)} style={dangerButtonStyle}>Archive</button>}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {selectedMessage && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.74)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div style={{ background: "#171b22", border: "1px solid #3d4859", borderRadius: 18, padding: 22, width: "min(760px, 100%)", maxHeight: "88vh", overflowY: "auto", boxShadow: "0 24px 80px rgba(0,0,0,0.45)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
+              <div>
+                <div style={{ fontSize: 22, fontWeight: 900 }}>{selectedMessage.subject || "No subject"}</div>
+                <div style={{ opacity: 0.65, fontSize: 13, marginTop: 6 }}>
+                  To: {getRecipientLabel(selectedMessage)} · From: {selectedMessage.sender_name || selectedMessage.sender_type || "League"}
+                </div>
+                <div style={{ opacity: 0.55, fontSize: 12, marginTop: 4 }}>{selectedMessage.created_at ? new Date(selectedMessage.created_at).toLocaleString() : ""}</div>
+              </div>
+              <button type="button" onClick={() => setSelectedMessage(null)} style={secondaryButtonStyle}>Close</button>
+            </div>
+            <div style={{ marginTop: 18, background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 16, whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
+              {selectedMessage.message || "No message body."}
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10, marginTop: 14, fontSize: 12, opacity: 0.75 }}>
+              <div>Type: {selectedMessage.message_type || "—"}</div>
+              <div>Recipient Type: {selectedMessage.recipient_type || "—"}</div>
+              <div>Team: {selectedMessage.recipient_team || "—"}</div>
+              <div>Manufacturer: {selectedMessage.recipient_manufacturer || "—"}</div>
+              <div>Archived: {selectedMessage.archived ? "Yes" : "No"}</div>
+              <div>Read: {selectedMessage.is_read ? "Yes" : "No"}</div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 function LeagueMessageCenterLandingPage({ drivers = [] }) {
   const [selectedDriverNumber, setSelectedDriverNumber] = useState("");
   const [driverCode, setDriverCode] = useState("");
@@ -5766,6 +6005,8 @@ export default function App() {
         </div>
 
         <AdminLeagueMessageComposer drivers={visibleDrivers} teams={teamStandings} />
+
+        <AdminLeagueMessageDashboard drivers={visibleDrivers} teams={teamStandings} />
 
         <div style={sectionCardStyle}>
           <h2 style={{ marginTop: 0 }}>Team Owner Assignments</h2>
