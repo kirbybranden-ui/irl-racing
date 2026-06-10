@@ -79,6 +79,7 @@ const TEAM_BUDGET_OVERRIDES = {
 };
 
 const TECHNICAL_ALLIANCE_COST = 50000;
+const NUMBER_PURCHASE_PRICE = 5000;
 
 function getTeamStartingBudget(driverCount, teamName = "") {
   if (TEAM_BUDGET_OVERRIDES[teamName]) {
@@ -509,6 +510,10 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
   const [teamInterestRows, setTeamInterestRows] = useState([]);
   const [teamInterestMessage, setTeamInterestMessage] = useState("");
   const [teamInterestError, setTeamInterestError] = useState("");
+  const [numberPool, setNumberPool] = useState([]);
+  const [numberMarketMessage, setNumberMarketMessage] = useState("");
+  const [numberMarketError, setNumberMarketError] = useState("");
+  const [numberMarketBusy, setNumberMarketBusy] = useState("");
 
   const [rivalryForm, setRivalryForm] = useState({
     rivalry_name: "",
@@ -570,6 +575,18 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
 
   const ownerTeamName = getTeamFullName(safeSelectedTeam);
   const currentTeamBalance = Number(teamFinance?.balance ?? selected.projectedBudget ?? 0);
+
+  const availableNumberRows = useMemo(() => {
+    return (numberPool || [])
+      .filter((row) => String(row.status || "available").toLowerCase() === "available")
+      .sort((a, b) => Number(a.number) - Number(b.number));
+  }, [numberPool]);
+
+  const teamOwnedNumberRows = useMemo(() => {
+    return (numberPool || [])
+      .filter((row) => sameTeamName(row.owning_team, safeSelectedTeam) || sameTeamName(row.owning_team, ownerTeamName))
+      .sort((a, b) => Number(a.number) - Number(b.number));
+  }, [numberPool, safeSelectedTeam, ownerTeamName]);
 
   React.useEffect(() => {
     if (!isAuthorized) {
@@ -797,6 +814,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
     ["morale", "Morale"],
     ["manufacturer", "Manufacturer"],
     ["messages", "Message Center"],
+    ["numbers", "Number Pool"],
     ["interest", "Team Interest"],
     ["development", "Development"],
     ["rivalries", "Rivalries"],
@@ -810,6 +828,178 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
     padding: "9px 12px",
     fontSize: 12,
   });
+
+  async function loadNumberPool() {
+    const { data, error } = await supabase
+      .from("number_pool")
+      .select("*")
+      .order("number", { ascending: true });
+
+    if (error) {
+      console.error("Could not load number pool:", error);
+      setNumberMarketError("Could not load number pool. Check number_pool table and RLS select policy.");
+      setNumberPool([]);
+      return;
+    }
+
+    setNumberMarketError("");
+    setNumberPool(data || []);
+  }
+
+  async function purchaseNumber(numberRow) {
+    setNumberMarketMessage("");
+    setNumberMarketError("");
+
+    if (!isAuthorized) {
+      setNumberMarketError("Owner access required before purchasing a number.");
+      return;
+    }
+
+    const carNumber = Number(numberRow?.number);
+    if (!carNumber || carNumber < 1 || carNumber > 99) {
+      setNumberMarketError("Choose a valid number from the league pool.");
+      return;
+    }
+
+    const price = Number(numberRow?.purchase_price || NUMBER_PURCHASE_PRICE);
+    if (currentTeamBalance < price) {
+      setNumberMarketError(`Not enough funds. #${carNumber} costs ${money(price)}.`);
+      return;
+    }
+
+    if (!teamFinance?.id) {
+      setNumberMarketError("Team finance row is required before purchasing numbers. Refresh Team HQ or create the team_finances row first.");
+      return;
+    }
+
+    const confirmed = window.confirm(`Purchase #${carNumber} for ${money(price)}? This will deduct funds from ${ownerTeamName}.`);
+    if (!confirmed) return;
+
+    setNumberMarketBusy(String(carNumber));
+
+    const { data: freshRow, error: freshError } = await supabase
+      .from("number_pool")
+      .select("*")
+      .eq("number", carNumber)
+      .maybeSingle();
+
+    if (freshError || !freshRow || String(freshRow.status || "").toLowerCase() !== "available") {
+      console.error("Number availability check failed:", freshError);
+      setNumberMarketError(`#${carNumber} is no longer available.`);
+      setNumberMarketBusy("");
+      await loadNumberPool();
+      return;
+    }
+
+    const { error: numberError } = await supabase
+      .from("number_pool")
+      .update({
+        status: "owned",
+        owning_team: ownerTeamName,
+        purchase_price: price,
+        purchased_at: new Date().toISOString(),
+        released_at: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", freshRow.id)
+      .eq("status", "available");
+
+    if (numberError) {
+      console.error("Could not purchase number:", numberError);
+      setNumberMarketError("Could not purchase number. Check number_pool update policy.");
+      setNumberMarketBusy("");
+      return;
+    }
+
+    const { error: financeError } = await supabase
+      .from("team_finances")
+      .update({
+        balance: Number(teamFinance.balance || 0) - price,
+        number_pool_spent: Number(teamFinance.number_pool_spent || 0) + price,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", teamFinance.id);
+
+    if (financeError) {
+      console.error("Number purchased but finance update failed:", financeError);
+      setNumberMarketError("Number was purchased, but funds were not deducted. Check team_finances RLS and number_pool_spent column.");
+      setNumberMarketBusy("");
+      await loadNumberPool();
+      await loadTeamFinance();
+      return;
+    }
+
+    await supabase.from("number_transactions").insert([{
+      number: carNumber,
+      transaction_type: "purchase",
+      from_team: "League Pool",
+      to_team: ownerTeamName,
+      amount: price,
+      notes: `${ownerTeamName} purchased #${carNumber} from the league number pool.`,
+      created_at: new Date().toISOString(),
+    }]);
+
+    setNumberMarketMessage(`${ownerTeamName} purchased #${carNumber} for ${money(price)}.`);
+    setNumberMarketBusy("");
+    await loadNumberPool();
+    await loadTeamFinance();
+  }
+
+  async function releaseNumber(numberRow) {
+    setNumberMarketMessage("");
+    setNumberMarketError("");
+
+    if (!isAuthorized) {
+      setNumberMarketError("Owner access required before releasing a number.");
+      return;
+    }
+
+    const carNumber = Number(numberRow?.number);
+    if (!carNumber) return;
+
+    if (!sameTeamName(numberRow?.owning_team, safeSelectedTeam) && !sameTeamName(numberRow?.owning_team, ownerTeamName)) {
+      setNumberMarketError("You can only release numbers owned by your team.");
+      return;
+    }
+
+    const confirmed = window.confirm(`Release #${carNumber} back to the league pool? No refund will be issued.`);
+    if (!confirmed) return;
+
+    setNumberMarketBusy(`release-${carNumber}`);
+
+    const { error } = await supabase
+      .from("number_pool")
+      .update({
+        status: "available",
+        owning_team: null,
+        assigned_driver_number: null,
+        assigned_driver_name: null,
+        released_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", numberRow.id);
+
+    if (error) {
+      console.error("Could not release number:", error);
+      setNumberMarketError("Could not release number. Check number_pool update policy.");
+      setNumberMarketBusy("");
+      return;
+    }
+
+    await supabase.from("number_transactions").insert([{
+      number: carNumber,
+      transaction_type: "release",
+      from_team: ownerTeamName,
+      to_team: "League Pool",
+      amount: 0,
+      notes: `${ownerTeamName} released #${carNumber} back to the league pool.`,
+      created_at: new Date().toISOString(),
+    }]);
+
+    setNumberMarketMessage(`#${carNumber} released back to the league pool.`);
+    setNumberMarketBusy("");
+    await loadNumberPool();
+  }
 
   async function loadTeamInterestRows() {
     if (!safeSelectedTeam) return;
@@ -1496,6 +1686,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
     loadOwnerTasks();
     loadDriverTasks();
     loadTeamRivalries();
+    loadNumberPool();
   }, [isAuthorized, ownerTeamName]);
 
   async function submitContractOffer() {
@@ -2037,6 +2228,81 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
               </div>
             )}
 
+
+            {activeHqTab === "numbers" && (
+              <div style={sectionCardStyle}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start", marginBottom: 16 }}>
+                  <div>
+                    <h2 style={{ margin: 0 }}>🔢 Number Pool</h2>
+                    <div style={{ opacity: 0.68, fontSize: 13, marginTop: 6 }}>Purchase available car numbers from the league pool for {money(NUMBER_PURCHASE_PRICE)} each. Active driver numbers are locked and do not appear as available.</div>
+                  </div>
+                  <button onClick={loadNumberPool} style={secondaryButtonStyle}>Refresh Numbers</button>
+                </div>
+
+                {numberMarketMessage && <div style={{ marginBottom: 12, color: "#4ade80", fontWeight: 900 }}>{numberMarketMessage}</div>}
+                {numberMarketError && <div style={{ marginBottom: 12, color: "#f87171", fontWeight: 900 }}>{numberMarketError}</div>}
+
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, marginBottom: 18 }}>
+                  <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14 }}>
+                    <div style={{ fontSize: 12, opacity: 0.7, fontWeight: 900 }}>TEAM BALANCE</div>
+                    <div style={{ fontSize: 24, fontWeight: 1000, marginTop: 4 }}>{money(currentTeamBalance)}</div>
+                  </div>
+                  <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14 }}>
+                    <div style={{ fontSize: 12, opacity: 0.7, fontWeight: 900 }}>NUMBER PRICE</div>
+                    <div style={{ fontSize: 24, fontWeight: 1000, marginTop: 4 }}>{money(NUMBER_PURCHASE_PRICE)}</div>
+                  </div>
+                  <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14 }}>
+                    <div style={{ fontSize: 12, opacity: 0.7, fontWeight: 900 }}>MY OWNED NUMBERS</div>
+                    <div style={{ fontSize: 24, fontWeight: 1000, marginTop: 4 }}>{teamOwnedNumberRows.length}</div>
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: 20 }}>
+                  <h3 style={{ marginTop: 0 }}>My Team Numbers</h3>
+                  {teamOwnedNumberRows.length === 0 ? (
+                    <div style={{ opacity: 0.72 }}>No purchased numbers yet.</div>
+                  ) : (
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: 10 }}>
+                      {teamOwnedNumberRows.map((row) => (
+                        <div key={row.id || row.number} style={{ background: "#11161d", border: "1px solid #2c3440", borderRadius: 14, padding: 14, textAlign: "center" }}>
+                          <div style={{ fontSize: 28, fontWeight: 1000, color: "#d4af37" }}>#{row.number}</div>
+                          <div style={{ fontSize: 11, opacity: 0.7, marginTop: 4 }}>{String(row.status || "owned").toUpperCase()}</div>
+                          {row.assigned_driver_name && <div style={{ fontSize: 11, marginTop: 6 }}>Assigned: {row.assigned_driver_name}</div>}
+                          {String(row.status || "").toLowerCase() === "owned" && (
+                            <button type="button" onClick={() => releaseNumber(row)} disabled={numberMarketBusy === `release-${row.number}`} style={{ ...dangerButtonStyle, marginTop: 10, padding: "7px 10px", fontSize: 12 }}>
+                              {numberMarketBusy === `release-${row.number}` ? "Releasing..." : "Release"}
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <h3 style={{ marginTop: 0 }}>Available League Numbers</h3>
+                  {availableNumberRows.length === 0 ? (
+                    <div style={{ opacity: 0.72 }}>No available numbers in the league pool.</div>
+                  ) : (
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(110px, 1fr))", gap: 10 }}>
+                      {availableNumberRows.map((row) => {
+                        const price = Number(row.purchase_price || NUMBER_PURCHASE_PRICE);
+                        const disabled = Boolean(numberMarketBusy) || currentTeamBalance < price;
+                        return (
+                          <div key={row.id || row.number} style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 12, textAlign: "center" }}>
+                            <div style={{ fontSize: 26, fontWeight: 1000 }}>#{row.number}</div>
+                            <div style={{ fontSize: 11, opacity: 0.7, marginTop: 3 }}>{money(price)}</div>
+                            <button type="button" onClick={() => purchaseNumber(row)} disabled={disabled} style={{ ...(disabled ? secondaryButtonStyle : primaryButtonStyle), marginTop: 8, padding: "7px 10px", fontSize: 12, opacity: disabled ? 0.55 : 1 }}>
+                              {numberMarketBusy === String(row.number) ? "Buying..." : "Buy"}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {activeHqTab === "interest" && (
               <div style={sectionCardStyle}>
