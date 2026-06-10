@@ -508,6 +508,9 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
   });
   const [teamMessageStatus, setTeamMessageStatus] = useState("");
   const [teamMessageError, setTeamMessageError] = useState("");
+  const [ownerInbox, setOwnerInbox] = useState([]);
+  const [ownerInboxError, setOwnerInboxError] = useState("");
+  const [ownerInboxLoading, setOwnerInboxLoading] = useState(false);
   const [teamInterestRows, setTeamInterestRows] = useState([]);
   const [teamInterestMessage, setTeamInterestMessage] = useState("");
   const [teamInterestError, setTeamInterestError] = useState("");
@@ -807,6 +810,10 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
     };
   }, [selected.drivers, selected.wins, raceHistory, technicalAlliances, completedTaskCount, completedDriverTaskCount, teamMoraleScore, manufacturerContract.manufacturer, manufacturerContract.supportAmount]);
 
+  const ownerUnreadMessageCount = useMemo(() => {
+    return (ownerInbox || []).filter((message) => !message.is_read).length;
+  }, [ownerInbox]);
+
   const hqTabs = [
     ["overview", "Overview"],
     ["tasks", "Owner Tasks"],
@@ -814,7 +821,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
     ["contracts", "Contracts"],
     ["morale", "Morale"],
     ["manufacturer", "Manufacturer"],
-    ["messages", "Message Center"],
+    ["messages", ownerUnreadMessageCount ? `Message Center (${ownerUnreadMessageCount})` : "Message Center"],
     ["numbers", "Number Pool"],
     ["interest", "Team Interest"],
     ["development", "Development"],
@@ -1053,6 +1060,69 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
   }
 
 
+  function isOwnerInboxMessage(message) {
+    if (!message) return false;
+
+    const recipientType = String(message.recipient_type || "").trim().toLowerCase();
+    const recipientTeam = String(message.recipient_team || "").trim();
+    const recipientManufacturer = String(message.recipient_manufacturer || "").trim().toLowerCase();
+    const currentManufacturer = String(manufacturerContract?.manufacturer || "").trim().toLowerCase();
+
+    if (["league", "owners", "owner", "all_owners"].includes(recipientType)) return true;
+
+    if (recipientTeam && (sameTeamName(recipientTeam, safeSelectedTeam) || sameTeamName(recipientTeam, ownerTeamName))) {
+      return true;
+    }
+
+    if (recipientType === "manufacturer" && recipientManufacturer && currentManufacturer && recipientManufacturer === currentManufacturer) {
+      return true;
+    }
+
+    return false;
+  }
+
+  async function loadOwnerInbox() {
+    if (!isAuthorized) return;
+
+    setOwnerInboxLoading(true);
+    setOwnerInboxError("");
+
+    const { data, error: inboxError } = await supabase
+      .from("league_messages")
+      .select("*")
+      .eq("archived", false)
+      .order("created_at", { ascending: false })
+      .limit(300);
+
+    if (inboxError) {
+      console.error("Could not load owner inbox:", inboxError);
+      setOwnerInbox([]);
+      setOwnerInboxError("Could not load owner inbox. Check league_messages select policy.");
+      setOwnerInboxLoading(false);
+      return;
+    }
+
+    setOwnerInbox((data || []).filter(isOwnerInboxMessage));
+    setOwnerInboxLoading(false);
+  }
+
+  async function markOwnerInboxMessageRead(messageId) {
+    if (!messageId) return;
+
+    const { error: readError } = await supabase
+      .from("league_messages")
+      .update({ is_read: true })
+      .eq("id", messageId);
+
+    if (readError) {
+      console.error("Could not mark owner inbox message read:", readError);
+      setOwnerInboxError("Could not mark message read. Check league_messages update policy.");
+      return;
+    }
+
+    setOwnerInbox((current) => current.map((message) => message.id === messageId ? { ...message, is_read: true } : message));
+  }
+
   function updateTeamMessageField(field, value) {
     setTeamMessageForm((current) => ({ ...current, [field]: value }));
   }
@@ -1125,6 +1195,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
 
     setTeamMessageForm({ recipient_mode: "team", driver_number: "", subject: "", message: "" });
     setTeamMessageStatus(mode === "driver" ? "Message sent to driver." : "Message sent to your team.");
+    await loadOwnerInbox();
   }
 
   function selectContractDriver(driverId) {
@@ -1941,7 +2012,19 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
     loadDriverTasks();
     loadTeamRivalries();
     loadNumberPool();
+    loadOwnerInbox();
   }, [isAuthorized, ownerTeamName]);
+
+  React.useEffect(() => {
+    if (!isAuthorized) {
+      setOwnerInbox([]);
+      return;
+    }
+
+    loadOwnerInbox();
+    const interval = setInterval(loadOwnerInbox, 30000);
+    return () => clearInterval(interval);
+  }, [isAuthorized, safeSelectedTeam, ownerTeamName, manufacturerContract.manufacturer]);
 
   async function submitContractOffer() {
     setContractMessage("");
@@ -2656,6 +2739,58 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
                   {teamMessageStatus && <div style={{ color: "#4ade80", marginTop: 12, fontWeight: 900 }}>{teamMessageStatus}</div>}
                   {teamMessageError && <div style={{ color: "#f87171", marginTop: 12, fontWeight: 900 }}>{teamMessageError}</div>}
                 </form>
+
+                <div style={{ marginTop: 20, borderTop: "1px solid #2c3440", paddingTop: 18 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
+                    <div>
+                      <h3 style={{ margin: 0 }}>📥 Owner Inbox</h3>
+                      <div style={{ opacity: 0.65, fontSize: 12, marginTop: 4 }}>
+                        Messages from Race Control, the League Board, manufacturers, and team communications.
+                      </div>
+                    </div>
+                    <button type="button" onClick={loadOwnerInbox} style={secondaryButtonStyle}>
+                      {ownerInboxLoading ? "Refreshing..." : "Refresh Inbox"}
+                    </button>
+                  </div>
+
+                  {ownerInboxError && <div style={{ color: "#f87171", marginBottom: 12, fontWeight: 900 }}>{ownerInboxError}</div>}
+
+                  {ownerInbox.length === 0 ? (
+                    <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 14, opacity: 0.75 }}>
+                      No owner messages yet.
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                      {ownerInbox.map((message) => {
+                        const unread = !message.is_read;
+                        return (
+                          <div key={message.id || `${message.created_at}-${message.subject}`} style={{ background: unread ? "#111827" : "#0f1319", border: `1px solid ${unread ? "#d4af37" : "#2c3440"}`, borderRadius: 14, padding: 14 }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start" }}>
+                              <div>
+                                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                                  {unread && <span style={{ background: "#d4af37", color: "#111", borderRadius: 999, padding: "3px 8px", fontSize: 11, fontWeight: 1000 }}>UNREAD</span>}
+                                  <div style={{ fontSize: 16, fontWeight: 1000 }}>{message.subject || "No Subject"}</div>
+                                </div>
+                                <div style={{ fontSize: 12, opacity: 0.68, marginTop: 6 }}>
+                                  From: {message.sender_name || message.sender_type || "League"} · {message.created_at ? new Date(message.created_at).toLocaleString() : ""}
+                                </div>
+                              </div>
+                              {unread && (
+                                <button type="button" onClick={() => markOwnerInboxMessageRead(message.id)} style={secondaryButtonStyle}>
+                                  Mark Read
+                                </button>
+                              )}
+                            </div>
+
+                            <div style={{ marginTop: 12, whiteSpace: "pre-wrap", lineHeight: 1.55 }}>
+                              {message.message || ""}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
