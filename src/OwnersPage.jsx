@@ -863,13 +863,17 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
     }
 
     const price = Number(numberRow?.purchase_price || NUMBER_PURCHASE_PRICE);
-    if (currentTeamBalance < price) {
-      setNumberMarketError(`Not enough funds. #${carNumber} costs ${money(price)}.`);
+    const financeRow = await ensureTeamFinanceRow();
+
+    if (!financeRow?.id) {
+      setNumberMarketError("Could not find or create this team's finance row. Check team_finances insert/select policies.");
       return;
     }
 
-    if (!teamFinance?.id) {
-      setNumberMarketError("Team finance row is required before purchasing numbers. Refresh Team HQ or create the team_finances row first.");
+    const financeBalance = Number(financeRow.balance || 0);
+
+    if (financeBalance < price) {
+      setNumberMarketError(`Not enough funds. #${carNumber} costs ${money(price)}.`);
       return;
     }
 
@@ -915,11 +919,11 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
     const { error: financeError } = await supabase
       .from("team_finances")
       .update({
-        balance: Number(teamFinance.balance || 0) - price,
-        number_pool_spent: Number(teamFinance.number_pool_spent || 0) + price,
+        balance: Number(financeRow.balance || 0) - price,
+        number_pool_spent: Number(financeRow.number_pool_spent || 0) + price,
         updated_at: new Date().toISOString(),
       })
-      .eq("id", teamFinance.id);
+      .eq("id", financeRow.id);
 
     if (financeError) {
       console.error("Number purchased but finance update failed:", financeError);
@@ -1218,22 +1222,72 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
     localStorage.setItem("bclDriverFeedbackRatings", JSON.stringify(nextFeedback));
   }
 
+  function getTeamFinanceKeys() {
+    return Array.from(new Set([
+      ownerTeamName,
+      safeSelectedTeam,
+      getTeamFullName(safeSelectedTeam),
+    ].filter(Boolean).map((value) => String(value).trim())));
+  }
+
   async function loadTeamFinance() {
-    if (!safeSelectedTeam) return;
+    if (!safeSelectedTeam) return null;
+
+    const financeKeys = getTeamFinanceKeys();
 
     const { data, error: financeError } = await supabase
       .from("team_finances")
       .select("*")
-      .eq("team", ownerTeamName)
-      .maybeSingle();
+      .in("team", financeKeys)
+      .order("updated_at", { ascending: false })
+      .limit(1);
 
     if (financeError) {
       console.error("Failed to load team finance:", financeError);
       setTeamFinance(null);
-      return;
+      return null;
     }
 
-    setTeamFinance(data || null);
+    const row = Array.isArray(data) && data.length ? data[0] : null;
+    setTeamFinance(row || null);
+    return row || null;
+  }
+
+  async function ensureTeamFinanceRow() {
+    let financeRow = teamFinance?.id ? teamFinance : await loadTeamFinance();
+
+    if (financeRow?.id) return financeRow;
+
+    const startingBalance = Math.max(
+      Number(selected?.projectedBudget || 0),
+      getTeamStartingBudget(selected?.drivers?.length || 0, safeSelectedTeam),
+      700000
+    );
+
+    const insertPayload = {
+      team: ownerTeamName,
+      balance: startingBalance,
+      payroll_spent: 0,
+      signing_bonus_spent: 0,
+      buyout_spent: 0,
+      number_pool_spent: 0,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data: createdRow, error: createError } = await supabase
+      .from("team_finances")
+      .insert([insertPayload])
+      .select("*")
+      .maybeSingle();
+
+    if (createError) {
+      console.error("Could not create team finance row:", createError);
+      setTeamFinance(null);
+      return null;
+    }
+
+    setTeamFinance(createdRow || null);
+    return createdRow || null;
   }
 
   async function loadContractOffers() {
