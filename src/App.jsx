@@ -296,6 +296,59 @@ function getEasternDateParts(date = new Date()) {
   };
 }
 
+
+function getEasternNowParts(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return {
+    dateKey: `${values.year}-${values.month}-${values.day}`,
+    hour: Number(values.hour || 0),
+    minute: Number(values.minute || 0),
+  };
+}
+
+function getStartParkCutoffInfo(raceDate, now = new Date()) {
+  if (!raceDate) return { closed: false, label: "Race date unavailable", dateKey: "", hour: 21, minute: 0 };
+  const cutoffDateKey = String(raceDate).slice(0, 10);
+  const easternNow = getEasternNowParts(now);
+  const closed = easternNow.dateKey > cutoffDateKey ||
+    (easternNow.dateKey === cutoffDateKey && (easternNow.hour > 21 || (easternNow.hour === 21 && easternNow.minute >= 0)));
+  return {
+    closed,
+    label: `Deadline: Saturday ${cutoffDateKey} at 9:00 PM ET`,
+    dateKey: cutoffDateKey,
+    hour: 21,
+    minute: 0,
+  };
+}
+
+function wasStartParkRequestBeforeCutoff(request) {
+  const raceDate = request?.race_date || request?.raceDate || "";
+  const createdAt = request?.created_at || request?.createdAt || "";
+  if (!raceDate || !createdAt) return true;
+  const cutoffKey = `${String(raceDate).slice(0, 10)} 21:00`;
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date(createdAt));
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  const createdKey = `${values.year}-${values.month}-${values.day} ${values.hour}:${values.minute}`;
+  return createdKey < cutoffKey;
+}
+
 function hasRaceRolledOver(track, date = new Date()) {
   if (!track?.date) return false;
 
@@ -531,6 +584,7 @@ function downloadRaceHistoryCsv(raceHistory = [], seasonName = "") {
       Stage3Points: result.stage3Points ?? 0,
       FastestLap: result.fastestLap ? "Yes" : "No",
       DNF: result.dnf ? "Yes" : "No",
+      StartPark: result.startPark ? "Yes" : "No",
       DNFReason: result.dnfReason || "",
       Offense: result.offense ? "Yes" : "No",
       OffenseNumber: result.offenseNumber ?? "",
@@ -663,6 +717,7 @@ function makeRaceResultsLedgerRows({ season, race, tracks = [] }) {
       stage3_points: Number(result.stage3Points || 0),
       fastest_lap: Boolean(result.fastestLap),
       dnf: Boolean(result.dnf),
+      start_park: Boolean(result.startPark),
       dnf_reason: result.dnfReason || null,
       offense: Boolean(result.offense),
       offense_number: Number(result.offenseNumber || 0),
@@ -747,7 +802,7 @@ function makeSeasonId() { return `season-${Date.now()}-${Math.random().toString(
 function createEmptySeason(name, roster = getDefaultRoster()) {
   const dedupedRoster = dedupeDriversByNumber(roster);
   const cleanRoster = dedupedRoster.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer || "", team: d.team, startingPoints: 0, manualWins: 0 }));
-  return { id: makeSeasonId(), name: name || "New Season", createdAt: new Date().toISOString(), drivers: rebuildDriversFromHistory([], cleanRoster), selectedRace: "", positions: {}, stage1: {}, stage2: {}, stage3: {}, dnfMap: {}, offenseMap: {}, fastestLapMap: {}, raceHistory: [] };
+  return { id: makeSeasonId(), name: name || "New Season", createdAt: new Date().toISOString(), drivers: rebuildDriversFromHistory([], cleanRoster), selectedRace: "", positions: {}, stage1: {}, stage2: {}, stage3: {}, dnfMap: {}, startParkMap: {}, offenseMap: {}, fastestLapMap: {}, raceHistory: [] };
 }
 function applyWsmClosureKdmTransfer(roster = [], history = []) {
   const isUndeadHelliday = (item = {}) => {
@@ -905,11 +960,11 @@ function sanitizeSeason(season, fallbackName = "Season") {
     id: season?.id || makeSeasonId(), name: season?.name || fallbackName, createdAt: season?.createdAt || new Date().toISOString(),
     drivers: rebuildDriversFromHistory(history, rosterOnly), selectedRace: normalizeTrackName(season?.selectedRace || ""),
     positions: season?.positions || {}, stage1: season?.stage1 || {}, stage2: season?.stage2 || {}, stage3: season?.stage3 || {},
-    dnfMap: season?.dnfMap || {}, offenseMap: season?.offenseMap || {}, fastestLapMap: season?.fastestLapMap || {}, raceHistory: history,
+    dnfMap: season?.dnfMap || {}, startParkMap: season?.startParkMap || {}, offenseMap: season?.offenseMap || {}, fastestLapMap: season?.fastestLapMap || {}, raceHistory: history,
   };
 }
 function buildLegacySeasonFromLocalStorage() {
-  const keys = ["irl-drivers","irl-raceHistory","irl-selectedRace","irl-positions","irl-stage1","irl-stage2","irl-stage3","irl-dnfMap"];
+  const keys = ["irl-drivers","irl-raceHistory","irl-selectedRace","irl-positions","irl-stage1","irl-stage2","irl-stage3","irl-dnfMap","irl-startParkMap"];
   const hasLegacy = keys.some((k) => localStorage.getItem(k));
   if (!hasLegacy) return createEmptySeason("Season 1");
   try {
@@ -921,7 +976,8 @@ function buildLegacySeasonFromLocalStorage() {
     const stage2 = JSON.parse(localStorage.getItem("irl-stage2") || "null") || {};
     const stage3 = JSON.parse(localStorage.getItem("irl-stage3") || "null") || {};
     const dnfMap = JSON.parse(localStorage.getItem("irl-dnfMap") || "null") || {};
-    return sanitizeSeason({ id: makeSeasonId(), name: "Season 1", createdAt: new Date().toISOString(), drivers, raceHistory, selectedRace, positions, stage1, stage2, stage3, dnfMap, offenseMap: {}, fastestLapMap: {} });
+    const startParkMap = JSON.parse(localStorage.getItem("irl-startParkMap") || "null") || {};
+    return sanitizeSeason({ id: makeSeasonId(), name: "Season 1", createdAt: new Date().toISOString(), drivers, raceHistory, selectedRace, positions, stage1, stage2, stage3, dnfMap, startParkMap, offenseMap: {}, fastestLapMap: {} });
   } catch { return createEmptySeason("Season 1"); }
 }
 function loadInitialLeagueState() {
@@ -3220,6 +3276,52 @@ function AdminLeagueMessageDashboard({ drivers = [], teams = [] }) {
     setLoading(false);
   }
 
+
+  async function updateAdminMessageReadStatus(messageId, isRead) {
+    if (!messageId) return;
+    setStatus("");
+    setError("");
+
+    const { error: updateError } = await supabase
+      .from("league_messages")
+      .update({ is_read: Boolean(isRead) })
+      .eq("id", messageId);
+
+    if (updateError) {
+      console.error("Could not update message read status:", updateError);
+      setError("Could not update message read status. Check league_messages update policy.");
+      return;
+    }
+
+    setMessages((current) => current.map((message) => message.id === messageId ? { ...message, is_read: Boolean(isRead) } : message));
+    setSelectedMessage((current) => current?.id === messageId ? { ...current, is_read: Boolean(isRead) } : current);
+    setStatus(isRead ? "Message marked read." : "Message marked unread.");
+  }
+
+  async function markFilteredMessagesRead() {
+    const unreadIds = (filteredMessages || []).filter((message) => !message.is_read && !message.archived).map((message) => message.id).filter(Boolean);
+    if (!unreadIds.length) {
+      setStatus("No unread messages in the current filter.");
+      return;
+    }
+
+    setStatus("");
+    setError("");
+    const { error: updateError } = await supabase
+      .from("league_messages")
+      .update({ is_read: true })
+      .in("id", unreadIds);
+
+    if (updateError) {
+      console.error("Could not mark filtered messages read:", updateError);
+      setError("Could not mark filtered messages read. Check league_messages update policy.");
+      return;
+    }
+
+    setMessages((current) => current.map((message) => unreadIds.includes(message.id) ? { ...message, is_read: true } : message));
+    setStatus("Filtered unread messages marked read.");
+  }
+
   async function archiveMessage(messageId) {
     if (!messageId) return;
     if (!window.confirm("Archive this message from the admin dashboard?")) return;
@@ -3256,9 +3358,12 @@ function AdminLeagueMessageDashboard({ drivers = [], teams = [] }) {
             Board view for messages sent to owners, teams, drivers, manufacturers, and the entire league.
           </div>
         </div>
-        <button type="button" onClick={loadAdminMessages} style={secondaryButtonStyle} disabled={loading}>
-          {loading ? "Refreshing..." : "Refresh Messages"}
-        </button>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button type="button" onClick={loadAdminMessages} style={secondaryButtonStyle} disabled={loading}>
+            {loading ? "Refreshing..." : "Refresh Messages"}
+          </button>
+          <button type="button" onClick={markFilteredMessagesRead} style={primaryButtonStyle}>Mark Filtered Read</button>
+        </div>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10, marginBottom: 14 }}>
@@ -3325,6 +3430,7 @@ function AdminLeagueMessageDashboard({ drivers = [], teams = [] }) {
                     <td style={tdStyle}>
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                         <button type="button" onClick={() => setSelectedMessage(message)} style={secondaryButtonStyle}>View</button>
+                        {!archived && (!message.is_read ? <button type="button" onClick={() => updateAdminMessageReadStatus(message.id, true)} style={secondaryButtonStyle}>Mark Read</button> : <button type="button" onClick={() => updateAdminMessageReadStatus(message.id, false)} style={secondaryButtonStyle}>Mark Unread</button>)}
                         {!archived && <button type="button" onClick={() => archiveMessage(message.id)} style={dangerButtonStyle}>Archive</button>}
                       </div>
                     </td>
@@ -3359,6 +3465,10 @@ function AdminLeagueMessageDashboard({ drivers = [], teams = [] }) {
               <div>Manufacturer: {selectedMessage.recipient_manufacturer || "—"}</div>
               <div>Archived: {selectedMessage.archived ? "Yes" : "No"}</div>
               <div>Read: {selectedMessage.is_read ? "Yes" : "No"}</div>
+            </div>
+            <div style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
+              {!selectedMessage.is_read ? <button type="button" onClick={() => updateAdminMessageReadStatus(selectedMessage.id, true)} style={primaryButtonStyle}>Mark Read</button> : <button type="button" onClick={() => updateAdminMessageReadStatus(selectedMessage.id, false)} style={secondaryButtonStyle}>Mark Unread</button>}
+              {!selectedMessage.archived && <button type="button" onClick={() => archiveMessage(selectedMessage.id)} style={dangerButtonStyle}>Archive</button>}
             </div>
           </div>
         </div>
@@ -4586,6 +4696,11 @@ export default function App() {
   const stage2 = activeSeason?.stage2 || {};
   const stage3 = activeSeason?.stage3 || {};
   const dnfMap = activeSeason?.dnfMap || {};
+  const startParkMap = activeSeason?.startParkMap || {};
+  const [startParkRequests, setStartParkRequests] = useState([]);
+  const [startParkRequestStatus, setStartParkRequestStatus] = useState("");
+  const [startParkRequestError, setStartParkRequestError] = useState("");
+  const [startParkRequestsLoading, setStartParkRequestsLoading] = useState(false);
   const offenseMap = activeSeason?.offenseMap || {};
   const fastestLapMap = activeSeason?.fastestLapMap || {};
   const penaltyMap = activeSeason?.penaltyMap || {};
@@ -5159,7 +5274,7 @@ export default function App() {
   }
 
   const clearInputs = () => {
-    patchActiveSeason({ selectedRace: "", positions: {}, stage1: {}, stage2: {}, stage3: {}, dnfMap: {}, offenseMap: {}, fastestLapMap: {}, penaltyMap: {}, resultNotesMap: {} });
+    patchActiveSeason({ selectedRace: "", positions: {}, stage1: {}, stage2: {}, stage3: {}, dnfMap: {}, startParkMap: {}, offenseMap: {}, fastestLapMap: {}, penaltyMap: {}, resultNotesMap: {} });
     setEditingRaceName(null);
   };
   const handleDownloadLeagueBackup = () => {
@@ -5340,7 +5455,7 @@ export default function App() {
     if (!window.confirm(`Archive and reset "${activeSeason.name}"? A backup will download first.`)) return;
     downloadBackupObject({ app: "Budweiser Cup League", version: 2, archiveType: "season-reset-archive", archivedAt: new Date().toISOString(), season: activeSeason }, `pcl-${activeSeason.name.replace(/\s+/g, "-").toLowerCase()}-archive`);
     const resetDrivers = activeSeason.drivers.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer || "", team: d.team, startingPoints: 0, manualWins: 0, points: 0, wins: 0, top3: 0, top5: 0, dnfs: 0 }));
-    replaceActiveSeason({ ...activeSeason, drivers: resetDrivers, raceHistory: [], selectedRace: "", positions: {}, stage1: {}, stage2: {}, stage3: {}, dnfMap: {}, offenseMap: {}, fastestLapMap: {} });
+    replaceActiveSeason({ ...activeSeason, drivers: resetDrivers, raceHistory: [], selectedRace: "", positions: {}, stage1: {}, stage2: {}, stage3: {}, dnfMap: {}, startParkMap: {}, offenseMap: {}, fastestLapMap: {} });
     resetEditorStates();
   };
   const teamStandings = useMemo(() => {
@@ -5512,6 +5627,125 @@ export default function App() {
   const handleStage2Change = (id, v) => patchActiveSeason({ stage2: { ...stage2, [id]: v === "" ? "" : Number(v) } });
   const handleStage3Change = (id, v) => patchActiveSeason({ stage3: { ...stage3, [id]: v === "" ? "" : Number(v) } });
   const handleDnfChange = (id, checked) => patchActiveSeason({ dnfMap: { ...dnfMap, [id]: checked } });
+  const handleStartParkChange = (id, checked) => patchActiveSeason({ startParkMap: { ...startParkMap, [id]: checked } });
+
+  async function loadStartParkRequests() {
+    setStartParkRequestsLoading(true);
+    const { data, error } = await supabase
+      .from("start_park_requests")
+      .select("*")
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      console.error("Could not load Start & Park requests:", error);
+      setStartParkRequestError("Could not load Start & Park requests. Run the start_park_requests SQL and check RLS select policy.");
+      setStartParkRequests([]);
+      setStartParkRequestsLoading(false);
+      return;
+    }
+
+    setStartParkRequests(data || []);
+    setStartParkRequestsLoading(false);
+  }
+
+  useEffect(() => {
+    if (!isHydrated) return;
+    loadStartParkRequests();
+    const interval = setInterval(loadStartParkRequests, 30000);
+    return () => clearInterval(interval);
+  }, [isHydrated]);
+
+  async function updateStartParkRequestStatus(request, status) {
+    setStartParkRequestStatus("");
+    setStartParkRequestError("");
+    if (status === "approved" && !wasStartParkRequestBeforeCutoff(request)) {
+      setStartParkRequestError("This request was submitted after the Saturday 9:00 PM ET cutoff and cannot be approved.");
+      return;
+    }
+    const patch = {
+      status,
+      updated_at: new Date().toISOString(),
+    };
+    if (status === "approved") patch.approved_at = new Date().toISOString();
+    if (status === "declined") patch.declined_at = new Date().toISOString();
+
+    const { error } = await supabase
+      .from("start_park_requests")
+      .update(patch)
+      .eq("id", request.id);
+
+    if (error) {
+      console.error("Could not update Start & Park request:", error);
+      setStartParkRequestError("Could not update request. Check start_park_requests update policy.");
+      return;
+    }
+
+    setStartParkRequestStatus(`Start & Park request ${status}.`);
+    await loadStartParkRequests();
+  }
+
+  async function applyApprovedStartParkRequestsToRace() {
+    setStartParkRequestStatus("");
+    setStartParkRequestError("");
+
+    if (!selectedRace) {
+      setStartParkRequestError("Select a race before applying Start & Park requests.");
+      return;
+    }
+
+    const approved = (startParkRequests || [])
+      .filter((request) => String(request.status || "").toLowerCase() === "approved")
+      .filter((request) => String(request.race_name || "") === String(selectedRace))
+      .filter((request) => wasStartParkRequestBeforeCutoff(request))
+      .sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
+
+    if (!approved.length) {
+      setStartParkRequestError("No approved Start & Park requests are waiting for this race.");
+      return;
+    }
+
+    const nextPositions = { ...positions };
+    const nextStartParkMap = { ...startParkMap };
+    const nextStage1 = { ...stage1 };
+    const nextStage2 = { ...stage2 };
+    const nextStage3 = { ...stage3 };
+    const nextNotes = { ...resultNotesMap };
+    const totalStarters = activeDrivers.length || 0;
+
+    approved.forEach((request, index) => {
+      const driver = activeDrivers.find((item) => String(item.id) === String(request.driver_id) || String(item.number) === String(request.driver_number));
+      if (!driver) return;
+      const rearPosition = Math.max(1, totalStarters - approved.length + index + 1);
+      nextPositions[driver.id] = rearPosition;
+      nextStartParkMap[driver.id] = true;
+      nextStage1[driver.id] = "";
+      nextStage2[driver.id] = "";
+      nextStage3[driver.id] = "";
+      const note = `Start & Park approved by Race Control. Rear order ${index + 1} of ${approved.length} by request receipt.`;
+      nextNotes[driver.id] = nextNotes[driver.id] ? `${nextNotes[driver.id]} | ${note}` : note;
+    });
+
+    patchActiveSeason({
+      positions: nextPositions,
+      startParkMap: nextStartParkMap,
+      stage1: nextStage1,
+      stage2: nextStage2,
+      stage3: nextStage3,
+      resultNotesMap: nextNotes,
+    });
+
+    const ids = approved.map((request) => request.id).filter(Boolean);
+    if (ids.length) {
+      await supabase
+        .from("start_park_requests")
+        .update({ status: "applied", applied_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+        .in("id", ids);
+    }
+
+    setStartParkRequestStatus(`${approved.length} Start & Park request${approved.length === 1 ? "" : "s"} placed at the rear in order of receipt.`);
+    await loadStartParkRequests();
+  }
+
   const handleOffenseChange = (id, checked) => patchActiveSeason({ offenseMap: { ...offenseMap, [id]: checked } });
   const handleManualPenaltyChange = (id, value) => patchActiveSeason({ penaltyMap: { ...penaltyMap, [id]: value === "" ? "" : Number(value) } });
   const handleResultNoteChange = (id, value) => patchActiveSeason({ resultNotesMap: { ...resultNotesMap, [id]: value } });
@@ -5592,7 +5826,7 @@ export default function App() {
     if (!window.confirm(warning)) return;
     setTracks((prev) => prev.filter((t) => t.name !== trackName));
     if (selectedRace === trackName) {
-      patchActiveSeason({ selectedRace: "", positions: {}, stage1: {}, stage2: {}, stage3: {}, dnfMap: {}, offenseMap: {}, fastestLapMap: {}, penaltyMap: {}, resultNotesMap: {} });
+      patchActiveSeason({ selectedRace: "", positions: {}, stage1: {}, stage2: {}, stage3: {}, dnfMap: {}, startParkMap: {}, offenseMap: {}, fastestLapMap: {}, penaltyMap: {}, resultNotesMap: {} });
       setEditingRaceName(null);
     }
   };
@@ -5657,12 +5891,13 @@ export default function App() {
       const finishPos = positions[driver.id];
       const stage1Pos = stage1[driver.id], stage2Pos = stage2[driver.id], stage3Pos = stage3[driver.id];
       const dnf = !!dnfMap[driver.id];
+      const startPark = !!startParkMap[driver.id];
       const fastestLap = !!fastestLapMap[driver.id];
       const offense = !!offenseMap[driver.id];
       const manualPenaltyPoints = Number(penaltyMap[driver.id] || 0);
       const finishPoints = finishPos && finishPos >= 1 && finishPos <= pointsTable.length ? pointsTable[finishPos - 1] : 0;
-      const stage1Points = getStagePoints(stage1Pos), stage2Points = getStagePoints(stage2Pos);
-      const stage3Points = stageCount === 3 ? getStagePoints(stage3Pos) : 0;
+      const stage1Points = startPark ? 0 : getStagePoints(stage1Pos), stage2Points = startPark ? 0 : getStagePoints(stage2Pos);
+      const stage3Points = startPark ? 0 : (stageCount === 3 ? getStagePoints(stage3Pos) : 0);
       const fastestLapPoints = fastestLap ? 1 : 0;
       const priorOffenses = countPriorOffenses(raceHistory, driver.id, editingRaceName);
       const offenseNumber = offense ? priorOffenses + 1 : 0;
@@ -5675,7 +5910,7 @@ export default function App() {
         finishPoints, stage1Points, stage2Points, stage3Points, fastestLap, fastestLapPoints,
         offense, offenseNumber, offensePenalty, manualPenaltyPoints, penaltyPoints, totalRacePoints,
         isWin: finishPos === 1, isTop3: finishPos >= 1 && finishPos <= 3, isTop5: finishPos >= 1 && finishPos <= 5,
-        dnf, dnfReason: dnf ? (dnfReasons[driver.id] || "Unknown") : null,
+        dnf, startPark, dnfReason: dnf ? (dnfReasons[driver.id] || "Unknown") : null,
         notes: resultNotesMap[driver.id] || "",
       };
     }).sort((a, b) => { if (a.finishPos === null) return 1; if (b.finishPos === null) return -1; return a.finishPos - b.finishPos; });
@@ -5704,17 +5939,17 @@ export default function App() {
   };
 
   const loadResultsDraft = (draft) => {
-    const np = {}, ns1 = {}, ns2 = {}, ns3 = {}, nd = {}, no = {}, nf = {}, nr = {}, pm = {}, notes = {};
+    const np = {}, ns1 = {}, ns2 = {}, ns3 = {}, nd = {}, spm = {}, no = {}, nf = {}, nr = {}, pm = {}, notes = {};
     (draft.results || []).forEach((r) => {
       np[r.driverId] = r.finishPos || ""; ns1[r.driverId] = r.stage1Pos || ""; ns2[r.driverId] = r.stage2Pos || ""; ns3[r.driverId] = r.stage3Pos || "";
-      nd[r.driverId] = !!r.dnf; no[r.driverId] = !!r.offense;
+      nd[r.driverId] = !!r.dnf; spm[r.driverId] = !!r.startPark; no[r.driverId] = !!r.offense;
       if (r.fastestLap) nf[r.driverId] = true;
       if (r.dnfReason) nr[r.driverId] = r.dnfReason;
       if (r.manualPenaltyPoints) pm[r.driverId] = r.manualPenaltyPoints;
       if (r.notes) notes[r.driverId] = r.notes;
     });
     setDnfReasons(nr);
-    patchActiveSeason({ selectedRace: draft.raceName, positions: np, stage1: ns1, stage2: ns2, stage3: ns3, dnfMap: nd, offenseMap: no, fastestLapMap: nf, penaltyMap: pm, resultNotesMap: notes });
+    patchActiveSeason({ selectedRace: draft.raceName, positions: np, stage1: ns1, stage2: ns2, stage3: ns3, dnfMap: nd, startParkMap: spm, offenseMap: no, fastestLapMap: nf, penaltyMap: pm, resultNotesMap: notes });
     setEditingRaceName(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -5800,17 +6035,17 @@ export default function App() {
     setEditingRaceName(null);
   };
   const handleEditRace = (race) => {
-    const np = {}, ns1 = {}, ns2 = {}, ns3 = {}, nd = {}, no = {}, nf = {}, nr = {}, pm = {}, notes = {};
+    const np = {}, ns1 = {}, ns2 = {}, ns3 = {}, nd = {}, spm = {}, no = {}, nf = {}, nr = {}, pm = {}, notes = {};
     race.results.forEach((r) => {
       np[r.driverId] = r.finishPos || ""; ns1[r.driverId] = r.stage1Pos || ""; ns2[r.driverId] = r.stage2Pos || ""; ns3[r.driverId] = r.stage3Pos || "";
-      nd[r.driverId] = !!r.dnf; no[r.driverId] = !!r.offense;
+      nd[r.driverId] = !!r.dnf; spm[r.driverId] = !!r.startPark; no[r.driverId] = !!r.offense;
       if (r.fastestLap) nf[r.driverId] = true;
       if (r.dnfReason) nr[r.driverId] = r.dnfReason;
       if (r.manualPenaltyPoints) pm[r.driverId] = r.manualPenaltyPoints;
       if (r.notes) notes[r.driverId] = r.notes;
     });
     setDnfReasons(nr);
-    patchActiveSeason({ selectedRace: race.raceName, positions: np, stage1: ns1, stage2: ns2, stage3: ns3, dnfMap: nd, offenseMap: no, fastestLapMap: nf, penaltyMap: pm, resultNotesMap: notes });
+    patchActiveSeason({ selectedRace: race.raceName, positions: np, stage1: ns1, stage2: ns2, stage3: ns3, dnfMap: nd, startParkMap: spm, offenseMap: no, fastestLapMap: nf, penaltyMap: pm, resultNotesMap: notes });
     setEditingRaceName(race.raceName);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -5987,7 +6222,7 @@ export default function App() {
       </>
     );
   }
-  if (path === "/owners" || path === "/team-hq") return <OwnersPage drivers={visibleDrivers} teams={teamStandings} teamBudgets={teamBudgets} raceHistory={raceHistory} seasonName={activeSeason?.name || ""} onApplyTeamTransaction={applyOwnerPortalTeamTransaction} />;
+  if (path === "/owners" || path === "/team-hq") return <OwnersPage drivers={visibleDrivers} teams={teamStandings} teamBudgets={teamBudgets} raceHistory={raceHistory} seasonName={activeSeason?.name || ""} tracks={tracks} onApplyTeamTransaction={applyOwnerPortalTeamTransaction} />;
   if (path === "/contracts") return <ContractsPage drivers={visibleDrivers} />;
   if (path === "/memorial-day") return <MemorialDayPage drivers={visibleDrivers} />;
 
@@ -6754,6 +6989,71 @@ export default function App() {
             </table>
           </div>
         </div>
+        {/* Start & Park Requests */}
+        <div style={{ ...sectionCardStyle, borderColor: "#d4af37" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+            <div>
+              <h2 style={{ marginTop: 0, marginBottom: 6 }}>Start & Park Requests</h2>
+              <div style={{ opacity: 0.72, fontSize: 13 }}>
+                Drivers and Team HQ can request Start & Park until Saturday 9:00 PM ET. Admin approval places approved cars at the rear by request receipt order.
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <button onClick={loadStartParkRequests} style={secondaryButtonStyle}>{startParkRequestsLoading ? "Loading..." : "Refresh Requests"}</button>
+              <button onClick={applyApprovedStartParkRequestsToRace} style={primaryButtonStyle}>Apply Approved to Selected Race</button>
+            </div>
+          </div>
+
+          {startParkRequestError && <div style={{ marginTop: 12, color: "#f87171", fontWeight: 900 }}>{startParkRequestError}</div>}
+          {startParkRequestStatus && <div style={{ marginTop: 12, color: "#4ade80", fontWeight: 900 }}>{startParkRequestStatus}</div>}
+
+          <div style={{ overflowX: "auto", marginTop: 14 }}>
+            <table style={{ ...tableStyle, minWidth: 980 }}>
+              <thead>
+                <tr>
+                  <th style={thStyle}>Order</th>
+                  <th style={thStyle}>Race</th>
+                  <th style={thStyle}>Driver</th>
+                  <th style={thStyle}>Team</th>
+                  <th style={thStyle}>Requested By</th>
+                  <th style={thStyle}>Received</th>
+                  <th style={thStyle}>Reason</th>
+                  <th style={thStyle}>Status</th>
+                  <th style={thStyle}>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(startParkRequests || []).filter((request) => !selectedRace || String(request.race_name || "") === String(selectedRace)).map((request, index) => {
+                  const status = String(request.status || "pending").toLowerCase();
+                  return (
+                    <tr key={request.id || `${request.driver_number}-${request.created_at}`}>
+                      <td style={tdStyle}>#{index + 1}</td>
+                      <td style={tdStyle}>{request.race_name || "—"}</td>
+                      <td style={{ ...tdStyle, fontWeight: 900 }}>#{request.driver_number} {request.driver_name}</td>
+                      <td style={tdStyle}>{getTeamFullName(request.team || request.requested_by_team || "")}</td>
+                      <td style={tdStyle}>{request.requested_by_type || "—"} · {request.requested_by_name || request.requested_by_team || "—"}</td>
+                      <td style={tdStyle}>{request.created_at ? new Date(request.created_at).toLocaleString() : "—"}</td>
+                      <td style={tdStyle}>{request.reason || "—"}</td>
+                      <td style={{ ...tdStyle, fontWeight: 900, color: status === "approved" ? "#4ade80" : status === "declined" ? "#f87171" : status === "applied" ? "#d4af37" : "white" }}>{status.toUpperCase()}</td>
+                      <td style={tdStyle}>
+                        {status === "pending" ? (
+                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                            <button onClick={() => updateStartParkRequestStatus(request, "approved")} style={{ ...primaryButtonStyle, padding: "7px 10px", fontSize: 12 }}>Approve</button>
+                            <button onClick={() => updateStartParkRequestStatus(request, "declined")} style={{ ...dangerButtonStyle, padding: "7px 10px", fontSize: 12 }}>Decline</button>
+                          </div>
+                        ) : "—"}
+                      </td>
+                    </tr>
+                  );
+                })}
+                {!(startParkRequests || []).filter((request) => !selectedRace || String(request.race_name || "") === String(selectedRace)).length && (
+                  <tr><td style={tdStyle} colSpan={9}>No Start & Park requests for the selected race.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         {/* Enter Race Results */}
         <div style={sectionCardStyle}>
           <h2 style={{ marginTop: 0 }}>{editingRaceName ? `Edit Race: ${editingRaceName}` : "Enter Race Results"}</h2>
@@ -6779,7 +7079,7 @@ export default function App() {
                   {stageCount >= 1 && <th style={raceEntryThStyle}>Stage 1</th>}
                   {stageCount >= 2 && <th style={raceEntryThStyle}>Stage 2</th>}
                   {stageCount === 3 && <th style={raceEntryThStyle}>Stage 3</th>}
-                  <th style={{ ...thStyle, minWidth: 90 }}>DNF</th><th style={{ ...thStyle, minWidth: 110 }}>Fastest Lap</th>
+                  <th style={{ ...thStyle, minWidth: 90 }}>DNF</th><th style={{ ...thStyle, minWidth: 120 }}>Start & Park</th><th style={{ ...thStyle, minWidth: 110 }}>Fastest Lap</th>
                   <th style={{ ...thStyle, minWidth: 110 }}>Offense</th><th style={{ ...thStyle, minWidth: 145 }}>Manual Penalty</th><th style={{ ...thStyle, minWidth: 120 }}>Points Preview</th><th style={{ ...thStyle, minWidth: 280 }}>Notes</th><th style={{ ...thStyle, minWidth: 90 }}>Move</th><th style={{ ...thStyle, minWidth: 120 }}>Offense #</th>
                 </tr>
               </thead>
@@ -6820,10 +7120,16 @@ export default function App() {
                           )}
                         </div>
                       </td>
+                      <td style={tdStyle}>
+                        <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <input type="checkbox" checked={!!startParkMap[driver.id]} onChange={(e) => handleStartParkChange(driver.id, e.target.checked)} />Start & Park
+                        </label>
+                        <div style={{ fontSize: 11, opacity: 0.65, marginTop: 5 }}>Finish points only; stage points zeroed.</div>
+                      </td>
                       <td style={tdStyle}><label style={{ display: "flex", alignItems: "center", gap: 8 }}><input type="radio" name="fastestLap" checked={!!fastestLapMap[driver.id]} onChange={() => handleFastestLapChange(driver.id)} />FL +1</label></td>
                       <td style={tdStyle}><label style={{ display: "flex", alignItems: "center", gap: 8 }}><input type="checkbox" checked={!!offenseMap[driver.id]} onChange={(e) => handleOffenseChange(driver.id, e.target.checked)} />Offense</label></td>
                       <td style={tdStyle}><input type="number" min="0" style={racePenaltyInputStyle} value={penaltyMap[driver.id] || ""} onChange={(e) => handleManualPenaltyChange(driver.id, e.target.value)} placeholder="0" /></td>
-                      <td style={{ ...tdStyle, fontWeight: 900, color: "#d4af37" }}>{(() => { const fp = positions[driver.id] ? pointsTable[(Number(positions[driver.id]) || 1) - 1] || 0 : 0; const sp = getStagePoints(stage1[driver.id]) + getStagePoints(stage2[driver.id]) + (stageCount === 3 ? getStagePoints(stage3[driver.id]) : 0); const fl = fastestLapMap[driver.id] ? 1 : 0; const op = thisOffense ? getOffensePenaltyPoints(thisOffense) : 0; const mp = Number(penaltyMap[driver.id] || 0); return fp + sp + fl - op - mp; })()}</td>
+                      <td style={{ ...tdStyle, fontWeight: 900, color: "#d4af37" }}>{(() => { const fp = positions[driver.id] ? pointsTable[(Number(positions[driver.id]) || 1) - 1] || 0 : 0; const sp = startParkMap[driver.id] ? 0 : getStagePoints(stage1[driver.id]) + getStagePoints(stage2[driver.id]) + (stageCount === 3 ? getStagePoints(stage3[driver.id]) : 0); const fl = fastestLapMap[driver.id] ? 1 : 0; const op = thisOffense ? getOffensePenaltyPoints(thisOffense) : 0; const mp = Number(penaltyMap[driver.id] || 0); return fp + sp + fl - op - mp; })()}</td>
                       <td style={tdStyle}><input style={raceNotesInputStyle} value={resultNotesMap[driver.id] || ""} onChange={(e) => handleResultNoteChange(driver.id, e.target.value)} placeholder="Penalty note, ruling, etc." /></td>
                       <td style={tdStyle}><div style={{ display: "flex", gap: 6 }}><button type="button" onClick={() => moveDriverFinishPosition(driver.id, -1)} style={{ ...secondaryButtonStyle, padding: "6px 9px" }}>↑</button><button type="button" onClick={() => moveDriverFinishPosition(driver.id, 1)} style={{ ...secondaryButtonStyle, padding: "6px 9px" }}>↓</button></div></td>
                       <td style={{ ...tdStyle, color: thisOffense ? "#f87171" : "inherit" }}>
@@ -6965,7 +7271,7 @@ export default function App() {
                             {race.stageCount >= 1 && <th style={thStyle}>S1</th>}
                             {race.stageCount >= 2 && <th style={thStyle}>S2</th>}
                             {race.stageCount === 3 && <th style={thStyle}>S3</th>}
-                            <th style={thStyle}>FL</th><th style={thStyle}>DNF</th>
+                            <th style={thStyle}>FL</th><th style={thStyle}>DNF</th><th style={thStyle}>Start & Park</th>
                             <th style={thStyle}>Offense</th><th style={thStyle}>Penalty</th><th style={thStyle}>Total</th>
                           </tr>
                         </thead>
@@ -6982,6 +7288,7 @@ export default function App() {
                               {race.stageCount === 3 && <td style={tdStyle}>{r.stage3Points}</td>}
                               <td style={tdStyle}>{r.fastestLap ? "+1" : "—"}</td>
                               <td style={tdStyle}>{r.dnf ? (r.dnfReason ? `DNF (${r.dnfReason})` : "DNF") : "—"}</td>
+                              <td style={tdStyle}>{r.startPark ? "Yes" : "—"}</td>
                               <td style={tdStyle}>{r.offense ? `#${r.offenseNumber}` : "—"}</td>
                               <td style={{ ...tdStyle, color: r.penaltyPoints > 0 ? "#f87171" : "inherit" }}>{r.penaltyPoints > 0 ? `-${r.penaltyPoints}` : "0"}</td>
                               <td style={{ ...tdStyle, fontWeight: 800 }}>{r.totalRacePoints}</td>
