@@ -117,6 +117,80 @@ function getSatisfactionStatus(score) {
   return { label: "At Risk", color: "#ef4444", bg: "#2a1111" };
 }
 
+
+const DEFAULT_START_PARK_RACES = [
+  { name: "Daytona (Night)", date: "2026-05-16" },
+  { name: "Charlotte", date: "2026-05-23" },
+  { name: "Nashville", date: "2026-05-30" },
+  { name: "Michigan", date: "2026-06-06" },
+  { name: "Pocono", date: "2026-06-13" },
+  { name: "Bristol (Night)", date: "2026-06-20" },
+  { name: "Las Vegas", date: "2026-06-27" },
+  { name: "Talladega", date: "2026-07-11" },
+  { name: "North Wilkesboro", date: "2026-07-18" },
+  { name: "Indianapolis", date: "2026-07-25" },
+  { name: "New Hampshire", date: "2026-08-01" },
+  { name: "Phoenix", date: "2026-08-08" },
+  { name: "Richmond", date: "2026-08-15" },
+  { name: "Kansas", date: "2026-08-22" },
+  { name: "Texas", date: "2026-08-29" },
+  { name: "Iowa", date: "2026-09-05" },
+  { name: "Homestead", date: "2026-09-12" },
+];
+
+
+function getEasternNowParts(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return {
+    dateKey: `${values.year}-${values.month}-${values.day}`,
+    hour: Number(values.hour || 0),
+    minute: Number(values.minute || 0),
+  };
+}
+
+function getStartParkCutoffInfo(raceDate, now = new Date()) {
+  if (!raceDate) return { closed: false, label: "Race date unavailable", dateKey: "", hour: 21, minute: 0 };
+  const cutoffDateKey = String(raceDate).slice(0, 10);
+  const easternNow = getEasternNowParts(now);
+  const closed = easternNow.dateKey > cutoffDateKey ||
+    (easternNow.dateKey === cutoffDateKey && (easternNow.hour > 21 || (easternNow.hour === 21 && easternNow.minute >= 0)));
+  return {
+    closed,
+    label: `Deadline: Saturday ${cutoffDateKey} at 9:00 PM ET`,
+    dateKey: cutoffDateKey,
+    hour: 21,
+    minute: 0,
+  };
+}
+
+function wasStartParkRequestBeforeCutoff(request) {
+  const raceDate = request?.race_date || request?.raceDate || "";
+  const createdAt = request?.created_at || request?.createdAt || "";
+  if (!raceDate || !createdAt) return true;
+  const cutoffKey = `${String(raceDate).slice(0, 10)} 21:00`;
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date(createdAt));
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  const createdKey = `${values.year}-${values.month}-${values.day} ${values.hour}:${values.minute}`;
+  return createdKey < cutoffKey;
+}
+
 const MASTER_ACCESS_CODE = "BCLADMINPASSWORD2026";
 
 function normalizeAccessCode(value) {
@@ -261,6 +335,26 @@ function isClosedOrRemovedDriver(driver) {
 
 function normalizeBigDiehlKdmDriver(driver) {
   const nameKey = String(driver?.name ?? driver?.driver_name ?? "").trim().toLowerCase();
+
+  if (nameKey === "knighttrain41") {
+    return {
+      ...driver,
+      number: 41,
+      manufacturer: "Ford",
+      team: "BXM",
+      retired: false,
+    };
+  }
+
+  if (nameKey === "mare951") {
+    return {
+      ...driver,
+      manufacturer: "Ford",
+      team: driver?.team || "BWR",
+      retired: false,
+    };
+  }
+
   if (Number(driver?.id) === 46 || nameKey === "bigdiehl21") {
     return {
       ...driver,
@@ -279,6 +373,24 @@ function normalizeBigDiehlKdmDriver(driver) {
 
 function normalizeBigDiehlKdmResult(result) {
   const nameKey = String(result?.name ?? result?.driver_name ?? "").trim().toLowerCase();
+
+  if (nameKey === "knighttrain41") {
+    return {
+      ...result,
+      number: 41,
+      manufacturer: "Ford",
+      team: "BXM",
+    };
+  }
+
+  if (nameKey === "mare951") {
+    return {
+      ...result,
+      manufacturer: "Ford",
+      team: result?.team || "BWR",
+    };
+  }
+
   if (Number(result?.driverId) === 46 || Number(result?.driver_id) === 46 || nameKey === "bigdiehl21") {
     return {
       ...result,
@@ -594,6 +706,11 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
   const [teamInterestNotice, setTeamInterestNotice] = useState("");
   const [teamInterestError, setTeamInterestError] = useState("");
   const [teamInterestSubmitting, setTeamInterestSubmitting] = useState(false);
+  const [startParkForm, setStartParkForm] = useState({ race_name: "", race_date: "", reason: "" });
+  const [startParkRequests, setStartParkRequests] = useState([]);
+  const [startParkMessage, setStartParkMessage] = useState("");
+  const [startParkError, setStartParkError] = useState("");
+  const [startParkSubmitting, setStartParkSubmitting] = useState(false);
 
   const driverAccessKey = driver ? String(driver.number) : String(driverNumber);
   const isDriverAuthorized = authorizedDriverNumber === driverAccessKey;
@@ -611,6 +728,15 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
     ));
     return teams.sort((a, b) => getTeamFullName(a).localeCompare(getTeamFullName(b)));
   }, [sanitizedDrivers]);
+
+  const startParkRaceOptions = useMemo(() => {
+    const trackRows = Array.isArray(tracks) && tracks.length
+      ? tracks.map((track) => ({ name: track.name, date: track.date })).filter((track) => track.name)
+      : DEFAULT_START_PARK_RACES;
+    return trackRows.filter((track) => track.date && !getStartParkCutoffInfo(track.date).closed);
+  }, [tracks]);
+
+  const selectedStartParkCutoff = getStartParkCutoffInfo(startParkForm.race_date);
 
   const raceBreakdown = useMemo(() => {
     if (!selectedSeason || !driver) return [];
@@ -1046,7 +1172,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
     const toNumber = queryParams.get("to");
     if (toNumber) setMessageRecipientNumber(String(toNumber));
 
-    loadDriverMessages(true);
+    loadDriverMessages(false);
     const interval = setInterval(() => loadDriverMessages(false), 30000);
     return () => clearInterval(interval);
   }, [subPage, driver?.number, isDriverAuthorized]);
@@ -1097,6 +1223,60 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
     }
   }
 
+
+  async function updateDriverMessageReadStatus(messageId, isRead) {
+    if (!messageId) return;
+    setMessageNotice("");
+    setMessageError("");
+
+    const { error } = await supabase
+      .from("league_messages")
+      .update({ is_read: Boolean(isRead) })
+      .eq("id", messageId);
+
+    if (error) {
+      console.error("Could not update message read status:", error);
+      setMessageError("Could not update message. Check league_messages update policy.");
+      return;
+    }
+
+    setDriverMessages((current) => current.map((message) => message.id === messageId ? { ...message, is_read: Boolean(isRead) } : message));
+    if (isRead) setUnreadMessages((current) => Math.max(0, Number(current || 0) - 1));
+    else setUnreadMessages((current) => Number(current || 0) + 1);
+    setMessageNotice(isRead ? "Message marked read." : "Message marked unread.");
+  }
+
+  async function markAllDriverMessagesRead() {
+    if (!driver?.number) return;
+    setMessageNotice("");
+    setMessageError("");
+
+    const unreadIds = (driverMessages || [])
+      .filter((message) => !message.is_read && String(message.recipient_driver_number || "") === String(driver.number))
+      .map((message) => message.id)
+      .filter(Boolean);
+
+    if (!unreadIds.length) {
+      setMessageNotice("No unread messages to mark read.");
+      return;
+    }
+
+    const { error } = await supabase
+      .from("league_messages")
+      .update({ is_read: true })
+      .in("id", unreadIds);
+
+    if (error) {
+      console.error("Could not mark all messages read:", error);
+      setMessageError("Could not mark all read. Check league_messages update policy.");
+      return;
+    }
+
+    setDriverMessages((current) => current.map((message) => unreadIds.includes(message.id) ? { ...message, is_read: true } : message));
+    setUnreadMessages(0);
+    setMessageNotice("All unread messages marked read.");
+  }
+
   useEffect(() => {
     if (!driver?.number || !isDriverAuthorized) {
       setTeamInterestHistory([]);
@@ -1123,6 +1303,115 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
     const interval = setInterval(loadTeamInterestHistory, 30000);
     return () => clearInterval(interval);
   }, [driver?.number, isDriverAuthorized]);
+
+
+  useEffect(() => {
+    if (!driver?.number || !isDriverAuthorized) {
+      setStartParkRequests([]);
+      return;
+    }
+
+    async function loadStartParkRequests() {
+      const { data, error } = await supabase
+        .from("start_park_requests")
+        .select("*")
+        .eq("driver_number", String(driver.number))
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Could not load Start & Park requests:", error);
+        setStartParkRequests([]);
+        return;
+      }
+
+      setStartParkRequests(data || []);
+    }
+
+    loadStartParkRequests();
+    const interval = setInterval(loadStartParkRequests, 30000);
+    return () => clearInterval(interval);
+  }, [driver?.number, isDriverAuthorized]);
+
+  function updateStartParkRace(value) {
+    const race = startParkRaceOptions.find((item) => item.name === value) || {};
+    setStartParkForm((current) => ({ ...current, race_name: value, race_date: race.date || "" }));
+  }
+
+  async function submitStartParkRequest(event) {
+    event?.preventDefault?.();
+    setStartParkMessage("");
+    setStartParkError("");
+
+    if (!isDriverAuthorized || !driver) {
+      setStartParkError("Unlock driver access before requesting Start & Park.");
+      return;
+    }
+
+    if (!startParkForm.race_name || !startParkForm.race_date) {
+      setStartParkError("Choose the race you are requesting Start & Park for.");
+      return;
+    }
+
+    const cutoff = getStartParkCutoffInfo(startParkForm.race_date);
+    if (cutoff.closed) {
+      setStartParkError("Start & Park requests are closed for this race. Deadline is Saturday at 9:00 PM ET.");
+      return;
+    }
+
+    const duplicate = (startParkRequests || []).find((request) =>
+      String(request.race_name || "") === String(startParkForm.race_name) &&
+      ["pending", "approved", "applied"].includes(String(request.status || "pending").toLowerCase())
+    );
+
+    if (duplicate) {
+      setStartParkError("You already have an active Start & Park request for this race.");
+      return;
+    }
+
+    const payload = {
+      race_name: startParkForm.race_name,
+      race_date: startParkForm.race_date,
+      driver_id: String(driver.id || ""),
+      driver_number: String(driver.number || ""),
+      driver_name: driver.name || "",
+      team: driver.team || "Independent",
+      manufacturer: driver.manufacturer || "",
+      requested_by_type: "driver",
+      requested_by_name: driver.name || `#${driver.number}`,
+      requested_by_team: driver.team || "Independent",
+      reason: String(startParkForm.reason || "").trim(),
+      status: "pending",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    setStartParkSubmitting(true);
+    const { data, error } = await supabase.from("start_park_requests").insert([payload]).select().single();
+    setStartParkSubmitting(false);
+
+    if (error) {
+      console.error("Could not submit Start & Park request:", error);
+      setStartParkError("Could not submit request. Check start_park_requests insert policy and columns.");
+      return;
+    }
+
+    await supabase.from("league_messages").insert([{
+      message_type: "start_park_request",
+      sender_type: "driver",
+      sender_driver_number: String(driver.number || ""),
+      sender_name: driver.name || `#${driver.number}`,
+      recipient_type: "league",
+      subject: `Start & Park Request: #${driver.number} ${driver.name}`,
+      message: `${driver.name || `#${driver.number}`} requested Start & Park for ${startParkForm.race_name}.`,
+      related_page: "/admin",
+      related_id: data?.id || null,
+      created_at: new Date().toISOString(),
+    }]);
+
+    setStartParkRequests((current) => [data || payload, ...(current || [])]);
+    setStartParkForm({ race_name: "", race_date: "", reason: "" });
+    setStartParkMessage("Start & Park request sent to Race Control. If approved, you will be placed at the rear based on request receipt order.");
+  }
 
   function updateTeamInterestField(field, value) {
     setTeamInterestForm((current) => ({ ...current, [field]: value }));
@@ -1629,7 +1918,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
     ["future_confidence", "Future Confidence", "Do you believe this team can win?"],
   ];
 
-  const protectedDriverPages = ["contracts", "upload", "interviews", "appeals", "feedback", "assignments", "messages", "team-interest"];
+  const protectedDriverPages = ["contracts", "upload", "interviews", "appeals", "feedback", "assignments", "messages", "team-interest", "start-park"];
 
   if (protectedDriverPages.includes(subPage) && !isDriverAuthorized) {
     return (
@@ -1796,6 +2085,64 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
     );
   }
 
+
+  if (subPage === "start-park") {
+    return (
+      <div style={{ ...appShellStyle, background: `radial-gradient(circle at top, ${teamTheme.glow} 0%, #0c0f14 34%, #080a0e 100%)` }}>
+        <div style={pageContainerStyle}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20, flexWrap: "wrap" }}>
+            <button onClick={() => window.location.pathname = `/driver/${driverNumber}`} style={secondaryButtonStyle}>← Back to Profile</button>
+            <div>
+              <div style={{ fontSize: 22, fontWeight: 900 }}>#{driver.number} {driver.name} — Start & Park Request</div>
+              <div style={{ fontSize: 13, opacity: 0.6, marginTop: 2 }}>Requests close Saturday at 9:00 PM ET. Race Control approves requests and places approved cars at the rear by receipt order.</div>
+            </div>
+            {isDriverAuthorized && <button onClick={lockDriverContracts} style={{ ...secondaryButtonStyle, marginLeft: "auto" }}>Lock Driver Access</button>}
+          </div>
+
+          <form onSubmit={submitStartParkRequest} style={{ ...sectionCardStyle, borderColor: teamTheme.accent }}>
+            <h2 style={{ marginTop: 0 }}>🏁 Request Start & Park</h2>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>RACE</div>
+                <select value={startParkForm.race_name} onChange={(event) => updateStartParkRace(event.target.value)} style={inputStyle}>
+                  <option value="">Select race</option>
+                  {startParkRaceOptions.map((race) => <option key={race.name} value={race.name}>{race.name} — deadline 9:00 PM ET</option>)}
+                </select>
+              </div>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>STATUS</div>
+                <div style={{ ...inputStyle, color: selectedStartParkCutoff.closed ? "#f87171" : "#4ade80", fontWeight: 900 }}>
+                  {startParkForm.race_name ? (selectedStartParkCutoff.closed ? "Closed" : "Open") : "Choose a race"}
+                </div>
+              </div>
+            </div>
+            <div style={{ marginTop: 12 }}>
+              <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>REASON OPTIONAL</div>
+              <textarea value={startParkForm.reason} onChange={(event) => setStartParkForm((current) => ({ ...current, reason: event.target.value }))} style={{ ...inputStyle, minHeight: 90, resize: "vertical" }} placeholder="Reason for Start & Park request" maxLength={500} />
+            </div>
+            <div style={{ marginTop: 12, opacity: 0.72, fontSize: 13 }}>{startParkForm.race_name ? selectedStartParkCutoff.label : "Requests must be submitted before Saturday 9:00 PM ET."}</div>
+            <button type="submit" disabled={startParkSubmitting || selectedStartParkCutoff.closed} style={{ ...themedPrimaryButtonStyle, marginTop: 14, opacity: startParkSubmitting || selectedStartParkCutoff.closed ? 0.6 : 1 }}>{startParkSubmitting ? "Submitting..." : "Submit Start & Park Request"}</button>
+            {startParkMessage && <div style={{ marginTop: 12, color: "#4ade80", fontWeight: 900 }}>{startParkMessage}</div>}
+            {startParkError && <div style={{ marginTop: 12, color: "#f87171", fontWeight: 900 }}>{startParkError}</div>}
+          </form>
+
+          <div style={sectionCardStyle}>
+            <h2 style={{ marginTop: 0 }}>Request History</h2>
+            <div style={{ overflowX: "auto" }}>
+              <table style={tableStyle}>
+                <thead><tr><th style={thStyle}>Race</th><th style={thStyle}>Requested</th><th style={thStyle}>Status</th><th style={thStyle}>Reason</th></tr></thead>
+                <tbody>
+                  {startParkRequests.map((request) => <tr key={request.id || `${request.race_name}-${request.created_at}`}><td style={tdStyle}>{request.race_name}</td><td style={tdStyle}>{request.created_at ? new Date(request.created_at).toLocaleString() : "—"}</td><td style={{ ...tdStyle, fontWeight: 900 }}>{String(request.status || "pending").toUpperCase()}</td><td style={tdStyle}>{request.reason || "—"}</td></tr>)}
+                  {startParkRequests.length === 0 && <tr><td style={tdStyle} colSpan={4}>No Start & Park requests yet.</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (subPage === "messages") {
     const groupedMessages = driverMessages.reduce((groups, message) => {
       const otherNumber = String(message.sender_driver_number) === String(driver.number)
@@ -1852,7 +2199,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
                 <h2 style={{ margin: 0 }}>📩 Inbox</h2>
                 <div style={{ fontSize: 13, opacity: 0.65, marginTop: 4 }}>{driverMessages.length} message{driverMessages.length !== 1 ? "s" : ""} loaded</div>
               </div>
-              <button type="button" onClick={() => loadDriverMessages(true)} style={secondaryButtonStyle}>{messagesLoading ? "Refreshing..." : "Refresh"}</button>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><button type="button" onClick={() => loadDriverMessages(false)} style={secondaryButtonStyle}>{messagesLoading ? "Refreshing..." : "Refresh"}</button><button type="button" onClick={markAllDriverMessagesRead} style={primaryButtonStyle}>Mark All Read</button></div>
             </div>
 
             {driverMessages.length === 0 ? (
@@ -1870,13 +2217,22 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
                         {messages.map((message) => {
                           const sentByMe = String(message.sender_driver_number) === String(driver.number);
                           return (
-                            <div key={message.id || `${message.created_at}-${message.message}`} style={{ marginLeft: sentByMe ? "auto" : 0, maxWidth: "82%", background: sentByMe ? teamTheme.dark : "#151b24", border: `1px solid ${sentByMe ? teamTheme.accent : "#313947"}`, borderRadius: 12, padding: 12 }}>
+                            <div key={message.id || `${message.created_at}-${message.message}`} style={{ marginLeft: sentByMe ? "auto" : 0, maxWidth: "82%", background: !sentByMe && !message.is_read ? "#2a240f" : (sentByMe ? teamTheme.dark : "#151b24"), border: `1px solid ${!sentByMe && !message.is_read ? "#d4af37" : (sentByMe ? teamTheme.accent : "#313947")}`, borderRadius: 12, padding: 12 }}>
                               <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 6 }}>
                                 <div style={{ fontSize: 12, fontWeight: 900, color: sentByMe ? teamTheme.accent : "#e5e7eb" }}>{sentByMe ? "You" : (message.sender_name || `#${message.sender_driver_number}`)}</div>
-                                <div style={{ fontSize: 11, opacity: 0.55 }}>{message.created_at ? new Date(message.created_at).toLocaleString() : ""}</div>
+                                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}><span style={{ fontSize: 11, opacity: 0.55 }}>{message.created_at ? new Date(message.created_at).toLocaleString() : ""}</span>{!sentByMe && <span style={{ fontSize: 10, fontWeight: 900, padding: "2px 7px", borderRadius: 999, background: message.is_read ? "#102a16" : "#3a3200", color: message.is_read ? "#4ade80" : "#facc15" }}>{message.is_read ? "READ" : "UNREAD"}</span>}</div>
                               </div>
                               {message.subject && <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 6 }}>{message.subject}</div>}
                               <div style={{ fontSize: 14, lineHeight: 1.55, whiteSpace: "pre-wrap" }}>{message.message}</div>
+                              {!sentByMe && (
+                                <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+                                  {!message.is_read ? (
+                                    <button type="button" onClick={() => updateDriverMessageReadStatus(message.id, true)} style={{ ...secondaryButtonStyle, padding: "6px 10px", fontSize: 12 }}>Mark Read</button>
+                                  ) : (
+                                    <button type="button" onClick={() => updateDriverMessageReadStatus(message.id, false)} style={{ ...secondaryButtonStyle, padding: "6px 10px", fontSize: 12 }}>Mark Unread</button>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           );
                         })}
@@ -2426,6 +2782,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
           <button onClick={() => openProtectedDriverSection(`/driver/${driverNumber}/feedback`)} style={secondaryButtonStyle}>😊 Driver Feedback</button>
           <button onClick={() => openProtectedDriverSection(`/driver/${driverNumber}/messages`)} style={unreadMessages > 0 ? themedPrimaryButtonStyle : secondaryButtonStyle}>📩 Messages{unreadMessages > 0 ? ` (${unreadMessages})` : ""}</button>
           <button onClick={() => openProtectedDriverSection(`/driver/${driverNumber}/team-interest`)} style={secondaryButtonStyle}>🤝 Team Interest</button>
+          <button onClick={() => openProtectedDriverSection(`/driver/${driverNumber}/start-park`)} style={secondaryButtonStyle}>🏁 Start & Park</button>
           {authorizedDriverNumber && String(authorizedDriverNumber) !== String(driver.number) && (
             <button onClick={startMessageFromProfile} style={themedPrimaryButtonStyle}>✉️ Message Driver</button>
           )}
