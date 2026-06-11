@@ -914,6 +914,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
     ["morale", "Morale"],
     ["manufacturer", "Manufacturer"],
     ["messages", "Message Center"],
+    ["startpark", "Start & Park"],
     ["transfers", "Team Transfers"],
     ["numbers", "Number Pool"],
     ["interest", "Team Interest"],
@@ -3277,6 +3278,57 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
               </div>
             )}
 
+
+            {activeHqTab === "startpark" && (
+              <div style={sectionCardStyle}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start", marginBottom: 16 }}>
+                  <div>
+                    <h2 style={{ margin: 0 }}>🏁 Start & Park Requests</h2>
+                    <div style={{ opacity: 0.68, fontSize: 13, marginTop: 6 }}>Team HQ can request Start & Park before Saturday 9:00 PM ET. Admin approval places approved cars at the rear in order received.</div>
+                  </div>
+                  <button type="button" onClick={loadTeamStartParkRequests} style={secondaryButtonStyle}>Refresh</button>
+                </div>
+
+                <form onSubmit={submitTeamStartParkRequest} style={{ background: "#0f1319", border: "1px solid #d4af37", borderRadius: 14, padding: 16, marginBottom: 18 }}>
+                  <h3 style={{ marginTop: 0 }}>🏁 Request Start & Park</h3>
+                  <div style={{ opacity: 0.68, fontSize: 13, marginBottom: 12 }}>Team HQ can request Start & Park for its drivers until Saturday 9:00 PM ET. Race Control approval places approved cars at the rear by receipt order.</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 12 }}>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>DRIVER</div>
+                      <select value={teamStartParkForm.driver_id} onChange={(event) => setTeamStartParkForm((current) => ({ ...current, driver_id: event.target.value }))} style={inputStyle}>
+                        <option value="">Select driver</option>
+                        {(selected?.drivers || []).map((driver) => <option key={driver.id || driver.number} value={driver.id || driver.number}>#{driver.number} {driver.name}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>RACE</div>
+                      <select value={teamStartParkForm.race_name} onChange={(event) => updateTeamStartParkRace(event.target.value)} style={inputStyle}>
+                        <option value="">Select race</option>
+                        {startParkRaceOptions.map((race) => <option key={race.name} value={race.name}>{race.name} — deadline 9:00 PM ET</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>REASON OPTIONAL</div>
+                      <input value={teamStartParkForm.reason} onChange={(event) => setTeamStartParkForm((current) => ({ ...current, reason: event.target.value }))} placeholder="Start & Park reason" style={inputStyle} maxLength={500} />
+                    </div>
+                  </div>
+                  <button type="submit" disabled={teamStartParkSubmitting} style={{ ...primaryButtonStyle, marginTop: 14, opacity: teamStartParkSubmitting ? 0.65 : 1 }}>{teamStartParkSubmitting ? "Submitting..." : "Submit Start & Park Request"}</button>
+                  {teamStartParkMessage && <div style={{ marginTop: 12, color: "#4ade80", fontWeight: 800 }}>{teamStartParkMessage}</div>}
+                  {teamStartParkError && <div style={{ marginTop: 12, color: "#f87171", fontWeight: 800 }}>{teamStartParkError}</div>}
+
+                  <div style={{ overflowX: "auto", marginTop: 14 }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                      <thead><tr><th style={thStyle}>Race</th><th style={thStyle}>Driver</th><th style={thStyle}>Requested</th><th style={thStyle}>Status</th></tr></thead>
+                      <tbody>
+                        {teamStartParkRequests.slice(0, 8).map((request) => <tr key={request.id || `${request.driver_number}-${request.created_at}`}><td style={tdStyle}>{request.race_name}</td><td style={tdStyle}>#{request.driver_number} {request.driver_name}</td><td style={tdStyle}>{request.created_at ? new Date(request.created_at).toLocaleString() : "—"}</td><td style={{ ...tdStyle, fontWeight: 900 }}>{String(request.status || "pending").toUpperCase()}</td></tr>)}
+                        {teamStartParkRequests.length === 0 && <tr><td style={tdStyle} colSpan={4}>No Start & Park requests from this team yet.</td></tr>}
+                      </tbody>
+                    </table>
+                  </div>
+                </form>
+
+              </div>
+            )}
 
             {activeHqTab === "transfers" && (
               <div style={sectionCardStyle}>
