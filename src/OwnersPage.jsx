@@ -459,7 +459,7 @@ function buildTeamFinancialRow(team, drivers, teams, raceHistory, technicalAllia
   };
 }
 
-export default function OwnersPage({ drivers = [], teams = [], raceHistory = [], seasonName = "" }) {
+export default function OwnersPage({ drivers = [], teams = [], raceHistory = [], seasonName = "", onApplyTeamTransaction = null }) {
   const availableTeams = useMemo(() => {
     const teamSet = new Set(drivers.map((driver) => driver.team || "Independent"));
     return Array.from(teamSet)
@@ -516,7 +516,20 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
   const [numberMarketError, setNumberMarketError] = useState("");
   const [numberMarketBusy, setNumberMarketBusy] = useState("");
   const [teamTransferLogs, setTeamTransferLogs] = useState([]);
-  const [teamTransferForm, setTeamTransferForm] = useState({ to_team: "", amount: "", reason: "" });
+  const [teamTransferRequests, setTeamTransferRequests] = useState([]);
+  const [teamTransferForm, setTeamTransferForm] = useState({
+    mode: "send",
+    deal_type: "general",
+    to_team: "",
+    amount: "",
+    reason: "",
+    terms: "",
+    driver_id: "",
+    new_number: "",
+    new_manufacturer: "",
+    number: "",
+    assign_to_driver_id: "",
+  });
   const [teamTransferMessage, setTeamTransferMessage] = useState("");
   const [teamTransferError, setTeamTransferError] = useState("");
   const [teamTransferBusy, setTeamTransferBusy] = useState(false);
@@ -1378,6 +1391,280 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
     setTeamTransferForm((current) => ({ ...current, [field]: value }));
   }
 
+  function getDriverByTransferId(value) {
+    const key = String(value || "");
+    return (drivers || []).find((driver) => String(driver.id) === key || String(driver.number) === key || String(driver.name) === key) || null;
+  }
+
+  function getTransferTeamKeys(team) {
+    return Array.from(new Set([team, getTeamFullName(team)].filter(Boolean).map((item) => String(item).trim())));
+  }
+
+  function currentTeamMatches(value) {
+    return sameTeamName(value, safeSelectedTeam) || sameTeamName(value, ownerTeamName);
+  }
+
+  async function loadTeamTransferRequests() {
+    if (!safeSelectedTeam) return;
+
+    const teamKeys = Array.from(new Set([...getTransferTeamKeys(safeSelectedTeam), ...getTransferTeamKeys(ownerTeamName)]));
+    const { data, error } = await supabase
+      .from("team_payment_requests")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(150);
+
+    if (error) {
+      console.error("Could not load team payment requests:", error);
+      setTeamTransferRequests([]);
+      return;
+    }
+
+    setTeamTransferRequests((data || []).filter((row) =>
+      teamKeys.includes(String(row.requested_by_team || "")) ||
+      teamKeys.includes(String(row.requested_from_team || "")) ||
+      teamKeys.includes(String(row.to_team || "")) ||
+      teamKeys.includes(String(row.from_team || ""))
+    ));
+  }
+
+  function buildFollowOnPayload({ dealType, payerTeam, receiverTeam, request = null }) {
+    const driver = request ? null : getDriverByTransferId(teamTransferForm.driver_id);
+    const source = request || {};
+    if (dealType === "driver_buyout") {
+      return {
+        type: "driver_buyout",
+        driver_id: source.driver_id || driver?.id || "",
+        driver_number: source.driver_number || driver?.number || "",
+        driver_name: source.driver_name || driver?.name || "",
+        new_team: source.new_team || payerTeam,
+        new_manufacturer: source.new_manufacturer || teamTransferForm.new_manufacturer || driver?.manufacturer || "",
+        new_number: source.new_number || teamTransferForm.new_number || driver?.number || "",
+      };
+    }
+    if (dealType === "number_sale") {
+      return {
+        type: "number_transfer",
+        number: Number(source.number || teamTransferForm.number || 0),
+        from_team: receiverTeam,
+        to_team: payerTeam,
+        assign_to_driver_id: source.assign_to_driver_id || teamTransferForm.assign_to_driver_id || "",
+      };
+    }
+    return null;
+  }
+
+  async function applyNumberSaleFollowOn({ request, payerTeam, receiverTeam }) {
+    const carNumber = Number(request?.number || 0);
+    if (!carNumber) return;
+
+    await supabase
+      .from("number_pool")
+      .update({
+        status: "owned",
+        owning_team: payerTeam,
+        assigned_driver_number: request?.assign_to_driver_id || null,
+        assigned_driver_name: request?.assign_to_driver_name || null,
+        purchase_price: Number(request?.amount || 0),
+        purchased_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("number", carNumber);
+
+    await supabase.from("number_transactions").insert([{
+      number: carNumber,
+      transaction_type: "team_sale",
+      from_team: receiverTeam,
+      to_team: payerTeam,
+      amount: Number(request?.amount || 0),
+      notes: request?.terms || request?.reason || `#${carNumber} sold from ${receiverTeam} to ${payerTeam}.`,
+      created_at: new Date().toISOString(),
+    }]);
+  }
+
+
+  async function createTeamPaymentRequest(event) {
+    event?.preventDefault?.();
+    setTeamTransferMessage("");
+    setTeamTransferError("");
+
+    if (!isAuthorized) {
+      setTeamTransferError("Unlock Team HQ before requesting funds.");
+      return;
+    }
+
+    const requestedFromTeam = String(teamTransferForm.to_team || "").trim();
+    const amount = Math.round(Number(teamTransferForm.amount || 0));
+    const dealType = String(teamTransferForm.deal_type || "general");
+    const reason = String(teamTransferForm.reason || "").trim();
+    const terms = String(teamTransferForm.terms || "").trim();
+    const selectedDriver = getDriverByTransferId(teamTransferForm.driver_id);
+    const selectedNumberRow = (numberPool || []).find((row) => String(row.number) === String(teamTransferForm.number));
+
+    if (!requestedFromTeam) {
+      setTeamTransferError("Choose which team you are requesting funds from.");
+      return;
+    }
+
+    if (currentTeamMatches(requestedFromTeam)) {
+      setTeamTransferError("Choose a different team.");
+      return;
+    }
+
+    if (!amount || amount <= 0) {
+      setTeamTransferError("Enter a valid request amount.");
+      return;
+    }
+
+    if (dealType === "number_sale") {
+      if (!selectedNumberRow?.id || !teamTransferForm.number) {
+        setTeamTransferError("Choose one of your owned numbers to sell.");
+        return;
+      }
+      if (!sameTeamName(selectedNumberRow.owning_team, safeSelectedTeam) && !sameTeamName(selectedNumberRow.owning_team, ownerTeamName)) {
+        setTeamTransferError("You can only request payment for a number your team owns.");
+        return;
+      }
+    }
+
+    if (dealType === "driver_buyout" && !selectedDriver) {
+      setTeamTransferError("Choose the driver involved in the buyout.");
+      return;
+    }
+
+    const payload = {
+      requested_by_team: ownerTeamName,
+      requested_from_team: requestedFromTeam,
+      amount,
+      deal_type: dealType,
+      reason,
+      terms,
+      status: "pending",
+      driver_id: selectedDriver?.id ? String(selectedDriver.id) : null,
+      driver_number: selectedDriver?.number ? String(selectedDriver.number) : null,
+      driver_name: selectedDriver?.name || null,
+      current_team: selectedDriver?.team || null,
+      new_team: dealType === "driver_buyout" ? requestedFromTeam : null,
+      new_manufacturer: teamTransferForm.new_manufacturer || selectedDriver?.manufacturer || null,
+      new_number: teamTransferForm.new_number ? String(teamTransferForm.new_number) : null,
+      number: teamTransferForm.number ? Number(teamTransferForm.number) : null,
+      assign_to_driver_id: teamTransferForm.assign_to_driver_id ? String(teamTransferForm.assign_to_driver_id) : null,
+      created_by: ownerNames[safeSelectedTeam] || ownerTeamName,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    setTeamTransferBusy(true);
+    const { error } = await supabase.from("team_payment_requests").insert([payload]);
+    setTeamTransferBusy(false);
+
+    if (error) {
+      console.error("Could not create payment request:", error);
+      setTeamTransferError("Could not create payment request. Check team_payment_requests insert policy and columns.");
+      return;
+    }
+
+    await supabase.from("league_messages").insert([{
+      message_type: "team_payment_request",
+      sender_type: "team",
+      sender_name: getTeamFullName(ownerTeamName),
+      recipient_type: "team",
+      recipient_team: requestedFromTeam,
+      subject: `Payment Request: ${money(amount)} for ${dealType.replace(/_/g, " ")}`,
+      message: `${getTeamFullName(ownerTeamName)} requested ${money(amount)}.${reason ? ` Reason: ${reason}` : ""}${terms ? ` Terms: ${terms}` : ""}`,
+      related_page: "/owner",
+      created_at: new Date().toISOString(),
+    }]);
+
+    setTeamTransferMessage(`Payment request sent to ${getTeamFullName(requestedFromTeam)}.`);
+    setTeamTransferForm({ mode: "request", deal_type: "general", to_team: "", amount: "", reason: "", terms: "", driver_id: "", new_number: "", new_manufacturer: "", number: "", assign_to_driver_id: "" });
+    await loadTeamTransferRequests();
+  }
+
+  async function completeTeamPayment({ toTeam, amount, reason, dealType = "general", request = null }) {
+    const fromTeam = ownerTeamName || safeSelectedTeam;
+    const roundedAmount = Math.round(Number(amount || 0));
+    const timestamp = new Date().toISOString();
+
+    const fromFinanceRow = await ensureFinanceRowForTeam(fromTeam);
+    if (!fromFinanceRow?.id) {
+      return { ok: false, message: "Could not find or create your team finance row. Check team_finances insert/select policies." };
+    }
+
+    const fromBalance = Number(fromFinanceRow.balance || 0);
+    if (fromBalance < roundedAmount) {
+      return { ok: false, message: `Not enough funds. Available balance is ${money(fromBalance)}.` };
+    }
+
+    const toFinanceRow = await ensureFinanceRowForTeam(toTeam);
+    if (!toFinanceRow?.id) {
+      return { ok: false, message: "Could not find or create the receiving team's finance row. Check team_finances insert/select policies." };
+    }
+
+    const { error: debitError } = await supabase
+      .from("team_finances")
+      .update({ balance: fromBalance - roundedAmount, updated_at: timestamp })
+      .eq("id", fromFinanceRow.id);
+
+    if (debitError) {
+      console.error("Could not deduct team transfer funds:", debitError);
+      return { ok: false, message: "Could not deduct funds from your team. Check team_finances update policy." };
+    }
+
+    const { error: creditError } = await supabase
+      .from("team_finances")
+      .update({ balance: Number(toFinanceRow.balance || 0) + roundedAmount, updated_at: timestamp })
+      .eq("id", toFinanceRow.id);
+
+    if (creditError) {
+      console.error("Could not credit receiving team:", creditError);
+      await supabase.from("team_finances").update({ balance: fromBalance, updated_at: new Date().toISOString() }).eq("id", fromFinanceRow.id);
+      return { ok: false, message: "Receiving team credit failed. Your deduction was rolled back." };
+    }
+
+    const followOnPayload = buildFollowOnPayload({ dealType, payerTeam: fromTeam, receiverTeam: toTeam, request });
+
+    if (dealType === "number_sale" && request) {
+      await applyNumberSaleFollowOn({ request, payerTeam: fromTeam, receiverTeam: toTeam });
+    }
+
+    if (followOnPayload && typeof onApplyTeamTransaction === "function") {
+      onApplyTeamTransaction(followOnPayload);
+    }
+
+    const logPayload = {
+      from_team: fromTeam,
+      to_team: toTeam,
+      amount: roundedAmount,
+      reason,
+      deal_type: dealType,
+      terms: request?.terms || teamTransferForm.terms || null,
+      driver_id: followOnPayload?.driver_id || null,
+      driver_name: followOnPayload?.driver_name || null,
+      number: followOnPayload?.number || followOnPayload?.new_number || null,
+      request_id: request?.id || null,
+      created_by: ownerNames[safeSelectedTeam] || ownerNames[fromTeam] || "Team Owner",
+      created_at: timestamp,
+    };
+
+    const { error: logError } = await supabase.from("team_payment_logs").insert([logPayload]);
+    if (logError) console.error("Transfer completed but log failed:", logError);
+
+    await supabase.from("league_messages").insert([{
+      message_type: "team_transfer",
+      sender_type: "team",
+      sender_name: getTeamFullName(fromTeam),
+      recipient_type: "team",
+      recipient_team: toTeam,
+      subject: `Team Transfer Received: ${money(roundedAmount)}`,
+      message: `${getTeamFullName(fromTeam)} sent ${money(roundedAmount)} to ${getTeamFullName(toTeam)} for ${dealType.replace(/_/g, " ")}.${reason ? ` Reason: ${reason}` : ""}`,
+      related_page: "/owner",
+      created_at: timestamp,
+    }]);
+
+    return { ok: true, logError };
+  }
+
   async function sendTeamTransfer(event) {
     event?.preventDefault?.();
     setTeamTransferMessage("");
@@ -1389,121 +1676,130 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
     }
 
     const toTeam = String(teamTransferForm.to_team || "").trim();
-    const amount = Number(teamTransferForm.amount || 0);
+    const amount = Math.round(Number(teamTransferForm.amount || 0));
     const reason = String(teamTransferForm.reason || "").trim();
-    const fromTeam = ownerTeamName || safeSelectedTeam;
+    const dealType = String(teamTransferForm.deal_type || "general");
+    const selectedDriver = getDriverByTransferId(teamTransferForm.driver_id);
 
     if (!toTeam) {
       setTeamTransferError("Choose the team receiving the funds.");
       return;
     }
 
-    if (toTeam === fromTeam || toTeam === safeSelectedTeam) {
+    if (currentTeamMatches(toTeam)) {
       setTeamTransferError("Choose a different team to receive the funds.");
       return;
     }
 
-    if (!Number.isFinite(amount) || amount <= 0) {
+    if (!amount || amount <= 0) {
       setTeamTransferError("Enter a valid transfer amount.");
       return;
     }
 
-    const roundedAmount = Math.round(amount);
-    const confirmed = window.confirm(`Send ${money(roundedAmount)} from ${getTeamFullName(fromTeam)} to ${getTeamFullName(toTeam)} now? This deducts immediately.`);
+    if (dealType === "number_sale") {
+      setTeamTransferError("Number transfers must start as a request from the team selling the number. This prevents teams from stealing numbers.");
+      return;
+    }
+
+    if (dealType === "driver_buyout") {
+      if (!selectedDriver) {
+        setTeamTransferError("Choose the driver being bought out.");
+        return;
+      }
+      if (!teamTransferForm.new_number) {
+        setTeamTransferError("The buying team must assign the driver's new number before payment.");
+        return;
+      }
+    }
+
+    const confirmed = window.confirm(`Send ${money(amount)} to ${getTeamFullName(toTeam)} now? Funds deduct immediately.`);
     if (!confirmed) return;
 
     setTeamTransferBusy(true);
+    const result = await completeTeamPayment({ toTeam, amount, reason, dealType });
+    setTeamTransferBusy(false);
 
-    const fromFinance = await ensureTeamFinanceRow();
-    if (!fromFinance?.id) {
-      setTeamTransferBusy(false);
-      setTeamTransferError("Could not find or create your team finance row. Check team_finances insert/select policies.");
-      return;
-    }
-
-    const fromBalance = Number(fromFinance.balance || 0);
-    if (fromBalance < roundedAmount) {
-      setTeamTransferBusy(false);
-      setTeamTransferError(`Not enough funds. Available balance is ${money(fromBalance)}.`);
-      return;
-    }
-
-    const toFinance = await ensureFinanceRowForTeam(toTeam);
-    if (!toFinance?.id) {
-      setTeamTransferBusy(false);
-      setTeamTransferError("Could not find or create the receiving team's finance row. Check team_finances insert/select policies.");
-      return;
-    }
-
-    const timestamp = new Date().toISOString();
-    const { error: debitError } = await supabase
-      .from("team_finances")
-      .update({
-        balance: fromBalance - roundedAmount,
-        updated_at: timestamp,
-      })
-      .eq("id", fromFinance.id);
-
-    if (debitError) {
-      console.error("Could not debit sending team:", debitError);
-      setTeamTransferBusy(false);
-      setTeamTransferError("Could not deduct funds from your team. Check team_finances update policy.");
-      return;
-    }
-
-    const { error: creditError } = await supabase
-      .from("team_finances")
-      .update({
-        balance: Number(toFinance.balance || 0) + roundedAmount,
-        updated_at: timestamp,
-      })
-      .eq("id", toFinance.id);
-
-    if (creditError) {
-      console.error("Could not credit receiving team:", creditError);
-      await supabase
-        .from("team_finances")
-        .update({ balance: fromBalance, updated_at: new Date().toISOString() })
-        .eq("id", fromFinance.id);
-      setTeamTransferBusy(false);
-      setTeamTransferError("Receiving team credit failed. Your deduction was rolled back.");
+    if (!result.ok) {
+      setTeamTransferError(result.message);
       await loadTeamFinance();
       return;
     }
 
-    const logPayload = {
-      from_team: fromTeam,
-      to_team: toTeam,
-      amount: roundedAmount,
-      reason,
-      created_by: ownerNames[safeSelectedTeam] || ownerNames[fromTeam] || "Team Owner",
-      created_at: timestamp,
-    };
-
-    const { error: logError } = await supabase.from("team_payment_logs").insert([logPayload]);
-    if (logError) {
-      console.error("Transfer completed but log failed:", logError);
-      setTeamTransferMessage("Transfer completed, but the log did not save. Check team_payment_logs insert policy.");
-    } else {
-      setTeamTransferMessage(`${money(roundedAmount)} sent to ${getTeamFullName(toTeam)}. Funds deducted immediately.`);
-    }
-
-    await supabase.from("league_messages").insert([{
-      message_type: "team_transfer",
-      sender_type: "team",
-      sender_name: getTeamFullName(fromTeam),
-      recipient_type: "team",
-      recipient_team: toTeam,
-      subject: `Team Transfer Received: ${money(roundedAmount)}`,
-      message: `${getTeamFullName(fromTeam)} sent ${money(roundedAmount)} to ${getTeamFullName(toTeam)}.${reason ? ` Reason: ${reason}` : ""}`,
-      related_page: "/owner",
-      created_at: timestamp,
-    }]);
-
-    setTeamTransferForm({ to_team: "", amount: "", reason: "" });
-    setTeamTransferBusy(false);
+    setTeamTransferMessage(`${money(amount)} sent to ${getTeamFullName(toTeam)}. Funds deducted immediately.${dealType === "driver_buyout" ? " Driver team/manufacturer/number updated." : ""}`);
+    setTeamTransferForm({ mode: "send", deal_type: "general", to_team: "", amount: "", reason: "", terms: "", driver_id: "", new_number: "", new_manufacturer: "", number: "", assign_to_driver_id: "" });
     await loadTeamFinance();
     await loadTeamTransferLogs();
+    await loadTeamTransferRequests();
+  }
+
+  async function payTeamPaymentRequest(request) {
+    setTeamTransferMessage("");
+    setTeamTransferError("");
+
+    if (!isAuthorized) {
+      setTeamTransferError("Unlock Team HQ before paying requests.");
+      return;
+    }
+
+    if (!currentTeamMatches(request?.requested_from_team)) {
+      setTeamTransferError("Only the team that received the request can pay it.");
+      return;
+    }
+
+    if (String(request?.status || "pending").toLowerCase() !== "pending") {
+      setTeamTransferError("This request is no longer pending.");
+      return;
+    }
+
+    if (request?.deal_type === "number_sale" && !request?.number) {
+      setTeamTransferError("This number-sale request is missing the number.");
+      return;
+    }
+
+    const confirmed = window.confirm(`Pay ${money(request.amount)} to ${getTeamFullName(request.requested_by_team)} now? Funds deduct immediately.`);
+    if (!confirmed) return;
+
+    setTeamTransferBusy(true);
+    const result = await completeTeamPayment({
+      toTeam: request.requested_by_team,
+      amount: request.amount,
+      reason: request.reason || request.terms || "Payment request",
+      dealType: request.deal_type || "general",
+      request,
+    });
+
+    if (!result.ok) {
+      setTeamTransferBusy(false);
+      setTeamTransferError(result.message);
+      await loadTeamFinance();
+      return;
+    }
+
+    await supabase
+      .from("team_payment_requests")
+      .update({ status: "paid", paid_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      .eq("id", request.id);
+
+    setTeamTransferBusy(false);
+    setTeamTransferMessage(`Request paid. ${money(request.amount)} deducted immediately.${request?.deal_type === "number_sale" ? ` #${request.number} transferred to your team.` : ""}`);
+    await loadTeamFinance();
+    await loadTeamTransferLogs();
+    await loadTeamTransferRequests();
+    await loadNumberPool();
+  }
+
+  async function declineTeamPaymentRequest(request) {
+    if (!window.confirm("Decline this payment request?")) return;
+    const { error } = await supabase
+      .from("team_payment_requests")
+      .update({ status: "declined", updated_at: new Date().toISOString() })
+      .eq("id", request.id);
+    if (error) {
+      setTeamTransferError("Could not decline request. Check team_payment_requests update policy.");
+      return;
+    }
+    setTeamTransferMessage("Payment request declined.");
+    await loadTeamTransferRequests();
   }
 
   async function loadContractOffers() {
@@ -2704,10 +3000,10 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
               <div style={sectionCardStyle}>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start", marginBottom: 16 }}>
                   <div>
-                    <h2 style={{ margin: 0 }}>💰 Team Transfers</h2>
-                    <div style={{ opacity: 0.68, fontSize: 13, marginTop: 6 }}>Send money directly to another team. The funds deduct from your team balance immediately.</div>
+                    <h2 style={{ margin: 0 }}>💰 Team Deals & Transfers</h2>
+                    <div style={{ opacity: 0.68, fontSize: 13, marginTop: 6 }}>Use the dropdown to choose the deal type. Money deducts immediately when sent or when a request is paid.</div>
                   </div>
-                  <button onClick={loadTeamTransferLogs} style={secondaryButtonStyle}>Refresh Log</button>
+                  <button onClick={() => { loadTeamTransferLogs(); loadTeamTransferRequests(); }} style={secondaryButtonStyle}>Refresh</button>
                 </div>
 
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, marginBottom: 18 }}>
@@ -2716,21 +3012,36 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
                     <div style={{ fontSize: 28, fontWeight: 900, color: "#4ade80" }}>{money(currentTeamBalance)}</div>
                   </div>
                   <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14 }}>
-                    <div style={{ opacity: 0.65, fontSize: 12 }}>Outgoing Transfers</div>
-                    <div style={{ fontSize: 28, fontWeight: 900 }}>{teamTransferLogs.filter((row) => String(row.from_team || "") === String(ownerTeamName || safeSelectedTeam)).length}</div>
+                    <div style={{ opacity: 0.65, fontSize: 12 }}>Pending Requests</div>
+                    <div style={{ fontSize: 28, fontWeight: 900 }}>{teamTransferRequests.filter((row) => String(row.status || "pending").toLowerCase() === "pending").length}</div>
                   </div>
                   <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14 }}>
-                    <div style={{ opacity: 0.65, fontSize: 12 }}>Incoming Transfers</div>
-                    <div style={{ fontSize: 28, fontWeight: 900 }}>{teamTransferLogs.filter((row) => String(row.to_team || "") === String(ownerTeamName || safeSelectedTeam) || String(row.to_team || "") === String(safeSelectedTeam)).length}</div>
+                    <div style={{ opacity: 0.65, fontSize: 12 }}>Logged Transfers</div>
+                    <div style={{ fontSize: 28, fontWeight: 900 }}>{teamTransferLogs.length}</div>
                   </div>
                 </div>
 
-                <form onSubmit={sendTeamTransfer} style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 16, marginBottom: 18 }}>
+                <form onSubmit={teamTransferForm.mode === "request" ? createTeamPaymentRequest : sendTeamTransfer} style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 16, marginBottom: 18 }}>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 12 }}>
                     <div>
-                      <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>SEND TO TEAM</div>
+                      <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>ACTION</div>
+                      <select value={teamTransferForm.mode} onChange={(event) => updateTeamTransferField("mode", event.target.value)} style={inputStyle}>
+                        <option value="send">Send Funds Now</option>
+                        <option value="request">Request Funds From Team</option>
+                      </select>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>DEAL TYPE</div>
+                      <select value={teamTransferForm.deal_type} onChange={(event) => updateTeamTransferField("deal_type", event.target.value)} style={inputStyle}>
+                        <option value="general">General Team Payment</option>
+                        <option value="driver_buyout">Driver Contract Buyout</option>
+                        <option value="number_sale">Number Sale / Transfer</option>
+                      </select>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>{teamTransferForm.mode === "request" ? "REQUEST FROM / BUYER" : "SEND TO / RECEIVER"}</div>
                       <select value={teamTransferForm.to_team} onChange={(event) => updateTeamTransferField("to_team", event.target.value)} style={inputStyle}>
-                        <option value="">Select receiving team</option>
+                        <option value="">Select team</option>
                         {availableTeams.filter((team) => team !== safeSelectedTeam && getTeamFullName(team) !== getTeamFullName(safeSelectedTeam)).map((team) => (
                           <option key={team} value={team}>{getTeamFullName(team)}</option>
                         ))}
@@ -2740,28 +3051,135 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
                       <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>AMOUNT</div>
                       <input type="number" min="1" step="1" value={teamTransferForm.amount} onChange={(event) => updateTeamTransferField("amount", event.target.value)} placeholder="250000" style={inputStyle} />
                     </div>
+                  </div>
+
+                  {teamTransferForm.deal_type === "driver_buyout" && (
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 12, marginTop: 12 }}>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>DRIVER</div>
+                        <select value={teamTransferForm.driver_id} onChange={(event) => updateTeamTransferField("driver_id", event.target.value)} style={inputStyle}>
+                          <option value="">Select driver</option>
+                          {availableDriversForOffers.map((driver) => (
+                            <option key={driver.id || driver.number} value={driver.id || driver.number}>#{driver.number} {driver.name} — {getTeamFullName(driver.team)}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>BUYING TEAM ASSIGNS NEW NUMBER</div>
+                        <input type="number" min="1" max="99" value={teamTransferForm.new_number} onChange={(event) => updateTeamTransferField("new_number", event.target.value)} placeholder="41" style={inputStyle} />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>NEW MANUFACTURER</div>
+                        <select value={teamTransferForm.new_manufacturer} onChange={(event) => updateTeamTransferField("new_manufacturer", event.target.value)} style={inputStyle}>
+                          <option value="">Keep Current</option>
+                          <option value="Chevrolet">Chevrolet</option>
+                          <option value="Ford">Ford</option>
+                          <option value="Toyota">Toyota</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
+
+                  {teamTransferForm.deal_type === "number_sale" && (
+                    <div style={{ background: "#11161d", border: "1px solid #313947", borderRadius: 12, padding: 12, marginTop: 12 }}>
+                      <div style={{ color: "#d4af37", fontWeight: 900, marginBottom: 10 }}>Number transfers must be requested by the selling team. The buyer can only pay the request; they cannot directly steal/claim the number.</div>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 12 }}>
+                        <div>
+                          <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>NUMBER YOU ARE SELLING</div>
+                          <select value={teamTransferForm.number} onChange={(event) => updateTeamTransferField("number", event.target.value)} style={inputStyle} disabled={teamTransferForm.mode !== "request"}>
+                            <option value="">Select owned number</option>
+                            {teamOwnedNumberRows.map((row) => <option key={row.id || row.number} value={row.number}>#{row.number} — {row.status || "owned"}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>BUYER ASSIGNS TO DRIVER OPTIONAL</div>
+                          <select value={teamTransferForm.assign_to_driver_id} onChange={(event) => updateTeamTransferField("assign_to_driver_id", event.target.value)} style={inputStyle}>
+                            <option value="">Do not assign yet</option>
+                            {availableDriversForOffers.map((driver) => (
+                              <option key={driver.id || driver.number} value={driver.id || driver.number}>#{driver.number} {driver.name} — {getTeamFullName(driver.team)}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 12, marginTop: 12 }}>
                     <div>
                       <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>REASON</div>
-                      <input value={teamTransferForm.reason} onChange={(event) => updateTeamTransferField("reason", event.target.value)} placeholder="Driver buyout, alliance help, team deal..." style={inputStyle} maxLength={160} />
+                      <input value={teamTransferForm.reason} onChange={(event) => updateTeamTransferField("reason", event.target.value)} placeholder="Buyout, alliance help, number sale..." style={inputStyle} maxLength={160} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>TERMS</div>
+                      <input value={teamTransferForm.terms} onChange={(event) => updateTeamTransferField("terms", event.target.value)} placeholder="Seller terms, payment conditions, notes..." style={inputStyle} maxLength={240} />
                     </div>
                   </div>
+
                   <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginTop: 14 }}>
-                    <button type="submit" disabled={teamTransferBusy} style={{ ...primaryButtonStyle, opacity: teamTransferBusy ? 0.65 : 1 }}>{teamTransferBusy ? "Sending..." : "Send Funds Now"}</button>
-                    <span style={{ opacity: 0.68, fontSize: 13 }}>This is instant. The sending team is deducted as soon as the transfer posts.</span>
+                    <button type="submit" disabled={teamTransferBusy} style={{ ...primaryButtonStyle, opacity: teamTransferBusy ? 0.65 : 1 }}>{teamTransferBusy ? "Working..." : teamTransferForm.mode === "request" ? "Send Payment Request" : "Send Funds Now"}</button>
+                    <span style={{ opacity: 0.68, fontSize: 13 }}>Driver buyouts update roster after payment. Number sales transfer only after the seller's request is paid.</span>
                   </div>
                   {teamTransferMessage && <div style={{ marginTop: 12, color: "#4ade80", fontWeight: 800 }}>{teamTransferMessage}</div>}
                   {teamTransferError && <div style={{ marginTop: 12, color: "#f87171", fontWeight: 800 }}>{teamTransferError}</div>}
                 </form>
 
+                <div style={{ marginBottom: 18 }}>
+                  <h3 style={{ marginTop: 0 }}>Pending / Recent Requests</h3>
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                      <thead>
+                        <tr>
+                          <th style={thStyle}>Status</th>
+                          <th style={thStyle}>Requested By</th>
+                          <th style={thStyle}>Requested From</th>
+                          <th style={thStyle}>Type</th>
+                          <th style={thStyle}>Amount</th>
+                          <th style={thStyle}>Follow-On</th>
+                          <th style={thStyle}>Terms</th>
+                          <th style={thStyle}>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {teamTransferRequests.map((row) => {
+                          const status = String(row.status || "pending").toLowerCase();
+                          const canPay = status === "pending" && currentTeamMatches(row.requested_from_team);
+                          const canDecline = status === "pending" && (currentTeamMatches(row.requested_from_team) || currentTeamMatches(row.requested_by_team));
+                          return (
+                            <tr key={row.id || `${row.created_at}-${row.requested_by_team}-${row.requested_from_team}`}>
+                              <td style={{ ...tdStyle, fontWeight: 900 }}>{status.toUpperCase()}</td>
+                              <td style={tdStyle}>{getTeamFullName(row.requested_by_team)}</td>
+                              <td style={tdStyle}>{getTeamFullName(row.requested_from_team)}</td>
+                              <td style={tdStyle}>{String(row.deal_type || "general").replace(/_/g, " ")}</td>
+                              <td style={{ ...tdStyle, fontWeight: 900 }}>{money(row.amount)}</td>
+                              <td style={tdStyle}>{row.deal_type === "driver_buyout" ? `Driver: ${row.driver_name || row.driver_number || "—"} → ${getTeamFullName(row.new_team)}` : row.deal_type === "number_sale" ? `#${row.number} → ${getTeamFullName(row.requested_from_team)}` : "—"}</td>
+                              <td style={tdStyle}>{row.terms || row.reason || "—"}</td>
+                              <td style={tdStyle}>
+                                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                  {canPay && <button onClick={() => payTeamPaymentRequest(row)} style={{ ...primaryButtonStyle, padding: "7px 10px", fontSize: 12 }}>Pay</button>}
+                                  {canDecline && <button onClick={() => declineTeamPaymentRequest(row)} style={{ ...dangerButtonStyle, padding: "7px 10px", fontSize: 12 }}>Decline</button>}
+                                  {!canPay && !canDecline && <span style={{ opacity: 0.6 }}>—</span>}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        {teamTransferRequests.length === 0 && <tr><td style={tdStyle} colSpan={8}>No payment requests yet.</td></tr>}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
                 <div style={{ overflowX: "auto" }}>
+                  <h3>Completed Transfer Log</h3>
                   <table style={{ width: "100%", borderCollapse: "collapse" }}>
                     <thead>
                       <tr>
                         <th style={thStyle}>Date</th>
                         <th style={thStyle}>From</th>
                         <th style={thStyle}>To</th>
+                        <th style={thStyle}>Type</th>
                         <th style={thStyle}>Amount</th>
-                        <th style={thStyle}>Reason</th>
+                        <th style={thStyle}>Reason / Terms</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -2770,12 +3188,13 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
                           <td style={tdStyle}>{row.created_at ? new Date(row.created_at).toLocaleDateString() : "—"}</td>
                           <td style={{ ...tdStyle, fontWeight: 900 }}>{getTeamFullName(row.from_team)}</td>
                           <td style={{ ...tdStyle, fontWeight: 900 }}>{getTeamFullName(row.to_team)}</td>
-                          <td style={{ ...tdStyle, fontWeight: 900, color: String(row.from_team || "") === String(ownerTeamName || safeSelectedTeam) ? "#f87171" : "#4ade80" }}>{String(row.from_team || "") === String(ownerTeamName || safeSelectedTeam) ? "-" : "+"}{money(row.amount)}</td>
-                          <td style={tdStyle}>{row.reason || "—"}</td>
+                          <td style={tdStyle}>{String(row.deal_type || "general").replace(/_/g, " ")}</td>
+                          <td style={{ ...tdStyle, fontWeight: 900, color: currentTeamMatches(row.from_team) ? "#f87171" : "#4ade80" }}>{currentTeamMatches(row.from_team) ? "-" : "+"}{money(row.amount)}</td>
+                          <td style={tdStyle}>{row.terms || row.reason || "—"}</td>
                         </tr>
                       ))}
                       {teamTransferLogs.length === 0 && (
-                        <tr><td style={tdStyle} colSpan={5}>No team transfers logged yet.</td></tr>
+                        <tr><td style={tdStyle} colSpan={6}>No team transfers logged yet.</td></tr>
                       )}
                     </tbody>
                   </table>
