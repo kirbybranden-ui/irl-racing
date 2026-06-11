@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import logo from "./assets/logo1.png";
 import teamLogoJAM from "./assets/teams/JAM.png";
 import teamLogoMER from "./assets/teams/ME.png";
