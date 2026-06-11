@@ -205,10 +205,10 @@ const defaultDrivers = [
   { id: 25, number: 80, name: "gumby_1919",             manufacturer: "Ford",      team: "MMS"         },
   { id: 26, number: 7,  name: "gunszmb",               manufacturer: "Ford",      team: "BWR"         },
   { id: 27, number: 97, name: "JPC_Racing",            manufacturer: "Ford",      team: "BWR"         },
-  { id: 51, number: 51, name: "MARE951",                  manufacturer: "Chevrolet", team: "BWR"         },
+  { id: 51, number: 51, name: "MARE951",                  manufacturer: "Ford",      team: "BWR"         },
   { id: 46, number: 39, name: "BigDiehl21", manufacturer: "Chevrolet", team: "KDM" },
   { id: 34, number: 12, name: "CaJunThrottle28", manufacturer: "Ford", team: "BXM" },
-  { id: 35, number: 34, name: "KnightTrain41", manufacturer: "Ford", team: "BXM" },
+  { id: 35, number: 41, name: "KnightTrain41", manufacturer: "Ford", team: "BXM" },
   { id: 54, number: 54, name: "TheCruiser54", manufacturer: "Ford", team: "BXM" },
   { id: 102, number: 2, name: "Ghostracer388", manufacturer: "Ford", team: "BXM" },
 ];
@@ -816,7 +816,7 @@ function apply2026DriverNumberAdjustments(roster = [], history = []) {
   const cajunDriver = normalizedRoster.find((driver) => {
     const nameKey = String(driver?.name || "").trim().toLowerCase();
     const numberKey = String(driver?.number ?? "").trim();
-    return nameKey === "cajunthrottle28" || (numberKey === "34" && nameKey !== "knighttrain41");
+    return nameKey === "cajunthrottle28";
   });
 
   if (cajunDriver) {
@@ -827,13 +827,13 @@ function apply2026DriverNumberAdjustments(roster = [], history = []) {
 
   let knightDriver = normalizedRoster.find((driver) => String(driver?.name || "").trim().toLowerCase() === "knighttrain41");
   if (knightDriver) {
-    knightDriver.number = 34;
+    knightDriver.number = 41;
     knightDriver.manufacturer = "Ford";
     knightDriver.team = "BXM";
   } else {
     knightDriver = {
       id: 3412,
-      number: 34,
+      number: 41,
       name: "KnightTrain41",
       manufacturer: "Ford",
       team: "BXM",
@@ -843,6 +843,15 @@ function apply2026DriverNumberAdjustments(roster = [], history = []) {
     };
     normalizedRoster.push(knightDriver);
   }
+
+  // Normalize MARE to Ford while keeping BWR roster placement.
+  normalizedRoster.forEach((driver) => {
+    const nameKey = String(driver?.name || "").trim().toLowerCase();
+    if (nameKey === "mare951") {
+      driver.manufacturer = "Ford";
+      driver.team = driver.team || "BWR";
+    }
+  });
 
   // Normalize Cruiser so old saved #4 rows and newer #54 rows collapse into one driver.
   normalizedRoster.forEach((driver) => {
@@ -868,7 +877,10 @@ function apply2026DriverNumberAdjustments(roster = [], history = []) {
                 return { ...result, number: 12, manufacturer: result.manufacturer || "Ford", team: result.team === "BMX" ? "BXM" : (result.team || "BXM") };
               }
               if (resultName === "knighttrain41") {
-                return { ...result, number: 34, manufacturer: "Ford", team: "BXM" };
+                return { ...result, number: 41, manufacturer: "Ford", team: "BXM" };
+              }
+              if (resultName === "mare951") {
+                return { ...result, manufacturer: "Ford", team: result.team || "BWR" };
               }
               if (resultName === "thecruiser54") {
                 return { ...result, driverId: 54, number: 54, name: "TheCruiser54", manufacturer: "Ford", team: result.team === "BMX" ? "BXM" : (result.team || "BXM") };
@@ -1052,7 +1064,7 @@ function AppUpdateBanner({ page = "all" }) {
 const defaultTickerItems = [
   { category: "BREAKING", message: "WSM Motorsports has officially closed operations" },
   { category: "TRANSACTION", message: "BigDiehl21 signs with Kev Din Motorsports and moves to the No. 39 Chevrolet" },
-  { category: "TRANSACTION", message: "BayouX Motorsports signs KnightTrain41 to pilot the No. 34 Ford" },
+  { category: "TRANSACTION", message: "BayouX Motorsports updates KnightTrain41 to the No. 41 Ford" },
   { category: "TEAM UPDATE", message: "CaJunThrottle28 moves from the No. 34 to the No. 12 Ford" },
   { category: "RESULTS", message: "Michigan weekend complete — Pocono Raceway is up next" },
   { category: "APP UPDATE", message: "Driver password reset support, interview sync improvements, and Race Control groundwork added" },
@@ -4781,7 +4793,7 @@ export default function App() {
     const seedItems = [
       { category: "BREAKING", message: "WSM Motorsports has officially closed operations", page: "standings", sort_order: 1, active: true, pinned: true },
       { category: "TRANSACTION", message: "BigDiehl21 signs with Kev Din Motorsports and moves to the No. 39 Chevrolet", page: "standings", sort_order: 2, active: true, pinned: true },
-      { category: "TRANSACTION", message: "BayouX Motorsports signs KnightTrain41 to pilot the No. 34 Ford", page: "standings", sort_order: 3, active: true, pinned: false },
+      { category: "TRANSACTION", message: "BayouX Motorsports updates KnightTrain41 to the No. 41 Ford", page: "standings", sort_order: 3, active: true, pinned: false },
       { category: "TEAM UPDATE", message: "CaJunThrottle28 moves from the No. 34 to the No. 12 Ford", page: "standings", sort_order: 4, active: true, pinned: false },
       { category: "RESULTS", message: "TheCruiser54 scores a podium for BXM at Michigan", page: "standings", sort_order: 5, active: true, pinned: false },
       { category: "RACE CONTROL", message: "Race Control Center, editable results, and penalty tools are in development", page: "standings", sort_order: 6, active: true, pinned: false },
