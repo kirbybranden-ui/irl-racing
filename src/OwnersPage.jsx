@@ -12,6 +12,80 @@ import teamLogoBWR from "./assets/teams/BWR.png";
 import teamLogoBXM from "./assets/teams/BXM.png";
 import { supabase } from "./lib/supabase";
 
+
+const DEFAULT_START_PARK_RACES = [
+  { name: "Daytona (Night)", date: "2026-05-16" },
+  { name: "Charlotte", date: "2026-05-23" },
+  { name: "Nashville", date: "2026-05-30" },
+  { name: "Michigan", date: "2026-06-06" },
+  { name: "Pocono", date: "2026-06-13" },
+  { name: "Bristol (Night)", date: "2026-06-20" },
+  { name: "Las Vegas", date: "2026-06-27" },
+  { name: "Talladega", date: "2026-07-11" },
+  { name: "North Wilkesboro", date: "2026-07-18" },
+  { name: "Indianapolis", date: "2026-07-25" },
+  { name: "New Hampshire", date: "2026-08-01" },
+  { name: "Phoenix", date: "2026-08-08" },
+  { name: "Richmond", date: "2026-08-15" },
+  { name: "Kansas", date: "2026-08-22" },
+  { name: "Texas", date: "2026-08-29" },
+  { name: "Iowa", date: "2026-09-05" },
+  { name: "Homestead", date: "2026-09-12" },
+];
+
+
+function getEasternNowParts(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return {
+    dateKey: `${values.year}-${values.month}-${values.day}`,
+    hour: Number(values.hour || 0),
+    minute: Number(values.minute || 0),
+  };
+}
+
+function getStartParkCutoffInfo(raceDate, now = new Date()) {
+  if (!raceDate) return { closed: false, label: "Race date unavailable", dateKey: "", hour: 21, minute: 0 };
+  const cutoffDateKey = String(raceDate).slice(0, 10);
+  const easternNow = getEasternNowParts(now);
+  const closed = easternNow.dateKey > cutoffDateKey ||
+    (easternNow.dateKey === cutoffDateKey && (easternNow.hour > 21 || (easternNow.hour === 21 && easternNow.minute >= 0)));
+  return {
+    closed,
+    label: `Deadline: Saturday ${cutoffDateKey} at 9:00 PM ET`,
+    dateKey: cutoffDateKey,
+    hour: 21,
+    minute: 0,
+  };
+}
+
+function wasStartParkRequestBeforeCutoff(request) {
+  const raceDate = request?.race_date || request?.raceDate || "";
+  const createdAt = request?.created_at || request?.createdAt || "";
+  if (!raceDate || !createdAt) return true;
+  const cutoffKey = `${String(raceDate).slice(0, 10)} 21:00`;
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date(createdAt));
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  const createdKey = `${values.year}-${values.month}-${values.day} ${values.hour}:${values.minute}`;
+  return createdKey < cutoffKey;
+}
+
 const teamLogos = {
   JAM: teamLogoJAM,
   MER: teamLogoMER,
@@ -508,6 +582,8 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
   });
   const [teamMessageStatus, setTeamMessageStatus] = useState("");
   const [teamMessageError, setTeamMessageError] = useState("");
+  const [teamInboxMessages, setTeamInboxMessages] = useState([]);
+  const [teamInboxLoading, setTeamInboxLoading] = useState(false);
   const [teamInterestRows, setTeamInterestRows] = useState([]);
   const [teamInterestMessage, setTeamInterestMessage] = useState("");
   const [teamInterestError, setTeamInterestError] = useState("");
@@ -533,6 +609,11 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
   const [teamTransferMessage, setTeamTransferMessage] = useState("");
   const [teamTransferError, setTeamTransferError] = useState("");
   const [teamTransferBusy, setTeamTransferBusy] = useState(false);
+  const [teamStartParkForm, setTeamStartParkForm] = useState({ driver_id: "", race_name: "", race_date: "", reason: "" });
+  const [teamStartParkRequests, setTeamStartParkRequests] = useState([]);
+  const [teamStartParkMessage, setTeamStartParkMessage] = useState("");
+  const [teamStartParkError, setTeamStartParkError] = useState("");
+  const [teamStartParkSubmitting, setTeamStartParkSubmitting] = useState(false);
 
   const [rivalryForm, setRivalryForm] = useState({
     rivalry_name: "",
@@ -1146,6 +1227,104 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
     setTeamMessageStatus(mode === "driver" ? "Message sent to driver." : "Message sent to your team.");
   }
 
+
+  async function loadTeamInboxMessages() {
+    if (!safeSelectedTeam || !isAuthorized) {
+      setTeamInboxMessages([]);
+      return;
+    }
+
+    setTeamInboxLoading(true);
+    setTeamMessageError("");
+
+    const { data, error } = await supabase
+      .from("league_messages")
+      .select("*")
+      .or(`recipient_team.eq.${safeSelectedTeam},recipient_team.eq.${ownerTeamName}`)
+      .eq("archived", false)
+      .order("created_at", { ascending: false })
+      .limit(150);
+
+    if (error) {
+      console.error("Could not load Team HQ messages:", error);
+      setTeamMessageError("Could not load Team HQ inbox. Check league_messages select policy.");
+      setTeamInboxMessages([]);
+      setTeamInboxLoading(false);
+      return;
+    }
+
+    setTeamInboxMessages(data || []);
+    setTeamInboxLoading(false);
+  }
+
+  async function updateTeamMessageReadStatus(messageId, isRead) {
+    if (!messageId) return;
+    setTeamMessageStatus("");
+    setTeamMessageError("");
+
+    const { error } = await supabase
+      .from("league_messages")
+      .update({ is_read: Boolean(isRead) })
+      .eq("id", messageId);
+
+    if (error) {
+      console.error("Could not update Team HQ message:", error);
+      setTeamMessageError("Could not update message. Check league_messages update policy.");
+      return;
+    }
+
+    setTeamInboxMessages((current) => current.map((message) => message.id === messageId ? { ...message, is_read: Boolean(isRead) } : message));
+    setTeamMessageStatus(isRead ? "Message marked read." : "Message marked unread.");
+  }
+
+  async function markAllTeamMessagesRead() {
+    const unreadIds = (teamInboxMessages || []).filter((message) => !message.is_read).map((message) => message.id).filter(Boolean);
+    if (!unreadIds.length) {
+      setTeamMessageStatus("No unread messages to mark read.");
+      return;
+    }
+
+    setTeamMessageStatus("");
+    setTeamMessageError("");
+    const { error } = await supabase
+      .from("league_messages")
+      .update({ is_read: true })
+      .in("id", unreadIds);
+
+    if (error) {
+      console.error("Could not mark Team HQ messages read:", error);
+      setTeamMessageError("Could not mark all read. Check league_messages update policy.");
+      return;
+    }
+
+    setTeamInboxMessages((current) => current.map((message) => unreadIds.includes(message.id) ? { ...message, is_read: true } : message));
+    setTeamMessageStatus("All Team HQ messages marked read.");
+  }
+
+  async function archiveTeamMessage(messageId) {
+    if (!messageId) return;
+    const { error } = await supabase
+      .from("league_messages")
+      .update({ archived: true })
+      .eq("id", messageId);
+
+    if (error) {
+      console.error("Could not archive Team HQ message:", error);
+      setTeamMessageError("Could not archive message. Check league_messages update policy.");
+      return;
+    }
+
+    setTeamInboxMessages((current) => current.filter((message) => message.id !== messageId));
+    setTeamMessageStatus("Message archived.");
+  }
+
+  useEffect(() => {
+    if (activeHqTab !== "messages" || !isAuthorized) return;
+    loadTeamInboxMessages();
+    const interval = setInterval(loadTeamInboxMessages, 30000);
+    return () => clearInterval(interval);
+  }, [activeHqTab, isAuthorized, safeSelectedTeam, ownerTeamName]);
+
   function selectContractDriver(driverId) {
     const driver = drivers.find((item) => String(item.id) === String(driverId));
     if (!driver) {
@@ -1482,6 +1661,109 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
     }]);
   }
 
+
+
+  const startParkRaceOptions = DEFAULT_START_PARK_RACES.filter((race) => race.date && !getStartParkCutoffInfo(race.date).closed);
+
+  function updateTeamStartParkRace(value) {
+    const race = startParkRaceOptions.find((item) => item.name === value) || {};
+    setTeamStartParkForm((current) => ({ ...current, race_name: value, race_date: race.date || "" }));
+  }
+
+  async function loadTeamStartParkRequests() {
+    const { data, error } = await supabase
+      .from("start_park_requests")
+      .select("*")
+      .eq("requested_by_team", ownerTeamName)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Could not load team Start & Park requests:", error);
+      setTeamStartParkRequests([]);
+      return;
+    }
+    setTeamStartParkRequests(data || []);
+  }
+
+  useEffect(() => {
+    if (!isAuthorized || !ownerTeamName) return;
+    loadTeamStartParkRequests();
+    const interval = setInterval(loadTeamStartParkRequests, 30000);
+    return () => clearInterval(interval);
+  }, [isAuthorized, ownerTeamName]);
+
+  async function submitTeamStartParkRequest(event) {
+    event?.preventDefault?.();
+    setTeamStartParkMessage("");
+    setTeamStartParkError("");
+
+    const driver = (selected?.drivers || []).find((item) => String(item.id || item.number) === String(teamStartParkForm.driver_id));
+    if (!driver) {
+      setTeamStartParkError("Choose a driver from your team.");
+      return;
+    }
+    if (!teamStartParkForm.race_name || !teamStartParkForm.race_date) {
+      setTeamStartParkError("Choose the race for the Start & Park request.");
+      return;
+    }
+    const cutoff = getStartParkCutoffInfo(teamStartParkForm.race_date);
+    if (cutoff.closed) {
+      setTeamStartParkError("Start & Park requests are closed for this race. Deadline is Saturday at 9:00 PM ET.");
+      return;
+    }
+    const duplicate = (teamStartParkRequests || []).find((request) =>
+      String(request.race_name || "") === String(teamStartParkForm.race_name) &&
+      String(request.driver_number || "") === String(driver.number || "") &&
+      ["pending", "approved", "applied"].includes(String(request.status || "pending").toLowerCase())
+    );
+    if (duplicate) {
+      setTeamStartParkError("This driver already has an active Start & Park request for that race.");
+      return;
+    }
+
+    const payload = {
+      race_name: teamStartParkForm.race_name,
+      race_date: teamStartParkForm.race_date,
+      driver_id: String(driver.id || ""),
+      driver_number: String(driver.number || ""),
+      driver_name: driver.name || "",
+      team: driver.team || ownerTeamName,
+      manufacturer: driver.manufacturer || "",
+      requested_by_type: "team",
+      requested_by_name: ownerNames[safeSelectedTeam] || getTeamFullName(ownerTeamName),
+      requested_by_team: ownerTeamName,
+      reason: String(teamStartParkForm.reason || "").trim(),
+      status: "pending",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    setTeamStartParkSubmitting(true);
+    const { data, error } = await supabase.from("start_park_requests").insert([payload]).select().single();
+    setTeamStartParkSubmitting(false);
+
+    if (error) {
+      console.error("Could not submit team Start & Park request:", error);
+      setTeamStartParkError("Could not submit request. Check start_park_requests insert policy and columns.");
+      return;
+    }
+
+    await supabase.from("league_messages").insert([{
+      message_type: "start_park_request",
+      sender_type: "team",
+      sender_name: getTeamFullName(ownerTeamName),
+      recipient_type: "league",
+      subject: `Start & Park Request: #${driver.number} ${driver.name}`,
+      message: `${getTeamFullName(ownerTeamName)} requested Start & Park for #${driver.number} ${driver.name} at ${teamStartParkForm.race_name}.`,
+      related_page: "/admin",
+      related_id: data?.id || null,
+      created_at: new Date().toISOString(),
+    }]);
+
+    setTeamStartParkRequests((current) => [data || payload, ...(current || [])]);
+    setTeamStartParkForm({ driver_id: "", race_name: "", race_date: "", reason: "" });
+    setTeamStartParkMessage("Start & Park request sent to Race Control. Approved cars go to the rear by request receipt order.");
+  }
 
   async function createTeamPaymentRequest(event) {
     event?.preventDefault?.();
@@ -3021,6 +3303,45 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
                   </div>
                 </div>
 
+
+                <form onSubmit={submitTeamStartParkRequest} style={{ background: "#0f1319", border: "1px solid #d4af37", borderRadius: 14, padding: 16, marginBottom: 18 }}>
+                  <h3 style={{ marginTop: 0 }}>🏁 Request Start & Park</h3>
+                  <div style={{ opacity: 0.68, fontSize: 13, marginBottom: 12 }}>Team HQ can request Start & Park for its drivers until Saturday 9:00 PM ET. Race Control approval places approved cars at the rear by receipt order.</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 12 }}>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>DRIVER</div>
+                      <select value={teamStartParkForm.driver_id} onChange={(event) => setTeamStartParkForm((current) => ({ ...current, driver_id: event.target.value }))} style={inputStyle}>
+                        <option value="">Select driver</option>
+                        {(selected?.drivers || []).map((driver) => <option key={driver.id || driver.number} value={driver.id || driver.number}>#{driver.number} {driver.name}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>RACE</div>
+                      <select value={teamStartParkForm.race_name} onChange={(event) => updateTeamStartParkRace(event.target.value)} style={inputStyle}>
+                        <option value="">Select race</option>
+                        {startParkRaceOptions.map((race) => <option key={race.name} value={race.name}>{race.name} — deadline 9:00 PM ET</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>REASON OPTIONAL</div>
+                      <input value={teamStartParkForm.reason} onChange={(event) => setTeamStartParkForm((current) => ({ ...current, reason: event.target.value }))} placeholder="Start & Park reason" style={inputStyle} maxLength={500} />
+                    </div>
+                  </div>
+                  <button type="submit" disabled={teamStartParkSubmitting} style={{ ...primaryButtonStyle, marginTop: 14, opacity: teamStartParkSubmitting ? 0.65 : 1 }}>{teamStartParkSubmitting ? "Submitting..." : "Submit Start & Park Request"}</button>
+                  {teamStartParkMessage && <div style={{ marginTop: 12, color: "#4ade80", fontWeight: 800 }}>{teamStartParkMessage}</div>}
+                  {teamStartParkError && <div style={{ marginTop: 12, color: "#f87171", fontWeight: 800 }}>{teamStartParkError}</div>}
+
+                  <div style={{ overflowX: "auto", marginTop: 14 }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                      <thead><tr><th style={thStyle}>Race</th><th style={thStyle}>Driver</th><th style={thStyle}>Requested</th><th style={thStyle}>Status</th></tr></thead>
+                      <tbody>
+                        {teamStartParkRequests.slice(0, 8).map((request) => <tr key={request.id || `${request.driver_number}-${request.created_at}`}><td style={tdStyle}>{request.race_name}</td><td style={tdStyle}>#{request.driver_number} {request.driver_name}</td><td style={tdStyle}>{request.created_at ? new Date(request.created_at).toLocaleString() : "—"}</td><td style={{ ...tdStyle, fontWeight: 900 }}>{String(request.status || "pending").toUpperCase()}</td></tr>)}
+                        {teamStartParkRequests.length === 0 && <tr><td style={tdStyle} colSpan={4}>No Start & Park requests from this team yet.</td></tr>}
+                      </tbody>
+                    </table>
+                  </div>
+                </form>
+
                 <form onSubmit={teamTransferForm.mode === "request" ? createTeamPaymentRequest : sendTeamTransfer} style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 16, marginBottom: 18 }}>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 12 }}>
                     <div>
@@ -3375,6 +3696,46 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
                   {teamMessageStatus && <div style={{ color: "#4ade80", marginTop: 12, fontWeight: 900 }}>{teamMessageStatus}</div>}
                   {teamMessageError && <div style={{ color: "#f87171", marginTop: 12, fontWeight: 900 }}>{teamMessageError}</div>}
                 </form>
+
+                <div style={{ marginTop: 22, background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 16 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center", marginBottom: 14 }}>
+                    <div>
+                      <h3 style={{ margin: 0 }}>Team HQ Inbox</h3>
+                      <div style={{ opacity: 0.65, fontSize: 13, marginTop: 4 }}>{teamInboxMessages.length} message{teamInboxMessages.length !== 1 ? "s" : ""} loaded · {teamInboxMessages.filter((message) => !message.is_read).length} unread</div>
+                    </div>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <button type="button" onClick={loadTeamInboxMessages} style={secondaryButtonStyle}>{teamInboxLoading ? "Refreshing..." : "Refresh"}</button>
+                      <button type="button" onClick={markAllTeamMessagesRead} style={primaryButtonStyle}>Mark All Read</button>
+                    </div>
+                  </div>
+
+                  {teamInboxMessages.length === 0 ? (
+                    <div style={{ opacity: 0.72 }}>No Team HQ inbox messages yet.</div>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      {teamInboxMessages.map((message) => (
+                        <div key={message.id || `${message.created_at}-${message.subject}`} style={{ background: message.is_read ? "#11161d" : "#2a240f", border: `1px solid ${message.is_read ? "#2c3440" : "#d4af37"}`, borderRadius: 12, padding: 12 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                            <div>
+                              <div style={{ fontSize: 14, fontWeight: 900 }}>{message.subject || "No subject"}</div>
+                              <div style={{ opacity: 0.62, fontSize: 12, marginTop: 3 }}>From: {message.sender_name || message.sender_type || "League"} · {message.created_at ? new Date(message.created_at).toLocaleString() : ""}</div>
+                            </div>
+                            <span style={{ alignSelf: "flex-start", fontSize: 10, fontWeight: 900, padding: "3px 8px", borderRadius: 999, background: message.is_read ? "#102a16" : "#3a3200", color: message.is_read ? "#4ade80" : "#facc15" }}>{message.is_read ? "READ" : "UNREAD"}</span>
+                          </div>
+                          <div style={{ marginTop: 10, whiteSpace: "pre-wrap", lineHeight: 1.55 }}>{message.message || ""}</div>
+                          <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+                            {!message.is_read ? (
+                              <button type="button" onClick={() => updateTeamMessageReadStatus(message.id, true)} style={secondaryButtonStyle}>Mark Read</button>
+                            ) : (
+                              <button type="button" onClick={() => updateTeamMessageReadStatus(message.id, false)} style={secondaryButtonStyle}>Mark Unread</button>
+                            )}
+                            <button type="button" onClick={() => archiveTeamMessage(message.id)} style={dangerButtonStyle}>Archive</button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
