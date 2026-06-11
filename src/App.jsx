@@ -3368,276 +3368,6 @@ function AdminLeagueMessageDashboard({ drivers = [], teams = [] }) {
 }
 
 
-
-function TeamPaymentsAdminPanel({ teams = [] }) {
-  const activeTeams = useMemo(() => {
-    const seen = new Set();
-    return (teams || [])
-      .map((team) => (typeof team === "string" ? team : team?.team))
-      .filter((team) => team && team !== "Independent" && team !== "IND")
-      .filter((team) => {
-        const key = String(team).trim();
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      })
-      .sort((a, b) => getTeamFullName(a).localeCompare(getTeamFullName(b)));
-  }, [teams]);
-
-  const [financeRows, setFinanceRows] = useState([]);
-  const [paymentLog, setPaymentLog] = useState([]);
-  const [fromTeam, setFromTeam] = useState("");
-  const [toTeam, setToTeam] = useState("");
-  const [amount, setAmount] = useState("");
-  const [memo, setMemo] = useState("");
-  const [status, setStatus] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-
-  const financeByTeam = useMemo(() => {
-    const map = new Map();
-    (financeRows || []).forEach((row) => {
-      if (row?.team) map.set(String(row.team), row);
-    });
-    return map;
-  }, [financeRows]);
-
-  async function loadTeamPayments() {
-    setLoading(true);
-    setError("");
-    setStatus("");
-
-    const [{ data: finances, error: financeError }, { data: logs, error: logError }] = await Promise.all([
-      supabase.from("team_finances").select("*").order("team", { ascending: true }),
-      supabase.from("team_payment_logs").select("*").order("created_at", { ascending: false }).limit(100),
-    ]);
-
-    if (financeError) {
-      console.error("Could not load team_finances:", financeError);
-      setError("Could not load team finances. Check the team_finances table and select policy.");
-    } else {
-      setFinanceRows(finances || []);
-    }
-
-    if (logError) {
-      console.error("Could not load team_payment_logs:", logError);
-      setError((current) => current || "Could not load payment log. Create the team_payment_logs table and check RLS policies.");
-    } else {
-      setPaymentLog(logs || []);
-    }
-
-    setLoading(false);
-  }
-
-  useEffect(() => {
-    loadTeamPayments();
-  }, []);
-
-  async function processTeamPayment(event) {
-    event?.preventDefault?.();
-    setStatus("");
-    setError("");
-
-    const cleanFrom = String(fromTeam || "").trim();
-    const cleanTo = String(toTeam || "").trim();
-    const paymentAmount = Number(amount || 0);
-    const cleanMemo = String(memo || "").trim();
-
-    if (!cleanFrom || !cleanTo) {
-      setError("Select both teams before submitting a payment.");
-      return;
-    }
-    if (cleanFrom === cleanTo) {
-      setError("The paying team and receiving team cannot be the same.");
-      return;
-    }
-    if (!paymentAmount || paymentAmount <= 0) {
-      setError("Enter a payment amount greater than $0.");
-      return;
-    }
-
-    const payer = financeByTeam.get(cleanFrom);
-    const receiver = financeByTeam.get(cleanTo);
-
-    if (!payer || !receiver) {
-      setError("Both teams need a row in team_finances before a payment can be processed.");
-      return;
-    }
-
-    const payerBalance = Number(payer.balance || 0);
-    const receiverBalance = Number(receiver.balance || 0);
-
-    if (payerBalance < paymentAmount) {
-      setError(`${getTeamFullName(cleanFrom)} does not have enough balance for this payment.`);
-      return;
-    }
-
-    setSubmitting(true);
-
-    const payerUpdate = await supabase
-      .from("team_finances")
-      .update({ balance: payerBalance - paymentAmount, updated_at: new Date().toISOString() })
-      .eq("id", payer.id);
-
-    if (payerUpdate.error) {
-      console.error("Could not debit paying team:", payerUpdate.error);
-      setSubmitting(false);
-      setError("Could not debit the paying team. Check team_finances update policy.");
-      return;
-    }
-
-    const receiverUpdate = await supabase
-      .from("team_finances")
-      .update({ balance: receiverBalance + paymentAmount, updated_at: new Date().toISOString() })
-      .eq("id", receiver.id);
-
-    if (receiverUpdate.error) {
-      console.error("Could not credit receiving team:", receiverUpdate.error);
-      await supabase
-        .from("team_finances")
-        .update({ balance: payerBalance, updated_at: new Date().toISOString() })
-        .eq("id", payer.id);
-      setSubmitting(false);
-      setError("Could not credit the receiving team. The paying team was rolled back.");
-      return;
-    }
-
-    const logPayload = {
-      from_team: cleanFrom,
-      to_team: cleanTo,
-      amount: paymentAmount,
-      memo: cleanMemo || null,
-      reason: cleanMemo || null,
-      created_by: "Admin Portal",
-      created_at: new Date().toISOString(),
-    };
-
-    const { error: logInsertError } = await supabase.from("team_payment_logs").insert(logPayload);
-    if (logInsertError) {
-      console.error("Payment processed but log insert failed:", logInsertError);
-      setError("Payment processed, but the log failed to save. Check team_payment_logs insert policy.");
-    } else {
-      setStatus(`${getTeamFullName(cleanFrom)} paid ${money(paymentAmount)} to ${getTeamFullName(cleanTo)}.`);
-      setAmount("");
-      setMemo("");
-    }
-
-    setSubmitting(false);
-    await loadTeamPayments();
-  }
-
-  return (
-    <div style={sectionCardStyle}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap", marginBottom: 14 }}>
-        <div>
-          <h2 style={{ margin: 0 }}>💸 Team-to-Team Payments</h2>
-          <div style={{ fontSize: 13, opacity: 0.72, marginTop: 6 }}>
-            Move money from one team budget to another and keep a permanent admin transaction log.
-          </div>
-        </div>
-        <button type="button" onClick={loadTeamPayments} style={secondaryButtonStyle} disabled={loading}>
-          {loading ? "Refreshing..." : "Refresh Payments"}
-        </button>
-      </div>
-
-      <form onSubmit={processTeamPayment} style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14, marginBottom: 16 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, alignItems: "end" }}>
-          <div>
-            <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>PAYING TEAM</label>
-            <select value={fromTeam} onChange={(event) => setFromTeam(event.target.value)} style={inputStyle}>
-              <option value="">Select team</option>
-              {activeTeams.map((team) => (
-                <option key={team} value={team}>{getTeamFullName(team)} — {money(financeByTeam.get(team)?.balance || 0)}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>RECEIVING TEAM</label>
-            <select value={toTeam} onChange={(event) => setToTeam(event.target.value)} style={inputStyle}>
-              <option value="">Select team</option>
-              {activeTeams.map((team) => (
-                <option key={team} value={team}>{getTeamFullName(team)} — {money(financeByTeam.get(team)?.balance || 0)}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>AMOUNT</label>
-            <input type="number" min="1" step="1" value={amount} onChange={(event) => setAmount(event.target.value)} style={inputStyle} placeholder="25000" />
-          </div>
-
-          <div>
-            <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>NOTE / REASON</label>
-            <input value={memo} onChange={(event) => setMemo(event.target.value)} style={inputStyle} placeholder="Number sale, alliance fee, buyout, etc." />
-          </div>
-        </div>
-
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginTop: 14 }}>
-          <button type="submit" style={primaryButtonStyle} disabled={submitting}>{submitting ? "Processing..." : "Process Payment"}</button>
-          {status && <div style={{ color: "#4ade80", fontWeight: 900 }}>{status}</div>}
-          {error && <div style={{ color: "#f87171", fontWeight: 900 }}>{error}</div>}
-        </div>
-      </form>
-
-      <div style={{ overflowX: "auto", marginBottom: 16 }}>
-        <table style={tableStyle}>
-          <thead>
-            <tr>
-              <th style={thStyle}>Team</th>
-              <th style={thStyle}>Balance</th>
-              <th style={thStyle}>Updated</th>
-            </tr>
-          </thead>
-          <tbody>
-            {activeTeams.map((team) => {
-              const row = financeByTeam.get(team);
-              return (
-                <tr key={team}>
-                  <td style={{ ...tdStyle, fontWeight: 900 }}>{getTeamFullName(team)}</td>
-                  <td style={{ ...tdStyle, color: row ? "#d4af37" : "#f87171", fontWeight: 900 }}>{row ? money(row.balance || 0) : "Missing finance row"}</td>
-                  <td style={tdStyle}>{row?.updated_at ? new Date(row.updated_at).toLocaleString() : "—"}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      <h3 style={{ margin: "0 0 10px" }}>Payment Log</h3>
-      <div style={{ overflowX: "auto" }}>
-        <table style={tableStyle}>
-          <thead>
-            <tr>
-              <th style={thStyle}>Date</th>
-              <th style={thStyle}>From</th>
-              <th style={thStyle}>To</th>
-              <th style={thStyle}>Amount</th>
-              <th style={thStyle}>Note</th>
-              <th style={thStyle}>Created By</th>
-            </tr>
-          </thead>
-          <tbody>
-            {paymentLog.length === 0 ? (
-              <tr><td style={tdStyle} colSpan={6}>No team payments logged yet.</td></tr>
-            ) : paymentLog.map((payment) => (
-              <tr key={payment.id || `${payment.created_at}-${payment.from_team}-${payment.to_team}-${payment.amount}`}>
-                <td style={tdStyle}>{payment.created_at ? new Date(payment.created_at).toLocaleString() : "—"}</td>
-                <td style={tdStyle}>{getTeamFullName(payment.from_team)}</td>
-                <td style={tdStyle}>{getTeamFullName(payment.to_team)}</td>
-                <td style={{ ...tdStyle, fontWeight: 900, color: "#d4af37" }}>{money(payment.amount || 0)}</td>
-                <td style={tdStyle}>{payment.reason || payment.memo || "—"}</td>
-                <td style={tdStyle}>{payment.created_by || "Admin Portal"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
 function LeagueMessageCenterLandingPage({ drivers = [] }) {
   const [selectedDriverNumber, setSelectedDriverNumber] = useState("");
   const [driverCode, setDriverCode] = useState("");
@@ -5241,6 +4971,44 @@ export default function App() {
   }, [selectedRace, activeSeasonId]); // eslint-disable-line react-hooks/exhaustive-deps
   const replaceActiveSeason = (next) => setSeasons((prev) => prev.map((s) => (s.id === activeSeasonId ? next : s)));
   const patchActiveSeason = (patch) => setSeasons((prev) => prev.map((s) => (s.id === activeSeasonId ? { ...s, ...patch } : s)));
+
+  function applyOwnerPortalTeamTransaction(action = {}) {
+    if (!action || !action.type) return;
+
+    setSeasons((prev) => prev.map((season) => {
+      if (season.id !== activeSeasonId) return season;
+
+      const nextDrivers = (season.drivers || []).map((driver) => {
+        const matchesDriver =
+          String(driver.id || "") === String(action.driver_id || action.assign_to_driver_id || "") ||
+          String(driver.number || "") === String(action.driver_number || "") ||
+          String(driver.name || "").toLowerCase() === String(action.driver_name || "").toLowerCase();
+
+        if (action.type === "driver_buyout" && matchesDriver) {
+          return {
+            ...driver,
+            team: action.new_team || driver.team,
+            manufacturer: action.new_manufacturer || driver.manufacturer,
+            number: action.new_number ? Number(action.new_number) : driver.number,
+            retired: false,
+          };
+        }
+
+        if (action.type === "number_transfer" && String(driver.id || driver.number || "") === String(action.assign_to_driver_id || "")) {
+          return {
+            ...driver,
+            team: action.to_team || driver.team,
+            number: Number(action.number || driver.number),
+            retired: false,
+          };
+        }
+
+        return driver;
+      });
+
+      return { ...season, drivers: nextDrivers };
+    }));
+  }
   async function loadPaintSchemePayoutPreview(raceNameOverride = paintPayoutRace) {
     const raceName = raceNameOverride || getPreviousCompletedRaceForPaintWinner(tracks)?.name || selectedRace || "";
     setPaintPayoutRace(raceName);
@@ -6219,7 +5987,7 @@ export default function App() {
       </>
     );
   }
-  if (path === "/owners" || path === "/team-hq") return <OwnersPage drivers={visibleDrivers} teams={teamStandings} teamBudgets={teamBudgets} raceHistory={raceHistory} seasonName={activeSeason?.name || ""} />;
+  if (path === "/owners" || path === "/team-hq") return <OwnersPage drivers={visibleDrivers} teams={teamStandings} teamBudgets={teamBudgets} raceHistory={raceHistory} seasonName={activeSeason?.name || ""} onApplyTeamTransaction={applyOwnerPortalTeamTransaction} />;
   if (path === "/contracts") return <ContractsPage drivers={visibleDrivers} />;
   if (path === "/memorial-day") return <MemorialDayPage drivers={visibleDrivers} />;
 
@@ -6289,8 +6057,6 @@ export default function App() {
         <AdminLeagueMessageComposer drivers={visibleDrivers} teams={teamStandings} />
 
         <AdminLeagueMessageDashboard drivers={visibleDrivers} teams={teamStandings} />
-
-        <TeamPaymentsAdminPanel teams={teamStandings} />
 
         <div style={sectionCardStyle}>
           <h2 style={{ marginTop: 0 }}>Team Owner Assignments</h2>
