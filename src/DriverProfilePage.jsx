@@ -744,6 +744,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
   const [startParkMessage, setStartParkMessage] = useState("");
   const [startParkError, setStartParkError] = useState("");
   const [startParkSubmitting, setStartParkSubmitting] = useState(false);
+  const [showDriverTodo, setShowDriverTodo] = useState(false);
 
   const driverAccessKey = driver ? String(driver.number) : String(driverNumber);
   const isDriverAuthorized = authorizedDriverNumber === driverAccessKey;
@@ -770,6 +771,114 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
   }, [tracks]);
 
   const selectedStartParkCutoff = getStartParkCutoffInfo(startParkForm.race_date);
+
+  const driverTodoItems = useMemo(() => {
+    const items = [];
+    const now = new Date();
+
+    (interviews || []).forEach((interview) => {
+      const answered = Boolean(interview?.answered);
+      const status = String(interview?.status || "").toLowerCase();
+      const deadline = getInterviewDeadline(interview);
+      const isLateWindow = deadline ? now.getTime() > new Date(deadline).getTime() : false;
+
+      if (!answered && status !== "complete" && status !== "paid") {
+        items.push({
+          id: `interview-${interview.id || interview.race_name || Math.random()}`,
+          icon: isLateWindow ? "⚠️" : "🎤",
+          title: isLateWindow ? "Interview Past Due" : "Interview Due",
+          detail: `${interview.type === "post" ? "Post-race" : "Pre-race"} • ${interview.race_name || "Race"} • ${formatInterviewDateTime(deadline)}`,
+          href: `/driver/${driverNumber}/interviews`,
+          priority: isLateWindow ? 1 : 2,
+        });
+      }
+    });
+
+    (driverAssignments || []).forEach((task) => {
+      const status = String(task?.status || "Assigned").toLowerCase();
+      if (!["completed", "complete", "rejected", "closed", "paid"].includes(status)) {
+        items.push({
+          id: `task-${task.id || task.title || Math.random()}`,
+          icon: "🎯",
+          title: "Driver Assignment Active",
+          detail: `${task.title || task.task_title || task.name || "Assignment"}${task.due_at ? ` • Due ${formatInterviewDateTime(task.due_at)}` : ""}`,
+          href: `/driver/${driverNumber}/assignments`,
+          priority: 3,
+        });
+      }
+    });
+
+    (contractOffers || []).forEach((offer) => {
+      const status = String(offer?.status || "").toLowerCase();
+      if (status === "pending" || status === "offered" || status === "open") {
+        items.push({
+          id: `contract-${offer.id || offer.team || Math.random()}`,
+          icon: "💰",
+          title: "Contract Offer Pending",
+          detail: `${getTeamFullName(offer.team || offer.offering_team || "") || "Team"} offer needs review`,
+          href: `/driver/${driverNumber}/contracts`,
+          priority: 4,
+        });
+      }
+    });
+
+    if (Number(unreadMessages || 0) > 0) {
+      items.push({
+        id: "unread-messages",
+        icon: "📨",
+        title: `${unreadMessages} Unread Message${Number(unreadMessages) === 1 ? "" : "s"}`,
+        detail: "Open your message center.",
+        href: `/driver/${driverNumber}/messages`,
+        priority: 5,
+      });
+    }
+
+    (startParkRequests || []).forEach((request) => {
+      const status = String(request?.status || "pending").toLowerCase();
+      if (["pending", "approved", "rejected"].includes(status)) {
+        items.push({
+          id: `start-park-${request.id || request.race_name || Math.random()}`,
+          icon: status === "pending" ? "🏁" : status === "approved" ? "✅" : "⚠️",
+          title: status === "pending" ? "Start & Park Request Pending" : status === "approved" ? "Start & Park Approved" : "Start & Park Update",
+          detail: `${request.race_name || "Race"} • ${status.toUpperCase()}`,
+          href: `/driver/${driverNumber}/start-park`,
+          priority: status === "pending" ? 6 : 7,
+        });
+      }
+    });
+
+    (teamInterestHistory || []).forEach((interest) => {
+      const status = String(interest?.status || "Open").toLowerCase();
+      if (!["closed", "complete", "completed", "rejected"].includes(status)) {
+        items.push({
+          id: `team-interest-${interest.id || interest.interested_team || Math.random()}`,
+          icon: "🤝",
+          title: "Team Interest Active",
+          detail: `${getTeamFullName(interest.interested_team || "") || "Team"} • ${interest.status || "Open"}`,
+          href: `/driver/${driverNumber}/team-interest`,
+          priority: 8,
+        });
+      }
+    });
+
+    (myAppeals || []).forEach((appeal) => {
+      const status = String(appeal?.status || "Open").toLowerCase();
+      if (!["closed", "resolved", "denied", "approved"].includes(status)) {
+        items.push({
+          id: `appeal-${appeal.id || appeal.track || Math.random()}`,
+          icon: "📋",
+          title: "Appeal Still Open",
+          detail: `${appeal.track || "Track"} • ${appeal.status || "Open"}`,
+          href: `/driver/${driverNumber}/appeals`,
+          priority: 9,
+        });
+      }
+    });
+
+    return items.sort((a, b) => a.priority - b.priority);
+  }, [interviews, driverAssignments, contractOffers, unreadMessages, startParkRequests, teamInterestHistory, myAppeals, driverNumber]);
+
+  const driverTodoCount = driverTodoItems.length;
 
   const raceBreakdown = useMemo(() => {
     if (!selectedSeason || !driver) return [];
@@ -2799,6 +2908,22 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
               <div style={{ fontSize: 12, opacity: 0.72, marginBottom: 4 }}>SEASON</div>
               <div style={{ fontSize: 16, fontWeight: 700 }}>{selectedSeason.name}</div>
               <div style={{ marginTop: 8, color: teamTheme.accent, fontSize: 13, fontWeight: 900 }}>P{driverRanking} • {calculatedStats.points} PTS</div>
+              <button
+                type="button"
+                onClick={() => setShowDriverTodo((current) => !current)}
+                style={{
+                  marginTop: 12,
+                  background: driverTodoCount > 0 ? "#ef4444" : "#222936",
+                  color: "white",
+                  border: `1px solid ${driverTodoCount > 0 ? "#fecaca" : "#3a4453"}`,
+                  borderRadius: 999,
+                  padding: "8px 12px",
+                  fontWeight: 900,
+                  cursor: "pointer",
+                }}
+              >
+                🔔 {driverTodoCount}
+              </button>
             </div>
           </div>
         </div>
@@ -2819,7 +2944,105 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
           {authorizedDriverNumber && String(authorizedDriverNumber) !== String(driver.number) && (
             <button onClick={startMessageFromProfile} style={themedPrimaryButtonStyle}>✉️ Message Driver</button>
           )}
-          <div style={{ marginLeft: "auto", background: isDriverAuthorized ? "#14532d" : "#1f2937", color: isDriverAuthorized ? "#86efac" : "#d1d5db", border: `1px solid ${isDriverAuthorized ? "#22c55e" : "#374151"}`, borderRadius: 999, padding: "8px 12px", fontSize: 12, fontWeight: 900 }}>
+          
+          <div style={{ position: "relative", marginLeft: "auto" }}>
+            <button
+              type="button"
+              onClick={() => setShowDriverTodo((current) => !current)}
+              style={{
+                ...secondaryButtonStyle,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                borderColor: driverTodoCount > 0 ? teamTheme.accent : "#3d4859",
+                boxShadow: driverTodoCount > 0 ? `0 0 18px ${teamTheme.glow}` : "none",
+              }}
+            >
+              <span style={{ fontSize: 18 }}>🔔</span>
+              <span>To-Do</span>
+              <span
+                style={{
+                  minWidth: 22,
+                  height: 22,
+                  padding: "0 7px",
+                  borderRadius: 999,
+                  background: driverTodoCount > 0 ? "#ef4444" : "#374151",
+                  color: "white",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 12,
+                  fontWeight: 900,
+                }}
+              >
+                {driverTodoCount}
+              </span>
+            </button>
+
+            {showDriverTodo && (
+              <div
+                style={{
+                  position: "absolute",
+                  right: 0,
+                  top: "calc(100% + 10px)",
+                  width: 360,
+                  maxWidth: "calc(100vw - 40px)",
+                  background: "#0f1319",
+                  border: `1px solid ${teamTheme.accent}`,
+                  borderRadius: 16,
+                  boxShadow: "0 18px 45px rgba(0,0,0,0.45)",
+                  zIndex: 9999,
+                  overflow: "hidden",
+                }}
+              >
+                <div style={{ padding: 14, borderBottom: "1px solid #2c3440", background: "#111827" }}>
+                  <div style={{ fontSize: 16, fontWeight: 900 }}>🔔 Driver To-Do Center</div>
+                  <div style={{ fontSize: 12, opacity: 0.72, marginTop: 3 }}>
+                    Interviews, assignments, messages, contracts, and request updates.
+                  </div>
+                </div>
+
+                {driverTodoItems.length === 0 ? (
+                  <div style={{ padding: 16, fontSize: 14, color: "#cbd5e1" }}>
+                    ✅ Nothing due right now.
+                  </div>
+                ) : (
+                  <div style={{ maxHeight: 380, overflowY: "auto" }}>
+                    {driverTodoItems.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => {
+                          setShowDriverTodo(false);
+                          openProtectedDriverSection(item.href);
+                        }}
+                        style={{
+                          width: "100%",
+                          display: "flex",
+                          gap: 12,
+                          textAlign: "left",
+                          background: "transparent",
+                          color: "white",
+                          border: "none",
+                          borderBottom: "1px solid #202938",
+                          padding: 14,
+                          cursor: "pointer",
+                        }}
+                      >
+                        <span style={{ fontSize: 22, lineHeight: 1 }}>{item.icon}</span>
+                        <span>
+                          <span style={{ display: "block", fontSize: 13, fontWeight: 900 }}>{item.title}</span>
+                          <span style={{ display: "block", fontSize: 12, opacity: 0.72, marginTop: 3, lineHeight: 1.35 }}>{item.detail}</span>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div style={{ background: isDriverAuthorized ? "#14532d" : "#1f2937", color: isDriverAuthorized ? "#86efac" : "#d1d5db", border: `1px solid ${isDriverAuthorized ? "#22c55e" : "#374151"}`, borderRadius: 999, padding: "8px 12px", fontSize: 12, fontWeight: 900 }}>
             {isDriverAuthorized ? "✅ Driver Access Authorized" : "🔒 Driver Access Locked"}
           </div>
           {isDriverAuthorized && <button onClick={lockDriverContracts} style={secondaryButtonStyle}>Lock Driver Access</button>}
