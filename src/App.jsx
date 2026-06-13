@@ -6072,6 +6072,94 @@ export default function App() {
     setDiscordRulesText(settings.rulesText);
     alert("Discord settings saved.");
   };
+
+  async function exportAppDataJson() {
+    const tablesToExport = [
+      "league_state",
+      "race_results",
+      "race_data_backups",
+      "interviews",
+      "driver_access_codes",
+      "team_owner_assignments",
+      "team_finances",
+      "contract_offers",
+      "technical_alliances",
+      "owner_tasks",
+      "driver_tasks",
+      "paint_scheme_votes",
+      "start_park_requests",
+      "streams",
+      "ticker_messages",
+      "app_update_banners",
+      "league_messages",
+      "appeals",
+      "story_submissions",
+      "memorial_day_tributes",
+    ];
+
+    const exportPayload = {
+      exportVersion: 1,
+      appVersion: APP_VERSION,
+      appName: "Budweiser Cup League",
+      exportedAt: new Date().toISOString(),
+      purpose: "Accurate interview, media, standings, and league storyline context",
+      activeSeasonId,
+      activeSeasonName: activeSeason?.name || "",
+      localState: {
+        tracks,
+        seasons,
+        activeSeasonId,
+        activeSeason,
+        drivers: visibleDrivers,
+        teamStandings,
+        manufacturerStandings,
+        raceHistory,
+        selectedRace,
+        ownerAssignments,
+      },
+      supabaseTables: {},
+    };
+
+    for (const table of tablesToExport) {
+      try {
+        const { data, error } = await supabase.from(table).select("*");
+
+        if (error) {
+          exportPayload.supabaseTables[table] = {
+            ok: false,
+            error: error.message,
+            rows: [],
+          };
+        } else {
+          exportPayload.supabaseTables[table] = {
+            ok: true,
+            count: Array.isArray(data) ? data.length : 0,
+            rows: data || [],
+          };
+        }
+      } catch (error) {
+        exportPayload.supabaseTables[table] = {
+          ok: false,
+          error: error?.message || String(error),
+          rows: [],
+        };
+      }
+    }
+
+    const dateStamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const blob = new Blob([JSON.stringify(exportPayload, null, 2)], {
+      type: "application/json;charset=utf-8;",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = `budweiser-cup-app-export-${dateStamp}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
   const adminProtectedPaths = new Set(["/admin", "/appeals", "/admin/stories", "/stories", "/admin/live-control", "/admin/car-gallery", "/admin/interviews"]);
   const isAdminProtectedPath = adminProtectedPaths.has(path);
   const isAdminAuthenticated = sessionStorage.getItem("bcl-admin-auth") === "true";
@@ -6284,6 +6372,9 @@ export default function App() {
               </button>
               <button onClick={() => (window.location.pathname = "/admin/interviews")} style={headerButtonStyle}>
                 🎙️ Interviews
+              </button>
+              <button onClick={exportAppDataJson} style={{ ...primaryButtonStyle, padding: "10px 14px" }}>
+                ⬇️ Export App Data JSON
               </button>
             </div>
           </div>
