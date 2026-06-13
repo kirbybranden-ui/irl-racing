@@ -188,7 +188,7 @@ const defaultDrivers = [
   { id: 2,  number: 99, name: "RookieVet99",               manufacturer: "Toyota",    team: "JAM"         },
   { id: 3,  number: 18, name: "bowhunter6758",             manufacturer: "Toyota",    team: "JAM"         },
   { id: 4,  number: 81, name: "HOLDEN2DX4EV3R",            manufacturer: "Toyota",    team: "JAM"         },
-  { id: 5,  number: 3,  name: "ixGusty",                   manufacturer: "Toyota",    team: "19XI"        },
+  { id: 5,  number: 3,  name: "ixGusty",                   manufacturer: "Toyota",    team: "Independent" },
   { id: 6,  number: 14, name: "KapSig",                    manufacturer: "Chevrolet", team: "MER"         },
   { id: 7,  number: 24, name: "KEVDINHO7",                 manufacturer: "Chevrolet", team: "KDM"         },
   { id: 8,  number: 38, name: "It's_tricky88",             manufacturer: "Chevrolet", team: "Independent" },
@@ -4603,6 +4603,177 @@ function DiscordPage() {
   );
 }
 
+
+
+const PAYMENT_COMPLIANCE_OVERRIDE_KEY = "bclPaymentComplianceOverrides";
+
+function getPaymentTimestamp(row = {}) {
+  return row.submitted_at || row.completed_at || row.uploaded_at || row.created_at || row.updated_at || row.timestamp || row.date || null;
+}
+
+function formatPaymentTimestamp(value) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZoneName: "short",
+  }).format(date);
+}
+
+function makeEasternIso(dateKey, time = "23:59") {
+  // The 2026 league schedule is during Eastern daylight time, so -04:00 keeps the deadline aligned to ET.
+  return `${dateKey}T${time}:00-04:00`;
+}
+
+function addDaysToDateKey(dateKey, days) {
+  if (!dateKey) return "";
+  const date = new Date(`${String(dateKey).slice(0, 10)}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function getWednesdayBeforeRaceDate(dateKey) {
+  if (!dateKey) return "";
+  const date = new Date(`${String(dateKey).slice(0, 10)}T12:00:00Z`);
+  const day = date.getUTCDay();
+  const daysBack = (day - 3 + 7) % 7;
+  date.setUTCDate(date.getUTCDate() - daysBack);
+  return date.toISOString().slice(0, 10);
+}
+
+function getRecordRaceName(row = {}) {
+  return String(row.race_name || row.raceName || row.track_name || row.track || row.race || row.event_name || row.event || "").trim();
+}
+
+function getRecordDriverNumber(row = {}) {
+  return String(row.driver_number || row.driverNumber || row.number || row.car_number || row.carNumber || row.driver_num || "").trim();
+}
+
+function getRecordDriverName(row = {}) {
+  return String(row.driver_name || row.driverName || row.name || row.uploader_name || row.submitted_by || row.author_name || "").trim().toLowerCase();
+}
+
+function getRecordTeam(row = {}) {
+  return String(row.team || row.team_key || row.team_abbr || row.team_name || "").trim();
+}
+
+function getInterviewKind(row = {}) {
+  const raw = String(row.interview_type || row.type || row.category || row.kind || row.phase || row.title || row.prompt_type || "").toLowerCase();
+  if (raw.includes("pre")) return "pre";
+  if (raw.includes("post")) return "post";
+  return "";
+}
+
+function interviewLooksAnswered(row = {}) {
+  if (row.completed === true || row.submitted === true) return true;
+  const status = String(row.status || "").toLowerCase();
+  if (["answered", "complete", "completed", "submitted", "posted"].includes(status)) return true;
+  const answerFields = [row.answer, row.answers, row.response, row.responses, row.body, row.notes, row.content];
+  return answerFields.some((value) => {
+    if (Array.isArray(value)) return value.length > 0;
+    if (value && typeof value === "object") return Object.keys(value).length > 0;
+    return String(value || "").trim().length > 0;
+  });
+}
+
+function recordMatchesDriver(row = {}, driver = {}) {
+  const number = getRecordDriverNumber(row);
+  const name = getRecordDriverName(row);
+  const team = getRecordTeam(row);
+  return (
+    (number && String(driver.number) === number) ||
+    (name && String(driver.name || "").trim().toLowerCase() === name) ||
+    (team && String(driver.team || "") === team && !number && !name)
+  );
+}
+
+function recordMatchesRace(row = {}, raceName = "") {
+  const rowRace = getRecordRaceName(row).toLowerCase();
+  const wanted = String(raceName || "").trim().toLowerCase();
+  if (!wanted) return true;
+  if (!rowRace) return true;
+  return rowRace === wanted;
+}
+
+function getTeamPaymentOverride(overrides = [], teamKey = "", periodKey = "") {
+  return (overrides || []).find((item) => String(item.team_key || item.team || "") === String(teamKey) && String(item.period_key || item.periodKey || "") === String(periodKey));
+}
+
+function buildPaymentComplianceRows({ teams = [], drivers = [], interviews = [], carUploads = [], overrides = [], previousRace = null, upcomingRace = null }) {
+  const previousRaceDate = previousRace?.date || "";
+  const upcomingRaceDate = upcomingRace?.date || "";
+  const previousRaceName = previousRace?.name || "";
+  const upcomingRaceName = upcomingRace?.name || "";
+  const paymentPeriodKey = `${previousRaceName || "no-previous"}__${upcomingRaceName || "no-upcoming"}`;
+  const paintDeadlineIso = upcomingRaceDate ? makeEasternIso(getWednesdayBeforeRaceDate(upcomingRaceDate), "23:59") : "";
+  const postDeadlineIso = previousRaceDate ? makeEasternIso(addDaysToDateKey(previousRaceDate, 4), "23:59") : "";
+  const preDeadlineIso = upcomingRaceDate ? makeEasternIso(String(upcomingRaceDate).slice(0, 10), "20:30") : "";
+
+  const eligibleTeams = (teams || [])
+    .filter((team) => team?.team && team.team !== "Independent" && team.team !== "IND")
+    .sort((a, b) => getTeamFullName(a.team).localeCompare(getTeamFullName(b.team)));
+
+  return eligibleTeams.map((team) => {
+    const teamDrivers = (drivers || [])
+      .filter((driver) => !driver.retired && !isInactivePlaceholderDriver(driver) && String(driver.team || "") === String(team.team))
+      .sort((a, b) => Number(a.number || 9999) - Number(b.number || 9999));
+
+    const driverChecks = teamDrivers.map((driver) => {
+      const paintRecord = (carUploads || [])
+        .filter((row) => recordMatchesDriver(row, driver) && recordMatchesRace(row, upcomingRaceName))
+        .sort((a, b) => new Date(getPaymentTimestamp(b) || 0) - new Date(getPaymentTimestamp(a) || 0))[0] || null;
+      const postRecord = (interviews || [])
+        .filter((row) => getInterviewKind(row) === "post" && interviewLooksAnswered(row) && recordMatchesDriver(row, driver) && recordMatchesRace(row, previousRaceName))
+        .sort((a, b) => new Date(getPaymentTimestamp(b) || 0) - new Date(getPaymentTimestamp(a) || 0))[0] || null;
+      const preRecord = (interviews || [])
+        .filter((row) => getInterviewKind(row) === "pre" && interviewLooksAnswered(row) && recordMatchesDriver(row, driver) && recordMatchesRace(row, upcomingRaceName))
+        .sort((a, b) => new Date(getPaymentTimestamp(b) || 0) - new Date(getPaymentTimestamp(a) || 0))[0] || null;
+
+      const paintAt = getPaymentTimestamp(paintRecord);
+      const postAt = getPaymentTimestamp(postRecord);
+      const preAt = getPaymentTimestamp(preRecord);
+
+      return {
+        driver,
+        paintAt,
+        postAt,
+        preAt,
+        paintMet: !!paintAt && (!paintDeadlineIso || new Date(paintAt) <= new Date(paintDeadlineIso)),
+        postMet: !!postAt && (!postDeadlineIso || new Date(postAt) <= new Date(postDeadlineIso)),
+        preMet: !!preAt && (!preDeadlineIso || new Date(preAt) <= new Date(preDeadlineIso)),
+      };
+    });
+
+    const baseMet = teamDrivers.length > 0 && driverChecks.every((check) => check.paintMet && check.postMet && check.preMet);
+    const override = getTeamPaymentOverride(overrides, team.team, paymentPeriodKey);
+    const overrideStatus = override?.override_status || override?.status || "";
+    const finalEligible = overrideStatus === "approved" ? true : overrideStatus === "denied" ? false : baseMet;
+
+    return {
+      teamKey: team.team,
+      teamName: getTeamFullName(team.team),
+      driverCount: teamDrivers.length,
+      driverChecks,
+      previousRaceName,
+      upcomingRaceName,
+      paymentPeriodKey,
+      paintDeadlineIso,
+      postDeadlineIso,
+      preDeadlineIso,
+      baseMet,
+      finalEligible,
+      override,
+      overrideStatus,
+    };
+  });
+}
+
 export default function App() {
   const [seasons, setSeasons] = useState([]);
   const [openAppealCount, setOpenAppealCount] = useState(0);
@@ -4661,6 +4832,16 @@ export default function App() {
   const [paintPayoutStatus, setPaintPayoutStatus] = useState("");
   const [paintPayoutError, setPaintPayoutError] = useState("");
   const [paintPayoutLoading, setPaintPayoutLoading] = useState(false);
+  const [paymentComplianceRows, setPaymentComplianceRows] = useState([]);
+  const [paymentComplianceInterviews, setPaymentComplianceInterviews] = useState([]);
+  const [paymentComplianceUploads, setPaymentComplianceUploads] = useState([]);
+  const [paymentComplianceOverrides, setPaymentComplianceOverrides] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(PAYMENT_COMPLIANCE_OVERRIDE_KEY) || "[]"); }
+    catch { return []; }
+  });
+  const [paymentComplianceLoading, setPaymentComplianceLoading] = useState(false);
+  const [paymentComplianceStatus, setPaymentComplianceStatus] = useState("");
+  const [paymentComplianceError, setPaymentComplianceError] = useState("");
   const [ownerAccessCodes, setOwnerAccessCodes] = useState(() => {
     try {
       const saved = localStorage.getItem("ownerPortalAccessCodes");
@@ -5006,6 +5187,8 @@ export default function App() {
   }, []);
   useEffect(() => {
     loadTickerMessages();
+    loadPaymentComplianceData();
+    loadOwnerAssignments();
   }, []);
 
   useEffect(() => {
@@ -5482,6 +5665,23 @@ export default function App() {
   const currentLeader = sortedDrivers[0] || null;
   const latestRace = raceHistory.length > 0 ? raceHistory[raceHistory.length - 1] : null;
   const latestWinner = latestRace?.results?.find((r) => r.finishPos === 1) || null;
+
+  const previousRaceForPayment = useMemo(() => {
+    const lastPostedRace = raceHistory.length > 0 ? raceHistory[raceHistory.length - 1] : null;
+    if (!lastPostedRace) return null;
+    const track = tracks.find((item) => item.name === lastPostedRace.raceName) || {};
+    return { name: lastPostedRace.raceName, date: track.date || lastPostedRace.raceDate || lastPostedRace.date || lastPostedRace.postedAt || lastPostedRace.savedAt || "" };
+  }, [raceHistory, tracks]);
+  const upcomingRaceForPayment = useMemo(() => getUpcomingRaceByDate(tracks) || tracks[0] || null, [tracks]);
+  const paymentComplianceSummary = useMemo(() => buildPaymentComplianceRows({
+    teams: teamStandings,
+    drivers: visibleDrivers,
+    interviews: paymentComplianceInterviews,
+    carUploads: paymentComplianceUploads,
+    overrides: paymentComplianceOverrides,
+    previousRace: previousRaceForPayment,
+    upcomingRace: upcomingRaceForPayment,
+  }), [teamStandings, visibleDrivers, paymentComplianceInterviews, paymentComplianceUploads, paymentComplianceOverrides, previousRaceForPayment, upcomingRaceForPayment]);
   const saveOwnerAccessCodes = (nextCodes) => {
     setOwnerAccessCodes(nextCodes);
     localStorage.setItem("ownerPortalAccessCodes", JSON.stringify(nextCodes));
@@ -6160,6 +6360,159 @@ export default function App() {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   }
+
+  async function loadPaymentComplianceData() {
+    setPaymentComplianceLoading(true);
+    setPaymentComplianceError("");
+    setPaymentComplianceStatus("");
+
+    const [{ data: interviewsData, error: interviewsError }, { data: uploadData, error: uploadError }, { data: overrideData, error: overrideError }] = await Promise.all([
+      supabase.from("interviews").select("*").order("created_at", { ascending: false }),
+      supabase.from("car_uploads").select("*").order("uploaded_at", { ascending: false }),
+      supabase.from("team_payment_overrides").select("*").order("updated_at", { ascending: false }),
+    ]);
+
+    if (interviewsError || uploadError) {
+      console.error("Could not load payment compliance data:", interviewsError || uploadError);
+      setPaymentComplianceError("Could not load interviews or paint uploads. Check interviews/car_uploads select policies.");
+    }
+
+    if (overrideError) {
+      console.warn("Could not load team_payment_overrides; using local browser overrides instead.", overrideError);
+    } else {
+      setPaymentComplianceOverrides(overrideData || []);
+      localStorage.setItem(PAYMENT_COMPLIANCE_OVERRIDE_KEY, JSON.stringify(overrideData || []));
+    }
+
+    setPaymentComplianceInterviews(interviewsData || []);
+    setPaymentComplianceUploads(uploadData || []);
+    setPaymentComplianceLoading(false);
+    setPaymentComplianceStatus("Payment compliance tracker refreshed.");
+  }
+
+  async function savePaymentComplianceOverride(row, status) {
+    const cleanStatus = status === "approved" || status === "denied" ? status : "";
+    const payload = {
+      team_key: row.teamKey,
+      team_name: row.teamName,
+      period_key: row.paymentPeriodKey,
+      previous_race: row.previousRaceName || null,
+      upcoming_race: row.upcomingRaceName || null,
+      override_status: cleanStatus,
+      override_reason: cleanStatus ? `Admin ${cleanStatus} payment override` : "Override cleared",
+      updated_at: new Date().toISOString(),
+    };
+
+    const nextLocal = [payload, ...(paymentComplianceOverrides || []).filter((item) => !(String(item.team_key || item.team) === String(row.teamKey) && String(item.period_key || item.periodKey) === String(row.paymentPeriodKey)))].filter((item) => item.override_status);
+    setPaymentComplianceOverrides(nextLocal);
+    localStorage.setItem(PAYMENT_COMPLIANCE_OVERRIDE_KEY, JSON.stringify(nextLocal));
+
+    if (!cleanStatus) {
+      const { error } = await supabase
+        .from("team_payment_overrides")
+        .delete()
+        .eq("team_key", row.teamKey)
+        .eq("period_key", row.paymentPeriodKey);
+      if (error) console.warn("Could not clear override from Supabase; local override was cleared.", error);
+      setPaymentComplianceStatus(`Payment override cleared for ${row.teamName}.`);
+      return;
+    }
+
+    const { error } = await supabase
+      .from("team_payment_overrides")
+      .upsert(payload, { onConflict: "team_key,period_key" });
+
+    if (error) {
+      console.warn("Could not save override to Supabase; saved locally in this browser.", error);
+      setPaymentComplianceStatus(`Payment override saved locally for ${row.teamName}. Create/check team_payment_overrides to sync it.`);
+      return;
+    }
+
+    setPaymentComplianceStatus(`Payment override saved for ${row.teamName}.`);
+  }
+
+  function PaymentCompliancePanel({ mode = "admin" }) {
+    const rows = paymentComplianceSummary;
+    const allMet = rows.length > 0 && rows.every((row) => row.finalEligible);
+    const isAdminMode = mode === "admin";
+
+    return (
+      <div style={sectionCardStyle}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+          <div>
+            <h2 style={{ margin: 0 }}>Team Payment Compliance</h2>
+            <p style={{ opacity: 0.75, margin: "8px 0 0", lineHeight: 1.45 }}>
+              Paint schemes and previous-race post interviews are due Wednesday at 11:59 PM ET. Upcoming-race pre interviews are due Saturday at 8:30 PM ET.
+            </p>
+          </div>
+          <button type="button" onClick={loadPaymentComplianceData} style={primaryButtonStyle} disabled={paymentComplianceLoading}>
+            {paymentComplianceLoading ? "Refreshing..." : "Refresh Payment Tracker"}
+          </button>
+        </div>
+
+        <div style={{ marginTop: 14, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
+          <div style={statBoxStyle}><div style={{ opacity: 0.7, fontSize: 12, fontWeight: 900 }}>PREVIOUS RACE</div><div style={{ fontSize: 18, fontWeight: 900 }}>{previousRaceForPayment?.name || "—"}</div></div>
+          <div style={statBoxStyle}><div style={{ opacity: 0.7, fontSize: 12, fontWeight: 900 }}>UPCOMING RACE</div><div style={{ fontSize: 18, fontWeight: 900 }}>{upcomingRaceForPayment?.name || "—"}</div></div>
+          <div style={statBoxStyle}><div style={{ opacity: 0.7, fontSize: 12, fontWeight: 900 }}>ALL TEAMS MET TIMELINES?</div><div style={{ fontSize: 18, fontWeight: 900, color: allMet ? "#4ade80" : "#f87171" }}>{allMet ? "YES" : "NO"}</div></div>
+        </div>
+
+        {paymentComplianceStatus && <div style={{ color: "#4ade80", marginTop: 12, fontWeight: 900 }}>{paymentComplianceStatus}</div>}
+        {paymentComplianceError && <div style={{ color: "#f87171", marginTop: 12, fontWeight: 900 }}>{paymentComplianceError}</div>}
+
+        <div style={{ overflowX: "auto", marginTop: 16 }}>
+          <table style={tableStyle}>
+            <thead>
+              <tr>
+                <th style={thStyle}>Team</th>
+                <th style={thStyle}>Final Pay Status</th>
+                <th style={thStyle}>Paint Scheme Deadline</th>
+                <th style={thStyle}>Post Interview Deadline</th>
+                <th style={thStyle}>Pre Interview Deadline</th>
+                <th style={thStyle}>Driver Timestamp Details</th>
+                {isAdminMode && <th style={thStyle}>Override</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.length === 0 ? (
+                <tr><td style={tdStyle} colSpan={isAdminMode ? 7 : 6}>No team compliance data loaded yet. Click refresh.</td></tr>
+              ) : rows.map((row) => (
+                <tr key={row.teamKey}>
+                  <td style={{ ...tdStyle, fontWeight: 900 }}>{row.teamName}</td>
+                  <td style={{ ...tdStyle, color: row.finalEligible ? "#4ade80" : "#f87171", fontWeight: 1000 }}>
+                    {row.finalEligible ? "QUALIFIED" : "NOT QUALIFIED"}
+                    {row.overrideStatus && <div style={{ fontSize: 12, color: "#facc15", marginTop: 4 }}>Override: {row.overrideStatus.toUpperCase()}</div>}
+                  </td>
+                  <td style={tdStyle}>{formatPaymentTimestamp(row.paintDeadlineIso)}</td>
+                  <td style={tdStyle}>{formatPaymentTimestamp(row.postDeadlineIso)}</td>
+                  <td style={tdStyle}>{formatPaymentTimestamp(row.preDeadlineIso)}</td>
+                  <td style={{ ...tdStyle, minWidth: 420 }}>
+                    {row.driverChecks.map((check) => (
+                      <div key={check.driver.id} style={{ marginBottom: 10, paddingBottom: 8, borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+                        <div style={{ fontWeight: 900 }}>#{check.driver.number} {check.driver.name}</div>
+                        <div style={{ fontSize: 12, opacity: 0.84 }}>Paint: <b style={{ color: check.paintMet ? "#4ade80" : "#f87171" }}>{check.paintMet ? "MET" : "MISSED"}</b> — {formatPaymentTimestamp(check.paintAt)}</div>
+                        <div style={{ fontSize: 12, opacity: 0.84 }}>Post: <b style={{ color: check.postMet ? "#4ade80" : "#f87171" }}>{check.postMet ? "MET" : "MISSED"}</b> — {formatPaymentTimestamp(check.postAt)}</div>
+                        <div style={{ fontSize: 12, opacity: 0.84 }}>Pre: <b style={{ color: check.preMet ? "#4ade80" : "#f87171" }}>{check.preMet ? "MET" : "MISSED"}</b> — {formatPaymentTimestamp(check.preAt)}</div>
+                      </div>
+                    ))}
+                  </td>
+                  {isAdminMode && (
+                    <td style={tdStyle}>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <button type="button" onClick={() => savePaymentComplianceOverride(row, "approved")} style={{ ...primaryButtonStyle, padding: "8px 10px" }}>Approve Pay</button>
+                        <button type="button" onClick={() => savePaymentComplianceOverride(row, "denied")} style={{ ...dangerButtonStyle, padding: "8px 10px" }}>Deny Pay</button>
+                        <button type="button" onClick={() => savePaymentComplianceOverride(row, "")} style={{ ...secondaryButtonStyle, padding: "8px 10px" }}>Clear</button>
+                      </div>
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  }
+
   const adminProtectedPaths = new Set(["/admin", "/appeals", "/admin/stories", "/stories", "/admin/live-control", "/admin/car-gallery", "/admin/interviews"]);
   const isAdminProtectedPath = adminProtectedPaths.has(path);
   const isAdminAuthenticated = sessionStorage.getItem("bcl-admin-auth") === "true";
@@ -6310,7 +6663,25 @@ export default function App() {
       </>
     );
   }
-  if (path === "/owners" || path === "/team-hq") return <OwnersPage drivers={visibleDrivers} teams={teamStandings} teamBudgets={teamBudgets} raceHistory={raceHistory} seasonName={activeSeason?.name || ""} tracks={tracks} onApplyTeamTransaction={applyOwnerPortalTeamTransaction} />;
+  if (path === "/owners" || path === "/team-hq") return (
+    <>
+      <OwnersPage
+        drivers={visibleDrivers}
+        teams={teamStandings}
+        teamBudgets={teamBudgets}
+        raceHistory={raceHistory}
+        seasonName={activeSeason?.name || ""}
+        tracks={tracks}
+        paymentCompliance={paymentComplianceSummary}
+        onApplyTeamTransaction={applyOwnerPortalTeamTransaction}
+      />
+      <div style={{ ...appShellStyle, padding: "0 20px 20px" }}>
+        <div style={{ maxWidth: 1400, margin: "0 auto" }}>
+          <PaymentCompliancePanel mode="team" />
+        </div>
+      </div>
+    </>
+  );
   if (path === "/contracts") return <ContractsPage drivers={visibleDrivers} />;
   if (path === "/memorial-day") return <MemorialDayPage drivers={visibleDrivers} />;
 
@@ -6383,6 +6754,8 @@ export default function App() {
         <AdminLeagueMessageComposer drivers={visibleDrivers} teams={teamStandings} />
 
         <AdminLeagueMessageDashboard drivers={visibleDrivers} teams={teamStandings} />
+
+        <PaymentCompliancePanel mode="admin" />
 
         <div style={sectionCardStyle}>
           <h2 style={{ marginTop: 0 }}>Team Owner Assignments</h2>
