@@ -2996,7 +2996,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
                 }}
               >
                 <div style={{ padding: 14, borderBottom: "1px solid #2c3440", background: "#111827" }}>
-                  <div style={{ fontSize: 16, fontWeight: 900 }}>🔔 Driver To-Do Center</div>
+                  <div style={{ fontSize: 24, fontWeight: 900 }}>🔔 Driver To-Do Center</div>
                   <div style={{ fontSize: 12, opacity: 0.72, marginTop: 3 }}>
                     Interviews, assignments, messages, contracts, and request updates.
                   </div>
