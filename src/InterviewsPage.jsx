@@ -13,6 +13,86 @@ const blueButtonStyle = { background: "#2563eb", color: "white", border: "none",
 const greenButtonStyle = { background: "#16a34a", color: "white", border: "none", borderRadius: 10, padding: "10px 18px", fontWeight: 700, cursor: "pointer" };
 const exportButtonStyle = { background: "#1e293b", color: "#d4af37", border: "1px solid #d4af37", borderRadius: 8, padding: "6px 12px", fontWeight: 700, cursor: "pointer", fontSize: 12 };
 
+const INTERVIEW_DEFAULT_BONUS = 25000;
+
+const teamFullNames = {
+  JAM: "JA Motorsports",
+  MER: "ME Racing",
+  MMS: "Mayhem Motorsports",
+  NLM: "Nine Line Motorsports",
+  BOM: "Blue Oval Motorsports",
+  WSM: "Wyatt Sick6 Motorsports",
+  "19XI": "19XI Racing",
+  "19XI Racing": "19XI Racing",
+  BWR: "Big Wheel Racing",
+  KDM: "Kev Din Motorsports",
+  BMX: "BayouX Motorsports",
+  BXM: "BayouX Motorsports",
+  "BayouX Motorsports": "BayouX Motorsports",
+  Independent: "Independent",
+  IND: "Independent",
+};
+
+const TEAM_STARTING_FUNDS = { 1: 300000, 2: 700000, 3: 1000000, 4: 1500000 };
+const TEAM_BUDGET_OVERRIDES = { JAM: 5000000, BXM: 700000, BMX: 700000, "BayouX Motorsports": 700000 };
+
+function getTeamFullName(team) {
+  return teamFullNames[team] || team || "Independent";
+}
+
+function getTeamStartingBudget(driverCount, teamName = "") {
+  if (TEAM_BUDGET_OVERRIDES[teamName]) return TEAM_BUDGET_OVERRIDES[teamName];
+  if (driverCount <= 0) return 0;
+  return TEAM_STARTING_FUNDS[driverCount] || TEAM_STARTING_FUNDS[4];
+}
+
+function money(value) {
+  const safe = Number(value) || 0;
+  return safe.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+}
+
+function formatDateTime(value) {
+  if (!value) return "No deadline set";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleString();
+}
+
+function toIsoOrNull(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
+function getInterviewDeadline(interview) {
+  return interview?.deadline_at || interview?.due_at || interview?.deadlineAt || null;
+}
+
+function getInterviewSubmittedAt(interview) {
+  return interview?.submitted_at || interview?.submittedAt || interview?.answered_at || interview?.updated_at || null;
+}
+
+function isInterviewOnTime(interview) {
+  const deadline = getInterviewDeadline(interview);
+  const submittedAt = getInterviewSubmittedAt(interview);
+  if (!interview?.answered || !submittedAt) return false;
+  if (!deadline) return true;
+  return new Date(submittedAt).getTime() <= new Date(deadline).getTime();
+}
+
+function getInterviewAdminStatus(interview) {
+  if (interview?.paid || interview?.payment_status === "paid") return { label: "PAID", color: "#4ade80", bg: "#14532d" };
+  if (interview?.completed || interview?.status === "complete" || interview?.status === "completed") return { label: "COMPLETE", color: "#93c5fd", bg: "#1e3a8a" };
+  if (interview?.answered) {
+    if (!isInterviewOnTime(interview)) return { label: "LATE / UNPAID", color: "#f87171", bg: "#3f1212" };
+    return { label: "SUBMITTED", color: "#facc15", bg: "#3a2a00" };
+  }
+  const deadline = getInterviewDeadline(interview);
+  if (deadline && new Date().getTime() > new Date(deadline).getTime()) return { label: "MISSING", color: "#f87171", bg: "#3f1212" };
+  return { label: "OPEN", color: "#93c5fd", bg: "#172554" };
+}
+
+
 const emptyQuestions = () => ["", "", ""];
 
 const removedDriverNumbers = new Set(["16"]);
@@ -219,6 +299,9 @@ export default function InterviewsPage({ drivers = [], tracks = [], seasons = []
   const [selectedRace, setSelectedRace] = useState("");
   const [interviewType, setInterviewType] = useState("pre");
   const [questions, setQuestions] = useState(emptyQuestions());
+  const [deadlineAt, setDeadlineAt] = useState("");
+  const [interviewBonus, setInterviewBonus] = useState(INTERVIEW_DEFAULT_BONUS);
+  const [processingInterviewId, setProcessingInterviewId] = useState(null);
 
   // Auto-detect next upcoming race
   const nextRace = useMemo(() => {
@@ -295,6 +378,14 @@ export default function InterviewsPage({ drivers = [], tracks = [], seasons = []
       questions_and_answers: qa,
       answered: false,
       generated_at: new Date().toISOString(),
+      deadline_at: toIsoOrNull(deadlineAt),
+      due_at: toIsoOrNull(deadlineAt),
+      bonus_amount: Math.max(0, Number(interviewBonus) || 0),
+      status: "open",
+      completed: false,
+      paid: false,
+      payment_status: "unpaid",
+      team: driver.team || "Independent",
     }).select().single();
 
     if (error) {
@@ -305,6 +396,158 @@ export default function InterviewsPage({ drivers = [], tracks = [], seasons = []
       setSaveStatus(`✅ Questions published to ${driver.name}'s profile! Waiting for their answers.`);
     }
     setSaving(false);
+  }
+
+  function getDriverTeam(driver) {
+    return driver?.team || "Independent";
+  }
+
+  function getFinanceKeysForTeam(team) {
+    return Array.from(new Set([team, getTeamFullName(team)].filter(Boolean).map((value) => String(value).trim())));
+  }
+
+  async function loadFinanceRowForTeam(team) {
+    const financeKeys = getFinanceKeysForTeam(team);
+    const { data, error } = await supabase
+      .from("team_finances")
+      .select("*")
+      .in("team", financeKeys)
+      .order("updated_at", { ascending: false })
+      .limit(1);
+
+    if (error) {
+      console.error(`Failed to load finance row for ${team}:`, error);
+      return null;
+    }
+
+    return Array.isArray(data) && data.length ? data[0] : null;
+  }
+
+  async function ensureFinanceRowForTeam(team) {
+    const existing = await loadFinanceRowForTeam(team);
+    if (existing?.id) return existing;
+
+    const teamDriverCount = (drivers || []).filter((driver) => String(driver?.team || "") === String(team)).length;
+    const startingBalance = Math.max(getTeamStartingBudget(teamDriverCount, team), 700000);
+
+    const { data: createdRow, error } = await supabase
+      .from("team_finances")
+      .insert([{
+        team,
+        balance: startingBalance,
+        payroll_spent: 0,
+        signing_bonus_spent: 0,
+        buyout_spent: 0,
+        number_pool_spent: 0,
+        updated_at: new Date().toISOString(),
+      }])
+      .select("*")
+      .maybeSingle();
+
+    if (error) {
+      console.error(`Could not create finance row for ${team}:`, error);
+      return null;
+    }
+
+    return createdRow || null;
+  }
+
+  async function markCompleteAndPay(interview) {
+    if (!interview?.id) return;
+    if (!interview.answered) {
+      setSaveStatus("⚠️ This interview has not been submitted yet, so it cannot be paid.");
+      return;
+    }
+    if (!isInterviewOnTime(interview)) {
+      setSaveStatus("⚠️ This interview was submitted late, so the team is not eligible for payment.");
+      return;
+    }
+    if (interview.paid || interview.payment_status === "paid") {
+      setSaveStatus("⚠️ This interview has already been paid.");
+      return;
+    }
+
+    const driver = (drivers || []).find((item) => String(item.id) === String(interview.driver_id) || String(item.number) === String(interview.driver_number));
+    const team = interview.team || getDriverTeam(driver);
+    const amount = Math.max(0, Number(interview.bonus_amount ?? interview.payment_amount ?? INTERVIEW_DEFAULT_BONUS) || 0);
+
+    if (!team || team === "Independent") {
+      setSaveStatus("⚠️ This driver is not attached to a paid team, so no team payment was made.");
+      return;
+    }
+    if (amount <= 0) {
+      setSaveStatus("⚠️ Bonus amount must be greater than $0 before payment can be processed.");
+      return;
+    }
+
+    setProcessingInterviewId(interview.id);
+    setSaveStatus("");
+
+    const financeRow = await ensureFinanceRowForTeam(team);
+    if (!financeRow?.id) {
+      setProcessingInterviewId(null);
+      setSaveStatus("❌ Could not find or create this team's finance row. Check team_finances insert/select policies.");
+      return;
+    }
+
+    const timestamp = new Date().toISOString();
+    const nextBalance = Number(financeRow.balance || 0) + amount;
+
+    const { error: financeError } = await supabase
+      .from("team_finances")
+      .update({ balance: nextBalance, updated_at: timestamp })
+      .eq("id", financeRow.id);
+
+    if (financeError) {
+      console.error("Could not pay interview bonus:", financeError);
+      setProcessingInterviewId(null);
+      setSaveStatus("❌ Interview was not paid. Check team_finances update policy.");
+      return;
+    }
+
+    const paymentPayload = {
+      completed: true,
+      completed_at: timestamp,
+      status: "complete",
+      paid: true,
+      paid_at: timestamp,
+      paid_amount: amount,
+      payment_status: "paid",
+      team,
+    };
+
+    const { data: updatedInterview, error: interviewError } = await supabase
+      .from("interviews")
+      .update(paymentPayload)
+      .eq("id", interview.id)
+      .select()
+      .single();
+
+    if (interviewError) {
+      console.error("Team was paid but interview could not be marked paid:", interviewError);
+      setSaveStatus("⚠️ Team was paid, but the interview record was not marked paid. Check interviews table columns/RLS.");
+      await loadInterviews();
+      setProcessingInterviewId(null);
+      return;
+    }
+
+    await supabase.from("team_payment_logs").insert([{
+      from_team: "Budweiser Cup League",
+      to_team: team,
+      amount,
+      reason: `Interview bonus: #${interview.driver_number} ${interview.driver_name} — ${interview.race_name} ${interview.type}-race`,
+      deal_type: "Interview Bonus",
+      driver_id: interview.driver_id || null,
+      driver_name: interview.driver_name || null,
+      number: interview.driver_number || null,
+      request_id: interview.id,
+      created_by: "League Admin",
+      created_at: timestamp,
+    }]);
+
+    setInterviews((prev) => prev.map((item) => item.id === interview.id ? updatedInterview : item));
+    setProcessingInterviewId(null);
+    setSaveStatus(`✅ Marked complete and paid ${money(amount)} to ${getTeamFullName(team)}.`);
   }
 
   // ─── Export handlers ──────────────────────────────────────────────────────
@@ -393,6 +636,8 @@ export default function InterviewsPage({ drivers = [], tracks = [], seasons = []
     if (filterType && i.type !== filterType) return false;
     if (filterAnswered === "answered" && !i.answered) return false;
     if (filterAnswered === "pending" && i.answered) return false;
+    if (filterAnswered === "paid" && !(i.paid || i.payment_status === "paid")) return false;
+    if (filterAnswered === "unpaid" && (!i.answered || i.paid || i.payment_status === "paid")) return false;
     return true;
   });
 
@@ -462,6 +707,16 @@ export default function InterviewsPage({ drivers = [], tracks = [], seasons = []
                 <button onClick={() => setInterviewType("post")} style={{ ...(interviewType === "post" ? greenButtonStyle : secondaryButtonStyle), flex: 1, fontSize: 13 }}>🏆 Post</button>
               </div>
             </div>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Submission Deadline</div>
+              <input type="datetime-local" value={deadlineAt} onChange={(e) => setDeadlineAt(e.target.value)} style={inputStyle} />
+              <div style={{ fontSize: 11, opacity: 0.6, marginTop: 5 }}>Drivers must submit before this time to be eligible for admin-approved payment.</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Team Bonus</div>
+              <input type="number" min="0" step="1000" value={interviewBonus} onChange={(e) => setInterviewBonus(e.target.value)} style={inputStyle} />
+              <div style={{ fontSize: 11, opacity: 0.6, marginTop: 5 }}>Paid only after you click Mark Complete & Pay Team.</div>
+            </div>
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 20 }}>
@@ -485,7 +740,7 @@ export default function InterviewsPage({ drivers = [], tracks = [], seasons = []
             <button style={{ ...primaryButtonStyle, opacity: saving ? 0.6 : 1 }} disabled={saving} onClick={publishQuestions}>
               {saving ? "Posting..." : "📤 Post Questions to Driver"}
             </button>
-            <button style={secondaryButtonStyle} onClick={() => { setQuestions(emptyQuestions()); setSaveStatus(""); }}>Clear</button>
+            <button style={secondaryButtonStyle} onClick={() => { setQuestions(emptyQuestions()); setDeadlineAt(""); setInterviewBonus(INTERVIEW_DEFAULT_BONUS); setSaveStatus(""); }}>Clear</button>
           </div>
 
           {saveStatus && (
@@ -563,6 +818,8 @@ export default function InterviewsPage({ drivers = [], tracks = [], seasons = []
                 <option value="">All</option>
                 <option value="answered">Answered</option>
                 <option value="pending">Pending</option>
+                <option value="paid">Paid</option>
+                <option value="unpaid">Unpaid Submitted</option>
               </select>
             </div>
             <div style={{ display: "flex", alignItems: "flex-end" }}>
@@ -591,6 +848,11 @@ export default function InterviewsPage({ drivers = [], tracks = [], seasons = []
                   const isPre = interview.type === "pre";
                   const qa = Array.isArray(interview.questions_and_answers) ? interview.questions_and_answers : [];
                   const isAnswered = interview.answered;
+                  const adminStatus = getInterviewAdminStatus(interview);
+                  const deadline = getInterviewDeadline(interview);
+                  const submittedAt = getInterviewSubmittedAt(interview);
+                  const bonusAmount = Math.max(0, Number(interview.bonus_amount ?? interview.payment_amount ?? INTERVIEW_DEFAULT_BONUS) || 0);
+                  const canPay = isAnswered && isInterviewOnTime(interview) && !(interview.paid || interview.payment_status === "paid");
                   return (
                     <div key={interview.id} style={{ background: "#0f1319", border: `1px solid ${isAnswered ? (isPre ? "#1e3a6e" : "#1a5c30") : "#3a3a1a"}`, borderRadius: 12, padding: 16 }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14, flexWrap: "wrap", gap: 8 }}>
@@ -603,8 +865,16 @@ export default function InterviewsPage({ drivers = [], tracks = [], seasons = []
                             <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 6, background: isAnswered ? "#14532d" : "#3a2a00", color: isAnswered ? "#4ade80" : "#f59e0b" }}>
                               {isAnswered ? "✅ Answered" : "⏳ Awaiting Answer"}
                             </span>
+                            <span style={{ fontSize: 11, fontWeight: 900, padding: "2px 8px", borderRadius: 6, background: adminStatus.bg, color: adminStatus.color }}>
+                              {adminStatus.label}
+                            </span>
                           </div>
-                          <div style={{ fontSize: 11, opacity: 0.5 }}>{new Date(interview.generated_at).toLocaleString()}</div>
+                          <div style={{ fontSize: 11, opacity: 0.62, lineHeight: 1.6 }}>
+                            Posted: {interview.generated_at ? new Date(interview.generated_at).toLocaleString() : "—"}<br />
+                            Deadline: {formatDateTime(deadline)}<br />
+                            Submitted: {submittedAt ? formatDateTime(submittedAt) : "Not submitted"}<br />
+                            Team bonus: {money(bonusAmount)} {interview.paid || interview.payment_status === "paid" ? `· Paid ${interview.paid_at ? formatDateTime(interview.paid_at) : ""}` : "· Not paid"}
+                          </div>
                         </div>
                         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                           {isAnswered && (
@@ -613,6 +883,18 @@ export default function InterviewsPage({ drivers = [], tracks = [], seasons = []
                               <button onClick={() => exportInterviewImage(interview)} style={exportButtonStyle} title="Download as image card">🖼️ Image</button>
                               <button onClick={() => setPreviewInterview(interview)} style={exportButtonStyle} title="Preview image card">👁️ Preview</button>
                             </>
+                          )}
+                          {canPay && (
+                            <button
+                              onClick={() => markCompleteAndPay(interview)}
+                              disabled={processingInterviewId === interview.id}
+                              style={{ ...greenButtonStyle, padding: "6px 12px", fontSize: 12, opacity: processingInterviewId === interview.id ? 0.6 : 1 }}
+                            >
+                              {processingInterviewId === interview.id ? "Paying..." : "✅ Mark Complete & Pay Team"}
+                            </button>
+                          )}
+                          {isAnswered && !canPay && !(interview.paid || interview.payment_status === "paid") && (
+                            <span style={{ alignSelf: "center", fontSize: 11, color: "#f87171", fontWeight: 800 }}>Not eligible for payment</span>
                           )}
                           <button onClick={() => deleteInterview(interview.id)} style={dangerButtonStyle}>Delete</button>
                         </div>
