@@ -4607,8 +4607,27 @@ function DiscordPage() {
 
 const PAYMENT_COMPLIANCE_OVERRIDE_KEY = "bclPaymentComplianceOverrides";
 
-function getPaymentTimestamp(row = {}) {
-  return row.submitted_at || row.completed_at || row.uploaded_at || row.created_at || row.updated_at || row.timestamp || row.date || null;
+function getPaymentTimestamp(row) {
+  if (!row || typeof row !== "object") return null;
+  return (
+    row.submitted_at ||
+    row.submittedAt ||
+    row.completed_at ||
+    row.completedAt ||
+    row.uploaded_at ||
+    row.uploadedAt ||
+    row.created_at ||
+    row.createdAt ||
+    row.updated_at ||
+    row.updatedAt ||
+    row.timestamp ||
+    row.date ||
+    row.inserted_at ||
+    row.insertedAt ||
+    row.published_at ||
+    row.publishedAt ||
+    null
+  );
 }
 
 function formatPaymentTimestamp(value) {
@@ -4648,22 +4667,27 @@ function getWednesdayBeforeRaceDate(dateKey) {
 }
 
 function getRecordRaceName(row = {}) {
+  row = row || {};
   return String(row.race_name || row.raceName || row.track_name || row.track || row.race || row.event_name || row.event || "").trim();
 }
 
 function getRecordDriverNumber(row = {}) {
+  row = row || {};
   return String(row.driver_number || row.driverNumber || row.number || row.car_number || row.carNumber || row.driver_num || "").trim();
 }
 
 function getRecordDriverName(row = {}) {
+  row = row || {};
   return String(row.driver_name || row.driverName || row.name || row.uploader_name || row.submitted_by || row.author_name || "").trim().toLowerCase();
 }
 
 function getRecordTeam(row = {}) {
+  row = row || {};
   return String(row.team || row.team_key || row.team_abbr || row.team_name || "").trim();
 }
 
 function getInterviewKind(row = {}) {
+  row = row || {};
   const raw = String(row.interview_type || row.type || row.category || row.kind || row.phase || row.title || row.prompt_type || "").toLowerCase();
   if (raw.includes("pre")) return "pre";
   if (raw.includes("post")) return "post";
@@ -4671,6 +4695,7 @@ function getInterviewKind(row = {}) {
 }
 
 function interviewLooksAnswered(row = {}) {
+  row = row || {};
   if (row.completed === true || row.submitted === true) return true;
   const status = String(row.status || "").toLowerCase();
   if (["answered", "complete", "completed", "submitted", "posted"].includes(status)) return true;
@@ -4706,6 +4731,9 @@ function getTeamPaymentOverride(overrides = [], teamKey = "", periodKey = "") {
 }
 
 function buildPaymentComplianceRows({ teams = [], drivers = [], interviews = [], carUploads = [], overrides = [], previousRace = null, upcomingRace = null }) {
+  interviews = (Array.isArray(interviews) ? interviews : []).filter((row) => row && typeof row === "object");
+  carUploads = (Array.isArray(carUploads) ? carUploads : []).filter((row) => row && typeof row === "object");
+  overrides = (Array.isArray(overrides) ? overrides : []).filter((row) => row && typeof row === "object");
   const previousRaceDate = previousRace?.date || "";
   const upcomingRaceDate = upcomingRace?.date || "";
   const previousRaceName = previousRace?.name || "";
@@ -6366,10 +6394,12 @@ export default function App() {
     setPaymentComplianceError("");
     setPaymentComplianceStatus("");
 
+    // Do not order in Supabase here because some league tables use submitted_at instead of created_at.
+    // We pull rows first, then sort in the browser using every supported timestamp field.
     const [{ data: interviewsData, error: interviewsError }, { data: uploadData, error: uploadError }, { data: overrideData, error: overrideError }] = await Promise.all([
-      supabase.from("interviews").select("*").order("created_at", { ascending: false }),
-      supabase.from("car_uploads").select("*").order("uploaded_at", { ascending: false }),
-      supabase.from("team_payment_overrides").select("*").order("updated_at", { ascending: false }),
+      supabase.from("interviews").select("*"),
+      supabase.from("car_uploads").select("*"),
+      supabase.from("team_payment_overrides").select("*"),
     ]);
 
     if (interviewsError || uploadError) {
@@ -6384,8 +6414,12 @@ export default function App() {
       localStorage.setItem(PAYMENT_COMPLIANCE_OVERRIDE_KEY, JSON.stringify(overrideData || []));
     }
 
-    setPaymentComplianceInterviews(interviewsData || []);
-    setPaymentComplianceUploads(uploadData || []);
+    const sortNewest = (rows = []) => (Array.isArray(rows) ? rows : [])
+      .filter((row) => row && typeof row === "object")
+      .sort((a, b) => new Date(getPaymentTimestamp(b) || 0) - new Date(getPaymentTimestamp(a) || 0));
+
+    setPaymentComplianceInterviews(sortNewest(interviewsData));
+    setPaymentComplianceUploads(sortNewest(uploadData));
     setPaymentComplianceLoading(false);
     setPaymentComplianceStatus("Payment compliance tracker refreshed.");
   }
