@@ -424,12 +424,33 @@ function normalizeDriverProfileRaceHistory(raceHistory = []) {
   }));
 }
 
+
+function getInterviewDeadline(interview) {
+  return interview?.deadline_at || interview?.due_at || interview?.deadlineAt || null;
+}
+
+function formatInterviewDateTime(value) {
+  if (!value) return "No deadline set";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleString();
+}
+
+function isDriverInterviewLate(interview, submittedAt = new Date()) {
+  const deadline = getInterviewDeadline(interview);
+  if (!deadline) return false;
+  return new Date(submittedAt).getTime() > new Date(deadline).getTime();
+}
+
 function InterviewAnswerCard({ interview, onAnswered, accent = "#d4af37" }) {
   const isPre = interview.type === "pre";
   const qa = Array.isArray(interview.questions_and_answers) ? interview.questions_and_answers : [];
   const [answers, setAnswers] = useState(() => qa.map((q) => q.answer || ""));
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(interview.answered || false);
+  const deadline = getInterviewDeadline(interview);
+  const submittedAt = interview.submitted_at || interview.answered_at || interview.updated_at || null;
+  const wasLate = submitted ? isDriverInterviewLate(interview, submittedAt || new Date()) : isDriverInterviewLate(interview, new Date());
 
   async function submitAnswers() {
     const filled = answers.every((a, i) => !qa[i].question || a.trim());
@@ -440,9 +461,17 @@ function InterviewAnswerCard({ interview, onAnswered, accent = "#d4af37" }) {
 
     setSubmitting(true);
     const updated = qa.map((q, i) => ({ question: q.question, answer: answers[i].trim() }));
+    const nowIso = new Date().toISOString();
+    const late = isDriverInterviewLate(interview, nowIso);
     const { data, error } = await supabase
       .from("interviews")
-      .update({ questions_and_answers: updated, answered: true })
+      .update({
+        questions_and_answers: updated,
+        answered: true,
+        submitted_at: nowIso,
+        status: late ? "late" : "submitted",
+        payment_status: "unpaid",
+      })
       .eq("id", interview.id)
       .select()
       .single();
@@ -463,7 +492,11 @@ function InterviewAnswerCard({ interview, onAnswered, accent = "#d4af37" }) {
           {isPre ? "🎤 PRE-RACE" : "🏆 POST-RACE"}
         </span>
         <span style={{ fontSize: 14, fontWeight: 700 }}>{interview.race_name}</span>
-        {submitted && <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 6, background: "#14532d", color: "#4ade80", marginLeft: "auto" }}>✅ Submitted</span>}
+        {submitted && <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 6, background: wasLate ? "#3f1212" : "#14532d", color: wasLate ? "#f87171" : "#4ade80", marginLeft: "auto" }}>{wasLate ? "⚠️ Submitted Late" : "✅ Submitted"}</span>}
+      </div>
+      <div style={{ background: "#0b1017", border: "1px solid #2c3440", borderRadius: 10, padding: "10px 12px", marginBottom: 14, fontSize: 12, lineHeight: 1.5 }}>
+        <strong>Deadline:</strong> {formatInterviewDateTime(deadline)}<br />
+        <span style={{ opacity: 0.72 }}>Team bonus is only paid if you submit on time and league admin marks the interview complete.</span>
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
