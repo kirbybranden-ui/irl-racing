@@ -13,6 +13,8 @@ import teamLogoKDM from "../assets/teams/KDM.png";
 import teamLogoBXM from "../assets/teams/BXM.png";
 
 const ADMIN_ACCESS_CODE = "BCLADMINPASSWORD2026";
+const JPC_RACING_YOUTUBE_URL = "https://youtube.com/@jpc_racing/live";
+const JPC_RACING_PROFILE_URL = "https://youtube.com/@jpc_racing";
 
 const teamLogos = {
   JAM: teamLogoJAM,
@@ -33,8 +35,8 @@ const teamLogos = {
   "19XI Racing": teamLogo19XI,
   BWR: teamLogoBWR,
   "Big Wheel Racing": teamLogoBWR,
-  KDM: teamLogoKDM,
-  "Kev Din Motorsports": teamLogoKDM,
+  KDM: teamLogoMER,
+  "ME Racing": teamLogoMER,
   BMX: teamLogoBXM,
   BXM: teamLogoBXM,
   "BayouX Motorsports": teamLogoBXM,
@@ -42,11 +44,12 @@ const teamLogos = {
 
 const teamFullNames = {
   JAM: "JA Motorsports",
+    MER: "ME Racing",
     NLM: "Nine Line Motorsports",
   MMS: "Mayhem Motorsports",
   BOM: "Blue Oval Motorsports",
     BWR: "Big Wheel Racing",
-  KDM: "Kev Din Motorsports",
+  KDM: "ME Racing",
   BMX: "BayouX Motorsports",
   BXM: "BayouX Motorsports",
   "19XI": "19XI Racing",
@@ -78,7 +81,7 @@ function normalize(value) {
 }
 
 
-const CLOSED_TEAM_KEYS = new Set(["MER", "ME RACING", "ME Racing", "WSM", "WYATT SICK6 MOTORSPORTS", "Wyatt Sick6 Motorsports"]);
+const CLOSED_TEAM_KEYS = new Set(["WSM", "WYATT SICK6 MOTORSPORTS", "Wyatt Sick6 Motorsports"]);
 const OUT_DRIVER_IDS = new Set([13, 28, 66]);
 const OUT_DRIVER_NAMES = new Set(["racingis_life87", "vanilla04gorilla", "undeadhelliday", "vtfan_25"]);
 
@@ -87,9 +90,10 @@ function realignLeagueDriver(driver) {
   const id = Number(driver.id ?? driver.driver_id);
   const nameKey = String(driver.name ?? driver.driver_name ?? "").trim().toLowerCase();
   if (OUT_DRIVER_IDS.has(id) || OUT_DRIVER_NAMES.has(nameKey)) return null;
-  if (id === 6 || nameKey === "kapsig") return { ...driver, number: 14, team: "KDM", manufacturer: "Chevrolet" };
+  if (id === 6 || nameKey === "kapsig") return { ...driver, number: 14, team: "MER", manufacturer: "Chevrolet" };
+  if (id === 7 || id === 46 || nameKey === "kevdinho7" || nameKey === "bigdiehl21") return { ...driver, team: "MER", manufacturer: "Chevrolet" };
   if (id === 5 || nameKey === "ixgusty") return { ...driver, number: 3, team: "19XI", manufacturer: "Toyota" };
-  if (id === 21 || nameKey === "yinzermob_86") return { ...driver, number: 86, team: "Independent", manufacturer: "Chevrolet" };
+  if (id === 21 || nameKey === "yinzermob_86") return { ...driver, number: 86, team: "MER", manufacturer: "Chevrolet" };
   if (id === 34 || nameKey === "cajunthrottle28") return { ...driver, number: 48, driver_number: driver.driver_number !== undefined ? 48 : driver.driver_number, team: "BXM", manufacturer: "Chevrolet" };
   if (id === 54 || id === 35 || id === 102 || ["thecruiser54", "knighttrain41", "ghostracer388"].includes(nameKey)) return { ...driver, team: "BXM", manufacturer: "Chevrolet" };
   if (CLOSED_TEAM_KEYS.has(String(driver.team || "").trim())) return { ...driver, team: "Independent" };
@@ -140,9 +144,15 @@ function getTwitchEmbed(channel) {
   return `https://player.twitch.tv/?channel=${encodeURIComponent(clean)}&parent=${hostname}`;
 }
 
+function isYouTubeChannelLiveUrl(urlOrId) {
+  const raw = String(urlOrId || "").trim().toLowerCase();
+  return raw.includes("youtube.com/@") && raw.endsWith("/live");
+}
+
 function getYouTubeEmbed(urlOrId) {
   if (!urlOrId) return "";
   const raw = String(urlOrId).trim();
+  if (isYouTubeChannelLiveUrl(raw)) return "";
   let id = raw;
 
   try {
@@ -160,7 +170,7 @@ function getYouTubeEmbed(urlOrId) {
 
 function getExternalLink(stream) {
   const platform = String(stream?.platform || "twitch").toLowerCase();
-  if (platform === "youtube") return stream.youtube_url || stream.stream_url || "";
+  if (platform === "youtube") return stream.youtube_url || stream.stream_url || stream.channel_name || "";
   const channel = stream.channel_name || stream.stream_url || "";
   if (String(channel).startsWith("http")) return channel;
   return channel ? `https://www.twitch.tv/${channel}` : "";
@@ -237,16 +247,49 @@ export default function StreamPage({
     setBanners(data || []);
   }
 
+  const streamsWithDefaults = useMemo(() => {
+    const hasJpc = streams.some((stream) => {
+      const number = String(stream.driver_number || stream.number || "").trim();
+      const name = normalize(stream.driver_name || stream.display_name || stream.title || stream.name);
+      return number === "97" || name.includes("jpc_racing") || name.includes("jpc racing");
+    });
+
+    if (hasJpc) return streams;
+
+    return [
+      ...streams,
+      {
+        id: "jpc-racing-youtube-fallback",
+        driver_id: 27,
+        driver_number: "97",
+        driver_name: "JPC_Racing",
+        display_name: "#97 JPC_Racing",
+        title: "JPC_Racing YouTube Live",
+        team: "BWR",
+        manufacturer: "Ford",
+        platform: "youtube",
+        stream_type: "driver",
+        channel_name: JPC_RACING_PROFILE_URL,
+        stream_url: JPC_RACING_YOUTUBE_URL,
+        youtube_url: JPC_RACING_YOUTUBE_URL,
+        race_name: activeRace?.name || selectedTrack?.name || null,
+        is_active: true,
+        featured: false,
+        fallback: true,
+      },
+    ];
+  }, [streams, activeRace?.name, selectedTrack?.name]);
+
   const sortedDrivers = useMemo(() => {
     return [...drivers].sort((a, b) => (Number(b.points) || 0) - (Number(a.points) || 0));
   }, [drivers]);
 
   const driverStreamRows = useMemo(() => {
     return sortedDrivers.map((driver) => {
-      const stream = streams.find((item) => {
+      const stream = streamsWithDefaults.find((item) => {
         const streamDriver = getStreamDriver(item, drivers);
         return streamDriver && String(streamDriver.id) === String(driver.id);
-      }) || streams.find((item) => String(item.driver_number || "") === String(driver.number || ""));
+      }) || streamsWithDefaults.find((item) => String(item.driver_number || "") === String(driver.number || ""));
 
       return {
         driver,
@@ -256,9 +299,9 @@ export default function StreamPage({
         manufacturer: driver.manufacturer || stream?.manufacturer || "",
       };
     });
-  }, [sortedDrivers, streams, drivers]);
+  }, [sortedDrivers, streamsWithDefaults, drivers]);
 
-  const activeStreams = streams.filter((stream) => stream.is_active !== false);
+  const activeStreams = streamsWithDefaults.filter((stream) => stream.is_active !== false);
 
   const featuredStreams = useMemo(() => {
     const featured = activeStreams.filter((stream) => stream.featured || stream.stream_type === "official" || stream.stream_type === "watch_party");
@@ -272,21 +315,21 @@ export default function StreamPage({
 
   const teamOptions = useMemo(() => {
     const teamSet = new Set();
-    [...drivers, ...streams].forEach((item) => {
+    [...drivers, ...streamsWithDefaults].forEach((item) => {
       const team = item.team || getStreamDriver(item, drivers)?.team;
       if (team && team !== "Independent" && team !== "IND") teamSet.add(team);
     });
     return Array.from(teamSet).sort((a, b) => getTeamFullName(a).localeCompare(getTeamFullName(b)));
-  }, [drivers, streams]);
+  }, [drivers, streamsWithDefaults]);
 
   const manufacturerOptions = useMemo(() => {
     const mfrSet = new Set();
-    [...drivers, ...streams].forEach((item) => {
+    [...drivers, ...streamsWithDefaults].forEach((item) => {
       const mfr = item.manufacturer || getStreamDriver(item, drivers)?.manufacturer;
       if (mfr) mfrSet.add(mfr);
     });
     return Array.from(mfrSet).sort();
-  }, [drivers, streams]);
+  }, [drivers, streamsWithDefaults]);
 
   const filteredRows = useMemo(() => {
     const rows = driverStreamRows.filter(({ driver, team, manufacturer }) => {
@@ -442,6 +485,10 @@ export default function StreamPage({
 
   async function setFeaturedStream(stream) {
     setAdminError("");
+    if (stream.fallback) {
+      setSelectedFeaturedId(String(stream.id));
+      return;
+    }
     const { error: clearError } = await supabase.from("streams").update({ featured: false }).neq("id", "00000000-0000-0000-0000-000000000000");
     if (clearError) console.warn("Could not clear featured streams:", clearError);
 
@@ -512,12 +559,20 @@ export default function StreamPage({
             {selectedFeatured ? (
               <>
                 <div style={styles.featuredPlayer}>
-                  <iframe
-                    src={getEmbedSrc(selectedFeatured)}
-                    title={selectedFeatured.display_name || selectedFeatured.title || "Featured Broadcast"}
-                    style={{ width: "100%", height: "100%", border: "none" }}
-                    allowFullScreen
-                  />
+                  {getEmbedSrc(selectedFeatured) ? (
+                    <iframe
+                      src={getEmbedSrc(selectedFeatured)}
+                      title={selectedFeatured.display_name || selectedFeatured.title || "Featured Broadcast"}
+                      style={{ width: "100%", height: "100%", border: "none" }}
+                      allowFullScreen
+                    />
+                  ) : (
+                    <div style={styles.youtubeFallback}>
+                      <div style={{ fontSize: 22, fontWeight: 900, marginBottom: 8 }}>YouTube channel live link</div>
+                      <p style={{ color: "#94a3b8", maxWidth: 520, textAlign: "center" }}>YouTube handle live pages cannot always be embedded without a video ID. Open the live page to see whether JPC_Racing is currently broadcasting.</p>
+                      <a href={getExternalLink(selectedFeatured)} target="_blank" rel="noreferrer" style={styles.watchButton}>Open YouTube Live</a>
+                    </div>
+                  )}
                 </div>
 
                 <div style={styles.featuredFooter}>
@@ -864,6 +919,7 @@ const styles = {
   redBadge: { background: "#d71920", color: "white", padding: "7px 12px", borderRadius: 999, fontSize: 12, fontWeight: 900 },
   darkBadge: { background: "#263140", color: "white", padding: "7px 12px", borderRadius: 999, fontSize: 12, fontWeight: 900 },
   featuredPlayer: { height: 460, background: "#000", borderRadius: 14, overflow: "hidden", border: "1px solid #263140" },
+  youtubeFallback: { height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, background: "#07090d" },
   featuredFooter: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginTop: 12, flexWrap: "wrap" },
   featuredTitle: { fontSize: 19, fontWeight: 900 },
   featuredMeta: { color: "#94a3b8", fontSize: 13, marginTop: 3 },
