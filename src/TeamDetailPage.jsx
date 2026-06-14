@@ -46,7 +46,7 @@ function normalize(value) {
 }
 
 
-const CLOSED_TEAM_KEYS = new Set(["MER", "ME RACING", "ME Racing", "WSM", "WYATT SICK6 MOTORSPORTS", "Wyatt Sick6 Motorsports"]);
+const CLOSED_TEAM_KEYS = new Set(["WSM", "WYATT SICK6 MOTORSPORTS", "Wyatt Sick6 Motorsports"]);
 const OUT_DRIVER_IDS = new Set([13, 28, 66]);
 const OUT_DRIVER_NAMES = new Set(["racingis_life87", "vanilla04gorilla", "undeadhelliday", "vtfan_25"]);
 
@@ -55,9 +55,10 @@ function realignLeagueDriver(driver) {
   const id = Number(driver.id ?? driver.driver_id);
   const nameKey = String(driver.name ?? driver.driver_name ?? "").trim().toLowerCase();
   if (OUT_DRIVER_IDS.has(id) || OUT_DRIVER_NAMES.has(nameKey)) return null;
-  if (id === 6 || nameKey === "kapsig") return { ...driver, number: 14, team: "KDM", manufacturer: "Chevrolet" };
+  if (id === 6 || nameKey === "kapsig") return { ...driver, number: 14, team: "MER", manufacturer: "Chevrolet" };
+  if (id === 7 || id === 46 || nameKey === "kevdinho7" || nameKey === "bigdiehl21") return { ...driver, team: "MER", manufacturer: "Chevrolet" };
   if (id === 5 || nameKey === "ixgusty") return { ...driver, number: 3, team: "19XI", manufacturer: "Toyota" };
-  if (id === 21 || nameKey === "yinzermob_86") return { ...driver, number: 86, team: "Independent", manufacturer: "Chevrolet" };
+  if (id === 21 || nameKey === "yinzermob_86") return { ...driver, number: 86, team: "MER", manufacturer: "Chevrolet" };
   if (id === 34 || nameKey === "cajunthrottle28") return { ...driver, number: 48, driver_number: driver.driver_number !== undefined ? 48 : driver.driver_number, team: "BXM", manufacturer: "Chevrolet" };
   if (id === 54 || id === 35 || id === 102 || ["thecruiser54", "knighttrain41", "ghostracer388"].includes(nameKey)) return { ...driver, team: "BXM", manufacturer: "Chevrolet" };
   if (CLOSED_TEAM_KEYS.has(String(driver.team || "").trim())) return { ...driver, team: "Independent" };
@@ -72,11 +73,12 @@ function realignLeagueDrivers(drivers = []) {
 function getTeamFullName(team) {
   const names = {
     JAM: "JA Motorsports",
+    MER: "ME Racing",
         MMS: "Mayhem Motorsports",
     NLM: "Nine Line Motorsports",
     BOM: "Blue Oval Motorsports",
         BWR: "Big Wheel Racing",
-    KDM: "Kev Din Motorsports",
+    KDM: "ME Racing",
     BMX: "BayouX Motorsports",
     "BayouX Motorsports": "BayouX Motorsports",
     "19XI": "19XI Racing",
