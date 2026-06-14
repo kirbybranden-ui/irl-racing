@@ -105,6 +105,7 @@ const teamLogos = {
 
 const teamFullNames = {
   JAM: "JA Motorsports",
+    MER: "ME Racing",
     MMS: "Mayhem Motorsports",
   NLM: "Nine Line Motorsports",
   BOM: "Blue Oval Motorsports",
@@ -131,6 +132,7 @@ const ownerNames = {
   BMX: "Cajun",
   BXM: "Cajun",
   "BayouX Motorsports": "Cajun",
+  MER: "Kevdinho",
   KDM: "Kevdinho",
 };
 
@@ -210,6 +212,7 @@ const OWNER_DRIVER_KEYS = {
   BMX: ["48", "CaJunThrottle28", "cajunthrottle28", "cajun"],
   BXM: ["48", "CaJunThrottle28", "cajunthrottle28", "cajun"],
   "BayouX Motorsports": ["48", "CaJunThrottle28", "cajunthrottle28", "cajun"],
+  MER: ["24", "KEVDINHO7", "kevdinho7", "kevdinho"],
   KDM: ["24", "KEVDINHO7", "kevdinho7", "kevdinho"],
 };
 
@@ -223,6 +226,7 @@ const OWNER_DRIVER_FALLBACK_CODES = {
   BMX: "CAJUNTHROT-VAKNYX",
   BXM: "CAJUNTHROT-VAKNYX",
   "BayouX Motorsports": "CAJUNTHROT-VAKNYX",
+  MER: "KEVDINHO7-ZSDV6Y",
   KDM: "KEVDINHO7-ZSDV6Y",
 };
 
