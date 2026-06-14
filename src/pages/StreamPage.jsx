@@ -42,12 +42,10 @@ const teamLogos = {
 
 const teamFullNames = {
   JAM: "JA Motorsports",
-  MER: "ME Racing",
-  NLM: "Nine Line Motorsports",
+    NLM: "Nine Line Motorsports",
   MMS: "Mayhem Motorsports",
   BOM: "Blue Oval Motorsports",
-  WSM: "Wyatt Sick6 Motorsports",
-  BWR: "Big Wheel Racing",
+    BWR: "Big Wheel Racing",
   KDM: "Kev Din Motorsports",
   BMX: "BayouX Motorsports",
   BXM: "BayouX Motorsports",
@@ -79,6 +77,30 @@ function normalize(value) {
   return String(value || "").trim().toLowerCase();
 }
 
+
+const CLOSED_TEAM_KEYS = new Set(["MER", "ME RACING", "ME Racing", "WSM", "WYATT SICK6 MOTORSPORTS", "Wyatt Sick6 Motorsports"]);
+const OUT_DRIVER_IDS = new Set([13, 28, 66]);
+const OUT_DRIVER_NAMES = new Set(["racingis_life87", "vanilla04gorilla", "undeadhelliday", "vtfan_25"]);
+
+function realignLeagueDriver(driver) {
+  if (!driver) return null;
+  const id = Number(driver.id ?? driver.driver_id);
+  const nameKey = String(driver.name ?? driver.driver_name ?? "").trim().toLowerCase();
+  if (OUT_DRIVER_IDS.has(id) || OUT_DRIVER_NAMES.has(nameKey)) return null;
+  if (id === 6 || nameKey === "kapsig") return { ...driver, number: 14, team: "JAM", manufacturer: "Toyota" };
+  if (id === 5 || nameKey === "ixgusty") return { ...driver, number: 3, team: "19XI", manufacturer: "Toyota" };
+  if (id === 21 || nameKey === "yinzermob_86") return { ...driver, number: 86, team: "Independent", manufacturer: "Chevrolet" };
+  if (id === 34 || nameKey === "cajunthrottle28") return { ...driver, number: 48, driver_number: driver.driver_number !== undefined ? 48 : driver.driver_number, team: "BXM", manufacturer: "Chevrolet" };
+  if (id === 54 || id === 35 || id === 102 || ["thecruiser54", "knighttrain41", "ghostracer388"].includes(nameKey)) return { ...driver, team: "BXM", manufacturer: "Chevrolet" };
+  if (CLOSED_TEAM_KEYS.has(String(driver.team || "").trim())) return { ...driver, team: "Independent" };
+  return driver;
+}
+
+function realignLeagueDrivers(drivers = []) {
+  return (Array.isArray(drivers) ? drivers : []).map(realignLeagueDriver).filter(Boolean);
+}
+
+
 function getTeamFullName(team) {
   return teamFullNames[team] || team || "Independent";
 }
@@ -98,7 +120,7 @@ function parseBoolean(value) {
   return Boolean(value);
 }
 
-function getStreamDriver(stream, drivers = []) {
+function getStreamDriver(stream, activeDrivers = []) {
   const driverNumber = String(stream?.driver_number || stream?.number || "").trim();
   const driverId = String(stream?.driver_id || "").trim();
   const driverName = normalize(stream?.driver_name || stream?.display_name || stream?.name);
@@ -175,6 +197,8 @@ export default function StreamPage({
   const [adminMessage, setAdminMessage] = useState("");
   const [adminError, setAdminError] = useState("");
   const [busy, setBusy] = useState(false);
+
+  const activeDrivers = useMemo(() => realignLeagueDrivers(drivers), [drivers]);
 
   useEffect(() => {
     loadStreams();
@@ -325,7 +349,7 @@ export default function StreamPage({
   }
 
   function editStream(stream) {
-    const driver = getStreamDriver(stream, drivers);
+    const driver = getStreamDriver(stream, activeDrivers);
     setStreamForm({
       ...DEFAULT_STREAM_FORM,
       id: stream.id || "",
