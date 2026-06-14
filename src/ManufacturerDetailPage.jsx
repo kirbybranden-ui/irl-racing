@@ -5,12 +5,16 @@ const cardStyle = { background: "#151a22", border: "1px solid #2d3643", borderRa
 const thStyle = { textAlign: "left", padding: 10, borderBottom: "1px solid #313947", background: "#10141b", fontSize: 13 };
 const tdStyle = { padding: 10, borderBottom: "1px solid #252c38", verticalAlign: "top", fontSize: 14 };
 function normalize(value) { return String(value || "").trim().toLowerCase(); }
+const OUT_DRIVER_IDS = new Set([13, 28, 66]);
+const OUT_DRIVER_NAMES = new Set(["racingis_life87", "vanilla04gorilla", "undeadhelliday", "vtfan_25"]);
+function realignLeagueDriver(driver) { const id = Number(driver?.id ?? driver?.driver_id); const nameKey = String(driver?.name ?? driver?.driver_name ?? "").trim().toLowerCase(); if (OUT_DRIVER_IDS.has(id) || OUT_DRIVER_NAMES.has(nameKey)) return null; if (id === 6 || nameKey === "kapsig") return { ...driver, number: 14, team: "JAM", manufacturer: "Toyota" }; if (id === 5 || nameKey === "ixgusty") return { ...driver, number: 3, team: "19XI", manufacturer: "Toyota" }; if (id === 21 || nameKey === "yinzermob_86") return { ...driver, number: 86, team: "Independent", manufacturer: "Chevrolet" }; if (id === 34 || nameKey === "cajunthrottle28") return { ...driver, number: 48, team: "BXM", manufacturer: "Chevrolet" }; if (id === 54 || id === 35 || id === 102 || ["thecruiser54", "knighttrain41", "ghostracer388"].includes(nameKey)) return { ...driver, team: "BXM", manufacturer: "Chevrolet" }; return driver; }
+function realignLeagueDrivers(drivers = []) { return (Array.isArray(drivers) ? drivers : []).map(realignLeagueDriver).filter(Boolean); }
 
 export default function ManufacturerDetailPage({ drivers = [], manufacturerDrivers = [], manufacturerStandings = [], standings = [], selectedStanding = null, manufacturer = null, initialManufacturer = "", selectedManufacturer = "", seasonName = "" }) {
   const manufacturerKey = normalize(selectedManufacturer || initialManufacturer || selectedStanding?.manufacturer || manufacturer?.manufacturer);
   const standingsSource = manufacturerStandings.length ? manufacturerStandings : standings;
   const standing = selectedStanding || manufacturer || standingsSource.find((m) => normalize(m.manufacturer) === manufacturerKey) || null;
-  const roster = (manufacturerDrivers.length ? manufacturerDrivers : drivers.filter((d) => normalize(d.manufacturer) === manufacturerKey))
+  const roster = (manufacturerDrivers.length ? manufacturerDrivers : realignLeagueDrivers(drivers).filter((d) => normalize(d.manufacturer) === manufacturerKey))
     .filter((d) => !normalize(d.name).startsWith("inactive-"))
     .sort((a, b) => (b.points || 0) - (a.points || 0) || Number(a.number || 0) - Number(b.number || 0));
   const fallbackStanding = { manufacturer: selectedManufacturer || initialManufacturer || "Unknown Manufacturer", points: roster.reduce((sum, d) => sum + (d.points || 0), 0), wins: roster.reduce((sum, d) => sum + (d.wins || 0), 0), top3: roster.reduce((sum, d) => sum + (d.top3 || 0), 0), top5: roster.reduce((sum, d) => sum + (d.top5 || 0), 0), drivers: roster.length };
