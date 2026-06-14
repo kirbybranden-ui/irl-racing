@@ -87,7 +87,7 @@ function realignLeagueDriver(driver) {
   const id = Number(driver.id ?? driver.driver_id);
   const nameKey = String(driver.name ?? driver.driver_name ?? "").trim().toLowerCase();
   if (OUT_DRIVER_IDS.has(id) || OUT_DRIVER_NAMES.has(nameKey)) return null;
-  if (id === 6 || nameKey === "kapsig") return { ...driver, number: 14, team: "JAM", manufacturer: "Toyota" };
+  if (id === 6 || nameKey === "kapsig") return { ...driver, number: 14, team: "KDM", manufacturer: "Chevrolet" };
   if (id === 5 || nameKey === "ixgusty") return { ...driver, number: 3, team: "19XI", manufacturer: "Toyota" };
   if (id === 21 || nameKey === "yinzermob_86") return { ...driver, number: 86, team: "Independent", manufacturer: "Chevrolet" };
   if (id === 34 || nameKey === "cajunthrottle28") return { ...driver, number: 48, driver_number: driver.driver_number !== undefined ? 48 : driver.driver_number, team: "BXM", manufacturer: "Chevrolet" };
