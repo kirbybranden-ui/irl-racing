@@ -125,7 +125,7 @@ function getStreamDriver(stream, activeDrivers = []) {
   const driverId = String(stream?.driver_id || "").trim();
   const driverName = normalize(stream?.driver_name || stream?.display_name || stream?.name);
 
-  return drivers.find((driver) => {
+  return activeDrivers.find((driver) => {
     if (driverId && String(driver.id) === driverId) return true;
     if (driverNumber && String(driver.number) === driverNumber) return true;
     if (driverName && normalize(driver.name) === driverName) return true;
