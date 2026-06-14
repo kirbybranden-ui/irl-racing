@@ -28,8 +28,8 @@ const teamLogos = {
   "19XI Racing": teamLogo19XI,
   "Big Wheel Racing": teamLogoBWR,
   BWR: teamLogoBWR,
-  "Kev Din Motorsports": teamLogoKDM,
-  KDM: teamLogoKDM,
+  "ME Racing": teamLogoMER,
+  KDM: teamLogoMER,
   BMX: teamLogoBXM,
   BXM: teamLogoBXM,
   "BayouX Motorsports": teamLogoBXM,
@@ -37,9 +37,11 @@ const teamLogos = {
 
 const teamFullNames = {
   JAM: "JA Motorsports",
+    MER: "ME Racing",
   "JA MOTORSPORTS": "JA Motorsports",
+  MER: "ME Racing",
     KRM: "Kevin Racing Motorsports",
-  KDM: "Kev Din Motorsports",
+  KDM: "ME Racing",
   MMS: "Mayhem Motorsports",
   NLM: "Nine Line Motorsports",
   BOM: "Blue Oval Motorsports",
@@ -49,7 +51,7 @@ const teamFullNames = {
   "19XI Racing": "19XI Racing",
   BWR: "Big Wheel Racing",
   "Big Wheel Racing": "Big Wheel Racing",
-  "Kev Din Motorsports": "Kev Din Motorsports",
+  "ME Racing": "ME Racing",
   BMX: "BayouX Motorsports",
   BXM: "BayouX Motorsports",
   "BayouX Motorsports": "BayouX Motorsports",
@@ -60,7 +62,7 @@ const teamThemes = {
   "JA MOTORSPORTS": { accent: "#d4af37", glow: "rgba(212,175,55,0.28)", dark: "#2a230f" },
   MER: { accent: "#ef4444", glow: "rgba(239,68,68,0.28)", dark: "#2a1111" },
   KDM: { accent: "#ef4444", glow: "rgba(239,68,68,0.28)", dark: "#2a1111" },
-  "Kev Din Motorsports": { accent: "#ef4444", glow: "rgba(239,68,68,0.28)", dark: "#2a1111" },
+  "ME Racing": { accent: "#ef4444", glow: "rgba(239,68,68,0.28)", dark: "#2a1111" },
   MMS: { accent: "#22c55e", glow: "rgba(34,197,94,0.25)", dark: "#102a16" },
   NLM: { accent: "#3b82f6", glow: "rgba(59,130,246,0.26)", dark: "#0f1d35" },
   BOM: { accent: "#60a5fa", glow: "rgba(96,165,250,0.25)", dark: "#102033" },
@@ -331,14 +333,14 @@ function isClosedOrRemovedDriver(driver) {
   );
 }
 
-function normalizeBigDiehlKdmDriver(driver) {
+function normalizeBigDiehlMerDriver(driver) {
   const nameKey = String(driver?.name ?? driver?.driver_name ?? "").trim().toLowerCase();
 
   if (nameKey === "knighttrain41") {
     return {
       ...driver,
       number: 41,
-      manufacturer: "Ford",
+      manufacturer: "Chevrolet",
       team: "BXM",
       retired: false,
     };
@@ -361,7 +363,7 @@ function normalizeBigDiehlKdmDriver(driver) {
       name: "BigDiehl21",
       manufacturer: "Chevrolet",
       manufacturerLogo: driver?.manufacturerLogo || null,
-      team: "KDM",
+      team: "MER",
       retired: false,
     };
   }
@@ -369,14 +371,14 @@ function normalizeBigDiehlKdmDriver(driver) {
   return driver;
 }
 
-function normalizeBigDiehlKdmResult(result) {
+function normalizeBigDiehlMerResult(result) {
   const nameKey = String(result?.name ?? result?.driver_name ?? "").trim().toLowerCase();
 
   if (nameKey === "knighttrain41") {
     return {
       ...result,
       number: 41,
-      manufacturer: "Ford",
+      manufacturer: "Chevrolet",
       team: "BXM",
     };
   }
@@ -396,7 +398,7 @@ function normalizeBigDiehlKdmResult(result) {
       number: 39,
       name: "BigDiehl21",
       manufacturer: "Chevrolet",
-      team: "KDM",
+      team: "MER",
     };
   }
 
@@ -407,7 +409,7 @@ function normalizeDriverProfileRoster(drivers = []) {
   if (!Array.isArray(drivers)) return [];
   return drivers
     .filter((driver) => !isClosedOrRemovedDriver(driver))
-    .map(normalizeBigDiehlKdmDriver);
+    .map(normalizeBigDiehlMerDriver);
 }
 
 function normalizeDriverProfileRaceHistory(raceHistory = []) {
@@ -417,7 +419,7 @@ function normalizeDriverProfileRaceHistory(raceHistory = []) {
     results: Array.isArray(race?.results)
       ? race.results
           .filter((result) => !isClosedOrRemovedDriver(result))
-          .map(normalizeBigDiehlKdmResult)
+          .map(normalizeBigDiehlMerResult)
       : [],
   }));
 }
