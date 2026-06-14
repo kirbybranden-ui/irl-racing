@@ -105,12 +105,10 @@ const teamLogos = {
 
 const teamFullNames = {
   JAM: "JA Motorsports",
-  MER: "ME Racing",
-  MMS: "Mayhem Motorsports",
+    MMS: "Mayhem Motorsports",
   NLM: "Nine Line Motorsports",
   BOM: "Blue Oval Motorsports",
-  WSM: "Wyatt Sick6 Motorsports",
-  BWR: "Big Wheel Racing",
+    BWR: "Big Wheel Racing",
   IND: "Independent",
   Independent: "Independent",
   "19XI": "19XI Racing",
@@ -122,12 +120,10 @@ const teamFullNames = {
 
 const ownerNames = {
   JAM: "RookieVet",
-  MER: "RacingIsLife",
-  MMS: "Mayhem Motorsports Ownership Group",
+    MMS: "Mayhem Motorsports Ownership Group",
   NLM: "Highlander",
   BWR: "JPC Racing",
-  WSM: "UndeadHelliday",
-  "19XI": "Bowhunter",
+    "19XI": "Bowhunter",
   "19XI Racing": "Bowhunter",
   BOM: "Blue Oval Motorsports",
   Independent: "Free Agent Pool",
@@ -208,14 +204,12 @@ const MASTER_ACCESS_CODE = "BCLADMINPASSWORD2026";
 const OWNER_DRIVER_KEYS = {
   JAM: ["99", "RookieVet99", "rookievet99", "rookievet"],
   NLM: ["6", "Highlander713", "highlander713", "highlander"],
-  MER: ["87", "Racingis_life87", "racingis_life87", "racingislife", "racingis_life"],
-  WSM: ["66", "UndeadHelliday", "undeadhelliday"],
-  BWR: ["97", "JPC_Racing", "jpc_racing", "jpc racing", "jpc"],
+    BWR: ["97", "JPC_Racing", "jpc_racing", "jpc racing", "jpc"],
   "19XI": ["18", "bowhunter6758", "Bowhunter6758", "bowhunter"],
   "19XI Racing": ["18", "bowhunter6758", "Bowhunter6758", "bowhunter"],
-  BMX: ["34", "CaJunThrottle28", "cajunthrottle28", "cajun"],
-  BXM: ["34", "CaJunThrottle28", "cajunthrottle28", "cajun"],
-  "BayouX Motorsports": ["34", "CaJunThrottle28", "cajunthrottle28", "cajun"],
+  BMX: ["48", "CaJunThrottle28", "cajunthrottle28", "cajun"],
+  BXM: ["48", "CaJunThrottle28", "cajunthrottle28", "cajun"],
+  "BayouX Motorsports": ["48", "CaJunThrottle28", "cajunthrottle28", "cajun"],
   KDM: ["24", "KEVDINHO7", "kevdinho7", "kevdinho"],
 };
 
@@ -223,9 +217,7 @@ const OWNER_DRIVER_KEYS = {
 const OWNER_DRIVER_FALLBACK_CODES = {
   JAM: "ROOKIEVET9-ZG9GSY",
   NLM: "HIGHLANDER-TZDMLY",
-  MER: "RACINGISLI-RNPH6S",
-  WSM: "UNDEADHELL-J2Y30Z",
-  BWR: "JPCRACING-BWOHKI",
+    BWR: "JPCRACING-BWOHKI",
   "19XI": "BOWHUNTER6-7Y1FGM",
   "19XI Racing": "BOWHUNTER6-7Y1FGM",
   BMX: "CAJUNTHROT-VAKNYX",
