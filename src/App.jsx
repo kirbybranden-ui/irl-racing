@@ -113,12 +113,47 @@ function isInactivePlaceholderDriver(driver) {
 }
 
 const removedDriverNumbers = new Set(["16", "66"]);
-const removedDriverNames = new Set(["vtfan_25", "undeadhelliday"]);
+const removedDriverIds = new Set([13, 28, 66]);
+const removedDriverNames = new Set(["vtfan_25", "undeadhelliday", "racingis_life87", "vanilla04gorilla"]);
+const closedTeamKeys = new Set(["MER", "ME RACING", "ME Racing", "WSM", "WYATT SICK6 MOTORSPORTS", "Wyatt Sick6 Motorsports"]);
 
 function isRemovedLeagueDriver(driver) {
   const numberKey = String(driver?.number ?? driver?.driver_number ?? "").trim();
+  const idKey = Number(driver?.id ?? driver?.driver_id);
   const nameKey = String(driver?.name ?? driver?.driver_name ?? "").trim().toLowerCase();
-  return removedDriverNumbers.has(numberKey) || removedDriverNames.has(nameKey);
+  return removedDriverNumbers.has(numberKey) || removedDriverIds.has(idKey) || removedDriverNames.has(nameKey);
+}
+
+function isClosedLeagueTeam(team) {
+  return closedTeamKeys.has(String(team || "").trim());
+}
+
+function realignLeagueDriver(driver) {
+  if (!driver || isRemovedLeagueDriver(driver)) return null;
+  const id = Number(driver.id ?? driver.driver_id);
+  const nameKey = String(driver.name ?? driver.driver_name ?? "").trim().toLowerCase();
+
+  if (id === 6 || nameKey === "kapsig") {
+    return { ...driver, number: 14, team: "JAM", manufacturer: "Toyota", manufacturerLogo: manufacturerLogos.Toyota || driver.manufacturerLogo };
+  }
+  if (id === 5 || nameKey === "ixgusty") {
+    return { ...driver, number: 3, team: "19XI", manufacturer: "Toyota", manufacturerLogo: manufacturerLogos.Toyota || driver.manufacturerLogo };
+  }
+  if (id === 21 || nameKey === "yinzermob_86") {
+    return { ...driver, number: 86, team: "Independent", manufacturer: "Chevrolet", manufacturerLogo: manufacturerLogos.Chevrolet || driver.manufacturerLogo };
+  }
+  if (id === 34 || nameKey === "cajunthrottle28") {
+    return { ...driver, number: 48, driver_number: driver.driver_number !== undefined ? 48 : driver.driver_number, team: "BXM", manufacturer: "Chevrolet", manufacturerLogo: manufacturerLogos.Chevrolet || driver.manufacturerLogo };
+  }
+  if (id === 54 || id === 35 || id === 102 || ["thecruiser54", "knighttrain41", "ghostracer388"].includes(nameKey)) {
+    return { ...driver, team: "BXM", manufacturer: "Chevrolet", manufacturerLogo: manufacturerLogos.Chevrolet || driver.manufacturerLogo };
+  }
+  if (isClosedLeagueTeam(driver.team)) return { ...driver, team: "Independent" };
+  return driver;
+}
+
+function realignLeagueDrivers(drivers = []) {
+  return (Array.isArray(drivers) ? drivers : []).map(realignLeagueDriver).filter(Boolean);
 }
 
 function filterRemovedLeagueDrivers(drivers = []) {
@@ -184,33 +219,31 @@ function dedupeDriversByNumber(drivers) {
 }
 
 const defaultDrivers = [
-  { id: 1,  number: 42, name: "AMP-GHOSTRIDER",           manufacturer: "Toyota",    team: "JAM"         },
+  { id: 1,  number: 42, name: "AMP-GHOSTRIDER",           manufacturer: "Toyota",    team: "JAM", retired: true },
   { id: 2,  number: 99, name: "RookieVet99",               manufacturer: "Toyota",    team: "JAM"         },
   { id: 3,  number: 18, name: "bowhunter6758",             manufacturer: "Toyota",    team: "JAM"         },
   { id: 4,  number: 81, name: "HOLDEN2DX4EV3R",            manufacturer: "Toyota",    team: "JAM"         },
-  { id: 5,  number: 3,  name: "ixGusty",                   manufacturer: "Toyota",    team: "Independent" },
-  { id: 6,  number: 14, name: "KapSig",                    manufacturer: "Chevrolet", team: "MER"         },
-  { id: 7,  number: 24, name: "KEVDINHO7",                 manufacturer: "Chevrolet", team: "KDM"         },
-  { id: 8,  number: 38, name: "It's_tricky88",             manufacturer: "Chevrolet", team: "Independent" },
+  { id: 6,  number: 14, name: "KapSig",                    manufacturer: "Toyota",    team: "JAM"         },
   { id: 9,  number: 19, name: "American_Hero216",          manufacturer: "Toyota",    team: "19XI"        },
   { id: 10, number: 67, name: "tallishsinter94",           manufacturer: "Toyota",    team: "19XI"        },
+  { id: 5,  number: 3,  name: "ixGusty",                   manufacturer: "Toyota",    team: "19XI"        },
+  { id: 34, number: 48, name: "CaJunThrottle28",           manufacturer: "Chevrolet", team: "BXM"         },
+  { id: 54, number: 54, name: "TheCruiser54",              manufacturer: "Chevrolet", team: "BXM"         },
+  { id: 35, number: 41, name: "KnightTrain41",             manufacturer: "Chevrolet", team: "BXM"         },
+  { id: 102, number: 2, name: "Ghostracer388",             manufacturer: "Chevrolet", team: "BXM"         },
+  { id: 7,  number: 24, name: "KEVDINHO7",                 manufacturer: "Chevrolet", team: "KDM"         },
+  { id: 46, number: 39, name: "BigDiehl21",                manufacturer: "Chevrolet", team: "KDM"         },
+  { id: 21, number: 86, name: "YinZerMOB_86",              manufacturer: "Chevrolet", team: "Independent" },
+  { id: 8,  number: 38, name: "It's_tricky88",             manufacturer: "Chevrolet", team: "Independent", retired: true },
   { id: 11, number: 6,  name: "Highlander713",             manufacturer: "Ford",      team: "NLM"         },
-  { id: 12, number: 23, name: "Orly_Revo23",               manufacturer: "Ford",      team: "MMS"         },
-  { id: 13, number: 87, name: "Racingis_life87",           manufacturer: "Chevrolet", team: "MER"         },
-  { id: 18, number: 72, name: "abajack91",                 manufacturer: "Ford",      team: "NLM"         },
-  { id: 24, number: 21, name: "kevron-75",                manufacturer: "Ford",      team: "NLM"         },
-  { id: 21, number: 86, name: "YinZerMOB_86",              manufacturer: "Chevrolet", team: "MER"         },
-  { id: 28, number: 48, name: "vanilla04gorilla",          manufacturer: "Chevrolet", team: "MER"         },
+  { id: 24, number: 21, name: "kevron-75",                 manufacturer: "Ford",      team: "NLM"         },
   { id: 23, number: 28, name: "Y2JTolbert",                manufacturer: "Ford",      team: "NLM"         },
-  { id: 25, number: 80, name: "gumby_1919",             manufacturer: "Ford",      team: "MMS"         },
-  { id: 26, number: 7,  name: "gunszmb",               manufacturer: "Ford",      team: "BWR"         },
-  { id: 27, number: 97, name: "JPC_Racing",            manufacturer: "Ford",      team: "BWR"         },
-  { id: 51, number: 51, name: "MARE951",                  manufacturer: "Ford",      team: "BWR"         },
-  { id: 46, number: 39, name: "BigDiehl21", manufacturer: "Chevrolet", team: "KDM" },
-  { id: 34, number: 12, name: "CaJunThrottle28", manufacturer: "Ford", team: "BXM" },
-  { id: 35, number: 41, name: "KnightTrain41", manufacturer: "Ford", team: "BXM" },
-  { id: 54, number: 54, name: "TheCruiser54", manufacturer: "Ford", team: "BXM" },
-  { id: 102, number: 2, name: "Ghostracer388", manufacturer: "Ford", team: "BXM" },
+  { id: 18, number: 72, name: "abajack91",                 manufacturer: "Ford",      team: "NLM"         },
+  { id: 26, number: 7,  name: "gunszmb",                   manufacturer: "Ford",      team: "BWR"         },
+  { id: 27, number: 97, name: "JPC_Racing",                manufacturer: "Ford",      team: "BWR"         },
+  { id: 51, number: 51, name: "MARE951",                   manufacturer: "Ford",      team: "BWR"         },
+  { id: 12, number: 23, name: "Orly_Revo23",               manufacturer: "Ford",      team: "MMS", retired: true },
+  { id: 25, number: 80, name: "gumby_1919",                manufacturer: "Ford",      team: "MMS", retired: true },
 ];
 const defaultRaces = [
   { name: "Preseason - Michigan", stageCount: 2, date: "2026-04-25" },
@@ -555,7 +588,7 @@ function getDriverAchievements(driver) {
   if (driver.fastestLaps >= 5) achievements.push({ badge: "⚡", name: "Speed Demon", condition: driver.fastestLaps >= 5 });
   return achievements;
 }
-function getDefaultRoster() { return dedupeDriversByNumber(defaultDrivers.map(makeDriverWithStats)); }
+function getDefaultRoster() { return dedupeDriversByNumber(realignLeagueDrivers(defaultDrivers).map(makeDriverWithStats)); }
 function getStagePoints(stageFinish) {
   if (!stageFinish || stageFinish < 1 || stageFinish > 10) return 0;
   return stagePointsTable[stageFinish - 1];
@@ -1118,10 +1151,10 @@ function AppUpdateBanner({ page = "all" }) {
 
 
 const defaultTickerItems = [
-  { category: "BREAKING", message: "WSM Motorsports has officially closed operations" },
+  { category: "BREAKING", message: "MER and WSM have officially closed operations" },
   { category: "TRANSACTION", message: "BigDiehl21 signs with Kev Din Motorsports and moves to the No. 39 Chevrolet" },
   { category: "TRANSACTION", message: "BayouX Motorsports updates KnightTrain41 to the No. 41 Ford" },
-  { category: "TEAM UPDATE", message: "CaJunThrottle28 moves from the No. 34 to the No. 12 Ford" },
+  { category: "TEAM UPDATE", message: "CaJunThrottle28 moves to the No. 48 Chevrolet for BXM" },
   { category: "RESULTS", message: "Michigan weekend complete — Pocono Raceway is up next" },
   { category: "APP UPDATE", message: "Driver password reset support, interview sync improvements, and Race Control groundwork added" },
 ];
@@ -4248,7 +4281,7 @@ function patchMissingDrivers(cleanSeasons) {
       (d) => !isRemovedLeagueDriver(d) && Number(d.number) !== 76 && !existingNums.has(String(d.number))
     );
     // Update any drivers whose name/number/manufacturer/team has changed in defaultDrivers
-    const updatedDrivers = season.drivers
+    const updatedDrivers = realignLeagueDrivers(season.drivers)
       .filter((d) => !isInactivePlaceholderDriver(d))
       .filter((d) => !isRemovedLeagueDriver(d))
       .filter((d) => Number(d.number) !== 76 && String(d.name || "").trim().toLowerCase() !== "bcr_ziggy5525")
@@ -4256,9 +4289,9 @@ function patchMissingDrivers(cleanSeasons) {
         const canonical =
           defaultDrivers.find((dd) => dd.id === d.id) ||
           defaultDrivers.find((dd) => String(dd.number) === String(d.number));
-        let updatedTeam = d.team === "KRM" ? "MER" : d.team;
+        let updatedTeam = d.team === "KRM" ? "Independent" : d.team;
         if (!canonical) {
-          return { ...d, team: updatedTeam };
+          return { ...d, team: isClosedLeagueTeam(updatedTeam) ? "Independent" : updatedTeam };
         }
         return {
           ...d,
@@ -4266,7 +4299,7 @@ function patchMissingDrivers(cleanSeasons) {
           name: canonical.name,
           number: canonical.number,
           manufacturer: canonical.manufacturer,
-          team: canonical.team === "KRM" ? "MER" : canonical.team,
+          team: canonical.team === "KRM" || isClosedLeagueTeam(canonical.team) ? "Independent" : canonical.team,
         };
       });
     if (missing.length === 0 && updatedDrivers.every((d, i) => d === season.drivers[i])) return season;
@@ -4887,11 +4920,11 @@ export default function App() {
   const path = rawPath.toLowerCase();
   // ─── Computed values (must be before all hooks) ───────────────────────────
   const activeSeason = seasons.find((s) => s.id === activeSeasonId) || seasons[0] || null;
-  const drivers = activeSeason?.drivers || [];
+  const drivers = realignLeagueDrivers(activeSeason?.drivers || []);
   const visibleDrivers = drivers.filter((d) => !isInactivePlaceholderDriver(d));
   const activeDrivers = visibleDrivers.filter((d) => !d.retired);
   const ownerPortalTeams = useMemo(() => {
-    const fixedTeams = ["JAM", "MER", "MMS", "NLM", "WSM", "19XI"];
+    const fixedTeams = ["JAM", "19XI", "BXM", "KDM", "NLM", "BWR", "MMS"];
     const liveTeams = visibleDrivers
       .map((driver) => driver.team || "Independent")
       .filter((team) => team !== "Independent" && team !== "IND");
@@ -5115,10 +5148,10 @@ export default function App() {
     setTickerError("");
 
     const seedItems = [
-      { category: "BREAKING", message: "WSM Motorsports has officially closed operations", page: "standings", sort_order: 1, active: true, pinned: true },
+      { category: "BREAKING", message: "MER and WSM have officially closed operations", page: "standings", sort_order: 1, active: true, pinned: true },
       { category: "TRANSACTION", message: "BigDiehl21 signs with Kev Din Motorsports and moves to the No. 39 Chevrolet", page: "standings", sort_order: 2, active: true, pinned: true },
       { category: "TRANSACTION", message: "BayouX Motorsports updates KnightTrain41 to the No. 41 Ford", page: "standings", sort_order: 3, active: true, pinned: false },
-      { category: "TEAM UPDATE", message: "CaJunThrottle28 moves from the No. 34 to the No. 12 Ford", page: "standings", sort_order: 4, active: true, pinned: false },
+      { category: "TEAM UPDATE", message: "CaJunThrottle28 moves to the No. 48 Chevrolet for BXM", page: "standings", sort_order: 4, active: true, pinned: false },
       { category: "RESULTS", message: "TheCruiser54 scores a podium for BXM at Michigan", page: "standings", sort_order: 5, active: true, pinned: false },
       { category: "RACE CONTROL", message: "Race Control Center, editable results, and penalty tools are in development", page: "standings", sort_order: 6, active: true, pinned: false },
       { category: "APP UPDATE", message: "Driver password reset support and interview sync improvements are now active", page: "standings", sort_order: 7, active: true, pinned: false },
@@ -7397,7 +7430,7 @@ export default function App() {
             <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Driver Name</div><input style={inputStyle} value={newDriverName} onChange={(e) => setNewDriverName(e.target.value)} placeholder="Enter driver name" /></div>
             <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Number</div><input style={inputStyle} value={newDriverNumber} onChange={(e) => setNewDriverNumber(e.target.value)} placeholder="Enter car number" type="number" /></div>
             <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Manufacturer</div><select style={inputStyle} value={newDriverManufacturer} onChange={(e) => setNewDriverManufacturer(e.target.value)}><option value="">Select manufacturer</option><option value="Chevrolet">Chevrolet</option><option value="Ford">Ford</option><option value="Toyota">Toyota</option><option value="Other">Other</option></select></div>
-            <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Team (abbreviation)</div><input style={inputStyle} value={newDriverTeam} onChange={(e) => setNewDriverTeam(e.target.value)} placeholder="e.g. JAM, MER, KRM, MMS" /></div>
+            <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Team (abbreviation)</div><input style={inputStyle} value={newDriverTeam} onChange={(e) => setNewDriverTeam(e.target.value)} placeholder="e.g. JAM, 19XI, BXM, KDM, NLM, BWR" /></div>
           </div>
           <div style={{ marginBottom: 18 }}><button onClick={addDriver} style={primaryButtonStyle}>Add Driver</button></div>
           <div style={{ overflowX: "auto" }}>
@@ -7413,7 +7446,7 @@ export default function App() {
                 <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Driver Name</div><input style={inputStyle} value={editDriverForm.name} onChange={(e) => setEditDriverForm({ ...editDriverForm, name: e.target.value })} /></div>
                 <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Number</div><input style={inputStyle} value={editDriverForm.number} onChange={(e) => setEditDriverForm({ ...editDriverForm, number: e.target.value })} type="number" /></div>
                 <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Manufacturer</div><select style={inputStyle} value={editDriverForm.manufacturer} onChange={(e) => setEditDriverForm({ ...editDriverForm, manufacturer: e.target.value })}><option value="">Select manufacturer</option><option value="Chevrolet">Chevrolet</option><option value="Ford">Ford</option><option value="Toyota">Toyota</option><option value="Other">Other</option></select></div>
-                <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Team (abbreviation)</div><input style={inputStyle} value={editDriverForm.team} onChange={(e) => setEditDriverForm({ ...editDriverForm, team: e.target.value })} placeholder="e.g. JAM, MER, KRM, MMS" /></div>
+                <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Team (abbreviation)</div><input style={inputStyle} value={editDriverForm.team} onChange={(e) => setEditDriverForm({ ...editDriverForm, team: e.target.value })} placeholder="e.g. JAM, 19XI, BXM, KDM, NLM, BWR" /></div>
               </div>
               <div style={{ display: "flex", gap: 10 }}><button onClick={saveDriverEdit} style={primaryButtonStyle}>Save Changes</button><button onClick={cancelEditDriver} style={secondaryButtonStyle}>Cancel</button></div>
             </div>
