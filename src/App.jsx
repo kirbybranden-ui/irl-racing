@@ -134,7 +134,7 @@ function realignLeagueDriver(driver) {
   const nameKey = String(driver.name ?? driver.driver_name ?? "").trim().toLowerCase();
 
   if (id === 6 || nameKey === "kapsig") {
-    return { ...driver, number: 14, team: "JAM", manufacturer: "Toyota", manufacturerLogo: manufacturerLogos.Toyota || driver.manufacturerLogo };
+    return { ...driver, number: 14, team: "KDM", manufacturer: "Chevrolet", manufacturerLogo: manufacturerLogos.Chevrolet || driver.manufacturerLogo };
   }
   if (id === 5 || nameKey === "ixgusty") {
     return { ...driver, number: 3, team: "19XI", manufacturer: "Toyota", manufacturerLogo: manufacturerLogos.Toyota || driver.manufacturerLogo };
@@ -223,7 +223,7 @@ const defaultDrivers = [
   { id: 2,  number: 99, name: "RookieVet99",               manufacturer: "Toyota",    team: "JAM"         },
   { id: 3,  number: 18, name: "bowhunter6758",             manufacturer: "Toyota",    team: "JAM"         },
   { id: 4,  number: 81, name: "HOLDEN2DX4EV3R",            manufacturer: "Toyota",    team: "JAM"         },
-  { id: 6,  number: 14, name: "KapSig",                    manufacturer: "Toyota",    team: "JAM"         },
+  { id: 6,  number: 14, name: "KapSig",                    manufacturer: "Chevrolet", team: "KDM"         },
   { id: 9,  number: 19, name: "American_Hero216",          manufacturer: "Toyota",    team: "19XI"        },
   { id: 10, number: 67, name: "tallishsinter94",           manufacturer: "Toyota",    team: "19XI"        },
   { id: 5,  number: 3,  name: "ixGusty",                   manufacturer: "Toyota",    team: "19XI"        },
