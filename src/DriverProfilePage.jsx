@@ -4,7 +4,6 @@ import teamLogoMER from "./assets/teams/ME.png";
 import teamLogoMMS from "./assets/teams/MMS.png";
 import teamLogoNLM from "./assets/teams/NLM.png";
 import teamLogoBOM from "./assets/teams/BOM.png";
-import teamLogoWSM from "./assets/teams/WSM.png";
 import teamLogoIND from "./assets/teams/IND.png";
 import teamLogo19XI from "./assets/teams/19XI.png";
 import teamLogoBWR from "./assets/teams/BWR.png";
@@ -21,7 +20,6 @@ const teamLogos = {
   MMS: teamLogoMMS,
   NLM: teamLogoNLM,
   BOM: teamLogoBOM,
-  WSM: teamLogoWSM,
   IND: teamLogoIND,
   Independent: teamLogoIND,
   "19XI": teamLogo19XI,
