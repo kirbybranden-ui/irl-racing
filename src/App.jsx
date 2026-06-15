@@ -5616,10 +5616,17 @@ function MobileTeamHQ({ drivers = [], teams = [], seasonName = "", go }) {
       <MobileHero
         kicker="Owner Center"
         title="Team HQ"
-        subtitle="Mobile-friendly HQ view using the same live league drivers, standings, and team data."
+        subtitle="Access the full Owner Portal with all desktop features."
       />
 
       <MobileCard>
+        <button
+          type="button"
+          onClick={() => window.location.href="/owner"}
+          style={{width:"100%",padding:"16px",borderRadius:14,border:"none",background:"linear-gradient(135deg,#d4af37,#facc15)",color:"#111",fontWeight:900,fontSize:16,cursor:"pointer",marginBottom:16}}
+        >
+          🔐 Owner Login
+        </button>
         <label style={{ display: "block", color: "#aab3c2", fontSize: 11, fontWeight: 1000, textTransform: "uppercase", marginBottom: 8 }}>
           Select Team
         </label>
