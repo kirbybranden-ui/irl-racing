@@ -222,7 +222,7 @@ const defaultDrivers = [
   { id: 1,  number: 42, name: "AMP-GHOSTRIDER",           manufacturer: "Toyota",    team: "B2J", retired: true },
   { id: 2,  number: 99, name: "RookieVet99",               manufacturer: "Toyota",    team: "B2J"         },
   { id: 3,  number: 18, name: "bowhunter6758",             manufacturer: "Toyota",    team: "B2J"         },
-  { id: 4,  number: 81, name: "HOLDEN2DX4EV3R",            manufacturer: "Toyota",    team: "BJ2"         },
+  { id: 4,  number: 81, name: "HOLDEN2DX4EV3R",            manufacturer: "Toyota",    team: "B2J"         },
   { id: 6,  number: 14, name: "KapSig",                    manufacturer: "Chevrolet", team: "MER"         },
   { id: 9,  number: 19, name: "American_Hero216",          manufacturer: "Toyota",    team: "19XI"        },
   { id: 10, number: 67, name: "tallishsinter94",           manufacturer: "Toyota",    team: "19XI"        },
