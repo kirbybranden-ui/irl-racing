@@ -5364,7 +5364,7 @@ function MobileLeagueApp({
   if (path === "/submit-appeal") return dataFrame("Submit Appeal", "more", <SubmitAppealPage />);
   if (path === "/submit-story") return dataFrame("Submit Story", "more", <SubmitStoryPage />);
   if (path === "/appeals") return dataFrame("Appeals", "more", <AppealsPage />);
-  if (path === "/news") return dataFrame("News", "news", <NewsPage />);
+  if (path === "/news") return frame("News", "news", <MobileNewsFeed go={go} />);
   if (path === "/paint-scheme-vote") return dataFrame("Paint Vote", "more", <PaintSchemeVotePage drivers={drivers} tracks={tracks} />);
   if (path === "/vote" || path === "/league-vote" || path === "/voting") return dataFrame("League Vote", "more", <LeagueVotingPage drivers={drivers} />);
   if (path === "/notifications") return dataFrame("Notifications", "more", <NotificationsPage />);
@@ -5493,6 +5493,107 @@ function MobileLeagueApp({
   return dataFrame("Budweiser Cup", "standings", <PublicStandings drivers={drivers} teams={teams} manufacturerStandings={manufacturerStandings} seasonName={seasonName} tracks={tracks} raceHistory={raceHistory} />);
 }
 
+
+function MobileNewsFeed({ go }) {
+  const [articles, setArticles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadMobileNews() {
+      setLoading(true);
+      setError("");
+
+      const { data, error } = await supabase
+        .from("story_submissions")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (!isMounted) return;
+
+      if (error) {
+        console.error("Could not load mobile news:", error);
+        setError("Could not load news articles. Check story_submissions select/RLS policies.");
+        setArticles([]);
+        setLoading(false);
+        return;
+      }
+
+      const cleanArticles = (data || [])
+        .filter((item) => {
+          const status = String(item.status || "Open").trim().toLowerCase();
+          return !["rejected", "declined", "hidden", "archived", "deleted"].includes(status);
+        })
+        .map((item) => ({
+          id: item.id,
+          title: item.title || "League News Update",
+          body: item.story || item.body || item.content || item.article || "",
+          author: item.author_name || item.author || "BCL Media",
+          driver: item.driver_name || item.driver || "",
+          status: item.status || "Posted",
+          createdAt: item.created_at || item.submitted_at || item.updated_at || "",
+        }));
+
+      setArticles(cleanArticles);
+      setLoading(false);
+    }
+
+    loadMobileNews();
+    return () => { isMounted = false; };
+  }, []);
+
+  function formatMobileDate(value) {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  }
+
+  return (
+    <>
+      <MobileHero
+        kicker="League Feed"
+        title="News"
+        subtitle="Articles now stack in a natural mobile scroll instead of loading the desktop news layout."
+      />
+      <LeagueTicker page="news" />
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
+        <MobileAction label="Submit Story" onClick={() => go("/submit-story")} />
+        <MobileAction label="Refresh" onClick={() => window.location.reload()} secondary />
+      </div>
+
+      {loading && <MobileCard><strong>Loading news...</strong></MobileCard>}
+      {error && <MobileCard><p style={{ margin: 0, color: "#fca5a5", fontWeight: 900 }}>{error}</p></MobileCard>}
+      {!loading && !error && articles.length === 0 && (
+        <MobileCard>
+          <h2 style={{ marginTop: 0 }}>No news posted yet</h2>
+          <p style={{ color: "#aab3c2", lineHeight: 1.5 }}>Submitted stories will show here in a phone-friendly article feed.</p>
+        </MobileCard>
+      )}
+
+      <div style={mobileNewsFeedStyle}>
+        {articles.map((article, index) => (
+          <article key={article.id || `${article.title}-${index}`} style={mobileNewsArticleStyle}>
+            <div style={mobileNewsMetaRowStyle}>
+              <span style={mobileNewsBadgeStyle}>{article.status || "Posted"}</span>
+              <span>{formatMobileDate(article.createdAt)}</span>
+            </div>
+            <h2 style={mobileNewsTitleStyle}>{article.title}</h2>
+            {(article.author || article.driver) && (
+              <div style={mobileNewsBylineStyle}>
+                {article.author}{article.driver ? ` • ${article.driver}` : ""}
+              </div>
+            )}
+            <div style={mobileNewsBodyStyle}>{article.body}</div>
+          </article>
+        ))}
+      </div>
+    </>
+  );
+}
+
 function MobileDataFrame({ children }) {
   return (
     <div className="bcl-mobile-data-frame" style={mobileDataFrameStyle}>
@@ -5538,6 +5639,15 @@ function MobileSectionTitle({ children }) { return <h2 style={{ fontSize: 16, ma
 function MobileTeamRow({ team, index }) { return <div style={mobileSmallRowStyle}><strong>{index + 1}. {team.team || team.name}</strong><span>{team.points || 0} pts</span></div>; }
 function MobileManufacturerRow({ manufacturer, index }) { return <div style={mobileSmallRowStyle}><strong>{index + 1}. {manufacturer.manufacturer || manufacturer.name}</strong><span>{manufacturer.points || 0} pts</span></div>; }
 function MobileRaceCard({ race }) { return <MobileCard><div style={mobileKickerStyle}>Next Race</div><h2 style={{ margin: "4px 0" }}>{race.name || race.track || "Race"}</h2><p style={{ color: "#aab3c2", margin: 0 }}>{race.date || "Date TBA"} • Qualifying 9:15 PM • Race 9:30 PM</p></MobileCard>; }
+
+
+const mobileNewsFeedStyle = { display: "flex", flexDirection: "column", gap: 14, paddingBottom: 16 };
+const mobileNewsArticleStyle = { background: "linear-gradient(180deg, #141b26 0%, #0f141c 100%)", border: "1px solid #2b3545", borderRadius: 18, padding: 16, boxShadow: "0 12px 28px rgba(0,0,0,0.28)" };
+const mobileNewsMetaRowStyle = { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, color: "#aab3c2", fontSize: 12, fontWeight: 800, marginBottom: 10 };
+const mobileNewsBadgeStyle = { background: "rgba(212,175,55,0.16)", border: "1px solid rgba(212,175,55,0.55)", color: "#facc15", borderRadius: 999, padding: "5px 9px", textTransform: "uppercase", letterSpacing: 0.7, fontSize: 10, fontWeight: 1000 };
+const mobileNewsTitleStyle = { margin: "0 0 8px", fontSize: 23, lineHeight: 1.08, fontWeight: 1000, color: "#ffffff" };
+const mobileNewsBylineStyle = { color: "#d4af37", fontSize: 12, fontWeight: 900, textTransform: "uppercase", letterSpacing: 0.7, marginBottom: 12 };
+const mobileNewsBodyStyle = { color: "#e5e7eb", fontSize: 15, lineHeight: 1.55, whiteSpace: "pre-wrap", overflowWrap: "anywhere" };
 
 const mobileAppStyle = { minHeight: "100vh", background: "#080b10", color: "white", paddingBottom: 82, fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' };
 const mobileTopbarStyle = { position: "sticky", top: 0, zIndex: 20, background: "#0c0f14", borderBottom: "1px solid #222936", padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" };
