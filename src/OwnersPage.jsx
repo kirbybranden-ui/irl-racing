@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import logo from "./assets/logo1.png";
-import teamLogoJAM from "./assets/teams/JAM.png";
+import teamLogoB2J from "./assets/teams/B2J.png";
 import teamLogoMER from "./assets/teams/ME.png";
 import teamLogoNLM from "./assets/teams/NLM.png";
 import teamLogoMMS from "./assets/teams/MMS.png";
@@ -86,7 +86,7 @@ function wasStartParkRequestBeforeCutoff(request) {
 }
 
 const teamLogos = {
-  JAM: teamLogoJAM,
+  B2J: teamLogoB2J,
   MER: teamLogoMER,
   NLM: teamLogoNLM,
   MMS: teamLogoMMS,
@@ -102,7 +102,7 @@ const teamLogos = {
 };
 
 const teamFullNames = {
-  JAM: "JA Motorsports",
+  B2J: "B2J Motorsports",
     MER: "ME Racing",
     MMS: "Mayhem Motorsports",
   NLM: "Nine Line Motorsports",
@@ -118,7 +118,7 @@ const teamFullNames = {
 };
 
 const ownerNames = {
-  JAM: "RookieVet",
+  B2J: "RookieVet",
     MMS: "Mayhem Motorsports Ownership Group",
   NLM: "Highlander",
   BWR: "JPC Racing",
@@ -142,7 +142,7 @@ const TEAM_STARTING_FUNDS = {
 };
 
 const TEAM_BUDGET_OVERRIDES = {
-  JAM: 5000000,
+  B2J: 5000000,
   BMX: 700000,
   BXM: 700000,
   "BayouX Motorsports": 700000,
@@ -202,7 +202,7 @@ const DEFAULT_CONTRACT_FORM = {
 const MASTER_ACCESS_CODE = "BCLADMINPASSWORD2026";
 
 const OWNER_DRIVER_KEYS = {
-  JAM: ["99", "RookieVet99", "rookievet99", "rookievet"],
+  B2J: ["99", "RookieVet99", "rookievet99", "rookievet"],
   NLM: ["6", "Highlander713", "highlander713", "highlander"],
     BWR: ["97", "JPC_Racing", "jpc_racing", "jpc racing", "jpc"],
   "19XI": ["18", "bowhunter6758", "Bowhunter6758", "bowhunter"],
@@ -216,7 +216,7 @@ const OWNER_DRIVER_KEYS = {
 
 
 const OWNER_DRIVER_FALLBACK_CODES = {
-  JAM: "ROOKIEVET9-ZG9GSY",
+  B2J: "ROOKIEVET9-ZG9GSY",
   NLM: "HIGHLANDER-TZDMLY",
     BWR: "JPCRACING-BWOHKI",
   "19XI": "BOWHUNTER6-7Y1FGM",
@@ -535,7 +535,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
       .sort((a, b) => getTeamFullName(a).localeCompare(getTeamFullName(b)));
   }, [drivers]);
 
-  const [selectedTeam, setSelectedTeam] = useState(() => localStorage.getItem("ownerPortalTeam") || availableTeams[0] || "JAM");
+  const [selectedTeam, setSelectedTeam] = useState(() => localStorage.getItem("ownerPortalTeam") || availableTeams[0] || "B2J");
   const [accessCode, setAccessCode] = useState("");
   const [authorizedTeam, setAuthorizedTeam] = useState(() => localStorage.getItem("ownerPortalAuthorizedTeam") || "");
   const [error, setError] = useState("");
@@ -2980,7 +2980,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
     if (!allowedCodes.includes(enteredCode)) {
       const ownerNameForMessage =
         assignedOwner?.owner_driver_name ||
-        (safeSelectedTeam === "JAM" ? "RookieVet99" : "the assigned owner driver");
+        (safeSelectedTeam === "B2J" ? "RookieVet99" : "the assigned owner driver");
 
       setError(`Incorrect code for this team. Use ${ownerNameForMessage}'s driver profile password, a temp password, or the master admin password.`);
       return;
