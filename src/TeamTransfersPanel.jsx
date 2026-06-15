@@ -51,7 +51,7 @@ function money(value) {
 
 function getTeamFullName(team) {
   const names = {
-    JAM: "JA Motorsports",
+    B2J: "B2J Motorsports",
     MER: "ME Racing",
     MMS: "Mayhem Motorsports",
     NLM: "Nine Line Motorsports",
