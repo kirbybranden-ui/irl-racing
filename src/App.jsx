@@ -5386,7 +5386,29 @@ function MobileLeagueApp({
     ));
   }
 
-  if (["/owners", "/owner", "/team-hq", "/hq", "/teamhq"].includes(path)) {
+  if (["/owner", "/owners"].includes(path)) {
+    return dataFrame("Owner Login", "hq", (
+      <>
+        <MobileHero
+          kicker="Owner Portal"
+          title="Owner Login"
+          subtitle="Full Team HQ access with the same password/login and controls as desktop."
+        />
+        <OwnersPage
+          drivers={drivers}
+          teams={teams}
+          teamBudgets={teamBudgets}
+          raceHistory={raceHistory}
+          seasonName={seasonName}
+          tracks={tracks}
+          paymentCompliance={paymentCompliance}
+          onApplyTeamTransaction={onApplyTeamTransaction}
+        />
+      </>
+    ));
+  }
+
+  if (["/team-hq", "/hq", "/teamhq"].includes(path)) {
     return frame("Team HQ", "hq", <MobileTeamHQ drivers={drivers} teams={teams} seasonName={seasonName} go={go} />);
   }
 
@@ -5616,17 +5638,20 @@ function MobileTeamHQ({ drivers = [], teams = [], seasonName = "", go }) {
       <MobileHero
         kicker="Owner Center"
         title="Team HQ"
-        subtitle="Access the full Owner Portal with all desktop features."
+        subtitle="Mobile-friendly HQ view using the same live league drivers, standings, and team data."
       />
 
       <MobileCard>
-        <button
-          type="button"
-          onClick={() => window.location.href="/owner"}
-          style={{width:"100%",padding:"16px",borderRadius:14,border:"none",background:"linear-gradient(135deg,#d4af37,#facc15)",color:"#111",fontWeight:900,fontSize:16,cursor:"pointer",marginBottom:16}}
-        >
-          🔐 Owner Login
-        </button>
+        <MobileAction
+          label="🔐 Owner Login"
+          onClick={() => go("/owner")}
+        />
+        <div style={{ marginTop: 10, color: "#aab3c2", fontSize: 12, lineHeight: 1.45 }}>
+          Opens the full Team HQ owner portal with the same login, password rules, and tools as desktop.
+        </div>
+      </MobileCard>
+
+      <MobileCard>
         <label style={{ display: "block", color: "#aab3c2", fontSize: 11, fontWeight: 1000, textTransform: "uppercase", marginBottom: 8 }}>
           Select Team
         </label>
