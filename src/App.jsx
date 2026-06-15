@@ -7177,7 +7177,29 @@ export default function App() {
   if (path === "/admin-login") return <AdminLoginPage />;
   if (isAdminProtectedPath && !isAdminAuthenticated) return <AdminLoginPage />;
 
-  // Static pages (no Supabase data needed)
+  // Mobile experience gate — phones use the NASCAR-style mobile shell for all non-admin / non-overlay routes.
+  // Desktop routes below stay unchanged. Add ?desktop=1 or use "Open Full Page" to temporarily force desktop.
+  const mobileExcludedPaths = path.startsWith("/admin") || path.startsWith("/overlay");
+  if (isMobileViewport && !forceDesktop && !mobileExcludedPaths) {
+    if (!isHydrated) {
+      return <div style={appShellStyle}><div style={pageContainerStyle}><div style={sectionCardStyle}>Loading mobile league data...</div></div></div>;
+    }
+
+    return (
+      <MobileLeagueApp
+        path={path}
+        rawPath={rawPath}
+        drivers={visibleDrivers}
+        teams={teamStandings}
+        manufacturerStandings={manufacturerStandings}
+        seasonName={activeSeason?.name || ""}
+        tracks={tracks}
+        raceHistory={raceHistory}
+      />
+    );
+  }
+
+  // Static desktop pages
   if (path === "/files") return <FilesPage />;
   if (path === "/welcome") return <WelcomePage />;
   if (path === "/submit-appeal") return <SubmitAppealPage />;
@@ -7233,22 +7255,6 @@ export default function App() {
   }
   // Loading gate — all routes below this need Supabase data
   if (!isHydrated) return <div style={appShellStyle}><div style={pageContainerStyle}><div style={sectionCardStyle}>Loading league data...</div></div></div>;
-
-  const mobileExcludedPaths = path.startsWith("/admin") || path.startsWith("/overlay");
-  if (isMobileViewport && !forceDesktop && !mobileExcludedPaths) {
-    return (
-      <MobileLeagueApp
-        path={path}
-        rawPath={rawPath}
-        drivers={visibleDrivers}
-        teams={teamStandings}
-        manufacturerStandings={manufacturerStandings}
-        seasonName={activeSeason?.name || ""}
-        tracks={tracks}
-        raceHistory={raceHistory}
-      />
-    );
-  }
 
   if (path === "/admin/car-gallery") {
     return (
