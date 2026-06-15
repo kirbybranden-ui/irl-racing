@@ -4871,7 +4871,7 @@ function LeagueVotingPage({ drivers = [] }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
 
-  const activeDrivers = useMemo(() => dedupeDriversByNumber(drivers || []).filter((item) => !item.retired && !isInactivePlaceholderDriver(item)), [drivers]);
+  const activeDrivers = useMemo(() => dedupeDriversByNumber(drivers || []).filter((item) => !item.retired && !isInactivePlaceholderDriver(item)).sort((a, b) => Number(a.number || 9999) - Number(b.number || 9999)), [drivers]);
 
   async function loadVotes() {
     setLoading(true);
@@ -4934,7 +4934,7 @@ function LeagueVotingPage({ drivers = [] }) {
     const number = String(driverNumber || "").trim();
     const code = String(password || "").trim();
     if (!number || !code) {
-      setError("Enter your car number and driver password.");
+      setError("Select your driver and enter your driver password.");
       return;
     }
 
@@ -5013,7 +5013,7 @@ function LeagueVotingPage({ drivers = [] }) {
           <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", alignItems: "center" }}>
             <div>
               <h1 style={{ margin: 0, fontSize: 38 }}>🗳️ League Voting</h1>
-              <p style={{ opacity: 0.76, marginBottom: 0 }}>Drivers must log in with their car number and password before voting. Deadlines lock automatically.</p>
+              <p style={{ opacity: 0.76, marginBottom: 0 }}>Drivers must select their car and enter their password before voting. Deadlines lock automatically.</p>
             </div>
             <button onClick={() => (window.location.pathname = "/standings")} style={secondaryButtonStyle}>Back to Standings</button>
           </div>
@@ -5024,7 +5024,14 @@ function LeagueVotingPage({ drivers = [] }) {
             <h2 style={{ marginTop: 0 }}>Driver Login</h2>
             {!driver ? (
               <form onSubmit={loginDriver} style={{ display: "grid", gap: 12 }}>
-                <input value={driverNumber} onChange={(event) => setDriverNumber(event.target.value)} placeholder="Car Number" style={inputStyle} />
+                <select value={driverNumber} onChange={(event) => setDriverNumber(event.target.value)} style={inputStyle}>
+                  <option value="">Select Your Driver</option>
+                  {activeDrivers.map((item) => (
+                    <option key={item.id || item.number} value={String(item.number)}>
+                      #{item.number} — {item.name} ({getTeamFullName(item.team)})
+                    </option>
+                  ))}
+                </select>
                 <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Driver Password" style={inputStyle} />
                 <button type="submit" style={primaryButtonStyle}>Log In To Vote</button>
               </form>
