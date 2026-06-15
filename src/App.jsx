@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import logo from "./assets/logo1.png";
 import storySubmittedKick from "./assets/story-submitted-kick.png";
-import teamLogoJAM from "./assets/teams/JAM.png";
+import teamLogoB2J from "./assets/teams/B2J.png";
 import teamLogoMER from "./assets/teams/ME.png";
 import teamLogoNLM from "./assets/teams/NLM.png";
 import teamLogoMMS from "./assets/teams/MMS.png";
@@ -33,8 +33,8 @@ import LeagueChatPage from "./LeagueChatPage";
 import OwnersPage from "./OwnersPage.jsx";
 // Team logos
 const teamLogos = {
-  "JA MOTORSPORTS": teamLogoJAM,
-  JAM: teamLogoJAM,
+  "B2J MOTORSPORTS": teamLogoB2J,
+  B2J: teamLogoB2J,
   "ME RACING": teamLogoMER,
   MER: teamLogoMER,
   "NINE LINE MOTORSPORTS": teamLogoNLM,
@@ -64,8 +64,8 @@ const manufacturerLogos = {
 import { loadLeagueState, saveLeagueState } from "./lib/leagueState";
 // ─── Team Full Names ───────────────────────────────────────────────────────────
 const teamFullNames = {
-  JAM: "JA Motorsports",
-  "JA MOTORSPORTS": "JA Motorsports",
+  B2J: "B2J Motorsports",
+  "B2J MOTORSPORTS": "B2J Motorsports",
   MER: "ME Racing",
   MMS: "Mayhem Motorsports",
   NLM: "Nine Line Motorsports",
@@ -81,8 +81,8 @@ const teamFullNames = {
   Independent: "Independent",
 };
 const teamBudgets = {
-  JAM: 3500000,
-  "JA MOTORSPORTS": 3500000,
+  B2J: 3500000,
+  "B2J MOTORSPORTS": 3500000,
 };
 
 const INDEPENDENT_DRIVER_BASE_SALARY = 250000;
@@ -219,10 +219,10 @@ function dedupeDriversByNumber(drivers) {
 }
 
 const defaultDrivers = [
-  { id: 1,  number: 42, name: "AMP-GHOSTRIDER",           manufacturer: "Toyota",    team: "JAM", retired: true },
-  { id: 2,  number: 99, name: "RookieVet99",               manufacturer: "Toyota",    team: "JAM"         },
-  { id: 3,  number: 18, name: "bowhunter6758",             manufacturer: "Toyota",    team: "JAM"         },
-  { id: 4,  number: 81, name: "HOLDEN2DX4EV3R",            manufacturer: "Toyota",    team: "JAM"         },
+  { id: 1,  number: 42, name: "AMP-GHOSTRIDER",           manufacturer: "Toyota",    team: "B2J", retired: true },
+  { id: 2,  number: 99, name: "RookieVet99",               manufacturer: "Toyota",    team: "B2J"         },
+  { id: 3,  number: 18, name: "bowhunter6758",             manufacturer: "Toyota",    team: "B2J"         },
+  { id: 4,  number: 81, name: "HOLDEN2DX4EV3R",            manufacturer: "Toyota",    team: "BJ2"         },
   { id: 6,  number: 14, name: "KapSig",                    manufacturer: "Chevrolet", team: "MER"         },
   { id: 9,  number: 19, name: "American_Hero216",          manufacturer: "Toyota",    team: "19XI"        },
   { id: 10, number: 67, name: "tallishsinter94",           manufacturer: "Toyota",    team: "19XI"        },
@@ -482,8 +482,8 @@ const thStyle = { textAlign: "left", padding: 10, borderBottom: "1px solid #3139
 const tdStyle = { padding: 10, borderBottom: "1px solid #252c38", verticalAlign: "top", fontSize: 14 };
 const statBoxStyle = { background: "#11161d", border: "1px solid #2a3240", borderRadius: 14, padding: 16, flex: "1 1 220px" };
 const teamBranding = {
-  JAM: { logo: "JAM", accent: "#d4af37", dark: "#1b1b1b" },
-  "JA MOTORSPORTS": { logo: "JA", accent: "#d4af37", dark: "#1b1b1b" },
+  B2J: { logo: "B2J", accent: "#d4af37", dark: "#1b1b1b" },
+  "B2J MOTORSPORTS": { logo: "B2J", accent: "#d4af37", dark: "#1b1b1b" },
   MER: { logo: "MER", accent: "#dc2626", dark: "#200a0a", fullName: "ME Racing" },
   MMS: { logo: "MMS", accent: "#9333ea", dark: "#150a2e", fullName: "Mayhem Motorsports" },
   NLM: { logo: "NLM", accent: "#f97316", dark: "#1f0e00", fullName: "Nine Line Motorsports" },
@@ -4924,7 +4924,7 @@ export default function App() {
   const visibleDrivers = drivers.filter((d) => !isInactivePlaceholderDriver(d));
   const activeDrivers = visibleDrivers.filter((d) => !d.retired);
   const ownerPortalTeams = useMemo(() => {
-    const fixedTeams = ["JAM", "19XI", "BXM", "MER", "NLM", "BWR", "MMS"];
+    const fixedTeams = ["B2J", "19XI", "BXM", "MER", "NLM", "BWR", "MMS"];
     const liveTeams = visibleDrivers
       .map((driver) => driver.team || "Independent")
       .filter((team) => team !== "Independent" && team !== "IND");
@@ -7430,7 +7430,7 @@ export default function App() {
             <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Driver Name</div><input style={inputStyle} value={newDriverName} onChange={(e) => setNewDriverName(e.target.value)} placeholder="Enter driver name" /></div>
             <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Number</div><input style={inputStyle} value={newDriverNumber} onChange={(e) => setNewDriverNumber(e.target.value)} placeholder="Enter car number" type="number" /></div>
             <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Manufacturer</div><select style={inputStyle} value={newDriverManufacturer} onChange={(e) => setNewDriverManufacturer(e.target.value)}><option value="">Select manufacturer</option><option value="Chevrolet">Chevrolet</option><option value="Ford">Ford</option><option value="Toyota">Toyota</option><option value="Other">Other</option></select></div>
-            <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Team (abbreviation)</div><input style={inputStyle} value={newDriverTeam} onChange={(e) => setNewDriverTeam(e.target.value)} placeholder="e.g. JAM, 19XI, BXM, MER, NLM, BWR" /></div>
+            <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Team (abbreviation)</div><input style={inputStyle} value={newDriverTeam} onChange={(e) => setNewDriverTeam(e.target.value)} placeholder="e.g. B2J, 19XI, BXM, MER, NLM, BWR" /></div>
           </div>
           <div style={{ marginBottom: 18 }}><button onClick={addDriver} style={primaryButtonStyle}>Add Driver</button></div>
           <div style={{ overflowX: "auto" }}>
@@ -7446,7 +7446,7 @@ export default function App() {
                 <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Driver Name</div><input style={inputStyle} value={editDriverForm.name} onChange={(e) => setEditDriverForm({ ...editDriverForm, name: e.target.value })} /></div>
                 <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Number</div><input style={inputStyle} value={editDriverForm.number} onChange={(e) => setEditDriverForm({ ...editDriverForm, number: e.target.value })} type="number" /></div>
                 <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Manufacturer</div><select style={inputStyle} value={editDriverForm.manufacturer} onChange={(e) => setEditDriverForm({ ...editDriverForm, manufacturer: e.target.value })}><option value="">Select manufacturer</option><option value="Chevrolet">Chevrolet</option><option value="Ford">Ford</option><option value="Toyota">Toyota</option><option value="Other">Other</option></select></div>
-                <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Team (abbreviation)</div><input style={inputStyle} value={editDriverForm.team} onChange={(e) => setEditDriverForm({ ...editDriverForm, team: e.target.value })} placeholder="e.g. JAM, 19XI, BXM, MER, NLM, BWR" /></div>
+                <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Team (abbreviation)</div><input style={inputStyle} value={editDriverForm.team} onChange={(e) => setEditDriverForm({ ...editDriverForm, team: e.target.value })} placeholder="e.g. B2J, 19XI, BXM, MER, NLM, BWR" /></div>
               </div>
               <div style={{ display: "flex", gap: 10 }}><button onClick={saveDriverEdit} style={primaryButtonStyle}>Save Changes</button><button onClick={cancelEditDriver} style={secondaryButtonStyle}>Cancel</button></div>
             </div>
