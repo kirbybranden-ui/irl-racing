@@ -5324,64 +5324,205 @@ function useMobileViewport(maxWidth = 768) {
   return isMobile;
 }
 
-function MobileLeagueApp({ path, rawPath, drivers = [], teams = [], manufacturerStandings = [], seasonName = "", tracks = [], raceHistory = [] }) {
-  const sortedDrivers = useMemo(() => [...(drivers || [])].sort((a, b) => Number(b.points || 0) - Number(a.points || 0)), [drivers]);
-  const leader = sortedDrivers[0] || null;
-  const sortedTeams = useMemo(() => [...(teams || [])].sort((a, b) => Number(b.points || 0) - Number(a.points || 0)), [teams]);
-  const sortedManufacturers = useMemo(() => [...(manufacturerStandings || [])].sort((a, b) => Number(b.points || 0) - Number(a.points || 0)), [manufacturerStandings]);
-  const upcomingRace = useMemo(() => {
-    try {
-      const sorted = getSortedTracksByDate(tracks || []);
-      return getUpcomingRaceByDate(sorted) || sorted?.[0] || null;
-    } catch (error) {
-      return tracks?.[0] || null;
-    }
-  }, [tracks]);
-  const go = (target) => { window.location.pathname = target; };
-  const openFullView = () => { document.cookie = "bcl-force-desktop=1; path=/; max-age=900"; window.location.reload(); };
+function MobileLeagueApp({
+  path,
+  rawPath,
+  drivers = [],
+  teams = [],
+  manufacturerStandings = [],
+  seasonName = "",
+  tracks = [],
+  raceHistory = [],
+  seasons = [],
+  activeSeason = null,
+  activeSeasonId = "",
+  paymentCompliance = null,
+  onApplyTeamTransaction = () => {},
+}) {
+  const go = (to) => { window.location.href = to; };
+  const sortedDrivers = [...drivers].sort((a, b) => (b.points || 0) - (a.points || 0) || (b.wins || 0) - (a.wins || 0));
+  const sortedTeams = [...teams].sort((a, b) => (b.points || 0) - (a.points || 0));
+  const sortedManufacturers = [...manufacturerStandings].sort((a, b) => (b.points || 0) - (a.points || 0));
+  const upcomingRace = getUpcomingRaceByDate(tracks || []);
+  const leader = sortedDrivers[0];
 
-  if (path.startsWith("/driver/")) {
-    const number = decodeURIComponent(rawPath.replace(/^\/driver\//i, "").split("/")[0]);
-    const driver = drivers.find((d) => String(d.number) === String(number));
-    return (
-      <MobileLayout title="Driver" go={go} active="standings">
-        <MobileHero kicker="Driver Profile" title={driver ? `#${driver.number} ${driver.name}` : `#${number}`} subtitle={driver ? `${driver.team || "Independent"} • ${driver.manufacturer || ""}` : "Driver not found"} />
-        {driver ? <><MobileStatGrid items={[["Points", driver.points || 0], ["Wins", driver.wins || 0], ["Top 5", driver.top5 || driver.top_fives || 0], ["Top 10", driver.top10 || driver.top_tens || 0]]} /><MobileAction label="Open Full Driver Profile" onClick={openFullView} /><MobileAction label="Back to Standings" onClick={() => go("/standings")} secondary /></> : <MobileCard><p>That driver was not found in the current standings.</p></MobileCard>}
-      </MobileLayout>
-    );
+  function getTrackOverview(race) {
+    if (!race) return null;
+    return trackOverviewData[race.name] || trackOverviewData[race.track] || null;
   }
 
-  if (path === "/news") {
-    return <MobileLayout title="News" go={go} active="news"><MobileHero kicker="League Feed" title="News" subtitle="Open the full news center for stories, signings, penalties, and league updates." /><MobileAction label="Open Full News Page" onClick={openFullView} /></MobileLayout>;
+  function frame(title, active, children) {
+    return <MobileLayout title={title} go={go} active={active}>{children}</MobileLayout>;
   }
+
+  function dataFrame(title, active, children) {
+    return frame(title, active, <MobileDataFrame>{children}</MobileDataFrame>);
+  }
+
+  if (path === "/files") return dataFrame("Files", "more", <FilesPage />);
+  if (path === "/welcome") return dataFrame("Welcome", "home", <WelcomePage />);
+  if (path === "/submit-appeal") return dataFrame("Submit Appeal", "more", <SubmitAppealPage />);
+  if (path === "/submit-story") return dataFrame("Submit Story", "more", <SubmitStoryPage />);
+  if (path === "/appeals") return dataFrame("Appeals", "more", <AppealsPage />);
+  if (path === "/news") return dataFrame("News", "news", <NewsPage />);
+  if (path === "/paint-scheme-vote") return dataFrame("Paint Vote", "more", <PaintSchemeVotePage drivers={drivers} tracks={tracks} />);
+  if (path === "/vote" || path === "/league-vote" || path === "/voting") return dataFrame("League Vote", "more", <LeagueVotingPage drivers={drivers} />);
+  if (path === "/notifications") return dataFrame("Notifications", "more", <NotificationsPage />);
+  if (path === "/interviews") return dataFrame("Interviews", "more", <PublicInterviewsPage />);
+  if (path === "/contracts") return dataFrame("Contracts", "more", <ContractsPage drivers={drivers} />);
+  if (path === "/memorial-day") return dataFrame("Memorial", "more", <MemorialDayPage drivers={drivers} />);
+  if (path === "/chat") return dataFrame("League Chat", "more", <LeagueChatPage drivers={drivers} />);
+  if (path === "/message-center") return dataFrame("Messages", "more", <LeagueMessageCenterLandingPage drivers={drivers} />);
 
   if (path === "/streams" || path === "/stream") {
-    return <MobileLayout title="Streams" go={go} active="streams"><MobileHero kicker="Watch Live" title="Streams" subtitle="Mobile stream cards are ready for the next phase. Use full view for admin edits and full listings." />{upcomingRace && <MobileRaceCard race={upcomingRace} />}<MobileAction label="Open Full Streams Page" onClick={openFullView} /></MobileLayout>;
+    return dataFrame("Streams", "streams", (
+      <StreamPage
+        drivers={drivers}
+        teams={teams}
+        manufacturers={manufacturerStandings}
+        activeRace={upcomingRace}
+        selectedTrack={getTrackOverview(upcomingRace)}
+      />
+    ));
   }
 
   if (path === "/owners" || path === "/team-hq") {
-    return <MobileLayout title="Team HQ" go={go} active="hq"><MobileHero kicker="Owner Portal" title="Team HQ" subtitle="Quick mobile dashboard. Use full view for contracts, finance controls, and admin-style work." /><MobileStatGrid items={[["Teams", sortedTeams.length], ["Drivers", drivers.length], ["Leader", leader ? `#${leader.number}` : "—"], ["Race", upcomingRace?.name || "—"]]} /><MobileAction label="Open Full Team HQ" onClick={openFullView} /></MobileLayout>;
+    return dataFrame("Team HQ", "hq", (
+      <>
+        <OwnersPage
+          drivers={drivers}
+          teams={teams}
+          teamBudgets={teamBudgets}
+          raceHistory={raceHistory}
+          seasonName={seasonName}
+          tracks={tracks}
+          paymentCompliance={paymentCompliance}
+          onApplyTeamTransaction={onApplyTeamTransaction}
+        />
+        <PaymentCompliancePanel mode="team" />
+      </>
+    ));
   }
 
-  if (path === "/notifications") {
-    return <MobileLayout title="Notifications" go={go} active="more"><MobileHero kicker="Bell Center" title="Notifications" subtitle="Driver reminders, league votes, interviews, and owner messages." /><MobileAction label="Open Full Notifications Page" onClick={openFullView} /></MobileLayout>;
+  if (path.startsWith("/team/")) {
+    const abbr = decodeURIComponent(rawPath.replace(/^\/team\//i, "").split("/")[0]);
+    const normalizedTeam = String(abbr || "").toLowerCase();
+    const selectedTeamDrivers = drivers.filter((d) => String(d.team || "").toLowerCase() === normalizedTeam);
+    const selectedTeamStanding = teams.find((t) => String(t.team || "").toLowerCase() === normalizedTeam) || null;
+    return dataFrame("Team", "standings", (
+      <TeamDetailPage
+        key={`mobile-team-${abbr}-${activeSeasonId}-${raceHistory.length}-${selectedTeamStanding?.points || 0}`}
+        drivers={drivers}
+        teamDrivers={selectedTeamDrivers}
+        teams={teams}
+        teamStandings={teams}
+        standings={teams}
+        selectedStanding={selectedTeamStanding}
+        team={selectedTeamStanding}
+        raceHistory={raceHistory}
+        seasonName={seasonName}
+        initialTeam={abbr}
+        selectedTeam={abbr}
+      />
+    ));
+  }
+
+  if (path.startsWith("/manufacturer/")) {
+    const mfrName = decodeURIComponent(rawPath.replace(/^\/manufacturer\//i, "").split("/")[0]);
+    const normalizedManufacturer = String(mfrName || "").toLowerCase();
+    const selectedManufacturerDrivers = drivers.filter((d) => String(d.manufacturer || "").toLowerCase() === normalizedManufacturer);
+    const selectedManufacturerStanding = manufacturerStandings.find((m) => String(m.manufacturer || "").toLowerCase() === normalizedManufacturer) || null;
+    return dataFrame("Manufacturer", "standings", (
+      <ManufacturerDetailPage
+        key={`mobile-manufacturer-${mfrName}-${activeSeasonId}-${raceHistory.length}-${selectedManufacturerStanding?.points || 0}`}
+        drivers={drivers}
+        manufacturerDrivers={selectedManufacturerDrivers}
+        manufacturers={manufacturerStandings}
+        manufacturerStandings={manufacturerStandings}
+        standings={manufacturerStandings}
+        selectedStanding={selectedManufacturerStanding}
+        manufacturer={selectedManufacturerStanding}
+        raceHistory={raceHistory}
+        seasonName={seasonName}
+        initialManufacturer={mfrName}
+        selectedManufacturer={mfrName}
+      />
+    ));
+  }
+
+  if (path.startsWith("/driver/")) {
+    const driverNumber = decodeURIComponent(rawPath.replace(/^\/driver\//i, "").split("/")[0]);
+    return dataFrame("Driver", "standings", (
+      <>
+        <AppUpdateBanner page="driver" />
+        <DriverVoteReminderStrip driverNumber={driverNumber} />
+        <DriverProfilePage seasons={seasons} activeSeason={activeSeason} tracks={tracks} />
+      </>
+    ));
+  }
+
+  if (path === "/driver-feedback") {
+    return frame("Driver Feedback", "more", (
+      <MobileCard>
+        <h2 style={{ marginTop: 0 }}>Driver Feedback Moved</h2>
+        <p style={{ color: "#aab3c2", lineHeight: 1.5 }}>
+          Driver feedback now lives inside each protected driver profile so only the driver can submit morale ratings.
+        </p>
+        <MobileAction label="Back to Standings" onClick={() => go("/standings")} />
+      </MobileCard>
+    ));
   }
 
   if (path === "/" || path === "/standings") {
     return (
       <MobileLayout title="Budweiser Cup" go={go} active="standings">
         <MobileHero kicker={seasonName || "Current Season"} title="Driver Standings" subtitle={upcomingRace ? `Next Race: ${upcomingRace.name || upcomingRace.track || "TBA"}` : "Mobile league hub"} />
+        <LeagueTicker page="standings" />
         {leader && <MobileCard><div style={mobileKickerStyle}>Points Leader</div><h2 style={{ margin: "4px 0 6px", fontSize: 22 }}>#{leader.number} {leader.name}</h2><p style={{ margin: 0, color: "#aab3c2" }}>{leader.team || "Independent"} • {leader.manufacturer}</p><div style={{ marginTop: 10, fontSize: 28, fontWeight: 1000 }}>{leader.points || 0} pts</div></MobileCard>}
         <MobileStandingsList drivers={sortedDrivers} go={go} />
         <MobileSectionTitle>Team Standings</MobileSectionTitle>
-        {sortedTeams.slice(0, 6).map((team, index) => <MobileTeamRow key={`${team.team}-${index}`} team={team} index={index} />)}
+        {sortedTeams.map((team, index) => <MobileTeamRow key={`${team.team}-${index}`} team={team} index={index} />)}
         <MobileSectionTitle>Manufacturer Standings</MobileSectionTitle>
         {sortedManufacturers.map((manufacturer, index) => <MobileManufacturerRow key={`${manufacturer.manufacturer}-${index}`} manufacturer={manufacturer} index={index} />)}
+        {raceHistory?.length > 0 && <MobileSectionTitle>Recent Race Results</MobileSectionTitle>}
+        {(raceHistory || []).slice(-3).reverse().map((race) => <MobileRaceResultCard key={race.raceName} race={race} />)}
       </MobileLayout>
     );
   }
 
-  return <MobileLayout title="Budweiser Cup" go={go} active="more"><MobileHero kicker="Mobile" title="Page Available" subtitle="This page still uses the full desktop layout. Open full view to continue." /><MobileAction label="Open Full Page" onClick={openFullView} /><MobileAction label="Go to Standings" onClick={() => go("/standings")} secondary /></MobileLayout>;
+  return dataFrame("Budweiser Cup", "standings", <PublicStandings drivers={drivers} teams={teams} manufacturerStandings={manufacturerStandings} seasonName={seasonName} tracks={tracks} raceHistory={raceHistory} />);
+}
+
+function MobileDataFrame({ children }) {
+  return (
+    <div className="bcl-mobile-data-frame" style={mobileDataFrameStyle}>
+      <style>{mobileDataFrameCss}</style>
+      {children}
+    </div>
+  );
+}
+
+function MobileRaceResultCard({ race }) {
+  const winner = race?.results?.find((r) => Number(r.finishPos) === 1);
+  const topFive = [...(race?.results || [])]
+    .filter((r) => r.finishPos)
+    .sort((a, b) => Number(a.finishPos) - Number(b.finishPos))
+    .slice(0, 5);
+  return (
+    <MobileCard>
+      <div style={mobileKickerStyle}>Race Results</div>
+      <h2 style={{ margin: "4px 0 8px" }}>{race.raceName}</h2>
+      {winner && <p style={{ margin: "0 0 10px", color: "#aab3c2" }}>Winner: #{winner.number} {winner.name}</p>}
+      <div style={{ display: "grid", gap: 8 }}>
+        {topFive.map((r) => (
+          <div key={`${race.raceName}-${r.driverId}`} style={mobileSmallRowStyle}>
+            <strong>{r.finishPos}. #{r.number} {r.name}</strong>
+            <span>{r.totalRacePoints || 0} pts</span>
+          </div>
+        ))}
+      </div>
+    </MobileCard>
+  );
 }
 
 function MobileLayout({ title, children, go, active }) {
@@ -5415,6 +5556,31 @@ const mobileActionStyle = { width: "100%", minHeight: 48, borderRadius: 14, bord
 const mobileStatGridStyle = { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10, marginBottom: 12 };
 const mobileStatCardStyle = { background: "#111827", border: "1px solid #263244", borderRadius: 16, padding: 12 };
 const mobileSmallRowStyle = { background: "#111827", border: "1px solid #263244", borderRadius: 14, padding: "12px 14px", marginBottom: 8, display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" };
+
+const mobileDataFrameStyle = { width: "100%", maxWidth: "100%", overflowX: "hidden", borderRadius: 18 };
+const mobileDataFrameCss = `
+  .bcl-mobile-data-frame, .bcl-mobile-data-frame * { box-sizing: border-box; }
+  .bcl-mobile-data-frame { width: 100%; max-width: 100%; overflow-x: hidden; }
+  .bcl-mobile-data-frame > div { max-width: 100% !important; width: 100% !important; }
+  .bcl-mobile-data-frame table { width: 100% !important; min-width: 680px; }
+  .bcl-mobile-data-frame input,
+  .bcl-mobile-data-frame select,
+  .bcl-mobile-data-frame textarea,
+  .bcl-mobile-data-frame button { min-height: 44px; font-size: 16px; }
+  .bcl-mobile-data-frame img, .bcl-mobile-data-frame video, .bcl-mobile-data-frame iframe { max-width: 100%; }
+  .bcl-mobile-data-frame [style*="max-width: 1400px"],
+  .bcl-mobile-data-frame [style*="max-width:1400px"] { max-width: 100% !important; }
+  .bcl-mobile-data-frame [style*="padding: 20px"],
+  .bcl-mobile-data-frame [style*="padding:20px"] { padding: 12px !important; }
+  .bcl-mobile-data-frame [style*="overflow-x: auto"],
+  .bcl-mobile-data-frame [style*="overflow-x:auto"] { -webkit-overflow-scrolling: touch; }
+  @media (max-width: 768px) {
+    .bcl-mobile-data-frame h1 { font-size: 28px !important; line-height: 1.05 !important; }
+    .bcl-mobile-data-frame h2 { font-size: 22px !important; }
+    .bcl-mobile-data-frame h3 { font-size: 18px !important; }
+    .bcl-mobile-data-frame p, .bcl-mobile-data-frame div, .bcl-mobile-data-frame td, .bcl-mobile-data-frame th { line-height: 1.35; }
+  }
+`;
 
 export default function App() {
   const [seasons, setSeasons] = useState([]);
@@ -7178,7 +7344,7 @@ export default function App() {
   if (isAdminProtectedPath && !isAdminAuthenticated) return <AdminLoginPage />;
 
   // Mobile experience gate — phones use the NASCAR-style mobile shell for all non-admin / non-overlay routes.
-  // Desktop routes below stay unchanged. Add ?desktop=1 or use "Open Full Page" to temporarily force desktop.
+  // Desktop routes below stay unchanged. Mobile routes render real app data in a phone-friendly shell.
   const mobileExcludedPaths = path.startsWith("/admin") || path.startsWith("/overlay");
   if (isMobileViewport && !forceDesktop && !mobileExcludedPaths) {
     if (!isHydrated) {
@@ -7195,6 +7361,11 @@ export default function App() {
         seasonName={activeSeason?.name || ""}
         tracks={tracks}
         raceHistory={raceHistory}
+        seasons={seasons}
+        activeSeason={activeSeason}
+        activeSeasonId={activeSeasonId}
+        paymentCompliance={paymentComplianceSummary}
+        onApplyTeamTransaction={applyOwnerPortalTeamTransaction}
       />
     );
   }
