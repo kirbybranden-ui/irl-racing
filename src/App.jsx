@@ -7212,9 +7212,9 @@ export default function App() {
   if (path === "/paint-scheme-vote") return <PaintSchemeVotePage drivers={visibleDrivers} tracks={tracks} />;
   if (path === "/vote" || path === "/league-vote" || path === "/voting") return <LeagueVotingPage drivers={visibleDrivers} />;
   if (path === "/notifications") return <NotificationsPage />;
-  if (path === "/discord") return <DiscordPage />;
-  if (path === "/interviews") return <PublicInterviewsPage />;
-  if (path === "/driver-feedback") {
+  if ((!isMobileViewport || forceDesktop) && path === "/discord") return <DiscordPage />;
+  if ((!isMobileViewport || forceDesktop) && path === "/interviews") return <PublicInterviewsPage />;
+  if ((!isMobileViewport || forceDesktop) && path === "/driver-feedback") {
     return (
       <div style={appShellStyle}>
         <div style={pageContainerStyle}>
@@ -7234,7 +7234,7 @@ export default function App() {
   // Loading gate — all routes below this need Supabase data
   if (!isHydrated) return <div style={appShellStyle}><div style={pageContainerStyle}><div style={sectionCardStyle}>Loading league data...</div></div></div>;
 
-  const mobileExcludedPaths = path.startsWith("/admin") || path.startsWith("/overlay") || path === "/files" || path === "/welcome" || path === "/submit-appeal" || path === "/submit-story" || path === "/appeals" || path === "/discord" || path === "/paint-scheme-vote" || path === "/vote" || path === "/league-vote" || path === "/voting" || path === "/interviews" || path === "/contracts" || path === "/memorial-day" || path === "/chat" || path === "/message-center";
+  const mobileExcludedPaths = path.startsWith("/admin") || path.startsWith("/overlay");
   if (isMobileViewport && !forceDesktop && !mobileExcludedPaths) {
     return (
       <MobileLeagueApp
