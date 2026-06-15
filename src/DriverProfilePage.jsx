@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import teamLogoJAM from "./assets/teams/JAM.png";
+import teamLogoB2J from "./assets/teams/B2J.png";
 import teamLogoMER from "./assets/teams/ME.png";
 import teamLogoMMS from "./assets/teams/MMS.png";
 import teamLogoNLM from "./assets/teams/NLM.png";
@@ -13,8 +13,8 @@ import { supabase } from "./lib/supabase";
 import { uploadCarFile, getCarUploads, deleteCarUpload } from "./lib/carUploads";
 
 const teamLogos = {
-  "JA MOTORSPORTS": teamLogoJAM,
-  JAM: teamLogoJAM,
+  "B2J MOTORSPORTS": teamLogoB2J,
+  B2J: teamLogoB2J,
   "ME RACING": teamLogoMER,
   MER: teamLogoMER,
   MMS: teamLogoMMS,
@@ -34,9 +34,9 @@ const teamLogos = {
 };
 
 const teamFullNames = {
-  JAM: "JA Motorsports",
+  B2J: "B2J Motorsports",
     MER: "ME Racing",
-  "JA MOTORSPORTS": "JA Motorsports",
+  "B2J MOTORSPORTS": "B2J Motorsports",
   MER: "ME Racing",
     KRM: "Kevin Racing Motorsports",
   KDM: "ME Racing",
@@ -56,8 +56,8 @@ const teamFullNames = {
 };
 
 const teamThemes = {
-  JAM: { accent: "#d4af37", glow: "rgba(212,175,55,0.28)", dark: "#2a230f" },
-  "JA MOTORSPORTS": { accent: "#d4af37", glow: "rgba(212,175,55,0.28)", dark: "#2a230f" },
+  B2J: { accent: "#d4af37", glow: "rgba(212,175,55,0.28)", dark: "#2a230f" },
+  "B2J MOTORSPORTS": { accent: "#d4af37", glow: "rgba(212,175,55,0.28)", dark: "#2a230f" },
   MER: { accent: "#ef4444", glow: "rgba(239,68,68,0.28)", dark: "#2a1111" },
   KDM: { accent: "#ef4444", glow: "rgba(239,68,68,0.28)", dark: "#2a1111" },
   "ME Racing": { accent: "#ef4444", glow: "rgba(239,68,68,0.28)", dark: "#2a1111" },
