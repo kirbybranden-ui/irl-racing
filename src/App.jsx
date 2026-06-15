@@ -5543,7 +5543,8 @@ function MobileNewsFeed({ go, desktopArchive = null }) {
       const { data, error } = await supabase
         .from(tableName)
         .select("*")
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(20);
 
       if (error) {
         console.warn(`Mobile news could not load ${tableName}:`, error);
@@ -5582,9 +5583,10 @@ function MobileNewsFeed({ go, desktopArchive = null }) {
         return bTime - aTime;
       });
 
-      setArticles(cleanArticles);
+      const latestFiveArticles = cleanArticles.slice(0, 5);
+      setArticles(latestFiveArticles);
       setLoading(false);
-      if (!cleanArticles.length) {
+      if (!latestFiveArticles.length) {
         setError("No mobile news rows were found in the news tables. Showing the full News archive below.");
       }
     }
@@ -5614,7 +5616,7 @@ function MobileNewsFeed({ go, desktopArchive = null }) {
       <section style={mobileNewsMastheadStyle}>
         <div style={mobileNewsMastheadKickerStyle}>BCL NEWSROOM</div>
         <h1 style={mobileNewsMastheadTitleStyle}>Latest League News</h1>
-        <p style={mobileNewsMastheadSubStyle}>Race reports, team moves, penalties, signings, and garage updates in a clean mobile article feed.</p>
+        <p style={mobileNewsMastheadSubStyle}>The five most recent BCL stories in a clean NASCAR-style mobile article feed.</p>
         <div style={mobileNewsMastheadActionsStyle}>
           <button type="button" onClick={() => go("/submit-story")} style={mobileNewsPrimaryButtonStyle}>Submit Story</button>
           <button type="button" onClick={() => window.location.reload()} style={mobileNewsGhostButtonStyle}>Refresh</button>
@@ -5625,6 +5627,12 @@ function MobileNewsFeed({ go, desktopArchive = null }) {
 
       {loading && <MobileCard><strong>Loading news...</strong></MobileCard>}
       {error && !loading && <MobileCard><p style={{ margin: 0, color: "#fbbf24", fontWeight: 900 }}>{error}</p></MobileCard>}
+
+      {!loading && articles.length > 0 && (
+        <div style={{ margin: "4px 2px 12px", color: "#aab3c2", fontSize: 12, fontWeight: 900, letterSpacing: 0.7, textTransform: "uppercase" }}>
+          Showing latest {articles.length} stories
+        </div>
+      )}
 
       {!loading && leadArticle && (
         <section style={mobileNewsLeadCardStyle}>
