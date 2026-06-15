@@ -5517,14 +5517,16 @@ function MobileNewsFeed({ go, desktopArchive = null }) {
       const author = item.author_name || item.author || item.submitted_by || item.created_by || item.writer || "BCL Media";
       const driver = item.driver_name || item.driver || item.driver_number || item.team || "";
       const status = item.status || item.state || (source === "story_submissions" ? "Submitted" : "Posted");
+      const category = item.category || item.type || item.tag || "League News";
 
       return {
         id: `${source}-${item.id || item.slug || title}-${createdAt}`,
-        title,
-        body,
-        author,
-        driver,
-        status,
+        title: String(title || "League News Update").trim(),
+        body: String(body || "").trim(),
+        author: String(author || "BCL Media").trim(),
+        driver: String(driver || "").trim(),
+        status: String(status || "Posted").trim(),
+        category: String(category || "League News").trim(),
         createdAt,
         source,
         imageUrl: item.image_url || item.imageUrl || item.photo_url || item.thumbnail_url || item.media_url || "",
@@ -5592,59 +5594,79 @@ function MobileNewsFeed({ go, desktopArchive = null }) {
   }, []);
 
   function formatMobileDate(value) {
-    if (!value) return "";
+    if (!value) return "Recently";
     const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return "";
+    if (Number.isNaN(date.getTime())) return "Recently";
     return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   }
 
+  function makeExcerpt(body = "", max = 190) {
+    const clean = String(body || "").replace(/\s+/g, " ").trim();
+    if (clean.length <= max) return clean;
+    return `${clean.slice(0, max).trim()}…`;
+  }
+
+  const leadArticle = articles[0] || null;
+  const remainingArticles = articles.slice(1);
+
   return (
     <>
-      <MobileHero
-        kicker="League Feed"
-        title="News"
-        subtitle="Articles stack in a natural mobile scroll and also pull from older news tables."
-      />
+      <section style={mobileNewsMastheadStyle}>
+        <div style={mobileNewsMastheadKickerStyle}>BCL NEWSROOM</div>
+        <h1 style={mobileNewsMastheadTitleStyle}>Latest League News</h1>
+        <p style={mobileNewsMastheadSubStyle}>Race reports, team moves, penalties, signings, and garage updates in a clean mobile article feed.</p>
+        <div style={mobileNewsMastheadActionsStyle}>
+          <button type="button" onClick={() => go("/submit-story")} style={mobileNewsPrimaryButtonStyle}>Submit Story</button>
+          <button type="button" onClick={() => window.location.reload()} style={mobileNewsGhostButtonStyle}>Refresh</button>
+        </div>
+      </section>
+
       <LeagueTicker page="news" />
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
-        <MobileAction label="Submit Story" onClick={() => go("/submit-story")} />
-        <MobileAction label="Refresh" onClick={() => window.location.reload()} secondary />
-      </div>
 
       {loading && <MobileCard><strong>Loading news...</strong></MobileCard>}
       {error && !loading && <MobileCard><p style={{ margin: 0, color: "#fbbf24", fontWeight: 900 }}>{error}</p></MobileCard>}
 
-      <div style={mobileNewsFeedStyle}>
-        {articles.map((article, index) => (
-          <article key={article.id || `${article.title}-${index}`} style={mobileNewsArticleStyle}>
-            {article.imageUrl && (
-              <div style={{ margin: "-16px -16px 14px", borderRadius: "18px 18px 0 0", overflow: "hidden", background: "#05070a" }}>
-                <img src={article.imageUrl} alt={article.title} style={{ width: "100%", maxHeight: 260, objectFit: "cover", display: "block" }} />
-              </div>
-            )}
+      {!loading && leadArticle && (
+        <section style={mobileNewsLeadCardStyle}>
+          {leadArticle.imageUrl ? (
+            <img src={leadArticle.imageUrl} alt={leadArticle.title} style={mobileNewsLeadImageStyle} />
+          ) : (
+            <div style={mobileNewsLeadImageFallbackStyle}>🏁</div>
+          )}
+          <div style={mobileNewsLeadContentStyle}>
             <div style={mobileNewsMetaRowStyle}>
-              <span style={mobileNewsBadgeStyle}>{article.status || "Posted"}</span>
-              <span>{formatMobileDate(article.createdAt)}</span>
+              <span style={mobileNewsCategoryPillStyle}>{leadArticle.category || "League News"}</span>
+              <span>{formatMobileDate(leadArticle.createdAt)}</span>
             </div>
-            <h2 style={mobileNewsTitleStyle}>{article.title}</h2>
-            {(article.author || article.driver) && (
-              <div style={mobileNewsBylineStyle}>
-                {article.author}{article.driver ? ` • ${article.driver}` : ""}
+            <h2 style={mobileNewsLeadTitleStyle}>{leadArticle.title}</h2>
+            <p style={mobileNewsLeadExcerptStyle}>{makeExcerpt(leadArticle.body, 240)}</p>
+            <div style={mobileNewsBylineStyle}>{leadArticle.author}{leadArticle.driver ? ` • ${leadArticle.driver}` : ""}</div>
+          </div>
+        </section>
+      )}
+
+      {!loading && remainingArticles.length > 0 && <MobileSectionTitle>More Stories</MobileSectionTitle>}
+      <div style={mobileNewsFeedStyle}>
+        {remainingArticles.map((article, index) => (
+          <article key={article.id || `${article.title}-${index}`} style={mobileNewsArticleStyle}>
+            {article.imageUrl && <img src={article.imageUrl} alt={article.title} style={mobileNewsCardImageStyle} />}
+            <div style={mobileNewsStoryContentStyle}>
+              <div style={mobileNewsMetaRowStyle}>
+                <span style={mobileNewsCategoryPillStyle}>{article.category || article.status || "News"}</span>
+                <span>{formatMobileDate(article.createdAt)}</span>
               </div>
-            )}
-            <div style={mobileNewsBodyStyle}>{article.body}</div>
+              <h3 style={mobileNewsTitleStyle}>{article.title}</h3>
+              {(article.author || article.driver) && <div style={mobileNewsBylineStyle}>{article.author}{article.driver ? ` • ${article.driver}` : ""}</div>}
+              <p style={mobileNewsExcerptStyle}>{makeExcerpt(article.body)}</p>
+            </div>
           </article>
         ))}
       </div>
 
-      {desktopArchive && (
+      {!articles.length && desktopArchive && !loading && (
         <div style={{ marginTop: 18 }}>
           <MobileSectionTitle>Full News Archive</MobileSectionTitle>
-          <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", borderRadius: 18 }}>
-            <div style={{ minWidth: 340 }}>
-              {desktopArchive}
-            </div>
-          </div>
+          <div style={mobileNewsArchiveShellStyle}>{desktopArchive}</div>
         </div>
       )}
     </>
@@ -5807,13 +5829,29 @@ function MobileManufacturerRow({ manufacturer, index }) { return <div style={mob
 function MobileRaceCard({ race }) { return <MobileCard><div style={mobileKickerStyle}>Next Race</div><h2 style={{ margin: "4px 0" }}>{race.name || race.track || "Race"}</h2><p style={{ color: "#aab3c2", margin: 0 }}>{race.date || "Date TBA"} • Qualifying 9:15 PM • Race 9:30 PM</p></MobileCard>; }
 
 
-const mobileNewsFeedStyle = { display: "flex", flexDirection: "column", gap: 14, paddingBottom: 16 };
-const mobileNewsArticleStyle = { background: "linear-gradient(180deg, #141b26 0%, #0f141c 100%)", border: "1px solid #2b3545", borderRadius: 18, padding: 16, boxShadow: "0 12px 28px rgba(0,0,0,0.28)" };
-const mobileNewsMetaRowStyle = { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, color: "#aab3c2", fontSize: 12, fontWeight: 800, marginBottom: 10 };
-const mobileNewsBadgeStyle = { background: "rgba(212,175,55,0.16)", border: "1px solid rgba(212,175,55,0.55)", color: "#facc15", borderRadius: 999, padding: "5px 9px", textTransform: "uppercase", letterSpacing: 0.7, fontSize: 10, fontWeight: 1000 };
-const mobileNewsTitleStyle = { margin: "0 0 8px", fontSize: 23, lineHeight: 1.08, fontWeight: 1000, color: "#ffffff" };
-const mobileNewsBylineStyle = { color: "#d4af37", fontSize: 12, fontWeight: 900, textTransform: "uppercase", letterSpacing: 0.7, marginBottom: 12 };
-const mobileNewsBodyStyle = { color: "#e5e7eb", fontSize: 15, lineHeight: 1.55, whiteSpace: "pre-wrap", overflowWrap: "anywhere" };
+const mobileNewsMastheadStyle = { background: "linear-gradient(180deg, #101827 0%, #0b1018 100%)", border: "1px solid rgba(212,175,55,0.32)", borderRadius: 22, padding: "22px 18px", marginBottom: 14, boxShadow: "0 18px 42px rgba(0,0,0,0.32)" };
+const mobileNewsMastheadKickerStyle = { color: "#facc15", fontSize: 11, fontWeight: 1000, letterSpacing: 1.8, textTransform: "uppercase", marginBottom: 8 };
+const mobileNewsMastheadTitleStyle = { margin: 0, fontSize: 32, lineHeight: 0.95, fontWeight: 1000, letterSpacing: -1.2 };
+const mobileNewsMastheadSubStyle = { margin: "10px 0 0", color: "#aab3c2", fontSize: 14, lineHeight: 1.45 };
+const mobileNewsMastheadActionsStyle = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 16 };
+const mobileNewsPrimaryButtonStyle = { background: "linear-gradient(135deg, #d4af37, #facc15)", color: "#111", border: "none", borderRadius: 14, padding: "12px 14px", fontWeight: 1000, fontSize: 14, cursor: "pointer" };
+const mobileNewsGhostButtonStyle = { background: "#151c28", color: "#ffffff", border: "1px solid #2d3748", borderRadius: 14, padding: "12px 14px", fontWeight: 1000, fontSize: 14, cursor: "pointer" };
+const mobileNewsFeedStyle = { display: "flex", flexDirection: "column", gap: 14, paddingBottom: 18 };
+const mobileNewsLeadCardStyle = { background: "#0f141c", border: "1px solid rgba(212,175,55,0.38)", borderRadius: 24, overflow: "hidden", marginBottom: 18, boxShadow: "0 20px 46px rgba(0,0,0,0.42)" };
+const mobileNewsLeadImageStyle = { width: "100%", height: 220, objectFit: "cover", display: "block", background: "#05070a" };
+const mobileNewsLeadImageFallbackStyle = { height: 135, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 48, background: "linear-gradient(135deg, rgba(212,175,55,0.25), rgba(17,24,39,0.95))" };
+const mobileNewsLeadContentStyle = { padding: "16px 16px 18px" };
+const mobileNewsLeadTitleStyle = { margin: "8px 0 10px", fontSize: 27, lineHeight: 1.02, fontWeight: 1000, letterSpacing: -0.8, color: "#ffffff" };
+const mobileNewsLeadExcerptStyle = { margin: "0 0 12px", color: "#d7dde8", fontSize: 15, lineHeight: 1.5 };
+const mobileNewsArticleStyle = { background: "#101722", border: "1px solid #263244", borderRadius: 20, overflow: "hidden", boxShadow: "0 12px 30px rgba(0,0,0,0.28)" };
+const mobileNewsCardImageStyle = { width: "100%", height: 150, objectFit: "cover", display: "block", background: "#05070a" };
+const mobileNewsStoryContentStyle = { padding: "15px 15px 16px" };
+const mobileNewsMetaRowStyle = { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, color: "#9ca8ba", fontSize: 12, fontWeight: 900, marginBottom: 8 };
+const mobileNewsCategoryPillStyle = { background: "rgba(212,175,55,0.14)", border: "1px solid rgba(212,175,55,0.5)", color: "#facc15", borderRadius: 999, padding: "5px 9px", textTransform: "uppercase", letterSpacing: 0.75, fontSize: 10, fontWeight: 1000, maxWidth: "58%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" };
+const mobileNewsTitleStyle = { margin: "0 0 7px", fontSize: 20, lineHeight: 1.12, fontWeight: 1000, letterSpacing: -0.35, color: "#ffffff" };
+const mobileNewsBylineStyle = { color: "#d4af37", fontSize: 11, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 0.75, marginBottom: 9 };
+const mobileNewsExcerptStyle = { margin: 0, color: "#cbd5e1", fontSize: 14, lineHeight: 1.48 };
+const mobileNewsArchiveShellStyle = { overflowX: "auto", WebkitOverflowScrolling: "touch", borderRadius: 18, border: "1px solid #263244", background: "#0f141c" };
 
 const mobileAppStyle = { minHeight: "100vh", background: "#080b10", color: "white", paddingBottom: 82, fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' };
 const mobileTopbarStyle = { position: "sticky", top: 0, zIndex: 20, background: "#0c0f14", borderBottom: "1px solid #222936", padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" };
