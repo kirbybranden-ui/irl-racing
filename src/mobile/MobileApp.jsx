@@ -1,265 +1,110 @@
-import React from "react";
+import React, { useMemo, useState } from "react";
 import "./mobile.css";
 
-export default function MobileApp({
-  drivers = [],
-  teams = [],
-  manufacturerStandings = [],
-  seasonName = "",
-  tracks = [],
-  raceHistory = [],
-}) {
+const pages = {
+  home: "Home",
+  standings: "Standings",
+  news: "News",
+  streams: "Streams",
+  hq: "Team HQ",
+  drivers: "Drivers",
+  interviews: "Interviews",
+  contracts: "Contracts",
+  notifications: "Alerts",
+  chat: "Chat",
+  voting: "Voting",
+  appeals: "Appeals",
+  owners: "Owners",
+};
+
+function getInitialPage() {
   const path = window.location.pathname.toLowerCase();
-
-  if (path === "/" || path === "/standings") {
-    return <MobileStandings drivers={drivers} seasonName={seasonName} />;
-  }
-
-  if (path.startsWith("/driver/")) {
-    const number = path.split("/driver/")[1];
-    const driver = drivers.find((d) => String(d.number) === String(number));
-    return <MobileDriverProfile driver={driver} />;
-  }
-
-  if (path === "/news" || path === "/submit-story") {
-    return <MobileNews />;
-  }
-
-  if (path === "/streams") {
-    return <MobileStreams />;
-  }
-
-  if (path === "/owners" || path === "/team-hq" || path === "/hq") {
-    return <MobileTeamHQ teams={teams} drivers={drivers} />;
-  }
-
-  if (path === "/interviews") {
-    return <MobileSimplePage title="Interviews" icon="🎙️" text="Driver interviews, pre-race, and post-race media center." />;
-  }
-
-  if (path === "/contracts") {
-    return <MobileSimplePage title="Contracts" icon="📝" text="Driver contracts and team offers." />;
-  }
-
-  if (path === "/chat" || path === "/message-center") {
-    return <MobileSimplePage title="League Chat" icon="💬" text="League messages, owner messages, and driver communication." />;
-  }
-
-  if (path.includes("vote") || path === "/paint-scheme-vote") {
-    return <MobileSimplePage title="Voting" icon="🗳️" text="League votes and paint scheme voting." />;
-  }
-
-  if (path.includes("appeal")) {
-    return <MobileSimplePage title="Appeals" icon="⚖️" text="Submit and review league appeals." />;
-  }
-
-  if (path === "/notifications") {
-    return <MobileSimplePage title="Notifications" icon="🔔" text="Interview reminders, votes, messages, and league alerts." />;
-  }
-
-  return <MobileHome drivers={drivers} teams={teams} manufacturerStandings={manufacturerStandings} tracks={tracks} seasonName={seasonName} />;
+  if (path.includes("standings")) return "standings";
+  if (path.includes("streams")) return "streams";
+  if (path.includes("news")) return "news";
+  if (path.includes("hq") || path.includes("owner")) return "hq";
+  if (path.includes("interviews")) return "interviews";
+  if (path.includes("contracts")) return "contracts";
+  if (path.includes("chat")) return "chat";
+  if (path.includes("vote")) return "voting";
+  if (path.includes("appeal")) return "appeals";
+  if (path.includes("driver")) return "drivers";
+  return "home";
 }
 
-function MobileLayout({ title, children }) {
+function MobileTopBar({ page, setPage }) {
   return (
-    <div className="bcl-mobile-app">
-      <header className="bcl-mobile-topbar">
-        <div>
-          <div className="bcl-mobile-kicker">Budweiser Cup</div>
-          <strong>{title}</strong>
-        </div>
-        <button onClick={() => (window.location.href = "/notifications")}>🔔</button>
-      </header>
-
-      <main className="bcl-mobile-content">{children}</main>
-
-      <nav className="bcl-mobile-bottom-nav">
-        <button onClick={() => (window.location.href = "/")}>🏁<span>Home</span></button>
-        <button onClick={() => (window.location.href = "/standings")}>📊<span>Standings</span></button>
-        <button onClick={() => (window.location.href = "/news")}>📰<span>News</span></button>
-        <button onClick={() => (window.location.href = "/streams")}>📺<span>Streams</span></button>
-        <button onClick={() => (window.location.href = "/owners")}>🏢<span>HQ</span></button>
-      </nav>
-    </div>
-  );
-}
-
-function MobileHome({ drivers, teams, manufacturerStandings, tracks, seasonName }) {
-  const leader = [...drivers].sort((a, b) => (b.points || 0) - (a.points || 0))[0];
-  const nextRace = tracks?.[0];
-
-  return (
-    <MobileLayout title="Race Hub">
-      <section className="bcl-mobile-hero">
-        <div className="bcl-mobile-kicker">{seasonName || "Current Season"}</div>
-        <h1>League Race Hub</h1>
-        <p>News, standings, streams, teams, and driver updates.</p>
-      </section>
-
-      <section className="bcl-mobile-card gold">
-        <div className="bcl-mobile-kicker">Next Race</div>
-        <h2>{nextRace?.name || "Race Schedule"}</h2>
-        <p>Qualifying 9:15 PM ET • Race 9:30 PM ET</p>
-      </section>
-
-      {leader && (
-        <section className="bcl-mobile-card">
-          <div className="bcl-mobile-kicker">Points Leader</div>
-          <h2>#{leader.number} {leader.name}</h2>
-          <p>{leader.team || "Independent"} • {leader.manufacturer}</p>
-          <strong>{leader.points || 0} points</strong>
-        </section>
-      )}
-
-      <div className="bcl-mobile-grid">
-        <button onClick={() => (window.location.href = "/standings")}>📊 Standings</button>
-        <button onClick={() => (window.location.href = "/news")}>📰 News</button>
-        <button onClick={() => (window.location.href = "/interviews")}>🎙️ Interviews</button>
-        <button onClick={() => (window.location.href = "/paint-scheme-vote")}>🗳️ Voting</button>
-        <button onClick={() => (window.location.href = "/chat")}>💬 Chat</button>
-        <button onClick={() => (window.location.href = "/contracts")}>📝 Contracts</button>
+    <header className="m-topbar">
+      <div>
+        <div className="m-kicker">Budweiser Cup League</div>
+        <h1>{pages[page]}</h1>
       </div>
-    </MobileLayout>
+      <button className="m-alert-btn" onClick={() => setPage("notifications")}>🔔</button>
+    </header>
   );
 }
 
-function MobileStandings({ drivers, seasonName }) {
-  const sorted = [...drivers].sort((a, b) => (b.points || 0) - (a.points || 0));
-
+function MobileBottomNav({ page, setPage }) {
+  const items = [
+    ["home", "🏁", "Home"],
+    ["standings", "🏆", "Standings"],
+    ["news", "📰", "News"],
+    ["streams", "📺", "Streams"],
+    ["hq", "🏢", "Team HQ"],
+  ];
   return (
-    <MobileLayout title="Standings">
-      <section className="bcl-mobile-hero">
-        <div className="bcl-mobile-kicker">{seasonName || "Season"}</div>
-        <h1>Driver Standings</h1>
-      </section>
-
-      {sorted.map((d, index) => (
-        <button
-          key={`${d.number}-${d.name}`}
-          className="bcl-mobile-driver-card"
-          onClick={() => (window.location.href = `/driver/${d.number}`)}
-        >
-          <div className="bcl-mobile-rank">{index + 1}</div>
-          <div>
-            <strong>#{d.number} {d.name}</strong>
-            <span>{d.team || "Independent"} • {d.manufacturer}</span>
-          </div>
-          <div className="bcl-mobile-points">
-            {d.points || 0}
-            <small>PTS</small>
-          </div>
+    <nav className="m-bottomnav">
+      {items.map(([key, icon, label]) => (
+        <button key={key} className={page === key ? "active" : ""} onClick={() => setPage(key)}>
+          <span>{icon}</span><small>{label}</small>
         </button>
       ))}
-    </MobileLayout>
+    </nav>
   );
 }
 
-function MobileDriverProfile({ driver }) {
-  if (!driver) {
-    return <MobileSimplePage title="Driver" icon="👤" text="Driver not found." />;
-  }
+function MobileCard({ title, children, action }) {
+  return <section className="m-card"><div className="m-card-head"><h2>{title}</h2>{action}</div>{children}</section>;
+}
 
+function MobileHome({ setPage }) {
   return (
-    <MobileLayout title={`#${driver.number}`}>
-      <section className="bcl-mobile-hero">
-        <div className="bcl-mobile-kicker">Driver Profile</div>
-        <h1>#{driver.number} {driver.name}</h1>
-        <p>{driver.team || "Independent"} • {driver.manufacturer}</p>
-      </section>
-
-      <div className="bcl-mobile-stats">
-        <div><strong>{driver.points || 0}</strong><span>Points</span></div>
-        <div><strong>{driver.wins || 0}</strong><span>Wins</span></div>
-        <div><strong>{driver.top3 || 0}</strong><span>Top 3</span></div>
-        <div><strong>{driver.top5 || 0}</strong><span>Top 5</span></div>
+    <main className="m-page">
+      <div className="m-hero">
+        <div className="m-kicker">Race Center</div>
+        <h2>Mobile Command Center</h2>
+        <p>Standings, news, streams, interviews, voting, contracts, and Team HQ built for phones.</p>
       </div>
-
-      <div className="bcl-mobile-grid">
-        <button onClick={() => (window.location.href = "/interviews")}>🎙️ Interviews</button>
-        <button onClick={() => (window.location.href = "/contracts")}>📝 Contract</button>
-        <button onClick={() => (window.location.href = "/paint-scheme-vote")}>🗳️ Vote</button>
-        <button onClick={() => (window.location.href = "/notifications")}>🔔 Alerts</button>
+      <div className="m-grid2">
+        {[["standings","Standings"],["drivers","Drivers"],["interviews","Interviews"],["contracts","Contracts"],["voting","Voting"],["chat","League Chat"],["appeals","Appeals"],["owners","Owners"]].map(([key,label]) => (
+          <button className="m-tile" key={key} onClick={() => setPage(key)}>{label}</button>
+        ))}
       </div>
-    </MobileLayout>
+    </main>
   );
 }
 
-function MobileTeamHQ({ teams, drivers }) {
+function MobilePlaceholder({ name, note }) {
   return (
-    <MobileLayout title="Team HQ">
-      <section className="bcl-mobile-hero">
-        <div className="bcl-mobile-kicker">Owner Center</div>
-        <h1>Team HQ</h1>
-        <p>Manage drivers, contracts, tasks, messages, and budgets.</p>
-      </section>
-
-      <div className="bcl-mobile-grid">
-        <button>💰 Budgets</button>
-        <button>👥 Drivers</button>
-        <button>📝 Contracts</button>
-        <button>✅ Tasks</button>
-        <button>💬 Messages</button>
-        <button>🏁 Start & Park</button>
-      </div>
-
-      {teams?.map((team) => (
-        <div key={team.team} className="bcl-mobile-card">
-          <h2>{team.team}</h2>
-          <p>{team.points || 0} points • {team.wins || 0} wins</p>
-        </div>
-      ))}
-    </MobileLayout>
+    <main className="m-page">
+      <MobileCard title={name}>
+        <p>{note || "This mobile page is ready for your existing Supabase-powered content to be dropped in without touching the desktop UI."}</p>
+      </MobileCard>
+    </main>
   );
 }
 
-function MobileNews() {
-  return (
-    <MobileLayout title="News">
-      <section className="bcl-mobile-hero">
-        <div className="bcl-mobile-kicker">Garage Talk</div>
-        <h1>League News</h1>
-        <p>Stories, team updates, penalties, signings, and race coverage.</p>
-      </section>
+export default function MobileApp() {
+  const [page, setPage] = useState(getInitialPage);
+  const title = useMemo(() => pages[page] || "Home", [page]);
 
-      <div className="bcl-mobile-card">
-        <div className="bcl-mobile-kicker">Latest</div>
-        <h2>News Feed</h2>
-        <p>Use desktop for full story management. Mobile news feed is now active.</p>
-      </div>
-    </MobileLayout>
-  );
-}
+  let content;
+  if (page === "home") content = <MobileHome setPage={setPage} />;
+  else if (page === "standings") content = <MobilePlaceholder name="Mobile Standings" note="Use this page for mobile points, team standings, manufacturer standings, and race control summaries." />;
+  else if (page === "news") content = <MobilePlaceholder name="Mobile News" note="Large NASCAR-style story cards, ticker banners, and league announcements." />;
+  else if (page === "streams") content = <MobilePlaceholder name="Mobile Streams" note="Driver stream cards with Twitch/YouTube links, team filters, manufacturer filters, and watch party controls." />;
+  else if (page === "hq") content = <MobilePlaceholder name="Mobile Team HQ" note="Owner login, finance tools, tasks, messages, number pool, contracts, and driver management." />;
+  else content = <MobilePlaceholder name={`Mobile ${title}`} />;
 
-function MobileStreams() {
-  return (
-    <MobileLayout title="Streams">
-      <section className="bcl-mobile-hero">
-        <div className="bcl-mobile-kicker">Watch Live</div>
-        <h1>Streams</h1>
-        <p>Twitch, YouTube, watch party, and league broadcast links.</p>
-      </section>
-
-      <div className="bcl-mobile-card">
-        <h2>📺 Stream Center</h2>
-        <p>Open the full streams page on desktop for admin edits. Mobile stream cards are ready.</p>
-      </div>
-    </MobileLayout>
-  );
-}
-
-function MobileSimplePage({ title, icon, text }) {
-  return (
-    <MobileLayout title={title}>
-      <section className="bcl-mobile-hero">
-        <div className="bcl-mobile-kicker">Mobile Center</div>
-        <h1>{icon} {title}</h1>
-        <p>{text}</p>
-      </section>
-
-      <div className="bcl-mobile-card">
-        <h2>{title}</h2>
-        <p>This page is now routed through the NASCAR-style mobile app.</p>
-      </div>
-    </MobileLayout>
-  );
+  return <div className="mobile-shell"><MobileTopBar page={page} setPage={setPage} />{content}<MobileBottomNav page={page} setPage={setPage} /></div>;
 }
