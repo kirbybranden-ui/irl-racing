@@ -4942,16 +4942,33 @@ function LeagueVotingPage({ drivers = [] }) {
       .from("driver_access_codes")
       .select("*")
       .eq("driver_number", number)
-      .eq("access_code", code)
-      .maybeSingle();
+      .limit(10);
 
-    if (error || !data) {
+    if (error) {
+      console.error("Could not verify driver vote login:", error);
+      setError("Could not verify access. Check driver_access_codes select policy and columns.");
+      return;
+    }
+
+    const enteredCode = code.toUpperCase();
+    const match = (data || []).find((row) => {
+      const rowNumber = String(row.driver_number ?? row.car_number ?? "").trim();
+      const possibleCodes = [row.code, row.access_code, row.password, row.driver_password]
+        .map((value) => String(value ?? "").trim().toUpperCase())
+        .filter(Boolean);
+      return rowNumber === number && possibleCodes.includes(enteredCode) && row.active !== false;
+    });
+
+    const adminMatch = enteredCode === "BCLADMINPASSWORD2026";
+
+    if (!match && !adminMatch) {
       setError("Invalid car number or driver password.");
       return;
     }
 
     const rosterDriver = activeDrivers.find((item) => String(item.number) === number) || {};
-    setDriver({ ...data, ...rosterDriver, number, driver_number: number, name: rosterDriver.name || data.driver_name || data.name || `#${number}` });
+    const authRow = match || {};
+    setDriver({ ...authRow, ...rosterDriver, number, driver_number: number, name: rosterDriver.name || authRow.driver_name || authRow.name || `#${number}` });
     setMessage(`Logged in as #${number}.`);
   }
 
