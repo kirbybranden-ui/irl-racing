@@ -464,6 +464,9 @@ const raceNotesInputStyle = {
   padding: "10px 12px",
   fontSize: 14,
 };
+const tableStyle = { width: "100%", borderCollapse: "collapse" };
+const thStyle = { textAlign: "left", padding: 10, borderBottom: "1px solid #313947", background: "#10141b", fontSize: 13 };
+const tdStyle = { padding: 10, borderBottom: "1px solid #252c38", verticalAlign: "top", fontSize: 14 };
 const raceEntryThStyle = {
   ...thStyle,
   minWidth: 115,
@@ -473,9 +476,6 @@ const raceEntryTdStyle = {
   ...tdStyle,
   minWidth: 115,
 };
-const tableStyle = { width: "100%", borderCollapse: "collapse" };
-const thStyle = { textAlign: "left", padding: 10, borderBottom: "1px solid #313947", background: "#10141b", fontSize: 13 };
-const tdStyle = { padding: 10, borderBottom: "1px solid #252c38", verticalAlign: "top", fontSize: 14 };
 const statBoxStyle = { background: "#11161d", border: "1px solid #2a3240", borderRadius: 14, padding: 16, flex: "1 1 220px" };
 const teamBranding = {
   B2J: { logo: "B2J", accent: "#d4af37", dark: "#1b1b1b" },
@@ -5387,21 +5387,7 @@ function MobileLeagueApp({
   }
 
   if (["/owners", "/owner", "/team-hq", "/hq", "/teamhq"].includes(path)) {
-    return dataFrame("Team HQ", "hq", (
-      <>
-        <OwnersPage
-          drivers={drivers}
-          teams={teams}
-          teamBudgets={teamBudgets}
-          raceHistory={raceHistory}
-          seasonName={seasonName}
-          tracks={tracks}
-          paymentCompliance={paymentCompliance}
-          onApplyTeamTransaction={onApplyTeamTransaction}
-        />
-        <PaymentCompliancePanel mode="team" />
-      </>
-    ));
+    return frame("Team HQ", "hq", <MobileTeamHQ drivers={drivers} teams={teams} seasonName={seasonName} go={go} />);
   }
 
   if (path.startsWith("/team/")) {
@@ -5528,13 +5514,14 @@ function MobileNewsFeed({ go }) {
         })
         .map((item) => ({
           id: item.id,
-          title: item.title || "League News Update",
-          body: item.story || item.body || item.content || item.article || "",
-          author: item.author_name || item.author || "BCL Media",
-          driver: item.driver_name || item.driver || "",
+          title: item.title || item.headline || item.story_title || item.subject || "League News Update",
+          body: item.story || item.story_text || item.body || item.content || item.article || item.message || item.description || "",
+          author: item.author_name || item.author || item.submitted_by || item.created_by || "BCL Media",
+          driver: item.driver_name || item.driver || item.driver_number || "",
           status: item.status || "Posted",
-          createdAt: item.created_at || item.submitted_at || item.updated_at || "",
-        }));
+          createdAt: item.created_at || item.submitted_at || item.updated_at || item.published_at || "",
+        }))
+        .filter((item) => item.title || item.body);
 
       setArticles(cleanArticles);
       setLoading(false);
@@ -5590,6 +5577,106 @@ function MobileNewsFeed({ go }) {
           </article>
         ))}
       </div>
+    </>
+  );
+}
+
+
+function MobileTeamHQ({ drivers = [], teams = [], seasonName = "", go }) {
+  const [selectedTeam, setSelectedTeam] = useState(() => {
+    const firstTeam = (teams || []).find((team) => team?.team)?.team;
+    return firstTeam || (drivers || []).find((driver) => driver?.team)?.team || "B2J";
+  });
+
+  const safeTeams = useMemo(() => {
+    const fromStandings = Array.isArray(teams) ? teams.filter((team) => team?.team) : [];
+    const teamKeys = new Set(fromStandings.map((team) => String(team.team)));
+    (drivers || []).forEach((driver) => {
+      const key = String(driver?.team || "").trim();
+      if (key && !teamKeys.has(key)) teamKeys.add(key);
+    });
+    return Array.from(teamKeys).map((key) => {
+      const standing = fromStandings.find((team) => String(team.team) === key) || {};
+      const roster = (drivers || []).filter((driver) => String(driver?.team || "") === key);
+      return {
+        team: key,
+        name: getTeamFullName(key),
+        points: Number(standing.points || roster.reduce((sum, driver) => sum + Number(driver.points || 0), 0)),
+        wins: Number(standing.wins || roster.reduce((sum, driver) => sum + Number(driver.wins || 0), 0)),
+        drivers: roster,
+      };
+    }).sort((a, b) => b.points - a.points || a.name.localeCompare(b.name));
+  }, [drivers, teams]);
+
+  const currentTeam = safeTeams.find((team) => String(team.team) === String(selectedTeam)) || safeTeams[0] || null;
+  const roster = currentTeam?.drivers || [];
+
+  return (
+    <>
+      <MobileHero
+        kicker="Owner Center"
+        title="Team HQ"
+        subtitle="Mobile-friendly HQ view using the same live league drivers, standings, and team data."
+      />
+
+      <MobileCard>
+        <label style={{ display: "block", color: "#aab3c2", fontSize: 11, fontWeight: 1000, textTransform: "uppercase", marginBottom: 8 }}>
+          Select Team
+        </label>
+        <select
+          value={currentTeam?.team || selectedTeam}
+          onChange={(event) => setSelectedTeam(event.target.value)}
+          style={{ ...inputStyle, minHeight: 48, fontSize: 16 }}
+        >
+          {safeTeams.map((team) => (
+            <option key={team.team} value={team.team}>{team.name}</option>
+          ))}
+        </select>
+      </MobileCard>
+
+      {currentTeam ? (
+        <>
+          <MobileCard>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              {renderTeamBadge(currentTeam.team, 54)}
+              <div style={{ minWidth: 0 }}>
+                <div style={mobileKickerStyle}>{seasonName || "Current Season"}</div>
+                <h2 style={{ margin: "2px 0 0", lineHeight: 1.05 }}>{currentTeam.name}</h2>
+              </div>
+            </div>
+            <MobileStatGrid items={[
+              ["Points", currentTeam.points || 0],
+              ["Wins", currentTeam.wins || 0],
+              ["Drivers", roster.length],
+              ["Budget", money(getTeamBudget(currentTeam.team))],
+            ]} />
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <MobileAction label="Open Full HQ" onClick={() => { window.location.href = "/owners?desktop=1"; }} secondary />
+              <MobileAction label="Team Page" onClick={() => go(`/team/${encodeURIComponent(currentTeam.team)}`)} />
+            </div>
+          </MobileCard>
+
+          <MobileSectionTitle>Roster</MobileSectionTitle>
+          {roster.length === 0 && <MobileCard><p style={{ margin: 0, color: "#aab3c2" }}>No active drivers found for this team.</p></MobileCard>}
+          {roster.map((driver) => (
+            <button
+              type="button"
+              key={`${driver.number}-${driver.name}`}
+              onClick={() => go(`/driver/${driver.number}`)}
+              style={mobileDriverCardStyle}
+            >
+              <div style={mobileRankStyle}>#{driver.number}</div>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <strong style={{ display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{driver.name}</strong>
+                <span style={{ color: "#aab3c2", fontSize: 12 }}>{driver.manufacturer || ""}</span>
+              </div>
+              <div style={mobilePointsStyle}>{driver.points || 0}<span style={{ display: "block", fontSize: 10, color: "#aab3c2" }}>PTS</span></div>
+            </button>
+          ))}
+        </>
+      ) : (
+        <MobileCard><p style={{ margin: 0, color: "#aab3c2" }}>No team data loaded yet.</p></MobileCard>
+      )}
     </>
   );
 }
