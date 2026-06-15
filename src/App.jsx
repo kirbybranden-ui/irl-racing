@@ -5386,7 +5386,7 @@ function MobileLeagueApp({
     ));
   }
 
-  if (path === "/owners" || path === "/team-hq") {
+  if (["/owners", "/owner", "/team-hq", "/hq", "/teamhq"].includes(path)) {
     return dataFrame("Team HQ", "hq", (
       <>
         <OwnersPage
@@ -5526,7 +5526,7 @@ function MobileRaceResultCard({ race }) {
 }
 
 function MobileLayout({ title, children, go, active }) {
-  return <div style={mobileAppStyle}><header style={mobileTopbarStyle}><button type="button" onClick={() => go("/standings")} style={mobileLogoButtonStyle}>🏁</button><strong style={{ fontSize: 16 }}>{title}</strong><button type="button" onClick={() => go("/notifications")} style={mobileBellStyle}>🔔</button></header><main style={mobileContentStyle}>{children}</main><nav style={mobileBottomNavStyle}><MobileNavButton active={active === "home"} icon="🏁" label="Home" onClick={() => go("/")} /><MobileNavButton active={active === "standings"} icon="📊" label="Standings" onClick={() => go("/standings")} /><MobileNavButton active={active === "news"} icon="📰" label="News" onClick={() => go("/news")} /><MobileNavButton active={active === "streams"} icon="📡" label="Streams" onClick={() => go("/streams")} /><MobileNavButton active={active === "hq"} icon="🏢" label="HQ" onClick={() => go("/team-hq")} /></nav></div>;
+  return <div style={mobileAppStyle}><header style={mobileTopbarStyle}><button type="button" onClick={() => go("/standings")} style={mobileLogoButtonStyle}>🏁</button><strong style={{ fontSize: 16 }}>{title}</strong><button type="button" onClick={() => go("/notifications")} style={mobileBellStyle}>🔔</button></header><main style={mobileContentStyle}>{children}</main><nav style={mobileBottomNavStyle}><MobileNavButton active={active === "home"} icon="🏁" label="Home" onClick={() => go("/")} /><MobileNavButton active={active === "standings"} icon="📊" label="Standings" onClick={() => go("/standings")} /><MobileNavButton active={active === "news"} icon="📰" label="News" onClick={() => go("/news")} /><MobileNavButton active={active === "streams"} icon="📡" label="Streams" onClick={() => go("/streams")} /><MobileNavButton active={active === "hq"} icon="🏢" label="HQ" onClick={() => go("/hq")} /></nav></div>;
 }
 function MobileNavButton({ icon, label, onClick, active }) { return <button type="button" onClick={onClick} style={{ ...mobileNavButtonStyle, color: active ? "#d4af37" : "#ffffff" }}><span style={{ fontSize: 20 }}>{icon}</span><span style={{ fontSize: 10 }}>{label}</span></button>; }
 function MobileHero({ kicker, title, subtitle }) { return <section style={mobileHeroStyle}><div style={mobileKickerStyle}>{kicker}</div><h1 style={{ margin: "4px 0", fontSize: 28, lineHeight: 1.05 }}>{title}</h1>{subtitle && <p style={{ margin: "8px 0 0", color: "rgba(255,255,255,0.82)", lineHeight: 1.4 }}>{subtitle}</p>}</section>; }
@@ -7510,7 +7510,7 @@ export default function App() {
       </>
     );
   }
-  if (path === "/owners" || path === "/team-hq") return (
+  if (["/owners", "/owner", "/team-hq", "/hq", "/teamhq"].includes(path)) return (
     <>
       <OwnersPage
         drivers={visibleDrivers}
