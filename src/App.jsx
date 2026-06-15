@@ -3925,6 +3925,7 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
               <button onClick={() => (window.location.pathname = "/news")} style={{ background: "#d4af37", color: "#111", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>📰 News</button>
               <button onClick={() => (window.location.pathname = "/interviews")} style={{ background: "#c8102e", color: "white", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 900, cursor: "pointer", fontSize: 14 }}>🎤 Interviews</button>
               <button onClick={() => (window.location.pathname = "/paint-scheme-vote")} style={{ background: "#f97316", color: "white", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 900, cursor: "pointer", fontSize: 14 }}>🎨 Paint Scheme Vote</button>
+              <button onClick={() => (window.location.pathname = "/vote")} style={{ background: "#d4af37", color: "#111", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 1000, cursor: "pointer", fontSize: 14 }}>🗳️ League Vote</button>
               <button onClick={() => (window.location.pathname = "/team-hq")} style={{ background: "#0f766e", color: "white", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>🏢 Team HQ</button>
               <button onClick={() => (window.location.pathname = "/contracts")} style={{ background: "#d4af37", color: "#111", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 900, cursor: "pointer", fontSize: 14 }}>📄 Active Contracts</button>
               <button onClick={() => (window.location.pathname = "/submit-story")} style={{ background: "#16a34a", color: "white", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>✍️ Add Story</button>
@@ -4833,6 +4834,446 @@ function buildPaymentComplianceRows({ teams = [], drivers = [], interviews = [],
       overrideStatus,
     };
   });
+}
+
+function getVoteDeadlineStatus(deadline) {
+  if (!deadline) return { closed: false, label: "No deadline set", remaining: "Open" };
+  const deadlineDate = new Date(deadline);
+  if (Number.isNaN(deadlineDate.getTime())) return { closed: false, label: "Invalid deadline", remaining: "Open" };
+  const diff = deadlineDate.getTime() - Date.now();
+  if (diff <= 0) return { closed: true, label: deadlineDate.toLocaleString(), remaining: "Voting Closed" };
+  const days = Math.floor(diff / 86400000);
+  const hours = Math.floor((diff % 86400000) / 3600000);
+  const minutes = Math.floor((diff % 3600000) / 60000);
+  return { closed: false, label: deadlineDate.toLocaleString(), remaining: `${days}d ${hours}h ${minutes}m left` };
+}
+
+function normalizeVoteRow(row = {}) {
+  return {
+    ...row,
+    title: row.title || row.vote_title || "League Vote",
+    description: row.description || row.vote_description || "",
+    deadline: row.deadline || row.deadline_at || row.closes_at || row.ends_at || "",
+    active: row.active !== false,
+  };
+}
+
+function LeagueVotingPage({ drivers = [] }) {
+  const [votes, setVotes] = useState([]);
+  const [optionsByVote, setOptionsByVote] = useState({});
+  const [responses, setResponses] = useState([]);
+  const [selectedVoteId, setSelectedVoteId] = useState("");
+  const [driverNumber, setDriverNumber] = useState("");
+  const [password, setPassword] = useState("");
+  const [driver, setDriver] = useState(null);
+  const [selectedOptionId, setSelectedOptionId] = useState("");
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  const activeDrivers = useMemo(() => dedupeDriversByNumber(drivers || []).filter((item) => !item.retired && !isInactivePlaceholderDriver(item)), [drivers]);
+
+  async function loadVotes() {
+    setLoading(true);
+    setError("");
+    const { data, error } = await supabase
+      .from("league_votes")
+      .select("*")
+      .eq("active", true)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Could not load league votes:", error);
+      setError("Could not load league votes. Create the league_votes, league_vote_options, and league_vote_responses tables and check RLS policies.");
+      setVotes([]);
+      setLoading(false);
+      return;
+    }
+
+    const cleanVotes = (data || []).map(normalizeVoteRow);
+    setVotes(cleanVotes);
+    if (!selectedVoteId && cleanVotes.length) setSelectedVoteId(cleanVotes[0].id);
+
+    const voteIds = cleanVotes.map((vote) => vote.id).filter(Boolean);
+    if (voteIds.length) {
+      const [{ data: optionRows, error: optionError }, { data: responseRows, error: responseError }] = await Promise.all([
+        supabase.from("league_vote_options").select("*").in("vote_id", voteIds).order("created_at", { ascending: true }),
+        supabase.from("league_vote_responses").select("*").in("vote_id", voteIds),
+      ]);
+
+      if (optionError) console.error("Could not load vote options:", optionError);
+      if (responseError) console.error("Could not load vote responses:", responseError);
+
+      const grouped = {};
+      (optionRows || []).forEach((option) => {
+        const key = String(option.vote_id || "");
+        if (!grouped[key]) grouped[key] = [];
+        grouped[key].push(option);
+      });
+      setOptionsByVote(grouped);
+      setResponses(responseRows || []);
+    } else {
+      setOptionsByVote({});
+      setResponses([]);
+    }
+
+    setLoading(false);
+  }
+
+  useEffect(() => { loadVotes(); }, []);
+
+  const selectedVote = useMemo(() => votes.find((vote) => String(vote.id) === String(selectedVoteId)) || null, [votes, selectedVoteId]);
+  const selectedOptions = selectedVote ? (optionsByVote[String(selectedVote.id)] || []) : [];
+  const selectedStatus = getVoteDeadlineStatus(selectedVote?.deadline);
+  const driverAlreadyVoted = !!(driver && selectedVote && responses.some((row) => String(row.vote_id) === String(selectedVote.id) && String(row.driver_number) === String(driver.number || driver.driver_number)));
+
+  async function loginDriver(event) {
+    event.preventDefault();
+    setMessage("");
+    setError("");
+    const number = String(driverNumber || "").trim();
+    const code = String(password || "").trim();
+    if (!number || !code) {
+      setError("Enter your car number and driver password.");
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("driver_access_codes")
+      .select("*")
+      .eq("driver_number", number)
+      .eq("access_code", code)
+      .maybeSingle();
+
+    if (error || !data) {
+      setError("Invalid car number or driver password.");
+      return;
+    }
+
+    const rosterDriver = activeDrivers.find((item) => String(item.number) === number) || {};
+    setDriver({ ...data, ...rosterDriver, number, driver_number: number, name: rosterDriver.name || data.driver_name || data.name || `#${number}` });
+    setMessage(`Logged in as #${number}.`);
+  }
+
+  async function submitVote() {
+    setMessage("");
+    setError("");
+    if (!driver) return setError("You must log in before voting.");
+    if (!selectedVote) return setError("Select a vote first.");
+    if (selectedStatus.closed) return setError("Voting is closed. The deadline has passed.");
+    if (!selectedOptionId) return setError("Select an option before submitting your vote.");
+    if (driverAlreadyVoted) return setError("You have already voted on this item.");
+
+    const option = selectedOptions.find((item) => String(item.id) === String(selectedOptionId));
+    const payload = {
+      vote_id: selectedVote.id,
+      option_id: selectedOptionId,
+      option_text: option?.option_text || option?.label || "",
+      driver_number: String(driver.number || driver.driver_number || ""),
+      driver_name: driver.name || driver.driver_name || `#${driver.number || driver.driver_number}`,
+      team: driver.team || "",
+      manufacturer: driver.manufacturer || "",
+      submitted_at: new Date().toISOString(),
+    };
+
+    const { error } = await supabase.from("league_vote_responses").insert(payload);
+    if (error) {
+      console.error("Could not submit vote:", error);
+      if (String(error.message || "").toLowerCase().includes("duplicate")) setError("You have already voted on this item.");
+      else setError("Could not submit vote. Check league_vote_responses columns and RLS policies.");
+      return;
+    }
+
+    setMessage("Vote submitted successfully.");
+    setSelectedOptionId("");
+    await loadVotes();
+  }
+
+  return (
+    <div style={appShellStyle}>
+      <div style={pageContainerStyle}>
+        <div style={{ ...sectionCardStyle, background: "linear-gradient(135deg, #191d25 0%, #10141b 100%)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", alignItems: "center" }}>
+            <div>
+              <h1 style={{ margin: 0, fontSize: 38 }}>🗳️ League Voting</h1>
+              <p style={{ opacity: 0.76, marginBottom: 0 }}>Drivers must log in with their car number and password before voting. Deadlines lock automatically.</p>
+            </div>
+            <button onClick={() => (window.location.pathname = "/standings")} style={secondaryButtonStyle}>Back to Standings</button>
+          </div>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(280px, 380px) 1fr", gap: 18, alignItems: "start" }}>
+          <div style={sectionCardStyle}>
+            <h2 style={{ marginTop: 0 }}>Driver Login</h2>
+            {!driver ? (
+              <form onSubmit={loginDriver} style={{ display: "grid", gap: 12 }}>
+                <input value={driverNumber} onChange={(event) => setDriverNumber(event.target.value)} placeholder="Car Number" style={inputStyle} />
+                <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Driver Password" style={inputStyle} />
+                <button type="submit" style={primaryButtonStyle}>Log In To Vote</button>
+              </form>
+            ) : (
+              <div style={{ background: "#10141b", border: "1px solid #2a3240", borderRadius: 14, padding: 14 }}>
+                <div style={{ fontSize: 12, opacity: 0.7 }}>LOGGED IN</div>
+                <div style={{ fontSize: 24, fontWeight: 900 }}>#{driver.number} {driver.name}</div>
+                <button type="button" onClick={() => { setDriver(null); setPassword(""); setMessage("Logged out."); }} style={{ ...secondaryButtonStyle, marginTop: 12 }}>Log Out</button>
+              </div>
+            )}
+            {message && <div style={{ marginTop: 12, color: "#4ade80", fontWeight: 900 }}>{message}</div>}
+            {error && <div style={{ marginTop: 12, color: "#f87171", fontWeight: 900 }}>{error}</div>}
+          </div>
+
+          <div style={sectionCardStyle}>
+            <h2 style={{ marginTop: 0 }}>Open Votes</h2>
+            {loading && <div>Loading votes...</div>}
+            {!loading && votes.length === 0 && <div style={{ opacity: 0.72 }}>No active votes are open right now.</div>}
+            {votes.length > 0 && (
+              <div style={{ display: "grid", gap: 12 }}>
+                <select value={selectedVoteId} onChange={(event) => { setSelectedVoteId(event.target.value); setSelectedOptionId(""); }} style={inputStyle}>
+                  {votes.map((vote) => <option key={vote.id} value={vote.id}>{vote.title}</option>)}
+                </select>
+
+                {selectedVote && (
+                  <div style={{ background: "#10141b", border: "1px solid #2a3240", borderRadius: 16, padding: 16 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                      <div>
+                        <h2 style={{ margin: 0 }}>{selectedVote.title}</h2>
+                        {selectedVote.description && <p style={{ opacity: 0.78 }}>{selectedVote.description}</p>}
+                      </div>
+                      <div style={{ textAlign: "right" }}>
+                        <div style={{ color: selectedStatus.closed ? "#f87171" : "#4ade80", fontWeight: 1000 }}>{selectedStatus.remaining}</div>
+                        <div style={{ fontSize: 12, opacity: 0.7 }}>Deadline: {selectedStatus.label}</div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
+                      {selectedOptions.map((option) => (
+                        <label key={option.id} style={{ display: "flex", gap: 10, alignItems: "center", background: "#0b0f15", border: "1px solid #273140", borderRadius: 12, padding: 12, cursor: selectedStatus.closed ? "not-allowed" : "pointer" }}>
+                          <input type="radio" disabled={selectedStatus.closed || driverAlreadyVoted} name="league-vote-option" value={option.id} checked={String(selectedOptionId) === String(option.id)} onChange={(event) => setSelectedOptionId(event.target.value)} />
+                          <span style={{ fontWeight: 900 }}>{option.option_text || option.label}</span>
+                        </label>
+                      ))}
+                    </div>
+
+                    <button type="button" disabled={selectedStatus.closed || driverAlreadyVoted} onClick={submitVote} style={{ ...primaryButtonStyle, marginTop: 16, opacity: selectedStatus.closed || driverAlreadyVoted ? 0.55 : 1 }}>
+                      {driverAlreadyVoted ? "Vote Already Submitted" : selectedStatus.closed ? "Voting Closed" : "Submit Vote"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AdminVotingPage({ drivers = [] }) {
+  const [votes, setVotes] = useState([]);
+  const [options, setOptions] = useState([]);
+  const [responses, setResponses] = useState([]);
+  const [form, setForm] = useState({ title: "", description: "", deadline: "", active: true, optionsText: "Yes\nNo\nAbstain" });
+  const [status, setStatus] = useState("");
+  const [error, setError] = useState("");
+
+  async function loadAdminVotes() {
+    const [{ data: voteRows, error: voteError }, { data: optionRows }, { data: responseRows }] = await Promise.all([
+      supabase.from("league_votes").select("*").order("created_at", { ascending: false }),
+      supabase.from("league_vote_options").select("*").order("created_at", { ascending: true }),
+      supabase.from("league_vote_responses").select("*").order("submitted_at", { ascending: false }),
+    ]);
+    if (voteError) {
+      console.error("Could not load admin votes:", voteError);
+      setError("Could not load votes. Check Supabase tables and RLS policies.");
+      return;
+    }
+    setVotes((voteRows || []).map(normalizeVoteRow));
+    setOptions(optionRows || []);
+    setResponses(responseRows || []);
+  }
+
+  useEffect(() => { loadAdminVotes(); }, []);
+
+  function updateForm(field, value) {
+    setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  async function createVote(event) {
+    event.preventDefault();
+    setStatus("");
+    setError("");
+    const title = form.title.trim();
+    const optionLines = form.optionsText.split("\n").map((line) => line.trim()).filter(Boolean);
+    if (!title) return setError("Vote title is required.");
+    if (!form.deadline) return setError("Deadline is required.");
+    if (optionLines.length < 2) return setError("Add at least two vote options, one per line.");
+
+    const deadlineIso = new Date(form.deadline).toISOString();
+    const { data: insertedVote, error: voteError } = await supabase
+      .from("league_votes")
+      .insert({ title, description: form.description.trim(), deadline: deadlineIso, active: Boolean(form.active), created_at: new Date().toISOString() })
+      .select("*")
+      .single();
+
+    if (voteError || !insertedVote) {
+      console.error("Could not create vote:", voteError);
+      setError("Could not create vote. Check league_votes insert policy and columns.");
+      return;
+    }
+
+    const rows = optionLines.map((optionText) => ({ vote_id: insertedVote.id, option_text: optionText, created_at: new Date().toISOString() }));
+    const { error: optionError } = await supabase.from("league_vote_options").insert(rows);
+    if (optionError) {
+      console.error("Could not create vote options:", optionError);
+      setError("Vote was created, but options failed. Check league_vote_options policies and columns.");
+      return;
+    }
+
+    setStatus("Vote created successfully.");
+    setForm({ title: "", description: "", deadline: "", active: true, optionsText: "Yes\nNo\nAbstain" });
+    await loadAdminVotes();
+  }
+
+  async function toggleVote(vote) {
+    const { error } = await supabase.from("league_votes").update({ active: !vote.active }).eq("id", vote.id);
+    if (error) return setError("Could not update vote active status.");
+    await loadAdminVotes();
+  }
+
+  function getVoteOptions(voteId) {
+    return options.filter((option) => String(option.vote_id) === String(voteId));
+  }
+
+  function getVoteResponses(voteId) {
+    return responses.filter((response) => String(response.vote_id) === String(voteId));
+  }
+
+  function exportVoteCsv(vote) {
+    const rows = getVoteResponses(vote.id);
+    const csvRows = [["Vote", "Driver Number", "Driver", "Team", "Manufacturer", "Option", "Submitted At"], ...rows.map((row) => [vote.title, row.driver_number || "", row.driver_name || "", row.team || "", row.manufacturer || "", row.option_text || "", row.submitted_at || ""] )];
+    const csv = csvRows.map((row) => row.map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `league-vote-${String(vote.title || "vote").toLowerCase().replace(/[^a-z0-9]+/g, "-")}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+
+  return (
+    <div style={appShellStyle}>
+      <div style={pageContainerStyle}>
+        <div style={sectionCardStyle}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+            <div>
+              <h1 style={{ margin: 0 }}>Admin Voting Control</h1>
+              <div style={{ opacity: 0.72, marginTop: 6 }}>Create votes, set deadlines, close voting, and review/export results.</div>
+            </div>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <button onClick={() => (window.location.pathname = "/vote")} style={primaryButtonStyle}>Open Public Vote Page</button>
+              <button onClick={() => (window.location.pathname = "/admin")} style={secondaryButtonStyle}>Back to Admin</button>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(320px, 440px) 1fr", gap: 18, alignItems: "start" }}>
+          <form onSubmit={createVote} style={sectionCardStyle}>
+            <h2 style={{ marginTop: 0 }}>Create New Vote</h2>
+            <div style={{ display: "grid", gap: 12 }}>
+              <input value={form.title} onChange={(event) => updateForm("title", event.target.value)} placeholder="Vote title" style={inputStyle} />
+              <textarea value={form.description} onChange={(event) => updateForm("description", event.target.value)} placeholder="Vote description" rows={4} style={inputStyle} />
+              <label style={{ fontSize: 12, fontWeight: 900, opacity: 0.75 }}>DEADLINE</label>
+              <input type="datetime-local" value={form.deadline} onChange={(event) => updateForm("deadline", event.target.value)} style={inputStyle} />
+              <label style={{ fontSize: 12, fontWeight: 900, opacity: 0.75 }}>OPTIONS — ONE PER LINE</label>
+              <textarea value={form.optionsText} onChange={(event) => updateForm("optionsText", event.target.value)} rows={7} style={inputStyle} />
+              <label style={{ display: "flex", gap: 10, alignItems: "center", fontWeight: 900 }}>
+                <input type="checkbox" checked={form.active} onChange={(event) => updateForm("active", event.target.checked)} /> Active immediately
+              </label>
+              <button type="submit" style={primaryButtonStyle}>Create Vote</button>
+            </div>
+            {status && <div style={{ color: "#4ade80", marginTop: 12, fontWeight: 900 }}>{status}</div>}
+            {error && <div style={{ color: "#f87171", marginTop: 12, fontWeight: 900 }}>{error}</div>}
+          </form>
+
+          <div style={sectionCardStyle}>
+            <h2 style={{ marginTop: 0 }}>Vote Results</h2>
+            <div style={{ display: "grid", gap: 14 }}>
+              {votes.map((vote) => {
+                const voteOptions = getVoteOptions(vote.id);
+                const voteResponses = getVoteResponses(vote.id);
+                const statusInfo = getVoteDeadlineStatus(vote.deadline);
+                return (
+                  <div key={vote.id} style={{ background: "#10141b", border: "1px solid #2a3240", borderRadius: 16, padding: 16 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                      <div>
+                        <h3 style={{ margin: 0 }}>{vote.title}</h3>
+                        <div style={{ opacity: 0.72, marginTop: 4 }}>{vote.description}</div>
+                        <div style={{ fontSize: 12, opacity: 0.68, marginTop: 6 }}>Deadline: {statusInfo.label} — {statusInfo.remaining}</div>
+                      </div>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "start" }}>
+                        <button type="button" onClick={() => toggleVote(vote)} style={vote.active ? dangerButtonStyle : primaryButtonStyle}>{vote.active ? "Close" : "Reopen"}</button>
+                        <button type="button" onClick={() => exportVoteCsv(vote)} style={secondaryButtonStyle}>Export CSV</button>
+                      </div>
+                    </div>
+                    <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
+                      {voteOptions.map((option) => {
+                        const count = voteResponses.filter((row) => String(row.option_id) === String(option.id)).length;
+                        const percent = voteResponses.length ? Math.round((count / voteResponses.length) * 100) : 0;
+                        return (
+                          <div key={option.id}>
+                            <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 900, fontSize: 13 }}><span>{option.option_text}</span><span>{count} vote(s) — {percent}%</span></div>
+                            <div style={{ height: 10, background: "#0b0f15", borderRadius: 999, overflow: "hidden", marginTop: 4 }}><div style={{ width: `${percent}%`, height: "100%", background: "#d4af37" }} /></div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+              {votes.length === 0 && <div style={{ opacity: 0.72 }}>No votes created yet.</div>}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DriverVoteReminderStrip({ driverNumber = "" }) {
+  const [openVoteCount, setOpenVoteCount] = useState(0);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadOpenVoteReminders() {
+      const nowIso = new Date().toISOString();
+      const { data, error } = await supabase
+        .from("league_votes")
+        .select("id,title,deadline,active")
+        .eq("active", true)
+        .gt("deadline", nowIso);
+      if (!isMounted || error) return;
+      setOpenVoteCount((data || []).length);
+    }
+    loadOpenVoteReminders();
+    const interval = setInterval(loadOpenVoteReminders, 60000);
+    return () => { isMounted = false; clearInterval(interval); };
+  }, [driverNumber]);
+
+  if (!openVoteCount) return null;
+
+  return (
+    <div style={{ minHeight: 0, background: "#0c0f14", padding: "0 20px 12px" }}>
+      <div style={{ maxWidth: 1400, margin: "0 auto" }}>
+        <div style={{ background: "linear-gradient(90deg, #d4af37 0%, #f59e0b 100%)", color: "#111", borderRadius: 14, padding: "12px 16px", fontWeight: 1000, display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+          <span>🔔 {openVoteCount} league vote{openVoteCount === 1 ? "" : "s"} open — driver login required before the deadline.</span>
+          <button type="button" onClick={() => (window.location.pathname = "/vote")} style={{ background: "#111827", color: "white", border: "none", borderRadius: 10, padding: "8px 12px", fontWeight: 900, cursor: "pointer" }}>Vote Now</button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function App() {
@@ -6580,7 +7021,7 @@ export default function App() {
     );
   }
 
-  const adminProtectedPaths = new Set(["/admin", "/appeals", "/admin/stories", "/stories", "/admin/live-control", "/admin/car-gallery", "/admin/interviews"]);
+  const adminProtectedPaths = new Set(["/admin", "/appeals", "/admin/stories", "/stories", "/admin/live-control", "/admin/car-gallery", "/admin/interviews", "/admin/votes"]);
   const isAdminProtectedPath = adminProtectedPaths.has(path);
   const isAdminAuthenticated = sessionStorage.getItem("bcl-admin-auth") === "true";
   const logoutAdmin = () => {
@@ -6627,6 +7068,7 @@ export default function App() {
 }
   if (path === "/news") return <NewsPage />;
   if (path === "/paint-scheme-vote") return <PaintSchemeVotePage drivers={visibleDrivers} tracks={tracks} />;
+  if (path === "/vote" || path === "/league-vote" || path === "/voting") return <LeagueVotingPage drivers={visibleDrivers} />;
   if (path === "/notifications") return <NotificationsPage />;
   if (path === "/discord") return <DiscordPage />;
   if (path === "/interviews") return <PublicInterviewsPage />;
@@ -6659,6 +7101,7 @@ export default function App() {
     );
   }
   if (path === "/admin/interviews") return <InterviewsPage drivers={drivers} tracks={tracks} seasons={seasons} activeSeasonId={activeSeasonId} />;
+  if (path === "/admin/votes") return <AdminVotingPage drivers={visibleDrivers} />;
   // Team detail page
   if (path.startsWith("/team/")) {
     const abbr = decodeURIComponent(rawPath.replace(/^\/team\//i, "").split("/")[0]);
@@ -6726,6 +7169,7 @@ export default function App() {
             <AppUpdateBanner page="driver" />
           </div>
         </div>
+        <DriverVoteReminderStrip driverNumber={decodeURIComponent(rawPath.replace(/^\/driver\//i, "").split("/")[0])} />
         <DriverProfilePage seasons={seasons} activeSeason={activeSeason} tracks={tracks} />
       </>
     );
@@ -6810,6 +7254,9 @@ export default function App() {
               </button>
               <button onClick={() => (window.location.pathname = "/admin/interviews")} style={headerButtonStyle}>
                 🎙️ Interviews
+              </button>
+              <button onClick={() => (window.location.pathname = "/admin/votes")} style={headerButtonStyle}>
+                🗳️ Voting
               </button>
               <button onClick={exportAppDataJson} style={{ ...primaryButtonStyle, padding: "10px 14px" }}>
                 ⬇️ Export App Data JSON
