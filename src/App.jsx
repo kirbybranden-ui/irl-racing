@@ -5364,7 +5364,7 @@ function MobileLeagueApp({
   if (path === "/submit-appeal") return dataFrame("Submit Appeal", "more", <SubmitAppealPage />);
   if (path === "/submit-story") return dataFrame("Submit Story", "more", <SubmitStoryPage />);
   if (path === "/appeals") return dataFrame("Appeals", "more", <AppealsPage />);
-  if (path === "/news") return frame("News", "news", <MobileNewsFeed go={go} />);
+  if (path === "/news") return frame("News", "news", <MobileNewsFeed go={go} desktopArchive={<NewsPage />} />);
   if (path === "/paint-scheme-vote") return dataFrame("Paint Vote", "more", <PaintSchemeVotePage drivers={drivers} tracks={tracks} />);
   if (path === "/vote" || path === "/league-vote" || path === "/voting") return dataFrame("League Vote", "more", <LeagueVotingPage drivers={drivers} />);
   if (path === "/notifications") return dataFrame("Notifications", "more", <NotificationsPage />);
@@ -5502,7 +5502,7 @@ function MobileLeagueApp({
 }
 
 
-function MobileNewsFeed({ go }) {
+function MobileNewsFeed({ go, desktopArchive = null }) {
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -5510,43 +5510,81 @@ function MobileNewsFeed({ go }) {
   useEffect(() => {
     let isMounted = true;
 
+    function normalizeArticle(item = {}, source = "story_submissions") {
+      const title = item.title || item.headline || item.story_title || item.subject || item.name || "League News Update";
+      const body = item.story || item.story_text || item.body || item.content || item.article || item.message || item.description || item.summary || "";
+      const createdAt = item.published_at || item.created_at || item.submitted_at || item.updated_at || item.date || item.timestamp || "";
+      const author = item.author_name || item.author || item.submitted_by || item.created_by || item.writer || "BCL Media";
+      const driver = item.driver_name || item.driver || item.driver_number || item.team || "";
+      const status = item.status || item.state || (source === "story_submissions" ? "Submitted" : "Posted");
+
+      return {
+        id: `${source}-${item.id || item.slug || title}-${createdAt}`,
+        title,
+        body,
+        author,
+        driver,
+        status,
+        createdAt,
+        source,
+        imageUrl: item.image_url || item.imageUrl || item.photo_url || item.thumbnail_url || item.media_url || "",
+      };
+    }
+
+    function keepArticle(item = {}) {
+      const status = String(item.status || item.state || "posted").trim().toLowerCase();
+      if (["rejected", "declined", "hidden", "deleted"].includes(status)) return false;
+      return Boolean(item.title || item.body);
+    }
+
+    async function loadTable(tableName) {
+      const { data, error } = await supabase
+        .from(tableName)
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.warn(`Mobile news could not load ${tableName}:`, error);
+        return [];
+      }
+
+      return (data || [])
+        .map((item) => normalizeArticle(item, tableName))
+        .filter(keepArticle);
+    }
+
     async function loadMobileNews() {
       setLoading(true);
       setError("");
 
-      const { data, error } = await supabase
-        .from("story_submissions")
-        .select("*")
-        .order("created_at", { ascending: false });
+      const newsTables = [
+        "news_articles",
+        "league_news",
+        "published_news",
+        "news_posts",
+        "story_submissions",
+      ];
 
+      const results = await Promise.all(newsTables.map(loadTable));
       if (!isMounted) return;
 
-      if (error) {
-        console.error("Could not load mobile news:", error);
-        setError("Could not load news articles. Check story_submissions select/RLS policies.");
-        setArticles([]);
-        setLoading(false);
-        return;
-      }
+      const byKey = new Map();
+      results.flat().forEach((article) => {
+        const key = `${String(article.title || "").trim().toLowerCase()}|${String(article.createdAt || "").slice(0, 10)}`;
+        if (!byKey.has(key)) byKey.set(key, article);
+      });
 
-      const cleanArticles = (data || [])
-        .filter((item) => {
-          const status = String(item.status || "Open").trim().toLowerCase();
-          return !["rejected", "declined", "hidden", "archived", "deleted"].includes(status);
-        })
-        .map((item) => ({
-          id: item.id,
-          title: item.title || item.headline || item.story_title || item.subject || "League News Update",
-          body: item.story || item.story_text || item.body || item.content || item.article || item.message || item.description || "",
-          author: item.author_name || item.author || item.submitted_by || item.created_by || "BCL Media",
-          driver: item.driver_name || item.driver || item.driver_number || "",
-          status: item.status || "Posted",
-          createdAt: item.created_at || item.submitted_at || item.updated_at || item.published_at || "",
-        }))
-        .filter((item) => item.title || item.body);
+      const cleanArticles = Array.from(byKey.values()).sort((a, b) => {
+        const bTime = new Date(b.createdAt || 0).getTime() || 0;
+        const aTime = new Date(a.createdAt || 0).getTime() || 0;
+        return bTime - aTime;
+      });
 
       setArticles(cleanArticles);
       setLoading(false);
+      if (!cleanArticles.length) {
+        setError("No mobile news rows were found in the news tables. Showing the full News archive below.");
+      }
     }
 
     loadMobileNews();
@@ -5565,7 +5603,7 @@ function MobileNewsFeed({ go }) {
       <MobileHero
         kicker="League Feed"
         title="News"
-        subtitle="Articles now stack in a natural mobile scroll instead of loading the desktop news layout."
+        subtitle="Articles stack in a natural mobile scroll and also pull from older news tables."
       />
       <LeagueTicker page="news" />
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
@@ -5574,17 +5612,16 @@ function MobileNewsFeed({ go }) {
       </div>
 
       {loading && <MobileCard><strong>Loading news...</strong></MobileCard>}
-      {error && <MobileCard><p style={{ margin: 0, color: "#fca5a5", fontWeight: 900 }}>{error}</p></MobileCard>}
-      {!loading && !error && articles.length === 0 && (
-        <MobileCard>
-          <h2 style={{ marginTop: 0 }}>No news posted yet</h2>
-          <p style={{ color: "#aab3c2", lineHeight: 1.5 }}>Submitted stories will show here in a phone-friendly article feed.</p>
-        </MobileCard>
-      )}
+      {error && !loading && <MobileCard><p style={{ margin: 0, color: "#fbbf24", fontWeight: 900 }}>{error}</p></MobileCard>}
 
       <div style={mobileNewsFeedStyle}>
         {articles.map((article, index) => (
           <article key={article.id || `${article.title}-${index}`} style={mobileNewsArticleStyle}>
+            {article.imageUrl && (
+              <div style={{ margin: "-16px -16px 14px", borderRadius: "18px 18px 0 0", overflow: "hidden", background: "#05070a" }}>
+                <img src={article.imageUrl} alt={article.title} style={{ width: "100%", maxHeight: 260, objectFit: "cover", display: "block" }} />
+              </div>
+            )}
             <div style={mobileNewsMetaRowStyle}>
               <span style={mobileNewsBadgeStyle}>{article.status || "Posted"}</span>
               <span>{formatMobileDate(article.createdAt)}</span>
@@ -5599,10 +5636,20 @@ function MobileNewsFeed({ go }) {
           </article>
         ))}
       </div>
+
+      {desktopArchive && (
+        <div style={{ marginTop: 18 }}>
+          <MobileSectionTitle>Full News Archive</MobileSectionTitle>
+          <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", borderRadius: 18 }}>
+            <div style={{ minWidth: 340 }}>
+              {desktopArchive}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
-
 
 function MobileTeamHQ({ drivers = [], teams = [], seasonName = "", go }) {
   const [selectedTeam, setSelectedTeam] = useState(() => {
