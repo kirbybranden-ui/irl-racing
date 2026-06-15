@@ -5823,7 +5823,42 @@ function MobileRaceResultCard({ race }) {
 }
 
 function MobileLayout({ title, children, go, active }) {
-  return <div style={mobileAppStyle}><header style={mobileTopbarStyle}><button type="button" onClick={() => go("/standings")} style={mobileLogoButtonStyle}>🏁</button><strong style={{ fontSize: 16 }}>{title}</strong><button type="button" onClick={() => go("/notifications")} style={mobileBellStyle}>🔔</button></header><main style={mobileContentStyle}>{children}</main><nav style={mobileBottomNavStyle}><MobileNavButton active={active === "home"} icon="🏁" label="Home" onClick={() => go("/")} /><MobileNavButton active={active === "standings"} icon="📊" label="Standings" onClick={() => go("/standings")} /><MobileNavButton active={active === "news"} icon="📰" label="News" onClick={() => go("/news")} /><MobileNavButton active={active === "streams"} icon="📡" label="Streams" onClick={() => go("/streams")} /><MobileNavButton active={active === "hq"} icon="🏢" label="HQ" onClick={() => go("/hq")} /></nav></div>;
+  function openDesktopVersion() {
+    if (typeof document !== "undefined") {
+      document.cookie = "bcl-force-desktop=1; path=/; max-age=2592000";
+    }
+    window.location.reload();
+  }
+
+  return (
+    <div style={mobileAppStyle}>
+      <header style={mobileTopbarStyle}>
+        <button type="button" onClick={() => go("/standings")} style={mobileLogoButtonStyle}>🏁</button>
+        <strong style={{ fontSize: 16 }}>{title}</strong>
+        <button type="button" onClick={() => go("/notifications")} style={mobileBellStyle}>🔔</button>
+      </header>
+      <main style={mobileContentStyle}>
+        {children}
+        <div style={mobileDesktopSwitchCardStyle}>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 1000, color: "#d4af37", letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 4 }}>Display Mode</div>
+            <div style={{ fontSize: 15, fontWeight: 900 }}>Mobile Version</div>
+            <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 3 }}>Optimized for phones</div>
+          </div>
+          <button type="button" onClick={openDesktopVersion} style={mobileDesktopSwitchButtonStyle}>
+            🖥 View Desktop
+          </button>
+        </div>
+      </main>
+      <nav style={mobileBottomNavStyle}>
+        <MobileNavButton active={active === "home"} icon="🏁" label="Home" onClick={() => go("/")} />
+        <MobileNavButton active={active === "standings"} icon="📊" label="Standings" onClick={() => go("/standings")} />
+        <MobileNavButton active={active === "news"} icon="📰" label="News" onClick={() => go("/news")} />
+        <MobileNavButton active={active === "streams"} icon="📡" label="Streams" onClick={() => go("/streams")} />
+        <MobileNavButton active={active === "hq"} icon="🏢" label="HQ" onClick={() => go("/hq")} />
+      </nav>
+    </div>
+  );
 }
 function MobileNavButton({ icon, label, onClick, active }) { return <button type="button" onClick={onClick} style={{ ...mobileNavButtonStyle, color: active ? "#d4af37" : "#ffffff" }}><span style={{ fontSize: 20 }}>{icon}</span><span style={{ fontSize: 10 }}>{label}</span></button>; }
 function MobileHero({ kicker, title, subtitle }) { return <section style={mobileHeroStyle}><div style={mobileKickerStyle}>{kicker}</div><h1 style={{ margin: "4px 0", fontSize: 28, lineHeight: 1.05 }}>{title}</h1>{subtitle && <p style={{ margin: "8px 0 0", color: "rgba(255,255,255,0.82)", lineHeight: 1.4 }}>{subtitle}</p>}</section>; }
@@ -5873,6 +5908,8 @@ const mobileDriverCardStyle = { width: "100%", background: "#111827", color: "wh
 const mobileRankStyle = { width: 34, height: 34, background: "#d4af37", color: "#111", borderRadius: 999, display: "grid", placeItems: "center", fontWeight: 1000 };
 const mobilePointsStyle = { fontWeight: 1000, fontSize: 19, textAlign: "right" };
 const mobileBottomNavStyle = { position: "fixed", left: 0, right: 0, bottom: 0, background: "#0c0f14", borderTop: "1px solid #222936", display: "grid", gridTemplateColumns: "repeat(5, 1fr)", padding: "7px 4px", zIndex: 30 };
+const mobileDesktopSwitchCardStyle = { marginTop: 18, marginBottom: 84, background: "linear-gradient(135deg, rgba(212,175,55,0.10), rgba(15,19,25,0.96))", border: "1px solid rgba(212,175,55,0.28)", borderRadius: 18, padding: 14, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, boxShadow: "0 12px 26px rgba(0,0,0,0.24)" };
+const mobileDesktopSwitchButtonStyle = { border: "none", borderRadius: 999, padding: "11px 13px", background: "linear-gradient(135deg, #d4af37, #facc15)", color: "#111", fontWeight: 1000, fontSize: 12, whiteSpace: "nowrap", boxShadow: "0 10px 20px rgba(212,175,55,0.18)", cursor: "pointer" };
 const mobileNavButtonStyle = { background: "transparent", border: "none", display: "flex", flexDirection: "column", alignItems: "center", gap: 2, minHeight: 50, fontWeight: 800 };
 const mobileActionStyle = { width: "100%", minHeight: 48, borderRadius: 14, border: "1px solid", padding: "12px 14px", fontWeight: 1000, marginBottom: 10 };
 const mobileStatGridStyle = { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10, marginBottom: 12 };
@@ -5989,6 +6026,43 @@ export default function App() {
   const path = rawPath.toLowerCase();
   const isMobileViewport = useMobileViewport(768);
   const forceDesktop = typeof document !== "undefined" && document.cookie.includes("bcl-force-desktop=1");
+
+  useEffect(() => {
+    if (typeof document === "undefined") return undefined;
+    const existing = document.getElementById("bcl-return-mobile-button");
+    if (!isMobileViewport || !forceDesktop) {
+      if (existing) existing.remove();
+      return undefined;
+    }
+
+    const button = existing || document.createElement("button");
+    button.id = "bcl-return-mobile-button";
+    button.type = "button";
+    button.textContent = "📱 Return to Mobile Version";
+    button.style.position = "fixed";
+    button.style.right = "12px";
+    button.style.bottom = "12px";
+    button.style.zIndex = "999999";
+    button.style.border = "1px solid rgba(212,175,55,0.7)";
+    button.style.borderRadius = "999px";
+    button.style.padding = "11px 14px";
+    button.style.background = "linear-gradient(135deg, #d4af37, #facc15)";
+    button.style.color = "#111";
+    button.style.fontWeight = "1000";
+    button.style.boxShadow = "0 12px 28px rgba(0,0,0,0.35)";
+    button.style.cursor = "pointer";
+    button.onclick = () => {
+      document.cookie = "bcl-force-desktop=; path=/; max-age=0";
+      window.location.reload();
+    };
+    if (!existing) document.body.appendChild(button);
+
+    return () => {
+      const cleanupButton = document.getElementById("bcl-return-mobile-button");
+      if (cleanupButton) cleanupButton.remove();
+    };
+  }, [isMobileViewport, forceDesktop]);
+
   // ─── Computed values (must be before all hooks) ───────────────────────────
   const activeSeason = seasons.find((s) => s.id === activeSeasonId) || seasons[0] || null;
   const drivers = realignLeagueDrivers(activeSeason?.drivers || []);
