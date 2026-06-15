@@ -16,7 +16,7 @@ const exportButtonStyle = { background: "#1e293b", color: "#d4af37", border: "1p
 const INTERVIEW_DEFAULT_BONUS = 25000;
 
 const teamFullNames = {
-  JAM: "JA Motorsports",
+  B2J: "B2J Motorsports",
   MER: "ME Racing",
   MMS: "Mayhem Motorsports",
   NLM: "Nine Line Motorsports",
@@ -34,7 +34,7 @@ const teamFullNames = {
 };
 
 const TEAM_STARTING_FUNDS = { 1: 300000, 2: 700000, 3: 1000000, 4: 1500000 };
-const TEAM_BUDGET_OVERRIDES = { JAM: 5000000, BXM: 700000, BMX: 700000, "BayouX Motorsports": 700000 };
+const TEAM_BUDGET_OVERRIDES = { B2J: 5000000, BXM: 700000, BMX: 700000, "BayouX Motorsports": 700000 };
 
 function getTeamFullName(team) {
   return teamFullNames[team] || team || "Independent";
