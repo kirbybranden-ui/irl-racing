@@ -111,9 +111,9 @@ function isInactivePlaceholderDriver(driver) {
   return String(driver?.name || "").trim().toLowerCase().startsWith("inactive-");
 }
 
-const removedDriverNumbers = new Set(["16", "42", "66", "80", "86"]);
-const removedDriverIds = new Set([1, 13, 21, 25, 28, 66]);
-const removedDriverNames = new Set(["vtfan_25", "undeadhelliday", "racingis_life87", "vanilla04gorilla", "amp-ghostrider", "ampghostrider", "gumby_1919", "gumby", "yinzermob_86", "yinzer"]);
+const removedDriverNumbers = new Set(["16", "38", "42", "66", "80", "86"]);
+const removedDriverIds = new Set([1, 8, 13, 21, 25, 28, 66]);
+const removedDriverNames = new Set(["vtfan_25", "undeadhelliday", "racingis_life87", "vanilla04gorilla", "amp-ghostrider", "ampghostrider", "gumby_1919", "gumby", "yinzermob_86", "yinzer", "it's_tricky88", "its_tricky88", "itstricky88"]);
 const closedTeamKeys = new Set(["WSM", "WYATT SICK6 MOTORSPORTS", "Wyatt Sick6 Motorsports"]);
 
 function isRemovedLeagueDriver(driver) {
