@@ -35,6 +35,7 @@ import OwnersPage from "./OwnersPage.jsx";
 const teamLogos = {
   "B2J MOTORSPORTS": teamLogoB2J,
   B2J: teamLogoB2J,
+  BJ2: teamLogoB2J,
   "ME RACING": teamLogoMER,
   MER: teamLogoMER,
   "NINE LINE MOTORSPORTS": teamLogoNLM,
@@ -65,6 +66,7 @@ import { loadLeagueState, saveLeagueState } from "./lib/leagueState";
 // ─── Team Full Names ───────────────────────────────────────────────────────────
 const teamFullNames = {
   B2J: "B2J Motorsports",
+  BJ2: "B2J Motorsports",
   "B2J MOTORSPORTS": "B2J Motorsports",
   MER: "ME Racing",
   MMS: "Mayhem Motorsports",
@@ -109,9 +111,9 @@ function isInactivePlaceholderDriver(driver) {
   return String(driver?.name || "").trim().toLowerCase().startsWith("inactive-");
 }
 
-const removedDriverNumbers = new Set(["16", "66"]);
-const removedDriverIds = new Set([13, 28, 66]);
-const removedDriverNames = new Set(["vtfan_25", "undeadhelliday", "racingis_life87", "vanilla04gorilla"]);
+const removedDriverNumbers = new Set(["16", "42", "66", "80", "86"]);
+const removedDriverIds = new Set([1, 13, 21, 25, 28, 66]);
+const removedDriverNames = new Set(["vtfan_25", "undeadhelliday", "racingis_life87", "vanilla04gorilla", "amp-ghostrider", "ampghostrider", "gumby_1919", "gumby", "yinzermob_86", "yinzer"]);
 const closedTeamKeys = new Set(["WSM", "WYATT SICK6 MOTORSPORTS", "Wyatt Sick6 Motorsports"]);
 
 function isRemovedLeagueDriver(driver) {
@@ -163,9 +165,7 @@ function filterRemovedLeagueDrivers(drivers = []) {
 function dedupeDriversByNumber(drivers) {
   if (!Array.isArray(drivers)) return [];
   drivers = filterRemovedLeagueDrivers(drivers);
-  const preferredNamesByNumber = {
-    80: "gumby_1919",
-  };
+  const preferredNamesByNumber = {};
 
   const byNumber = new Map();
 
@@ -219,7 +219,6 @@ function dedupeDriversByNumber(drivers) {
 }
 
 const defaultDrivers = [
-  { id: 1,  number: 42, name: "AMP-GHOSTRIDER",           manufacturer: "Toyota",    team: "B2J", retired: true },
   { id: 2,  number: 99, name: "RookieVet99",               manufacturer: "Toyota",    team: "B2J"         },
   { id: 3,  number: 18, name: "bowhunter6758",             manufacturer: "Toyota",    team: "B2J"         },
   { id: 4,  number: 81, name: "HOLDEN2DX4EV3R",            manufacturer: "Toyota",    team: "B2J"         },
@@ -233,7 +232,6 @@ const defaultDrivers = [
   { id: 102, number: 2, name: "Ghostracer388",             manufacturer: "Chevrolet", team: "BXM"         },
   { id: 7,  number: 24, name: "KEVDINHO7",                 manufacturer: "Chevrolet", team: "MER"         },
   { id: 46, number: 39, name: "BigDiehl21",                manufacturer: "Chevrolet", team: "MER"         },
-  { id: 21, number: 86, name: "YinZerMOB_86",              manufacturer: "Chevrolet", team: "MER"         },
   { id: 8,  number: 38, name: "It's_tricky88",             manufacturer: "Chevrolet", team: "Independent", retired: true },
   { id: 11, number: 6,  name: "Highlander713",             manufacturer: "Ford",      team: "NLM"         },
   { id: 24, number: 21, name: "kevron-75",                 manufacturer: "Ford",      team: "NLM"         },
@@ -243,7 +241,6 @@ const defaultDrivers = [
   { id: 27, number: 97, name: "JPC_Racing",                manufacturer: "Ford",      team: "BWR"         },
   { id: 51, number: 51, name: "MARE951",                   manufacturer: "Ford",      team: "BWR"         },
   { id: 12, number: 23, name: "Orly_Revo23",               manufacturer: "Ford",      team: "MMS", retired: true },
-  { id: 25, number: 80, name: "gumby_1919",                manufacturer: "Ford",      team: "MMS", retired: true },
 ];
 const defaultRaces = [
   { name: "Preseason - Michigan", stageCount: 2, date: "2026-04-25" },
@@ -483,6 +480,7 @@ const tdStyle = { padding: 10, borderBottom: "1px solid #252c38", verticalAlign:
 const statBoxStyle = { background: "#11161d", border: "1px solid #2a3240", borderRadius: 14, padding: 16, flex: "1 1 220px" };
 const teamBranding = {
   B2J: { logo: "B2J", accent: "#d4af37", dark: "#1b1b1b" },
+  BJ2: { logo: "B2J", accent: "#d4af37", dark: "#1b1b1b", fullName: "B2J Motorsports" },
   "B2J MOTORSPORTS": { logo: "B2J", accent: "#d4af37", dark: "#1b1b1b" },
   MER: { logo: "MER", accent: "#dc2626", dark: "#200a0a", fullName: "ME Racing" },
   MMS: { logo: "MMS", accent: "#9333ea", dark: "#150a2e", fullName: "Mayhem Motorsports" },
@@ -988,7 +986,12 @@ function sanitizeSeason(season, fallbackName = "Season") {
     : [];
   const adjusted = apply2026DriverNumberAdjustments(rosterSource, normalizedHistory);
   const rosterOnly = dedupeDriversByNumber(adjusted.roster).map((d) => ({ id: d.id, number: Number(d.number), name: d.name, manufacturer: d.manufacturer || "", team: d.team, startingPoints: 0, manualWins: 0, retired: d.retired || false, notes: "" }));
-  const history = adjusted.history;
+  const history = (adjusted.history || []).map((race) => ({
+    ...race,
+    results: Array.isArray(race?.results)
+      ? race.results.filter((result) => !isRemovedLeagueDriver(result))
+      : [],
+  }));
   return {
     id: season?.id || makeSeasonId(), name: season?.name || fallbackName, createdAt: season?.createdAt || new Date().toISOString(),
     drivers: rebuildDriversFromHistory(history, rosterOnly), selectedRace: normalizeTrackName(season?.selectedRace || ""),
@@ -4997,7 +5000,7 @@ function LeagueVotingPage({ drivers = [] }) {
     if (error) {
       console.error("Could not submit vote:", error);
       if (String(error.message || "").toLowerCase().includes("duplicate")) setError("You have already voted on this item.");
-      else setError("Could not submit vote. Check league_vote_responses columns and RLS policies.");
+      else setError(`Could not submit vote: ${error.message || "Check league_vote_responses columns and RLS policies."}`);
       return;
     }
 
