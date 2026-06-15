@@ -1,15 +1,20 @@
 import { useEffect, useState } from "react";
 
-export default function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 768);
+export default function useIsMobile(breakpoint = 768) {
+  const getMatch = () => {
+    if (typeof window === "undefined") return false;
+    return window.matchMedia(`(max-width: ${breakpoint}px)`).matches;
+  };
+
+  const [isMobile, setIsMobile] = useState(getMatch);
 
   useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth <= 768);
-    check();
-
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
-  }, []);
+    const media = window.matchMedia(`(max-width: ${breakpoint}px)`);
+    const onChange = () => setIsMobile(media.matches);
+    onChange();
+    media.addEventListener?.("change", onChange);
+    return () => media.removeEventListener?.("change", onChange);
+  }, [breakpoint]);
 
   return isMobile;
 }
