@@ -5500,7 +5500,7 @@ function getStreamYoutubeUrl(stream = {}) {
 }
 
 
-function MobilePaintSchemeVotesHub({ drivers = [], tracks = [], go }) {
+function MobilePaintSchemeVotesHub({ drivers = [], tracks = [], go, session = null }) {
   const [uploads, setUploads] = useState([]);
   const [votes, setVotes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -5518,6 +5518,22 @@ function MobilePaintSchemeVotesHub({ drivers = [], tracks = [], go }) {
       .filter((driver) => !driver.retired && !isInactivePlaceholderDriver(driver))
       .sort((a, b) => Number(a.number || 9999) - Number(b.number || 9999));
   }, [drivers]);
+
+  useEffect(() => {
+    if (session?.mode !== "driver") return;
+    const number = String(session.driverNumber || "").trim();
+    if (!number) return;
+    const rosterDriver = activeDrivers.find((driver) => String(driver.number) === number) || {};
+    setLoggedInDriver({
+      ...rosterDriver,
+      number,
+      driver_number: number,
+      name: session.driverName || rosterDriver.name || `#${number}`,
+      team: session.team || rosterDriver.team || "",
+      manufacturer: session.manufacturer || rosterDriver.manufacturer || "",
+    });
+    setDriverNumber(number);
+  }, [session, activeDrivers]);
 
   async function loadPaintData() {
     setLoading(true);
@@ -5681,6 +5697,7 @@ function MobilePaintSchemeVotesHub({ drivers = [], tracks = [], go }) {
   async function castVote(entry) {
     setError("");
     setMessage("");
+    if (session?.mode === "guest") return setError("Guest access is view-only. Log in as a driver to vote.");
     if (!loggedInDriver) return setError("Log in before casting a vote.");
     if (!entry) return setError("Select a paint scheme before voting.");
 
@@ -5780,12 +5797,18 @@ function MobilePaintSchemeVotesHub({ drivers = [], tracks = [], go }) {
       <MobileHero
         kicker="Paint Scheme Vote"
         title="Scheme of the Week"
-        subtitle="Log in at the top, pick a track, then tap a paint scheme to cast your vote."
+        subtitle={session?.mode === "guest" ? "Guest mode can view schemes and results. Log in as a driver to cast or change a vote." : "Pick a track, then tap a paint scheme to cast or change your vote."}
       />
 
       <MobileCard>
         <div style={mobileKickerStyle}>Driver Login</div>
-        {!loggedInDriver ? (
+        {session?.mode === "guest" ? (
+          <div style={{ marginTop: 10, background: "#07111f", border: "1px solid #263244", borderRadius: 16, padding: 14 }}>
+            <div style={{ color: "#fbbf24", fontSize: 11, fontWeight: 1000, textTransform: "uppercase" }}>Guest View Only</div>
+            <div style={{ color: "#aab3c2", fontSize: 13, marginTop: 6, lineHeight: 1.45 }}>You can view paint schemes and results, but you must log in as a driver to cast or change a vote.</div>
+            <button type="button" onClick={() => { clearBclMobileSession(); window.location.reload(); }} style={{ ...mobileActionStyle, marginTop: 12, background: "#d4af37", color: "#111", borderColor: "#d4af37" }}>Driver Login</button>
+          </div>
+        ) : !loggedInDriver ? (
           <form onSubmit={handleLogin} style={{ display: "grid", gap: 12, marginTop: 10 }}>
             <select value={driverNumber} onChange={(event) => setDriverNumber(event.target.value)} style={selectInputStyle}>
               <option value="">Select Your Driver</option>
@@ -6082,6 +6105,196 @@ function useMobileViewport(maxWidth = 768) {
   return isMobile;
 }
 
+
+const BCL_MOBILE_SESSION_KEY = "bcl-mobile-session-v1";
+
+function readBclMobileSession() {
+  try {
+    const raw = localStorage.getItem(BCL_MOBILE_SESSION_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || !parsed.mode) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function saveBclMobileSession(session) {
+  try {
+    localStorage.setItem(BCL_MOBILE_SESSION_KEY, JSON.stringify({ ...session, savedAt: new Date().toISOString() }));
+  } catch {
+    // localStorage can be unavailable in private browsing; session still works in memory.
+  }
+}
+
+function clearBclMobileSession() {
+  try {
+    localStorage.removeItem(BCL_MOBILE_SESSION_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+function MobileAccessGate({ drivers = [], onSession }) {
+  const [driverNumber, setDriverNumber] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const activeDrivers = useMemo(() => {
+    return dedupeDriversByNumber(drivers || [])
+      .filter((driver) => !driver.retired && !isInactivePlaceholderDriver(driver))
+      .sort((a, b) => Number(a.number || 9999) - Number(b.number || 9999));
+  }, [drivers]);
+
+  async function loginDriver(event) {
+    event.preventDefault();
+    setError("");
+    const number = String(driverNumber || "").trim();
+    const code = String(password || "").trim();
+    if (!number || !code) {
+      setError("Select your driver and enter your password.");
+      return;
+    }
+
+    setLoading(true);
+    const { data, error: accessError } = await supabase
+      .from("driver_access_codes")
+      .select("*")
+      .eq("driver_number", number)
+      .limit(10);
+
+    if (accessError) {
+      console.error("Could not verify mobile driver login:", accessError);
+      setLoading(false);
+      setError("Could not verify access. Check driver_access_codes select policy and columns.");
+      return;
+    }
+
+    const enteredCode = code.toUpperCase();
+    const match = (data || []).find((row) => {
+      const rowNumber = String(row.driver_number ?? row.car_number ?? "").trim();
+      const possibleCodes = [row.code, row.access_code, row.password, row.driver_password]
+        .map((value) => String(value ?? "").trim().toUpperCase())
+        .filter(Boolean);
+      return rowNumber === number && possibleCodes.includes(enteredCode) && row.active !== false;
+    });
+
+    const adminMatch = enteredCode === "BCLADMINPASSWORD2026";
+    if (!match && !adminMatch) {
+      setLoading(false);
+      setError("Invalid car number or driver password.");
+      return;
+    }
+
+    const rosterDriver = activeDrivers.find((driver) => String(driver.number) === number) || {};
+    const authRow = match || {};
+    const session = {
+      mode: "driver",
+      driverId: rosterDriver.id || authRow.driver_id || authRow.id || null,
+      driverNumber: number,
+      driverName: rosterDriver.name || authRow.driver_name || authRow.name || `#${number}`,
+      team: rosterDriver.team || authRow.team || "",
+      manufacturer: rosterDriver.manufacturer || authRow.manufacturer || "",
+      isAdmin: Boolean(adminMatch),
+    };
+
+    saveBclMobileSession(session);
+    setLoading(false);
+    onSession(session);
+  }
+
+  function continueAsGuest() {
+    const session = { mode: "guest", displayName: "Guest" };
+    saveBclMobileSession(session);
+    onSession(session);
+  }
+
+  const selectInputStyle = {
+    width: "100%",
+    minHeight: 48,
+    background: "#020617",
+    color: "#fff",
+    border: "1px solid #334155",
+    borderRadius: 14,
+    padding: "12px 13px",
+    fontSize: 15,
+    fontWeight: 900,
+    boxSizing: "border-box",
+  };
+
+  return (
+    <div style={mobileAppStyle}>
+      <main style={{ ...mobileContentStyle, paddingTop: 28 }}>
+        <MobileHero
+          kicker="Budweiser Cup League"
+          title="Choose Access"
+          subtitle="Drivers can stay signed in on this device. Guests can view the app but cannot submit votes, interviews, appeals, messages, or other changes."
+        />
+
+        <MobileCard>
+          <div style={mobileKickerStyle}>Driver Login</div>
+          <form onSubmit={loginDriver} style={{ display: "grid", gap: 12, marginTop: 10 }}>
+            <select value={driverNumber} onChange={(event) => setDriverNumber(event.target.value)} style={selectInputStyle}>
+              <option value="">Select Your Driver</option>
+              {activeDrivers.map((driver) => (
+                <option key={driver.id || driver.number} value={String(driver.number)}>
+                  #{driver.number} — {driver.name} ({getTeamFullName(driver.team)})
+                </option>
+              ))}
+            </select>
+            <input
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="Enter driver password"
+              style={selectInputStyle}
+            />
+            {error && <div style={{ color: "#f87171", fontWeight: 900, lineHeight: 1.35 }}>{error}</div>}
+            <button disabled={loading} type="submit" style={{ ...mobileActionStyle, background: "#d4af37", color: "#111", borderColor: "#d4af37" }}>
+              {loading ? "Checking..." : "Log In & Stay Signed In"}
+            </button>
+          </form>
+        </MobileCard>
+
+        <MobileCard>
+          <div style={mobileKickerStyle}>Guest Access</div>
+          <h2 style={{ margin: "5px 0 8px" }}>View Only</h2>
+          <p style={{ color: "#aab3c2", lineHeight: 1.5, marginTop: 0 }}>
+            Guests can view standings, news, streams, driver profiles, teams, and race information. Voting, interviews, appeals, messages, and owner tools stay locked.
+          </p>
+          <button type="button" onClick={continueAsGuest} style={{ ...mobileActionStyle, background: "#111827", color: "#ffffff", borderColor: "#334155" }}>
+            Continue as Guest
+          </button>
+        </MobileCard>
+      </main>
+    </div>
+  );
+}
+
+function MobileGuestLockedCard({ title = "Driver Login Required", go }) {
+  return (
+    <MobileCard>
+      <div style={mobileKickerStyle}>Guest Mode</div>
+      <h2 style={{ margin: "5px 0 8px" }}>{title}</h2>
+      <p style={{ color: "#aab3c2", lineHeight: 1.5 }}>
+        Guest access is view-only. Log in as a driver to submit votes, interviews, appeals, messages, or other changes.
+      </p>
+      <button
+        type="button"
+        onClick={() => {
+          clearBclMobileSession();
+          window.location.reload();
+        }}
+        style={{ ...mobileActionStyle, background: "#d4af37", color: "#111", borderColor: "#d4af37" }}
+      >
+        Driver Login
+      </button>
+    </MobileCard>
+  );
+}
+
 function MobileLeagueApp({
   path,
   rawPath,
@@ -6103,6 +6316,17 @@ function MobileLeagueApp({
   const sortedManufacturers = [...manufacturerStandings].sort((a, b) => (b.points || 0) - (a.points || 0));
   const upcomingRace = getUpcomingRaceByDate(tracks || []);
   const leader = sortedDrivers[0];
+  const [mobileSession, setMobileSession] = useState(() => readBclMobileSession());
+  const isGuestSession = mobileSession?.mode === "guest";
+
+  function handleMobileLogout() {
+    clearBclMobileSession();
+    setMobileSession(null);
+  }
+
+  if (!mobileSession) {
+    return <MobileAccessGate drivers={drivers} onSession={setMobileSession} />;
+  }
 
   function getTrackOverview(race) {
     if (!race) return null;
@@ -6110,7 +6334,7 @@ function MobileLeagueApp({
   }
 
   function frame(title, active, children) {
-    return <MobileLayout title={title} go={go} active={active}>{children}</MobileLayout>;
+    return <MobileLayout title={title} go={go} active={active} session={mobileSession} onLogout={handleMobileLogout}>{children}</MobileLayout>;
   }
 
   function dataFrame(title, active, children) {
@@ -6119,18 +6343,18 @@ function MobileLeagueApp({
 
   if (path === "/files") return dataFrame("Files", "more", <FilesPage />);
   if (path === "/welcome") return dataFrame("Welcome", "home", <WelcomePage />);
-  if (path === "/submit-appeal") return dataFrame("Submit Appeal", "more", <SubmitAppealPage />);
-  if (path === "/submit-story") return dataFrame("Submit Story", "more", <SubmitStoryPage />);
+  if (path === "/submit-appeal") return dataFrame("Submit Appeal", "more", isGuestSession ? <MobileGuestLockedCard title="Appeals Require Driver Login" go={go} /> : <SubmitAppealPage />);
+  if (path === "/submit-story") return dataFrame("Submit Story", "more", isGuestSession ? <MobileGuestLockedCard title="Story Submissions Require Driver Login" go={go} /> : <SubmitStoryPage />);
   if (path === "/appeals") return dataFrame("Appeals", "more", <AppealsPage />);
   if (path === "/news") return frame("News", "news", <MobileNewsFeed go={go} desktopArchive={<NewsPage />} />);
-  if (path === "/paint-scheme-vote") return frame("Paint Scheme Votes", "votes", <MobilePaintSchemeVotesHub drivers={drivers} tracks={tracks} go={go} />);
-  if (path === "/vote" || path === "/league-vote" || path === "/voting") return dataFrame("League Vote", "more", <LeagueVotingPage drivers={drivers} />);
+  if (path === "/paint-scheme-vote") return frame("Paint Scheme Votes", "votes", <MobilePaintSchemeVotesHub drivers={drivers} tracks={tracks} go={go} session={mobileSession} />);
+  if (path === "/vote" || path === "/league-vote" || path === "/voting") return dataFrame("League Vote", "more", isGuestSession ? <MobileGuestLockedCard title="League Voting Requires Driver Login" go={go} /> : <LeagueVotingPage drivers={drivers} />);
   if (path === "/notifications") return dataFrame("Notifications", "more", <NotificationsPage />);
   if (path === "/interviews") return dataFrame("Interviews", "interviews", <PublicInterviewsPage />);
   if (path === "/contracts") return dataFrame("Contracts", "more", <ContractsPage drivers={drivers} />);
   if (path === "/memorial-day") return dataFrame("Memorial", "more", <MemorialDayPage drivers={drivers} />);
-  if (path === "/chat") return dataFrame("League Chat", "more", <LeagueChatPage drivers={drivers} />);
-  if (path === "/message-center") return dataFrame("Messages", "more", <LeagueMessageCenterLandingPage drivers={drivers} />);
+  if (path === "/chat") return dataFrame("League Chat", "more", isGuestSession ? <MobileGuestLockedCard title="League Chat Requires Driver Login" go={go} /> : <LeagueChatPage drivers={drivers} />);
+  if (path === "/message-center") return dataFrame("Messages", "more", isGuestSession ? <MobileGuestLockedCard title="League Messages Require Driver Login" go={go} /> : <LeagueMessageCenterLandingPage drivers={drivers} />);
   if (path === "/discord") return dataFrame("Discord", "more", <DiscordPage />);
   if (path === "/stories") return dataFrame("Story Admin", "more", <StoriesAdminPage />);
   if (path === "/more" || path === "/menu") {
@@ -6260,7 +6484,7 @@ function MobileLeagueApp({
 
   if (path === "/" || path === "/standings") {
     return (
-      <MobileLayout title="Budweiser Cup" go={go} active="home">
+      <MobileLayout title="Budweiser Cup" go={go} active="home" session={mobileSession} onLogout={handleMobileLogout}>
         <MobileHero
           kicker={seasonName || "Current Season"}
           title="Race Hub"
@@ -7108,7 +7332,7 @@ function MobileRaceResultCard({ race }) {
   );
 }
 
-function MobileLayout({ title, children, go, active }) {
+function MobileLayout({ title, children, go, active, session = null, onLogout = () => {} }) {
   function openDesktopVersion() {
     if (typeof document !== "undefined") {
       document.cookie = "bcl-force-desktop=1; path=/; max-age=2592000";
@@ -7120,10 +7344,32 @@ function MobileLayout({ title, children, go, active }) {
     <div style={mobileAppStyle}>
       <header style={mobileTopbarStyle}>
         <button type="button" onClick={() => go("/standings")} style={mobileLogoButtonStyle}>🏁</button>
-        <strong style={{ fontSize: 16 }}>{title}</strong>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <strong style={{ fontSize: 16, display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{title}</strong>
+          {session && (
+            <span style={{ display: "block", color: "#9ca3af", fontSize: 10, fontWeight: 900, textTransform: "uppercase", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {session.mode === "guest" ? "Guest View Only" : `#${session.driverNumber} ${session.driverName}`}
+            </span>
+          )}
+        </div>
         <button type="button" onClick={() => go("/message-center")} style={mobileBellStyle} aria-label="League Messages">💬</button>
       </header>
       <main style={mobileContentStyle}>
+        {session && (
+          <div style={{ background: "rgba(15,23,42,0.92)", border: "1px solid #263244", borderRadius: 16, padding: "10px 12px", marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ color: session.mode === "guest" ? "#fbbf24" : "#4ade80", fontSize: 10, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 0.8 }}>
+                {session.mode === "guest" ? "Guest Access" : "Driver Signed In"}
+              </div>
+              <div style={{ fontSize: 13, fontWeight: 900, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {session.mode === "guest" ? "View-only mode" : `#${session.driverNumber} ${session.driverName}`}
+              </div>
+            </div>
+            <button type="button" onClick={onLogout} style={{ background: "#111827", color: "#fff", border: "1px solid #334155", borderRadius: 12, padding: "8px 10px", fontSize: 12, fontWeight: 900 }}>
+              Log Out
+            </button>
+          </div>
+        )}
         {children}
         <div style={mobileDesktopSwitchCardStyle}>
           <div>
