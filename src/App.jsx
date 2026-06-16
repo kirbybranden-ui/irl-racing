@@ -5506,7 +5506,7 @@ function MobilePaintSchemeVotesHub({ drivers = [], tracks = [], go }) {
   const [votes, setVotes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [showBallot, setShowBallot] = useState(false);
+  const [showBallot, setShowBallot] = useState(true);
 
   const previousRace = useMemo(() => getPreviousCompletedRaceForPaintWinner(tracks), [JSON.stringify((tracks || []).map((track) => ({ name: track?.name, date: track?.date })))]);
   const raceName = previousRace?.name || "Current Week";
@@ -5747,24 +5747,39 @@ function MobilePaintSchemeVotesHub({ drivers = [], tracks = [], go }) {
                 </div>
               </div>
               <div style={{ marginTop: 12, background: "#d4af37", color: "#111", borderRadius: 12, padding: "11px 14px", textAlign: "center", fontWeight: 1000 }}>
-                Open Ballot
+                Log In / Vote
               </div>
             </div>
           </button>
         ))}
       </div>
 
-      <MobileSectionTitle>Official Ballot</MobileSectionTitle>
+      <MobileSectionTitle>Official Login & Vote Ballot</MobileSectionTitle>
       <MobileCard>
         <p style={{ color: "#aab3c2", marginTop: 0, lineHeight: 1.45 }}>
-          Use the official ballot below to log in, submit your vote, or change vote-related actions. This keeps the same desktop password and Supabase logic.
+          The NASCAR-style cards above are for browsing the paint schemes. The official voting area below keeps the same desktop login, password check, track selection, and Supabase vote submission logic.
         </p>
-        <MobileAction label={showBallot ? "Hide Official Ballot" : "Open Official Ballot"} onClick={() => setShowBallot((current) => !current)} />
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <MobileAction label={showBallot ? "Hide Official Ballot" : "Show Official Ballot"} onClick={() => setShowBallot((current) => !current)} />
+        </div>
       </MobileCard>
 
       {showBallot && (
-        <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", paddingBottom: 90 }}>
-          <div style={{ minWidth: 360 }}>
+        <div
+          style={{
+            width: "100%",
+            overflowX: "auto",
+            WebkitOverflowScrolling: "touch",
+            paddingBottom: 100,
+          }}
+        >
+          <div
+            style={{
+              minWidth: 360,
+              width: "100%",
+              maxWidth: "100%",
+            }}
+          >
             <PaintSchemeVotePage drivers={drivers} tracks={tracks} />
           </div>
         </div>
