@@ -5373,6 +5373,18 @@ function MobileLeagueApp({
   if (path === "/memorial-day") return dataFrame("Memorial", "more", <MemorialDayPage drivers={drivers} />);
   if (path === "/chat") return dataFrame("League Chat", "more", <LeagueChatPage drivers={drivers} />);
   if (path === "/message-center") return dataFrame("Messages", "more", <LeagueMessageCenterLandingPage drivers={drivers} />);
+  if (path === "/discord") return dataFrame("Discord", "more", <DiscordPage />);
+  if (path === "/stories") return dataFrame("Story Admin", "more", <StoriesAdminPage />);
+  if (path === "/more" || path === "/menu") {
+    return frame("More", "more", (
+      <MobileFeatureHub
+        go={go}
+        drivers={drivers}
+        teams={teams}
+        manufacturerStandings={manufacturerStandings}
+      />
+    ));
+  }
 
   if (path === "/streams" || path === "/stream") {
     return dataFrame("Streams", "streams", (
@@ -5499,6 +5511,95 @@ function MobileLeagueApp({
   }
 
   return dataFrame("Budweiser Cup", "standings", <PublicStandings drivers={drivers} teams={teams} manufacturerStandings={manufacturerStandings} seasonName={seasonName} tracks={tracks} raceHistory={raceHistory} />);
+}
+
+
+function MobileFeatureHub({ go, drivers = [], teams = [], manufacturerStandings = [] }) {
+  const featureGroups = [
+    {
+      title: "League",
+      items: [
+        { icon: "📊", label: "Standings", desc: "Drivers, teams, manufacturers, and recent results", path: "/standings" },
+        { icon: "📰", label: "News", desc: "Latest five mobile stories with desktop archive available", path: "/news" },
+        { icon: "📡", label: "Streams", desc: "Twitch, YouTube, watch party, and stream cards", path: "/streams" },
+        { icon: "🔔", label: "Notifications", desc: "Driver and league reminders", path: "/notifications" },
+      ],
+    },
+    {
+      title: "Owner / Driver Tools",
+      items: [
+        { icon: "🏢", label: "Team HQ", desc: "Owner login and full team controls", path: "/hq" },
+        { icon: "🔐", label: "Owner Login", desc: "Open the full owner portal", path: "/owner" },
+        { icon: "📑", label: "Contracts", desc: "Contracts, offers, and driver agreements", path: "/contracts" },
+        { icon: "🎙", label: "Interviews", desc: "Public interview center", path: "/interviews" },
+      ],
+    },
+    {
+      title: "Voting / Submissions",
+      items: [
+        { icon: "🗳", label: "Paint Scheme Vote", desc: "Vote using driver password", path: "/paint-scheme-vote" },
+        { icon: "✅", label: "League Voting", desc: "League polls and owner/driver votes", path: "/voting" },
+        { icon: "📝", label: "Submit Story", desc: "Send a story to league media", path: "/submit-story" },
+        { icon: "⚖️", label: "Submit Appeal", desc: "File an appeal from mobile", path: "/submit-appeal" },
+      ],
+    },
+    {
+      title: "Communication / Admin Access",
+      items: [
+        { icon: "💬", label: "League Chat", desc: "Mobile chat access", path: "/chat" },
+        { icon: "📨", label: "Message Center", desc: "League and owner messages", path: "/message-center" },
+        { icon: "🎮", label: "Discord", desc: "League Discord page", path: "/discord" },
+        { icon: "🛠", label: "Admin Portal", desc: "Opens the protected desktop admin portal", path: "/admin-login", desktop: true },
+      ],
+    },
+  ];
+
+  function openFeature(item) {
+    if (item.desktop && typeof document !== "undefined") {
+      document.cookie = "bcl-force-desktop=1; path=/; max-age=2592000";
+    }
+    go(item.path);
+  }
+
+  return (
+    <>
+      <MobileHero
+        kicker="Mobile Command Center"
+        title="Everything in One Place"
+        subtitle="Access the same league features from mobile. Some complex admin tools still open in desktop mode so the full controls stay intact."
+      />
+
+      <MobileStatGrid
+        items={[
+          ["Drivers", drivers.length],
+          ["Teams", teams.length],
+          ["MFRs", manufacturerStandings.length],
+        ]}
+      />
+
+      {featureGroups.map((group) => (
+        <section key={group.title} style={mobileFeatureGroupStyle}>
+          <MobileSectionTitle>{group.title}</MobileSectionTitle>
+          <div style={mobileFeatureGridStyle}>
+            {group.items.map((item) => (
+              <button
+                key={item.path}
+                type="button"
+                onClick={() => openFeature(item)}
+                style={mobileFeatureButtonStyle}
+              >
+                <span style={mobileFeatureIconStyle}>{item.icon}</span>
+                <span style={{ minWidth: 0 }}>
+                  <strong style={mobileFeatureLabelStyle}>{item.label}</strong>
+                  <small style={mobileFeatureDescStyle}>{item.desc}</small>
+                </span>
+              </button>
+            ))}
+          </div>
+        </section>
+      ))}
+    </>
+  );
 }
 
 
@@ -5851,11 +5952,11 @@ function MobileLayout({ title, children, go, active }) {
         </div>
       </main>
       <nav style={mobileBottomNavStyle}>
-        <MobileNavButton active={active === "home"} icon="🏁" label="Home" onClick={() => go("/")} />
-        <MobileNavButton active={active === "standings"} icon="📊" label="Standings" onClick={() => go("/standings")} />
+        <MobileNavButton active={active === "standings" || active === "home"} icon="🏁" label="Home" onClick={() => go("/")} />
         <MobileNavButton active={active === "news"} icon="📰" label="News" onClick={() => go("/news")} />
         <MobileNavButton active={active === "streams"} icon="📡" label="Streams" onClick={() => go("/streams")} />
         <MobileNavButton active={active === "hq"} icon="🏢" label="HQ" onClick={() => go("/hq")} />
+        <MobileNavButton active={active === "more"} icon="☰" label="More" onClick={() => go("/more")} />
       </nav>
     </div>
   );
@@ -5872,6 +5973,12 @@ function MobileManufacturerRow({ manufacturer, index }) { return <div style={mob
 function MobileRaceCard({ race }) { return <MobileCard><div style={mobileKickerStyle}>Next Race</div><h2 style={{ margin: "4px 0" }}>{race.name || race.track || "Race"}</h2><p style={{ color: "#aab3c2", margin: 0 }}>{race.date || "Date TBA"} • Qualifying 9:15 PM • Race 9:30 PM</p></MobileCard>; }
 
 
+const mobileFeatureGroupStyle = { marginTop: 12 };
+const mobileFeatureGridStyle = { display: "grid", gridTemplateColumns: "1fr", gap: 10 };
+const mobileFeatureButtonStyle = { width: "100%", background: "linear-gradient(135deg, #101827 0%, #0c111a 100%)", color: "#ffffff", border: "1px solid #263244", borderRadius: 18, padding: "14px 14px", display: "grid", gridTemplateColumns: "42px 1fr", gap: 12, alignItems: "center", textAlign: "left", cursor: "pointer", boxShadow: "0 12px 30px rgba(0,0,0,0.22)" };
+const mobileFeatureIconStyle = { width: 42, height: 42, borderRadius: 14, background: "rgba(212,175,55,0.14)", border: "1px solid rgba(212,175,55,0.24)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 21 };
+const mobileFeatureLabelStyle = { display: "block", fontSize: 15, fontWeight: 1000, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" };
+const mobileFeatureDescStyle = { display: "block", marginTop: 3, color: "#9ca8ba", fontSize: 12, lineHeight: 1.35 };
 const mobileNewsMastheadStyle = { background: "linear-gradient(180deg, #101827 0%, #0b1018 100%)", border: "1px solid rgba(212,175,55,0.32)", borderRadius: 22, padding: "22px 18px", marginBottom: 14, boxShadow: "0 18px 42px rgba(0,0,0,0.32)" };
 const mobileNewsMastheadKickerStyle = { color: "#facc15", fontSize: 11, fontWeight: 1000, letterSpacing: 1.8, textTransform: "uppercase", marginBottom: 8 };
 const mobileNewsMastheadTitleStyle = { margin: 0, fontSize: 32, lineHeight: 0.95, fontWeight: 1000, letterSpacing: -1.2 };
