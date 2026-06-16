@@ -5614,12 +5614,8 @@ function MobilePaintSchemeVotesHub({ drivers = [], tracks = [], go, session = nu
 
   useEffect(() => {
     if (selectedTrack || !trackOptions.length) return;
-
-    // Default mobile paint voting to the next scheduled race/track.
-    // Drivers can still manually use the dropdown to view or vote on a different track.
-    const nextRace = getUpcomingRaceByDate(tracks || []);
-    const preferred = trackOptions.find((option) => normalizeTrack(option) === normalizeTrack(nextRace?.name));
-
+    const previousRace = getPreviousCompletedRaceForPaintWinner(tracks);
+    const preferred = trackOptions.find((option) => normalizeTrack(option) === normalizeTrack(previousRace?.name));
     setSelectedTrack(preferred || trackOptions[0]);
   }, [trackOptions, selectedTrack, tracks]);
 
@@ -5910,182 +5906,6 @@ function MobilePaintSchemeVotesHub({ drivers = [], tracks = [], go, session = nu
           );
         })}
       </div>
-    </div>
-  );
-}
-
-
-function MobileInterviewsHub({ drivers = [], tracks = [], raceHistory = [], session = null, go = () => {} }) {
-  const [interviews, setInterviews] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  const currentDriver = useMemo(() => {
-    if (session?.mode !== "driver") return null;
-    const number = String(session.driverNumber || "").trim();
-    const rosterDriver = (drivers || []).find((driver) => String(driver.number) === number) || {};
-    return {
-      ...rosterDriver,
-      number,
-      name: session.driverName || rosterDriver.name || `#${number}`,
-      team: session.team || rosterDriver.team || "",
-      manufacturer: session.manufacturer || rosterDriver.manufacturer || "",
-    };
-  }, [session, drivers]);
-
-  useEffect(() => {
-    let isMounted = true;
-    async function loadInterviews() {
-      setLoading(true);
-      setError("");
-      const { data, error: interviewError } = await supabase
-        .from("interviews")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (!isMounted) return;
-      if (interviewError) {
-        console.error("Could not load mobile interviews:", interviewError);
-        setError("Could not load interviews. Check the interviews table and RLS policies.");
-        setInterviews([]);
-      } else {
-        setInterviews(Array.isArray(data) ? data : []);
-      }
-      setLoading(false);
-    }
-    loadInterviews();
-    return () => { isMounted = false; };
-  }, []);
-
-  const upcomingRace = getUpcomingRaceByDate(tracks || []);
-  const previousRace = Array.isArray(raceHistory) && raceHistory.length ? raceHistory[raceHistory.length - 1] : null;
-  const upcomingRaceName = upcomingRace?.name || "Upcoming Race";
-  const previousRaceName = previousRace?.raceName || previousRace?.name || "Previous Race";
-
-  const driverInterviews = useMemo(() => {
-    if (!currentDriver) return [];
-    return (interviews || []).filter((row) => recordMatchesDriver(row, currentDriver));
-  }, [interviews, currentDriver]);
-
-  const publicInterviews = useMemo(() => {
-    return (interviews || [])
-      .filter((row) => interviewLooksAnswered(row))
-      .slice(0, 10);
-  }, [interviews]);
-
-  const preInterview = currentDriver
-    ? driverInterviews.find((row) => getInterviewKind(row) === "pre" && interviewLooksAnswered(row) && recordMatchesRace(row, upcomingRaceName))
-    : null;
-  const postInterview = currentDriver
-    ? driverInterviews.find((row) => getInterviewKind(row) === "post" && interviewLooksAnswered(row) && recordMatchesRace(row, previousRaceName))
-    : null;
-
-  function getInterviewTitle(row) {
-    const kind = getInterviewKind(row);
-    const driverName = row.driver_name || row.driverName || row.name || row.submitted_by || "League Driver";
-    const race = getRecordRaceName(row);
-    if (row.title) return row.title;
-    if (kind === "pre") return `Pre-race: ${driverName}`;
-    if (kind === "post") return `Post-race: ${driverName}`;
-    return race ? `${driverName} • ${race}` : String(driverName);
-  }
-
-  function getInterviewPreview(row) {
-    const value = row.answer || row.response || row.body || row.content || row.notes || row.answers || row.responses || "";
-    const text = typeof value === "object" ? JSON.stringify(value) : String(value || "");
-    return text.length > 170 ? `${text.slice(0, 170)}...` : text;
-  }
-
-  function InterviewStatusCard({ type, race, complete }) {
-    return (
-      <div style={{ background: "#07111f", border: "1px solid #263244", borderRadius: 18, padding: 14 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
-          <div>
-            <div style={mobileKickerStyle}>{type}</div>
-            <div style={{ fontWeight: 1000, fontSize: 18, marginTop: 4 }}>{race}</div>
-          </div>
-          <span style={{ borderRadius: 999, padding: "7px 10px", fontSize: 11, fontWeight: 1000, background: complete ? "rgba(34,197,94,0.14)" : "rgba(250,204,21,0.14)", color: complete ? "#4ade80" : "#facc15", border: `1px solid ${complete ? "rgba(34,197,94,0.35)" : "rgba(250,204,21,0.35)"}` }}>
-            {complete ? "COMPLETE" : "DUE"}
-          </span>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div style={{ paddingBottom: 92 }}>
-      <MobileHero
-        kicker="Media Center"
-        title="Interviews"
-        subtitle={session?.mode === "guest" ? "Guest mode can read posted interviews. Log in as a driver to submit media requirements." : "Submit pre-race and post-race media, then browse the public interview archive."}
-      />
-
-      {session?.mode === "guest" ? (
-        <MobileGuestLockedCard title="Interview Submissions Require Driver Login" go={go} />
-      ) : currentDriver ? (
-        <MobileCard>
-          <div style={mobileKickerStyle}>Signed In</div>
-          <h2 style={{ margin: "5px 0 6px", fontSize: 24 }}>#{currentDriver.number} {currentDriver.name}</h2>
-          <p style={{ margin: "0 0 14px", color: "#aab3c2", lineHeight: 1.4 }}>{getTeamFullName(currentDriver.team || "Independent")}{currentDriver.manufacturer ? ` • ${currentDriver.manufacturer}` : ""}</p>
-          <div style={{ display: "grid", gap: 10 }}>
-            <InterviewStatusCard type="Pre-race Interview" race={upcomingRaceName} complete={Boolean(preInterview)} />
-            <InterviewStatusCard type="Post-race Interview" race={previousRaceName} complete={Boolean(postInterview)} />
-          </div>
-          <button type="button" onClick={() => go(`/driver/${currentDriver.number}`)} style={{ ...mobileActionStyle, marginTop: 14, background: "#d4af37", color: "#111", borderColor: "#d4af37" }}>
-            Open My Interview Form
-          </button>
-        </MobileCard>
-      ) : null}
-
-      <MobileCard>
-        <div style={mobileKickerStyle}>Media Requirements</div>
-        <h2 style={{ margin: "5px 0 8px" }}>This Week</h2>
-        <p style={{ color: "#aab3c2", lineHeight: 1.5, margin: 0 }}>
-          Post-race interviews are tied to the previous race. Pre-race interviews are tied to the upcoming race. Driver login stays saved on this device until you log out.
-        </p>
-      </MobileCard>
-
-      {loading && <MobileCard><p style={{ margin: 0, color: "#aab3c2" }}>Loading interview archive...</p></MobileCard>}
-      {!loading && error && <MobileCard><p style={{ margin: 0, color: "#fca5a5", lineHeight: 1.4 }}>{error}</p></MobileCard>}
-
-      {!loading && (
-        <>
-          <div style={{ ...mobileSectionTitleStyle, marginTop: 18 }}>Latest Interviews</div>
-          {!publicInterviews.length ? (
-            <MobileCard><p style={{ margin: 0, color: "#aab3c2" }}>No posted interviews yet.</p></MobileCard>
-          ) : (
-            <div style={{ display: "grid", gap: 12 }}>
-              {publicInterviews.map((row, index) => {
-                const kind = getInterviewKind(row);
-                const race = getRecordRaceName(row);
-                const preview = getInterviewPreview(row);
-                return (
-                  <article key={row.id || `${getInterviewTitle(row)}-${index}`} style={{ ...mobileCardStyle, padding: 16 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", marginBottom: 8 }}>
-                      <div style={mobileKickerStyle}>{kind ? `${kind}-race` : "Interview"}</div>
-                      {race && <span style={{ color: "#94a3b8", fontSize: 11, fontWeight: 900 }}>{race}</span>}
-                    </div>
-                    <h3 style={{ margin: "0 0 8px", fontSize: 19, lineHeight: 1.1 }}>{getInterviewTitle(row)}</h3>
-                    {preview && <p style={{ margin: 0, color: "#cbd5e1", lineHeight: 1.45, whiteSpace: "pre-line" }}>{preview}</p>}
-                    <div style={{ color: "#64748b", fontSize: 11, marginTop: 10, fontWeight: 900 }}>
-                      {row.created_at ? new Date(row.created_at).toLocaleString() : ""}
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          )}
-        </>
-      )}
-
-      <MobileCard>
-        <div style={mobileKickerStyle}>Full Archive</div>
-        <p style={{ margin: "8px 0 12px", color: "#aab3c2", lineHeight: 1.45 }}>Need the original interview center view? Open the full page in desktop mode.</p>
-        <MobileAction label="Open Full Interview Center" onClick={() => {
-          if (typeof document !== "undefined") document.cookie = "bcl-force-desktop=1; path=/; max-age=2592000";
-          window.location.href = "/interviews";
-        }} />
-      </MobileCard>
     </div>
   );
 }
@@ -6530,7 +6350,7 @@ function MobileLeagueApp({
   if (path === "/paint-scheme-vote") return frame("Paint Scheme Votes", "votes", <MobilePaintSchemeVotesHub drivers={drivers} tracks={tracks} go={go} session={mobileSession} />);
   if (path === "/vote" || path === "/league-vote" || path === "/voting") return dataFrame("League Vote", "more", isGuestSession ? <MobileGuestLockedCard title="League Voting Requires Driver Login" go={go} /> : <LeagueVotingPage drivers={drivers} />);
   if (path === "/notifications") return dataFrame("Notifications", "more", <NotificationsPage />);
-  if (path === "/interviews") return frame("Interviews", "interviews", <MobileInterviewsHub drivers={drivers} tracks={tracks} raceHistory={raceHistory} session={mobileSession} go={go} />);
+  if (path === "/interviews") return dataFrame("Interviews", "interviews", <PublicInterviewsPage />);
   if (path === "/contracts") return dataFrame("Contracts", "more", <ContractsPage drivers={drivers} />);
   if (path === "/memorial-day") return dataFrame("Memorial", "more", <MemorialDayPage drivers={drivers} />);
   if (path === "/chat") return dataFrame("League Chat", "more", isGuestSession ? <MobileGuestLockedCard title="League Chat Requires Driver Login" go={go} /> : <LeagueChatPage drivers={drivers} />);
