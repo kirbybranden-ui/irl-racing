@@ -3321,7 +3321,7 @@ function AdminLeagueMessageDashboard({ drivers = [], teams = [] }) {
       return;
     }
 
-    setMessages(data || []);
+    setMessages((data || []).filter((message) => canSessionSeeMessage(message, currentDriverSession || driverSession || loggedInDriver || {}, drivers)));
     setLoading(false);
   }
 
@@ -11111,3 +11111,64 @@ export default function App() {
   );
 }
 
+
+
+function getMessageAudienceKeysForSession(session = {}, drivers = []) {
+  const keys = new Set();
+  const type = String(session?.type || session?.role || "").toLowerCase();
+
+  if (type === "guest") return ["guest"];
+  if (type === "admin" || session?.isAdmin) return ["admin", "all"];
+
+  const driverNumber = String(session?.driverNumber || session?.number || "").trim();
+  const driverName = String(session?.driverName || session?.name || "").trim();
+  const team = String(session?.team || "").trim();
+  const manufacturer = String(session?.manufacturer || "").trim();
+
+  if (driverNumber) keys.add(`driver:${driverNumber}`);
+  if (driverName) keys.add(`driver_name:${driverName.toLowerCase()}`);
+  if (team) keys.add(`team:${team.toLowerCase()}`);
+  if (manufacturer) keys.add(`manufacturer:${manufacturer.toLowerCase()}`);
+
+  if (type === "owner" || session?.isOwner) {
+    keys.add("owner");
+    if (team) keys.add(`owner_team:${team.toLowerCase()}`);
+  }
+
+  keys.add("all_drivers");
+  return Array.from(keys);
+}
+
+function canSessionSeeMessage(message = {}, session = {}, drivers = []) {
+  const type = String(session?.type || session?.role || "").toLowerCase();
+  if (type === "guest") return false;
+  if (type === "admin" || session?.isAdmin) return true;
+
+  const keys = getMessageAudienceKeysForSession(session, drivers);
+  const audienceValues = [
+    message.recipient_key,
+    message.recipientKey,
+    message.audience_key,
+    message.audienceKey,
+    message.recipient_type && message.recipient_id ? `${message.recipient_type}:${message.recipient_id}` : "",
+    message.target_type && message.target_id ? `${message.target_type}:${message.target_id}` : "",
+  ].map((value) => String(value || "").trim().toLowerCase()).filter(Boolean);
+
+  const driverNumber = String(session?.driverNumber || session?.number || "").trim().toLowerCase();
+  const driverName = String(session?.driverName || session?.name || "").trim().toLowerCase();
+  const team = String(session?.team || "").trim().toLowerCase();
+  const manufacturer = String(session?.manufacturer || "").trim().toLowerCase();
+
+  if (String(message.driver_number || message.driverNumber || "").trim().toLowerCase() === driverNumber && driverNumber) return true;
+  if (String(message.driver_name || message.driverName || "").trim().toLowerCase() === driverName && driverName) return true;
+
+  if ((type === "owner" || session?.isOwner) && team) {
+    if (String(message.team || message.team_key || message.owner_team || "").trim().toLowerCase() === team) return true;
+  }
+
+  if ((type === "manufacturer" || session?.isManufacturer) && manufacturer) {
+    if (String(message.manufacturer || message.manufacturer_key || "").trim().toLowerCase() === manufacturer) return true;
+  }
+
+  return audienceValues.some((value) => keys.map(k => k.toLowerCase()).includes(value));
+}
