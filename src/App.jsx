@@ -3595,18 +3595,48 @@ function LeagueMessageCenterLandingPage({ drivers = [], session = null }) {
 
   function messageMatchesDriver(message, driver) {
     if (!message || !driver) return false;
-    const recipientType = String(message.recipient_type || message.message_type || "").toLowerCase();
+
+    const recipientType = String(message.recipient_type || "").trim().toLowerCase();
+    const messageType = String(message.message_type || "").trim().toLowerCase();
+    const category = `${recipientType} ${messageType} ${String(message.category || "").toLowerCase()} ${String(message.subject || "").toLowerCase()}`;
+
     const driverNumber = String(driver.number || "").trim();
     const driverName = String(driver.name || "").trim().toLowerCase();
-    const driverTeam = String(driver.team || "").trim().toLowerCase();
-    const driverManufacturer = String(driver.manufacturer || "").trim().toLowerCase();
 
-    if (["all", "league", "broadcast", "everyone", "drivers"].includes(recipientType)) return true;
-    if (String(message.recipient_driver_number || message.driver_number || "").trim() === driverNumber) return true;
-    if (String(message.recipient_driver_name || "").trim().toLowerCase() === driverName) return true;
-    if (message.recipient_team && String(message.recipient_team).trim().toLowerCase() === driverTeam) return true;
-    if (message.recipient_manufacturer && String(message.recipient_manufacturer).trim().toLowerCase() === driverManufacturer) return true;
-    return false;
+    const explicitDriverNumber =
+      String(message.recipient_driver_number || message.driver_number || message.target_driver_number || "").trim();
+
+    const explicitDriverName =
+      String(message.recipient_driver_name || message.driver_name || message.target_driver_name || "").trim().toLowerCase();
+
+    // Drivers should only see messages addressed directly to them or true all-driver broadcasts.
+    // Admin-only items such as Start & Park requests, race-control requests, owner inbox items, and admin reports must stay hidden.
+    const adminOnly =
+      category.includes("start_park") ||
+      category.includes("start park") ||
+      category.includes("race control") ||
+      category.includes("admin") ||
+      category.includes("board") ||
+      recipientType === "owner" ||
+      recipientType === "owners" ||
+      recipientType === "team_owner" ||
+      recipientType === "manufacturer" ||
+      recipientType === "league_office";
+
+    if (explicitDriverNumber && explicitDriverNumber === driverNumber) return true;
+    if (explicitDriverName && explicitDriverName === driverName) return true;
+
+    if (adminOnly) return false;
+
+    const driverBroadcastTypes = new Set([
+      "all_drivers",
+      "drivers",
+      "driver",
+      "everyone",
+      "broadcast",
+    ]);
+
+    return driverBroadcastTypes.has(recipientType) || driverBroadcastTypes.has(messageType);
   }
 
   function getSenderLabel(message) {
@@ -6693,7 +6723,7 @@ function MobileLeagueApp({
   if (path === "/contracts") return dataFrame("Contracts", "more", <ContractsPage drivers={drivers} />);
   if (path === "/memorial-day") return dataFrame("Memorial", "more", <MemorialDayPage drivers={drivers} />);
   if (path === "/chat") return dataFrame("League Chat", "more", isGuestSession ? <MobileGuestLockedCard title="League Chat Requires Driver Login" go={go} /> : <LeagueChatPage drivers={drivers} />);
-  if (path === "/message-center") return dataFrame("Messages", "messages", isGuestSession ? <MobileGuestLockedCard title="League Messages Require Driver Login" go={go} /> : <LeagueMessageCenterLandingPage drivers={drivers} session={mobileSession} />);
+  if (path === "/message-center") return dataFrame("Messages", "more", isGuestSession ? <MobileGuestLockedCard title="League Messages Require Driver Login" go={go} /> : <LeagueMessageCenterLandingPage drivers={drivers} session={mobileSession} />);
   if (path === "/discord") return dataFrame("Discord", "more", <DiscordPage />);
   if (path === "/stories") return dataFrame("Story Admin", "more", <StoriesAdminPage />);
   if (path === "/more" || path === "/menu") {
@@ -7733,7 +7763,6 @@ function MobileLayout({ title, children, go, active, session = null, onLogout = 
         <MobileNavButton active={active === "news"} icon="📰" label="News" onClick={() => go("/news")} />
         <MobileNavButton active={active === "votes"} icon="🎨" label="Votes" onClick={() => go("/paint-scheme-vote")} />
         <MobileNavButton active={active === "interviews"} icon="🎤" label="Interviews" onClick={() => go("/interviews")} />
-        <MobileNavButton active={active === "messages"} icon="📬" label="Messages" onClick={() => go("/message-center")} />
         <MobileNavButton active={active === "more"} icon="☰" label="More" onClick={() => go("/more")} />
       </nav>
     </div>
