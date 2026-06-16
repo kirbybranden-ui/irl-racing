@@ -5865,16 +5865,28 @@ function MobileLeagueApp({
 
   if (path === "/" || path === "/standings") {
     return (
-      <MobileLayout title="Budweiser Cup" go={go} active="standings">
-        <MobileHero kicker={seasonName || "Current Season"} title="Driver Standings" subtitle={upcomingRace ? `Next Race: ${upcomingRace.name || upcomingRace.track || "TBA"}` : "Mobile league hub"} />
+      <MobileLayout title="Budweiser Cup" go={go} active="home">
+        <MobileHero
+          kicker={seasonName || "Current Season"}
+          title="Race Hub"
+          subtitle={upcomingRace ? `${upcomingRace.name || upcomingRace.track || "Next Race"} • Saturday • 9:30 PM ET` : "Mobile league dashboard"}
+        />
         <LeagueTicker page="standings" />
         <MobileWeekendRecap raceHistory={raceHistory} tracks={tracks} drivers={drivers} go={go} />
-        {leader && <MobileCard><div style={mobileKickerStyle}>Points Leader</div><h2 style={{ margin: "4px 0 6px", fontSize: 22 }}>#{leader.number} {leader.name}</h2><p style={{ margin: 0, color: "#aab3c2" }}>{leader.team || "Independent"} • {leader.manufacturer}</p><div style={{ marginTop: 10, fontSize: 28, fontWeight: 1000 }}>{leader.points || 0} pts</div></MobileCard>}
+        <MobileUpcomingRaceCard race={upcomingRace} selectedTrack={getTrackOverview(upcomingRace)} go={go} />
+        <MobileLatestNewsPreview go={go} />
+        <MobileLiveStreamsBanner go={go} />
+
+        <MobileSectionTitle>Driver Standings</MobileSectionTitle>
+        {leader && <MobileLeaderCard leader={leader} go={go} />}
         <MobileStandingsList drivers={sortedDrivers} go={go} />
+
         <MobileSectionTitle>Team Standings</MobileSectionTitle>
         {sortedTeams.map((team, index) => <MobileTeamRow key={`${team.team}-${index}`} team={team} index={index} />)}
+
         <MobileSectionTitle>Manufacturer Standings</MobileSectionTitle>
         {sortedManufacturers.map((manufacturer, index) => <MobileManufacturerRow key={`${manufacturer.manufacturer}-${index}`} manufacturer={manufacturer} index={index} />)}
+
         {raceHistory?.length > 0 && <MobileSectionTitle>Recent Race Results</MobileSectionTitle>}
         {(raceHistory || []).slice(-3).reverse().map((race) => <MobileRaceResultCard key={race.raceName} race={race} />)}
       </MobileLayout>
@@ -5885,6 +5897,159 @@ function MobileLeagueApp({
 }
 
 
+
+
+function MobileLeaderCard({ leader, go }) {
+  if (!leader) return null;
+  return (
+    <button
+      type="button"
+      onClick={() => go(`/driver/${leader.number}`)}
+      style={{ ...mobileCardStyle, width: "100%", textAlign: "left", color: "white", cursor: "pointer", display: "flex", alignItems: "center", gap: 14, marginBottom: 10 }}
+    >
+      <div style={{ width: 60, height: 60, borderRadius: 18, background: "linear-gradient(135deg, #d4af37, #111827)", color: "#111", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, fontWeight: 1000, border: "1px solid rgba(255,255,255,0.16)" }}>#{leader.number}</div>
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <div style={mobileKickerStyle}>Points Leader</div>
+        <strong style={{ display: "block", fontSize: 20, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{leader.name}</strong>
+        <span style={{ color: "#aab3c2", fontSize: 12 }}>{leader.team || "Independent"} • {leader.manufacturer || ""}</span>
+      </div>
+      <div style={{ textAlign: "right" }}>
+        <div style={{ fontSize: 26, fontWeight: 1000 }}>{leader.points || 0}</div>
+        <div style={{ color: "#aab3c2", fontSize: 10, fontWeight: 900 }}>PTS</div>
+      </div>
+    </button>
+  );
+}
+
+function MobileUpcomingRaceCard({ race, selectedTrack, go }) {
+  if (!race) return null;
+  const trackName = race.name || race.track || "Next Race";
+  const dateLabel = race.date ? new Date(`${String(race.date).slice(0, 10)}T12:00:00`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }) : "Date TBA";
+  const details = [
+    selectedTrack?.length ? `${selectedTrack.length} mi` : null,
+    selectedTrack?.banking ? selectedTrack.banking : null,
+    selectedTrack?.pitSpeed ? `Pit ${selectedTrack.pitSpeed}` : null,
+  ].filter(Boolean);
+
+  return (
+    <MobileCard>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
+        <div>
+          <div style={mobileKickerStyle}>Upcoming Race</div>
+          <h2 style={{ margin: "4px 0 6px", fontSize: 22, lineHeight: 1.08 }}>{trackName}</h2>
+          <p style={{ margin: 0, color: "#aab3c2", fontSize: 13 }}>{dateLabel} • Qualifying 9:15 PM ET • Race 9:30 PM ET</p>
+        </div>
+        <div style={{ background: "rgba(212,175,55,0.12)", border: "1px solid rgba(212,175,55,0.35)", color: "#facc15", borderRadius: 14, padding: "8px 10px", fontSize: 12, fontWeight: 1000 }}>🏁</div>
+      </div>
+      {details.length > 0 && <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>{details.map((item) => <span key={item} style={{ background: "#0f172a", border: "1px solid #263244", borderRadius: 999, padding: "6px 9px", color: "#d1d5db", fontSize: 11, fontWeight: 800 }}>{item}</span>)}</div>}
+      <button type="button" onClick={() => go("/streams")} style={{ ...mobileActionStyle, marginTop: 14, background: "#111827", color: "#ffffff", borderColor: "#263244" }}>Open Race Streams</button>
+    </MobileCard>
+  );
+}
+
+function MobileLatestNewsPreview({ go }) {
+  const [articles, setArticles] = useState([]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function normalizeAndLoad(tableName) {
+      const { data, error } = await supabase
+        .from(tableName)
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(6);
+      if (error) return [];
+      return (data || []).map((item) => ({
+        id: `${tableName}-${item.id || item.title}`,
+        title: item.title || item.headline || item.subject || "League News",
+        category: item.category || item.type || "News",
+        createdAt: item.created_at || item.published_at || item.submitted_at || item.updated_at || "",
+        imageUrl: item.image_url || item.featured_image_url || item.media_url || item.photo_url || "",
+      })).filter((item) => item.title);
+    }
+
+    async function loadPreview() {
+      const tables = ["news", "story_submissions", "news_articles", "league_news", "published_news", "news_posts"];
+      const results = await Promise.all(tables.map(normalizeAndLoad));
+      if (!isMounted) return;
+      const byTitle = new Map();
+      results.flat().forEach((item) => {
+        const key = String(item.title || "").trim().toLowerCase();
+        if (key && !byTitle.has(key)) byTitle.set(key, item);
+      });
+      setArticles(Array.from(byTitle.values()).sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)).slice(0, 3));
+    }
+
+    loadPreview();
+    return () => { isMounted = false; };
+  }, []);
+
+  if (!articles.length) return null;
+
+  return (
+    <MobileCard>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginBottom: 8 }}>
+        <div>
+          <div style={mobileKickerStyle}>Latest News</div>
+          <h2 style={{ margin: "2px 0 0", fontSize: 20 }}>Top Stories</h2>
+        </div>
+        <button type="button" onClick={() => go("/news")} style={{ background: "#111827", color: "#facc15", border: "1px solid rgba(212,175,55,0.35)", borderRadius: 999, padding: "8px 10px", fontSize: 12, fontWeight: 900 }}>View All</button>
+      </div>
+      <div style={{ display: "grid", gap: 10 }}>
+        {articles.map((article) => (
+          <button key={article.id} type="button" onClick={() => go("/news")} style={{ background: "#0b111a", color: "white", border: "1px solid #243044", borderRadius: 16, padding: 10, display: "grid", gridTemplateColumns: article.imageUrl ? "74px 1fr" : "1fr", gap: 10, textAlign: "left", cursor: "pointer" }}>
+            {article.imageUrl && <img src={article.imageUrl} alt="" style={{ width: 74, height: 58, objectFit: "cover", borderRadius: 12, border: "1px solid rgba(255,255,255,0.08)" }} />}
+            <div style={{ minWidth: 0 }}>
+              <div style={{ color: "#d4af37", fontSize: 10, fontWeight: 1000, textTransform: "uppercase", marginBottom: 4 }}>{article.category}</div>
+              <strong style={{ display: "block", fontSize: 14, lineHeight: 1.2 }}>{article.title}</strong>
+            </div>
+          </button>
+        ))}
+      </div>
+    </MobileCard>
+  );
+}
+
+function MobileLiveStreamsBanner({ go }) {
+  const [streams, setStreams] = useState([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadStreams() {
+      const { data, error } = await supabase
+        .from("streams")
+        .select("*")
+        .order("is_live", { ascending: false })
+        .order("sort_order", { ascending: true })
+        .limit(4);
+      if (!isMounted) return;
+      if (error) {
+        setStreams([]);
+        return;
+      }
+      setStreams((data || []).filter((stream) => stream.active !== false));
+    }
+    loadStreams();
+    return () => { isMounted = false; };
+  }, []);
+
+  if (!streams.length) return null;
+  const liveCount = streams.filter((stream) => stream.is_live || stream.live).length;
+
+  return (
+    <MobileCard>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+        <div>
+          <div style={mobileKickerStyle}>Streams</div>
+          <h2 style={{ margin: "2px 0 4px", fontSize: 20 }}>{liveCount ? `${liveCount} Live Now` : "Driver Streams"}</h2>
+          <p style={{ margin: 0, color: "#aab3c2", fontSize: 12 }}>{streams.slice(0, 3).map((stream) => stream.driver_name || stream.channel_name).filter(Boolean).join(" • ")}</p>
+        </div>
+        <button type="button" onClick={() => go("/streams")} style={{ background: liveCount ? "#dc2626" : "#111827", color: "white", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 999, padding: "10px 12px", fontWeight: 1000, cursor: "pointer" }}>{liveCount ? "Watch" : "Open"}</button>
+      </div>
+    </MobileCard>
+  );
+}
 
 function MobileWeekendRecap({ raceHistory = [], tracks = [], drivers = [], go }) {
   const [paintWinner, setPaintWinner] = useState(null);
@@ -6271,6 +6436,7 @@ function MobileNewsFeed({ go, desktopArchive = null }) {
       setError("");
 
       const newsTables = [
+        "news",
         "story_submissions",
         "news_articles",
         "league_news",
