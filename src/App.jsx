@@ -5614,8 +5614,12 @@ function MobilePaintSchemeVotesHub({ drivers = [], tracks = [], go, session = nu
 
   useEffect(() => {
     if (selectedTrack || !trackOptions.length) return;
-    const previousRace = getPreviousCompletedRaceForPaintWinner(tracks);
-    const preferred = trackOptions.find((option) => normalizeTrack(option) === normalizeTrack(previousRace?.name));
+
+    // Default mobile paint voting to the next scheduled race/track.
+    // Drivers can still manually use the dropdown to view or vote on a different track.
+    const nextRace = getUpcomingRaceByDate(tracks || []);
+    const preferred = trackOptions.find((option) => normalizeTrack(option) === normalizeTrack(nextRace?.name));
+
     setSelectedTrack(preferred || trackOptions[0]);
   }, [trackOptions, selectedTrack, tracks]);
 
