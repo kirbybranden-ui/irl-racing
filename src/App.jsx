@@ -5500,290 +5500,348 @@ function getStreamYoutubeUrl(stream = {}) {
 }
 
 
-
 function MobilePaintSchemeVotesHub({ drivers = [], tracks = [], go }) {
   const [uploads, setUploads] = useState([]);
   const [votes, setVotes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [showBallot, setShowBallot] = useState(true);
+  const [message, setMessage] = useState("");
+  const [selectedTrack, setSelectedTrack] = useState("");
+  const [driverNumber, setDriverNumber] = useState("");
+  const [password, setPassword] = useState("");
+  const [loggedInDriver, setLoggedInDriver] = useState(null);
+  const [selectedUploadId, setSelectedUploadId] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-  const previousRace = useMemo(() => getPreviousCompletedRaceForPaintWinner(tracks), [JSON.stringify((tracks || []).map((track) => ({ name: track?.name, date: track?.date })))]);
-  const raceName = previousRace?.name || "Current Week";
-  const [selectedRaceFilter, setSelectedRaceFilter] = useState("");
+  const activeDrivers = useMemo(() => {
+    return dedupeDriversByNumber(drivers || [])
+      .filter((driver) => !driver.retired && !isInactivePlaceholderDriver(driver))
+      .sort((a, b) => Number(a.number || 9999) - Number(b.number || 9999));
+  }, [drivers]);
+
+  async function loadPaintData() {
+    setLoading(true);
+    setError("");
+    const [{ data: uploadRows, error: uploadError }, { data: voteRows, error: voteError }] = await Promise.all([
+      supabase.from("car_uploads").select("*").order("uploaded_at", { ascending: false }),
+      supabase.from("paint_scheme_votes").select("*").order("created_at", { ascending: false }),
+    ]);
+
+    if (uploadError || voteError) {
+      console.error("Could not load mobile paint scheme voting data:", uploadError || voteError);
+      setError("Could not load paint schemes. Check car_uploads, paint_scheme_votes, and RLS policies.");
+      setUploads([]);
+      setVotes([]);
+    } else {
+      setUploads(uploadRows || []);
+      setVotes(voteRows || []);
+    }
+    setLoading(false);
+  }
 
   useEffect(() => {
-    let isMounted = true;
-
-    async function loadPaintData() {
-      setLoading(true);
-      setError("");
-
-      const [{ data: uploadData, error: uploadError }, { data: voteData, error: voteError }] = await Promise.all([
-        supabase.from("car_uploads").select("*").order("uploaded_at", { ascending: false }),
-        supabase.from("paint_scheme_votes").select("*").order("created_at", { ascending: false }),
-      ]);
-
-      if (!isMounted) return;
-
-      if (uploadError || voteError) {
-        console.error("Could not load mobile paint scheme voting data:", uploadError || voteError);
-        setError("Could not load paint schemes. Check car_uploads, paint_scheme_votes, and RLS policies.");
-        setUploads([]);
-        setVotes([]);
-        setLoading(false);
-        return;
-      }
-
-      setUploads(uploadData || []);
-      setVotes(voteData || []);
-      setLoading(false);
-    }
-
     loadPaintData();
-    return () => {
-      isMounted = false;
-    };
   }, []);
 
-  const voteCounts = useMemo(() => {
-    const counts = new Map();
-    (votes || []).forEach((vote) => {
-      const key = String(vote.upload_id || vote.voted_upload_id || vote.paint_scheme_id || "");
-      if (!key) return;
-      counts.set(key, (counts.get(key) || 0) + 1);
-    });
-    return counts;
-  }, [votes]);
+  const normalizeTrack = (value) => String(value || "").trim().toLowerCase();
+  const uploadTrackName = (upload) => getPaintUploadRaceForStandings(upload) || upload.race_name || upload.race || upload.track_name || upload.track || "Current Week";
+  const uploadImageUrl = (upload) => upload.image_url || upload.file_url || upload.secure_url || upload.url || upload.photo_url || "";
+  const uploadDriverNumber = (upload, rosterDriver) => String(rosterDriver?.number || upload.driver_number || upload.car_number || upload.number || "").trim();
 
-  const paintCards = useMemo(() => {
-    const cleanUploads = (uploads || [])
+  const paintEntries = useMemo(() => {
+    const voteCounts = new Map();
+    (votes || []).forEach((vote) => {
+      const key = String(vote.upload_id || vote.voted_upload_id || vote.paint_scheme_id || vote.car_upload_id || "").trim();
+      if (!key) return;
+      voteCounts.set(key, (voteCounts.get(key) || 0) + 1);
+    });
+
+    return (uploads || [])
       .filter((upload) => isPaintImageUploadForStandings(upload))
       .map((upload) => {
-        const driver = (drivers || []).find((item) => String(item.id) === String(upload.driver_id));
-        const imageUrl = upload.image_url || upload.file_url || upload.secure_url || upload.url || "";
-        const voteCount = voteCounts.get(String(upload.id)) || 0;
+        const rosterDriver = activeDrivers.find((driver) => String(driver.id) === String(upload.driver_id) || String(driver.number) === String(upload.driver_number || upload.car_number || upload.number));
+        const imageUrl = uploadImageUrl(upload);
+        const driverNumberValue = uploadDriverNumber(upload, rosterDriver);
+        const driverName = rosterDriver?.name || upload.driver_name || upload.uploader_name || upload.name || (driverNumberValue ? `#${driverNumberValue}` : "Unknown Driver");
         return {
           ...upload,
           imageUrl,
-          voteCount,
-          driverLabel: driver ? `#${driver.number} ${driver.name}` : upload.driver_name || upload.uploader_name || "Unknown Driver",
-          teamLabel: driver?.team || upload.team || upload.team_key || "—",
-          manufacturerLabel: driver?.manufacturer || upload.manufacturer || "",
-          raceLabel: getPaintUploadRaceForStandings(upload) || upload.race_name || upload.race || upload.track_name || upload.track || "Current Week",
+          trackName: uploadTrackName(upload),
+          driverNumberValue,
+          driverName,
+          driverLabel: driverNumberValue ? `#${driverNumberValue} ${driverName}` : driverName,
+          teamLabel: getTeamFullName(rosterDriver?.team || upload.team || upload.team_key || "Independent"),
+          manufacturerLabel: rosterDriver?.manufacturer || upload.manufacturer || "",
+          voteCount: voteCounts.get(String(upload.id)) || 0,
           uploadedAt: upload.uploaded_at || upload.created_at || "",
         };
       })
-      .filter((upload) => upload.imageUrl);
+      .filter((entry) => entry.imageUrl)
+      .sort((a, b) => Number(b.voteCount || 0) - Number(a.voteCount || 0) || new Date(b.uploadedAt || 0) - new Date(a.uploadedAt || 0));
+  }, [uploads, votes, activeDrivers]);
 
-    return cleanUploads.sort((a, b) => {
-      const voteDiff = Number(b.voteCount || 0) - Number(a.voteCount || 0);
-      if (voteDiff !== 0) return voteDiff;
-      return new Date(b.uploadedAt || 0) - new Date(a.uploadedAt || 0);
-    });
-  }, [uploads, voteCounts, JSON.stringify((drivers || []).map((driver) => ({ id: driver?.id, number: driver?.number, name: driver?.name, team: driver?.team, manufacturer: driver?.manufacturer })))]);
-
-  const normalizePaintRaceName = (value) => String(value || "").trim().toLowerCase();
-  const paintRaceMatches = (value, selected) => {
-    if (!selected || selected === "__all__") return true;
-    return normalizePaintRaceName(value) === normalizePaintRaceName(selected);
-  };
-
-  const raceOptions = useMemo(() => {
-    const options = [];
+  const trackOptions = useMemo(() => {
     const seen = new Set();
-    const addOption = (name) => {
-      const label = String(name || "").trim();
-      if (!label) return;
-      const key = normalizePaintRaceName(label);
+    const options = [];
+    const add = (name) => {
+      const clean = String(name || "").trim();
+      if (!clean) return;
+      const key = normalizeTrack(clean);
       if (seen.has(key)) return;
       seen.add(key);
-      options.push(label);
+      options.push(clean);
     };
-
-    (tracks || []).forEach((track) => addOption(track?.name));
-    (paintCards || []).forEach((card) => addOption(card.raceLabel));
+    (tracks || []).forEach((track) => add(track?.name));
+    (paintEntries || []).forEach((entry) => add(entry.trackName));
     return options;
-  }, [paintCards, JSON.stringify((tracks || []).map((track) => ({ name: track?.name, date: track?.date })))]);
+  }, [tracks, paintEntries]);
 
   useEffect(() => {
-    if (selectedRaceFilter) return;
-    const preferredRace = raceOptions.find((option) => paintRaceMatches(option, raceName));
-    if (preferredRace) {
-      setSelectedRaceFilter(preferredRace);
+    if (selectedTrack || !trackOptions.length) return;
+    const previousRace = getPreviousCompletedRaceForPaintWinner(tracks);
+    const preferred = trackOptions.find((option) => normalizeTrack(option) === normalizeTrack(previousRace?.name));
+    setSelectedTrack(preferred || trackOptions[0]);
+  }, [trackOptions, selectedTrack, tracks]);
+
+  const visibleEntries = useMemo(() => {
+    return (paintEntries || []).filter((entry) => !selectedTrack || normalizeTrack(entry.trackName) === normalizeTrack(selectedTrack));
+  }, [paintEntries, selectedTrack]);
+
+  const selectedEntry = visibleEntries.find((entry) => String(entry.id) === String(selectedUploadId)) || null;
+
+  const driverAlreadyVoted = useMemo(() => {
+    if (!loggedInDriver || !selectedTrack) return false;
+    const number = String(loggedInDriver.number || loggedInDriver.driver_number || "").trim();
+    return (votes || []).some((vote) => {
+      const voteDriverNumber = String(vote.driver_number || vote.voter_driver_number || vote.car_number || "").trim();
+      const voteRace = vote.race_name || vote.race || vote.track_name || vote.track || "";
+      return voteDriverNumber === number && normalizeTrack(voteRace) === normalizeTrack(selectedTrack);
+    });
+  }, [loggedInDriver, selectedTrack, votes]);
+
+  async function handleLogin(event) {
+    event.preventDefault();
+    setError("");
+    setMessage("");
+
+    const number = String(driverNumber || "").trim();
+    const code = String(password || "").trim();
+    if (!number || !code) {
+      setError("Select your driver and enter your driver password.");
       return;
     }
-    if (raceOptions.length) setSelectedRaceFilter(raceOptions[0]);
-  }, [raceOptions, raceName, selectedRaceFilter]);
 
-  const visiblePaintCards = useMemo(() => {
-    return (paintCards || []).filter((entry) => paintRaceMatches(entry.raceLabel, selectedRaceFilter));
-  }, [paintCards, selectedRaceFilter]);
+    const { data, error: accessError } = await supabase
+      .from("driver_access_codes")
+      .select("*")
+      .eq("driver_number", number)
+      .limit(10);
 
-  const selectedRaceVotes = useMemo(() => {
-    return (votes || []).filter((vote) => paintRaceMatches(vote.race_name || vote.race || vote.track_name || vote.track, selectedRaceFilter));
-  }, [votes, selectedRaceFilter]);
+    if (accessError) {
+      console.error("Could not verify paint vote login:", accessError);
+      setError("Could not verify access. Check driver_access_codes select policy and columns.");
+      return;
+    }
 
-  const leader = visiblePaintCards[0] || null;
-  const totalVotes = selectedRaceFilter ? selectedRaceVotes.length : (votes || []).length;
-  const latestFive = visiblePaintCards.slice(0, 12);
+    const enteredCode = code.toUpperCase();
+    const match = (data || []).find((row) => {
+      const rowNumber = String(row.driver_number ?? row.car_number ?? "").trim();
+      const possibleCodes = [row.code, row.access_code, row.password, row.driver_password]
+        .map((value) => String(value ?? "").trim().toUpperCase())
+        .filter(Boolean);
+      return rowNumber === number && possibleCodes.includes(enteredCode) && row.active !== false;
+    });
+
+    const adminMatch = enteredCode === "BCLADMINPASSWORD2026";
+    if (!match && !adminMatch) {
+      setError("Invalid car number or driver password.");
+      return;
+    }
+
+    const rosterDriver = activeDrivers.find((driver) => String(driver.number) === number) || {};
+    const authRow = match || {};
+    setLoggedInDriver({
+      ...authRow,
+      ...rosterDriver,
+      number,
+      driver_number: number,
+      name: rosterDriver.name || authRow.driver_name || authRow.name || `#${number}`,
+      team: rosterDriver.team || authRow.team || "",
+      manufacturer: rosterDriver.manufacturer || authRow.manufacturer || "",
+    });
+    setMessage(`Logged in as #${number}. Select a paint scheme and cast your vote.`);
+  }
+
+  async function castVote(entry) {
+    setError("");
+    setMessage("");
+    if (!loggedInDriver) return setError("Log in before casting a vote.");
+    if (!entry) return setError("Select a paint scheme before voting.");
+    if (driverAlreadyVoted) return setError("You have already voted for this track.");
+
+    setSubmitting(true);
+    const driverNum = String(loggedInDriver.number || loggedInDriver.driver_number || "").trim();
+    const driverName = loggedInDriver.name || loggedInDriver.driver_name || `#${driverNum}`;
+    const raceName = selectedTrack || entry.trackName || "Current Week";
+
+    const payloads = [
+      {
+        upload_id: entry.id,
+        driver_number: driverNum,
+        driver_name: driverName,
+        race_name: raceName,
+        created_at: new Date().toISOString(),
+      },
+      {
+        upload_id: entry.id,
+        voted_upload_id: entry.id,
+        paint_scheme_id: entry.id,
+        driver_number: driverNum,
+        voter_driver_number: driverNum,
+        driver_name: driverName,
+        voter_driver_name: driverName,
+        race_name: raceName,
+        track_name: raceName,
+        selected_driver_number: entry.driverNumberValue || null,
+        selected_driver_name: entry.driverName || "",
+        created_at: new Date().toISOString(),
+      },
+    ];
+
+    let lastError = null;
+    for (const payload of payloads) {
+      const { error: insertError } = await supabase.from("paint_scheme_votes").insert(payload);
+      if (!insertError) {
+        setSubmitting(false);
+        setSelectedUploadId("");
+        setMessage(`Vote submitted for ${entry.driverLabel}.`);
+        await loadPaintData();
+        return;
+      }
+      lastError = insertError;
+      const errorText = String(insertError.message || "").toLowerCase();
+      if (errorText.includes("duplicate")) {
+        setSubmitting(false);
+        setError("You have already voted for this track.");
+        return;
+      }
+      if (!errorText.includes("column") && !errorText.includes("schema") && !errorText.includes("not-null")) break;
+    }
+
+    console.error("Could not submit paint scheme vote:", lastError);
+    setSubmitting(false);
+    setError(`Could not submit vote: ${lastError?.message || "Check paint_scheme_votes columns and RLS policies."}`);
+  }
+
+  const selectInputStyle = {
+    width: "100%",
+    minHeight: 48,
+    background: "#020617",
+    color: "#fff",
+    border: "1px solid #334155",
+    borderRadius: 14,
+    padding: "12px 13px",
+    fontSize: 15,
+    fontWeight: 900,
+    boxSizing: "border-box",
+  };
 
   return (
-    <div>
+    <div style={{ paddingBottom: 92 }}>
       <MobileHero
         kicker="Paint Scheme Vote"
         title="Scheme of the Week"
-        subtitle="Vote for the best paint scheme with a clean mobile ballot. The full official ballot is still available below."
+        subtitle="Log in at the top, pick a track, then tap a paint scheme to cast your vote."
       />
 
       <MobileCard>
-        <div style={mobileKickerStyle}>Choose Track</div>
-        <select
-          value={selectedRaceFilter}
-          onChange={(event) => setSelectedRaceFilter(event.target.value)}
-          style={{
-            width: "100%",
-            marginTop: 10,
-            background: "#020617",
-            color: "#fff",
-            border: "1px solid #334155",
-            borderRadius: 14,
-            padding: "13px 14px",
-            fontSize: 15,
-            fontWeight: 900,
-          }}
-        >
-          {raceOptions.length === 0 && <option value="">Current Week</option>}
-          {raceOptions.map((option) => (
-            <option key={option} value={option}>{option}</option>
-          ))}
+        <div style={mobileKickerStyle}>Driver Login</div>
+        {!loggedInDriver ? (
+          <form onSubmit={handleLogin} style={{ display: "grid", gap: 12, marginTop: 10 }}>
+            <select value={driverNumber} onChange={(event) => setDriverNumber(event.target.value)} style={selectInputStyle}>
+              <option value="">Select Your Driver</option>
+              {activeDrivers.map((driver) => (
+                <option key={driver.id || driver.number} value={String(driver.number)}>
+                  #{driver.number} — {driver.name} ({getTeamFullName(driver.team)})
+                </option>
+              ))}
+            </select>
+            <input
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="Enter driver password"
+              style={selectInputStyle}
+            />
+            <button type="submit" style={{ ...mobileActionStyle, background: "#d4af37", color: "#111", borderColor: "#d4af37" }}>
+              Log In To Vote
+            </button>
+          </form>
+        ) : (
+          <div style={{ marginTop: 10, background: "#07111f", border: "1px solid #263244", borderRadius: 16, padding: 14 }}>
+            <div style={{ color: "#4ade80", fontSize: 11, fontWeight: 1000, textTransform: "uppercase" }}>Signed In</div>
+            <div style={{ fontSize: 22, fontWeight: 1000, marginTop: 4 }}>#{loggedInDriver.number} {loggedInDriver.name}</div>
+            <div style={{ color: "#aab3c2", fontSize: 13, marginTop: 3 }}>{getTeamFullName(loggedInDriver.team || "Independent")} • {loggedInDriver.manufacturer || ""}</div>
+            <button type="button" onClick={() => { setLoggedInDriver(null); setPassword(""); setMessage("Logged out."); }} style={{ ...mobileActionStyle, marginTop: 12, background: "#111827", color: "#fff", borderColor: "#263244" }}>Log Out</button>
+          </div>
+        )}
+        {message && <div style={{ color: "#4ade80", fontWeight: 900, marginTop: 12, lineHeight: 1.35 }}>{message}</div>}
+        {error && <div style={{ color: "#f87171", fontWeight: 900, marginTop: 12, lineHeight: 1.35 }}>{error}</div>}
+      </MobileCard>
+
+      <MobileCard>
+        <div style={mobileKickerStyle}>Track</div>
+        <select value={selectedTrack} onChange={(event) => { setSelectedTrack(event.target.value); setSelectedUploadId(""); }} style={{ ...selectInputStyle, marginTop: 10 }}>
+          {trackOptions.length === 0 && <option value="">Current Week</option>}
+          {trackOptions.map((track) => <option key={track} value={track}>{track}</option>)}
         </select>
-        <div style={{ display: "flex", gap: 8, overflowX: "auto", WebkitOverflowScrolling: "touch", paddingTop: 12, paddingBottom: 4 }}>
-          {raceOptions.map((option) => {
-            const active = paintRaceMatches(option, selectedRaceFilter);
-            return (
-              <button
-                key={`pill-${option}`}
-                type="button"
-                onClick={() => setSelectedRaceFilter(option)}
-                style={{
-                  flex: "0 0 auto",
-                  border: active ? "1px solid #d4af37" : "1px solid #334155",
-                  background: active ? "#d4af37" : "#111827",
-                  color: active ? "#111" : "#fff",
-                  borderRadius: 999,
-                  padding: "9px 12px",
-                  fontSize: 12,
-                  fontWeight: 1000,
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {option}
-              </button>
-            );
-          })}
-        </div>
       </MobileCard>
 
-      <MobileCard>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-          <div style={mobileMiniStatStyle}><span>Track</span><strong>{selectedRaceFilter || raceName}</strong></div>
-          <div style={mobileMiniStatStyle}><span>Votes</span><strong>{totalVotes}</strong></div>
-          <div style={mobileMiniStatStyle}><span>Entries</span><strong>{visiblePaintCards.length}</strong></div>
-          <div style={mobileMiniStatStyle}><span>Leader</span><strong>{leader ? leader.driverLabel.replace(/^#/, "#") : "—"}</strong></div>
-        </div>
-      </MobileCard>
+      <MobileStatGrid items={[
+        ["Track", selectedTrack || "—"],
+        ["Entries", visibleEntries.length],
+        ["Votes", (votes || []).filter((vote) => normalizeTrack(vote.race_name || vote.race || vote.track_name || vote.track) === normalizeTrack(selectedTrack)).length],
+        ["Status", driverAlreadyVoted ? "Voted" : "Open"],
+      ]} />
 
-      {leader && (
-        <MobileCard>
-          <div style={mobileKickerStyle}>Current Leader</div>
-          <div style={{ borderRadius: 16, overflow: "hidden", border: "1px solid #263244", marginTop: 10, background: "#020617" }}>
-            <img src={leader.imageUrl} alt={leader.driverLabel} style={{ width: "100%", maxHeight: 280, objectFit: "cover", display: "block" }} />
-          </div>
-          <h2 style={{ margin: "12px 0 4px", fontSize: 24 }}>🏆 {leader.driverLabel}</h2>
-          <div style={{ color: "#aab3c2", fontSize: 13 }}>{leader.teamLabel} • {leader.manufacturerLabel || "Manufacturer TBA"}</div>
-          <div style={{ marginTop: 10, color: "#facc15", fontWeight: 1000 }}>{leader.voteCount} votes</div>
-        </MobileCard>
-      )}
-
-      <MobileSectionTitle>Paint Scheme Entries</MobileSectionTitle>
       {loading && <MobileCard>Loading paint schemes...</MobileCard>}
-      {error && <MobileCard><div style={{ color: "#fca5a5", fontWeight: 900 }}>{error}</div></MobileCard>}
-      {!loading && !error && latestFive.length === 0 && (
-        <MobileCard>No paint scheme entries found for this track yet.</MobileCard>
-      )}
+      {!loading && !visibleEntries.length && <MobileCard>No paint schemes found for this track yet.</MobileCard>}
 
+      <MobileSectionTitle>Choose Paint Scheme</MobileSectionTitle>
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        {latestFive.map((entry, index) => (
-          <button
-            key={entry.id || `${entry.driverLabel}-${index}`}
-            type="button"
-            onClick={() => setShowBallot(true)}
-            style={{
-              width: "100%",
-              textAlign: "left",
-              border: "1px solid #263244",
-              background: "#111827",
-              color: "#fff",
-              borderRadius: 18,
-              overflow: "hidden",
-              padding: 0,
-              boxShadow: "0 12px 24px rgba(0,0,0,0.22)",
-            }}
-          >
-            <img src={entry.imageUrl} alt={entry.driverLabel} style={{ width: "100%", height: 210, objectFit: "cover", display: "block" }} />
-            <div style={{ padding: 14 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
-                <div>
-                  <div style={{ color: "#d4af37", fontSize: 11, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 1 }}>
-                    {entry.raceLabel || "Paint Scheme"}
-                  </div>
-                  <div style={{ fontSize: 20, fontWeight: 1000, marginTop: 4 }}>{entry.driverLabel}</div>
-                  <div style={{ color: "#aab3c2", fontSize: 12, marginTop: 3 }}>{entry.teamLabel} • {entry.manufacturerLabel || "—"}</div>
+        {visibleEntries.map((entry) => {
+          const selected = String(entry.id) === String(selectedUploadId);
+          return (
+            <article key={entry.id} style={{ background: selected ? "#18213a" : "#111827", border: selected ? "2px solid #d4af37" : "1px solid #263244", borderRadius: 20, overflow: "hidden", boxShadow: "0 12px 26px rgba(0,0,0,0.24)" }}>
+              <button
+                type="button"
+                onClick={() => setSelectedUploadId(entry.id)}
+                style={{ width: "100%", border: "none", background: "transparent", color: "#fff", padding: 0, textAlign: "left" }}
+              >
+                <img src={entry.imageUrl} alt={entry.driverLabel} style={{ width: "100%", maxHeight: 250, objectFit: "cover", display: "block" }} />
+                <div style={{ padding: 14 }}>
+                  <div style={{ color: "#d4af37", fontSize: 11, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 1 }}>{entry.trackName}</div>
+                  <div style={{ fontSize: 21, fontWeight: 1000, marginTop: 5 }}>{entry.driverLabel}</div>
+                  <div style={{ color: "#aab3c2", fontSize: 12, marginTop: 4 }}>{entry.teamLabel} • {entry.manufacturerLabel || "—"}</div>
+                  <div style={{ color: "#facc15", fontWeight: 1000, marginTop: 8 }}>{entry.voteCount} votes</div>
                 </div>
-                <div style={{ textAlign: "right", color: "#facc15", fontWeight: 1000, whiteSpace: "nowrap" }}>
-                  {entry.voteCount}
-                  <span style={{ display: "block", fontSize: 10, color: "#aab3c2" }}>VOTES</span>
+              </button>
+              {loggedInDriver && selected && (
+                <div style={{ padding: "0 14px 14px" }}>
+                  <button
+                    type="button"
+                    disabled={submitting || driverAlreadyVoted}
+                    onClick={() => castVote(entry)}
+                    style={{ ...mobileActionStyle, background: driverAlreadyVoted ? "#334155" : "#d4af37", color: driverAlreadyVoted ? "#cbd5e1" : "#111", borderColor: driverAlreadyVoted ? "#475569" : "#d4af37", opacity: submitting ? 0.7 : 1 }}
+                  >
+                    {driverAlreadyVoted ? "Already Voted For This Track" : submitting ? "Submitting..." : `Cast Vote for ${entry.driverLabel}`}
+                  </button>
                 </div>
-              </div>
-              <div style={{ marginTop: 12, background: "#d4af37", color: "#111", borderRadius: 12, padding: "11px 14px", textAlign: "center", fontWeight: 1000 }}>
-                Log In / Vote
-              </div>
-            </div>
-          </button>
-        ))}
+              )}
+            </article>
+          );
+        })}
       </div>
-
-      <MobileSectionTitle>Official Login & Vote Ballot</MobileSectionTitle>
-      <MobileCard>
-        <p style={{ color: "#aab3c2", marginTop: 0, lineHeight: 1.45 }}>
-          The NASCAR-style cards above are for browsing the paint schemes. The official voting area below keeps the same desktop login, password check, track selection, and Supabase vote submission logic.
-        </p>
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <MobileAction label={showBallot ? "Hide Official Ballot" : "Show Official Ballot"} onClick={() => setShowBallot((current) => !current)} />
-        </div>
-      </MobileCard>
-
-      {showBallot && (
-        <div
-          style={{
-            width: "100%",
-            overflowX: "auto",
-            WebkitOverflowScrolling: "touch",
-            paddingBottom: 100,
-          }}
-        >
-          <div
-            style={{
-              minWidth: 360,
-              width: "100%",
-              maxWidth: "100%",
-            }}
-          >
-            <PaintSchemeVotePage drivers={drivers} tracks={tracks} />
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -7271,7 +7329,6 @@ const mobileDesktopSwitchCardStyle = { marginTop: 18, marginBottom: 84, backgrou
 const mobileDesktopSwitchButtonStyle = { border: "none", borderRadius: 999, padding: "11px 13px", background: "linear-gradient(135deg, #d4af37, #facc15)", color: "#111", fontWeight: 1000, fontSize: 12, whiteSpace: "nowrap", boxShadow: "0 10px 20px rgba(212,175,55,0.18)", cursor: "pointer" };
 const mobileNavButtonStyle = { background: "transparent", border: "none", display: "flex", flexDirection: "column", alignItems: "center", gap: 2, minHeight: 50, fontWeight: 800 };
 const mobileActionStyle = { width: "100%", minHeight: 48, borderRadius: 14, border: "1px solid", padding: "12px 14px", fontWeight: 1000, marginBottom: 10 };
-const mobileMiniStatStyle = { background: "#0b1220", border: "1px solid #263244", borderRadius: 14, padding: 12, minHeight: 62, display: "flex", flexDirection: "column", justifyContent: "center", gap: 4 };
 const mobileStatGridStyle = { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10, marginBottom: 12 };
 const mobileStatCardStyle = { background: "#111827", border: "1px solid #263244", borderRadius: 16, padding: 12 };
 const mobileSmallRowStyle = { background: "#111827", border: "1px solid #263244", borderRadius: 14, padding: "12px 14px", marginBottom: 8, display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" };
