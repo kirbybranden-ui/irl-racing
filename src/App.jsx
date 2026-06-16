@@ -5915,6 +5915,7 @@ function MobileNewsFeed({ go, desktopArchive = null }) {
       setError("");
 
       const newsTables = [
+        "news",
         "story_submissions",
         "news_articles",
         "league_news",
