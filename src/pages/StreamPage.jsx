@@ -204,6 +204,19 @@ export default function StreamPage({
   const [adminMessage, setAdminMessage] = useState("");
   const [adminError, setAdminError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [showMobileAdmin, setShowMobileAdmin] = useState(false);
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== "undefined" ? window.matchMedia("(max-width: 768px)").matches : false
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const mediaQuery = window.matchMedia("(max-width: 768px)");
+    const handleChange = () => setIsMobile(mediaQuery.matches);
+    handleChange();
+    mediaQuery.addEventListener?.("change", handleChange);
+    return () => mediaQuery.removeEventListener?.("change", handleChange);
+  }, []);
 
   const activeDrivers = useMemo(() => realignLeagueDrivers(drivers), [drivers]);
 
@@ -501,6 +514,194 @@ export default function StreamPage({
     }
     setSelectedFeaturedId(String(stream.id));
     await loadStreams();
+  }
+
+  if (isMobile) {
+    const mobileFeatured = selectedFeatured || activeStreams[0] || null;
+
+    return (
+      <div style={mobileStyles.page}>
+        <TickerBar messages={tickerMessages} />
+
+        <header style={mobileStyles.header}>
+          <div style={mobileStyles.kicker}>BUDWEISER CUP LEAGUE</div>
+          <div style={mobileStyles.title}>Streams</div>
+          <div style={mobileStyles.subtitle}>Driver POVs, official feeds, Twitch, YouTube, and watch parties.</div>
+
+          <div style={mobileStyles.summaryRow}>
+            <div style={mobileStyles.summaryCard}>
+              <strong>{activeStreams.length}</strong>
+              <span>Active</span>
+            </div>
+            <div style={mobileStyles.summaryCard}>
+              <strong>{liveDriverRows.length}</strong>
+              <span>Live Drivers</span>
+            </div>
+            <div style={mobileStyles.summaryCard}>
+              <strong>{filteredRows.length}</strong>
+              <span>Shown</span>
+            </div>
+          </div>
+        </header>
+
+        <main style={mobileStyles.content}>
+          <section style={mobileStyles.card}>
+            <div style={mobileStyles.sectionTop}>
+              <div>
+                <div style={mobileStyles.sectionTitle}>Featured Broadcast</div>
+                <div style={mobileStyles.sectionSub}>{mobileFeatured?.race_name || activeRace?.name || selectedTrack?.name || "Race broadcast hub"}</div>
+              </div>
+              <span style={mobileStyles.platformBadge}>{mobileFeatured ? getPlatformLabel(mobileFeatured) : "OFFLINE"}</span>
+            </div>
+
+            {mobileFeatured ? (
+              <>
+                <div style={mobileStyles.featuredBox}>
+                  <div style={mobileStyles.featuredName}>
+                    {mobileFeatured.display_name || mobileFeatured.title || mobileFeatured.channel_name || "Featured Stream"}
+                  </div>
+                  <div style={mobileStyles.featuredMeta}>
+                    {(mobileFeatured.stream_type || "driver").replace("_", " ").toUpperCase()} • {mobileFeatured.team || "League Feed"}
+                  </div>
+                  {getExternalLink(mobileFeatured) && (
+                    <a href={getExternalLink(mobileFeatured)} target="_blank" rel="noreferrer" style={mobileStyles.watchPrimary}>
+                      Open {getPlatformLabel(mobileFeatured)}
+                    </a>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div style={mobileStyles.emptyBox}>No featured stream selected.</div>
+            )}
+          </section>
+
+          <section style={mobileStyles.card}>
+            <div style={mobileStyles.sectionTitle}>Filters</div>
+            <div style={mobileStyles.filterStack}>
+              <label style={mobileStyles.label}>Team
+                <select value={teamFilter} onChange={(event) => setTeamFilter(event.target.value)} style={mobileStyles.input}>
+                  <option value="all">All Teams</option>
+                  {teamOptions.map((team) => <option key={team} value={team}>{getTeamFullName(team)}</option>)}
+                </select>
+              </label>
+
+              <label style={mobileStyles.label}>Manufacturer
+                <select value={manufacturerFilter} onChange={(event) => setManufacturerFilter(event.target.value)} style={mobileStyles.input}>
+                  <option value="all">All Manufacturers</option>
+                  {manufacturerOptions.map((mfr) => <option key={mfr} value={mfr}>{mfr}</option>)}
+                </select>
+              </label>
+
+              <label style={mobileStyles.label}>Sort
+                <select value={sortMode} onChange={(event) => setSortMode(event.target.value)} style={mobileStyles.input}>
+                  <option value="points">Points</option>
+                  <option value="live">Live First</option>
+                  <option value="number">Driver Number</option>
+                  <option value="name">Driver Name</option>
+                  <option value="team">Team</option>
+                </select>
+              </label>
+            </div>
+          </section>
+
+          <section style={mobileStyles.card}>
+            <div style={mobileStyles.sectionTop}>
+              <div>
+                <div style={mobileStyles.sectionTitle}>Driver Streams</div>
+                <div style={mobileStyles.sectionSub}>Tap a card to watch or open the stream link.</div>
+              </div>
+              <span style={mobileStyles.liveBadge}>{liveDriverRows.length} LIVE</span>
+            </div>
+
+            <div style={mobileStyles.streamList}>
+              {filteredRows.map(({ driver, stream, isLive, team, manufacturer }) => {
+                const logo = getTeamLogo(team);
+                const externalLink = stream ? getExternalLink(stream) : "";
+                return (
+                  <article key={driver.id || driver.number || driver.name} style={mobileStyles.streamCard}>
+                    <div style={mobileStyles.driverRow}>
+                      <img src={logo} alt={team} style={mobileStyles.teamLogo} />
+                      <div style={mobileStyles.carNumber}>#{driver.number}</div>
+                      <span style={isLive ? mobileStyles.livePill : mobileStyles.offlinePill}>{isLive ? "LIVE" : "OFFLINE"}</span>
+                    </div>
+
+                    <div style={mobileStyles.driverName}>{driver.name}</div>
+                    <div style={mobileStyles.driverMeta}>{getTeamFullName(team)} • {manufacturer || "Manufacturer TBD"}</div>
+
+                    <div style={mobileStyles.statsRow}>
+                      <div><strong>{driver.points || 0}</strong><span>PTS</span></div>
+                      <div><strong>{driver.wins || 0}</strong><span>WINS</span></div>
+                      <div><strong>{driver.top5 || driver.top5s || 0}</strong><span>TOP 5</span></div>
+                    </div>
+
+                    {stream ? (
+                      <div style={mobileStyles.actionRow}>
+                        <button type="button" onClick={() => setSelectedFeaturedId(String(stream.id))} style={mobileStyles.watchButton}>
+                          Feature
+                        </button>
+                        {externalLink && (
+                          <a href={externalLink} target="_blank" rel="noreferrer" style={mobileStyles.openButton}>
+                            Open {getPlatformLabel(stream)}
+                          </a>
+                        )}
+                      </div>
+                    ) : (
+                      <div style={mobileStyles.noStream}>No stream link added</div>
+                    )}
+                  </article>
+                );
+              })}
+            </div>
+
+            {!filteredRows.length && <div style={mobileStyles.emptyBox}>No drivers match these filters.</div>}
+          </section>
+
+          <section style={mobileStyles.card}>
+            <div style={mobileStyles.sectionTitle}>Watch Party</div>
+            {activeStreams.filter((stream) => stream.stream_type === "watch_party" || stream.stream_type === "official").slice(0, 6).map((stream) => (
+              <button key={stream.id} onClick={() => setSelectedFeaturedId(String(stream.id))} style={mobileStyles.watchPartyButton}>
+                <span>{stream.display_name || stream.title || stream.channel_name}</span>
+                <strong>{getPlatformLabel(stream)}</strong>
+              </button>
+            ))}
+            {!activeStreams.some((stream) => stream.stream_type === "watch_party" || stream.stream_type === "official") && (
+              <div style={mobileStyles.muted}>No watch party feed is active yet.</div>
+            )}
+          </section>
+
+          <section style={mobileStyles.card}>
+            <button type="button" onClick={() => setShowMobileAdmin((current) => !current)} style={mobileStyles.adminToggle}>
+              {showMobileAdmin ? "Hide Stream Manager" : "Admin Stream Manager"}
+            </button>
+
+            {showMobileAdmin && (
+              <div style={{ marginTop: 12 }}>
+                <AdminStreamManager
+                  adminUnlocked={adminUnlocked}
+                  adminCode={adminCode}
+                  setAdminCode={setAdminCode}
+                  unlockAdmin={unlockAdmin}
+                  streamForm={streamForm}
+                  updateStreamForm={updateStreamForm}
+                  selectDriverForStream={selectDriverForStream}
+                  saveStream={saveStream}
+                  adminMessage={adminMessage}
+                  adminError={adminError}
+                  busy={busy}
+                  drivers={drivers}
+                  teamOptions={teamOptions}
+                  manufacturerOptions={manufacturerOptions}
+                  streams={streams}
+                  editStream={editStream}
+                  toggleStreamActive={toggleStreamActive}
+                  setFeaturedStream={setFeaturedStream}
+                />
+              </div>
+            )}
+          </section>
+        </main>
+      </div>
+    );
   }
 
   return (
@@ -887,6 +1088,180 @@ function InfoRow({ label, value }) {
 function Stat({ label, value }) {
   return <div style={styles.statBox}><strong>{value}</strong><span>{label}</span></div>;
 }
+
+const mobileStyles = {
+  page: {
+    minHeight: "100vh",
+    background: "linear-gradient(180deg, #05070a 0%, #0b0f15 55%, #05070a 100%)",
+    color: "white",
+    fontFamily: "Arial, sans-serif",
+    paddingBottom: 90,
+  },
+  header: {
+    padding: "18px 14px 14px",
+    borderBottom: "1px solid #1f2937",
+    background: "linear-gradient(135deg, #111827 0%, #07090d 100%)",
+  },
+  kicker: { color: "#d71920", fontSize: 11, fontWeight: 900, letterSpacing: 1.5 },
+  title: { fontSize: 34, fontWeight: 1000, lineHeight: 1, marginTop: 4 },
+  subtitle: { color: "#aab3c2", fontSize: 13, lineHeight: 1.35, marginTop: 6 },
+  summaryRow: {
+    display: "grid",
+    gridTemplateColumns: "repeat(3, 1fr)",
+    gap: 8,
+    marginTop: 14,
+  },
+  summaryCard: {
+    background: "#10151f",
+    border: "1px solid #263140",
+    borderRadius: 14,
+    padding: 10,
+    textAlign: "center",
+    display: "grid",
+    gap: 3,
+  },
+  content: { padding: 12, display: "grid", gap: 12 },
+  card: {
+    background: "#10151f",
+    border: "1px solid #263140",
+    borderRadius: 18,
+    padding: 14,
+    boxShadow: "0 12px 30px rgba(0,0,0,.35)",
+  },
+  sectionTop: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 10,
+    marginBottom: 12,
+  },
+  sectionTitle: { fontSize: 20, fontWeight: 1000 },
+  sectionSub: { color: "#94a3b8", fontSize: 12, marginTop: 3 },
+  platformBadge: {
+    background: "#d71920",
+    color: "white",
+    borderRadius: 999,
+    padding: "6px 10px",
+    fontSize: 11,
+    fontWeight: 1000,
+    whiteSpace: "nowrap",
+  },
+  liveBadge: {
+    background: "#d71920",
+    color: "white",
+    borderRadius: 999,
+    padding: "6px 10px",
+    fontSize: 11,
+    fontWeight: 1000,
+    whiteSpace: "nowrap",
+  },
+  featuredBox: {
+    background: "#07090d",
+    border: "1px solid #334155",
+    borderRadius: 16,
+    padding: 14,
+    display: "grid",
+    gap: 8,
+  },
+  featuredName: { fontSize: 20, fontWeight: 1000 },
+  featuredMeta: { color: "#94a3b8", fontSize: 12, textTransform: "uppercase", fontWeight: 800 },
+  watchPrimary: {
+    display: "block",
+    textAlign: "center",
+    background: "#d71920",
+    color: "white",
+    borderRadius: 12,
+    padding: "12px 14px",
+    fontWeight: 1000,
+    textDecoration: "none",
+    marginTop: 6,
+  },
+  filterStack: { display: "grid", gap: 10, marginTop: 10 },
+  label: { display: "grid", gap: 6, fontSize: 11, fontWeight: 1000, color: "#cbd5e1", textTransform: "uppercase" },
+  input: {
+    width: "100%",
+    background: "#07090d",
+    color: "white",
+    border: "1px solid #334155",
+    borderRadius: 12,
+    padding: "12px 12px",
+    boxSizing: "border-box",
+    fontSize: 15,
+  },
+  streamList: { display: "grid", gap: 12 },
+  streamCard: {
+    background: "#07090d",
+    border: "1px solid #263140",
+    borderRadius: 18,
+    padding: 14,
+    display: "grid",
+    gap: 10,
+  },
+  driverRow: { display: "flex", alignItems: "center", gap: 10 },
+  teamLogo: { width: 42, height: 42, borderRadius: "50%", objectFit: "cover", border: "1px solid #334155", background: "#111" },
+  carNumber: { fontSize: 30, fontWeight: 1000, lineHeight: 1 },
+  livePill: { marginLeft: "auto", background: "#d71920", borderRadius: 999, padding: "5px 9px", fontSize: 11, fontWeight: 1000 },
+  offlinePill: { marginLeft: "auto", background: "#334155", borderRadius: 999, padding: "5px 9px", fontSize: 11, fontWeight: 1000, color: "#cbd5e1" },
+  driverName: { fontSize: 19, fontWeight: 1000 },
+  driverMeta: { color: "#94a3b8", fontSize: 13 },
+  statsRow: {
+    display: "grid",
+    gridTemplateColumns: "repeat(3, 1fr)",
+    gap: 8,
+  },
+  actionRow: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 },
+  watchButton: {
+    background: "#263140",
+    color: "white",
+    border: "1px solid #334155",
+    borderRadius: 12,
+    padding: "11px 12px",
+    fontWeight: 1000,
+  },
+  openButton: {
+    background: "#d71920",
+    color: "white",
+    borderRadius: 12,
+    padding: "11px 12px",
+    fontWeight: 1000,
+    textDecoration: "none",
+    textAlign: "center",
+  },
+  noStream: {
+    color: "#94a3b8",
+    background: "#111827",
+    borderRadius: 12,
+    padding: "11px 12px",
+    textAlign: "center",
+    fontWeight: 800,
+  },
+  watchPartyButton: {
+    width: "100%",
+    background: "#07090d",
+    color: "white",
+    border: "1px solid #263140",
+    borderRadius: 12,
+    padding: 12,
+    display: "flex",
+    justifyContent: "space-between",
+    gap: 8,
+    cursor: "pointer",
+    marginTop: 8,
+    textAlign: "left",
+  },
+  muted: { color: "#94a3b8", marginTop: 8 },
+  emptyBox: { background: "#07090d", borderRadius: 14, padding: 18, color: "#94a3b8", textAlign: "center" },
+  adminToggle: {
+    width: "100%",
+    background: "#d71920",
+    color: "white",
+    border: "none",
+    borderRadius: 14,
+    padding: "13px 14px",
+    fontWeight: 1000,
+    fontSize: 15,
+  },
+};
 
 const styles = {
   page: { minHeight: "100vh", background: "radial-gradient(circle at top, #1b2533 0%, #0b0f15 45%, #05070a 100%)", color: "white", fontFamily: "Arial, sans-serif" },
