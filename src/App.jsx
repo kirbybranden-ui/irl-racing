@@ -5832,6 +5832,7 @@ function MobileFeatureHub({ go, drivers = [], teams = [], manufacturerStandings 
 
 function MobileNewsFeed({ go, desktopArchive = null }) {
   const [articles, setArticles] = useState([]);
+  const [selectedArticle, setSelectedArticle] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -5846,6 +5847,30 @@ function MobileNewsFeed({ go, desktopArchive = null }) {
       const driver = item.driver_name || item.driver || item.driver_number || item.team || "";
       const status = item.status || item.state || (source === "story_submissions" ? "Submitted" : "Posted");
       const category = item.category || item.type || item.tag || "League News";
+      const mainImage =
+        item.image_url ||
+        item.imageUrl ||
+        item.photo_url ||
+        item.thumbnail_url ||
+        item.featured_image ||
+        item.featured_image_url ||
+        item.hero_image ||
+        item.hero_image_url ||
+        item.car_image_url ||
+        item.media_url ||
+        item.mediaUrl ||
+        item.picture_url ||
+        item.cover_url ||
+        "";
+
+      const extraImages = [
+        mainImage,
+        item.image_2_url,
+        item.image2_url,
+        item.second_image_url,
+        item.photo_2_url,
+        item.gallery_image_url,
+      ].filter(Boolean);
 
       return {
         id: `${source}-${item.id || item.slug || title}-${createdAt}`,
@@ -5857,7 +5882,8 @@ function MobileNewsFeed({ go, desktopArchive = null }) {
         category: String(category || "League News").trim(),
         createdAt,
         source,
-        imageUrl: item.image_url || item.imageUrl || item.photo_url || item.thumbnail_url || item.media_url || "",
+        imageUrl: mainImage,
+        images: Array.from(new Set(extraImages)),
       };
     }
 
@@ -5872,7 +5898,7 @@ function MobileNewsFeed({ go, desktopArchive = null }) {
         .from(tableName)
         .select("*")
         .order("created_at", { ascending: false })
-        .limit(20);
+        .limit(30);
 
       if (error) {
         console.warn(`Mobile news could not load ${tableName}:`, error);
@@ -5889,11 +5915,11 @@ function MobileNewsFeed({ go, desktopArchive = null }) {
       setError("");
 
       const newsTables = [
+        "story_submissions",
         "news_articles",
         "league_news",
         "published_news",
         "news_posts",
-        "story_submissions",
       ];
 
       const results = await Promise.all(newsTables.map(loadTable));
@@ -5913,6 +5939,7 @@ function MobileNewsFeed({ go, desktopArchive = null }) {
 
       const latestFiveArticles = cleanArticles.slice(0, 5);
       setArticles(latestFiveArticles);
+      setSelectedArticle(null);
       setLoading(false);
       if (!latestFiveArticles.length) {
         setError("No mobile news rows were found in the news tables. Showing the full News archive below.");
@@ -5930,21 +5957,50 @@ function MobileNewsFeed({ go, desktopArchive = null }) {
     return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   }
 
-  function makeExcerpt(body = "", max = 190) {
+  function makeExcerpt(body = "", max = 125) {
     const clean = String(body || "").replace(/\s+/g, " ").trim();
     if (clean.length <= max) return clean;
     return `${clean.slice(0, max).trim()}…`;
   }
 
-  const leadArticle = articles[0] || null;
-  const remainingArticles = articles.slice(1);
+  function renderArticleMedia(article) {
+    const images = Array.isArray(article?.images) && article.images.length ? article.images : (article?.imageUrl ? [article.imageUrl] : []);
+    if (!images.length) return <div style={mobileNewsDetailImageFallbackStyle}>🏁</div>;
+    return (
+      <div style={{ display: "grid", gap: 10 }}>
+        {images.map((url, index) => (
+          <img key={`${url}-${index}`} src={url} alt={article.title} style={mobileNewsDetailImageStyle} />
+        ))}
+      </div>
+    );
+  }
+
+  if (selectedArticle) {
+    return (
+      <>
+        <button type="button" onClick={() => setSelectedArticle(null)} style={mobileNewsBackButtonStyle}>← Back to latest stories</button>
+        <article style={mobileNewsDetailCardStyle}>
+          <div style={mobileNewsMetaRowStyle}>
+            <span style={mobileNewsCategoryPillStyle}>{selectedArticle.category || "League News"}</span>
+            <span>{formatMobileDate(selectedArticle.createdAt)}</span>
+          </div>
+          <h1 style={mobileNewsDetailTitleStyle}>{selectedArticle.title}</h1>
+          {(selectedArticle.author || selectedArticle.driver) && (
+            <div style={mobileNewsBylineStyle}>{selectedArticle.author}{selectedArticle.driver ? ` • ${selectedArticle.driver}` : ""}</div>
+          )}
+          <div style={{ margin: "14px 0" }}>{renderArticleMedia(selectedArticle)}</div>
+          <div style={mobileNewsDetailBodyStyle}>{selectedArticle.body || "No story text was provided for this article."}</div>
+        </article>
+      </>
+    );
+  }
 
   return (
     <>
       <section style={mobileNewsMastheadStyle}>
         <div style={mobileNewsMastheadKickerStyle}>BCL NEWSROOM</div>
         <h1 style={mobileNewsMastheadTitleStyle}>Latest League News</h1>
-        <p style={mobileNewsMastheadSubStyle}>The five most recent BCL stories in a clean NASCAR-style mobile article feed.</p>
+        <p style={mobileNewsMastheadSubStyle}>The five most recent BCL stories. Tap a headline to read the full article and view photos.</p>
         <div style={mobileNewsMastheadActionsStyle}>
           <button type="button" onClick={() => go("/submit-story")} style={mobileNewsPrimaryButtonStyle}>Submit Story</button>
           <button type="button" onClick={() => window.location.reload()} style={mobileNewsGhostButtonStyle}>Refresh</button>
@@ -5962,40 +6018,25 @@ function MobileNewsFeed({ go, desktopArchive = null }) {
         </div>
       )}
 
-      {!loading && leadArticle && (
-        <section style={mobileNewsLeadCardStyle}>
-          {leadArticle.imageUrl ? (
-            <img src={leadArticle.imageUrl} alt={leadArticle.title} style={mobileNewsLeadImageStyle} />
-          ) : (
-            <div style={mobileNewsLeadImageFallbackStyle}>🏁</div>
-          )}
-          <div style={mobileNewsLeadContentStyle}>
-            <div style={mobileNewsMetaRowStyle}>
-              <span style={mobileNewsCategoryPillStyle}>{leadArticle.category || "League News"}</span>
-              <span>{formatMobileDate(leadArticle.createdAt)}</span>
-            </div>
-            <h2 style={mobileNewsLeadTitleStyle}>{leadArticle.title}</h2>
-            <p style={mobileNewsLeadExcerptStyle}>{makeExcerpt(leadArticle.body, 240)}</p>
-            <div style={mobileNewsBylineStyle}>{leadArticle.author}{leadArticle.driver ? ` • ${leadArticle.driver}` : ""}</div>
-          </div>
-        </section>
-      )}
-
-      {!loading && remainingArticles.length > 0 && <MobileSectionTitle>More Stories</MobileSectionTitle>}
-      <div style={mobileNewsFeedStyle}>
-        {remainingArticles.map((article, index) => (
-          <article key={article.id || `${article.title}-${index}`} style={mobileNewsArticleStyle}>
-            {article.imageUrl && <img src={article.imageUrl} alt={article.title} style={mobileNewsCardImageStyle} />}
-            <div style={mobileNewsStoryContentStyle}>
+      <div style={mobileNewsHeadlineListStyle}>
+        {articles.map((article, index) => (
+          <button
+            type="button"
+            key={article.id || `${article.title}-${index}`}
+            onClick={() => setSelectedArticle(article)}
+            style={index === 0 ? mobileNewsHeadlineLeadButtonStyle : mobileNewsHeadlineButtonStyle}
+          >
+            {article.imageUrl && index === 0 && <img src={article.imageUrl} alt={article.title} style={mobileNewsHeadlineLeadImageStyle} />}
+            <div style={{ minWidth: 0, textAlign: "left" }}>
               <div style={mobileNewsMetaRowStyle}>
-                <span style={mobileNewsCategoryPillStyle}>{article.category || article.status || "News"}</span>
+                <span style={mobileNewsCategoryPillStyle}>{article.category || "League News"}</span>
                 <span>{formatMobileDate(article.createdAt)}</span>
               </div>
-              <h3 style={mobileNewsTitleStyle}>{article.title}</h3>
-              {(article.author || article.driver) && <div style={mobileNewsBylineStyle}>{article.author}{article.driver ? ` • ${article.driver}` : ""}</div>}
-              <p style={mobileNewsExcerptStyle}>{makeExcerpt(article.body)}</p>
+              <h2 style={index === 0 ? mobileNewsHeadlineLeadTitleStyle : mobileNewsHeadlineTitleStyle}>{article.title}</h2>
+              {article.body && <p style={mobileNewsHeadlineExcerptStyle}>{makeExcerpt(article.body, index === 0 ? 160 : 105)}</p>}
+              <div style={mobileNewsReadMoreStyle}>Tap to read story →</div>
             </div>
-          </article>
+          </button>
         ))}
       </div>
 
@@ -6274,6 +6315,22 @@ const mobileDataFrameCss = `
     .bcl-mobile-data-frame p, .bcl-mobile-data-frame div, .bcl-mobile-data-frame td, .bcl-mobile-data-frame th { line-height: 1.35; }
   }
 `;
+
+
+const mobileNewsHeadlineListStyle = { display: "grid", gap: 12, paddingBottom: 14 };
+const mobileNewsHeadlineButtonStyle = { width: "100%", textAlign: "left", background: "#10151f", color: "white", border: "1px solid rgba(212,175,55,0.22)", borderRadius: 18, padding: 14, cursor: "pointer", boxShadow: "0 12px 30px rgba(0,0,0,0.22)" };
+const mobileNewsHeadlineLeadButtonStyle = { ...mobileNewsHeadlineButtonStyle, padding: 0, overflow: "hidden", borderColor: "rgba(212,175,55,0.55)", background: "linear-gradient(180deg, #141a24 0%, #0d1118 100%)" };
+const mobileNewsHeadlineLeadImageStyle = { width: "100%", height: 190, objectFit: "cover", display: "block", borderBottom: "1px solid rgba(212,175,55,0.25)" };
+const mobileNewsHeadlineLeadTitleStyle = { margin: "10px 14px 6px", fontSize: 24, lineHeight: 1.05, fontWeight: 1000, letterSpacing: -0.4 };
+const mobileNewsHeadlineTitleStyle = { margin: "8px 0 6px", fontSize: 18, lineHeight: 1.12, fontWeight: 1000, letterSpacing: -0.2 };
+const mobileNewsHeadlineExcerptStyle = { margin: "0 0 8px", color: "#aab3c2", fontSize: 13, lineHeight: 1.45 };
+const mobileNewsReadMoreStyle = { color: "#d4af37", fontSize: 12, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 0.6 };
+const mobileNewsBackButtonStyle = { width: "100%", background: "#111827", color: "#ffffff", border: "1px solid rgba(212,175,55,0.35)", borderRadius: 14, padding: "12px 14px", fontWeight: 1000, marginBottom: 12, cursor: "pointer", textAlign: "left" };
+const mobileNewsDetailCardStyle = { background: "#0f141d", border: "1px solid rgba(212,175,55,0.28)", borderRadius: 22, padding: 16, boxShadow: "0 14px 34px rgba(0,0,0,0.32)", marginBottom: 22 };
+const mobileNewsDetailTitleStyle = { margin: "10px 0 8px", fontSize: 28, lineHeight: 1.05, fontWeight: 1000, letterSpacing: -0.5 };
+const mobileNewsDetailImageStyle = { width: "100%", borderRadius: 18, border: "1px solid rgba(255,255,255,0.12)", objectFit: "cover", maxHeight: 360 };
+const mobileNewsDetailImageFallbackStyle = { height: 190, borderRadius: 18, background: "linear-gradient(135deg, #1b2330, #0c1017)", border: "1px solid rgba(212,175,55,0.22)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 54 };
+const mobileNewsDetailBodyStyle = { whiteSpace: "pre-wrap", color: "#e5e7eb", fontSize: 16, lineHeight: 1.65 };
 
 export default function App() {
   useEffect(() => {
