@@ -5533,6 +5533,34 @@ function MobileLeagueApp({
 function MobileWeekendRecap({ raceHistory = [], tracks = [], drivers = [], go }) {
   const [paintWinner, setPaintWinner] = useState(null);
   const [paintLoading, setPaintLoading] = useState(true);
+  const [savedRaceWinner, setSavedRaceWinner] = useState(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadSavedRaceWinner() {
+      const { data, error } = await supabase
+        .from("previous_race_winner")
+        .select("*")
+        .eq("id", 1)
+        .maybeSingle();
+
+      if (!isMounted) return;
+
+      if (error) {
+        console.error("Could not load mobile previous race winner media:", error);
+        setSavedRaceWinner(null);
+        return;
+      }
+
+      setSavedRaceWinner(data || null);
+    }
+
+    loadSavedRaceWinner();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const lastRace = useMemo(() => {
     const history = Array.isArray(raceHistory) ? raceHistory.filter((race) => Array.isArray(race?.results) && race.results.length > 0) : [];
@@ -5622,14 +5650,17 @@ function MobileWeekendRecap({ raceHistory = [], tracks = [], drivers = [], go })
     };
   }, [paintRaceName, JSON.stringify((drivers || []).map((driver) => ({ id: driver?.id, number: driver?.number, name: driver?.name, team: driver?.team, manufacturer: driver?.manufacturer })))]);
 
-  if (!lastRaceWinner && !paintWinner && !paintLoading) return null;
+  if (!lastRaceWinner && !savedRaceWinner && !paintWinner && !paintLoading) return null;
 
-  const lastRaceName = lastRace?.raceName || lastRace?.name || "Last Race";
-  const winnerNumber = lastRaceWinner?.number || lastRaceWinner?.driver_number || "";
-  const winnerName = lastRaceWinner?.name || lastRaceWinner?.driver_name || "Winner TBA";
-  const winnerTeam = lastRaceWinner?.team || "—";
-  const winnerManufacturer = lastRaceWinner?.manufacturer || "—";
-  const winnerPoints = Number(lastRaceWinner?.totalRacePoints ?? lastRaceWinner?.points ?? 0);
+  const savedWinnerMediaUrl = savedRaceWinner?.media_url || savedRaceWinner?.mediaUrl || "";
+  const savedWinnerMediaType = savedRaceWinner?.media_type || savedRaceWinner?.mediaType || "";
+  const savedWinnerRaceName = savedRaceWinner?.race_name || savedRaceWinner?.raceName || "";
+  const lastRaceName = savedWinnerRaceName || lastRace?.raceName || lastRace?.name || "Last Race";
+  const winnerNumber = savedRaceWinner?.driver_number || savedRaceWinner?.number || lastRaceWinner?.number || lastRaceWinner?.driver_number || "";
+  const winnerName = savedRaceWinner?.driver_name || savedRaceWinner?.name || lastRaceWinner?.name || lastRaceWinner?.driver_name || "Winner TBA";
+  const winnerTeam = savedRaceWinner?.team || lastRaceWinner?.team || "—";
+  const winnerManufacturer = savedRaceWinner?.manufacturer || lastRaceWinner?.manufacturer || "—";
+  const winnerPoints = Number(savedRaceWinner?.points ?? lastRaceWinner?.totalRacePoints ?? lastRaceWinner?.points ?? 0);
 
   return (
     <section style={{ margin: "14px 0 18px" }}>
@@ -5654,7 +5685,17 @@ function MobileWeekendRecap({ raceHistory = [], tracks = [], drivers = [], go })
             <h3 style={{ margin: "6px 0 2px", fontSize: 24, lineHeight: 1.05 }}>{lastRaceName}</h3>
             <p style={{ margin: 0, color: "rgba(255,255,255,0.68)", fontSize: 12 }}>Official most recent completed race result</p>
           </div>
-          {lastRaceWinner ? (
+          {savedWinnerMediaUrl && (
+            <div style={{ background: "#070a0f", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+              {savedWinnerMediaType === "video" ? (
+                <video controls src={savedWinnerMediaUrl} style={{ width: "100%", maxHeight: 240, objectFit: "cover", display: "block" }} />
+              ) : (
+                <img src={savedWinnerMediaUrl} alt={`${winnerName} race winner`} style={{ width: "100%", maxHeight: 240, objectFit: "cover", display: "block" }} />
+              )}
+            </div>
+          )}
+
+          {(lastRaceWinner || savedRaceWinner) ? (
             <button
               type="button"
               onClick={() => winnerNumber && go(`/driver/${winnerNumber}`)}
