@@ -7006,6 +7006,19 @@ function MobileFeatureHub({ go, drivers = [], teams = [], manufacturerStandings 
         ]}
       />
 
+      <MobileCard>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+          <div>
+            <div style={mobileKickerStyle}>App Version</div>
+            <div style={{ fontSize: 18, fontWeight: 1000, marginTop: 3 }}>Budweiser Cup League {APP_VERSION}</div>
+            <div style={{ color: "#aab3c2", fontSize: 12, marginTop: 4 }}>Use this number when reporting issues or checking that your phone has the newest update.</div>
+          </div>
+          <div style={{ background: "rgba(212,175,55,0.14)", border: "1px solid rgba(212,175,55,0.36)", color: "#facc15", borderRadius: 999, padding: "8px 11px", fontWeight: 1000, whiteSpace: "nowrap" }}>
+            {APP_VERSION}
+          </div>
+        </div>
+      </MobileCard>
+
       {featureGroups.map((group) => (
         <section key={group.title} style={mobileFeatureGroupStyle}>
           <MobileSectionTitle>{group.title}</MobileSectionTitle>
