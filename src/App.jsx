@@ -505,6 +505,160 @@ function getTeamBranding(teamName) {
   return teamBranding[teamName] || { logo: teamName?.charAt(0)?.toUpperCase() || "?", accent: "#d4af37", dark: "#161a20" };
 }
 
+
+// ─── Shared Message Center Permissions ───────────────────────────────────────
+// Mobile and desktop should both use this same permission model.
+// This keeps the mobile Message Center as a layout reflection of desktop logic,
+// not a separate inbox with separate rules.
+function normalizeMessageValue(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function getCurrentUserFromSession(session = {}) {
+  const role = normalizeMessageValue(session.role || session.type || session.userType);
+  return {
+    role,
+    isGuest: role === "guest",
+    isAdmin: role === "admin" || session.isAdmin === true,
+    isDriver: role === "driver" || Boolean(session.driverNumber || session.driver_number),
+    isOwner: role === "owner" || session.isOwner === true,
+    isManufacturer: role === "manufacturer" || session.isManufacturer === true,
+    driverId: String(session.driverId || session.driver_id || "").trim(),
+    driverNumber: String(session.driverNumber || session.driver_number || session.number || "").trim(),
+    driverName: String(session.driverName || session.driver_name || session.name || "").trim(),
+    team: String(session.team || session.ownerTeam || session.owner_team || "").trim(),
+    manufacturer: String(session.manufacturer || "").trim(),
+  };
+}
+
+function canViewLeagueMessage(message = {}, rawSession = {}) {
+  const user = getCurrentUserFromSession(rawSession);
+
+  if (!message || user.isGuest) return false;
+  if (user.isAdmin) return true;
+
+  const recipientType = normalizeMessageValue(
+    message.recipient_type ||
+    message.recipientType ||
+    message.target_type ||
+    message.targetType ||
+    message.audience_type ||
+    message.audienceType ||
+    message.type
+  );
+
+  const recipientId = normalizeMessageValue(
+    message.recipient_id ||
+    message.recipientId ||
+    message.target_id ||
+    message.targetId ||
+    message.driver_id ||
+    message.driverId
+  );
+
+  const recipientNumber = normalizeMessageValue(
+    message.recipient_number ||
+    message.recipientNumber ||
+    message.driver_number ||
+    message.driverNumber ||
+    message.car_number ||
+    message.carNumber
+  );
+
+  const recipientName = normalizeMessageValue(
+    message.recipient_name ||
+    message.recipientName ||
+    message.driver_name ||
+    message.driverName
+  );
+
+  const messageTeam = normalizeMessageValue(
+    message.team ||
+    message.team_key ||
+    message.teamKey ||
+    message.owner_team ||
+    message.ownerTeam ||
+    message.recipient_team ||
+    message.recipientTeam
+  );
+
+  const messageManufacturer = normalizeMessageValue(
+    message.manufacturer ||
+    message.manufacturer_key ||
+    message.manufacturerKey ||
+    message.recipient_manufacturer ||
+    message.recipientManufacturer
+  );
+
+  const category = normalizeMessageValue(message.category || message.message_type || message.messageType);
+  const visibility = normalizeMessageValue(message.visibility || message.audience || message.scope);
+
+  // League-wide messages visible to drivers/owners/manufacturers unless explicitly admin-only.
+  const isLeagueWide =
+    recipientType === "all" ||
+    recipientType === "everyone" ||
+    recipientType === "league" ||
+    recipientType === "all_drivers" ||
+    recipientType === "drivers" ||
+    visibility === "all" ||
+    visibility === "league" ||
+    visibility === "all_drivers" ||
+    category === "league_broadcast" ||
+    category === "broadcast";
+
+  const adminOnly =
+    recipientType === "admin" ||
+    recipientType === "league_office" ||
+    visibility === "admin" ||
+    category === "admin" ||
+    category === "start_park" ||
+    category === "start_and_park" ||
+    category === "appeal_admin" ||
+    category === "race_control";
+
+  if (adminOnly) return false;
+
+  if (isLeagueWide) {
+    if (recipientType === "all_drivers" || recipientType === "drivers" || visibility === "all_drivers") {
+      return user.isDriver || user.isOwner || user.isManufacturer;
+    }
+    return user.isDriver || user.isOwner || user.isManufacturer;
+  }
+
+  // Direct driver messages.
+  if (recipientType === "driver" || recipientType === "drivers") {
+    if (recipientId && user.driverId && recipientId === normalizeMessageValue(user.driverId)) return true;
+    if (recipientNumber && user.driverNumber && recipientNumber === normalizeMessageValue(user.driverNumber)) return true;
+    if (recipientName && user.driverName && recipientName === normalizeMessageValue(user.driverName)) return true;
+    return false;
+  }
+
+  // Owner/team messages only for the matching owner/team.
+  if (recipientType === "owner" || recipientType === "owners" || recipientType === "team" || recipientType === "team_owner") {
+    if (!user.isOwner) return false;
+    return !!messageTeam && !!user.team && messageTeam === normalizeMessageValue(user.team);
+  }
+
+  // Manufacturer messages only for the matching manufacturer representative.
+  if (recipientType === "manufacturer" || recipientType === "manufacturers") {
+    if (!user.isManufacturer) return false;
+    return !!messageManufacturer && !!user.manufacturer && messageManufacturer === normalizeMessageValue(user.manufacturer);
+  }
+
+  // If older desktop rows only store team/manufacturer/driver fields without a recipient_type,
+  // mirror desktop behavior by matching only the current user/team/manufacturer.
+  if (recipientNumber && user.driverNumber && recipientNumber === normalizeMessageValue(user.driverNumber)) return true;
+  if (recipientName && user.driverName && recipientName === normalizeMessageValue(user.driverName)) return true;
+  if (user.isOwner && messageTeam && user.team && messageTeam === normalizeMessageValue(user.team)) return true;
+  if (user.isManufacturer && messageManufacturer && user.manufacturer && messageManufacturer === normalizeMessageValue(user.manufacturer)) return true;
+
+  return false;
+}
+
+function filterLeagueMessagesForSession(messages = [], session = {}) {
+  return (Array.isArray(messages) ? messages : []).filter((message) => canViewLeagueMessage(message, session));
+}
+
 function AdminLoginPage() {
   const ADMIN_ACCESS_CODE = "BCLADMINPASSWORD2026";
   const [code, setCode] = useState("");
@@ -3321,7 +3475,7 @@ function AdminLeagueMessageDashboard({ drivers = [], teams = [] }) {
       return;
     }
 
-    setMessages((data || []).filter((message) => canSessionSeeMessage(message, currentDriverSession || driverSession || loggedInDriver || {}, drivers)));
+    setMessages(filterLeagueMessagesForSession(data || [], currentDriverSession || driverSession || loggedInDriver || mobileSession || {}));
     setLoading(false);
   }
 
@@ -3527,22 +3681,11 @@ function AdminLeagueMessageDashboard({ drivers = [], teams = [] }) {
 }
 
 
-function LeagueMessageCenterLandingPage({ drivers = [], session = null }) {
+function LeagueMessageCenterLandingPage({ drivers = [] }) {
   const [selectedDriverNumber, setSelectedDriverNumber] = useState("");
   const [driverCode, setDriverCode] = useState("");
-  const [authorizedDriver, setAuthorizedDriver] = useState(null);
-  const [messages, setMessages] = useState([]);
-  const [selectedMessage, setSelectedMessage] = useState(null);
-  const [replies, setReplies] = useState([]);
-  const [replyBody, setReplyBody] = useState("");
-  const [filter, setFilter] = useState("inbox");
-  const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [replying, setReplying] = useState(false);
-  const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const [unreadCounts, setUnreadCounts] = useState({});
-
   const activeDrivers = useMemo(() => {
     return dedupeDriversByNumber(drivers || [])
       .filter((driver) => !driver.retired && !isInactivePlaceholderDriver(driver))
@@ -3550,28 +3693,21 @@ function LeagueMessageCenterLandingPage({ drivers = [], session = null }) {
   }, [drivers]);
 
   useEffect(() => {
-    if (session?.mode === "driver") {
-      const foundDriver = activeDrivers.find((driver) => String(driver.number) === String(session.driverNumber));
-      if (foundDriver) setAuthorizedDriver(foundDriver);
-    }
-  }, [session, activeDrivers]);
-
-  useEffect(() => {
     let isMounted = true;
 
     async function loadUnreadCounts() {
       const nextCounts = {};
-      const { data, error: messageError } = await supabase
-        .from("league_messages")
-        .select("*")
-        .eq("archived", false)
-        .order("created_at", { ascending: false });
-
-      if (messageError) return;
-
       for (const driver of activeDrivers) {
-        const rows = (data || []).filter((message) => messageMatchesDriver(message, driver));
-        nextCounts[String(driver.number)] = rows.filter((message) => !message.is_read).length || rows.length || 0;
+        const driverNumber = String(driver.number || "");
+        if (!driverNumber) continue;
+
+        const { count, error: countError } = await supabase
+          .from("league_messages")
+          .select("*", { count: "exact", head: true })
+          .or(`recipient_type.eq.league,recipient_driver_number.eq.${driverNumber},recipient_team.eq.${driver.team},recipient_manufacturer.eq.${driver.manufacturer}`)
+          .eq("archived", false);
+
+        if (!countError) nextCounts[driverNumber] = count || 0;
       }
 
       if (isMounted) setUnreadCounts(nextCounts);
@@ -3585,81 +3721,9 @@ function LeagueMessageCenterLandingPage({ drivers = [], session = null }) {
     };
   }, [activeDrivers]);
 
-  useEffect(() => {
-    if (authorizedDriver) loadMessages();
-  }, [authorizedDriver]);
-
-  useEffect(() => {
-    if (selectedMessage?.id) loadReplies(selectedMessage.id);
-  }, [selectedMessage?.id]);
-
-  function messageMatchesDriver(message, driver) {
-    if (!message || !driver) return false;
-
-    const recipientType = String(message.recipient_type || "").trim().toLowerCase();
-    const messageType = String(message.message_type || "").trim().toLowerCase();
-    const category = `${recipientType} ${messageType} ${String(message.category || "").toLowerCase()} ${String(message.subject || "").toLowerCase()}`;
-
-    const driverNumber = String(driver.number || "").trim();
-    const driverName = String(driver.name || "").trim().toLowerCase();
-
-    const explicitDriverNumber =
-      String(message.recipient_driver_number || message.driver_number || message.target_driver_number || "").trim();
-
-    const explicitDriverName =
-      String(message.recipient_driver_name || message.driver_name || message.target_driver_name || "").trim().toLowerCase();
-
-    // Drivers should only see messages addressed directly to them or true all-driver broadcasts.
-    // Admin-only items such as Start & Park requests, race-control requests, owner inbox items, and admin reports must stay hidden.
-    const adminOnly =
-      category.includes("start_park") ||
-      category.includes("start park") ||
-      category.includes("race control") ||
-      category.includes("admin") ||
-      category.includes("board") ||
-      recipientType === "owner" ||
-      recipientType === "owners" ||
-      recipientType === "team_owner" ||
-      recipientType === "manufacturer" ||
-      recipientType === "league_office";
-
-    if (explicitDriverNumber && explicitDriverNumber === driverNumber) return true;
-    if (explicitDriverName && explicitDriverName === driverName) return true;
-
-    if (adminOnly) return false;
-
-    const driverBroadcastTypes = new Set([
-      "all_drivers",
-      "drivers",
-      "driver",
-      "everyone",
-      "broadcast",
-    ]);
-
-    return driverBroadcastTypes.has(recipientType) || driverBroadcastTypes.has(messageType);
-  }
-
-  function getSenderLabel(message) {
-    return message?.sender_name || message?.sender_type || message?.from_name || "League Office";
-  }
-
-  function getCategory(message) {
-    const raw = String(message?.message_type || message?.recipient_type || "league").toLowerCase();
-    if (raw.includes("contract")) return "Contracts";
-    if (raw.includes("team") || raw.includes("owner")) return "Team";
-    if (raw.includes("manufacturer")) return "Manufacturer";
-    if (raw.includes("task")) return "Tasks";
-    if (raw.includes("interview")) return "Interviews";
-    if (raw.includes("paint")) return "Paint Vote";
-    if (raw.includes("vote")) return "League Vote";
-    if (raw.includes("penalty")) return "Penalty";
-    return "League";
-  }
-
   async function unlockMessageCenter(event) {
     event?.preventDefault?.();
     setError("");
-    setStatus("");
 
     const driver = activeDrivers.find((item) => String(item.number) === String(selectedDriverNumber));
     if (!driver) {
@@ -3704,316 +3768,92 @@ function LeagueMessageCenterLandingPage({ drivers = [], session = null }) {
     }
 
     localStorage.setItem("driverProfileAuthorizedNumber", String(driver.number));
-    setAuthorizedDriver(driver);
-    setDriverCode("");
-  }
-
-  async function loadMessages() {
-    if (!authorizedDriver) return;
-    setLoading(true);
-    setError("");
-
-    const { data, error: messageError } = await supabase
-      .from("league_messages")
-      .select("*")
-      .eq("archived", false)
-      .order("created_at", { ascending: false });
-
-    setLoading(false);
-
-    if (messageError) {
-      console.error("Could not load message center:", messageError);
-      setError("Could not load Message Center. Check league_messages select policy.");
-      setMessages([]);
-      return;
-    }
-
-    setMessages((data || []).filter((message) => messageMatchesDriver(message, authorizedDriver)));
-  }
-
-  async function loadReplies(messageId) {
-    setError("");
-    const { data, error: replyError } = await supabase
-      .from("league_message_replies")
-      .select("*")
-      .eq("message_id", messageId)
-      .order("created_at", { ascending: true });
-
-    if (replyError) {
-      console.warn("Could not load replies:", replyError);
-      setReplies([]);
-      return;
-    }
-
-    setReplies(data || []);
-  }
-
-  async function markRead(message = selectedMessage) {
-    if (!message?.id) return;
-    const { error: readError } = await supabase
-      .from("league_messages")
-      .update({ is_read: true })
-      .eq("id", message.id);
-
-    if (readError) {
-      setError("Could not mark message read. Check league_messages update policy.");
-      return;
-    }
-
-    setMessages((current) => current.map((item) => item.id === message.id ? { ...item, is_read: true } : item));
-    setSelectedMessage((current) => current?.id === message.id ? { ...current, is_read: true } : current);
-  }
-
-  async function sendReply(event) {
-    event?.preventDefault?.();
-    if (!authorizedDriver || !selectedMessage?.id) return;
-    const body = String(replyBody || "").trim();
-    if (!body) {
-      setError("Type a reply first.");
-      return;
-    }
-
-    setReplying(true);
-    setError("");
-    setStatus("");
-
-    const payload = {
-      message_id: selectedMessage.id,
-      sender_type: "driver",
-      sender_driver_id: String(authorizedDriver.id || ""),
-      sender_driver_number: String(authorizedDriver.number || ""),
-      sender_driver_name: authorizedDriver.name || "Driver",
-      sender_team: authorizedDriver.team || "",
-      body,
-      created_at: new Date().toISOString(),
-    };
-
-    const { data, error: replyError } = await supabase
-      .from("league_message_replies")
-      .insert([payload])
-      .select()
-      .single();
-
-    setReplying(false);
-
-    if (replyError) {
-      console.error("Could not send reply:", replyError);
-      setError("Could not send reply. Create league_message_replies table and check RLS policies.");
-      return;
-    }
-
-    setReplyBody("");
-    setReplies((current) => [...current, data || payload]);
-    setStatus("Reply sent.");
-    markRead(selectedMessage);
-  }
-
-  const filteredMessages = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return (messages || []).filter((message) => {
-      if (filter === "unread" && message.is_read) return false;
-      if (filter !== "inbox" && filter !== "unread" && getCategory(message).toLowerCase() !== filter) return false;
-      if (!q) return true;
-      return [message.subject, message.message, getSenderLabel(message), getCategory(message)]
-        .some((value) => String(value || "").toLowerCase().includes(q));
-    });
-  }, [messages, filter, search]);
-
-  const unreadCount = (messages || []).filter((message) => !message.is_read).length;
-
-  if (!authorizedDriver) {
-    return (
-      <div style={appShellStyle}>
-        <div style={{ ...pageContainerStyle, maxWidth: 980 }}>
-          <div style={{ ...sectionCardStyle, background: "linear-gradient(135deg, #17191f 0%, #101216 100%)", border: "1px solid #d4af37" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 900, color: "#d4af37", letterSpacing: 1.4 }}>BUDWEISER CUP LEAGUE</div>
-                <h1 style={{ margin: "6px 0", fontSize: 34 }}>📬 Message Center</h1>
-                <p style={{ margin: 0, opacity: 0.72, lineHeight: 1.5 }}>
-                  Official league messages, owner notes, manufacturer updates, contract alerts, and threaded driver replies.
-                </p>
-              </div>
-              <button onClick={() => (window.location.pathname = "/standings")} style={secondaryButtonStyle}>Back to Standings</button>
-            </div>
-          </div>
-
-          <form onSubmit={unlockMessageCenter} style={sectionCardStyle}>
-            <h2 style={{ marginTop: 0 }}>Driver Login Required</h2>
-            <p style={{ opacity: 0.72, lineHeight: 1.5 }}>
-              Drivers can read official messages and reply directly from this inbox. Guests cannot access private messages.
-            </p>
-
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12, alignItems: "end" }}>
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 900, opacity: 0.72, marginBottom: 8 }}>DRIVER</div>
-                <select value={selectedDriverNumber} onChange={(event) => setSelectedDriverNumber(event.target.value)} style={inputStyle}>
-                  <option value="">Choose driver</option>
-                  {activeDrivers.map((driver) => {
-                    const count = unreadCounts[String(driver.number)] || 0;
-                    return (
-                      <option key={driver.id || driver.number} value={driver.number}>
-                        #{driver.number} {driver.name}{count ? ` — ${count} unread` : ""}
-                      </option>
-                    );
-                  })}
-                </select>
-              </div>
-
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 900, opacity: 0.72, marginBottom: 8 }}>DRIVER ACCESS CODE</div>
-                <input
-                  type="password"
-                  value={driverCode}
-                  onChange={(event) => setDriverCode(event.target.value)}
-                  placeholder="Enter driver password"
-                  style={inputStyle}
-                />
-              </div>
-
-              <button type="submit" style={primaryButtonStyle}>Open Inbox</button>
-            </div>
-
-            {error && <div style={{ color: "#f87171", fontWeight: 900, marginTop: 12 }}>{error}</div>}
-          </form>
-        </div>
-      </div>
-    );
+    window.location.pathname = `/driver/${driver.number}/messages`;
   }
 
   return (
     <div style={appShellStyle}>
-      <div style={{ ...pageContainerStyle, maxWidth: 1180 }}>
+      <div style={{ ...pageContainerStyle, maxWidth: 980 }}>
         <div style={{ ...sectionCardStyle, background: "linear-gradient(135deg, #17191f 0%, #101216 100%)", border: "1px solid #d4af37" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 900, color: "#d4af37", letterSpacing: 1.4 }}>MESSAGE CENTER</div>
-              <h1 style={{ margin: "6px 0", fontSize: 34 }}>📬 #{authorizedDriver.number} {authorizedDriver.name}</h1>
+              <div style={{ fontSize: 13, fontWeight: 900, color: "#d4af37", letterSpacing: 1.4 }}>BUDWEISER CUP LEAGUE</div>
+              <h1 style={{ margin: "6px 0", fontSize: 34 }}>📩 League Message Center</h1>
               <p style={{ margin: 0, opacity: 0.72, lineHeight: 1.5 }}>
-                Inbox, threaded replies, owner messages, Race Control notes, and league announcements.
+                Direct messages, Race Control notices, owner/team messages, contract alerts, and assignments all live here.
               </p>
             </div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <button type="button" onClick={loadMessages} style={secondaryButtonStyle}>{loading ? "Refreshing…" : "Refresh"}</button>
-              {!session && <button type="button" onClick={() => { setAuthorizedDriver(null); setSelectedMessage(null); }} style={secondaryButtonStyle}>Switch Driver</button>}
-            </div>
+            <button onClick={() => (window.location.pathname = "/standings")} style={secondaryButtonStyle}>Back to Standings</button>
           </div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: selectedMessage ? "360px 1fr" : "1fr", gap: 16, alignItems: "start" }}>
-          <section style={sectionCardStyle}>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 12 }}>
-              <div>
-                <h2 style={{ margin: 0 }}>Inbox</h2>
-                <div style={{ opacity: 0.68, fontSize: 13 }}>{unreadCount} unread · {messages.length} total</div>
-              </div>
-              <select value={filter} onChange={(event) => setFilter(event.target.value)} style={{ ...inputStyle, maxWidth: 190 }}>
-                <option value="inbox">All</option>
-                <option value="unread">Unread</option>
-                <option value="league">League</option>
-                <option value="team">Team</option>
-                <option value="manufacturer">Manufacturer</option>
-                <option value="contracts">Contracts</option>
-                <option value="tasks">Tasks</option>
+        <form onSubmit={unlockMessageCenter} style={sectionCardStyle}>
+          <h2 style={{ marginTop: 0 }}>Driver Login Required</h2>
+          <p style={{ opacity: 0.72, lineHeight: 1.5 }}>
+            Drivers can see message counts publicly, but must unlock their profile before reading or sending messages.
+          </p>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12, alignItems: "end" }}>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 900, opacity: 0.72, marginBottom: 8 }}>DRIVER</div>
+              <select value={selectedDriverNumber} onChange={(event) => setSelectedDriverNumber(event.target.value)} style={inputStyle}>
+                <option value="">Choose driver</option>
+                {activeDrivers.map((driver) => {
+                  const count = unreadCounts[String(driver.number)] || 0;
+                  return (
+                    <option key={driver.id || driver.number} value={driver.number}>
+                      #{driver.number} {driver.name}{count ? ` — ${count} message${count === 1 ? "" : "s"}` : ""}
+                    </option>
+                  );
+                })}
               </select>
             </div>
 
-            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search messages..." style={{ ...inputStyle, marginBottom: 12 }} />
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 900, opacity: 0.72, marginBottom: 8 }}>DRIVER ACCESS CODE</div>
+              <input
+                type="password"
+                value={driverCode}
+                onChange={(event) => setDriverCode(event.target.value)}
+                placeholder="Enter driver password"
+                style={inputStyle}
+              />
+            </div>
 
-            {error && <div style={{ color: "#f87171", fontWeight: 900, marginBottom: 10 }}>{error}</div>}
-            {status && <div style={{ color: "#4ade80", fontWeight: 900, marginBottom: 10 }}>{status}</div>}
+            <button type="submit" style={primaryButtonStyle}>Open Message Center</button>
+          </div>
 
-            {loading ? (
-              <div style={{ opacity: 0.72 }}>Loading messages…</div>
-            ) : filteredMessages.length ? (
-              <div style={{ display: "grid", gap: 10 }}>
-                {filteredMessages.map((message) => {
-                  const active = selectedMessage?.id === message.id;
-                  return (
-                    <button
-                      key={message.id}
-                      type="button"
-                      onClick={() => { setSelectedMessage(message); markRead(message); }}
-                      style={{
-                        textAlign: "left",
-                        background: active ? "rgba(212,175,55,0.16)" : (!message.is_read ? "rgba(239,68,68,0.12)" : "#0f1319"),
-                        border: active ? "1px solid #d4af37" : (!message.is_read ? "1px solid #ef4444" : "1px solid #313947"),
-                        color: "white",
-                        borderRadius: 14,
-                        padding: 13,
-                        cursor: "pointer",
-                      }}
-                    >
-                      <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-                        <strong style={{ fontSize: 14 }}>{!message.is_read ? "🔴 " : ""}{getSenderLabel(message)}</strong>
-                        <span style={{ color: "#d4af37", fontSize: 11, fontWeight: 900 }}>{getCategory(message)}</span>
-                      </div>
-                      <div style={{ fontWeight: 900, marginTop: 5 }}>{message.subject || "No subject"}</div>
-                      <div style={{ color: "#aab3c2", fontSize: 12, marginTop: 5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                        {message.message || "No message body."}
-                      </div>
-                      <div style={{ color: "#6b7280", fontSize: 11, marginTop: 6 }}>
-                        {message.created_at ? new Date(message.created_at).toLocaleString() : ""}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            ) : (
-              <div style={{ opacity: 0.72 }}>No messages found.</div>
-            )}
-          </section>
+          {error && <div style={{ color: "#f87171", fontWeight: 900, marginTop: 12 }}>{error}</div>}
+        </form>
 
-          {selectedMessage && (
-            <section style={sectionCardStyle}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "start", flexWrap: "wrap" }}>
-                <div>
-                  <div style={{ color: "#d4af37", fontSize: 12, fontWeight: 900, textTransform: "uppercase" }}>{getCategory(selectedMessage)}</div>
-                  <h2 style={{ margin: "6px 0" }}>{selectedMessage.subject || "No subject"}</h2>
-                  <div style={{ opacity: 0.68, fontSize: 13 }}>
-                    From: {getSenderLabel(selectedMessage)} · {selectedMessage.created_at ? new Date(selectedMessage.created_at).toLocaleString() : ""}
+        <div style={sectionCardStyle}>
+          <h2 style={{ marginTop: 0 }}>Message Counts</h2>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 10 }}>
+            {activeDrivers.map((driver) => {
+              const count = unreadCounts[String(driver.number)] || 0;
+              return (
+                <button
+                  key={driver.id || driver.number}
+                  type="button"
+                  onClick={() => setSelectedDriverNumber(String(driver.number))}
+                  style={{
+                    textAlign: "left",
+                    background: count ? "rgba(239,68,68,0.12)" : "#0f1319",
+                    border: count ? "1px solid #ef4444" : "1px solid #313947",
+                    color: "white",
+                    borderRadius: 12,
+                    padding: 12,
+                    cursor: "pointer",
+                  }}
+                >
+                  <div style={{ fontWeight: 900 }}>#{driver.number} {driver.name}</div>
+                  <div style={{ fontSize: 12, opacity: 0.72, marginTop: 4 }}>
+                    {count ? `🔔 ${count} message${count === 1 ? "" : "s"}` : "No messages showing"}
                   </div>
-                </div>
-                <button type="button" onClick={() => setSelectedMessage(null)} style={secondaryButtonStyle}>Close</button>
-              </div>
-
-              <div style={{ background: "#0f1319", border: "1px solid #313947", borderRadius: 16, padding: 16, marginTop: 16, whiteSpace: "pre-wrap", lineHeight: 1.55 }}>
-                {selectedMessage.message || "No message body."}
-              </div>
-
-              <h3 style={{ marginTop: 20 }}>Conversation</h3>
-              <div style={{ display: "grid", gap: 10 }}>
-                {replies.map((reply) => {
-                  const mine = String(reply.sender_driver_number || "") === String(authorizedDriver.number || "");
-                  return (
-                    <div key={reply.id || reply.created_at} style={{ background: mine ? "rgba(212,175,55,0.14)" : "#0f1319", border: mine ? "1px solid rgba(212,175,55,0.45)" : "1px solid #313947", borderRadius: 14, padding: 12 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginBottom: 6 }}>
-                        <strong>{mine ? "You" : (reply.sender_name || reply.sender_driver_name || reply.sender_type || "Reply")}</strong>
-                        <span style={{ opacity: 0.55, fontSize: 11 }}>{reply.created_at ? new Date(reply.created_at).toLocaleString() : ""}</span>
-                      </div>
-                      <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.45 }}>{reply.body || reply.message || ""}</div>
-                    </div>
-                  );
-                })}
-                {!replies.length && <div style={{ opacity: 0.68 }}>No replies yet.</div>}
-              </div>
-
-              <form onSubmit={sendReply} style={{ marginTop: 16 }}>
-                <div style={{ fontSize: 12, fontWeight: 900, opacity: 0.72, marginBottom: 8 }}>REPLY AS #{authorizedDriver.number} {authorizedDriver.name}</div>
-                <textarea
-                  value={replyBody}
-                  onChange={(event) => setReplyBody(event.target.value)}
-                  placeholder="Type your reply..."
-                  rows={5}
-                  style={{ ...inputStyle, resize: "vertical", lineHeight: 1.45 }}
-                />
-                <div style={{ display: "flex", gap: 10, marginTop: 10, flexWrap: "wrap" }}>
-                  <button type="submit" disabled={replying} style={primaryButtonStyle}>{replying ? "Sending…" : "Send Reply"}</button>
-                  <button type="button" onClick={() => markRead(selectedMessage)} style={secondaryButtonStyle}>Mark Read</button>
-                </div>
-              </form>
-            </section>
-          )}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>
@@ -6723,7 +6563,7 @@ function MobileLeagueApp({
   if (path === "/contracts") return dataFrame("Contracts", "more", <ContractsPage drivers={drivers} />);
   if (path === "/memorial-day") return dataFrame("Memorial", "more", <MemorialDayPage drivers={drivers} />);
   if (path === "/chat") return dataFrame("League Chat", "more", isGuestSession ? <MobileGuestLockedCard title="League Chat Requires Driver Login" go={go} /> : <LeagueChatPage drivers={drivers} />);
-  if (path === "/message-center") return dataFrame("Messages", "more", isGuestSession ? <MobileGuestLockedCard title="League Messages Require Driver Login" go={go} /> : <LeagueMessageCenterLandingPage drivers={drivers} session={mobileSession} />);
+  if (path === "/message-center") return dataFrame("Messages", "more", isGuestSession ? <MobileGuestLockedCard title="League Messages Require Driver Login" go={go} /> : <LeagueMessageCenterLandingPage drivers={drivers} />);
   if (path === "/discord") return dataFrame("Discord", "more", <DiscordPage />);
   if (path === "/stories") return dataFrame("Story Admin", "more", <StoriesAdminPage />);
   if (path === "/more" || path === "/menu") {
@@ -7884,7 +7724,7 @@ function MobileDriverProfilePolished({ driver, driverNumber, raceHistory = [], t
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }}>
         <MobileAction label="🎤 Interviews" onClick={() => go("/interviews")} />
         <MobileAction label="🎨 Paint Vote" onClick={() => go("/paint-scheme-vote")} />
-        <MobileAction label="💬 Messages" onClick={() => go("/message-center")} secondary />
+        <MobileAction label="💬 Messages" onClick={() => go(`/driver/${safeDriver.number}/messages`)} secondary />
         <MobileAction label="📺 Streams" onClick={() => go("/streams")} secondary />
       </div>
 
@@ -11140,64 +10980,3 @@ export default function App() {
   );
 }
 
-
-
-function getMessageAudienceKeysForSession(session = {}, drivers = []) {
-  const keys = new Set();
-  const type = String(session?.type || session?.role || "").toLowerCase();
-
-  if (type === "guest") return ["guest"];
-  if (type === "admin" || session?.isAdmin) return ["admin", "all"];
-
-  const driverNumber = String(session?.driverNumber || session?.number || "").trim();
-  const driverName = String(session?.driverName || session?.name || "").trim();
-  const team = String(session?.team || "").trim();
-  const manufacturer = String(session?.manufacturer || "").trim();
-
-  if (driverNumber) keys.add(`driver:${driverNumber}`);
-  if (driverName) keys.add(`driver_name:${driverName.toLowerCase()}`);
-  if (team) keys.add(`team:${team.toLowerCase()}`);
-  if (manufacturer) keys.add(`manufacturer:${manufacturer.toLowerCase()}`);
-
-  if (type === "owner" || session?.isOwner) {
-    keys.add("owner");
-    if (team) keys.add(`owner_team:${team.toLowerCase()}`);
-  }
-
-  keys.add("all_drivers");
-  return Array.from(keys);
-}
-
-function canSessionSeeMessage(message = {}, session = {}, drivers = []) {
-  const type = String(session?.type || session?.role || "").toLowerCase();
-  if (type === "guest") return false;
-  if (type === "admin" || session?.isAdmin) return true;
-
-  const keys = getMessageAudienceKeysForSession(session, drivers);
-  const audienceValues = [
-    message.recipient_key,
-    message.recipientKey,
-    message.audience_key,
-    message.audienceKey,
-    message.recipient_type && message.recipient_id ? `${message.recipient_type}:${message.recipient_id}` : "",
-    message.target_type && message.target_id ? `${message.target_type}:${message.target_id}` : "",
-  ].map((value) => String(value || "").trim().toLowerCase()).filter(Boolean);
-
-  const driverNumber = String(session?.driverNumber || session?.number || "").trim().toLowerCase();
-  const driverName = String(session?.driverName || session?.name || "").trim().toLowerCase();
-  const team = String(session?.team || "").trim().toLowerCase();
-  const manufacturer = String(session?.manufacturer || "").trim().toLowerCase();
-
-  if (String(message.driver_number || message.driverNumber || "").trim().toLowerCase() === driverNumber && driverNumber) return true;
-  if (String(message.driver_name || message.driverName || "").trim().toLowerCase() === driverName && driverName) return true;
-
-  if ((type === "owner" || session?.isOwner) && team) {
-    if (String(message.team || message.team_key || message.owner_team || "").trim().toLowerCase() === team) return true;
-  }
-
-  if ((type === "manufacturer" || session?.isManufacturer) && manufacturer) {
-    if (String(message.manufacturer || message.manufacturer_key || "").trim().toLowerCase() === manufacturer) return true;
-  }
-
-  return audienceValues.some((value) => keys.map(k => k.toLowerCase()).includes(value));
-}
