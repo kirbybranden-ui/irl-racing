@@ -5510,6 +5510,7 @@ function MobilePaintSchemeVotesHub({ drivers = [], tracks = [], go }) {
 
   const previousRace = useMemo(() => getPreviousCompletedRaceForPaintWinner(tracks), [JSON.stringify((tracks || []).map((track) => ({ name: track?.name, date: track?.date })))]);
   const raceName = previousRace?.name || "Current Week";
+  const [selectedRaceFilter, setSelectedRaceFilter] = useState("");
 
   useEffect(() => {
     let isMounted = true;
@@ -5569,7 +5570,7 @@ function MobilePaintSchemeVotesHub({ drivers = [], tracks = [], go }) {
           driverLabel: driver ? `#${driver.number} ${driver.name}` : upload.driver_name || upload.uploader_name || "Unknown Driver",
           teamLabel: driver?.team || upload.team || upload.team_key || "—",
           manufacturerLabel: driver?.manufacturer || upload.manufacturer || "",
-          raceLabel: getPaintUploadRaceForStandings(upload) || upload.race_name || upload.race || "Current Week",
+          raceLabel: getPaintUploadRaceForStandings(upload) || upload.race_name || upload.race || upload.track_name || upload.track || "Current Week",
           uploadedAt: upload.uploaded_at || upload.created_at || "",
         };
       })
@@ -5582,9 +5583,50 @@ function MobilePaintSchemeVotesHub({ drivers = [], tracks = [], go }) {
     });
   }, [uploads, voteCounts, JSON.stringify((drivers || []).map((driver) => ({ id: driver?.id, number: driver?.number, name: driver?.name, team: driver?.team, manufacturer: driver?.manufacturer })))]);
 
-  const leader = paintCards[0] || null;
-  const totalVotes = (votes || []).length;
-  const latestFive = paintCards.slice(0, 12);
+  const normalizePaintRaceName = (value) => String(value || "").trim().toLowerCase();
+  const paintRaceMatches = (value, selected) => {
+    if (!selected || selected === "__all__") return true;
+    return normalizePaintRaceName(value) === normalizePaintRaceName(selected);
+  };
+
+  const raceOptions = useMemo(() => {
+    const options = [];
+    const seen = new Set();
+    const addOption = (name) => {
+      const label = String(name || "").trim();
+      if (!label) return;
+      const key = normalizePaintRaceName(label);
+      if (seen.has(key)) return;
+      seen.add(key);
+      options.push(label);
+    };
+
+    (tracks || []).forEach((track) => addOption(track?.name));
+    (paintCards || []).forEach((card) => addOption(card.raceLabel));
+    return options;
+  }, [paintCards, JSON.stringify((tracks || []).map((track) => ({ name: track?.name, date: track?.date })))]);
+
+  useEffect(() => {
+    if (selectedRaceFilter) return;
+    const preferredRace = raceOptions.find((option) => paintRaceMatches(option, raceName));
+    if (preferredRace) {
+      setSelectedRaceFilter(preferredRace);
+      return;
+    }
+    if (raceOptions.length) setSelectedRaceFilter(raceOptions[0]);
+  }, [raceOptions, raceName, selectedRaceFilter]);
+
+  const visiblePaintCards = useMemo(() => {
+    return (paintCards || []).filter((entry) => paintRaceMatches(entry.raceLabel, selectedRaceFilter));
+  }, [paintCards, selectedRaceFilter]);
+
+  const selectedRaceVotes = useMemo(() => {
+    return (votes || []).filter((vote) => paintRaceMatches(vote.race_name || vote.race || vote.track_name || vote.track, selectedRaceFilter));
+  }, [votes, selectedRaceFilter]);
+
+  const leader = visiblePaintCards[0] || null;
+  const totalVotes = selectedRaceFilter ? selectedRaceVotes.length : (votes || []).length;
+  const latestFive = visiblePaintCards.slice(0, 12);
 
   return (
     <div>
@@ -5595,10 +5637,59 @@ function MobilePaintSchemeVotesHub({ drivers = [], tracks = [], go }) {
       />
 
       <MobileCard>
+        <div style={mobileKickerStyle}>Choose Track</div>
+        <select
+          value={selectedRaceFilter}
+          onChange={(event) => setSelectedRaceFilter(event.target.value)}
+          style={{
+            width: "100%",
+            marginTop: 10,
+            background: "#020617",
+            color: "#fff",
+            border: "1px solid #334155",
+            borderRadius: 14,
+            padding: "13px 14px",
+            fontSize: 15,
+            fontWeight: 900,
+          }}
+        >
+          {raceOptions.length === 0 && <option value="">Current Week</option>}
+          {raceOptions.map((option) => (
+            <option key={option} value={option}>{option}</option>
+          ))}
+        </select>
+        <div style={{ display: "flex", gap: 8, overflowX: "auto", WebkitOverflowScrolling: "touch", paddingTop: 12, paddingBottom: 4 }}>
+          {raceOptions.map((option) => {
+            const active = paintRaceMatches(option, selectedRaceFilter);
+            return (
+              <button
+                key={`pill-${option}`}
+                type="button"
+                onClick={() => setSelectedRaceFilter(option)}
+                style={{
+                  flex: "0 0 auto",
+                  border: active ? "1px solid #d4af37" : "1px solid #334155",
+                  background: active ? "#d4af37" : "#111827",
+                  color: active ? "#111" : "#fff",
+                  borderRadius: 999,
+                  padding: "9px 12px",
+                  fontSize: 12,
+                  fontWeight: 1000,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {option}
+              </button>
+            );
+          })}
+        </div>
+      </MobileCard>
+
+      <MobileCard>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-          <div style={mobileMiniStatStyle}><span>Race</span><strong>{raceName}</strong></div>
+          <div style={mobileMiniStatStyle}><span>Track</span><strong>{selectedRaceFilter || raceName}</strong></div>
           <div style={mobileMiniStatStyle}><span>Votes</span><strong>{totalVotes}</strong></div>
-          <div style={mobileMiniStatStyle}><span>Entries</span><strong>{paintCards.length}</strong></div>
+          <div style={mobileMiniStatStyle}><span>Entries</span><strong>{visiblePaintCards.length}</strong></div>
           <div style={mobileMiniStatStyle}><span>Leader</span><strong>{leader ? leader.driverLabel.replace(/^#/, "#") : "—"}</strong></div>
         </div>
       </MobileCard>
@@ -5619,7 +5710,7 @@ function MobilePaintSchemeVotesHub({ drivers = [], tracks = [], go }) {
       {loading && <MobileCard>Loading paint schemes...</MobileCard>}
       {error && <MobileCard><div style={{ color: "#fca5a5", fontWeight: 900 }}>{error}</div></MobileCard>}
       {!loading && !error && latestFive.length === 0 && (
-        <MobileCard>No paint scheme entries found yet.</MobileCard>
+        <MobileCard>No paint scheme entries found for this track yet.</MobileCard>
       )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
