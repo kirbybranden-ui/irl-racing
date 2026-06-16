@@ -3887,6 +3887,28 @@ function LeagueMessageCenterLandingPage({ drivers = [] }) {
 }
 
 
+
+function MessagingDisabledPage({ mobile = false, go = null }) {
+  return (
+    <div style={mobile ? {} : appShellStyle}>
+      <div style={mobile ? {} : { ...pageContainerStyle, maxWidth: 860 }}>
+        <div style={{ ...sectionCardStyle, border: "1px solid #d4af37", background: "linear-gradient(135deg, #17191f 0%, #101216 100%)" }}>
+          <div style={{ fontSize: 13, fontWeight: 900, color: "#d4af37", letterSpacing: 1.4 }}>MESSAGE CENTER</div>
+          <h1 style={{ margin: "6px 0", fontSize: mobile ? 28 : 34 }}>Messaging Temporarily Disabled</h1>
+          <p style={{ margin: 0, opacity: 0.75, lineHeight: 1.5 }}>
+            League messaging is turned off while the inbox/session system is being rebuilt. Standings, news, votes, interviews, streams, and Team HQ remain available.
+          </p>
+          {go && (
+            <button type="button" onClick={() => go("/standings")} style={{ ...primaryButtonStyle, marginTop: 16 }}>
+              Back to Home
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function UnifiedLeagueMessageCenterPage({ drivers = [], session: suppliedSession = null, mobile = false, go = null }) {
   const [session, setSession] = useState(() => suppliedSession || readBclMobileSession());
   const [driverNumber, setDriverNumber] = useState("");
@@ -7019,7 +7041,7 @@ function MobileLeagueApp({
   if (path === "/contracts") return dataFrame("Contracts", "more", <ContractsPage drivers={drivers} />);
   if (path === "/memorial-day") return dataFrame("Memorial", "more", <MemorialDayPage drivers={drivers} />);
   if (path === "/chat") return dataFrame("League Chat", "more", isGuestSession ? <MobileGuestLockedCard title="League Chat Requires Driver Login" go={go} /> : <LeagueChatPage drivers={drivers} />);
-  if (path === "/message-center") return frame("Messages", "more", <UnifiedLeagueMessageCenterPage drivers={drivers} session={mobileSession} mobile go={go} />);
+  if (path === "/message-center") return frame("Messages", "more", <MessagingDisabledPage mobile go={go} />);
   if (path === "/discord") return dataFrame("Discord", "more", <DiscordPage />);
   if (path === "/stories") return dataFrame("Story Admin", "more", <StoriesAdminPage />);
   if (path === "/more" || path === "/menu") {
@@ -10325,7 +10347,7 @@ export default function App() {
   if (path === "/memorial-day") return <MemorialDayPage drivers={visibleDrivers} />;
 
   if (path === "/chat") return <LeagueChatPage drivers={visibleDrivers} />;
-  if (path === "/message-center") return <UnifiedLeagueMessageCenterPage drivers={visibleDrivers} />;
+  if (path === "/message-center") return <MessagingDisabledPage />;
   if (path === "/" || path === "/standings") return <PublicStandings drivers={visibleDrivers} teams={teamStandings} manufacturerStandings={manufacturerStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} />;
   if (path === "/overlay/ticker" || viewMode === "overlay-ticker") return <TickerOverlay drivers={visibleDrivers} teams={teamStandings} raceHistory={raceHistory} preview={viewMode === "overlay-ticker"} seasonName={activeSeason?.name || ""} />;
   if (path !== "/admin") {
