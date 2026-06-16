@@ -5022,79 +5022,228 @@ function LeagueVotingPage({ drivers = [] }) {
     await loadVotes();
   }
 
+  const isPhone = typeof window !== "undefined" && window.innerWidth <= 760;
+  const voteResponseCount = selectedVote
+    ? responses.filter((row) => String(row.vote_id) === String(selectedVote.id)).length
+    : 0;
+
+  const pageStyle = isPhone
+    ? {
+        minHeight: "100vh",
+        background: "#070a0f",
+        color: "white",
+        fontFamily: "Arial, sans-serif",
+        paddingBottom: 92,
+      }
+    : appShellStyle;
+
+  const containerStyle = isPhone
+    ? { width: "100%", maxWidth: 520, margin: "0 auto", padding: "12px 12px 92px", boxSizing: "border-box" }
+    : pageContainerStyle;
+
+  const cardStyle = isPhone
+    ? {
+        background: "linear-gradient(180deg, #151a22 0%, #0f141b 100%)",
+        border: "1px solid rgba(212,175,55,0.22)",
+        borderRadius: 18,
+        padding: 14,
+        marginBottom: 12,
+        boxShadow: "0 12px 28px rgba(0,0,0,0.34)",
+      }
+    : sectionCardStyle;
+
+  const heroStyle = isPhone
+    ? {
+        ...cardStyle,
+        background: "linear-gradient(135deg, #d4af37 0%, #9f7414 45%, #111827 100%)",
+        color: "#ffffff",
+        padding: 16,
+        position: "relative",
+        overflow: "hidden",
+      }
+    : { ...sectionCardStyle, background: "linear-gradient(135deg, #191d25 0%, #10141b 100%)" };
+
+  const mobileInputStyle = isPhone
+    ? {
+        ...inputStyle,
+        minHeight: 48,
+        borderRadius: 14,
+        fontSize: 16,
+        background: "#090d13",
+        border: "1px solid #303a49",
+      }
+    : inputStyle;
+
+  const mobilePrimaryButtonStyle = isPhone
+    ? {
+        ...primaryButtonStyle,
+        width: "100%",
+        minHeight: 50,
+        borderRadius: 14,
+        fontSize: 15,
+        boxShadow: "0 10px 24px rgba(212,175,55,0.24)",
+      }
+    : primaryButtonStyle;
+
+  const mobileSecondaryButtonStyle = isPhone
+    ? {
+        ...secondaryButtonStyle,
+        width: "100%",
+        minHeight: 46,
+        borderRadius: 14,
+        fontSize: 14,
+      }
+    : secondaryButtonStyle;
+
   return (
-    <div style={appShellStyle}>
-      <div style={pageContainerStyle}>
-        <div style={{ ...sectionCardStyle, background: "linear-gradient(135deg, #191d25 0%, #10141b 100%)" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", alignItems: "center" }}>
+    <div style={pageStyle}>
+      <div style={containerStyle}>
+        <div style={heroStyle}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: isPhone ? "flex-start" : "center", flexDirection: isPhone ? "column" : "row" }}>
             <div>
-              <h1 style={{ margin: 0, fontSize: 38 }}>🗳️ League Voting</h1>
-              <p style={{ opacity: 0.76, marginBottom: 0 }}>Drivers must select their car and enter their password before voting. Deadlines lock automatically.</p>
+              <div style={{ fontSize: 11, fontWeight: 1000, letterSpacing: 1.1, textTransform: "uppercase", color: isPhone ? "#111" : "#d4af37", background: isPhone ? "rgba(255,255,255,0.75)" : "transparent", display: "inline-block", padding: isPhone ? "5px 8px" : 0, borderRadius: 999 }}>
+                Official Ballot
+              </div>
+              <h1 style={{ margin: "8px 0 4px", fontSize: isPhone ? 30 : 38, lineHeight: 1 }}>🗳️ League Voting</h1>
+              <p style={{ opacity: 0.86, margin: 0, lineHeight: 1.45, fontSize: isPhone ? 14 : 16 }}>
+                Pick your car, enter your driver password, and cast your vote before the deadline.
+              </p>
             </div>
-            <button onClick={() => (window.location.pathname = "/standings")} style={secondaryButtonStyle}>Back to Standings</button>
+            {!isPhone && <button onClick={() => (window.location.pathname = "/standings")} style={secondaryButtonStyle}>Back to Standings</button>}
           </div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "minmax(280px, 380px) 1fr", gap: 18, alignItems: "start" }}>
-          <div style={sectionCardStyle}>
-            <h2 style={{ marginTop: 0 }}>Driver Login</h2>
+        {isPhone && (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
+            <button type="button" onClick={() => (window.location.pathname = "/vote")} style={mobilePrimaryButtonStyle}>Paint Vote</button>
+            <button type="button" onClick={() => (window.location.pathname = "/standings")} style={mobileSecondaryButtonStyle}>Home</button>
+          </div>
+        )}
+
+        <div style={{ display: "grid", gridTemplateColumns: isPhone ? "1fr" : "minmax(280px, 380px) 1fr", gap: isPhone ? 12 : 18, alignItems: "start" }}>
+          <div style={cardStyle}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 12 }}>
+              <h2 style={{ margin: 0, fontSize: isPhone ? 18 : 24 }}>Driver Login</h2>
+              {driver && <span style={{ color: "#4ade80", fontSize: 12, fontWeight: 1000 }}>SIGNED IN</span>}
+            </div>
+
             {!driver ? (
               <form onSubmit={loginDriver} style={{ display: "grid", gap: 12 }}>
-                <select value={driverNumber} onChange={(event) => setDriverNumber(event.target.value)} style={inputStyle}>
-                  <option value="">Select Your Driver</option>
-                  {activeDrivers.map((item) => (
-                    <option key={item.id || item.number} value={String(item.number)}>
-                      #{item.number} — {item.name} ({getTeamFullName(item.team)})
-                    </option>
-                  ))}
-                </select>
-                <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Driver Password" style={inputStyle} />
-                <button type="submit" style={primaryButtonStyle}>Log In To Vote</button>
+                <label style={{ display: "grid", gap: 6 }}>
+                  <span style={{ color: "#aab3c2", fontSize: 11, fontWeight: 1000, textTransform: "uppercase" }}>Car / Driver</span>
+                  <select value={driverNumber} onChange={(event) => setDriverNumber(event.target.value)} style={mobileInputStyle}>
+                    <option value="">Select Your Driver</option>
+                    {activeDrivers.map((item) => (
+                      <option key={item.id || item.number} value={String(item.number)}>
+                        #{item.number} — {item.name} ({getTeamFullName(item.team)})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label style={{ display: "grid", gap: 6 }}>
+                  <span style={{ color: "#aab3c2", fontSize: 11, fontWeight: 1000, textTransform: "uppercase" }}>Driver Password</span>
+                  <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Enter driver password" style={mobileInputStyle} />
+                </label>
+                <button type="submit" style={mobilePrimaryButtonStyle}>Log In To Vote</button>
               </form>
             ) : (
-              <div style={{ background: "#10141b", border: "1px solid #2a3240", borderRadius: 14, padding: 14 }}>
-                <div style={{ fontSize: 12, opacity: 0.7 }}>LOGGED IN</div>
-                <div style={{ fontSize: 24, fontWeight: 900 }}>#{driver.number} {driver.name}</div>
-                <button type="button" onClick={() => { setDriver(null); setPassword(""); setMessage("Logged out."); }} style={{ ...secondaryButtonStyle, marginTop: 12 }}>Log Out</button>
+              <div style={{ background: "#090d13", border: "1px solid #2a3240", borderRadius: 16, padding: 14 }}>
+                <div style={{ fontSize: 11, color: "#aab3c2", fontWeight: 1000, textTransform: "uppercase" }}>Logged In As</div>
+                <div style={{ fontSize: isPhone ? 22 : 24, fontWeight: 1000, marginTop: 4 }}>#{driver.number} {driver.name}</div>
+                <div style={{ color: "#aab3c2", fontSize: 13, marginTop: 3 }}>{getTeamFullName(driver.team || "Independent")} • {driver.manufacturer || ""}</div>
+                <button type="button" onClick={() => { setDriver(null); setPassword(""); setMessage("Logged out."); }} style={{ ...mobileSecondaryButtonStyle, marginTop: 12 }}>Log Out</button>
               </div>
             )}
-            {message && <div style={{ marginTop: 12, color: "#4ade80", fontWeight: 900 }}>{message}</div>}
-            {error && <div style={{ marginTop: 12, color: "#f87171", fontWeight: 900 }}>{error}</div>}
+            {message && <div style={{ marginTop: 12, color: "#4ade80", fontWeight: 900, lineHeight: 1.35 }}>{message}</div>}
+            {error && <div style={{ marginTop: 12, color: "#f87171", fontWeight: 900, lineHeight: 1.35 }}>{error}</div>}
           </div>
 
-          <div style={sectionCardStyle}>
-            <h2 style={{ marginTop: 0 }}>Open Votes</h2>
-            {loading && <div>Loading votes...</div>}
+          <div style={cardStyle}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 12 }}>
+              <h2 style={{ margin: 0, fontSize: isPhone ? 18 : 24 }}>Open Votes</h2>
+              {!loading && <span style={{ color: "#aab3c2", fontSize: 12, fontWeight: 900 }}>{votes.length} open</span>}
+            </div>
+
+            {loading && <div style={{ color: "#aab3c2" }}>Loading votes...</div>}
             {!loading && votes.length === 0 && <div style={{ opacity: 0.72 }}>No active votes are open right now.</div>}
+
             {votes.length > 0 && (
               <div style={{ display: "grid", gap: 12 }}>
-                <select value={selectedVoteId} onChange={(event) => { setSelectedVoteId(event.target.value); setSelectedOptionId(""); }} style={inputStyle}>
-                  {votes.map((vote) => <option key={vote.id} value={vote.id}>{vote.title}</option>)}
-                </select>
+                {isPhone ? (
+                  <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 6, WebkitOverflowScrolling: "touch" }}>
+                    {votes.map((vote) => {
+                      const active = String(vote.id) === String(selectedVoteId);
+                      return (
+                        <button
+                          key={vote.id}
+                          type="button"
+                          onClick={() => { setSelectedVoteId(vote.id); setSelectedOptionId(""); }}
+                          style={{
+                            minWidth: 210,
+                            textAlign: "left",
+                            background: active ? "linear-gradient(135deg, #d4af37 0%, #facc15 100%)" : "#090d13",
+                            color: active ? "#111" : "#fff",
+                            border: active ? "1px solid #d4af37" : "1px solid #2a3240",
+                            borderRadius: 14,
+                            padding: 12,
+                            fontWeight: 1000,
+                            cursor: "pointer",
+                          }}
+                        >
+                          <span style={{ display: "block", fontSize: 11, opacity: 0.78, textTransform: "uppercase" }}>Ballot</span>
+                          <span style={{ display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{vote.title}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <select value={selectedVoteId} onChange={(event) => { setSelectedVoteId(event.target.value); setSelectedOptionId(""); }} style={inputStyle}>
+                    {votes.map((vote) => <option key={vote.id} value={vote.id}>{vote.title}</option>)}
+                  </select>
+                )}
 
                 {selectedVote && (
-                  <div style={{ background: "#10141b", border: "1px solid #2a3240", borderRadius: 16, padding: 16 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                  <div style={{ background: "#090d13", border: "1px solid #2a3240", borderRadius: 18, padding: isPhone ? 14 : 16 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexDirection: isPhone ? "column" : "row" }}>
                       <div>
-                        <h2 style={{ margin: 0 }}>{selectedVote.title}</h2>
-                        {selectedVote.description && <p style={{ opacity: 0.78 }}>{selectedVote.description}</p>}
+                        <div style={{ color: "#d4af37", fontSize: 11, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 0.8 }}>League Ballot</div>
+                        <h2 style={{ margin: "6px 0", fontSize: isPhone ? 24 : 28, lineHeight: 1.05 }}>{selectedVote.title}</h2>
+                        {selectedVote.description && <p style={{ opacity: 0.82, lineHeight: 1.45, margin: "8px 0 0" }}>{selectedVote.description}</p>}
                       </div>
-                      <div style={{ textAlign: "right" }}>
+                      <div style={{ textAlign: isPhone ? "left" : "right", background: "#0f151f", border: "1px solid #263244", borderRadius: 14, padding: 10, minWidth: isPhone ? "auto" : 170 }}>
                         <div style={{ color: selectedStatus.closed ? "#f87171" : "#4ade80", fontWeight: 1000 }}>{selectedStatus.remaining}</div>
-                        <div style={{ fontSize: 12, opacity: 0.7 }}>Deadline: {selectedStatus.label}</div>
+                        <div style={{ fontSize: 11, opacity: 0.7, marginTop: 3 }}>Deadline: {selectedStatus.label}</div>
+                        <div style={{ fontSize: 11, color: "#aab3c2", marginTop: 6 }}>{voteResponseCount} submitted</div>
                       </div>
                     </div>
 
-                    <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
-                      {selectedOptions.map((option) => (
-                        <label key={option.id} style={{ display: "flex", gap: 10, alignItems: "center", background: "#0b0f15", border: "1px solid #273140", borderRadius: 12, padding: 12, cursor: selectedStatus.closed ? "not-allowed" : "pointer" }}>
-                          <input type="radio" disabled={selectedStatus.closed || driverAlreadyVoted} name="league-vote-option" value={option.id} checked={String(selectedOptionId) === String(option.id)} onChange={(event) => setSelectedOptionId(event.target.value)} />
-                          <span style={{ fontWeight: 900 }}>{option.option_text || option.label}</span>
-                        </label>
-                      ))}
+                    <div style={{ display: "grid", gap: 10, marginTop: 16 }}>
+                      {selectedOptions.map((option) => {
+                        const checked = String(selectedOptionId) === String(option.id);
+                        const disabled = selectedStatus.closed || driverAlreadyVoted;
+                        return (
+                          <label
+                            key={option.id}
+                            style={{
+                              display: "flex",
+                              gap: 12,
+                              alignItems: "center",
+                              background: checked ? "rgba(212,175,55,0.14)" : "#070b10",
+                              border: checked ? "2px solid #d4af37" : "1px solid #273140",
+                              borderRadius: 15,
+                              padding: isPhone ? 14 : 12,
+                              cursor: disabled ? "not-allowed" : "pointer",
+                              minHeight: isPhone ? 54 : "auto",
+                            }}
+                          >
+                            <input type="radio" disabled={disabled} name="league-vote-option" value={option.id} checked={checked} onChange={(event) => setSelectedOptionId(event.target.value)} style={{ width: 20, height: 20 }} />
+                            <span style={{ fontWeight: 1000, fontSize: isPhone ? 16 : 14, lineHeight: 1.3 }}>{option.option_text || option.label}</span>
+                          </label>
+                        );
+                      })}
                     </div>
 
-                    <button type="button" disabled={selectedStatus.closed || driverAlreadyVoted} onClick={submitVote} style={{ ...primaryButtonStyle, marginTop: 16, opacity: selectedStatus.closed || driverAlreadyVoted ? 0.55 : 1 }}>
+                    <button type="button" disabled={selectedStatus.closed || driverAlreadyVoted} onClick={submitVote} style={{ ...mobilePrimaryButtonStyle, marginTop: 16, opacity: selectedStatus.closed || driverAlreadyVoted ? 0.55 : 1 }}>
                       {driverAlreadyVoted ? "Vote Already Submitted" : selectedStatus.closed ? "Voting Closed" : "Submit Vote"}
                     </button>
                   </div>
@@ -5915,7 +6064,6 @@ function MobileNewsFeed({ go, desktopArchive = null }) {
       setError("");
 
       const newsTables = [
-        "news",
         "story_submissions",
         "news_articles",
         "league_news",
