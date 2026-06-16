@@ -5512,6 +5512,7 @@ function MobileLeagueApp({
       <MobileLayout title="Budweiser Cup" go={go} active="standings">
         <MobileHero kicker={seasonName || "Current Season"} title="Driver Standings" subtitle={upcomingRace ? `Next Race: ${upcomingRace.name || upcomingRace.track || "TBA"}` : "Mobile league hub"} />
         <LeagueTicker page="standings" />
+        <MobileWeekendRecap raceHistory={raceHistory} tracks={tracks} drivers={drivers} go={go} />
         {leader && <MobileCard><div style={mobileKickerStyle}>Points Leader</div><h2 style={{ margin: "4px 0 6px", fontSize: 22 }}>#{leader.number} {leader.name}</h2><p style={{ margin: 0, color: "#aab3c2" }}>{leader.team || "Independent"} • {leader.manufacturer}</p><div style={{ marginTop: 10, fontSize: 28, fontWeight: 1000 }}>{leader.points || 0} pts</div></MobileCard>}
         <MobileStandingsList drivers={sortedDrivers} go={go} />
         <MobileSectionTitle>Team Standings</MobileSectionTitle>
@@ -5527,6 +5528,184 @@ function MobileLeagueApp({
   return dataFrame("Budweiser Cup", "standings", <PublicStandings drivers={drivers} teams={teams} manufacturerStandings={manufacturerStandings} seasonName={seasonName} tracks={tracks} raceHistory={raceHistory} />);
 }
 
+
+
+function MobileWeekendRecap({ raceHistory = [], tracks = [], drivers = [], go }) {
+  const [paintWinner, setPaintWinner] = useState(null);
+  const [paintLoading, setPaintLoading] = useState(true);
+
+  const lastRace = useMemo(() => {
+    const history = Array.isArray(raceHistory) ? raceHistory.filter((race) => Array.isArray(race?.results) && race.results.length > 0) : [];
+    return history.length ? history[history.length - 1] : null;
+  }, [raceHistory]);
+
+  const lastRaceWinner = useMemo(() => {
+    const results = Array.isArray(lastRace?.results) ? lastRace.results : [];
+    if (!results.length) return null;
+    return results.find((result) => result?.isWin) ||
+      results.find((result) => Number(result?.finishPos) === 1) ||
+      [...results].sort((a, b) => Number(a?.finishPos || 999) - Number(b?.finishPos || 999))[0] ||
+      null;
+  }, [lastRace]);
+
+  const paintRaceName = useMemo(() => {
+    return getPreviousCompletedRaceForPaintWinner(tracks)?.name || lastRace?.raceName || lastRace?.name || "";
+  }, [tracks, lastRace]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadMobilePaintWinner() {
+      setPaintLoading(true);
+
+      const [{ data: uploadData, error: uploadError }, { data: voteData, error: voteError }] = await Promise.all([
+        supabase.from("car_uploads").select("*").order("uploaded_at", { ascending: false }),
+        supabase.from("paint_scheme_votes").select("*").order("created_at", { ascending: false }),
+      ]);
+
+      if (!isMounted) return;
+
+      if (uploadError || voteError) {
+        console.error("Could not load mobile paint scheme winner:", uploadError || voteError);
+        setPaintWinner(null);
+        setPaintLoading(false);
+        return;
+      }
+
+      const uploads = (uploadData || [])
+        .filter((upload) => isPaintImageUploadForStandings(upload))
+        .filter((upload) => {
+          const uploadRace = getPaintUploadRaceForStandings(upload);
+          return paintRaceName ? uploadRace === paintRaceName : true;
+        });
+
+      const counts = new Map();
+      (voteData || []).forEach((vote) => {
+        if (paintRaceName && vote.race_name && vote.race_name !== paintRaceName) return;
+        const key = String(vote.upload_id || vote.voted_upload_id || "");
+        if (!key) return;
+        counts.set(key, (counts.get(key) || 0) + 1);
+      });
+
+      const ranked = uploads
+        .map((upload) => ({
+          ...upload,
+          voteCount: counts.get(String(upload.id)) || 0,
+          imageUrl: upload.image_url || upload.file_url || "",
+        }))
+        .sort((a, b) => {
+          const voteDiff = Number(b.voteCount || 0) - Number(a.voteCount || 0);
+          if (voteDiff !== 0) return voteDiff;
+          return new Date(b.uploaded_at || b.created_at || 0) - new Date(a.uploaded_at || a.created_at || 0);
+        });
+
+      const winningUpload = ranked[0] || null;
+      if (!winningUpload) {
+        setPaintWinner(null);
+        setPaintLoading(false);
+        return;
+      }
+
+      const driver = (drivers || []).find((item) => String(item.id) === String(winningUpload.driver_id));
+      setPaintWinner({
+        ...winningUpload,
+        driverLabel: driver ? `#${driver.number} ${driver.name}` : winningUpload.driver_name || winningUpload.uploader_name || "Unknown Driver",
+        teamLabel: driver?.team || winningUpload.team || winningUpload.team_key || "—",
+        manufacturerLabel: driver?.manufacturer || winningUpload.manufacturer || "",
+      });
+      setPaintLoading(false);
+    }
+
+    loadMobilePaintWinner();
+    return () => {
+      isMounted = false;
+    };
+  }, [paintRaceName, JSON.stringify((drivers || []).map((driver) => ({ id: driver?.id, number: driver?.number, name: driver?.name, team: driver?.team, manufacturer: driver?.manufacturer })))]);
+
+  if (!lastRaceWinner && !paintWinner && !paintLoading) return null;
+
+  const lastRaceName = lastRace?.raceName || lastRace?.name || "Last Race";
+  const winnerNumber = lastRaceWinner?.number || lastRaceWinner?.driver_number || "";
+  const winnerName = lastRaceWinner?.name || lastRaceWinner?.driver_name || "Winner TBA";
+  const winnerTeam = lastRaceWinner?.team || "—";
+  const winnerManufacturer = lastRaceWinner?.manufacturer || "—";
+  const winnerPoints = Number(lastRaceWinner?.totalRacePoints ?? lastRaceWinner?.points ?? 0);
+
+  return (
+    <section style={{ margin: "14px 0 18px" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, margin: "0 2px 10px" }}>
+        <div>
+          <div style={mobileKickerStyle}>Weekend Recap</div>
+          <h2 style={{ margin: "2px 0 0", fontSize: 20, lineHeight: 1.1 }}>Race Winners</h2>
+        </div>
+        <button
+          type="button"
+          onClick={() => go("/news")}
+          style={{ background: "#111827", color: "#facc15", border: "1px solid rgba(212,175,55,0.35)", borderRadius: 999, padding: "8px 10px", fontSize: 12, fontWeight: 900 }}
+        >
+          News
+        </button>
+      </div>
+
+      <div style={{ display: "grid", gap: 12 }}>
+        <article style={{ ...mobileCardStyle, marginBottom: 0, padding: 0, overflow: "hidden" }}>
+          <div style={{ background: "linear-gradient(135deg, rgba(34,197,94,0.25), rgba(15,23,42,0.96))", padding: 14, borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+            <div style={{ color: "#86efac", fontSize: 11, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase" }}>🏁 Last Race Winner</div>
+            <h3 style={{ margin: "6px 0 2px", fontSize: 24, lineHeight: 1.05 }}>{lastRaceName}</h3>
+            <p style={{ margin: 0, color: "rgba(255,255,255,0.68)", fontSize: 12 }}>Official most recent completed race result</p>
+          </div>
+          {lastRaceWinner ? (
+            <button
+              type="button"
+              onClick={() => winnerNumber && go(`/driver/${winnerNumber}`)}
+              style={{ width: "100%", textAlign: "left", background: "transparent", color: "white", border: "none", padding: 14, display: "flex", alignItems: "center", gap: 12 }}
+            >
+              <div style={{ width: 58, height: 58, borderRadius: 14, background: "linear-gradient(135deg, #22c55e, #0f172a)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, fontWeight: 1000, border: "1px solid rgba(255,255,255,0.14)" }}>#{winnerNumber}</div>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <strong style={{ display: "block", fontSize: 18, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{winnerName}</strong>
+                <span style={{ display: "block", color: "#aab3c2", fontSize: 12 }}>{winnerTeam} • {winnerManufacturer}</span>
+                <span style={{ display: "block", color: "#86efac", fontSize: 12, fontWeight: 900, marginTop: 4 }}>{winnerPoints} race points</span>
+              </div>
+            </button>
+          ) : (
+            <div style={{ padding: 14, color: "#aab3c2" }}>No completed race winner found yet.</div>
+          )}
+        </article>
+
+        <article style={{ ...mobileCardStyle, marginBottom: 0, padding: 0, overflow: "hidden" }}>
+          <div style={{ background: "linear-gradient(135deg, rgba(212,175,55,0.28), rgba(15,23,42,0.96))", padding: 14, borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+            <div style={{ color: "#facc15", fontSize: 11, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase" }}>🎨 Paint Scheme Winner</div>
+            <h3 style={{ margin: "6px 0 2px", fontSize: 24, lineHeight: 1.05 }}>{paintRaceName || "Latest Vote"}</h3>
+            <p style={{ margin: 0, color: "rgba(255,255,255,0.68)", fontSize: 12 }}>Highest-voted car from the latest completed paint vote</p>
+          </div>
+
+          {paintWinner?.imageUrl && (
+            <div style={{ background: "#070a0f", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+              <img src={paintWinner.imageUrl} alt={paintWinner.driverLabel} style={{ width: "100%", maxHeight: 220, objectFit: "cover", display: "block" }} />
+            </div>
+          )}
+
+          {paintLoading ? (
+            <div style={{ padding: 14, color: "#aab3c2" }}>Loading paint scheme winner…</div>
+          ) : paintWinner ? (
+            <div style={{ padding: 14, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+              <div style={{ minWidth: 0 }}>
+                <strong style={{ display: "block", fontSize: 18, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{paintWinner.driverLabel}</strong>
+                <span style={{ display: "block", color: "#aab3c2", fontSize: 12 }}>{paintWinner.teamLabel}{paintWinner.manufacturerLabel ? ` • ${paintWinner.manufacturerLabel}` : ""}</span>
+              </div>
+              <div style={{ textAlign: "right", color: "#facc15", fontWeight: 1000, fontSize: 18 }}>
+                {paintWinner.voteCount || 0}
+                <span style={{ display: "block", color: "#aab3c2", fontSize: 10, fontWeight: 900 }}>VOTES</span>
+              </div>
+            </div>
+          ) : (
+            <div style={{ padding: 14, color: "#aab3c2" }}>No paint scheme winner found for the latest completed vote.</div>
+          )}
+        </article>
+      </div>
+    </section>
+  );
+}
 
 function MobileFeatureHub({ go, drivers = [], teams = [], manufacturerStandings = [] }) {
   const featureGroups = [
