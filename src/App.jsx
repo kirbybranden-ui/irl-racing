@@ -6549,8 +6549,6 @@ function MobileLeagueApp({
         <MobileWeekendRecap raceHistory={raceHistory} tracks={tracks} drivers={drivers} go={go} />
         <MobileUpcomingRaceCard race={upcomingRace} selectedTrack={getTrackOverview(upcomingRace)} go={go} />
         <MobileLatestNewsPreview go={go} />
-        <MobileLiveStreamsBanner go={go} />
-
         <MobileSectionTitle>Driver Standings</MobileSectionTitle>
         {leader && <MobileLeaderCard leader={leader} go={go} />}
         <MobileStandingsList drivers={sortedDrivers} go={go} />
@@ -6615,8 +6613,17 @@ function MobileUpcomingRaceCard({ race, selectedTrack, go }) {
         </div>
         <div style={{ background: "rgba(212,175,55,0.12)", border: "1px solid rgba(212,175,55,0.35)", color: "#facc15", borderRadius: 14, padding: "8px 10px", fontSize: 12, fontWeight: 1000 }}>🏁</div>
       </div>
+      {selectedTrack?.imageUrl && (
+        <div style={{ marginTop: 14, borderRadius: 18, overflow: "hidden", border: "1px solid rgba(255,255,255,0.12)", background: "#05070a" }}>
+          <img
+            src={selectedTrack.imageUrl}
+            alt={trackName}
+            style={{ width: "100%", height: 190, objectFit: "cover", display: "block" }}
+            loading="lazy"
+          />
+        </div>
+      )}
       {details.length > 0 && <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>{details.map((item) => <span key={item} style={{ background: "#0f172a", border: "1px solid #263244", borderRadius: 999, padding: "6px 9px", color: "#d1d5db", fontSize: 11, fontWeight: 800 }}>{item}</span>)}</div>}
-      <button type="button" onClick={() => go("/streams")} style={{ ...mobileActionStyle, marginTop: 14, background: "#111827", color: "#ffffff", borderColor: "#263244" }}>Open Race Streams</button>
     </MobileCard>
   );
 }
