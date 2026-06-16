@@ -147,7 +147,10 @@ function realignLeagueDriver(driver) {
   if (id === 34 || nameKey === "cajunthrottle28") {
     return { ...driver, number: 48, driver_number: driver.driver_number !== undefined ? 48 : driver.driver_number, team: "BXM", manufacturer: "Chevrolet", manufacturerLogo: manufacturerLogos.Chevrolet || driver.manufacturerLogo };
   }
-  if (id === 54 || id === 35 || id === 102 || ["thecruiser54", "knighttrain41", "ghostracer388"].includes(nameKey)) {
+  if (id === 54 || nameKey === "thecruiser54") {
+    return { ...driver, id: 54, number: 8, driver_number: driver.driver_number !== undefined ? 8 : driver.driver_number, name: "TheCruiser54", team: "BXM", manufacturer: "Chevrolet", manufacturerLogo: manufacturerLogos.Chevrolet || driver.manufacturerLogo };
+  }
+  if (id === 35 || id === 102 || ["knighttrain41", "ghostracer388"].includes(nameKey)) {
     return { ...driver, team: "BXM", manufacturer: "Chevrolet", manufacturerLogo: manufacturerLogos.Chevrolet || driver.manufacturerLogo };
   }
   if (isClosedLeagueTeam(driver.team)) return { ...driver, team: "Independent" };
@@ -227,7 +230,7 @@ const defaultDrivers = [
   { id: 10, number: 67, name: "tallishsinter94",           manufacturer: "Toyota",    team: "19XI"        },
   { id: 5,  number: 3,  name: "ixGusty",                   manufacturer: "Toyota",    team: "19XI"        },
   { id: 34, number: 48, name: "CaJunThrottle28",           manufacturer: "Chevrolet", team: "BXM"         },
-  { id: 54, number: 54, name: "TheCruiser54",              manufacturer: "Chevrolet", team: "BXM"         },
+  { id: 54, number: 8,  name: "TheCruiser54",              manufacturer: "Chevrolet", team: "BXM"         },
   { id: 35, number: 41, name: "KnightTrain41",             manufacturer: "Chevrolet", team: "BXM"         },
   { id: 102, number: 2, name: "Ghostracer388",             manufacturer: "Chevrolet", team: "BXM"         },
   { id: 7,  number: 24, name: "KEVDINHO7",                 manufacturer: "Chevrolet", team: "MER"         },
@@ -808,6 +811,17 @@ async function syncAllRaceResultsLedger({ seasons = [], tracks = [] }) {
   }
 }
 
+async function syncCruiserNumberAndNumberOwnership() {
+  try {
+    // Best-effort Supabase sync. If a table/column does not exist in your project, this will fail safely and the app will keep running.
+    await supabase
+      .from("number_pool")
+      .upsert({ number: "54", team: "19XI", owner_team: "19XI", status: "owned", available: false, updated_at: new Date().toISOString() }, { onConflict: "number" });
+  } catch (error) {
+    console.warn("Could not sync No. 54 ownership to 19XI. Check number_pool columns/RLS if needed.", error);
+  }
+}
+
 
 function rebuildDriversFromHistory(history, driverRoster) {
   return driverRoster.map((baseDriver) => {
@@ -938,13 +952,13 @@ function apply2026DriverNumberAdjustments(roster = [], history = []) {
     }
   });
 
-  // Normalize Cruiser so old saved #4 rows and newer #54 rows collapse into one driver.
+  // Normalize Cruiser so old saved #4/#54 rows collapse into the current No. 8 BXM Chevrolet.
   normalizedRoster.forEach((driver) => {
     const nameKey = String(driver?.name || "").trim().toLowerCase();
-    if (nameKey === "thecruiser54") {
+    if (nameKey === "thecruiser54" || Number(driver?.id) === 54) {
       driver.id = 54;
-      driver.number = 54;
-      driver.manufacturer = "Ford";
+      driver.number = 8;
+      driver.manufacturer = "Chevrolet";
       driver.team = driver.team === "BMX" ? "BXM" : (driver.team || "BXM");
     }
   });
@@ -967,8 +981,8 @@ function apply2026DriverNumberAdjustments(roster = [], history = []) {
               if (resultName === "mare951") {
                 return { ...result, manufacturer: "Ford", team: result.team || "BWR" };
               }
-              if (resultName === "thecruiser54") {
-                return { ...result, driverId: 54, number: 54, name: "TheCruiser54", manufacturer: "Ford", team: result.team === "BMX" ? "BXM" : (result.team || "BXM") };
+              if (resultName === "thecruiser54" || Number(result?.driverId) === 54) {
+                return { ...result, driverId: 54, number: 8, name: "TheCruiser54", manufacturer: "Chevrolet", team: result.team === "BMX" ? "BXM" : (result.team || "BXM") };
               }
               return result;
             })
@@ -6049,6 +6063,10 @@ const mobileDataFrameCss = `
 `;
 
 export default function App() {
+  useEffect(() => {
+    syncCruiserNumberAndNumberOwnership();
+  }, []);
+
   const [seasons, setSeasons] = useState([]);
   const [openAppealCount, setOpenAppealCount] = useState(0);
   const [openStoryCount, setOpenStoryCount] = useState(0);
@@ -6404,7 +6422,7 @@ export default function App() {
       { category: "TRANSACTION", message: "BigDiehl21 signs with ME Racing and moves to the No. 39 Chevrolet", page: "standings", sort_order: 2, active: true, pinned: true },
       { category: "TRANSACTION", message: "BayouX Motorsports updates KnightTrain41 to the No. 41 Ford", page: "standings", sort_order: 3, active: true, pinned: false },
       { category: "TEAM UPDATE", message: "CaJunThrottle28 moves to the No. 48 Chevrolet for BXM", page: "standings", sort_order: 4, active: true, pinned: false },
-      { category: "RESULTS", message: "TheCruiser54 scores a podium for BXM at Michigan", page: "standings", sort_order: 5, active: true, pinned: false },
+      { category: "RESULTS", message: "TheCruiser54 moves to the No. 8 BXM Chevrolet", page: "standings", sort_order: 5, active: true, pinned: false },
       { category: "RACE CONTROL", message: "Race Control Center, editable results, and penalty tools are in development", page: "standings", sort_order: 6, active: true, pinned: false },
       { category: "APP UPDATE", message: "Driver password reset support and interview sync improvements are now active", page: "standings", sort_order: 7, active: true, pinned: false },
       { category: "NEXT EVENT", message: "Pocono Raceway is up next for the Budweiser Cup League", page: "standings", sort_order: 8, active: true, pinned: false },
