@@ -5842,12 +5842,19 @@ function MobileLeagueApp({
 
   if (path.startsWith("/driver/")) {
     const driverNumber = decodeURIComponent(rawPath.replace(/^\/driver\//i, "").split("/")[0]);
-    return dataFrame("Driver", "standings", (
-      <>
-        <AppUpdateBanner page="driver" />
-        <DriverVoteReminderStrip driverNumber={driverNumber} />
-        <DriverProfilePage seasons={seasons} activeSeason={activeSeason} tracks={tracks} />
-      </>
+    const selectedDriver = drivers.find((driver) => String(driver.number) === String(driverNumber));
+
+    return dataFrame("Driver Profile", "standings", (
+      <MobileDriverProfilePolished
+        driver={selectedDriver}
+        driverNumber={driverNumber}
+        drivers={drivers}
+        raceHistory={raceHistory}
+        tracks={tracks}
+        seasons={seasons}
+        activeSeason={activeSeason}
+        go={go}
+      />
     ));
   }
 
@@ -6758,6 +6765,156 @@ function MobileAction({ label, onClick, secondary = false }) { return <button ty
 function MobileStatGrid({ items }) { return <div style={mobileStatGridStyle}>{items.map(([label, value]) => <div key={label} style={mobileStatCardStyle}><div style={{ color: "#aab3c2", fontSize: 11, fontWeight: 900, textTransform: "uppercase" }}>{label}</div><strong style={{ fontSize: 20 }}>{value}</strong></div>)}</div>; }
 function MobileStandingsList({ drivers, go }) { return <div>{drivers.map((driver, index) => <button type="button" key={`${driver.number}-${driver.name}`} onClick={() => go(`/driver/${driver.number}`)} style={mobileDriverCardStyle}><div style={mobileRankStyle}>{index + 1}</div><div style={{ minWidth: 0 }}><strong style={{ display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>#{driver.number} {driver.name}</strong><span style={{ color: "#aab3c2", fontSize: 12 }}>{driver.team || "Independent"} • {driver.manufacturer || ""}</span></div><div style={mobilePointsStyle}>{driver.points || 0}<span style={{ display: "block", fontSize: 10, color: "#aab3c2" }}>PTS</span></div></button>)}</div>; }
 function MobileSectionTitle({ children }) { return <h2 style={{ fontSize: 16, margin: "20px 2px 10px", color: "#ffffff" }}>{children}</h2>; }
+
+
+function MobileDriverProfilePolished({ driver, driverNumber, raceHistory = [], tracks = [], seasons, activeSeason, go }) {
+  const safeDriver = driver || { number: driverNumber, name: `Driver #${driverNumber}`, team: "", manufacturer: "" };
+  const teamName = getTeamFullName(safeDriver.team || "Independent");
+  const manufacturerLogo = manufacturerLogos[safeDriver.manufacturer] || safeDriver.manufacturerLogo || null;
+  const teamLogo = teamLogos[safeDriver.team] || teamLogos[teamName] || null;
+
+  const driverResults = (raceHistory || [])
+    .map((race) => {
+      const result = (race.results || []).find((entry) => {
+        return String(entry.driverId) === String(safeDriver.id) || String(entry.number) === String(safeDriver.number);
+      });
+      if (!result) return null;
+      return { race, result };
+    })
+    .filter(Boolean)
+    .reverse()
+    .slice(0, 5);
+
+  const bestFinish = driverResults.length
+    ? Math.min(...driverResults.map(({ result }) => Number(result.finishPos || result.finish || 999)))
+    : null;
+
+  const statCards = [
+    { label: "Points", value: safeDriver.points || 0 },
+    { label: "Wins", value: safeDriver.wins || 0 },
+    { label: "Top 3", value: safeDriver.top3 || 0 },
+    { label: "Top 5", value: safeDriver.top5 || 0 },
+    { label: "DNFs", value: safeDriver.dnfs || 0 },
+    { label: "Best Finish", value: bestFinish && bestFinish !== 999 ? bestFinish : "—" },
+  ];
+
+  return (
+    <div style={{ paddingBottom: 90 }}>
+      <AppUpdateBanner page="driver" />
+      <DriverVoteReminderStrip driverNumber={driverNumber} />
+
+      <section
+        style={{
+          position: "relative",
+          overflow: "hidden",
+          borderRadius: 24,
+          border: "1px solid rgba(212,175,55,0.32)",
+          background: "radial-gradient(circle at top left, rgba(212,175,55,0.25), transparent 34%), linear-gradient(135deg, #171b22 0%, #080b10 100%)",
+          boxShadow: "0 20px 44px rgba(0,0,0,0.42)",
+          padding: 18,
+          marginBottom: 16,
+        }}
+      >
+        <div style={{ position: "absolute", right: -18, top: -28, fontSize: 118, fontWeight: 1000, color: "rgba(255,255,255,0.055)", lineHeight: 1 }}>
+          {safeDriver.number}
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 14, position: "relative", zIndex: 1 }}>
+          <div
+            style={{
+              width: 84,
+              height: 84,
+              borderRadius: 22,
+              background: "linear-gradient(135deg, #d4af37 0%, #111827 70%)",
+              color: "#111",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 34,
+              fontWeight: 1000,
+              border: "2px solid rgba(255,255,255,0.16)",
+              boxShadow: "0 12px 28px rgba(0,0,0,0.35)",
+            }}
+          >
+            #{safeDriver.number}
+          </div>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ color: "#d4af37", fontSize: 11, fontWeight: 1000, letterSpacing: 1.1, textTransform: "uppercase" }}>
+              Driver Profile
+            </div>
+            <h1 style={{ margin: "5px 0 6px", fontSize: 27, lineHeight: 1.02, fontWeight: 1000, wordBreak: "break-word" }}>
+              {safeDriver.name}
+            </h1>
+            <div style={{ color: "#c6ceda", fontSize: 13, fontWeight: 800 }}>
+              {teamName} • {safeDriver.manufacturer || "Manufacturer TBA"}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", gap: 10, marginTop: 16, position: "relative", zIndex: 1 }}>
+          {teamLogo && <img src={teamLogo} alt={teamName} style={{ width: 46, height: 46, borderRadius: 14, objectFit: "cover", background: "#111" }} />}
+          {manufacturerLogo && <img src={manufacturerLogo} alt={safeDriver.manufacturer} style={{ width: 46, height: 46, borderRadius: 14, objectFit: "contain", background: "#ffffff", padding: 6, boxSizing: "border-box" }} />}
+          <button type="button" onClick={() => go(`/team/${safeDriver.team || "Independent"}`)} style={{ marginLeft: "auto", background: "rgba(255,255,255,0.08)", color: "white", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 14, padding: "10px 12px", fontWeight: 900 }}>
+            Team Page
+          </button>
+        </div>
+      </section>
+
+      <MobileSectionTitle>Season Stats</MobileSectionTitle>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }}>
+        {statCards.map((stat) => (
+          <div key={stat.label} style={{ background: "#111827", border: "1px solid #263244", borderRadius: 18, padding: 14 }}>
+            <div style={{ color: "#d4af37", fontSize: 24, fontWeight: 1000, lineHeight: 1 }}>{stat.value}</div>
+            <div style={{ color: "#aab3c2", fontSize: 11, fontWeight: 900, textTransform: "uppercase", marginTop: 6 }}>{stat.label}</div>
+          </div>
+        ))}
+      </div>
+
+      <MobileSectionTitle>Quick Actions</MobileSectionTitle>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }}>
+        <MobileAction label="🎤 Interviews" onClick={() => go("/interviews")} />
+        <MobileAction label="🎨 Paint Vote" onClick={() => go("/paint-scheme-vote")} />
+        <MobileAction label="💬 Messages" onClick={() => go(`/driver/${safeDriver.number}/messages`)} secondary />
+        <MobileAction label="📺 Streams" onClick={() => go("/streams")} secondary />
+      </div>
+
+      <MobileSectionTitle>Recent Results</MobileSectionTitle>
+      {driverResults.length === 0 ? (
+        <MobileCard>
+          <div style={{ color: "#aab3c2" }}>No recent results found for this driver yet.</div>
+        </MobileCard>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {driverResults.map(({ race, result }) => (
+            <div key={`${race.raceName}-${result.driverId}-${result.number}`} style={{ background: "#111827", border: "1px solid #263244", borderRadius: 18, padding: 14, display: "grid", gridTemplateColumns: "1fr auto", gap: 10, alignItems: "center" }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontWeight: 1000, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{race.raceName || race.name || "Race"}</div>
+                <div style={{ color: "#aab3c2", fontSize: 12, marginTop: 4 }}>
+                  {Number(result.totalRacePoints || 0)} pts{result.fastestLap ? " • Fastest Lap" : ""}{result.dnf ? " • DNF" : ""}
+                </div>
+              </div>
+              <div style={{ background: "#d4af37", color: "#111", borderRadius: 14, minWidth: 54, padding: "9px 10px", textAlign: "center", fontWeight: 1000 }}>
+                P{result.finishPos || result.finish || "—"}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <MobileSectionTitle>Driver Portal</MobileSectionTitle>
+      <MobileCard>
+        <div style={{ color: "#aab3c2", fontSize: 13, lineHeight: 1.45, marginBottom: 12 }}>
+          Full profile tools are below. Driver password requirements and existing desktop functionality are unchanged.
+        </div>
+        <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", paddingBottom: 4 }}>
+          <div style={{ minWidth: 360 }}>
+            <DriverProfilePage seasons={seasons} activeSeason={activeSeason} tracks={tracks} />
+          </div>
+        </div>
+      </MobileCard>
+    </div>
+  );
+}
 function MobileTeamRow({ team, index }) { return <div style={mobileSmallRowStyle}><strong>{index + 1}. {team.team || team.name}</strong><span>{team.points || 0} pts</span></div>; }
 function MobileManufacturerRow({ manufacturer, index }) { return <div style={mobileSmallRowStyle}><strong>{index + 1}. {manufacturer.manufacturer || manufacturer.name}</strong><span>{manufacturer.points || 0} pts</span></div>; }
 function MobileRaceCard({ race }) { return <MobileCard><div style={mobileKickerStyle}>Next Race</div><h2 style={{ margin: "4px 0" }}>{race.name || race.track || "Race"}</h2><p style={{ color: "#aab3c2", margin: 0 }}>{race.date || "Date TBA"} • Qualifying 9:15 PM • Race 9:30 PM</p></MobileCard>; }
