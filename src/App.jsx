@@ -6295,6 +6295,61 @@ function MobileGuestLockedCard({ title = "Driver Login Required", go }) {
   );
 }
 
+
+function MobileInterviewsHub({ session, go }) {
+  const isGuest = session?.mode === "guest";
+  const driverNumber = session?.driverNumber || session?.number || "";
+  const driverName = session?.driverName || session?.displayName || "Driver";
+
+  return (
+    <>
+      <MobileCard>
+        <div style={mobileKickerStyle}>{isGuest ? "Guest View" : "Driver Interview Center"}</div>
+        <h2 style={{ margin: "5px 0 8px" }}>
+          {isGuest ? "Public Interviews" : `Logged in as #${driverNumber} ${driverName}`}
+        </h2>
+        <p style={{ color: "#aab3c2", lineHeight: 1.5, marginTop: 0 }}>
+          {isGuest
+            ? "Guests can read public interviews, but cannot submit pre-race or post-race interviews."
+            : "Open your driver profile to submit pre-race and post-race interviews using the same form and logic as desktop."}
+        </p>
+
+        {isGuest ? (
+          <button
+            type="button"
+            onClick={() => {
+              clearBclMobileSession();
+              window.location.reload();
+            }}
+            style={{ ...mobileActionStyle, background: "#d4af37", color: "#111", borderColor: "#d4af37" }}
+          >
+            Driver Login to Submit Interview
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => go(`/driver/${driverNumber}`)}
+            style={{ ...mobileActionStyle, background: "#d4af37", color: "#111", borderColor: "#d4af37" }}
+          >
+            Open My Interview Form
+          </button>
+        )}
+      </MobileCard>
+
+      <MobileCard>
+        <div style={mobileKickerStyle}>Interview Archive</div>
+        <p style={{ color: "#aab3c2", lineHeight: 1.45, margin: "5px 0 12px" }}>
+          Latest public interviews are shown below.
+        </p>
+      </MobileCard>
+
+      <MobileDataFrame>
+        <PublicInterviewsPage />
+      </MobileDataFrame>
+    </>
+  );
+}
+
 function MobileLeagueApp({
   path,
   rawPath,
@@ -6350,7 +6405,7 @@ function MobileLeagueApp({
   if (path === "/paint-scheme-vote") return frame("Paint Scheme Votes", "votes", <MobilePaintSchemeVotesHub drivers={drivers} tracks={tracks} go={go} session={mobileSession} />);
   if (path === "/vote" || path === "/league-vote" || path === "/voting") return dataFrame("League Vote", "more", isGuestSession ? <MobileGuestLockedCard title="League Voting Requires Driver Login" go={go} /> : <LeagueVotingPage drivers={drivers} />);
   if (path === "/notifications") return dataFrame("Notifications", "more", <NotificationsPage />);
-  if (path === "/interviews") return dataFrame("Interviews", "interviews", <PublicInterviewsPage />);
+  if (path === "/interviews") return frame("Interviews", "interviews", <MobileInterviewsHub session={mobileSession} go={go} />);
   if (path === "/contracts") return dataFrame("Contracts", "more", <ContractsPage drivers={drivers} />);
   if (path === "/memorial-day") return dataFrame("Memorial", "more", <MemorialDayPage drivers={drivers} />);
   if (path === "/chat") return dataFrame("League Chat", "more", isGuestSession ? <MobileGuestLockedCard title="League Chat Requires Driver Login" go={go} /> : <LeagueChatPage drivers={drivers} />);
