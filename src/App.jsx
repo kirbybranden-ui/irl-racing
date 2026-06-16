@@ -5609,15 +5609,21 @@ function MobilePaintSchemeVotesHub({ drivers = [], tracks = [], go }) {
 
   const selectedEntry = visibleEntries.find((entry) => String(entry.id) === String(selectedUploadId)) || null;
 
-  const driverAlreadyVoted = useMemo(() => {
-    if (!loggedInDriver || !selectedTrack) return false;
+  const existingPaintVote = useMemo(() => {
+    if (!loggedInDriver || !selectedTrack) return null;
     const number = String(loggedInDriver.number || loggedInDriver.driver_number || "").trim();
-    return (votes || []).some((vote) => {
+    return (votes || []).find((vote) => {
       const voteDriverNumber = String(vote.driver_number || vote.voter_driver_number || vote.car_number || "").trim();
       const voteRace = vote.race_name || vote.race || vote.track_name || vote.track || "";
       return voteDriverNumber === number && normalizeTrack(voteRace) === normalizeTrack(selectedTrack);
-    });
+    }) || null;
   }, [loggedInDriver, selectedTrack, votes]);
+
+  const existingVoteUploadId = existingPaintVote
+    ? String(existingPaintVote.upload_id || existingPaintVote.voted_upload_id || existingPaintVote.paint_scheme_id || existingPaintVote.car_upload_id || "").trim()
+    : "";
+  const driverAlreadyVoted = Boolean(existingPaintVote);
+  const selectedIsCurrentVote = selectedEntry && existingVoteUploadId && String(selectedEntry.id) === existingVoteUploadId;
 
   async function handleLogin(event) {
     event.preventDefault();
@@ -5677,12 +5683,17 @@ function MobilePaintSchemeVotesHub({ drivers = [], tracks = [], go }) {
     setMessage("");
     if (!loggedInDriver) return setError("Log in before casting a vote.");
     if (!entry) return setError("Select a paint scheme before voting.");
-    if (driverAlreadyVoted) return setError("You have already voted for this track.");
+
+    const currentVoteId = existingVoteUploadId;
+    if (currentVoteId && String(currentVoteId) === String(entry.id)) {
+      return setMessage(`Your current vote is already ${entry.driverLabel}.`);
+    }
 
     setSubmitting(true);
     const driverNum = String(loggedInDriver.number || loggedInDriver.driver_number || "").trim();
     const driverName = loggedInDriver.name || loggedInDriver.driver_name || `#${driverNum}`;
     const raceName = selectedTrack || entry.trackName || "Current Week";
+    const nowIso = new Date().toISOString();
 
     const payloads = [
       {
@@ -5690,12 +5701,14 @@ function MobilePaintSchemeVotesHub({ drivers = [], tracks = [], go }) {
         driver_number: driverNum,
         driver_name: driverName,
         race_name: raceName,
-        created_at: new Date().toISOString(),
+        created_at: existingPaintVote?.created_at || nowIso,
+        updated_at: nowIso,
       },
       {
         upload_id: entry.id,
         voted_upload_id: entry.id,
         paint_scheme_id: entry.id,
+        car_upload_id: entry.id,
         driver_number: driverNum,
         voter_driver_number: driverNum,
         driver_name: driverName,
@@ -5704,31 +5717,47 @@ function MobilePaintSchemeVotesHub({ drivers = [], tracks = [], go }) {
         track_name: raceName,
         selected_driver_number: entry.driverNumberValue || null,
         selected_driver_name: entry.driverName || "",
-        created_at: new Date().toISOString(),
+        created_at: existingPaintVote?.created_at || nowIso,
+        updated_at: nowIso,
       },
     ];
 
     let lastError = null;
-    for (const payload of payloads) {
-      const { error: insertError } = await supabase.from("paint_scheme_votes").insert(payload);
-      if (!insertError) {
-        setSubmitting(false);
-        setSelectedUploadId("");
-        setMessage(`Vote submitted for ${entry.driverLabel}.`);
-        await loadPaintData();
-        return;
+
+    if (existingPaintVote?.id) {
+      for (const payload of payloads) {
+        const { error: updateError } = await supabase
+          .from("paint_scheme_votes")
+          .update(payload)
+          .eq("id", existingPaintVote.id);
+        if (!updateError) {
+          setSubmitting(false);
+          setSelectedUploadId("");
+          setMessage(`Vote changed to ${entry.driverLabel}.`);
+          await loadPaintData();
+          return;
+        }
+        lastError = updateError;
+        const errorText = String(updateError.message || "").toLowerCase();
+        if (!errorText.includes("column") && !errorText.includes("schema") && !errorText.includes("not-null")) break;
       }
-      lastError = insertError;
-      const errorText = String(insertError.message || "").toLowerCase();
-      if (errorText.includes("duplicate")) {
-        setSubmitting(false);
-        setError("You have already voted for this track.");
-        return;
+    } else {
+      for (const payload of payloads) {
+        const { error: insertError } = await supabase.from("paint_scheme_votes").insert(payload);
+        if (!insertError) {
+          setSubmitting(false);
+          setSelectedUploadId("");
+          setMessage(`Vote submitted for ${entry.driverLabel}.`);
+          await loadPaintData();
+          return;
+        }
+        lastError = insertError;
+        const errorText = String(insertError.message || "").toLowerCase();
+        if (!errorText.includes("column") && !errorText.includes("schema") && !errorText.includes("not-null")) break;
       }
-      if (!errorText.includes("column") && !errorText.includes("schema") && !errorText.includes("not-null")) break;
     }
 
-    console.error("Could not submit paint scheme vote:", lastError);
+    console.error("Could not submit/change paint scheme vote:", lastError);
     setSubmitting(false);
     setError(`Could not submit vote: ${lastError?.message || "Check paint_scheme_votes columns and RLS policies."}`);
   }
@@ -5801,7 +5830,7 @@ function MobilePaintSchemeVotesHub({ drivers = [], tracks = [], go }) {
         ["Track", selectedTrack || "—"],
         ["Entries", visibleEntries.length],
         ["Votes", (votes || []).filter((vote) => normalizeTrack(vote.race_name || vote.race || vote.track_name || vote.track) === normalizeTrack(selectedTrack)).length],
-        ["Status", driverAlreadyVoted ? "Voted" : "Open"],
+        ["Status", driverAlreadyVoted ? "Vote Can Be Changed" : "Open"],
       ]} />
 
       {loading && <MobileCard>Loading paint schemes...</MobileCard>}
@@ -5830,11 +5859,23 @@ function MobilePaintSchemeVotesHub({ drivers = [], tracks = [], go }) {
                 <div style={{ padding: "0 14px 14px" }}>
                   <button
                     type="button"
-                    disabled={submitting || driverAlreadyVoted}
+                    disabled={submitting || selectedIsCurrentVote}
                     onClick={() => castVote(entry)}
-                    style={{ ...mobileActionStyle, background: driverAlreadyVoted ? "#334155" : "#d4af37", color: driverAlreadyVoted ? "#cbd5e1" : "#111", borderColor: driverAlreadyVoted ? "#475569" : "#d4af37", opacity: submitting ? 0.7 : 1 }}
+                    style={{
+                      ...mobileActionStyle,
+                      background: selectedIsCurrentVote ? "#334155" : "#d4af37",
+                      color: selectedIsCurrentVote ? "#cbd5e1" : "#111",
+                      borderColor: selectedIsCurrentVote ? "#475569" : "#d4af37",
+                      opacity: submitting ? 0.7 : 1,
+                    }}
                   >
-                    {driverAlreadyVoted ? "Already Voted For This Track" : submitting ? "Submitting..." : `Cast Vote for ${entry.driverLabel}`}
+                    {selectedIsCurrentVote
+                      ? "Current Vote"
+                      : submitting
+                        ? "Submitting..."
+                        : driverAlreadyVoted
+                          ? `Change Vote to ${entry.driverLabel}`
+                          : `Cast Vote for ${entry.driverLabel}`}
                   </button>
                 </div>
               )}
