@@ -5034,11 +5034,12 @@ function LeagueVotingPage({ drivers = [] }) {
         color: "white",
         fontFamily: "Arial, sans-serif",
         paddingBottom: 92,
+        overflowX: "hidden",
       }
     : appShellStyle;
 
   const containerStyle = isPhone
-    ? { width: "100%", maxWidth: 520, margin: "0 auto", padding: "12px 12px 92px", boxSizing: "border-box" }
+    ? { width: "100%", maxWidth: 520, margin: "0 auto", padding: "12px 12px 92px", boxSizing: "border-box", overflowX: "hidden" }
     : pageContainerStyle;
 
   const cardStyle = isPhone
@@ -5049,6 +5050,8 @@ function LeagueVotingPage({ drivers = [] }) {
         padding: 14,
         marginBottom: 12,
         boxShadow: "0 12px 28px rgba(0,0,0,0.34)",
+        minWidth: 0,
+        overflow: "hidden",
       }
     : sectionCardStyle;
 
@@ -5120,7 +5123,7 @@ function LeagueVotingPage({ drivers = [] }) {
           </div>
         )}
 
-        <div style={{ display: "grid", gridTemplateColumns: isPhone ? "1fr" : "minmax(280px, 380px) 1fr", gap: isPhone ? 12 : 18, alignItems: "start" }}>
+        <div style={{ display: "grid", gridTemplateColumns: isPhone ? "minmax(0, 1fr)" : "minmax(280px, 380px) minmax(0, 1fr)", gap: isPhone ? 12 : 18, alignItems: "start", minWidth: 0, overflowX: "hidden" }}>
           <div style={cardStyle}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 12 }}>
               <h2 style={{ margin: 0, fontSize: isPhone ? 18 : 24 }}>Driver Login</h2>
@@ -5158,8 +5161,8 @@ function LeagueVotingPage({ drivers = [] }) {
             {error && <div style={{ marginTop: 12, color: "#f87171", fontWeight: 900, lineHeight: 1.35 }}>{error}</div>}
           </div>
 
-          <div style={cardStyle}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 12 }}>
+          <div style={{ ...cardStyle, overflowX: isPhone ? "auto" : cardStyle.overflow, WebkitOverflowScrolling: "touch" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 12, minWidth: 0 }}>
               <h2 style={{ margin: 0, fontSize: isPhone ? 18 : 24 }}>Open Votes</h2>
               {!loading && <span style={{ color: "#aab3c2", fontSize: 12, fontWeight: 900 }}>{votes.length} open</span>}
             </div>
@@ -5170,7 +5173,9 @@ function LeagueVotingPage({ drivers = [] }) {
             {votes.length > 0 && (
               <div style={{ display: "grid", gap: 12 }}>
                 {isPhone ? (
-                  <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 6, WebkitOverflowScrolling: "touch" }}>
+                  <>
+                    <div style={{ color: "#aab3c2", fontSize: 11, fontWeight: 900, textTransform: "uppercase", letterSpacing: 0.7 }}>Swipe ballots →</div>
+                    <div style={{ display: "flex", gap: 8, overflowX: "auto", overflowY: "hidden", paddingBottom: 8, WebkitOverflowScrolling: "touch", scrollbarWidth: "thin", maxWidth: "100%" }}>
                     {votes.map((vote) => {
                       const active = String(vote.id) === String(selectedVoteId);
                       return (
@@ -5195,7 +5200,8 @@ function LeagueVotingPage({ drivers = [] }) {
                         </button>
                       );
                     })}
-                  </div>
+                    </div>
+                  </>
                 ) : (
                   <select value={selectedVoteId} onChange={(event) => { setSelectedVoteId(event.target.value); setSelectedOptionId(""); }} style={inputStyle}>
                     {votes.map((vote) => <option key={vote.id} value={vote.id}>{vote.title}</option>)}
@@ -5203,7 +5209,9 @@ function LeagueVotingPage({ drivers = [] }) {
                 )}
 
                 {selectedVote && (
-                  <div style={{ background: "#090d13", border: "1px solid #2a3240", borderRadius: 18, padding: isPhone ? 14 : 16 }}>
+                  <div style={isPhone ? { width: "100%", maxWidth: "100%", overflowX: "auto", overflowY: "hidden", WebkitOverflowScrolling: "touch", paddingBottom: 8 } : {}}>
+                    {isPhone && <div style={{ color: "#aab3c2", fontSize: 11, fontWeight: 900, textTransform: "uppercase", letterSpacing: 0.7, marginBottom: 8 }}>Swipe ballot if needed →</div>}
+                    <div style={{ background: "#090d13", border: "1px solid #2a3240", borderRadius: 18, padding: isPhone ? 14 : 16, minWidth: isPhone ? 340 : "auto", maxWidth: isPhone ? 440 : "none", boxSizing: "border-box" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexDirection: isPhone ? "column" : "row" }}>
                       <div>
                         <div style={{ color: "#d4af37", fontSize: 11, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 0.8 }}>League Ballot</div>
@@ -5246,6 +5254,7 @@ function LeagueVotingPage({ drivers = [] }) {
                     <button type="button" disabled={selectedStatus.closed || driverAlreadyVoted} onClick={submitVote} style={{ ...mobilePrimaryButtonStyle, marginTop: 16, opacity: selectedStatus.closed || driverAlreadyVoted ? 0.55 : 1 }}>
                       {driverAlreadyVoted ? "Vote Already Submitted" : selectedStatus.closed ? "Voting Closed" : "Submit Vote"}
                     </button>
+                    </div>
                   </div>
                 )}
               </div>
