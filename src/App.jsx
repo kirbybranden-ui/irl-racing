@@ -5499,6 +5499,189 @@ function getStreamYoutubeUrl(stream = {}) {
   return normalizeStreamUrl(stream.youtube_url || stream.youtube || stream.youtube_link || stream.yt_url || "");
 }
 
+
+
+function MobilePaintSchemeVotesHub({ drivers = [], tracks = [], go }) {
+  const [uploads, setUploads] = useState([]);
+  const [votes, setVotes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [showBallot, setShowBallot] = useState(false);
+
+  const previousRace = useMemo(() => getPreviousCompletedRaceForPaintWinner(tracks), [JSON.stringify((tracks || []).map((track) => ({ name: track?.name, date: track?.date })))]);
+  const raceName = previousRace?.name || "Current Week";
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadPaintData() {
+      setLoading(true);
+      setError("");
+
+      const [{ data: uploadData, error: uploadError }, { data: voteData, error: voteError }] = await Promise.all([
+        supabase.from("car_uploads").select("*").order("uploaded_at", { ascending: false }),
+        supabase.from("paint_scheme_votes").select("*").order("created_at", { ascending: false }),
+      ]);
+
+      if (!isMounted) return;
+
+      if (uploadError || voteError) {
+        console.error("Could not load mobile paint scheme voting data:", uploadError || voteError);
+        setError("Could not load paint schemes. Check car_uploads, paint_scheme_votes, and RLS policies.");
+        setUploads([]);
+        setVotes([]);
+        setLoading(false);
+        return;
+      }
+
+      setUploads(uploadData || []);
+      setVotes(voteData || []);
+      setLoading(false);
+    }
+
+    loadPaintData();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const voteCounts = useMemo(() => {
+    const counts = new Map();
+    (votes || []).forEach((vote) => {
+      const key = String(vote.upload_id || vote.voted_upload_id || vote.paint_scheme_id || "");
+      if (!key) return;
+      counts.set(key, (counts.get(key) || 0) + 1);
+    });
+    return counts;
+  }, [votes]);
+
+  const paintCards = useMemo(() => {
+    const cleanUploads = (uploads || [])
+      .filter((upload) => isPaintImageUploadForStandings(upload))
+      .map((upload) => {
+        const driver = (drivers || []).find((item) => String(item.id) === String(upload.driver_id));
+        const imageUrl = upload.image_url || upload.file_url || upload.secure_url || upload.url || "";
+        const voteCount = voteCounts.get(String(upload.id)) || 0;
+        return {
+          ...upload,
+          imageUrl,
+          voteCount,
+          driverLabel: driver ? `#${driver.number} ${driver.name}` : upload.driver_name || upload.uploader_name || "Unknown Driver",
+          teamLabel: driver?.team || upload.team || upload.team_key || "—",
+          manufacturerLabel: driver?.manufacturer || upload.manufacturer || "",
+          raceLabel: getPaintUploadRaceForStandings(upload) || upload.race_name || upload.race || "Current Week",
+          uploadedAt: upload.uploaded_at || upload.created_at || "",
+        };
+      })
+      .filter((upload) => upload.imageUrl);
+
+    return cleanUploads.sort((a, b) => {
+      const voteDiff = Number(b.voteCount || 0) - Number(a.voteCount || 0);
+      if (voteDiff !== 0) return voteDiff;
+      return new Date(b.uploadedAt || 0) - new Date(a.uploadedAt || 0);
+    });
+  }, [uploads, voteCounts, JSON.stringify((drivers || []).map((driver) => ({ id: driver?.id, number: driver?.number, name: driver?.name, team: driver?.team, manufacturer: driver?.manufacturer })))]);
+
+  const leader = paintCards[0] || null;
+  const totalVotes = (votes || []).length;
+  const latestFive = paintCards.slice(0, 12);
+
+  return (
+    <div>
+      <MobileHero
+        kicker="Paint Scheme Vote"
+        title="Scheme of the Week"
+        subtitle="Vote for the best paint scheme with a clean mobile ballot. The full official ballot is still available below."
+      />
+
+      <MobileCard>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div style={mobileMiniStatStyle}><span>Race</span><strong>{raceName}</strong></div>
+          <div style={mobileMiniStatStyle}><span>Votes</span><strong>{totalVotes}</strong></div>
+          <div style={mobileMiniStatStyle}><span>Entries</span><strong>{paintCards.length}</strong></div>
+          <div style={mobileMiniStatStyle}><span>Leader</span><strong>{leader ? leader.driverLabel.replace(/^#/, "#") : "—"}</strong></div>
+        </div>
+      </MobileCard>
+
+      {leader && (
+        <MobileCard>
+          <div style={mobileKickerStyle}>Current Leader</div>
+          <div style={{ borderRadius: 16, overflow: "hidden", border: "1px solid #263244", marginTop: 10, background: "#020617" }}>
+            <img src={leader.imageUrl} alt={leader.driverLabel} style={{ width: "100%", maxHeight: 280, objectFit: "cover", display: "block" }} />
+          </div>
+          <h2 style={{ margin: "12px 0 4px", fontSize: 24 }}>🏆 {leader.driverLabel}</h2>
+          <div style={{ color: "#aab3c2", fontSize: 13 }}>{leader.teamLabel} • {leader.manufacturerLabel || "Manufacturer TBA"}</div>
+          <div style={{ marginTop: 10, color: "#facc15", fontWeight: 1000 }}>{leader.voteCount} votes</div>
+        </MobileCard>
+      )}
+
+      <MobileSectionTitle>Paint Scheme Entries</MobileSectionTitle>
+      {loading && <MobileCard>Loading paint schemes...</MobileCard>}
+      {error && <MobileCard><div style={{ color: "#fca5a5", fontWeight: 900 }}>{error}</div></MobileCard>}
+      {!loading && !error && latestFive.length === 0 && (
+        <MobileCard>No paint scheme entries found yet.</MobileCard>
+      )}
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {latestFive.map((entry, index) => (
+          <button
+            key={entry.id || `${entry.driverLabel}-${index}`}
+            type="button"
+            onClick={() => setShowBallot(true)}
+            style={{
+              width: "100%",
+              textAlign: "left",
+              border: "1px solid #263244",
+              background: "#111827",
+              color: "#fff",
+              borderRadius: 18,
+              overflow: "hidden",
+              padding: 0,
+              boxShadow: "0 12px 24px rgba(0,0,0,0.22)",
+            }}
+          >
+            <img src={entry.imageUrl} alt={entry.driverLabel} style={{ width: "100%", height: 210, objectFit: "cover", display: "block" }} />
+            <div style={{ padding: 14 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
+                <div>
+                  <div style={{ color: "#d4af37", fontSize: 11, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 1 }}>
+                    {entry.raceLabel || "Paint Scheme"}
+                  </div>
+                  <div style={{ fontSize: 20, fontWeight: 1000, marginTop: 4 }}>{entry.driverLabel}</div>
+                  <div style={{ color: "#aab3c2", fontSize: 12, marginTop: 3 }}>{entry.teamLabel} • {entry.manufacturerLabel || "—"}</div>
+                </div>
+                <div style={{ textAlign: "right", color: "#facc15", fontWeight: 1000, whiteSpace: "nowrap" }}>
+                  {entry.voteCount}
+                  <span style={{ display: "block", fontSize: 10, color: "#aab3c2" }}>VOTES</span>
+                </div>
+              </div>
+              <div style={{ marginTop: 12, background: "#d4af37", color: "#111", borderRadius: 12, padding: "11px 14px", textAlign: "center", fontWeight: 1000 }}>
+                Open Ballot
+              </div>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      <MobileSectionTitle>Official Ballot</MobileSectionTitle>
+      <MobileCard>
+        <p style={{ color: "#aab3c2", marginTop: 0, lineHeight: 1.45 }}>
+          Use the official ballot below to log in, submit your vote, or change vote-related actions. This keeps the same desktop password and Supabase logic.
+        </p>
+        <MobileAction label={showBallot ? "Hide Official Ballot" : "Open Official Ballot"} onClick={() => setShowBallot((current) => !current)} />
+      </MobileCard>
+
+      {showBallot && (
+        <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", paddingBottom: 90 }}>
+          <div style={{ minWidth: 360 }}>
+            <PaintSchemeVotePage drivers={drivers} tracks={tracks} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MobileStreamsPage({ drivers = [], teams = [], manufacturerStandings = [], activeRace = null, selectedTrack = null }) {
   const [streams, setStreams] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -5735,7 +5918,7 @@ function MobileLeagueApp({
   if (path === "/submit-story") return dataFrame("Submit Story", "more", <SubmitStoryPage />);
   if (path === "/appeals") return dataFrame("Appeals", "more", <AppealsPage />);
   if (path === "/news") return frame("News", "news", <MobileNewsFeed go={go} desktopArchive={<NewsPage />} />);
-  if (path === "/paint-scheme-vote") return dataFrame("Paint Scheme Votes", "votes", <PaintSchemeVotePage drivers={drivers} tracks={tracks} />);
+  if (path === "/paint-scheme-vote") return frame("Paint Scheme Votes", "votes", <MobilePaintSchemeVotesHub drivers={drivers} tracks={tracks} go={go} />);
   if (path === "/vote" || path === "/league-vote" || path === "/voting") return dataFrame("League Vote", "more", <LeagueVotingPage drivers={drivers} />);
   if (path === "/notifications") return dataFrame("Notifications", "more", <NotificationsPage />);
   if (path === "/interviews") return dataFrame("Interviews", "interviews", <PublicInterviewsPage />);
@@ -6982,6 +7165,7 @@ const mobileDesktopSwitchCardStyle = { marginTop: 18, marginBottom: 84, backgrou
 const mobileDesktopSwitchButtonStyle = { border: "none", borderRadius: 999, padding: "11px 13px", background: "linear-gradient(135deg, #d4af37, #facc15)", color: "#111", fontWeight: 1000, fontSize: 12, whiteSpace: "nowrap", boxShadow: "0 10px 20px rgba(212,175,55,0.18)", cursor: "pointer" };
 const mobileNavButtonStyle = { background: "transparent", border: "none", display: "flex", flexDirection: "column", alignItems: "center", gap: 2, minHeight: 50, fontWeight: 800 };
 const mobileActionStyle = { width: "100%", minHeight: 48, borderRadius: 14, border: "1px solid", padding: "12px 14px", fontWeight: 1000, marginBottom: 10 };
+const mobileMiniStatStyle = { background: "#0b1220", border: "1px solid #263244", borderRadius: 14, padding: 12, minHeight: 62, display: "flex", flexDirection: "column", justifyContent: "center", gap: 4 };
 const mobileStatGridStyle = { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10, marginBottom: 12 };
 const mobileStatCardStyle = { background: "#111827", border: "1px solid #263244", borderRadius: 16, padding: 12 };
 const mobileSmallRowStyle = { background: "#111827", border: "1px solid #263244", borderRadius: 14, padding: "12px 14px", marginBottom: 8, display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" };
