@@ -5379,10 +5379,10 @@ function MobileLeagueApp({
   if (path === "/submit-story") return dataFrame("Submit Story", "more", <SubmitStoryPage />);
   if (path === "/appeals") return dataFrame("Appeals", "more", <AppealsPage />);
   if (path === "/news") return frame("News", "news", <MobileNewsFeed go={go} desktopArchive={<NewsPage />} />);
-  if (path === "/paint-scheme-vote") return dataFrame("Paint Vote", "more", <PaintSchemeVotePage drivers={drivers} tracks={tracks} />);
+  if (path === "/paint-scheme-vote") return dataFrame("Paint Scheme Votes", "votes", <PaintSchemeVotePage drivers={drivers} tracks={tracks} />);
   if (path === "/vote" || path === "/league-vote" || path === "/voting") return dataFrame("League Vote", "more", <LeagueVotingPage drivers={drivers} />);
   if (path === "/notifications") return dataFrame("Notifications", "more", <NotificationsPage />);
-  if (path === "/interviews") return dataFrame("Interviews", "more", <PublicInterviewsPage />);
+  if (path === "/interviews") return dataFrame("Interviews", "interviews", <PublicInterviewsPage />);
   if (path === "/contracts") return dataFrame("Contracts", "more", <ContractsPage drivers={drivers} />);
   if (path === "/memorial-day") return dataFrame("Memorial", "more", <MemorialDayPage drivers={drivers} />);
   if (path === "/chat") return dataFrame("League Chat", "more", <LeagueChatPage drivers={drivers} />);
@@ -5401,7 +5401,7 @@ function MobileLeagueApp({
   }
 
   if (path === "/streams" || path === "/stream") {
-    return dataFrame("Streams", "streams", (
+    return dataFrame("Streams", "more", (
       <StreamPage
         drivers={drivers}
         teams={teams}
@@ -5413,7 +5413,7 @@ function MobileLeagueApp({
   }
 
   if (["/owner", "/owners"].includes(path)) {
-    return dataFrame("Owner Login", "hq", (
+    return dataFrame("Owner Login", "more", (
       <>
         <MobileHero
           kicker="Owner Portal"
@@ -5435,7 +5435,7 @@ function MobileLeagueApp({
   }
 
   if (["/team-hq", "/hq", "/teamhq"].includes(path)) {
-    return frame("Team HQ", "hq", <MobileTeamHQ drivers={drivers} teams={teams} seasonName={seasonName} go={go} />);
+    return frame("Team HQ", "more", <MobileTeamHQ drivers={drivers} teams={teams} seasonName={seasonName} go={go} />);
   }
 
   if (path.startsWith("/team/")) {
@@ -5753,36 +5753,29 @@ function MobileFeatureHub({ go, drivers = [], teams = [], manufacturerStandings 
     {
       title: "League",
       items: [
-        { icon: "📊", label: "Standings", desc: "Drivers, teams, manufacturers, and recent results", path: "/standings" },
-        { icon: "📰", label: "News", desc: "Latest five mobile stories with desktop archive available", path: "/news" },
+        { icon: "💬", label: "League Messages", desc: "Announcements, race control, owner messages, and direct messages", path: "/message-center" },
+        { icon: "🗳", label: "League Voting", desc: "League polls and owner/driver votes", path: "/voting" },
         { icon: "📡", label: "Streams", desc: "Twitch, YouTube, watch party, and stream cards", path: "/streams" },
         { icon: "🔔", label: "Notifications", desc: "Driver and league reminders", path: "/notifications" },
+        { icon: "💬", label: "League Chat", desc: "Mobile chat access", path: "/chat" },
+        { icon: "🎮", label: "Discord", desc: "League Discord page", path: "/discord" },
       ],
     },
     {
       title: "Owner / Driver Tools",
       items: [
-        { icon: "🏢", label: "Team HQ", desc: "Owner login and full team controls", path: "/hq" },
         { icon: "🔐", label: "Owner Login", desc: "Open the full owner portal", path: "/owner" },
+        { icon: "🏢", label: "Team HQ", desc: "Owner login and full team controls", path: "/hq" },
         { icon: "📑", label: "Contracts", desc: "Contracts, offers, and driver agreements", path: "/contracts" },
-        { icon: "🎙", label: "Interviews", desc: "Public interview center", path: "/interviews" },
+        { icon: "⚖️", label: "Appeals", desc: "View league appeals page", path: "/appeals" },
       ],
     },
     {
-      title: "Voting / Submissions",
+      title: "Submissions / Admin Access",
       items: [
-        { icon: "🗳", label: "Paint Scheme Vote", desc: "Vote using driver password", path: "/paint-scheme-vote" },
-        { icon: "✅", label: "League Voting", desc: "League polls and owner/driver votes", path: "/voting" },
         { icon: "📝", label: "Submit Story", desc: "Send a story to league media", path: "/submit-story" },
         { icon: "⚖️", label: "Submit Appeal", desc: "File an appeal from mobile", path: "/submit-appeal" },
-      ],
-    },
-    {
-      title: "Communication / Admin Access",
-      items: [
-        { icon: "💬", label: "League Chat", desc: "Mobile chat access", path: "/chat" },
-        { icon: "📨", label: "Message Center", desc: "League and owner messages", path: "/message-center" },
-        { icon: "🎮", label: "Discord", desc: "League Discord page", path: "/discord" },
+        { icon: "📁", label: "Files", desc: "League files and uploads", path: "/files" },
         { icon: "🛠", label: "Admin Portal", desc: "Opens the protected desktop admin portal", path: "/admin-login", desktop: true },
       ],
     },
@@ -5798,9 +5791,9 @@ function MobileFeatureHub({ go, drivers = [], teams = [], manufacturerStandings 
   return (
     <>
       <MobileHero
-        kicker="Mobile Command Center"
-        title="Everything in One Place"
-        subtitle="Access the same league features from mobile. Some complex admin tools still open in desktop mode so the full controls stay intact."
+        kicker="League Garage"
+        title="More"
+        subtitle="League messages, league voting, owner tools, streams, contracts, appeals, and admin access."
       />
 
       <MobileStatGrid
@@ -6170,7 +6163,7 @@ function MobileLayout({ title, children, go, active }) {
       <header style={mobileTopbarStyle}>
         <button type="button" onClick={() => go("/standings")} style={mobileLogoButtonStyle}>🏁</button>
         <strong style={{ fontSize: 16 }}>{title}</strong>
-        <button type="button" onClick={() => go("/notifications")} style={mobileBellStyle}>🔔</button>
+        <button type="button" onClick={() => go("/message-center")} style={mobileBellStyle} aria-label="League Messages">💬</button>
       </header>
       <main style={mobileContentStyle}>
         {children}
@@ -6188,8 +6181,8 @@ function MobileLayout({ title, children, go, active }) {
       <nav style={mobileBottomNavStyle}>
         <MobileNavButton active={active === "standings" || active === "home"} icon="🏁" label="Home" onClick={() => go("/")} />
         <MobileNavButton active={active === "news"} icon="📰" label="News" onClick={() => go("/news")} />
-        <MobileNavButton active={active === "streams"} icon="📡" label="Streams" onClick={() => go("/streams")} />
-        <MobileNavButton active={active === "hq"} icon="🏢" label="HQ" onClick={() => go("/hq")} />
+        <MobileNavButton active={active === "votes"} icon="🎨" label="Votes" onClick={() => go("/paint-scheme-vote")} />
+        <MobileNavButton active={active === "interviews"} icon="🎤" label="Interviews" onClick={() => go("/interviews")} />
         <MobileNavButton active={active === "more"} icon="☰" label="More" onClick={() => go("/more")} />
       </nav>
     </div>
