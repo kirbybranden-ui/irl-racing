@@ -2619,6 +2619,13 @@ function shouldShowPreviousRaceWinnerSpotlight(date = new Date()) {
   return !isPaintWinnerSpotlightWindow(date);
 }
 
+function getPaintWinnerRaceForCurrentWeek(tracks = [], date = new Date()) {
+  // Paint Scheme voting is for the upcoming race week.
+  // Example: after Pocono, the Wednesday paint winner should be Bristol,
+  // not Pocono. This keeps the spotlight tied to the next race on the schedule.
+  return getUpcomingRaceByDate(tracks) || null;
+}
+
 function getPreviousCompletedRaceForPaintWinner(tracks = [], date = new Date()) {
   const easternNow = getEasternDateTimePartsForPaintWinner(date);
 
@@ -2648,12 +2655,12 @@ function isPaintImageUploadForStandings(upload) {
 }
 
 function PaintSchemeWinnerStandingsCard({ tracks = [], drivers = [] }) {
-  const [winner, setWinner] = useState(null);
+  const [winners, setWinners] = useState([]);
   const [raceName, setRaceName] = useState("");
   const [loading, setLoading] = useState(true);
 
-  const previousRace = useMemo(() => getPreviousCompletedRaceForPaintWinner(tracks), [JSON.stringify((tracks || []).map((track) => ({ name: track?.name, date: track?.date })))]);
-  const previousRaceName = previousRace?.name || "";
+  const spotlightRace = useMemo(() => getPaintWinnerRaceForCurrentWeek(tracks), [JSON.stringify((tracks || []).map((track) => ({ name: track?.name, date: track?.date }))) ]);
+  const spotlightRaceName = spotlightRace?.name || "";
   const driversKeyForPaintWinner = useMemo(() => JSON.stringify((drivers || []).map((driver) => ({ id: driver?.id, number: driver?.number, name: driver?.name, team: driver?.team }))), [drivers]);
   const showWinnerWindow = shouldShowPreviousPaintWinner();
 
@@ -2663,16 +2670,16 @@ function PaintSchemeWinnerStandingsCard({ tracks = [], drivers = [] }) {
     async function loadWinner() {
       if (!showWinnerWindow) {
         if (isMounted) {
-          setWinner(null);
+          setWinners([]);
           setRaceName("");
           setLoading(false);
         }
         return;
       }
 
-      if (!previousRaceName) {
+      if (!spotlightRaceName) {
         if (isMounted) {
-          setWinner(null);
+          setWinners([]);
           setRaceName("");
           setLoading(false);
         }
@@ -2685,9 +2692,9 @@ function PaintSchemeWinnerStandingsCard({ tracks = [], drivers = [] }) {
       ]);
 
       if (uploadError || voteError) {
-        console.error("Could not load previous paint scheme winner:", uploadError || voteError);
+        console.error("Could not load upcoming paint scheme winner:", uploadError || voteError);
         if (isMounted) {
-          setWinner(null);
+          setWinners([]);
           setRaceName("");
           setLoading(false);
         }
@@ -2696,12 +2703,12 @@ function PaintSchemeWinnerStandingsCard({ tracks = [], drivers = [] }) {
 
       const raceUploads = (uploadData || [])
         .filter((upload) => isPaintImageUploadForStandings(upload))
-        .filter((upload) => getPaintUploadRaceForStandings(upload) === previousRaceName);
+        .filter((upload) => normalizeTrackName(getPaintUploadRaceForStandings(upload)) === normalizeTrackName(spotlightRaceName));
 
       if (raceUploads.length === 0) {
         if (isMounted) {
-          setWinner(null);
-          setRaceName(previousRaceName);
+          setWinners([]);
+          setRaceName(spotlightRaceName);
           setLoading(false);
         }
         return;
@@ -2709,7 +2716,7 @@ function PaintSchemeWinnerStandingsCard({ tracks = [], drivers = [] }) {
 
       const counts = new Map();
       (voteData || []).forEach((vote) => {
-        const key = String(vote.upload_id || "");
+        const key = String(vote.upload_id || vote.voted_upload_id || vote.paint_scheme_id || vote.car_upload_id || "");
         counts.set(key, (counts.get(key) || 0) + 1);
       });
 
@@ -2719,19 +2726,32 @@ function PaintSchemeWinnerStandingsCard({ tracks = [], drivers = [] }) {
         return new Date(b.uploaded_at || 0) - new Date(a.uploaded_at || 0);
       });
 
-      const winningUpload = sorted[0];
-      const driver = (drivers || []).find((item) => String(item.id) === String(winningUpload.driver_id));
-      const enrichedWinner = {
-        ...winningUpload,
-        voteCount: counts.get(String(winningUpload.id)) || 0,
-        driverLabel: driver ? `#${driver.number} ${driver.name}` : winningUpload.driver_name || winningUpload.uploader_name || "Unknown Driver",
-        teamLabel: driver?.team || winningUpload.team || winningUpload.team_key || "—",
-        imageUrl: winningUpload.image_url || winningUpload.file_url || "",
-      };
+      const topVoteCount = counts.get(String(sorted[0]?.id)) || 0;
+
+      if (topVoteCount <= 0) {
+        if (isMounted) {
+          setWinners([]);
+          setRaceName(spotlightRaceName);
+          setLoading(false);
+        }
+        return;
+      }
+
+      const winningUploads = sorted.filter((upload) => (counts.get(String(upload.id)) || 0) === topVoteCount);
+      const enrichedWinners = winningUploads.map((winningUpload) => {
+        const driver = (drivers || []).find((item) => String(item.id) === String(winningUpload.driver_id));
+        return {
+          ...winningUpload,
+          voteCount: counts.get(String(winningUpload.id)) || 0,
+          driverLabel: driver ? `#${driver.number} ${driver.name}` : winningUpload.driver_name || winningUpload.uploader_name || "Unknown Driver",
+          teamLabel: driver?.team || winningUpload.team || winningUpload.team_key || "—",
+          imageUrl: winningUpload.image_url || winningUpload.file_url || "",
+        };
+      });
 
       if (isMounted) {
-        setWinner(enrichedWinner);
-        setRaceName(previousRaceName);
+        setWinners(enrichedWinners);
+        setRaceName(spotlightRaceName);
         setLoading(false);
       }
     }
@@ -2741,9 +2761,9 @@ function PaintSchemeWinnerStandingsCard({ tracks = [], drivers = [] }) {
     return () => {
       isMounted = false;
     };
-  }, [previousRaceName, showWinnerWindow, driversKeyForPaintWinner]);
+  }, [spotlightRaceName, showWinnerWindow, driversKeyForPaintWinner]);
 
-  if (loading || !winner) return null;
+  if (loading || winners.length === 0) return null;
 
   return (
     <div
@@ -2755,27 +2775,31 @@ function PaintSchemeWinnerStandingsCard({ tracks = [], drivers = [] }) {
         marginBottom: 20,
         boxShadow: "0 12px 30px rgba(0,0,0,0.24)",
         display: "grid",
-        gridTemplateColumns: "minmax(180px, 320px) 1fr",
+        gridTemplateColumns: winners.length > 1 ? "minmax(220px, 420px) 1fr" : "minmax(180px, 320px) 1fr",
         gap: 18,
         alignItems: "center",
       }}
     >
       <div style={{ borderRadius: 14, overflow: "hidden", background: "#0f1319", border: "1px solid rgba(255,255,255,0.12)" }}>
-        <img src={winner.imageUrl} alt={winner.driverLabel} style={{ width: "100%", height: 190, objectFit: "cover", display: "block" }} />
+        <div style={{ display: "grid", gridTemplateColumns: winners.length > 1 ? "1fr 1fr" : "1fr", gap: winners.length > 1 ? 8 : 0 }}>
+          {winners.map((winner) => (
+            <img key={winner.id} src={winner.imageUrl} alt={winner.driverLabel} style={{ width: "100%", height: 190, objectFit: "cover", display: "block", borderRadius: winners.length > 1 ? 10 : 0 }} />
+          ))}
+        </div>
       </div>
 
       <div>
         <div style={{ color: "#d4af37", fontSize: 12, fontWeight: 900, letterSpacing: 1.6, textTransform: "uppercase" }}>
-          Previous Week Winner
+          Upcoming Race Paint Winner
         </div>
         <div style={{ fontSize: 30, fontWeight: 900, marginTop: 6 }}>
           🎨 Paint Scheme of the Week
         </div>
         <div style={{ fontSize: 20, fontWeight: 900, marginTop: 8 }}>
-          {winner.driverLabel}
+          {winners.map((winner) => winner.driverLabel).join(" + ")}
         </div>
         <div style={{ opacity: 0.75, marginTop: 4 }}>
-          {winner.teamLabel} • {raceName} • {winner.voteCount} votes
+          {raceName} • {winners.length > 1 ? "Tie winners" : winners[0]?.teamLabel} • {winners[0]?.voteCount || 0} votes
         </div>
         <div style={{ opacity: 0.62, fontSize: 12, marginTop: 10 }}>
           Paint winner spotlight runs Wednesday 11:59 PM ET through Saturday 9:30 PM ET.
@@ -6282,8 +6306,8 @@ function MobilePaintSchemeVotesHub({ drivers = [], tracks = [], go, session = nu
 
   useEffect(() => {
     if (selectedTrack || !trackOptions.length) return;
-    const previousRace = getPreviousCompletedRaceForPaintWinner(tracks);
-    const preferred = trackOptions.find((option) => normalizeTrack(option) === normalizeTrack(previousRace?.name));
+    const spotlightRace = getPaintWinnerRaceForCurrentWeek(tracks);
+    const preferred = trackOptions.find((option) => normalizeTrack(option) === normalizeTrack(spotlightRace?.name));
     setSelectedTrack(preferred || trackOptions[0]);
   }, [trackOptions, selectedTrack, tracks]);
 
@@ -8437,6 +8461,105 @@ const mobileNewsDetailImageStyle = { width: "100%", borderRadius: 18, border: "1
 const mobileNewsDetailImageFallbackStyle = { height: 190, borderRadius: 18, background: "linear-gradient(135deg, #1b2330, #0c1017)", border: "1px solid rgba(212,175,55,0.22)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 54 };
 const mobileNewsDetailBodyStyle = { whiteSpace: "pre-wrap", color: "#e5e7eb", fontSize: 16, lineHeight: 1.65 };
 
+
+const NASCAR26_RELEASE_DATE = "2026-09-15T00:00:00-04:00";
+
+function getCountdownParts(targetDate, now = new Date()) {
+  const target = targetDate instanceof Date ? targetDate : new Date(targetDate);
+  const diffMs = target.getTime() - now.getTime();
+  if (!Number.isFinite(diffMs)) return null;
+  if (diffMs <= 0) return { expired: true, days: 0, hours: 0 };
+  const totalHours = Math.floor(diffMs / (1000 * 60 * 60));
+  return {
+    expired: false,
+    days: Math.floor(totalHours / 24),
+    hours: totalHours % 24,
+  };
+}
+
+function formatMiniCountdown(parts) {
+  if (!parts) return "—";
+  if (parts.expired) return "AVAILABLE";
+  if (parts.days > 0) return `${parts.days}d ${parts.hours}h`;
+  return `${parts.hours}h`;
+}
+
+function LeagueStatusWidget({ tracks = [], seasonName = "" }) {
+  const [now, setNow] = useState(() => new Date());
+  const [expanded, setExpanded] = useState(false);
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const upcomingRace = getUpcomingRaceByDate(tracks || []);
+  const raceTarget = upcomingRace?.date ? `${String(upcomingRace.date).slice(0, 10)}T21:30:00-04:00` : null;
+  const nascar26 = getCountdownParts(NASCAR26_RELEASE_DATE, now);
+  const raceCountdown = raceTarget ? getCountdownParts(raceTarget, now) : null;
+  const releasePlusTwoDays = new Date(new Date(NASCAR26_RELEASE_DATE).getTime() + 48 * 60 * 60 * 1000);
+  const showNascar26 = now < releasePlusTwoDays;
+
+  if (!showNascar26 && !upcomingRace) return null;
+
+  const widgetStyle = {
+    position: "fixed",
+    right: 12,
+    bottom: 12,
+    zIndex: 99999,
+    width: expanded ? 230 : 172,
+    background: "rgba(10, 14, 20, 0.92)",
+    border: "1px solid rgba(212,175,55,0.32)",
+    borderRadius: 14,
+    padding: expanded ? "12px 13px" : "9px 10px",
+    color: "white",
+    boxShadow: "0 14px 34px rgba(0,0,0,0.35)",
+    backdropFilter: "blur(8px)",
+    cursor: "pointer",
+    fontFamily: "Arial, sans-serif",
+    fontSize: 12,
+    opacity: 0.88,
+  };
+
+  const rowStyle = { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, lineHeight: 1.25 };
+  const labelStyle = { opacity: 0.78, fontWeight: 800, whiteSpace: "nowrap" };
+  const valueStyle = { color: "#d4af37", fontWeight: 1000, whiteSpace: "nowrap" };
+
+  return (
+    <div
+      style={widgetStyle}
+      onClick={() => setExpanded((value) => !value)}
+      title="League status"
+      role="button"
+      tabIndex={0}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") setExpanded((value) => !value);
+      }}
+    >
+      {showNascar26 && (
+        <div style={rowStyle}>
+          <span style={labelStyle}>🏁 NASCAR 26</span>
+          <span style={valueStyle}>{formatMiniCountdown(nascar26)}</span>
+        </div>
+      )}
+      {upcomingRace && (
+        <div style={{ ...rowStyle, marginTop: showNascar26 ? 6 : 0 }}>
+          <span style={labelStyle}>🏎️ {upcomingRace.name}</span>
+          <span style={valueStyle}>{formatMiniCountdown(raceCountdown)}</span>
+        </div>
+      )}
+      {expanded && (
+        <div style={{ marginTop: 10, paddingTop: 9, borderTop: "1px solid rgba(255,255,255,0.12)", opacity: 0.86, lineHeight: 1.45 }}>
+          <div>Release target: September 2026</div>
+          {seasonName && <div>Season: {seasonName}</div>}
+          {upcomingRace && <div>Race start: Saturday 9:30 PM ET</div>}
+          <div style={{ marginTop: 4, fontSize: 11, opacity: 0.68 }}>Tap to collapse</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function App() {
   useEffect(() => {
     syncCruiserNumberAndNumberOwnership();
@@ -8565,6 +8688,7 @@ export default function App() {
 
   // ─── Computed values (must be before all hooks) ───────────────────────────
   const activeSeason = seasons.find((s) => s.id === activeSeasonId) || seasons[0] || null;
+  const withLeagueStatusWidget = (page) => (<> {page} <LeagueStatusWidget tracks={tracks} seasonName={activeSeason?.name || ""} /> </>);
   const drivers = realignLeagueDrivers(activeSeason?.drivers || []);
   const visibleDrivers = drivers.filter((d) => !isInactivePlaceholderDriver(d));
   const activeDrivers = visibleDrivers.filter((d) => !d.retired);
@@ -10297,10 +10421,10 @@ export default function App() {
     />
   );
 }
-  if (path === "/news") return <NewsPage />;
-  if (path === "/paint-scheme-vote") return <PaintSchemeVotePage drivers={visibleDrivers} tracks={tracks} />;
+  if (path === "/news") return withLeagueStatusWidget(<NewsPage />);
+  if (path === "/paint-scheme-vote") return withLeagueStatusWidget(<PaintSchemeVotePage drivers={visibleDrivers} tracks={tracks} />);
   if (path === "/vote" || path === "/league-vote" || path === "/voting") return <LeagueVotingPage drivers={visibleDrivers} />;
-  if (path === "/notifications") return <NotificationsPage />;
+  if (path === "/notifications") return withLeagueStatusWidget(<NotificationsPage />);
   if ((!isMobileViewport || forceDesktop) && path === "/discord") return <DiscordPage />;
   if ((!isMobileViewport || forceDesktop) && path === "/interviews") return <PublicInterviewsPage />;
   if ((!isMobileViewport || forceDesktop) && path === "/driver-feedback") {
@@ -10425,13 +10549,13 @@ export default function App() {
       </div>
     </>
   );
-  if (path === "/contracts") return <ContractsPage drivers={visibleDrivers} />;
-  if (path === "/memorial-day") return <MemorialDayPage drivers={visibleDrivers} />;
-  if (path === "/bracket" || path === "/in-season-bracket" || path === "/tournament") return <InSeasonBracketPage drivers={visibleDrivers} seasonName={activeSeason?.name || ""} />;
+  if (path === "/contracts") return withLeagueStatusWidget(<ContractsPage drivers={visibleDrivers} />);
+  if (path === "/memorial-day") return withLeagueStatusWidget(<MemorialDayPage drivers={visibleDrivers} />);
+  if (path === "/bracket" || path === "/in-season-bracket" || path === "/tournament") return withLeagueStatusWidget(<InSeasonBracketPage drivers={visibleDrivers} seasonName={activeSeason?.name || ""} />);
 
-  if (path === "/chat") return <LeagueChatPage drivers={visibleDrivers} />;
-  if (path === "/message-center") return <UnifiedLeagueMessageCenterPage drivers={visibleDrivers} />;
-  if (path === "/" || path === "/standings") return <PublicStandings drivers={visibleDrivers} teams={teamStandings} manufacturerStandings={manufacturerStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} />;
+  if (path === "/chat") return withLeagueStatusWidget(<LeagueChatPage drivers={visibleDrivers} />);
+  if (path === "/message-center") return withLeagueStatusWidget(<UnifiedLeagueMessageCenterPage drivers={visibleDrivers} />);
+  if (path === "/" || path === "/standings") return withLeagueStatusWidget(<PublicStandings drivers={visibleDrivers} teams={teamStandings} manufacturerStandings={manufacturerStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} />);
   if (path === "/overlay/ticker" || viewMode === "overlay-ticker") return <TickerOverlay drivers={visibleDrivers} teams={teamStandings} raceHistory={raceHistory} preview={viewMode === "overlay-ticker"} seasonName={activeSeason?.name || ""} />;
   if (path !== "/admin") {
     return <PublicStandings drivers={visibleDrivers} teams={teamStandings} manufacturerStandings={manufacturerStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} />;
