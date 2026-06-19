@@ -11736,7 +11736,6 @@ export default function App() {
 }
 
   B2J: teamLogoB2J,
-  BJ2: teamLogoB2J,
   "ME RACING": teamLogoMER,
   MER: teamLogoMER,
   "NINE LINE MOTORSPORTS": teamLogoNLM,
