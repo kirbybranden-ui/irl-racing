@@ -7127,7 +7127,12 @@ function MobileLeagueApp({
   }
 
   function frame(title, active, children) {
-    return <MobileLayout title={title} go={go} active={active} session={mobileSession} onLogout={handleMobileLogout}>{children}</MobileLayout>;
+    return (
+      <MobileLayout title={title} go={go} active={active} session={mobileSession} onLogout={handleMobileLogout}>
+        {children}
+        <LeagueStatusWidget tracks={tracks} seasonName={seasonName} mobile />
+      </MobileLayout>
+    );
   }
 
   function dataFrame(title, active, children) {
@@ -7146,6 +7151,9 @@ function MobileLeagueApp({
   if (path === "/interviews") return frame("Interviews", "interviews", <MobileInterviewsHub session={mobileSession} go={go} />);
   if (path === "/contracts") return dataFrame("Contracts", "more", <ContractsPage drivers={drivers} />);
   if (path === "/memorial-day") return dataFrame("Memorial", "more", <MemorialDayPage drivers={drivers} />);
+  if (path === "/bracket" || path === "/in-season-bracket" || path === "/tournament") {
+    return frame("In-Season Bracket", "standings", <InSeasonBracketPage drivers={drivers} seasonName={seasonName} />);
+  }
   if (path === "/chat") return dataFrame("League Chat", "more", isGuestSession ? <MobileGuestLockedCard title="League Chat Requires Driver Login" go={go} /> : <LeagueChatPage drivers={drivers} />);
   if (path === "/message-center") return frame("Messages", "more", <UnifiedLeagueMessageCenterPage drivers={drivers} session={mobileSession} mobile go={go} />);
   if (path === "/discord") return dataFrame("Discord", "more", <DiscordPage />);
@@ -7299,6 +7307,7 @@ function MobileLeagueApp({
 
         {raceHistory?.length > 0 && <MobileSectionTitle>Recent Race Results</MobileSectionTitle>}
         {(raceHistory || []).slice(-3).reverse().map((race) => <MobileRaceResultCard key={race.raceName} race={race} />)}
+        <LeagueStatusWidget tracks={tracks} seasonName={seasonName} mobile />
       </MobileLayout>
     );
   }
@@ -8484,7 +8493,7 @@ function formatMiniCountdown(parts) {
   return `${parts.hours}h`;
 }
 
-function LeagueStatusWidget({ tracks = [], seasonName = "" }) {
+function LeagueStatusWidget({ tracks = [], seasonName = "", mobile = false }) {
   const [now, setNow] = useState(() => new Date());
   const [expanded, setExpanded] = useState(false);
 
@@ -8504,20 +8513,20 @@ function LeagueStatusWidget({ tracks = [], seasonName = "" }) {
 
   const widgetStyle = {
     position: "fixed",
-    right: 12,
-    bottom: 12,
+    right: mobile ? 10 : 12,
+    bottom: mobile ? 78 : 12,
     zIndex: 99999,
-    width: expanded ? 230 : 172,
+    width: expanded ? (mobile ? 205 : 230) : (mobile ? 148 : 172),
     background: "rgba(10, 14, 20, 0.92)",
     border: "1px solid rgba(212,175,55,0.32)",
     borderRadius: 14,
-    padding: expanded ? "12px 13px" : "9px 10px",
+    padding: expanded ? (mobile ? "10px 11px" : "12px 13px") : (mobile ? "7px 8px" : "9px 10px"),
     color: "white",
     boxShadow: "0 14px 34px rgba(0,0,0,0.35)",
     backdropFilter: "blur(8px)",
     cursor: "pointer",
     fontFamily: "Arial, sans-serif",
-    fontSize: 12,
+    fontSize: mobile ? 10.5 : 12,
     opacity: 0.88,
   };
 
