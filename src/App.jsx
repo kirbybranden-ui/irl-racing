@@ -7722,37 +7722,6 @@ function MobileWeekendRecap({ raceHistory = [], tracks = [], drivers = [], go })
             <div style={{ padding: 14, color: "#aab3c2" }}>No completed race winner found yet.</div>
           )}
         </article>
-
-        <article style={{ ...mobileCardStyle, marginBottom: 0, padding: 0, overflow: "hidden" }}>
-          <div style={{ background: "linear-gradient(135deg, rgba(212,175,55,0.28), rgba(15,23,42,0.96))", padding: 14, borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
-            <div style={{ color: "#facc15", fontSize: 11, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase" }}>🎨 Paint Scheme Winner</div>
-            <h3 style={{ margin: "6px 0 2px", fontSize: 24, lineHeight: 1.05 }}>{paintRaceName || "Latest Vote"}</h3>
-            <p style={{ margin: 0, color: "rgba(255,255,255,0.68)", fontSize: 12 }}>Highest-voted car from the latest completed paint vote</p>
-          </div>
-
-          {paintWinner?.imageUrl && (
-            <div style={{ background: "#070a0f", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
-              <img src={paintWinner.imageUrl} alt={paintWinner.driverLabel} style={{ width: "100%", maxHeight: 220, objectFit: "cover", display: "block" }} />
-            </div>
-          )}
-
-          {paintLoading ? (
-            <div style={{ padding: 14, color: "#aab3c2" }}>Loading paint scheme winner…</div>
-          ) : paintWinner ? (
-            <div style={{ padding: 14, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-              <div style={{ minWidth: 0 }}>
-                <strong style={{ display: "block", fontSize: 18, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{paintWinner.driverLabel}</strong>
-                <span style={{ display: "block", color: "#aab3c2", fontSize: 12 }}>{paintWinner.teamLabel}{paintWinner.manufacturerLabel ? ` • ${paintWinner.manufacturerLabel}` : ""}</span>
-              </div>
-              <div style={{ textAlign: "right", color: "#facc15", fontWeight: 1000, fontSize: 18 }}>
-                {paintWinner.voteCount || 0}
-                <span style={{ display: "block", color: "#aab3c2", fontSize: 10, fontWeight: 900 }}>VOTES</span>
-              </div>
-            </div>
-          ) : (
-            <div style={{ padding: 14, color: "#aab3c2" }}>No paint scheme winner found for the latest completed vote.</div>
-          )}
-        </article>
       </div>
     </section>
   );
