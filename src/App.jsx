@@ -7544,6 +7544,7 @@ function MobileWeekendRecap({ raceHistory = [], tracks = [], drivers = [], go })
   const [paintWinner, setPaintWinner] = useState(null);
   const [paintLoading, setPaintLoading] = useState(true);
   const [savedRaceWinner, setSavedRaceWinner] = useState(null);
+  const showRaceWinnerWindow = shouldShowPreviousRaceWinnerSpotlight();
 
   useEffect(() => {
     let isMounted = true;
@@ -7659,6 +7660,10 @@ function MobileWeekendRecap({ raceHistory = [], tracks = [], drivers = [], go })
       isMounted = false;
     };
   }, [paintRaceName, JSON.stringify((drivers || []).map((driver) => ({ id: driver?.id, number: driver?.number, name: driver?.name, team: driver?.team, manufacturer: driver?.manufacturer })))]);
+
+  // Once the paint scheme winner posts Wednesday night, the previous race winner should disappear.
+  // The Bristol/upcoming race paint winner card below owns the home-page spotlight until race start.
+  if (!showRaceWinnerWindow) return null;
 
   if (!lastRaceWinner && !savedRaceWinner && !paintWinner && !paintLoading) return null;
 
