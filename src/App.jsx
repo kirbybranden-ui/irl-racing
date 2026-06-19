@@ -6332,6 +6332,37 @@ function MobilePaintSchemeVotesHub({ drivers = [], tracks = [], go, session = nu
     : "";
   const driverAlreadyVoted = Boolean(existingPaintVote);
   const selectedIsCurrentVote = selectedEntry && existingVoteUploadId && String(selectedEntry.id) === existingVoteUploadId;
+  const isPaintVoteAdmin = Boolean(loggedInDriver?.isAdmin || session?.mode === "admin" || session?.isAdmin);
+
+  function isOwnPaintScheme(entry) {
+    if (!loggedInDriver || !entry) return false;
+    const voterNumber = String(loggedInDriver.number || loggedInDriver.driver_number || "").trim();
+    const paintNumber = String(entry.driverNumberValue || entry.driver_number || entry.car_number || entry.number || "").trim();
+    return Boolean(voterNumber && paintNumber && voterNumber === paintNumber);
+  }
+
+  const selectedIsOwnPaintScheme = selectedEntry ? isOwnPaintScheme(selectedEntry) : false;
+
+  const voteAuditRows = useMemo(() => {
+    const entriesById = new Map((paintEntries || []).map((entry) => [String(entry.id), entry]));
+    return (votes || [])
+      .filter((vote) => normalizeTrack(vote.race_name || vote.race || vote.track_name || vote.track) === normalizeTrack(selectedTrack))
+      .map((vote) => {
+        const votedId = String(vote.upload_id || vote.voted_upload_id || vote.paint_scheme_id || vote.car_upload_id || "").trim();
+        const entry = entriesById.get(votedId) || {};
+        return {
+          id: vote.id || `${vote.driver_number || vote.voter_driver_number || "voter"}-${votedId}`,
+          voterNumber: String(vote.driver_number || vote.voter_driver_number || vote.car_number || "").trim(),
+          voterName: vote.driver_name || vote.voter_driver_name || "Unknown voter",
+          selectedNumber: entry.driverNumberValue || vote.selected_driver_number || "",
+          selectedName: entry.driverName || vote.selected_driver_name || "Unknown scheme",
+          team: entry.teamLabel || "",
+          createdAt: vote.updated_at || vote.created_at || "",
+          selfVote: String(vote.driver_number || vote.voter_driver_number || "").trim() && String(entry.driverNumberValue || vote.selected_driver_number || "").trim() && String(vote.driver_number || vote.voter_driver_number || "").trim() === String(entry.driverNumberValue || vote.selected_driver_number || "").trim(),
+        };
+      })
+      .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+  }, [votes, selectedTrack, paintEntries]);
 
   async function handleLogin(event) {
     event.preventDefault();
@@ -6382,8 +6413,9 @@ function MobilePaintSchemeVotesHub({ drivers = [], tracks = [], go, session = nu
       name: rosterDriver.name || authRow.driver_name || authRow.name || `#${number}`,
       team: rosterDriver.team || authRow.team || "",
       manufacturer: rosterDriver.manufacturer || authRow.manufacturer || "",
+      isAdmin: adminMatch,
     });
-    setMessage(`Logged in as #${number}. Select a paint scheme and cast your vote.`);
+    setMessage(adminMatch ? `Admin QC mode unlocked as #${number}.` : `Logged in as #${number}. Select a paint scheme and cast your vote.`);
   }
 
   async function castVote(entry) {
@@ -6392,6 +6424,7 @@ function MobilePaintSchemeVotesHub({ drivers = [], tracks = [], go, session = nu
     if (session?.mode === "guest") return setError("Guest access is view-only. Log in as a driver to vote.");
     if (!loggedInDriver) return setError("Log in before casting a vote.");
     if (!entry) return setError("Select a paint scheme before voting.");
+    if (isOwnPaintScheme(entry)) return setError("You cannot vote for your own paint scheme.");
 
     const currentVoteId = existingVoteUploadId;
     if (currentVoteId && String(currentVoteId) === String(entry.id)) {
@@ -6523,7 +6556,7 @@ function MobilePaintSchemeVotesHub({ drivers = [], tracks = [], go, session = nu
           </form>
         ) : (
           <div style={{ marginTop: 10, background: "#07111f", border: "1px solid #263244", borderRadius: 16, padding: 14 }}>
-            <div style={{ color: "#4ade80", fontSize: 11, fontWeight: 1000, textTransform: "uppercase" }}>Signed In</div>
+            <div style={{ color: "#4ade80", fontSize: 11, fontWeight: 1000, textTransform: "uppercase" }}>{isPaintVoteAdmin ? "Signed In • Vote QC" : "Signed In"}</div>
             <div style={{ fontSize: 22, fontWeight: 1000, marginTop: 4 }}>#{loggedInDriver.number} {loggedInDriver.name}</div>
             <div style={{ color: "#aab3c2", fontSize: 13, marginTop: 3 }}>{getTeamFullName(loggedInDriver.team || "Independent")} • {loggedInDriver.manufacturer || ""}</div>
             <button type="button" onClick={() => { setLoggedInDriver(null); setPassword(""); setMessage("Logged out."); }} style={{ ...mobileActionStyle, marginTop: 12, background: "#111827", color: "#fff", borderColor: "#263244" }}>Log Out</button>
@@ -6548,6 +6581,33 @@ function MobilePaintSchemeVotesHub({ drivers = [], tracks = [], go, session = nu
         ["Status", driverAlreadyVoted ? "Vote Can Be Changed" : "Open"],
       ]} />
 
+      {isPaintVoteAdmin && (
+        <MobileCard>
+          <div style={mobileKickerStyle}>Vote QC</div>
+          <div style={{ color: "#aab3c2", fontSize: 13, lineHeight: 1.4, marginTop: 6 }}>
+            Shows who voted and which paint scheme they picked for the selected track. Self-votes are blocked going forward.
+          </div>
+          <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
+            {voteAuditRows.length === 0 ? (
+              <div style={{ color: "#94a3b8", fontSize: 13 }}>No votes found for this track yet.</div>
+            ) : voteAuditRows.map((row) => (
+              <div key={row.id} style={{ background: row.selfVote ? "rgba(185,28,28,0.22)" : "#07111f", border: row.selfVote ? "1px solid #ef4444" : "1px solid #263244", borderRadius: 14, padding: 12 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
+                  <div>
+                    <div style={{ color: "#fff", fontWeight: 1000 }}>#{row.voterNumber || "—"} {row.voterName}</div>
+                    <div style={{ color: "#aab3c2", fontSize: 12, marginTop: 3 }}>voted for #{row.selectedNumber || "—"} {row.selectedName}</div>
+                    {row.team && <div style={{ color: "#64748b", fontSize: 11, marginTop: 3 }}>{row.team}</div>}
+                  </div>
+                  <div style={{ color: row.selfVote ? "#fca5a5" : "#facc15", fontSize: 11, fontWeight: 1000, textTransform: "uppercase", textAlign: "right" }}>
+                    {row.selfVote ? "Self Vote" : "OK"}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </MobileCard>
+      )}
+
       {loading && <MobileCard>Loading paint schemes...</MobileCard>}
       {!loading && !visibleEntries.length && <MobileCard>No paint schemes found for this track yet.</MobileCard>}
 
@@ -6555,8 +6615,9 @@ function MobilePaintSchemeVotesHub({ drivers = [], tracks = [], go, session = nu
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {visibleEntries.map((entry) => {
           const selected = String(entry.id) === String(selectedUploadId);
+          const ownScheme = isOwnPaintScheme(entry);
           return (
-            <article key={entry.id} style={{ background: selected ? "#18213a" : "#111827", border: selected ? "2px solid #d4af37" : "1px solid #263244", borderRadius: 20, overflow: "hidden", boxShadow: "0 12px 26px rgba(0,0,0,0.24)" }}>
+            <article key={entry.id} style={{ background: selected ? "#18213a" : "#111827", border: selected ? "2px solid #d4af37" : "1px solid #263244", borderRadius: 20, overflow: "hidden", boxShadow: "0 12px 26px rgba(0,0,0,0.24)", opacity: ownScheme ? 0.72 : 1 }}>
               <button
                 type="button"
                 onClick={() => setSelectedUploadId(entry.id)}
@@ -6568,29 +6629,32 @@ function MobilePaintSchemeVotesHub({ drivers = [], tracks = [], go, session = nu
                   <div style={{ fontSize: 21, fontWeight: 1000, marginTop: 5 }}>{entry.driverLabel}</div>
                   <div style={{ color: "#aab3c2", fontSize: 12, marginTop: 4 }}>{entry.teamLabel} • {entry.manufacturerLabel || "—"}</div>
                   <div style={{ color: "#facc15", fontWeight: 1000, marginTop: 8 }}>{entry.voteCount} votes</div>
+                  {ownScheme && <div style={{ color: "#f87171", fontSize: 12, fontWeight: 1000, marginTop: 6 }}>Own paint scheme — voting disabled</div>}
                 </div>
               </button>
               {loggedInDriver && selected && (
                 <div style={{ padding: "0 14px 14px" }}>
                   <button
                     type="button"
-                    disabled={submitting || selectedIsCurrentVote}
+                    disabled={submitting || selectedIsCurrentVote || ownScheme}
                     onClick={() => castVote(entry)}
                     style={{
                       ...mobileActionStyle,
-                      background: selectedIsCurrentVote ? "#334155" : "#d4af37",
-                      color: selectedIsCurrentVote ? "#cbd5e1" : "#111",
-                      borderColor: selectedIsCurrentVote ? "#475569" : "#d4af37",
+                      background: selectedIsCurrentVote || ownScheme ? "#334155" : "#d4af37",
+                      color: selectedIsCurrentVote || ownScheme ? "#cbd5e1" : "#111",
+                      borderColor: selectedIsCurrentVote || ownScheme ? "#475569" : "#d4af37",
                       opacity: submitting ? 0.7 : 1,
                     }}
                   >
-                    {selectedIsCurrentVote
-                      ? "Current Vote"
-                      : submitting
-                        ? "Submitting..."
-                        : driverAlreadyVoted
-                          ? `Change Vote to ${entry.driverLabel}`
-                          : `Cast Vote for ${entry.driverLabel}`}
+                    {ownScheme
+                      ? "Cannot Vote For Own Scheme"
+                      : selectedIsCurrentVote
+                        ? "Current Vote"
+                        : submitting
+                          ? "Submitting..."
+                          : driverAlreadyVoted
+                            ? `Change Vote to ${entry.driverLabel}`
+                            : `Cast Vote for ${entry.driverLabel}`}
                   </button>
                 </div>
               )}
