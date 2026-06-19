@@ -2596,14 +2596,27 @@ function getEasternDateTimePartsForPaintWinner(date = new Date()) {
   };
 }
 
-function shouldShowPreviousPaintWinner(date = new Date()) {
+function isPaintWinnerSpotlightWindow(date = new Date()) {
   const eastern = getEasternDateTimePartsForPaintWinner(date);
+  const minutes = (Number(eastern.hour) || 0) * 60 + (Number(eastern.minute) || 0);
 
-  // Hide starting Wednesday at 12:00 AM Eastern.
-  // It will stay hidden Wednesday, Thursday, and Friday until a new race/weekend winner cycle starts.
-  if (eastern.weekday === "Wed" || eastern.weekday === "Thu" || eastern.weekday === "Fri") return false;
+  // New BCL weekly timeline:
+  // Paint voting winner gets the spotlight after voting closes Wednesday at 11:59 PM ET.
+  // That spotlight stays up until race start Saturday at 9:30 PM ET.
+  if (eastern.weekday === "Wed") return minutes >= (23 * 60 + 59);
+  if (eastern.weekday === "Thu" || eastern.weekday === "Fri") return true;
+  if (eastern.weekday === "Sat") return minutes < (21 * 60 + 30);
+  return false;
+}
 
-  return true;
+function shouldShowPreviousPaintWinner(date = new Date()) {
+  return isPaintWinnerSpotlightWindow(date);
+}
+
+function shouldShowPreviousRaceWinnerSpotlight(date = new Date()) {
+  // Race winner owns the main spotlight from race start Saturday night
+  // until the next paint scheme winner is revealed Wednesday night.
+  return !isPaintWinnerSpotlightWindow(date);
 }
 
 function getPreviousCompletedRaceForPaintWinner(tracks = [], date = new Date()) {
@@ -2765,7 +2778,7 @@ function PaintSchemeWinnerStandingsCard({ tracks = [], drivers = [] }) {
           {winner.teamLabel} • {raceName} • {winner.voteCount} votes
         </div>
         <div style={{ opacity: 0.62, fontSize: 12, marginTop: 10 }}>
-          Display automatically hides Wednesday at 12:00 AM Eastern.
+          Paint winner spotlight runs Wednesday 11:59 PM ET through Saturday 9:30 PM ET.
         </div>
       </div>
     </div>
@@ -2776,6 +2789,7 @@ function PaintSchemeWinnerStandingsCard({ tracks = [], drivers = [] }) {
 
 function PreviousRaceWinnerStandingsCard() {
   const [winner, setWinner] = useState(null);
+  const showRaceWinnerWindow = shouldShowPreviousRaceWinnerSpotlight();
 
   useEffect(() => {
     let isMounted = true;
@@ -2805,7 +2819,7 @@ function PreviousRaceWinnerStandingsCard() {
     };
   }, []);
 
-  if (!winner) return null;
+  if (!showRaceWinnerWindow || !winner) return null;
 
   const mediaUrl = winner.media_url || winner.mediaUrl || "";
   const mediaType = winner.media_type || winner.mediaType || "";
@@ -3887,28 +3901,6 @@ function LeagueMessageCenterLandingPage({ drivers = [] }) {
 }
 
 
-
-function MessagingDisabledPage({ mobile = false, go = null }) {
-  return (
-    <div style={mobile ? {} : appShellStyle}>
-      <div style={mobile ? {} : { ...pageContainerStyle, maxWidth: 860 }}>
-        <div style={{ ...sectionCardStyle, border: "1px solid #d4af37", background: "linear-gradient(135deg, #17191f 0%, #101216 100%)" }}>
-          <div style={{ fontSize: 13, fontWeight: 900, color: "#d4af37", letterSpacing: 1.4 }}>MESSAGE CENTER</div>
-          <h1 style={{ margin: "6px 0", fontSize: mobile ? 28 : 34 }}>Messaging Temporarily Disabled</h1>
-          <p style={{ margin: 0, opacity: 0.75, lineHeight: 1.5 }}>
-            League messaging is turned off while the inbox/session system is being rebuilt. Standings, news, votes, interviews, streams, and Team HQ remain available.
-          </p>
-          {go && (
-            <button type="button" onClick={() => go("/standings")} style={{ ...primaryButtonStyle, marginTop: 16 }}>
-              Back to Home
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function UnifiedLeagueMessageCenterPage({ drivers = [], session: suppliedSession = null, mobile = false, go = null }) {
   const [session, setSession] = useState(() => suppliedSession || readBclMobileSession());
   const [driverNumber, setDriverNumber] = useState("");
@@ -4292,6 +4284,95 @@ function UnifiedLeagueMessageCenterPage({ drivers = [], session: suppliedSession
   );
 }
 
+
+function InSeasonBracketPage({ drivers = [], seasonName = "" }) {
+  const activeDrivers = dedupeDriversByNumber(drivers)
+    .filter((driver) => !driver?.retired)
+    .filter((driver) => String(driver?.name || "").trim().toLowerCase() !== "orly_revo23")
+    .filter((driver) => String(driver?.name || "").trim().toLowerCase() !== "orly_revo")
+    .filter((driver) => String(driver?.number ?? "") !== "23")
+    .sort((a, b) => (Number(b.points) || 0) - (Number(a.points) || 0) || (Number(b.wins) || 0) - (Number(a.wins) || 0) || String(a.name || "").localeCompare(String(b.name || "")))
+    .slice(0, 20)
+    .map((driver, index) => ({ ...driver, seed: index + 1 }));
+
+  const firstRoundPairs = [];
+  for (let i = 0; i < 10; i += 1) {
+    firstRoundPairs.push([activeDrivers[i], activeDrivers[19 - i]].filter(Boolean));
+  }
+
+  const bracketRounds = [
+    { name: "Round of 20", pairs: firstRoundPairs },
+    { name: "Round of 16", pairs: Array.from({ length: 8 }, () => []) },
+    { name: "Elite 8", pairs: Array.from({ length: 4 }, () => []) },
+    { name: "Final Four", pairs: Array.from({ length: 2 }, () => []) },
+    { name: "Championship", pairs: Array.from({ length: 1 }, () => []) },
+  ];
+
+  const driverCard = (driver, fallbackLabel) => {
+    if (!driver) {
+      return (
+        <div style={{ background: "#0f1319", border: "1px dashed #3a4453", borderRadius: 12, padding: 12, color: "#94a3b8", fontWeight: 800 }}>
+          {fallbackLabel || "TBD"}
+        </div>
+      );
+    }
+    const logoSrc = teamLogos[driver.team] || teamLogos[getTeamFullName(driver.team)] || manufacturerLogos[driver.manufacturer] || null;
+    return (
+      <div style={{ background: "#0f1319", border: "1px solid #2d3643", borderRadius: 12, padding: 12, display: "grid", gridTemplateColumns: "42px 1fr auto", gap: 10, alignItems: "center" }}>
+        <div style={{ background: "#d4af37", color: "#111", borderRadius: 10, padding: "8px 0", textAlign: "center", fontWeight: 1000 }}>#{driver.seed}</div>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontWeight: 1000, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>#{driver.number} {driver.name}</div>
+          <div style={{ fontSize: 12, opacity: 0.72 }}>{driver.team || "Independent"} • {driver.manufacturer || "—"}</div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {logoSrc && <img src={logoSrc} alt="" style={{ width: 30, height: 30, objectFit: "contain" }} />}
+          <div style={{ fontWeight: 1000 }}>{Number(driver.points) || 0}</div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div style={appShellStyle}>
+      <div style={pageContainerStyle}>
+        <div style={{ ...sectionCardStyle, background: "linear-gradient(135deg, #17191f 0%, #101216 100%)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              <img src={logo} alt="League Logo" style={{ height: 54 }} />
+              <div>
+                <div style={{ color: "#d4af37", fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase" }}>{seasonName || "Season"}</div>
+                <div style={{ fontSize: 34, fontWeight: 1000 }}>🏆 In-Season Tournament Bracket</div>
+                <div style={{ opacity: 0.72, marginTop: 4 }}>Top 20 by current points. Orly is excluded from this bracket.</div>
+              </div>
+            </div>
+            <button type="button" onClick={() => (window.location.pathname = "/standings")} style={secondaryButtonStyle}>Back to Standings</button>
+          </div>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(270px, 1fr))", gap: 16, alignItems: "start" }}>
+          {bracketRounds.map((round, roundIndex) => (
+            <div key={round.name} style={sectionCardStyle}>
+              <div style={{ color: roundIndex === 0 ? "#d4af37" : "#94a3b8", fontSize: 13, fontWeight: 1000, letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 12 }}>{round.name}</div>
+              <div style={{ display: "grid", gap: 12 }}>
+                {round.pairs.map((pair, index) => (
+                  <div key={`${round.name}-${index}`} style={{ background: "#11161d", border: "1px solid #293241", borderRadius: 16, padding: 12 }}>
+                    <div style={{ fontSize: 11, opacity: 0.65, fontWeight: 900, marginBottom: 8 }}>MATCHUP {index + 1}</div>
+                    <div style={{ display: "grid", gap: 8 }}>
+                      {driverCard(pair[0], "TBD")}
+                      <div style={{ textAlign: "center", fontSize: 11, opacity: 0.6, fontWeight: 900 }}>VS</div>
+                      {driverCard(pair[1], "TBD")}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonName = "", tracks = [], raceHistory = [] }) {
   const [standingsTab, setStandingsTab] = useState("drivers");
   const [scheduleOpen, setScheduleOpen] = useState(false);
@@ -4527,6 +4608,7 @@ function PublicStandings({ drivers, teams, manufacturerStandings = [], seasonNam
               <button onClick={() => (window.location.pathname = "/news")} style={{ background: "#d4af37", color: "#111", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>📰 News</button>
               <button onClick={() => (window.location.pathname = "/interviews")} style={{ background: "#c8102e", color: "white", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 900, cursor: "pointer", fontSize: 14 }}>🎤 Interviews</button>
               <button onClick={() => (window.location.pathname = "/paint-scheme-vote")} style={{ background: "#f97316", color: "white", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 900, cursor: "pointer", fontSize: 14 }}>🎨 Paint Scheme Vote</button>
+              <button onClick={() => (window.location.pathname = "/bracket")} style={{ background: "#7c3aed", color: "white", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 1000, cursor: "pointer", fontSize: 14 }}>🏆 In-Season Bracket</button>
               <button onClick={() => (window.location.pathname = "/vote")} style={{ background: "#d4af37", color: "#111", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 1000, cursor: "pointer", fontSize: 14 }}>🗳️ League Vote</button>
               <button onClick={() => (window.location.pathname = "/team-hq")} style={{ background: "#0f766e", color: "white", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 800, cursor: "pointer", fontSize: 14 }}>🏢 Team HQ</button>
               <button onClick={() => (window.location.pathname = "/contracts")} style={{ background: "#d4af37", color: "#111", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 900, cursor: "pointer", fontSize: 14 }}>📄 Active Contracts</button>
@@ -7041,7 +7123,7 @@ function MobileLeagueApp({
   if (path === "/contracts") return dataFrame("Contracts", "more", <ContractsPage drivers={drivers} />);
   if (path === "/memorial-day") return dataFrame("Memorial", "more", <MemorialDayPage drivers={drivers} />);
   if (path === "/chat") return dataFrame("League Chat", "more", isGuestSession ? <MobileGuestLockedCard title="League Chat Requires Driver Login" go={go} /> : <LeagueChatPage drivers={drivers} />);
-  if (path === "/message-center") return frame("Messages", "more", <MessagingDisabledPage mobile go={go} />);
+  if (path === "/message-center") return frame("Messages", "more", <UnifiedLeagueMessageCenterPage drivers={drivers} session={mobileSession} mobile go={go} />);
   if (path === "/discord") return dataFrame("Discord", "more", <DiscordPage />);
   if (path === "/stories") return dataFrame("Story Admin", "more", <StoriesAdminPage />);
   if (path === "/more" || path === "/menu") {
@@ -10159,7 +10241,7 @@ export default function App() {
 
   // Mobile experience gate — phones use the NASCAR-style mobile shell for all non-admin / non-overlay routes.
   // Desktop routes below stay unchanged. Mobile routes render real app data in a phone-friendly shell.
-  const mobileExcludedPaths = path.startsWith("/admin") || path.startsWith("/overlay");
+  const mobileExcludedPaths = path.startsWith("/admin") || path.startsWith("/overlay") || path === "/bracket";
   if (isMobileViewport && !forceDesktop && !mobileExcludedPaths) {
     if (!isHydrated) {
       return <div style={appShellStyle}><div style={pageContainerStyle}><div style={sectionCardStyle}>Loading mobile league data...</div></div></div>;
@@ -10345,9 +10427,10 @@ export default function App() {
   );
   if (path === "/contracts") return <ContractsPage drivers={visibleDrivers} />;
   if (path === "/memorial-day") return <MemorialDayPage drivers={visibleDrivers} />;
+  if (path === "/bracket" || path === "/in-season-bracket" || path === "/tournament") return <InSeasonBracketPage drivers={visibleDrivers} seasonName={activeSeason?.name || ""} />;
 
   if (path === "/chat") return <LeagueChatPage drivers={visibleDrivers} />;
-  if (path === "/message-center") return <MessagingDisabledPage />;
+  if (path === "/message-center") return <UnifiedLeagueMessageCenterPage drivers={visibleDrivers} />;
   if (path === "/" || path === "/standings") return <PublicStandings drivers={visibleDrivers} teams={teamStandings} manufacturerStandings={manufacturerStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} />;
   if (path === "/overlay/ticker" || viewMode === "overlay-ticker") return <TickerOverlay drivers={visibleDrivers} teams={teamStandings} raceHistory={raceHistory} preview={viewMode === "overlay-ticker"} seasonName={activeSeason?.name || ""} />;
   if (path !== "/admin") {
