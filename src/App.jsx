@@ -20,6 +20,7 @@ import ContractsPage from "./pages/ContractsPage";
 import LeagueVotingPage from "./pages/LeagueVotingPage";
 import AdminVotingPage from "./pages/AdminVotingPage";
 import DriverFeedbackPage from "./pages/DriverFeedbackPage";
+import OwnerHQPage from "./pages/OwnerHQPage";
 import LeagueChatPage from "./LeagueChatPage";
 import OwnersPage from "./OwnersPage.jsx";
 import { defaultDrivers } from "./data/drivers";
@@ -4217,7 +4218,7 @@ function MobileLeagueApp({
   }
 
   if (["/team-hq", "/hq", "/teamhq"].includes(path)) {
-    return frame("Team HQ", "more", <MobileTeamHQ drivers={drivers} teams={teams} seasonName={seasonName} go={go} />);
+    return frame("Team HQ", "more", <OwnerHQPage drivers={drivers} teams={teams} seasonName={seasonName} go={go} />);
   }
 
   if (path.startsWith("/team/")) {
@@ -5040,115 +5041,6 @@ function MobileNewsFeed({ go, desktopArchive = null }) {
           <MobileSectionTitle>Full News Archive</MobileSectionTitle>
           <div style={mobileNewsArchiveShellStyle}>{desktopArchive}</div>
         </div>
-      )}
-    </>
-  );
-}
-
-function MobileTeamHQ({ drivers = [], teams = [], seasonName = "", go }) {
-  const [selectedTeam, setSelectedTeam] = useState(() => {
-    const firstTeam = (teams || []).find((team) => team?.team)?.team;
-    return firstTeam || (drivers || []).find((driver) => driver?.team)?.team || "B2J";
-  });
-
-  const safeTeams = useMemo(() => {
-    const fromStandings = Array.isArray(teams) ? teams.filter((team) => team?.team) : [];
-    const teamKeys = new Set(fromStandings.map((team) => String(team.team)));
-    (drivers || []).forEach((driver) => {
-      const key = String(driver?.team || "").trim();
-      if (key && !teamKeys.has(key)) teamKeys.add(key);
-    });
-    return Array.from(teamKeys).map((key) => {
-      const standing = fromStandings.find((team) => String(team.team) === key) || {};
-      const roster = (drivers || []).filter((driver) => String(driver?.team || "") === key);
-      return {
-        team: key,
-        name: getTeamFullName(key),
-        points: Number(standing.points || roster.reduce((sum, driver) => sum + Number(driver.points || 0), 0)),
-        wins: Number(standing.wins || roster.reduce((sum, driver) => sum + Number(driver.wins || 0), 0)),
-        drivers: roster,
-      };
-    }).sort((a, b) => b.points - a.points || a.name.localeCompare(b.name));
-  }, [drivers, teams]);
-
-  const currentTeam = safeTeams.find((team) => String(team.team) === String(selectedTeam)) || safeTeams[0] || null;
-  const roster = currentTeam?.drivers || [];
-
-  return (
-    <>
-      <MobileHero
-        kicker="Owner Center"
-        title="Team HQ"
-        subtitle="Mobile-friendly HQ view using the same live league drivers, standings, and team data."
-      />
-
-      <MobileCard>
-        <MobileAction
-          label="🔐 Owner Login"
-          onClick={() => go("/owner")}
-        />
-        <div style={{ marginTop: 10, color: "#aab3c2", fontSize: 12, lineHeight: 1.45 }}>
-          Opens the full Team HQ owner portal with the same login, password rules, and tools as desktop.
-        </div>
-      </MobileCard>
-
-      <MobileCard>
-        <label style={{ display: "block", color: "#aab3c2", fontSize: 11, fontWeight: 1000, textTransform: "uppercase", marginBottom: 8 }}>
-          Select Team
-        </label>
-        <select
-          value={currentTeam?.team || selectedTeam}
-          onChange={(event) => setSelectedTeam(event.target.value)}
-          style={{ ...inputStyle, minHeight: 48, fontSize: 16 }}
-        >
-          {safeTeams.map((team) => (
-            <option key={team.team} value={team.team}>{team.name}</option>
-          ))}
-        </select>
-      </MobileCard>
-
-      {currentTeam ? (
-        <>
-          <MobileCard>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              {renderTeamBadge(currentTeam.team, 54)}
-              <div style={{ minWidth: 0 }}>
-                <div style={mobileKickerStyle}>{seasonName || "Current Season"}</div>
-                <h2 style={{ margin: "2px 0 0", lineHeight: 1.05 }}>{currentTeam.name}</h2>
-              </div>
-            </div>
-            <MobileStatGrid items={[
-              ["Points", currentTeam.points || 0],
-              ["Wins", currentTeam.wins || 0],
-              ["Drivers", roster.length],
-              ["Budget", money(getTeamBudget(currentTeam.team))],
-            ]} />
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              <MobileAction label="Open Full HQ" onClick={() => { window.location.href = "/owners?desktop=1"; }} secondary />
-              <MobileAction label="Team Page" onClick={() => go(`/team/${encodeURIComponent(currentTeam.team)}`)} />
-            </div>
-          </MobileCard>
-
-          <MobileSectionTitle>Roster</MobileSectionTitle>
-          {roster.length === 0 && <MobileCard><p style={{ margin: 0, color: "#aab3c2" }}>No active drivers found for this team.</p></MobileCard>}
-          {roster.map((driver) => (
-            <button
-              type="button"
-              key={`${driver.number}-${driver.name}`}
-              onClick={() => go(`/driver/${driver.number}`)}
-              style={mobileDriverCardStyle}
-            >
-              <div style={mobileRankStyle}>#{driver.number}</div>
-              <div style={{ minWidth: 0, flex: 1 }}>
-                <strong style={{ display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{driver.name}</strong>
-                <span style={{ color: "#aab3c2", fontSize: 12 }}>{driver.manufacturer || ""}</span>
-              </div>
-              <div style={mobilePointsStyle}>{driver.points || 0}<span style={{ display: "block", fontSize: 10, color: "#aab3c2" }}>PTS</span></div>
-            </button>
-          ))}
-        </>
-      ) : (
-        <MobileCard><p style={{ margin: 0, color: "#aab3c2" }}>No team data loaded yet.</p></MobileCard>
       )}
     </>
   );
