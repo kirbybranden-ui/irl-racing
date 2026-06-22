@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import logo from "./assets/logo1.png";
-import storySubmittedKick from "./assets/story-submitted-kick.png";
 import teamLogoB2J from "./assets/teams/B2J.png";
 import teamLogoMER from "./assets/teams/ME.png";
 import teamLogoNLM from "./assets/teams/NLM.png";
@@ -34,7 +33,6 @@ import { defaultDrivers } from "./data/drivers";
 const teamLogos = {
   "B2J MOTORSPORTS": teamLogoB2J,
   B2J: teamLogoB2J,
-  BJ2: teamLogoB2J,
   "ME RACING": teamLogoMER,
   MER: teamLogoMER,
   "NINE LINE MOTORSPORTS": teamLogoNLM,
@@ -104,17 +102,11 @@ function isInactivePlaceholderDriver(driver) {
 const removedDriverNumbers = new Set(["16", "38", "42", "66", "80", "86"]);
 const removedDriverIds = new Set([1, 8, 13, 21, 25, 28, 66]);
 const removedDriverNames = new Set(["vtfan_25", "undeadhelliday", "racingis_life87", "vanilla04gorilla", "amp-ghostrider", "ampghostrider", "gumby_1919", "gumby", "yinzermob_86", "yinzer", "it's_tricky88", "its_tricky88", "itstricky88"]);
-const closedTeamKeys = new Set(["WSM", "WYATT SICK6 MOTORSPORTS", "Wyatt Sick6 Motorsports"]);
-
 function isRemovedLeagueDriver(driver) {
   const numberKey = String(driver?.number ?? driver?.driver_number ?? "").trim();
   const idKey = Number(driver?.id ?? driver?.driver_id);
   const nameKey = String(driver?.name ?? driver?.driver_name ?? "").trim().toLowerCase();
   return removedDriverNumbers.has(numberKey) || removedDriverIds.has(idKey) || removedDriverNames.has(nameKey);
-}
-
-function isClosedLeagueTeam(team) {
-  return closedTeamKeys.has(String(team || "").trim());
 }
 
 function realignLeagueDriver(driver) {
@@ -143,7 +135,6 @@ function realignLeagueDriver(driver) {
   if (id === 35 || id === 102 || ["knighttrain41", "ghostracer388"].includes(nameKey)) {
     return { ...driver, team: "BXM", manufacturer: "Chevrolet", manufacturerLogo: manufacturerLogos.Chevrolet || driver.manufacturerLogo };
   }
-  if (isClosedLeagueTeam(driver.team)) return { ...driver, team: "Independent" };
   return driver;
 }
 
@@ -976,69 +967,9 @@ function createEmptySeason(name, roster = getDefaultRoster()) {
   const cleanRoster = dedupedRoster.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer || "", team: d.team, startingPoints: 0, manualWins: 0 }));
   return { id: makeSeasonId(), name: name || "New Season", createdAt: new Date().toISOString(), drivers: rebuildDriversFromHistory([], cleanRoster), selectedRace: "", positions: {}, stage1: {}, stage2: {}, stage3: {}, dnfMap: {}, startParkMap: {}, offenseMap: {}, fastestLapMap: {}, raceHistory: [] };
 }
-function applyWsmClosureKdmTransfer(roster = [], history = []) {
-  const isUndeadHelliday = (item = {}) => {
-    const numberKey = String(item?.number ?? item?.driver_number ?? "").trim();
-    const nameKey = String(item?.name ?? item?.driver_name ?? "").trim().toLowerCase();
-    const idKey = String(item?.id ?? item?.driverId ?? item?.driver_id ?? "").trim();
-    return numberKey === "66" || nameKey === "undeadhelliday" || idKey === "19";
-  };
-
-  const isBigDiehl = (item = {}) => {
-    const numberKey = String(item?.number ?? item?.driver_number ?? "").trim();
-    const nameKey = String(item?.name ?? item?.driver_name ?? "").trim().toLowerCase();
-    const idKey = String(item?.id ?? item?.driverId ?? item?.driver_id ?? "").trim();
-    return nameKey === "bigdiehl21" || idKey === "46" || numberKey === "46";
-  };
-
-  const normalizedRoster = Array.isArray(roster)
-    ? roster
-        .filter((driver) => !isUndeadHelliday(driver))
-        .map((driver) => {
-          if (isBigDiehl(driver)) {
-            return {
-              ...driver,
-              id: 46,
-              number: 39,
-              name: "BigDiehl21",
-              manufacturer: "Chevrolet",
-              team: "MER",
-              retired: false,
-            };
-          }
-          return driver;
-        })
-    : [];
-
-  const adjustedHistory = Array.isArray(history)
-    ? history.map((race) => ({
-        ...race,
-        results: Array.isArray(race?.results)
-          ? race.results
-              .filter((result) => !isUndeadHelliday(result))
-              .map((result) => {
-                if (isBigDiehl(result)) {
-                  return {
-                    ...result,
-                    driverId: 46,
-                    number: 39,
-                    name: "BigDiehl21",
-                    manufacturer: "Chevrolet",
-                    team: "MER",
-                  };
-                }
-                return result;
-              })
-          : [],
-      }))
-    : [];
-
-  return { roster: normalizedRoster, history: adjustedHistory };
-}
 function apply2026DriverNumberAdjustments(roster = [], history = []) {
-  const wsmClosureTransfer = applyWsmClosureKdmTransfer(roster, history);
-  const normalizedRoster = Array.isArray(wsmClosureTransfer.roster) ? wsmClosureTransfer.roster.map((driver) => ({ ...driver })) : [];
-  const normalizedHistory = Array.isArray(wsmClosureTransfer.history) ? wsmClosureTransfer.history : [];
+  const normalizedRoster = Array.isArray(roster) ? roster.map((driver) => ({ ...driver })) : [];
+  const normalizedHistory = Array.isArray(history) ? history : [];
 
   const cajunDriver = normalizedRoster.find((driver) => {
     const nameKey = String(driver?.name || "").trim().toLowerCase();
@@ -1295,7 +1226,7 @@ function AppUpdateBanner({ page = "all" }) {
 
 
 const defaultTickerItems = [
-  { category: "BREAKING", message: "MER and WSM have officially closed operations" },
+  { category: "TEAM UPDATE", message: "Current team roster cleaned up for the active season" },
   { category: "TRANSACTION", message: "BigDiehl21 signs with ME Racing and moves to the No. 39 Chevrolet" },
   { category: "TRANSACTION", message: "BayouX Motorsports updates KnightTrain41 to the No. 41 Ford" },
   { category: "TEAM UPDATE", message: "CaJunThrottle28 moves to the No. 48 Chevrolet for BXM" },
@@ -3162,7 +3093,7 @@ function PreviousRaceWinnerAdminPanel({ drivers = [], raceHistory = [] }) {
 
         <div>
           <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>TEAM</label>
-          <input value={form.team || ""} onChange={(event) => updateField("team", event.target.value)} placeholder="WSM" style={inputStyle} />
+          <input value={form.team || ""} onChange={(event) => updateField("team", event.target.value)} placeholder="B2J" style={inputStyle} />
         </div>
 
         <div>
@@ -3208,7 +3139,7 @@ function PreviousRaceWinnerAdminPanel({ drivers = [], raceHistory = [] }) {
 
       <div style={{ marginTop: 12 }}>
         <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>SHORT NOTE OPTIONAL</label>
-        <textarea value={form.note || ""} onChange={(event) => updateField("note", event.target.value)} rows={3} placeholder="Example: Survived Daytona chaos and delivered WSM its first win." style={{ ...inputStyle, resize: "vertical" }} />
+        <textarea value={form.note || ""} onChange={(event) => updateField("note", event.target.value)} rows={3} placeholder="Example: Survived Daytona chaos and delivered the team its first win." style={{ ...inputStyle, resize: "vertical" }} />
       </div>
     </div>
   );
@@ -4959,9 +4890,8 @@ function patchMissingDrivers(cleanSeasons) {
         const canonical =
           defaultDrivers.find((dd) => dd.id === d.id) ||
           defaultDrivers.find((dd) => String(dd.number) === String(d.number));
-        let updatedTeam = d.team === "KRM" ? "Independent" : d.team;
         if (!canonical) {
-          return { ...d, team: isClosedLeagueTeam(updatedTeam) ? "Independent" : updatedTeam };
+          return { ...d };
         }
         return {
           ...d,
@@ -4969,7 +4899,7 @@ function patchMissingDrivers(cleanSeasons) {
           name: canonical.name,
           number: canonical.number,
           manufacturer: canonical.manufacturer,
-          team: canonical.team === "KRM" || isClosedLeagueTeam(canonical.team) ? "Independent" : canonical.team,
+          team: canonical.team,
         };
       });
     if (missing.length === 0 && updatedDrivers.every((d, i) => d === season.drivers[i])) return season;
@@ -5045,7 +4975,7 @@ function SubmitStoryPage() {
             <div onClick={() => setShowKickGraphic(false)} style={{ position: "fixed", inset: 0, zIndex: 3000, background: "rgba(0,0,0,0.86)", display: "flex", alignItems: "center", justifyContent: "center", padding: 18 }}>
               <div onClick={(e) => e.stopPropagation()} style={{ position: "relative", width: "min(1100px, 96vw)", background: "#050505", border: "2px solid #ef4444", borderRadius: 16, overflow: "hidden", boxShadow: "0 30px 90px rgba(239,68,68,0.25)" }}>
                 <button type="button" onClick={() => setShowKickGraphic(false)} aria-label="Close story submitted graphic" style={{ position: "absolute", top: 12, right: 12, zIndex: 2, width: 38, height: 38, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.25)", background: "rgba(0,0,0,0.55)", color: "white", fontSize: 24, cursor: "pointer", lineHeight: 1 }}>×</button>
-                <img src={storySubmittedKick} alt="Story submitted action graphic" style={{ width: "100%", display: "block" }} />
+                <img src={logo} alt="Story submitted action graphic" style={{ width: "100%", display: "block" }} />
               </div>
             </div>
           )}
@@ -5062,7 +4992,7 @@ function SubmitStoryPage() {
             </div>
             <div style={{ marginBottom: 12 }}>
               <div style={{ marginBottom: 6, fontWeight: 800 }}>Story Title</div>
-              <input style={inputStyle} value={storyTitle} onChange={(e) => setStoryTitle(e.target.value)} placeholder="Example: WSM adds a new Chevrolet to the garage" />
+              <input style={inputStyle} value={storyTitle} onChange={(e) => setStoryTitle(e.target.value)} placeholder="Example: B2J adds a new Toyota to the garage" />
             </div>
             <div style={{ marginBottom: 14 }}>
               <div style={{ marginBottom: 6, fontWeight: 800 }}>Story Details</div>
@@ -8946,7 +8876,7 @@ export default function App() {
     setTickerError("");
 
     const seedItems = [
-      { category: "BREAKING", message: "MER and WSM have officially closed operations", page: "standings", sort_order: 1, active: true, pinned: true },
+      { category: "TEAM UPDATE", message: "Current team roster cleaned up for the active season", page: "standings", sort_order: 1, active: true, pinned: true },
       { category: "TRANSACTION", message: "BigDiehl21 signs with ME Racing and moves to the No. 39 Chevrolet", page: "standings", sort_order: 2, active: true, pinned: true },
       { category: "TRANSACTION", message: "BayouX Motorsports updates KnightTrain41 to the No. 41 Ford", page: "standings", sort_order: 3, active: true, pinned: false },
       { category: "TEAM UPDATE", message: "CaJunThrottle28 moves to the No. 48 Chevrolet for BXM", page: "standings", sort_order: 4, active: true, pinned: false },
@@ -10794,7 +10724,7 @@ export default function App() {
                 style={inputStyle}
                 value={tickerForm.message}
                 onChange={(event) => setTickerForm((current) => ({ ...current, message: event.target.value }))}
-                placeholder="Example: WSM Motorsports closes operations • BigDiehl21 signs with MER"
+                placeholder="Example: B2J Motorsports announces a driver update • BigDiehl21 signs with MER"
               />
             </div>
 
