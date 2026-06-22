@@ -1,16 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import logo from "./assets/logo1.png";
-import teamLogoB2J from "./assets/teams/B2J.png";
-import teamLogoMER from "./assets/teams/ME.png";
-import teamLogoNLM from "./assets/teams/NLM.png";
-import teamLogoMMS from "./assets/teams/MMS.png";
-import teamLogoIND from "./assets/teams/IND.png";
-import teamLogo19XI from "./assets/teams/19XI.png";
-import teamLogoBWR from "./assets/teams/BWR.png";
-import teamLogoBXM from "./assets/teams/BXM.png";
-import manufacturerChevrolet from "./assets/manufacturers/chevrolet.png";
-import manufacturerFord from "./assets/manufacturers/ford.png";
-import manufacturerToyota from "./assets/manufacturers/toyota.png";
 import FilesPage from "./FilesPage";
 import SubmitAppealPage from "./SubmitAppealPage";
 import AppealsPage from "./AppealsPage";
@@ -30,52 +19,14 @@ import LeagueChatPage from "./LeagueChatPage";
 import OwnersPage from "./OwnersPage.jsx";
 import { defaultDrivers } from "./data/drivers";
 import { defaultRaces } from "./data/races";
-// Team logos
-const teamLogos = {
-  "B2J MOTORSPORTS": teamLogoB2J,
-  B2J: teamLogoB2J,
-  "ME RACING": teamLogoMER,
-  MER: teamLogoMER,
-  "NINE LINE MOTORSPORTS": teamLogoNLM,
-  "Nine Line Motorsports": teamLogoNLM,
-  NLM: teamLogoNLM,
-  "MAYHEM MOTORSPORTS": teamLogoMMS,
-MMS: teamLogoMMS,
-  "Independent": teamLogoIND,
-  IND: teamLogoIND,
-  "19XI": teamLogo19XI,
-  "19XI Racing": teamLogo19XI,
-  "Big Wheel Racing": teamLogoBWR,
-  BWR: teamLogoBWR,
-  "ME Racing": teamLogoMER,
-  BXM: teamLogoBXM,
-  "BayouX Motorsports": teamLogoBXM,
-};
-const manufacturerLogos = {
-  Chevrolet: manufacturerChevrolet,
-  Ford: manufacturerFord,
-  Toyota: manufacturerToyota,
-};
+import {
+  teamLogos,
+  manufacturerLogos,
+  getTeamFullName,
+  getTeamBudget,
+  getTeamBranding,
+} from "./data/teams";
 import { loadLeagueState, saveLeagueState } from "./lib/leagueState";
-// ─── Team Full Names ───────────────────────────────────────────────────────────
-const teamFullNames = {
-  B2J: "B2J Motorsports",
-  "B2J MOTORSPORTS": "B2J Motorsports",
-  MER: "ME Racing",
-  MMS: "Mayhem Motorsports",
-  NLM: "Nine Line Motorsports",
-  "19XI": "19XI Racing",
-  "19XI Racing": "19XI Racing",
-  BWR: "Big Wheel Racing",
-  BXM: "BayouX Motorsports",
-  "BayouX Motorsports": "BayouX Motorsports",
-  Independent: "Independent",
-};
-const teamBudgets = {
-  B2J: 3500000,
-  "B2J MOTORSPORTS": 3500000,
-};
-
 const INDEPENDENT_DRIVER_BASE_SALARY = 250000;
 const LEAGUE_BANK_NAME = "Budweiser Cup League";
 const APP_VERSION = "v1.7.3";
@@ -416,27 +367,6 @@ const raceEntryTdStyle = {
   minWidth: 115,
 };
 const statBoxStyle = { background: "#11161d", border: "1px solid #2a3240", borderRadius: 14, padding: 16, flex: "1 1 220px" };
-const teamBranding = {
-  B2J: { logo: "B2J", accent: "#d4af37", dark: "#1b1b1b" },
-  "B2J MOTORSPORTS": { logo: "B2J", accent: "#d4af37", dark: "#1b1b1b" },
-  MER: { logo: "MER", accent: "#dc2626", dark: "#200a0a", fullName: "ME Racing" },
-  MMS: { logo: "MMS", accent: "#9333ea", dark: "#150a2e", fullName: "Mayhem Motorsports" },
-  NLM: { logo: "NLM", accent: "#f97316", dark: "#1f0e00", fullName: "Nine Line Motorsports" },
-  "Independent": { logo: "IND", accent: "#808080", dark: "#2a2a2a" },
-  "19XI": { logo: "19XI", accent: "#8b5cf6", dark: "#160b2d", fullName: "19XI Racing" },
-  "19XI Racing": { logo: "19XI", accent: "#8b5cf6", dark: "#160b2d", fullName: "19XI Racing" },
-  BWR: { logo: "BWR", accent: "#2563eb", dark: "#0f172a", fullName: "Big Wheel Racing" },
-  BXM: { logo: "BXM", accent: "#2563eb", dark: "#0f172a", fullName: "BayouX Motorsports" },
-  "BayouX Motorsports": { logo: "BXM", accent: "#2563eb", dark: "#0f172a", fullName: "BayouX Motorsports" },
-  "Team C": { logo: "C", accent: "#ef4444", dark: "#1f1315" },
-  "Team C": { logo: "C", accent: "#ef4444", dark: "#1f1315" },
-  "Team D": { logo: "D", accent: "#22c55e", dark: "#0f1b14" },
-};
-function getTeamBranding(teamName) {
-  return teamBranding[teamName] || { logo: teamName?.charAt(0)?.toUpperCase() || "?", accent: "#d4af37", dark: "#161a20" };
-}
-
-
 // ─── Shared Message Center Permissions ───────────────────────────────────────
 // Mobile and desktop should both use this same permission model.
 // This keeps the mobile Message Center as a layout reflection of desktop logic,
@@ -1324,7 +1254,6 @@ function LeagueTicker({ page = "standings", fallbackItems = defaultTickerItems }
     </div>
   );
 }
-
 
 
 function MemorialDayPage({ drivers = [] }) {
@@ -2323,7 +2252,6 @@ function ContractsPage({ drivers = [] }) {
 }
 
 
-
 const PAINT_SCHEME_WEEKLY_TEAM_PAYOUT_CAP = 150000;
 const PAINT_SCHEME_SEASON_TEAM_PAYOUT_CAP = 750000;
 
@@ -2681,7 +2609,6 @@ function PaintSchemeWinnerStandingsCard({ tracks = [], drivers = [] }) {
 }
 
 
-
 function PreviousRaceWinnerStandingsCard() {
   const [winner, setWinner] = useState(null);
   const showRaceWinnerWindow = shouldShowPreviousRaceWinnerSpotlight();
@@ -2866,7 +2793,6 @@ function PreviousRaceWinnerAdminPanel({ drivers = [], raceHistory = [] }) {
     }
     videoWidgetRef.current.open();
   }
-
 
 
   const latestRace = Array.isArray(raceHistory) && raceHistory.length > 0 ? raceHistory[raceHistory.length - 1] : null;
@@ -3123,9 +3049,6 @@ function PreviousRaceWinnerAdminPanel({ drivers = [], raceHistory = [] }) {
     </div>
   );
 }
-
-
-
 
 
 function AdminLeagueMessageComposer({ drivers = [], teams = [] }) {
@@ -5216,7 +5139,6 @@ function DiscordPage() {
 }
 
 
-
 const PAYMENT_COMPLIANCE_OVERRIDE_KEY = "bclPaymentComplianceOverrides";
 
 function getPaymentTimestamp(row) {
@@ -6692,7 +6614,6 @@ function useMobileViewport(maxWidth = 768) {
 }
 
 
-
 const BCL_ADMIN_NAMES = new Set(["bowhunter6758", "bowhunter", "h0lden", "h0ld3n", "holden", "holden2dx4ev3r"]);
 const BCL_OWNER_NAMES = new Set(["highlander", "highlander713", "bowhunter", "bowhunter6758", "rookie", "rookievet99", "jpc_racing", "cajun", "cajunthrottle28", "orly", "orly_revo23", "kevdinho", "kevdinho7"]);
 
@@ -7209,9 +7130,6 @@ function MobileLeagueApp({
 
   return dataFrame("Budweiser Cup", "standings", <PublicStandings drivers={drivers} teams={teams} manufacturerStandings={manufacturerStandings} seasonName={seasonName} tracks={tracks} raceHistory={raceHistory} />);
 }
-
-
-
 
 
 function MobileTimelineSpotlightPanel({ tracks = [], drivers = [], go, seasonName = "" }) {
@@ -8290,7 +8208,6 @@ function MobileDriverProfilePolished({ driver, driverNumber, raceHistory = [], t
 function MobileTeamRow({ team, index }) { return <div style={mobileSmallRowStyle}><strong>{index + 1}. {team.team || team.name}</strong><span>{team.points || 0} pts</span></div>; }
 function MobileManufacturerRow({ manufacturer, index }) { return <div style={mobileSmallRowStyle}><strong>{index + 1}. {manufacturer.manufacturer || manufacturer.name}</strong><span>{manufacturer.points || 0} pts</span></div>; }
 function MobileRaceCard({ race }) { return <MobileCard><div style={mobileKickerStyle}>Next Race</div><h2 style={{ margin: "4px 0" }}>{race.name || race.track || "Race"}</h2><p style={{ color: "#aab3c2", margin: 0 }}>{race.date || "Date TBA"} • Qualifying 9:15 PM • Race 9:30 PM</p></MobileCard>; }
-
 
 
 const mobileStreamHeroCardStyle = { background: "linear-gradient(135deg, #111827 0%, #070b10 100%)", border: "1px solid rgba(212,175,55,0.38)", borderRadius: 24, padding: 18, marginBottom: 14, boxShadow: "0 18px 42px rgba(0,0,0,0.36)" };
