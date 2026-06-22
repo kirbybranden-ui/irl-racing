@@ -24,6 +24,7 @@ import OwnerHQPage from "./pages/OwnerHQPage";
 import AdminPortal from "./pages/AdminPortal";
 import LeagueMessageCenter from "./pages/LeagueMessageCenter";
 import InSeasonTournamentPage from "./pages/InSeasonTournamentPage";
+import TransferPortalPage from "./pages/TransferPortalPage";
 import LeagueChatPage from "./LeagueChatPage";
 import OwnersPage from "./OwnersPage.jsx";
 import { defaultDrivers } from "./data/drivers";
@@ -3493,6 +3494,7 @@ function MobileLeagueApp({
   if (path === "/notifications") return dataFrame("Notifications", "more", <NotificationsPage />);
   if (path === "/interviews") return frame("Interviews", "interviews", <MobileInterviewsHub session={mobileSession} go={go} />);
   if (path === "/contracts") return dataFrame("Contracts", "more", <ContractsPage drivers={drivers} />);
+  if (path === "/transfer-portal" || path === "/silly-season") return dataFrame("Transfer Portal", "more", <TransferPortalPage drivers={drivers} raceHistory={raceHistory} startParkRequests={startParkRequests} paintSchemePayouts={[]} />);
   if (path === "/memorial-day") return dataFrame("Memorial", "more", <MemorialDayPage drivers={drivers} />);
   if (path === "/tracks" || path === "/schedule" || path === "/season-schedule") {
     const sortedTracks = getSortedTracksByDate(tracks || []);
@@ -6925,6 +6927,7 @@ export default function App() {
 
   if (path === "/chat") return withLeagueStatusWidget(<LeagueChatPage drivers={visibleDrivers} />);
   if (path === "/message-center") return withLeagueStatusWidget(<LeagueMessageCenter drivers={visibleDrivers} />);
+  if (path === "/transfer-portal" || path === "/silly-season") return withLeagueStatusWidget(<TransferPortalPage drivers={visibleDrivers} raceHistory={raceHistory} startParkRequests={startParkRequests} paintSchemePayouts={paintSchemePayouts} />);
   if (path === "/" || path === "/standings") return withLeagueStatusWidget(<StandingsPage drivers={visibleDrivers} teams={teamStandings} manufacturerStandings={manufacturerStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} />);
   if (path === "/overlay/ticker" || viewMode === "overlay-ticker") return <TickerOverlay drivers={visibleDrivers} teams={teamStandings} raceHistory={raceHistory} preview={viewMode === "overlay-ticker"} seasonName={activeSeason?.name || ""} />;
   if (path !== "/admin") {
