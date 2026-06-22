@@ -19,26 +19,8 @@ import LeagueChatPage from "./LeagueChatPage";
 import OwnersPage from "./OwnersPage.jsx";
 import { defaultDrivers } from "./data/drivers";
 import { defaultRaces } from "./data/races";
-import {
-  teamLogos,
-  manufacturerLogos,
-  getTeamFullName,
-  getTeamBudget,
-  getTeamBranding,
-} from "./data/teams";
+import { teamLogos, manufacturerLogos, getTeamFullName, getTeamBudget, getTeamBranding } from "./data/teams";
 import { loadLeagueState, saveLeagueState } from "./lib/leagueState";
-const INDEPENDENT_DRIVER_BASE_SALARY = 250000;
-const LEAGUE_BANK_NAME = "Budweiser Cup League";
-const APP_VERSION = "v1.7.3";
-
-function getTeamBudget(teamAbbr) {
-  return teamBudgets[teamAbbr] || teamBudgets[getTeamFullName(teamAbbr)?.toUpperCase?.()] || 0;
-}
-
-function getTeamFullName(teamAbbr) {
-  return teamFullNames[teamAbbr] || teamAbbr;
-}
-
 function money(value) {
   const safe = Number(value) || 0;
   return safe.toLocaleString("en-US", {
@@ -367,6 +349,9 @@ const raceEntryTdStyle = {
   minWidth: 115,
 };
 const statBoxStyle = { background: "#11161d", border: "1px solid #2a3240", borderRadius: 14, padding: 16, flex: "1 1 220px" };
+
+
+
 // ─── Shared Message Center Permissions ───────────────────────────────────────
 // Mobile and desktop should both use this same permission model.
 // This keeps the mobile Message Center as a layout reflection of desktop logic,
@@ -1254,6 +1239,7 @@ function LeagueTicker({ page = "standings", fallbackItems = defaultTickerItems }
     </div>
   );
 }
+
 
 
 function MemorialDayPage({ drivers = [] }) {
@@ -2252,6 +2238,7 @@ function ContractsPage({ drivers = [] }) {
 }
 
 
+
 const PAINT_SCHEME_WEEKLY_TEAM_PAYOUT_CAP = 150000;
 const PAINT_SCHEME_SEASON_TEAM_PAYOUT_CAP = 750000;
 
@@ -2609,6 +2596,7 @@ function PaintSchemeWinnerStandingsCard({ tracks = [], drivers = [] }) {
 }
 
 
+
 function PreviousRaceWinnerStandingsCard() {
   const [winner, setWinner] = useState(null);
   const showRaceWinnerWindow = shouldShowPreviousRaceWinnerSpotlight();
@@ -2793,6 +2781,7 @@ function PreviousRaceWinnerAdminPanel({ drivers = [], raceHistory = [] }) {
     }
     videoWidgetRef.current.open();
   }
+
 
 
   const latestRace = Array.isArray(raceHistory) && raceHistory.length > 0 ? raceHistory[raceHistory.length - 1] : null;
@@ -3049,6 +3038,9 @@ function PreviousRaceWinnerAdminPanel({ drivers = [], raceHistory = [] }) {
     </div>
   );
 }
+
+
+
 
 
 function AdminLeagueMessageComposer({ drivers = [], teams = [] }) {
@@ -5139,6 +5131,7 @@ function DiscordPage() {
 }
 
 
+
 const PAYMENT_COMPLIANCE_OVERRIDE_KEY = "bclPaymentComplianceOverrides";
 
 function getPaymentTimestamp(row) {
@@ -6614,6 +6607,7 @@ function useMobileViewport(maxWidth = 768) {
 }
 
 
+
 const BCL_ADMIN_NAMES = new Set(["bowhunter6758", "bowhunter", "h0lden", "h0ld3n", "holden", "holden2dx4ev3r"]);
 const BCL_OWNER_NAMES = new Set(["highlander", "highlander713", "bowhunter", "bowhunter6758", "rookie", "rookievet99", "jpc_racing", "cajun", "cajunthrottle28", "orly", "orly_revo23", "kevdinho", "kevdinho7"]);
 
@@ -7130,6 +7124,9 @@ function MobileLeagueApp({
 
   return dataFrame("Budweiser Cup", "standings", <PublicStandings drivers={drivers} teams={teams} manufacturerStandings={manufacturerStandings} seasonName={seasonName} tracks={tracks} raceHistory={raceHistory} />);
 }
+
+
+
 
 
 function MobileTimelineSpotlightPanel({ tracks = [], drivers = [], go, seasonName = "" }) {
@@ -8208,6 +8205,7 @@ function MobileDriverProfilePolished({ driver, driverNumber, raceHistory = [], t
 function MobileTeamRow({ team, index }) { return <div style={mobileSmallRowStyle}><strong>{index + 1}. {team.team || team.name}</strong><span>{team.points || 0} pts</span></div>; }
 function MobileManufacturerRow({ manufacturer, index }) { return <div style={mobileSmallRowStyle}><strong>{index + 1}. {manufacturer.manufacturer || manufacturer.name}</strong><span>{manufacturer.points || 0} pts</span></div>; }
 function MobileRaceCard({ race }) { return <MobileCard><div style={mobileKickerStyle}>Next Race</div><h2 style={{ margin: "4px 0" }}>{race.name || race.track || "Race"}</h2><p style={{ color: "#aab3c2", margin: 0 }}>{race.date || "Date TBA"} • Qualifying 9:15 PM • Race 9:30 PM</p></MobileCard>; }
+
 
 
 const mobileStreamHeroCardStyle = { background: "linear-gradient(135deg, #111827 0%, #070b10 100%)", border: "1px solid rgba(212,175,55,0.38)", borderRadius: 24, padding: 18, marginBottom: 14, boxShadow: "0 18px 42px rgba(0,0,0,0.36)" };
