@@ -1,14 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
-import teamLogoJAM from "../assets/teams/JAM.png";
+import teamLogoB2J from "../assets/teams/B2J.png";
 import teamLogoMER from "../assets/teams/ME.png";
 import teamLogoNLM from "../assets/teams/NLM.png";
 import teamLogoMMS from "../assets/teams/MMS.png";
-import teamLogoBOM from "../assets/teams/BOM.png";
 import teamLogoIND from "../assets/teams/IND.png";
 import teamLogo19XI from "../assets/teams/19XI.png";
 import teamLogoBWR from "../assets/teams/BWR.png";
-import teamLogoKDM from "../assets/teams/KDM.png";
 import teamLogoBXM from "../assets/teams/BXM.png";
 
 const ADMIN_ACCESS_CODE = "BCLADMINPASSWORD2026";
@@ -16,38 +14,31 @@ const JPC_RACING_YOUTUBE_URL = "https://youtube.com/@jpc_racing/live";
 const JPC_RACING_PROFILE_URL = "https://youtube.com/@jpc_racing";
 
 const teamLogos = {
-  JAM: teamLogoJAM,
-  "JA Motorsports": teamLogoJAM,
-  "JA MOTORSPORTS": teamLogoJAM,
+  B2J: teamLogoB2J,
+  "B2J Motorsports": teamLogoB2J,
+  "B2J MOTORSPORTS": teamLogoB2J,
   MER: teamLogoMER,
   "ME Racing": teamLogoMER,
   NLM: teamLogoNLM,
   "Nine Line Motorsports": teamLogoNLM,
   MMS: teamLogoMMS,
   "Mayhem Motorsports": teamLogoMMS,
-  BOM: teamLogoBOM,
   IND: teamLogoIND,
   Independent: teamLogoIND,
   "19XI": teamLogo19XI,
   "19XI Racing": teamLogo19XI,
   BWR: teamLogoBWR,
   "Big Wheel Racing": teamLogoBWR,
-  KDM: teamLogoMER,
-  "ME Racing": teamLogoMER,
-  BMX: teamLogoBXM,
   BXM: teamLogoBXM,
   "BayouX Motorsports": teamLogoBXM,
 };
 
 const teamFullNames = {
-  JAM: "JA Motorsports",
+  B2J: "B2J Motorsports",
     MER: "ME Racing",
     NLM: "Nine Line Motorsports",
   MMS: "Mayhem Motorsports",
-  BOM: "Blue Oval Motorsports",
     BWR: "Big Wheel Racing",
-  KDM: "ME Racing",
-  BMX: "BayouX Motorsports",
   BXM: "BayouX Motorsports",
   "19XI": "19XI Racing",
   IND: "Independent",
