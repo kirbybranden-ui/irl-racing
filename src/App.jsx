@@ -21,6 +21,7 @@ import { defaultDrivers } from "./data/drivers";
 import { defaultRaces } from "./data/races";
 import { teamLogos, manufacturerLogos, getTeamFullName, getTeamBudget, getTeamBranding } from "./data/teams";
 import { loadLeagueState, saveLeagueState } from "./lib/leagueState";
+import { pointsTable, stagePointsTable, offensePenaltyPoints } from "./data/points";
 function money(value) {
   const safe = Number(value) || 0;
   return safe.toLocaleString("en-US", {
@@ -135,16 +136,6 @@ function dedupeDriversByNumber(drivers) {
 
   return Array.from(byNumber.values());
 }
-// Current NASCAR Cup Series points system: winner = 55, 2nd = 35, then -1 per position through 35th, 36th-40th = 1 point
-const pointsTable = [
-  55, 35, 34, 33, 32, 31, 30, 29, 28, 27,
-  26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
-  16, 15, 14, 13, 12, 11, 10, 9, 8, 7,
-  6, 5, 4, 3, 2, 1, 1, 1, 1, 1,
-];
-const stagePointsTable = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
-// Offense penalty points: 1st=-5, 2nd=-10, 3rd=-15, 4th+=-25
-const offensePenaltyPoints = [5, 10, 15, 25];
 function getOffensePenaltyPoints(offenseNumber) {
   if (offenseNumber <= 0) return 0;
   const idx = Math.min(offenseNumber, offensePenaltyPoints.length) - 1;
