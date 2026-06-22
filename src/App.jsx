@@ -6922,7 +6922,7 @@ export default function App() {
 
   if (path === "/chat") return withLeagueStatusWidget(<LeagueChatPage drivers={visibleDrivers} />);
   if (path === "/message-center") return withLeagueStatusWidget(<LeagueMessageCenter drivers={visibleDrivers} />);
-  if (path === "/transfer-portal" || path === "/silly-season") return withLeagueStatusWidget(<TransferPortalPage drivers={visibleDrivers} raceHistory={raceHistory} startParkRequests={startParkRequests} paintSchemePayouts={paintSchemePayouts} />);
+  if (path === "/transfer-portal" || path === "/silly-season") return withLeagueStatusWidget(<TransferPortalPage drivers={visibleDrivers} raceHistory={raceHistory} startParkRequests={startParkRequests} paintSchemePayouts={[]} />);
   if (path === "/tournament" || path === "/in-season-tournament" || path === "/in-season-bracket" || path === "/bracket") {
     return withLeagueStatusWidget(
       <InSeasonTournamentPage drivers={visibleDrivers} raceHistory={raceHistory} />
