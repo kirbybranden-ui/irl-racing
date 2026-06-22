@@ -29,6 +29,7 @@ import StreamPage from "./pages/StreamPage";
 import LeagueChatPage from "./LeagueChatPage";
 import OwnersPage from "./OwnersPage.jsx";
 import { defaultDrivers } from "./data/drivers";
+import { defaultRaces } from "./data/races";
 // Team logos
 const teamLogos = {
   "B2J MOTORSPORTS": teamLogoB2J,
@@ -201,28 +202,6 @@ function dedupeDriversByNumber(drivers) {
 
   return Array.from(byNumber.values());
 }
-const defaultRaces = [
-  { name: "Preseason - Michigan", stageCount: 2, date: "2026-04-25" },
-  { name: "Preseason - Dover", stageCount: 2, date: "2026-05-02" },
-  { name: "Preseason - EchoPark Speedway", stageCount: 2, date: "2026-05-09" },
-  { name: "Daytona (Night)", stageCount: 2, date: "2026-05-16" },
-  { name: "Charlotte", stageCount: 3, date: "2026-05-23" },
-  { name: "Nashville", stageCount: 2, date: "2026-05-30" },
-  { name: "Michigan", stageCount: 2, date: "2026-06-06" },
-  { name: "Pocono", stageCount: 2, date: "2026-06-13" },
-  { name: "Bristol (Night)", stageCount: 2, date: "2026-06-20" },
-  { name: "Las Vegas", stageCount: 2, date: "2026-06-27" },
-  { name: "Talladega", stageCount: 2, date: "2026-07-11" },
-  { name: "North Wilkesboro", stageCount: 2, date: "2026-07-18" },
-  { name: "Indianapolis", stageCount: 2, date: "2026-07-25" },
-  { name: "New Hampshire", stageCount: 2, date: "2026-08-01" },
-  { name: "Phoenix", stageCount: 2, date: "2026-08-08" },
-  { name: "Richmond", stageCount: 2, date: "2026-08-15" },
-  { name: "Kansas", stageCount: 2, date: "2026-08-22" },
-  { name: "Texas", stageCount: 2, date: "2026-08-29" },
-  { name: "Iowa", stageCount: 2, date: "2026-09-05" },
-  { name: "Homestead", stageCount: 2, date: "2026-09-12" },
-];
 // Current NASCAR Cup Series points system: winner = 55, 2nd = 35, then -1 per position through 35th, 36th-40th = 1 point
 const pointsTable = [
   55, 35, 34, 33, 32, 31, 30, 29, 28, 27,
