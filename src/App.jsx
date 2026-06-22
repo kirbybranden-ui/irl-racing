@@ -3494,7 +3494,7 @@ function MobileLeagueApp({
   if (path === "/notifications") return dataFrame("Notifications", "more", <NotificationsPage />);
   if (path === "/interviews") return frame("Interviews", "interviews", <MobileInterviewsHub session={mobileSession} go={go} />);
   if (path === "/contracts") return dataFrame("Contracts", "more", <ContractsPage drivers={drivers} />);
-  if (path === "/driver-market" || path === "/transfer-portal" || path === "/silly-season") return dataFrame("Driver Market", "more", <DriverMarketPage drivers={drivers} raceHistory={raceHistory} startParkRequests={startParkRequests} paintSchemePayouts={[]} />);
+  if (path === "/driver-market" || path === "/transfer-portal" || path === "/silly-season") return dataFrame("Driver Market", "more", <DriverMarketPage drivers={drivers || []} raceHistory={raceHistory || []} startParkRequests={[]} paintSchemePayouts={[]} />);
   if (path === "/memorial-day") return dataFrame("Memorial", "more", <MemorialDayPage drivers={drivers} />);
   if (path === "/tracks" || path === "/schedule" || path === "/season-schedule") {
     const sortedTracks = getSortedTracksByDate(tracks || []);
@@ -3738,7 +3738,22 @@ function MobileLeagueApp({
           <p style={{ color: "#aab3c2", lineHeight: 1.45, margin: "0 0 12px" }}>
             Scout drivers, track re-sign interest, and follow the market before signing day.
           </p>
-          <MobileAction label="Enter Driver Market" onClick={() => go("/driver-market")} />
+          <button
+            type="button"
+            onClick={() => go("/driver-market")}
+            style={{
+              width: "100%",
+              minHeight: 48,
+              borderRadius: 14,
+              border: "1px solid #d4af37",
+              background: "#d4af37",
+              color: "#111",
+              fontWeight: 1000,
+              cursor: "pointer",
+            }}
+          >
+            Enter Driver Market
+          </button>
         </MobileCard>
         <MobileTimelineSpotlightPanel tracks={tracks} drivers={drivers} go={go} seasonName={seasonName} />
         <MobileLatestNewsPreview go={go} />
@@ -5065,30 +5080,7 @@ export default function App() {
 
   // ─── Computed values (must be before all hooks) ───────────────────────────
   const activeSeason = seasons.find((s) => s.id === activeSeasonId) || seasons[0] || null;
-  const withLeagueStatusWidget = (page) => (
-    <>
-      {page}
-      {path !== "/driver-market" && path !== "/transfer-portal" && path !== "/silly-season" && (
-        <div style={{ maxWidth: 1400, margin: "0 auto 16px", padding: "0 20px" }}>
-          <button
-            type="button"
-            onClick={() => (window.location.pathname = "/driver-market")}
-            style={{
-              ...primaryButtonStyle,
-              width: "100%",
-              minHeight: 54,
-              fontSize: 16,
-              border: "1px solid rgba(212,175,55,0.65)",
-              boxShadow: "0 14px 30px rgba(0,0,0,0.25)",
-            }}
-          >
-            🔥 Driver Market / Silly Season
-          </button>
-        </div>
-      )}
-      <LeagueStatusWidget tracks={tracks} seasonName={activeSeason?.name || ""} />
-    </>
-  );
+  const withLeagueStatusWidget = (page) => (<> {page} <LeagueStatusWidget tracks={tracks} seasonName={activeSeason?.name || ""} /> </>);
   const drivers = realignLeagueDrivers(activeSeason?.drivers || []);
   const visibleDrivers = drivers.filter((d) => !isInactivePlaceholderDriver(d));
   const activeDrivers = visibleDrivers.filter((d) => !d.retired);
@@ -6954,7 +6946,7 @@ export default function App() {
 
   if (path === "/chat") return withLeagueStatusWidget(<LeagueChatPage drivers={visibleDrivers} />);
   if (path === "/message-center") return withLeagueStatusWidget(<LeagueMessageCenter drivers={visibleDrivers} />);
-  if (path === "/driver-market" || path === "/transfer-portal" || path === "/silly-season") return withLeagueStatusWidget(<DriverMarketPage drivers={visibleDrivers} raceHistory={raceHistory} startParkRequests={startParkRequests} paintSchemePayouts={[]} />);
+  if (path === "/driver-market" || path === "/transfer-portal" || path === "/silly-season") return withLeagueStatusWidget(<DriverMarketPage drivers={visibleDrivers || []} raceHistory={raceHistory || []} startParkRequests={startParkRequests || []} paintSchemePayouts={[]} />);
   if (path === "/tournament" || path === "/in-season-tournament" || path === "/in-season-bracket" || path === "/bracket") {
     return withLeagueStatusWidget(
       <InSeasonTournamentPage drivers={visibleDrivers} raceHistory={raceHistory} />
