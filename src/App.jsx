@@ -7504,7 +7504,9 @@ export default function App() {
   if (path === "/" || path === "/standings") return withLeagueStatusWidget(<StandingsPage drivers={visibleDrivers} teams={teamStandings} manufacturerStandings={manufacturerStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} />);
   if (path === "/overlay/ticker" || viewMode === "overlay-ticker") return <TickerOverlay drivers={visibleDrivers} teams={teamStandings} raceHistory={raceHistory} preview={viewMode === "overlay-ticker"} seasonName={activeSeason?.name || ""} />;
   if (path !== "/admin") {
-    return <StandingsPage drivers={visibleDrivers} teams={teamStandings} manufacturerStandings={manufacturerStandings} seasonName={activeSeason?.name || ""} trackreturn (
+    return <StandingsPage drivers={visibleDrivers} teams={teamStandings} manufacturerStandings={manufacturerStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} />;
+  }
+  return (
     <AdminPortal
       AdminLeagueMessageComposer={AdminLeagueMessageComposer}
       AdminLeagueMessageDashboard={AdminLeagueMessageDashboard}
