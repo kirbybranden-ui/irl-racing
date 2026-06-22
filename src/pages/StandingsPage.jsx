@@ -1,19 +1,17 @@
 import React, { useEffect, useMemo, useState } from "react";
 import logo from "../assets/logo1.png";
-import { supabase } from "../lib/supabase";
-import { teamLogos, getTeamFullName, getTeamBranding } from "../data/teams";
-import { trackOverviewData } from "../data/trackOverview";
-import { dedupeDriversByNumber, isInactivePlaceholderDriver } from "../utils/driverHelpers";
 import {
-  getUpcomingRaceByDate,
+  supabase } from "../lib/supabase"; import { teamLogos,
+  getTeamFullName,
+  getTeamBranding } from "../data/teams"; import { trackOverviewData } from "../data/trackOverview"; import { dedupeDriversByNumber,
+  isInactivePlaceholderDriver } from "../utils/driverHelpers"; import {   getUpcomingRaceByDate,
   getSortedTracksByDate,
   isRaceCompleteByDateOrHistory,
-} from "../utils/raceHelpers";
-import {
-  appShellStyle,
+  } from "../utils/raceHelpers"; import {   appShellStyle,
   pageContainerStyle,
   thStyle,
   tdStyle,
+  sectionCardStyle,
 } from "../styles/sharedStyles";
 
 function getEasternDateTimePartsForPaintWinner(date = new Date()) {
