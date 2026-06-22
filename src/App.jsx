@@ -19,9 +19,32 @@ import LeagueChatPage from "./LeagueChatPage";
 import OwnersPage from "./OwnersPage.jsx";
 import { defaultDrivers } from "./data/drivers";
 import { defaultRaces } from "./data/races";
-import { teamLogos, manufacturerLogos, getTeamFullName, getTeamBudget, getTeamBranding } from "./data/teams";
-import { loadLeagueState, saveLeagueState } from "./lib/leagueState";
+import {
+  teamLogos,
+  manufacturerLogos,
+  getTeamFullName,
+  getTeamBudget,
+  getTeamBranding,
+} from "./data/teams";
 import { pointsTable, stagePointsTable, offensePenaltyPoints } from "./data/points";
+import {
+  isInactivePlaceholderDriver,
+  isRemovedLeagueDriver,
+  realignLeagueDrivers,
+  filterRemovedLeagueDrivers,
+  dedupeDriversByNumber,
+  makeDriverWithStats,
+  getDriverAchievements,
+  getDefaultRoster,
+  rebuildDriversFromHistory,
+  apply2026DriverNumberAdjustments,
+} from "./utils/driverHelpers";
+import { loadLeagueState, saveLeagueState } from "./lib/leagueState";
+const INDEPENDENT_DRIVER_BASE_SALARY = 250000;
+const LEAGUE_BANK_NAME = "Budweiser Cup League";
+const APP_VERSION = "v1.7.3";
+
+
 function money(value) {
   const safe = Number(value) || 0;
   return safe.toLocaleString("en-US", {
@@ -30,112 +53,7 @@ function money(value) {
     maximumFractionDigits: 0,
   });
 }
-function isInactivePlaceholderDriver(driver) {
-  return String(driver?.name || "").trim().toLowerCase().startsWith("inactive-");
-}
 
-const removedDriverNumbers = new Set(["16", "38", "42", "66", "80", "86"]);
-const removedDriverIds = new Set([1, 8, 13, 21, 25, 28, 66]);
-const removedDriverNames = new Set(["vtfan_25", "undeadhelliday", "racingis_life87", "vanilla04gorilla", "amp-ghostrider", "ampghostrider", "gumby_1919", "gumby", "yinzermob_86", "yinzer", "it's_tricky88", "its_tricky88", "itstricky88"]);
-function isRemovedLeagueDriver(driver) {
-  const numberKey = String(driver?.number ?? driver?.driver_number ?? "").trim();
-  const idKey = Number(driver?.id ?? driver?.driver_id);
-  const nameKey = String(driver?.name ?? driver?.driver_name ?? "").trim().toLowerCase();
-  return removedDriverNumbers.has(numberKey) || removedDriverIds.has(idKey) || removedDriverNames.has(nameKey);
-}
-
-function realignLeagueDriver(driver) {
-  if (!driver || isRemovedLeagueDriver(driver)) return null;
-  const id = Number(driver.id ?? driver.driver_id);
-  const nameKey = String(driver.name ?? driver.driver_name ?? "").trim().toLowerCase();
-
-  if (id === 6 || nameKey === "kapsig") {
-    return { ...driver, number: 14, team: "MER", manufacturer: "Chevrolet", manufacturerLogo: manufacturerLogos.Chevrolet || driver.manufacturerLogo };
-  }
-  if (id === 7 || id === 46 || nameKey === "kevdinho7" || nameKey === "bigdiehl21") {
-    return { ...driver, team: "MER", manufacturer: "Chevrolet", manufacturerLogo: manufacturerLogos.Chevrolet || driver.manufacturerLogo };
-  }
-  if (id === 5 || nameKey === "ixgusty") {
-    return { ...driver, number: 3, team: "19XI", manufacturer: "Toyota", manufacturerLogo: manufacturerLogos.Toyota || driver.manufacturerLogo };
-  }
-  if (id === 21 || nameKey === "yinzermob_86") {
-    return { ...driver, number: 86, team: "MER", manufacturer: "Chevrolet", manufacturerLogo: manufacturerLogos.Chevrolet || driver.manufacturerLogo };
-  }
-  if (id === 34 || nameKey === "cajunthrottle28") {
-    return { ...driver, number: 48, driver_number: driver.driver_number !== undefined ? 48 : driver.driver_number, team: "BXM", manufacturer: "Chevrolet", manufacturerLogo: manufacturerLogos.Chevrolet || driver.manufacturerLogo };
-  }
-  if (id === 54 || nameKey === "thecruiser54") {
-    return { ...driver, id: 54, number: 8, driver_number: driver.driver_number !== undefined ? 8 : driver.driver_number, name: "TheCruiser54", team: "BXM", manufacturer: "Chevrolet", manufacturerLogo: manufacturerLogos.Chevrolet || driver.manufacturerLogo };
-  }
-  if (id === 35 || id === 102 || ["knighttrain41", "ghostracer388"].includes(nameKey)) {
-    return { ...driver, team: "BXM", manufacturer: "Chevrolet", manufacturerLogo: manufacturerLogos.Chevrolet || driver.manufacturerLogo };
-  }
-  return driver;
-}
-
-function realignLeagueDrivers(drivers = []) {
-  return (Array.isArray(drivers) ? drivers : []).map(realignLeagueDriver).filter(Boolean);
-}
-
-function filterRemovedLeagueDrivers(drivers = []) {
-  return Array.isArray(drivers) ? drivers.filter((driver) => !isRemovedLeagueDriver(driver)) : [];
-}
-
-function dedupeDriversByNumber(drivers) {
-  if (!Array.isArray(drivers)) return [];
-  drivers = filterRemovedLeagueDrivers(drivers);
-  const preferredNamesByNumber = {};
-
-  const byNumber = new Map();
-
-  drivers.forEach((driver) => {
-    if (!driver || driver.number === undefined || driver.number === null) return;
-    const numberKey = String(Number(driver.number));
-    const preferredName = preferredNamesByNumber[numberKey];
-    const current = byNumber.get(numberKey);
-
-    if (!current) {
-      byNumber.set(numberKey, driver);
-      return;
-    }
-
-    const driverName = String(driver.name || "").trim().toLowerCase();
-    const currentName = String(current.name || "").trim().toLowerCase();
-
-    if (preferredName && driverName === preferredName.toLowerCase()) {
-      byNumber.set(numberKey, driver);
-      return;
-    }
-
-    if (preferredName && currentName === preferredName.toLowerCase()) {
-      return;
-    }
-
-    const driverHasData =
-      Number(driver.points || 0) !== 0 ||
-      Number(driver.wins || 0) !== 0 ||
-      Number(driver.top3 || 0) !== 0 ||
-      Number(driver.top5 || 0) !== 0 ||
-      Number(driver.dnfs || 0) !== 0 ||
-      Number(driver.fastestLaps || 0) !== 0 ||
-      Number(driver.totalPenalties || 0) !== 0;
-
-    const currentHasData =
-      Number(current.points || 0) !== 0 ||
-      Number(current.wins || 0) !== 0 ||
-      Number(current.top3 || 0) !== 0 ||
-      Number(current.top5 || 0) !== 0 ||
-      Number(current.dnfs || 0) !== 0 ||
-      Number(current.fastestLaps || 0) !== 0 ||
-      Number(current.totalPenalties || 0) !== 0;
-
-    if (driverHasData && !currentHasData) {
-      byNumber.set(numberKey, driver);
-    }
-  });
-
-  return Array.from(byNumber.values());
-}
 function getOffensePenaltyPoints(offenseNumber) {
   if (offenseNumber <= 0) return 0;
   const idx = Math.min(offenseNumber, offensePenaltyPoints.length) - 1;
@@ -187,7 +105,6 @@ function getEasternDateParts(date = new Date()) {
     minute: Number(values.minute || 0),
   };
 }
-
 
 function getEasternNowParts(date = new Date()) {
   const parts = new Intl.DateTimeFormat("en-US", {
@@ -340,8 +257,6 @@ const raceEntryTdStyle = {
   minWidth: 115,
 };
 const statBoxStyle = { background: "#11161d", border: "1px solid #2a3240", borderRadius: 14, padding: 16, flex: "1 1 220px" };
-
-
 
 // ─── Shared Message Center Permissions ───────────────────────────────────────
 // Mobile and desktop should both use this same permission model.
@@ -578,22 +493,7 @@ function renderTeamBadge(teamName, size = 44) {
       {brand.logo}
     </div>
   );
-}
-function makeDriverWithStats(driver) {
-  return { ...driver, manufacturer: driver.manufacturer || "", manufacturerLogo: driver.manufacturerLogo || manufacturerLogos[driver.manufacturer] || null, startingPoints: 0, manualWins: 0, points: 0, wins: 0, top3: 0, top5: 0, dnfs: 0, retired: driver.retired || false, notes: "" };
-}
-function getDriverAchievements(driver) {
-  const achievements = [];
-  if (driver.wins >= 1) achievements.push({ badge: "🏆", name: "First Win", condition: driver.wins >= 1 });
-  if (driver.wins >= 3) achievements.push({ badge: "🥇", name: "Hat Trick", condition: driver.wins >= 3 });
-  if (driver.wins >= 5) achievements.push({ badge: "👑", name: "Dominator", condition: driver.wins >= 5 });
-  if (driver.top3 >= 10) achievements.push({ badge: "🎯", name: "Podium Master", condition: driver.top3 >= 10 });
-  if (driver.points >= 100) achievements.push({ badge: "⭐", name: "Century Club", condition: driver.points >= 100 });
-  if (driver.fastestLaps >= 5) achievements.push({ badge: "⚡", name: "Speed Demon", condition: driver.fastestLaps >= 5 });
-  return achievements;
-}
-function getDefaultRoster() { return dedupeDriversByNumber(realignLeagueDrivers(defaultDrivers).map(makeDriverWithStats)); }
-function getStagePoints(stageFinish) {
+}function getStagePoints(stageFinish) {
   if (!stageFinish || stageFinish < 1 || stageFinish > 10) return 0;
   return stagePointsTable[stageFinish - 1];
 }
@@ -826,117 +726,12 @@ async function syncCruiserNumberAndNumberOwnership() {
   }
 }
 
-
-function rebuildDriversFromHistory(history, driverRoster) {
-  return driverRoster.map((baseDriver) => {
-    let points = 0;
-    let wins = 0;
-    let top3 = 0, top5 = 0, dnfs = 0, fastestLaps = 0, totalPenalties = 0;
-    history.forEach((race) => {
-      const result = race.results?.find((r) => r.driverId === baseDriver.id);
-      if (!result) return;
-      points += result.totalRacePoints || 0;
-      wins += result.isWin ? 1 : 0;
-      top3 += result.isTop3 ? 1 : 0;
-      top5 += result.isTop5 ? 1 : 0;
-      dnfs += result.dnf ? 1 : 0;
-      fastestLaps += result.fastestLap ? 1 : 0;
-      totalPenalties += result.penaltyPoints || 0;
-    });
-    return { ...baseDriver, manufacturerLogo: baseDriver.manufacturerLogo || manufacturerLogos[baseDriver.manufacturer] || null, startingPoints: 0, manualWins: 0, points, wins, top3, top5, dnfs, fastestLaps, totalPenalties, retired: baseDriver.retired || false, notes: "" };
-  });
-}
 function makeSeasonId() { return `season-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`; }
 function createEmptySeason(name, roster = getDefaultRoster()) {
   const dedupedRoster = dedupeDriversByNumber(roster);
   const cleanRoster = dedupedRoster.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer || "", team: d.team, startingPoints: 0, manualWins: 0 }));
   return { id: makeSeasonId(), name: name || "New Season", createdAt: new Date().toISOString(), drivers: rebuildDriversFromHistory([], cleanRoster), selectedRace: "", positions: {}, stage1: {}, stage2: {}, stage3: {}, dnfMap: {}, startParkMap: {}, offenseMap: {}, fastestLapMap: {}, raceHistory: [] };
-}
-function apply2026DriverNumberAdjustments(roster = [], history = []) {
-  const normalizedRoster = Array.isArray(roster) ? roster.map((driver) => ({ ...driver })) : [];
-  const normalizedHistory = Array.isArray(history) ? history : [];
-
-  const cajunDriver = normalizedRoster.find((driver) => {
-    const nameKey = String(driver?.name || "").trim().toLowerCase();
-    const numberKey = String(driver?.number ?? "").trim();
-    return nameKey === "cajunthrottle28";
-  });
-
-  if (cajunDriver) {
-    cajunDriver.number = 12;
-    cajunDriver.manufacturer = cajunDriver.manufacturer || "Ford";
-    cajunDriver.team = cajunDriver.team === "BMX" ? "BXM" : (cajunDriver.team || "BXM");
-  }
-
-  let knightDriver = normalizedRoster.find((driver) => String(driver?.name || "").trim().toLowerCase() === "knighttrain41");
-  if (knightDriver) {
-    knightDriver.number = 41;
-    knightDriver.manufacturer = "Ford";
-    knightDriver.team = "BXM";
-  } else {
-    knightDriver = {
-      id: 3412,
-      number: 41,
-      name: "KnightTrain41",
-      manufacturer: "Ford",
-      team: "BXM",
-      startingPoints: 0,
-      manualWins: 0,
-      retired: false,
-    };
-    normalizedRoster.push(knightDriver);
-  }
-
-  // Normalize MARE to Ford while keeping BWR roster placement.
-  normalizedRoster.forEach((driver) => {
-    const nameKey = String(driver?.name || "").trim().toLowerCase();
-    if (nameKey === "mare951") {
-      driver.manufacturer = "Ford";
-      driver.team = driver.team || "BWR";
-    }
-  });
-
-  // Normalize Cruiser so old saved #4/#54 rows collapse into the current No. 8 BXM Chevrolet.
-  normalizedRoster.forEach((driver) => {
-    const nameKey = String(driver?.name || "").trim().toLowerCase();
-    if (nameKey === "thecruiser54" || Number(driver?.id) === 54) {
-      driver.id = 54;
-      driver.number = 8;
-      driver.manufacturer = "Chevrolet";
-      driver.team = driver.team === "BMX" ? "BXM" : (driver.team || "BXM");
-    }
-  });
-
-  const adjustedHistory = Array.isArray(normalizedHistory)
-    ? normalizedHistory.map((race) => ({
-        ...race,
-        results: Array.isArray(race?.results)
-          ? race.results.map((result) => {
-              const resultName = String(result?.name || "").trim().toLowerCase();
-              if (cajunDriver && String(result?.driverId) === String(cajunDriver.id)) {
-                return { ...result, number: 12, name: cajunDriver.name || "CaJunThrottle28", manufacturer: cajunDriver.manufacturer || "Ford", team: cajunDriver.team || "BXM" };
-              }
-              if (resultName === "cajunthrottle28" && String(result?.number) === "34") {
-                return { ...result, number: 12, manufacturer: result.manufacturer || "Ford", team: result.team === "BMX" ? "BXM" : (result.team || "BXM") };
-              }
-              if (resultName === "knighttrain41") {
-                return { ...result, number: 41, manufacturer: "Ford", team: "BXM" };
-              }
-              if (resultName === "mare951") {
-                return { ...result, manufacturer: "Ford", team: result.team || "BWR" };
-              }
-              if (resultName === "thecruiser54" || Number(result?.driverId) === 54) {
-                return { ...result, driverId: 54, number: 8, name: "TheCruiser54", manufacturer: "Chevrolet", team: result.team === "BMX" ? "BXM" : (result.team || "BXM") };
-              }
-              return result;
-            })
-          : [],
-      }))
-    : [];
-
-  return { roster: normalizedRoster, history: adjustedHistory };
-}
-function sanitizeSeason(season, fallbackName = "Season") {
+}function sanitizeSeason(season, fallbackName = "Season") {
   const rosterSource = Array.isArray(season?.drivers) && season.drivers.length > 0 ? season.drivers : getDefaultRoster();
   const normalizedHistory = Array.isArray(season?.raceHistory)
     ? season.raceHistory.map((race) => ({ ...race, raceName: normalizeTrackName(race.raceName) }))
