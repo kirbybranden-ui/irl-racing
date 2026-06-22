@@ -3206,6 +3206,48 @@ function MobileStreamsPage({ drivers = [], teams = [], manufacturerStandings = [
 }
 
 
+function getBclRoleFlagsForDriver(driver = {}, enteredAdminCode = false) {
+  const possibleNames = [
+    driver.name,
+    driver.driver_name,
+    driver.driverName,
+    driver.display_name,
+    driver.displayName,
+    driver.username,
+    driver.handle,
+  ].map(normalizeBclName).filter(Boolean);
+
+  const isNamedAdmin = possibleNames.some((name) => BCL_ADMIN_NAMES.has(name));
+  const isNamedOwner = possibleNames.some((name) => BCL_OWNER_NAMES.has(name));
+
+  const team = driver.team || "";
+  const manufacturer = driver.manufacturer || "";
+
+  return {
+    role: enteredAdminCode || isNamedAdmin ? "admin" : (isNamedOwner ? "owner" : "driver"),
+    isAdmin: enteredAdminCode || isNamedAdmin,
+    isOwner: isNamedOwner,
+    isDriver: true,
+    team,
+    manufacturer,
+  };
+}
+
+const BCL_MOBILE_SESSION_KEY = "bcl-mobile-session-v1";
+
+function readBclMobileSession() {
+  try {
+    const raw = localStorage.getItem(BCL_MOBILE_SESSION_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || !parsed.mode) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+
 function useMobileViewport(maxWidth = 768) {
   const [isMobile, setIsMobile] = useState(() => {
     if (typeof window === "undefined") return false;
