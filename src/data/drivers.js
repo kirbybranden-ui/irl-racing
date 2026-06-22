@@ -1,5 +1,4 @@
 export const defaultDrivers = [
-  const defaultDrivers = [
   { id: 2,  number: 99, name: "RookieVet99",               manufacturer: "Toyota",    team: "B2J"         },
   { id: 3,  number: 18, name: "bowhunter6758",             manufacturer: "Toyota",    team: "B2J"         },
   { id: 4,  number: 81, name: "HOLDEN2DX4EV3R",            manufacturer: "Toyota",    team: "B2J"         },
