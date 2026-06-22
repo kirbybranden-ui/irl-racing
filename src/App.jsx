@@ -85,6 +85,26 @@ import {
   filterLeagueMessagesForSession,
 } from "./utils/messagePermissions";
 import { loadLeagueState, saveLeagueState } from "./lib/leagueState";
+import {
+  appShellStyle,
+  pageContainerStyle,
+  sectionCardStyle,
+  headerButtonStyle,
+  activeHeaderButtonStyle,
+  primaryButtonStyle,
+  secondaryButtonStyle,
+  dangerButtonStyle,
+  inputStyle,
+  racePositionInputStyle,
+  racePenaltyInputStyle,
+  raceNotesInputStyle,
+  tableStyle,
+  thStyle,
+  tdStyle,
+  raceEntryThStyle,
+  raceEntryTdStyle,
+  statBoxStyle,
+} from "./styles/sharedStyles";
 // Current NASCAR Cup Series points system: winner = 55, 2nd = 35, then -1 per position through 35th, 36th-40th = 1 point
 // Offense penalty points: 1st=-5, 2nd=-10, 3rd=-15, 4th+=-25
 function getOffensePenaltyPoints(offenseNumber) {
@@ -101,55 +121,6 @@ function countPriorOffenses(raceHistory, driverId, excludeRaceName = null) {
   });
   return count;
 }
-const appShellStyle = { minHeight: "100vh", background: "#0c0f14", color: "white", fontFamily: "Arial, sans-serif" };
-const pageContainerStyle = { maxWidth: 1400, margin: "0 auto", padding: 20 };
-const sectionCardStyle = { background: "#171b22", border: "1px solid #2c3440", borderRadius: 16, padding: 18, marginBottom: 20, boxShadow: "0 8px 24px rgba(0,0,0,0.22)" };
-const headerButtonStyle = { background: "#222936", color: "white", border: "1px solid #3a4453", borderRadius: 10, padding: "10px 14px", fontWeight: 700, cursor: "pointer" };
-const activeHeaderButtonStyle = { ...headerButtonStyle, background: "#d4af37", color: "#111", border: "1px solid #d4af37" };
-const primaryButtonStyle = { background: "#d4af37", color: "#111", border: "none", borderRadius: 10, padding: "10px 16px", fontWeight: 700, cursor: "pointer" };
-const secondaryButtonStyle = { background: "#2a3140", color: "white", border: "1px solid #3d4859", borderRadius: 10, padding: "10px 16px", fontWeight: 700, cursor: "pointer" };
-const dangerButtonStyle = { background: "#b42318", color: "white", border: "none", borderRadius: 10, padding: "10px 16px", fontWeight: 700, cursor: "pointer" };
-const inputStyle = { width: "100%", background: "#0f1319", color: "white", border: "1px solid #313947", borderRadius: 10, padding: "10px 12px", boxSizing: "border-box" };
-const racePositionInputStyle = {
-  ...inputStyle,
-  width: 110,
-  minWidth: 110,
-  maxWidth: 130,
-  padding: "10px 12px",
-  fontSize: 16,
-  fontWeight: 800,
-  textAlign: "center",
-};
-const racePenaltyInputStyle = {
-  ...inputStyle,
-  width: 130,
-  minWidth: 130,
-  maxWidth: 150,
-  padding: "10px 12px",
-  fontSize: 15,
-  fontWeight: 800,
-  textAlign: "center",
-};
-const raceNotesInputStyle = {
-  ...inputStyle,
-  width: 260,
-  minWidth: 260,
-  padding: "10px 12px",
-  fontSize: 14,
-};
-const tableStyle = { width: "100%", borderCollapse: "collapse" };
-const thStyle = { textAlign: "left", padding: 10, borderBottom: "1px solid #313947", background: "#10141b", fontSize: 13 };
-const tdStyle = { padding: 10, borderBottom: "1px solid #252c38", verticalAlign: "top", fontSize: 14 };
-const raceEntryThStyle = {
-  ...thStyle,
-  minWidth: 115,
-  textAlign: "center",
-};
-const raceEntryTdStyle = {
-  ...tdStyle,
-  minWidth: 115,
-};
-const statBoxStyle = { background: "#11161d", border: "1px solid #2a3240", borderRadius: 14, padding: 16, flex: "1 1 220px" };
 function AdminLoginPage() {
   const ADMIN_ACCESS_CODE = "BCLADMINPASSWORD2026";
   const [code, setCode] = useState("");
