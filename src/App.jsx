@@ -71,21 +71,13 @@ import {
   saveRaceResultsLedger,
   syncAllRaceResultsLedger,
 } from "./utils/backupHelpers";
-// Team logos
+import { money } from "./utils/formatters";
+import {
+  INDEPENDENT_DRIVER_BASE_SALARY,
+  LEAGUE_BANK_NAME,
+  APP_VERSION,
+} from "./data/appConfig";
 import { loadLeagueState, saveLeagueState } from "./lib/leagueState";
-// ─── Team Full Names ───────────────────────────────────────────────────────────
-const INDEPENDENT_DRIVER_BASE_SALARY = 250000;
-const LEAGUE_BANK_NAME = "Budweiser Cup League";
-const APP_VERSION = "v1.7.3";
-
-function money(value) {
-  const safe = Number(value) || 0;
-  return safe.toLocaleString("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  });
-}
 // Current NASCAR Cup Series points system: winner = 55, 2nd = 35, then -1 per position through 35th, 36th-40th = 1 point
 // Offense penalty points: 1st=-5, 2nd=-10, 3rd=-15, 4th+=-25
 function getOffensePenaltyPoints(offenseNumber) {
