@@ -23,6 +23,7 @@ import DriverFeedbackPage from "./pages/DriverFeedbackPage";
 import OwnerHQPage from "./pages/OwnerHQPage";
 import AdminPortal from "./pages/AdminPortal";
 import LeagueMessageCenter from "./pages/LeagueMessageCenter";
+import InSeasonTournamentPage from "./pages/InSeasonTournamentPage";
 import LeagueChatPage from "./LeagueChatPage";
 import OwnersPage from "./OwnersPage.jsx";
 import { defaultDrivers } from "./data/drivers";
@@ -1863,94 +1864,6 @@ function AdminLeagueMessageDashboard({ drivers = [], teams = [] }) {
 }
 
 
-function InSeasonBracketPage({ drivers = [], seasonName = "" }) {
-  const activeDrivers = dedupeDriversByNumber(drivers)
-    .filter((driver) => !driver?.retired)
-    .filter((driver) => String(driver?.name || "").trim().toLowerCase() !== "orly_revo23")
-    .filter((driver) => String(driver?.name || "").trim().toLowerCase() !== "orly_revo")
-    .filter((driver) => String(driver?.number ?? "") !== "23")
-    .sort((a, b) => (Number(b.points) || 0) - (Number(a.points) || 0) || (Number(b.wins) || 0) - (Number(a.wins) || 0) || String(a.name || "").localeCompare(String(b.name || "")))
-    .slice(0, 20)
-    .map((driver, index) => ({ ...driver, seed: index + 1 }));
-
-  const firstRoundPairs = [];
-  for (let i = 0; i < 10; i += 1) {
-    firstRoundPairs.push([activeDrivers[i], activeDrivers[19 - i]].filter(Boolean));
-  }
-
-  const bracketRounds = [
-    { name: "Round of 20", pairs: firstRoundPairs },
-    { name: "Round of 16", pairs: Array.from({ length: 8 }, () => []) },
-    { name: "Elite 8", pairs: Array.from({ length: 4 }, () => []) },
-    { name: "Final Four", pairs: Array.from({ length: 2 }, () => []) },
-    { name: "Championship", pairs: Array.from({ length: 1 }, () => []) },
-  ];
-
-  const driverCard = (driver, fallbackLabel) => {
-    if (!driver) {
-      return (
-        <div style={{ background: "#0f1319", border: "1px dashed #3a4453", borderRadius: 12, padding: 12, color: "#94a3b8", fontWeight: 800 }}>
-          {fallbackLabel || "TBD"}
-        </div>
-      );
-    }
-    const logoSrc = teamLogos[driver.team] || teamLogos[getTeamFullName(driver.team)] || manufacturerLogos[driver.manufacturer] || null;
-    return (
-      <div style={{ background: "#0f1319", border: "1px solid #2d3643", borderRadius: 12, padding: 12, display: "grid", gridTemplateColumns: "42px 1fr auto", gap: 10, alignItems: "center" }}>
-        <div style={{ background: "#d4af37", color: "#111", borderRadius: 10, padding: "8px 0", textAlign: "center", fontWeight: 1000 }}>#{driver.seed}</div>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontWeight: 1000, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>#{driver.number} {driver.name}</div>
-          <div style={{ fontSize: 12, opacity: 0.72 }}>{driver.team || "Independent"} • {driver.manufacturer || "—"}</div>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          {logoSrc && <img src={logoSrc} alt="" style={{ width: 30, height: 30, objectFit: "contain" }} />}
-          <div style={{ fontWeight: 1000 }}>{Number(driver.points) || 0}</div>
-        </div>
-      </div>
-    );
-  };
-
-  return (
-    <div style={appShellStyle}>
-      <div style={pageContainerStyle}>
-        <div style={{ ...sectionCardStyle, background: "linear-gradient(135deg, #17191f 0%, #101216 100%)" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-              <img src={logo} alt="League Logo" style={{ height: 54 }} />
-              <div>
-                <div style={{ color: "#d4af37", fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase" }}>{seasonName || "Season"}</div>
-                <div style={{ fontSize: 34, fontWeight: 1000 }}>🏆 In-Season Tournament Bracket</div>
-                <div style={{ opacity: 0.72, marginTop: 4 }}>Top 20 by current points. Orly is excluded from this bracket.</div>
-              </div>
-            </div>
-            <button type="button" onClick={() => (window.location.pathname = "/standings")} style={secondaryButtonStyle}>Back to Standings</button>
-          </div>
-        </div>
-
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(270px, 1fr))", gap: 16, alignItems: "start" }}>
-          {bracketRounds.map((round, roundIndex) => (
-            <div key={round.name} style={sectionCardStyle}>
-              <div style={{ color: roundIndex === 0 ? "#d4af37" : "#94a3b8", fontSize: 13, fontWeight: 1000, letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 12 }}>{round.name}</div>
-              <div style={{ display: "grid", gap: 12 }}>
-                {round.pairs.map((pair, index) => (
-                  <div key={`${round.name}-${index}`} style={{ background: "#11161d", border: "1px solid #293241", borderRadius: 16, padding: 12 }}>
-                    <div style={{ fontSize: 11, opacity: 0.65, fontWeight: 900, marginBottom: 8 }}>MATCHUP {index + 1}</div>
-                    <div style={{ display: "grid", gap: 8 }}>
-                      {driverCard(pair[0], "TBD")}
-                      <div style={{ textAlign: "center", fontSize: 11, opacity: 0.6, fontWeight: 900 }}>VS</div>
-                      {driverCard(pair[1], "TBD")}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function TickerOverlay({ drivers, teams, raceHistory, preview = false, seasonName = "" }) {
   const sorted = [...drivers].sort((a, b) => b.points - a.points);
   const latestRace = raceHistory?.[raceHistory.length - 1];
@@ -3581,8 +3494,8 @@ function MobileLeagueApp({
   if (path === "/interviews") return frame("Interviews", "interviews", <MobileInterviewsHub session={mobileSession} go={go} />);
   if (path === "/contracts") return dataFrame("Contracts", "more", <ContractsPage drivers={drivers} />);
   if (path === "/memorial-day") return dataFrame("Memorial", "more", <MemorialDayPage drivers={drivers} />);
-  if (path === "/bracket" || path === "/in-season-bracket" || path === "/tournament") {
-    return frame("In-Season Bracket", "standings", <InSeasonBracketPage drivers={drivers} seasonName={seasonName} />);
+  if (path === "/tournament" || path === "/in-season-tournament") {
+    return dataFrame("Tournament", "standings", <InSeasonTournamentPage drivers={drivers} raceHistory={raceHistory} />);
   }
   if (path === "/chat") return dataFrame("League Chat", "more", isGuestSession ? <MobileGuestLockedCard title="League Chat Requires Driver Login" go={go} /> : <LeagueChatPage drivers={drivers} />);
   if (path === "/message-center") return frame("Messages", "more", <LeagueMessageCenter drivers={drivers} session={mobileSession} mobile go={go} />);
@@ -6912,7 +6825,11 @@ export default function App() {
   );
   if (path === "/contracts") return withLeagueStatusWidget(<ContractsPage drivers={visibleDrivers} />);
   if (path === "/memorial-day") return withLeagueStatusWidget(<MemorialDayPage drivers={visibleDrivers} />);
-  if (path === "/bracket" || path === "/in-season-bracket" || path === "/tournament") return withLeagueStatusWidget(<InSeasonBracketPage drivers={visibleDrivers} seasonName={activeSeason?.name || ""} />);
+  if (path === "/tournament" || path === "/in-season-tournament") {
+    return withLeagueStatusWidget(
+      <InSeasonTournamentPage drivers={visibleDrivers} raceHistory={raceHistory} />
+    );
+  }
 
   if (path === "/chat") return withLeagueStatusWidget(<LeagueChatPage drivers={visibleDrivers} />);
   if (path === "/message-center") return withLeagueStatusWidget(<LeagueMessageCenter drivers={visibleDrivers} />);
