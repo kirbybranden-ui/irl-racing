@@ -3727,6 +3727,14 @@ function MobileLeagueApp({
           }}
         >
           <MobileUpcomingRaceCard race={upcomingRace} selectedTrack={getTrackOverview(upcomingRace)} go={go} />
+        <MobileCard>
+          <div style={mobileKickerStyle}>Silly Season</div>
+          <h2 style={{ margin: "5px 0 6px", fontSize: 24 }}>🔥 Driver Market</h2>
+          <p style={{ color: "#aab3c2", lineHeight: 1.45, margin: "0 0 12px" }}>
+            Scout drivers, track re-sign interest, and follow the market before signing day.
+          </p>
+          <MobileAction label="Enter Driver Market" onClick={() => go("/driver-market")} />
+        </MobileCard>
           <div style={{ color: "#d4af37", fontSize: 12, fontWeight: 1000, margin: "-4px 0 12px 4px" }}>
             Tap upcoming track to view full season track list →
           </div>
