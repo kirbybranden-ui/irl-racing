@@ -24,7 +24,7 @@ import OwnerHQPage from "./pages/OwnerHQPage";
 import AdminPortal from "./pages/AdminPortal";
 import LeagueMessageCenter from "./pages/LeagueMessageCenter";
 import InSeasonTournamentPage from "./pages/InSeasonTournamentPage";
-import TransferPortalPage from "./pages/TransferPortalPage";
+import DriverMarketPage from "./pages/DriverMarketPage";
 import LeagueChatPage from "./LeagueChatPage";
 import OwnersPage from "./OwnersPage.jsx";
 import { defaultDrivers } from "./data/drivers";
@@ -3494,7 +3494,7 @@ function MobileLeagueApp({
   if (path === "/notifications") return dataFrame("Notifications", "more", <NotificationsPage />);
   if (path === "/interviews") return frame("Interviews", "interviews", <MobileInterviewsHub session={mobileSession} go={go} />);
   if (path === "/contracts") return dataFrame("Contracts", "more", <ContractsPage drivers={drivers} />);
-  if (path === "/transfer-portal" || path === "/silly-season") return dataFrame("Transfer Portal", "more", <TransferPortalPage drivers={drivers} raceHistory={raceHistory} startParkRequests={startParkRequests} paintSchemePayouts={[]} />);
+  if (path === "/driver-market" || path === "/transfer-portal" || path === "/silly-season") return dataFrame("Driver Market", "more", <DriverMarketPage drivers={drivers} raceHistory={raceHistory} startParkRequests={startParkRequests} paintSchemePayouts={[]} />);
   if (path === "/memorial-day") return dataFrame("Memorial", "more", <MemorialDayPage drivers={drivers} />);
   if (path === "/tracks" || path === "/schedule" || path === "/season-schedule") {
     const sortedTracks = getSortedTracksByDate(tracks || []);
@@ -6922,7 +6922,7 @@ export default function App() {
 
   if (path === "/chat") return withLeagueStatusWidget(<LeagueChatPage drivers={visibleDrivers} />);
   if (path === "/message-center") return withLeagueStatusWidget(<LeagueMessageCenter drivers={visibleDrivers} />);
-  if (path === "/transfer-portal" || path === "/silly-season") return withLeagueStatusWidget(<TransferPortalPage drivers={visibleDrivers} raceHistory={raceHistory} startParkRequests={startParkRequests} paintSchemePayouts={[]} />);
+  if (path === "/driver-market" || path === "/transfer-portal" || path === "/silly-season") return withLeagueStatusWidget(<DriverMarketPage drivers={visibleDrivers} raceHistory={raceHistory} startParkRequests={startParkRequests} paintSchemePayouts={[]} />);
   if (path === "/tournament" || path === "/in-season-tournament" || path === "/in-season-bracket" || path === "/bracket") {
     return withLeagueStatusWidget(
       <InSeasonTournamentPage drivers={visibleDrivers} raceHistory={raceHistory} />
