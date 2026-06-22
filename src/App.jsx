@@ -5,11 +5,9 @@ import teamLogoB2J from "./assets/teams/B2J.png";
 import teamLogoMER from "./assets/teams/ME.png";
 import teamLogoNLM from "./assets/teams/NLM.png";
 import teamLogoMMS from "./assets/teams/MMS.png";
-import teamLogoBOM from "./assets/teams/BOM.png";
 import teamLogoIND from "./assets/teams/IND.png";
 import teamLogo19XI from "./assets/teams/19XI.png";
 import teamLogoBWR from "./assets/teams/BWR.png";
-import teamLogoKDM from "./assets/teams/KDM.png";
 import teamLogoBXM from "./assets/teams/BXM.png";
 import manufacturerChevrolet from "./assets/manufacturers/chevrolet.png";
 import manufacturerFord from "./assets/manufacturers/ford.png";
@@ -44,8 +42,6 @@ const teamLogos = {
   NLM: teamLogoNLM,
   "MAYHEM MOTORSPORTS": teamLogoMMS,
 MMS: teamLogoMMS,
-  "BLUE OVAL MOTORSPORTS": teamLogoBOM, 
-  BOM: teamLogoBOM,
   "Independent": teamLogoIND,
   IND: teamLogoIND,
   "19XI": teamLogo19XI,
@@ -53,8 +49,6 @@ MMS: teamLogoMMS,
   "Big Wheel Racing": teamLogoBWR,
   BWR: teamLogoBWR,
   "ME Racing": teamLogoMER,
-  KDM: teamLogoMER,
-  BMX: teamLogoBXM,
   BXM: teamLogoBXM,
   "BayouX Motorsports": teamLogoBXM,
 };
@@ -67,18 +61,13 @@ import { loadLeagueState, saveLeagueState } from "./lib/leagueState";
 // ─── Team Full Names ───────────────────────────────────────────────────────────
 const teamFullNames = {
   B2J: "B2J Motorsports",
-  BJ2: "B2J Motorsports",
   "B2J MOTORSPORTS": "B2J Motorsports",
   MER: "ME Racing",
   MMS: "Mayhem Motorsports",
   NLM: "Nine Line Motorsports",
-  BOM: "Blue Oval Motorsports",
-  WSM: "Wyatt Sick6 Motorsports",
   "19XI": "19XI Racing",
   "19XI Racing": "19XI Racing",
   BWR: "Big Wheel Racing",
-  KDM: "ME Racing",
-  BMX: "BayouX Motorsports",
   BXM: "BayouX Motorsports",
   "BayouX Motorsports": "BayouX Motorsports",
   Independent: "Independent",
@@ -459,19 +448,14 @@ const raceEntryTdStyle = {
 const statBoxStyle = { background: "#11161d", border: "1px solid #2a3240", borderRadius: 14, padding: 16, flex: "1 1 220px" };
 const teamBranding = {
   B2J: { logo: "B2J", accent: "#d4af37", dark: "#1b1b1b" },
-  BJ2: { logo: "B2J", accent: "#d4af37", dark: "#1b1b1b", fullName: "B2J Motorsports" },
   "B2J MOTORSPORTS": { logo: "B2J", accent: "#d4af37", dark: "#1b1b1b" },
   MER: { logo: "MER", accent: "#dc2626", dark: "#200a0a", fullName: "ME Racing" },
   MMS: { logo: "MMS", accent: "#9333ea", dark: "#150a2e", fullName: "Mayhem Motorsports" },
   NLM: { logo: "NLM", accent: "#f97316", dark: "#1f0e00", fullName: "Nine Line Motorsports" },
   "Independent": { logo: "IND", accent: "#808080", dark: "#2a2a2a" },
-  BOM: { logo: "BOM", accent: "#d4af37", dark: "#1b1b1b" },
-  WSM: { logo: "WSM", accent: "#3b82f6", dark: "#111827" },
   "19XI": { logo: "19XI", accent: "#8b5cf6", dark: "#160b2d", fullName: "19XI Racing" },
   "19XI Racing": { logo: "19XI", accent: "#8b5cf6", dark: "#160b2d", fullName: "19XI Racing" },
   BWR: { logo: "BWR", accent: "#2563eb", dark: "#0f172a", fullName: "Big Wheel Racing" },
-  KDM: { logo: "MER", accent: "#ef4444", dark: "#1f1315", fullName: "ME Racing" },
-  BMX: { logo: "BXM", accent: "#2563eb", dark: "#0f172a", fullName: "BayouX Motorsports" },
   BXM: { logo: "BXM", accent: "#2563eb", dark: "#0f172a", fullName: "BayouX Motorsports" },
   "BayouX Motorsports": { logo: "BXM", accent: "#2563eb", dark: "#0f172a", fullName: "BayouX Motorsports" },
   "Team C": { logo: "C", accent: "#ef4444", dark: "#1f1315" },
