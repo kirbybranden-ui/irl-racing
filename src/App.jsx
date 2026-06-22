@@ -29,6 +29,11 @@ import {
 } from "./data/teams";
 import { pointsTable, stagePointsTable, offensePenaltyPoints } from "./data/points";
 import {
+  getOffensePenaltyPoints,
+  countPriorOffenses,
+  getStagePoints,
+} from "./utils/scoringHelpers";
+import {
   isInactivePlaceholderDriver,
   isRemovedLeagueDriver,
   realignLeagueDrivers,
@@ -105,22 +110,6 @@ import {
   raceEntryTdStyle,
   statBoxStyle,
 } from "./styles/sharedStyles";
-// Current NASCAR Cup Series points system: winner = 55, 2nd = 35, then -1 per position through 35th, 36th-40th = 1 point
-// Offense penalty points: 1st=-5, 2nd=-10, 3rd=-15, 4th+=-25
-function getOffensePenaltyPoints(offenseNumber) {
-  if (offenseNumber <= 0) return 0;
-  const idx = Math.min(offenseNumber, offensePenaltyPoints.length) - 1;
-  return offensePenaltyPoints[idx];
-}
-function countPriorOffenses(raceHistory, driverId, excludeRaceName = null) {
-  let count = 0;
-  raceHistory.forEach((race) => {
-    if (excludeRaceName && race.raceName === excludeRaceName) return;
-    const result = race.results?.find((r) => r.driverId === driverId);
-    if (result?.offense) count += 1;
-  });
-  return count;
-}
 function AdminLoginPage() {
   const ADMIN_ACCESS_CODE = "BCLADMINPASSWORD2026";
   const [code, setCode] = useState("");
@@ -190,10 +179,6 @@ function renderTeamBadge(teamName, size = 44) {
       {brand.logo}
     </div>
   );
-}
-function getStagePoints(stageFinish) {
-  if (!stageFinish || stageFinish < 1 || stageFinish > 10) return 0;
-  return stagePointsTable[stageFinish - 1];
 }
 
 async function syncCruiserNumberAndNumberOwnership() {
