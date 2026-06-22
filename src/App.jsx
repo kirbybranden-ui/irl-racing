@@ -3727,6 +3727,11 @@ function MobileLeagueApp({
           }}
         >
           <MobileUpcomingRaceCard race={upcomingRace} selectedTrack={getTrackOverview(upcomingRace)} go={go} />
+          <div style={{ color: "#d4af37", fontSize: 12, fontWeight: 1000, margin: "-4px 0 12px 4px" }}>
+            Tap upcoming track to view full season track list →
+          </div>
+        </button>
+
         <MobileCard>
           <div style={mobileKickerStyle}>Silly Season</div>
           <h2 style={{ margin: "5px 0 6px", fontSize: 24 }}>🔥 Driver Market</h2>
@@ -3735,10 +3740,6 @@ function MobileLeagueApp({
           </p>
           <MobileAction label="Enter Driver Market" onClick={() => go("/driver-market")} />
         </MobileCard>
-          <div style={{ color: "#d4af37", fontSize: 12, fontWeight: 1000, margin: "-4px 0 12px 4px" }}>
-            Tap upcoming track to view full season track list →
-          </div>
-        </button>
         <MobileTimelineSpotlightPanel tracks={tracks} drivers={drivers} go={go} seasonName={seasonName} />
         <MobileLatestNewsPreview go={go} />
         <MobileSectionTitle>Driver Standings</MobileSectionTitle>
@@ -5064,7 +5065,30 @@ export default function App() {
 
   // ─── Computed values (must be before all hooks) ───────────────────────────
   const activeSeason = seasons.find((s) => s.id === activeSeasonId) || seasons[0] || null;
-  const withLeagueStatusWidget = (page) => (<> {page} <LeagueStatusWidget tracks={tracks} seasonName={activeSeason?.name || ""} /> </>);
+  const withLeagueStatusWidget = (page) => (
+    <>
+      {page}
+      {path !== "/driver-market" && path !== "/transfer-portal" && path !== "/silly-season" && (
+        <div style={{ maxWidth: 1400, margin: "0 auto 16px", padding: "0 20px" }}>
+          <button
+            type="button"
+            onClick={() => (window.location.pathname = "/driver-market")}
+            style={{
+              ...primaryButtonStyle,
+              width: "100%",
+              minHeight: 54,
+              fontSize: 16,
+              border: "1px solid rgba(212,175,55,0.65)",
+              boxShadow: "0 14px 30px rgba(0,0,0,0.25)",
+            }}
+          >
+            🔥 Driver Market / Silly Season
+          </button>
+        </div>
+      )}
+      <LeagueStatusWidget tracks={tracks} seasonName={activeSeason?.name || ""} />
+    </>
+  );
   const drivers = realignLeagueDrivers(activeSeason?.drivers || []);
   const visibleDrivers = drivers.filter((d) => !isInactivePlaceholderDriver(d));
   const activeDrivers = visibleDrivers.filter((d) => !d.retired);
