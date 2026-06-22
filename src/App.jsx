@@ -77,6 +77,12 @@ import {
   LEAGUE_BANK_NAME,
   APP_VERSION,
 } from "./data/appConfig";
+import {
+  normalizeMessageValue,
+  getCurrentUserFromSession,
+  canViewLeagueMessage,
+  filterLeagueMessagesForSession,
+} from "./utils/messagePermissions";
 import { loadLeagueState, saveLeagueState } from "./lib/leagueState";
 // Current NASCAR Cup Series points system: winner = 55, 2nd = 35, then -1 per position through 35th, 36th-40th = 1 point
 // Offense penalty points: 1st=-5, 2nd=-10, 3rd=-15, 4th+=-25
@@ -143,172 +149,6 @@ const raceEntryTdStyle = {
   minWidth: 115,
 };
 const statBoxStyle = { background: "#11161d", border: "1px solid #2a3240", borderRadius: 14, padding: 16, flex: "1 1 220px" };
-// ─── Shared Message Center Permissions ───────────────────────────────────────
-// Mobile and desktop should both use this same permission model.
-// This keeps the mobile Message Center as a layout reflection of desktop logic,
-// not a separate inbox with separate rules.
-function normalizeMessageValue(value) {
-  return String(value || "").trim().toLowerCase();
-}
-
-function getCurrentUserFromSession(session = {}) {
-  const role = normalizeMessageValue(session.role || session.type || session.userType || session.mode);
-  return {
-    role,
-    isGuest: role === "guest",
-    isAdmin: role === "admin" || session.isAdmin === true,
-    isDriver: role === "driver" || Boolean(session.driverNumber || session.driver_number),
-    isOwner: role === "owner" || session.isOwner === true,
-    isManufacturer: role === "manufacturer" || session.isManufacturer === true,
-    driverId: String(session.driverId || session.driver_id || "").trim(),
-    driverNumber: String(session.driverNumber || session.driver_number || session.number || "").trim(),
-    driverName: String(session.driverName || session.driver_name || session.name || "").trim(),
-    team: String(session.team || session.ownerTeam || session.owner_team || "").trim(),
-    manufacturer: String(session.manufacturer || "").trim(),
-  };
-}
-
-function canViewLeagueMessage(message = {}, rawSession = {}) {
-  const user = getCurrentUserFromSession(rawSession);
-
-  if (!message || user.isGuest) return false;
-  if (user.isAdmin) return true;
-
-  const recipientType = normalizeMessageValue(
-    message.recipient_type ||
-    message.recipientType ||
-    message.target_type ||
-    message.targetType ||
-    message.audience_type ||
-    message.audienceType
-  );
-
-  const visibility = normalizeMessageValue(message.visibility || message.audience || message.scope);
-  const category = normalizeMessageValue(message.category || message.message_type || message.messageType);
-
-  const recipientId = normalizeMessageValue(
-    message.recipient_id ||
-    message.recipientId ||
-    message.target_id ||
-    message.targetId ||
-    message.driver_id ||
-    message.driverId
-  );
-
-  const recipientNumber = normalizeMessageValue(
-    message.recipient_driver_number ||
-    message.recipientDriverNumber ||
-    message.recipient_number ||
-    message.recipientNumber ||
-    message.driver_number ||
-    message.driverNumber ||
-    message.car_number ||
-    message.carNumber
-  );
-
-  const recipientName = normalizeMessageValue(
-    message.recipient_driver_name ||
-    message.recipientDriverName ||
-    message.recipient_name ||
-    message.recipientName ||
-    message.driver_name ||
-    message.driverName
-  );
-
-  const messageTeam = normalizeMessageValue(
-    message.recipient_team ||
-    message.recipientTeam ||
-    message.team ||
-    message.team_key ||
-    message.teamKey ||
-    message.owner_team ||
-    message.ownerTeam
-  );
-
-  const messageManufacturer = normalizeMessageValue(
-    message.recipient_manufacturer ||
-    message.recipientManufacturer ||
-    message.manufacturer ||
-    message.manufacturer_key ||
-    message.manufacturerKey
-  );
-
-  const userDriverId = normalizeMessageValue(user.driverId);
-  const userDriverNumber = normalizeMessageValue(user.driverNumber);
-  const userDriverName = normalizeMessageValue(user.driverName);
-  const userTeam = normalizeMessageValue(user.team);
-  const userManufacturer = normalizeMessageValue(user.manufacturer);
-
-  // Admin-only/system workflow items should never show to drivers or owners.
-  const adminOnly =
-    recipientType === "admin" ||
-    recipientType === "admins" ||
-    recipientType === "league_office" ||
-    visibility === "admin" ||
-    category === "admin" ||
-    category === "start_park" ||
-    category === "start_and_park" ||
-    category === "start park" ||
-    category === "appeal_admin" ||
-    category === "race_control";
-
-  if (adminOnly) return false;
-
-  // League-wide broadcasts only show when the row is explicitly marked as a broadcast.
-  // This prevents blank/old rows from showing to everyone.
-  const leagueWide =
-    recipientType === "all" ||
-    recipientType === "everyone" ||
-    recipientType === "league" ||
-    recipientType === "all_drivers" ||
-    recipientType === "drivers" ||
-    visibility === "all" ||
-    visibility === "league" ||
-    visibility === "all_drivers" ||
-    category === "league_broadcast" ||
-    category === "broadcast";
-
-  if (leagueWide) {
-    if (recipientType === "all_drivers" || recipientType === "drivers" || visibility === "all_drivers") {
-      return user.isDriver || user.isOwner || user.isManufacturer;
-    }
-    return user.isDriver || user.isOwner || user.isManufacturer;
-  }
-
-  // Direct driver messages.
-  if (recipientType === "driver" || recipientType === "driver_message") {
-    if (recipientId && userDriverId && recipientId === userDriverId) return true;
-    if (recipientNumber && userDriverNumber && recipientNumber === userDriverNumber) return true;
-    if (recipientName && userDriverName && recipientName === userDriverName) return true;
-    return false;
-  }
-
-  // Owner/team messages.
-  if (recipientType === "owner" || recipientType === "owners" || recipientType === "team" || recipientType === "team_owner") {
-    if (!user.isOwner) return false;
-    return !!messageTeam && !!userTeam && messageTeam === userTeam;
-  }
-
-  // Manufacturer messages.
-  if (recipientType === "manufacturer" || recipientType === "manufacturers") {
-    if (!user.isManufacturer) return false;
-    return !!messageManufacturer && !!userManufacturer && messageManufacturer === userManufacturer;
-  }
-
-  // Legacy desktop rows with no recipient_type: match exact driver/team/manufacturer fields only.
-  // DO NOT default these rows to everyone.
-  if (recipientNumber && userDriverNumber && recipientNumber === userDriverNumber) return true;
-  if (recipientName && userDriverName && recipientName === userDriverName) return true;
-
-  if (user.isOwner && messageTeam && userTeam && messageTeam === userTeam) return true;
-  if (user.isManufacturer && messageManufacturer && userManufacturer && messageManufacturer === userManufacturer) return true;
-
-  return false;
-}
-function filterLeagueMessagesForSession(messages = [], session = {}) {
-  return (Array.isArray(messages) ? messages : []).filter((message) => canViewLeagueMessage(message, session));
-}
-
 function AdminLoginPage() {
   const ADMIN_ACCESS_CODE = "BCLADMINPASSWORD2026";
   const [code, setCode] = useState("");
