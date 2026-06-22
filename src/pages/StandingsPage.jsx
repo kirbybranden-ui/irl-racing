@@ -189,15 +189,6 @@ const defaultTickerItems = [
 ];
 
 
-const defaultTickerItems = [
-  { category: "TEAM UPDATE", message: "Current team roster cleaned up for the active season" },
-  { category: "TRANSACTION", message: "BigDiehl21 signs with ME Racing and moves to the No. 39 Chevrolet" },
-  { category: "TRANSACTION", message: "BayouX Motorsports updates KnightTrain41 to the No. 41 Ford" },
-  { category: "TEAM UPDATE", message: "CaJunThrottle28 moves to the No. 48 Chevrolet for BXM" },
-  { category: "RESULTS", message: "Michigan weekend complete — Pocono Raceway is up next" },
-  { category: "APP UPDATE", message: "Driver password reset support, interview sync improvements, and Race Control groundwork added" },
-];
-
 function LeagueTicker({ page = "standings", fallbackItems = defaultTickerItems }) {
   const [items, setItems] = useState([]);
   const [loadError, setLoadError] = useState(false);
