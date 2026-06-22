@@ -89,13 +89,11 @@ const teamLogos = {
   MER: teamLogoMER,
   NLM: teamLogoNLM,
   MMS: teamLogoMMS,
-  BOM: teamLogoBOM,
   IND: teamLogoIND,
   Independent: teamLogoIND,
   "19XI": teamLogo19XI,
   "19XI Racing": teamLogo19XI,
   BWR: teamLogoBWR,
-  BMX: teamLogoBXM,
   BXM: teamLogoBXM,
   "BayouX Motorsports": teamLogoBXM,
 };
@@ -105,13 +103,11 @@ const teamFullNames = {
     MER: "ME Racing",
     MMS: "Mayhem Motorsports",
   NLM: "Nine Line Motorsports",
-  BOM: "Blue Oval Motorsports",
     BWR: "Big Wheel Racing",
   IND: "Independent",
   Independent: "Independent",
   "19XI": "19XI Racing",
   "19XI Racing": "19XI Racing",
-  BMX: "BayouX Motorsports",
   BXM: "BayouX Motorsports",
   "BayouX Motorsports": "BayouX Motorsports",
 };
@@ -123,14 +119,11 @@ const ownerNames = {
   BWR: "JPC Racing",
     "19XI": "Bowhunter",
   "19XI Racing": "Bowhunter",
-  BOM: "Blue Oval Motorsports",
   Independent: "Free Agent Pool",
   IND: "Free Agent Pool",
-  BMX: "Cajun",
   BXM: "Cajun",
   "BayouX Motorsports": "Cajun",
   MER: "Kevdinho",
-  KDM: "Kevdinho",
 };
 
 const TEAM_STARTING_FUNDS = {
@@ -220,11 +213,9 @@ const OWNER_DRIVER_FALLBACK_CODES = {
     BWR: "JPCRACING-BWOHKI",
   "19XI": "BOWHUNTER6-7Y1FGM",
   "19XI Racing": "BOWHUNTER6-7Y1FGM",
-  BMX: "CAJUNTHROT-VAKNYX",
   BXM: "CAJUNTHROT-VAKNYX",
   "BayouX Motorsports": "CAJUNTHROT-VAKNYX",
   MER: "KEVDINHO7-ZSDV6Y",
-  KDM: "KEVDINHO7-ZSDV6Y",
 };
 
 
