@@ -39,11 +39,24 @@ import {
   rebuildDriversFromHistory,
   apply2026DriverNumberAdjustments,
 } from "./utils/driverHelpers";
+import {
+  normalizeTrackName,
+  getEasternDateParts,
+  getEasternNowParts,
+  getStartParkCutoffInfo,
+  wasStartParkRequestBeforeCutoff,
+  hasRaceRolledOver,
+  getSortedTracksByDate,
+  getUpcomingRaceByDate,
+  isRaceCompleteByDateOrHistory,
+  sanitizeTracks,
+} from "./utils/raceHelpers";
+// Team logos
 import { loadLeagueState, saveLeagueState } from "./lib/leagueState";
+// ─── Team Full Names ───────────────────────────────────────────────────────────
 const INDEPENDENT_DRIVER_BASE_SALARY = 250000;
 const LEAGUE_BANK_NAME = "Budweiser Cup League";
 const APP_VERSION = "v1.7.3";
-
 
 function money(value) {
   const safe = Number(value) || 0;
@@ -53,7 +66,8 @@ function money(value) {
     maximumFractionDigits: 0,
   });
 }
-
+// Current NASCAR Cup Series points system: winner = 55, 2nd = 35, then -1 per position through 35th, 36th-40th = 1 point
+// Offense penalty points: 1st=-5, 2nd=-10, 3rd=-15, 4th+=-25
 function getOffensePenaltyPoints(offenseNumber) {
   if (offenseNumber <= 0) return 0;
   const idx = Math.min(offenseNumber, offensePenaltyPoints.length) - 1;
@@ -67,146 +81,6 @@ function countPriorOffenses(raceHistory, driverId, excludeRaceName = null) {
     if (result?.offense) count += 1;
   });
   return count;
-}
-function normalizeTrackName(name) {
-  const raw = String(name || "").trim();
-  const key = raw.toLowerCase();
-  if (key === "preseason - wwt raceway" || key === "preseason - world wide technology raceway") {
-    return "Preseason - EchoPark Speedway";
-  }
-  if (key === "wwt raceway" || key === "world wide technology raceway") {
-    return "EchoPark Speedway";
-  }
-  if (key === "preseason - echpark speedway" || key === "preseason - echopark speedway") {
-    return "Preseason - EchoPark Speedway";
-  }
-  if (key === "echpark speedway" || key === "echopark speedway") {
-    return "EchoPark Speedway";
-  }
-  return raw;
-}
-
-function getEasternDateParts(date = new Date()) {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/New_York",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(date);
-
-  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-
-  return {
-    dateKey: `${values.year}-${values.month}-${values.day}`,
-    hour: Number(values.hour || 0),
-    minute: Number(values.minute || 0),
-  };
-}
-
-function getEasternNowParts(date = new Date()) {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/New_York",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(date);
-  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-  return {
-    dateKey: `${values.year}-${values.month}-${values.day}`,
-    hour: Number(values.hour || 0),
-    minute: Number(values.minute || 0),
-  };
-}
-
-function getStartParkCutoffInfo(raceDate, now = new Date()) {
-  if (!raceDate) return { closed: false, label: "Race date unavailable", dateKey: "", hour: 21, minute: 0 };
-  const cutoffDateKey = String(raceDate).slice(0, 10);
-  const easternNow = getEasternNowParts(now);
-  const closed = easternNow.dateKey > cutoffDateKey ||
-    (easternNow.dateKey === cutoffDateKey && (easternNow.hour > 21 || (easternNow.hour === 21 && easternNow.minute >= 0)));
-  return {
-    closed,
-    label: `Deadline: Saturday ${cutoffDateKey} at 9:00 PM ET`,
-    dateKey: cutoffDateKey,
-    hour: 21,
-    minute: 0,
-  };
-}
-
-function wasStartParkRequestBeforeCutoff(request) {
-  const raceDate = request?.race_date || request?.raceDate || "";
-  const createdAt = request?.created_at || request?.createdAt || "";
-  if (!raceDate || !createdAt) return true;
-  const cutoffKey = `${String(raceDate).slice(0, 10)} 21:00`;
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/New_York",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(new Date(createdAt));
-  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-  const createdKey = `${values.year}-${values.month}-${values.day} ${values.hour}:${values.minute}`;
-  return createdKey < cutoffKey;
-}
-
-function hasRaceRolledOver(track, date = new Date()) {
-  if (!track?.date) return false;
-
-  const easternNow = getEasternDateParts(date);
-  const raceDate = String(track.date).slice(0, 10);
-
-  if (easternNow.dateKey > raceDate) return true;
-  if (easternNow.dateKey < raceDate) return false;
-
-  return easternNow.hour > 22 || (easternNow.hour === 22 && easternNow.minute >= 0);
-}
-
-function getSortedTracksByDate(tracks = []) {
-  return [...tracks].sort((a, b) => {
-    if (a.date && b.date) return new Date(`${a.date}T12:00:00`) - new Date(`${b.date}T12:00:00`);
-    if (a.date) return -1;
-    if (b.date) return 1;
-    return String(a.name || "").localeCompare(String(b.name || ""));
-  });
-}
-
-function getUpcomingRaceByDate(tracks = []) {
-  const sortedTracks = getSortedTracksByDate(tracks);
-  return sortedTracks.find((track) => !hasRaceRolledOver(track)) || null;
-}
-
-function isRaceCompleteByDateOrHistory(track, completedRaces = new Set()) {
-  return completedRaces.has(track?.name) || hasRaceRolledOver(track);
-}
-
-function sanitizeTracks(rawTracks) {
-  if (!Array.isArray(rawTracks)) return null;
-  const cleaned = rawTracks
-    .map((t) => {
-      const name = normalizeTrackName(typeof t?.name === "string" ? t.name.trim() : "");
-      const stageCount = Number(t?.stageCount);
-      if (!name) return null;
-      const stages = [1, 2, 3].includes(stageCount) ? stageCount : 2;
-      return { name, stageCount: stages, date: t?.date || null };
-    })
-    .filter(Boolean);
-  // De-dupe by name (case-insensitive)
-  const seen = new Set();
-  const deduped = [];
-  cleaned.forEach((t) => {
-    const key = t.name.toLowerCase();
-    if (!seen.has(key)) { seen.add(key); deduped.push(t); }
-  });
-  return deduped;
 }
 const appShellStyle = { minHeight: "100vh", background: "#0c0f14", color: "white", fontFamily: "Arial, sans-serif" };
 const pageContainerStyle = { maxWidth: 1400, margin: "0 auto", padding: 20 };
@@ -257,7 +131,6 @@ const raceEntryTdStyle = {
   minWidth: 115,
 };
 const statBoxStyle = { background: "#11161d", border: "1px solid #2a3240", borderRadius: 14, padding: 16, flex: "1 1 220px" };
-
 // ─── Shared Message Center Permissions ───────────────────────────────────────
 // Mobile and desktop should both use this same permission model.
 // This keeps the mobile Message Center as a layout reflection of desktop logic,
@@ -493,7 +366,8 @@ function renderTeamBadge(teamName, size = 44) {
       {brand.logo}
     </div>
   );
-}function getStagePoints(stageFinish) {
+}
+function getStagePoints(stageFinish) {
   if (!stageFinish || stageFinish < 1 || stageFinish > 10) return 0;
   return stagePointsTable[stageFinish - 1];
 }
@@ -726,12 +600,14 @@ async function syncCruiserNumberAndNumberOwnership() {
   }
 }
 
+
 function makeSeasonId() { return `season-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`; }
 function createEmptySeason(name, roster = getDefaultRoster()) {
   const dedupedRoster = dedupeDriversByNumber(roster);
   const cleanRoster = dedupedRoster.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer || "", team: d.team, startingPoints: 0, manualWins: 0 }));
   return { id: makeSeasonId(), name: name || "New Season", createdAt: new Date().toISOString(), drivers: rebuildDriversFromHistory([], cleanRoster), selectedRace: "", positions: {}, stage1: {}, stage2: {}, stage3: {}, dnfMap: {}, startParkMap: {}, offenseMap: {}, fastestLapMap: {}, raceHistory: [] };
-}function sanitizeSeason(season, fallbackName = "Season") {
+}
+function sanitizeSeason(season, fallbackName = "Season") {
   const rosterSource = Array.isArray(season?.drivers) && season.drivers.length > 0 ? season.drivers : getDefaultRoster();
   const normalizedHistory = Array.isArray(season?.raceHistory)
     ? season.raceHistory.map((race) => ({ ...race, raceName: normalizeTrackName(race.raceName) }))
@@ -1025,7 +901,6 @@ function LeagueTicker({ page = "standings", fallbackItems = defaultTickerItems }
     </div>
   );
 }
-
 
 
 function MemorialDayPage({ drivers = [] }) {
@@ -2024,7 +1899,6 @@ function ContractsPage({ drivers = [] }) {
 }
 
 
-
 const PAINT_SCHEME_WEEKLY_TEAM_PAYOUT_CAP = 150000;
 const PAINT_SCHEME_SEASON_TEAM_PAYOUT_CAP = 750000;
 
@@ -2382,7 +2256,6 @@ function PaintSchemeWinnerStandingsCard({ tracks = [], drivers = [] }) {
 }
 
 
-
 function PreviousRaceWinnerStandingsCard() {
   const [winner, setWinner] = useState(null);
   const showRaceWinnerWindow = shouldShowPreviousRaceWinnerSpotlight();
@@ -2567,7 +2440,6 @@ function PreviousRaceWinnerAdminPanel({ drivers = [], raceHistory = [] }) {
     }
     videoWidgetRef.current.open();
   }
-
 
 
   const latestRace = Array.isArray(raceHistory) && raceHistory.length > 0 ? raceHistory[raceHistory.length - 1] : null;
@@ -2824,9 +2696,6 @@ function PreviousRaceWinnerAdminPanel({ drivers = [], raceHistory = [] }) {
     </div>
   );
 }
-
-
-
 
 
 function AdminLeagueMessageComposer({ drivers = [], teams = [] }) {
@@ -4917,7 +4786,6 @@ function DiscordPage() {
 }
 
 
-
 const PAYMENT_COMPLIANCE_OVERRIDE_KEY = "bclPaymentComplianceOverrides";
 
 function getPaymentTimestamp(row) {
@@ -6393,7 +6261,6 @@ function useMobileViewport(maxWidth = 768) {
 }
 
 
-
 const BCL_ADMIN_NAMES = new Set(["bowhunter6758", "bowhunter", "h0lden", "h0ld3n", "holden", "holden2dx4ev3r"]);
 const BCL_OWNER_NAMES = new Set(["highlander", "highlander713", "bowhunter", "bowhunter6758", "rookie", "rookievet99", "jpc_racing", "cajun", "cajunthrottle28", "orly", "orly_revo23", "kevdinho", "kevdinho7"]);
 
@@ -6910,9 +6777,6 @@ function MobileLeagueApp({
 
   return dataFrame("Budweiser Cup", "standings", <PublicStandings drivers={drivers} teams={teams} manufacturerStandings={manufacturerStandings} seasonName={seasonName} tracks={tracks} raceHistory={raceHistory} />);
 }
-
-
-
 
 
 function MobileTimelineSpotlightPanel({ tracks = [], drivers = [], go, seasonName = "" }) {
@@ -7993,7 +7857,6 @@ function MobileManufacturerRow({ manufacturer, index }) { return <div style={mob
 function MobileRaceCard({ race }) { return <MobileCard><div style={mobileKickerStyle}>Next Race</div><h2 style={{ margin: "4px 0" }}>{race.name || race.track || "Race"}</h2><p style={{ color: "#aab3c2", margin: 0 }}>{race.date || "Date TBA"} • Qualifying 9:15 PM • Race 9:30 PM</p></MobileCard>; }
 
 
-
 const mobileStreamHeroCardStyle = { background: "linear-gradient(135deg, #111827 0%, #070b10 100%)", border: "1px solid rgba(212,175,55,0.38)", borderRadius: 24, padding: 18, marginBottom: 14, boxShadow: "0 18px 42px rgba(0,0,0,0.36)" };
 const mobileLivePillStyle = { background: "#dc2626", color: "white", borderRadius: 999, padding: "6px 9px", fontSize: 11, fontWeight: 1000, letterSpacing: 0.7 };
 const mobileLivePillSmallStyle = { background: "#dc2626", color: "white", borderRadius: 999, padding: "4px 7px", fontSize: 10, fontWeight: 1000, letterSpacing: 0.5 };
@@ -8201,7 +8064,7 @@ function LeagueStatusWidget({ tracks = [], seasonName = "", mobile = false }) {
 
 export default function App() {
   useEffect(() => {
-    syncCruiserNumberAndNumberOwnership();
+    // syncCruiserNumberAndNumberOwnership();
   }, []);
 
   const [seasons, setSeasons] = useState([]);
