@@ -3233,8 +3233,6 @@ function getBclRoleFlagsForDriver(driver = {}, enteredAdminCode = false) {
   };
 }
 
-const BCL_MOBILE_SESSION_KEY = "bcl-mobile-session-v1";
-
 function readBclMobileSession() {
   try {
     const raw = localStorage.getItem(BCL_MOBILE_SESSION_KEY);
