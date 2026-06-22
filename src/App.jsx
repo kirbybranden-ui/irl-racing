@@ -3494,6 +3494,81 @@ function MobileLeagueApp({
   if (path === "/interviews") return frame("Interviews", "interviews", <MobileInterviewsHub session={mobileSession} go={go} />);
   if (path === "/contracts") return dataFrame("Contracts", "more", <ContractsPage drivers={drivers} />);
   if (path === "/memorial-day") return dataFrame("Memorial", "more", <MemorialDayPage drivers={drivers} />);
+  if (path === "/tracks" || path === "/schedule" || path === "/season-schedule") {
+    const sortedTracks = getSortedTracksByDate(tracks || []);
+    const upcomingRace = getUpcomingRaceByDate(tracks || []);
+    return frame("Season Tracks", "standings", (
+      <>
+        <MobileHero
+          kicker="Season Schedule"
+          title="Track List"
+          subtitle="Tap a track card to view details and race information."
+        />
+
+        <MobileSectionTitle>Upcoming</MobileSectionTitle>
+        {upcomingRace ? (
+          <MobileCard>
+            <div style={mobileKickerStyle}>Next Race</div>
+            <h2 style={{ margin: "5px 0 6px", fontSize: 24 }}>{upcomingRace.name}</h2>
+            <div style={{ color: "#aab3c2", fontSize: 13 }}>
+              {upcomingRace.date || "Date TBD"} {upcomingRace.time ? `• ${upcomingRace.time}` : ""}
+            </div>
+          </MobileCard>
+        ) : (
+          <MobileCard>No upcoming race found.</MobileCard>
+        )}
+
+        <MobileSectionTitle>Full Season</MobileSectionTitle>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, paddingBottom: 90 }}>
+          {sortedTracks.map((track, index) => {
+            const overview = trackOverviewData[track.name] || trackOverviewData[track.track] || {};
+            const isNext = upcomingRace && String(upcomingRace.name) === String(track.name);
+            return (
+              <button
+                type="button"
+                key={`${track.name}-${track.date || index}`}
+                onClick={() => go(`/tracks?selected=${encodeURIComponent(track.name || "")}`)}
+                style={{
+                  width: "100%",
+                  textAlign: "left",
+                  background: isNext ? "linear-gradient(135deg, rgba(212,175,55,0.24), #111827)" : "#111827",
+                  color: "white",
+                  border: isNext ? "1px solid #d4af37" : "1px solid #263244",
+                  borderRadius: 16,
+                  padding: 14,
+                  cursor: "pointer",
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
+                  <div>
+                    <div style={{ color: "#d4af37", fontSize: 11, fontWeight: 1000, textTransform: "uppercase" }}>
+                      Race {index + 1}{isNext ? " • Upcoming" : ""}
+                    </div>
+                    <div style={{ fontSize: 19, fontWeight: 1000, marginTop: 3 }}>{track.name}</div>
+                    <div style={{ color: "#aab3c2", fontSize: 13, marginTop: 4 }}>
+                      {track.date || "Date TBD"} {track.time ? `• ${track.time}` : ""}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: "right", color: "#cbd5e1", fontSize: 12 }}>
+                    <div>{overview.length || overview.trackLength || ""}</div>
+                    <div>{overview.banking || ""}</div>
+                  </div>
+                </div>
+
+                {(overview.type || overview.pitSpeed || overview.restartZone) && (
+                  <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    {overview.type && <span style={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 999, padding: "5px 8px", fontSize: 11 }}>{overview.type}</span>}
+                    {overview.pitSpeed && <span style={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 999, padding: "5px 8px", fontSize: 11 }}>Pit {overview.pitSpeed}</span>}
+                    {overview.restartZone && <span style={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 999, padding: "5px 8px", fontSize: 11 }}>Restart {overview.restartZone}</span>}
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </>
+    ));
+  }
   if (path === "/tournament" || path === "/in-season-tournament") {
     return dataFrame("Tournament", "standings", <InSeasonTournamentPage drivers={drivers} raceHistory={raceHistory} />);
   }
@@ -3636,7 +3711,24 @@ function MobileLeagueApp({
         />
         <LeagueTicker page="standings" />
         <MobileWeekendRecap raceHistory={raceHistory} tracks={tracks} drivers={drivers} go={go} />
-        <MobileUpcomingRaceCard race={upcomingRace} selectedTrack={getTrackOverview(upcomingRace)} go={go} />
+        <button
+          type="button"
+          onClick={() => go("/tracks")}
+          style={{
+            width: "100%",
+            textAlign: "left",
+            background: "transparent",
+            border: "none",
+            padding: 0,
+            margin: 0,
+            cursor: "pointer",
+          }}
+        >
+          <MobileUpcomingRaceCard race={upcomingRace} selectedTrack={getTrackOverview(upcomingRace)} go={go} />
+          <div style={{ color: "#d4af37", fontSize: 12, fontWeight: 1000, margin: "-4px 0 12px 4px" }}>
+            Tap upcoming track to view full season track list →
+          </div>
+        </button>
         <MobileTimelineSpotlightPanel tracks={tracks} drivers={drivers} go={go} seasonName={seasonName} />
         <MobileLatestNewsPreview go={go} />
         <MobileSectionTitle>Driver Standings</MobileSectionTitle>
