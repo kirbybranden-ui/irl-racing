@@ -188,6 +188,16 @@ const defaultTickerItems = [
   { category: "APP UPDATE", message: "Driver password reset support, interview sync improvements, and Race Control groundwork added" },
 ];
 
+
+const defaultTickerItems = [
+  { category: "TEAM UPDATE", message: "Current team roster cleaned up for the active season" },
+  { category: "TRANSACTION", message: "BigDiehl21 signs with ME Racing and moves to the No. 39 Chevrolet" },
+  { category: "TRANSACTION", message: "BayouX Motorsports updates KnightTrain41 to the No. 41 Ford" },
+  { category: "TEAM UPDATE", message: "CaJunThrottle28 moves to the No. 48 Chevrolet for BXM" },
+  { category: "RESULTS", message: "Michigan weekend complete — Pocono Raceway is up next" },
+  { category: "APP UPDATE", message: "Driver password reset support, interview sync improvements, and Race Control groundwork added" },
+];
+
 function LeagueTicker({ page = "standings", fallbackItems = defaultTickerItems }) {
   const [items, setItems] = useState([]);
   const [loadError, setLoadError] = useState(false);
@@ -785,6 +795,27 @@ export default function StandingsPage({ drivers, teams, manufacturerStandings = 
           </div>
         </div>
         <LeagueTicker page="standings" />
+
+      <div
+        onClick={() => (window.location.pathname = "/driver-market")}
+        style={{
+          ...sectionCardStyle,
+          cursor: "pointer",
+          background: "linear-gradient(135deg, rgba(212,175,55,0.20), rgba(15,23,42,0.98))",
+          border: "1px solid rgba(212,175,55,0.62)",
+          boxShadow: "0 14px 30px rgba(0,0,0,0.25)",
+        }}
+      >
+        <div style={{ color: "#d4af37", fontSize: 13, fontWeight: 1000, letterSpacing: 1.4 }}>
+          SILLY SEASON
+        </div>
+        <h2 style={{ margin: "6px 0", fontSize: 30, lineHeight: 1 }}>
+          🔥 Driver Market
+        </h2>
+        <p style={{ margin: 0, color: "#cbd5e1", lineHeight: 1.45 }}>
+          Scout drivers, track current-team re-sign interest, and follow the market before signing day.
+        </p>
+      </div>
         <AppUpdateBanner page="standings" />
         <PaintSchemeWinnerStandingsCard tracks={tracks} drivers={drivers} />
         <PreviousRaceWinnerStandingsCard />
