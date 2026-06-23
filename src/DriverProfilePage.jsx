@@ -3323,6 +3323,103 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
 
         {passwordManagerCard}
 
+        <div style={sectionCardStyle}>
+          <h2 style={{ marginTop: 0, marginBottom: 14 }}>Developmental Rides</h2>
+          <div style={{ fontSize: 13, opacity: 0.72, marginBottom: 14 }}>
+            Cup drivers can request Xfinity, Truck, or ARCA starts. Driver points and driver payout are disabled for developmental starts; team/owner credit remains active.
+          </div>
+
+          {developmentError && (
+            <div style={{ background: "rgba(239,68,68,0.14)", border: "1px solid rgba(239,68,68,0.4)", borderRadius: 10, padding: 10, marginBottom: 12, color: "#fecaca" }}>
+              {developmentError}
+            </div>
+          )}
+          {developmentMessage && (
+            <div style={{ background: "rgba(34,197,94,0.14)", border: "1px solid rgba(34,197,94,0.4)", borderRadius: 10, padding: 10, marginBottom: 12, color: "#bbf7d0" }}>
+              {developmentMessage}
+            </div>
+          )}
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12, marginBottom: 16 }}>
+            {DEVELOPMENT_SERIES_OPTIONS.map((series) => {
+              const used = developmentStartsBySeries[series.value] || 0;
+              const remaining = Math.max(0, 2 - used);
+              return (
+                <div key={series.value} style={{ background: "#0f1319", border: `1px solid ${remaining > 0 ? teamTheme.accent : "#f97316"}`, borderRadius: 10, padding: 12 }}>
+                  <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 5 }}>{series.label.toUpperCase()}</div>
+                  <div style={{ fontSize: 26, fontWeight: 900 }}>{used} / 2</div>
+                  <div style={{ fontSize: 11, opacity: 0.65 }}>{remaining > 0 ? `${remaining} start${remaining === 1 ? "" : "s"} remaining` : "Board approval required"}</div>
+                </div>
+              );
+            })}
+          </div>
+
+          {isCupDriverProfile ? (
+            <form onSubmit={submitDevelopmentRequest} style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 14, marginBottom: 16 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
+                <label>
+                  <div style={{ fontSize: 12, fontWeight: 900, marginBottom: 6 }}>Series</div>
+                  <select value={developmentForm.requested_series} onChange={(event) => updateDevelopmentSeries(event.target.value)} style={inputStyle}>
+                    {DEVELOPMENT_SERIES_OPTIONS.map((series) => <option key={series.value} value={series.value}>{series.label}</option>)}
+                  </select>
+                </label>
+                <label>
+                  <div style={{ fontSize: 12, fontWeight: 900, marginBottom: 6 }}>Team</div>
+                  <select value={developmentForm.requested_team} onChange={(event) => setDevelopmentForm((current) => ({ ...current, requested_team: event.target.value }))} style={inputStyle}>
+                    {(lowerSeriesTeamOptions[developmentForm.requested_series] || []).map((team) => <option key={team} value={team}>{team}</option>)}
+                  </select>
+                </label>
+                <label>
+                  <div style={{ fontSize: 12, fontWeight: 900, marginBottom: 6 }}>Race</div>
+                  <select value={developmentForm.race_name} onChange={(event) => setDevelopmentForm((current) => ({ ...current, race_name: event.target.value }))} style={inputStyle}>
+                    <option value="">Owner assigns later</option>
+                    {developmentRaceOptions.map((race) => <option key={race} value={race}>{race}</option>)}
+                  </select>
+                </label>
+              </div>
+              <label style={{ display: "block", marginTop: 12 }}>
+                <div style={{ fontSize: 12, fontWeight: 900, marginBottom: 6 }}>Note to Owner</div>
+                <textarea value={developmentForm.request_note} onChange={(event) => setDevelopmentForm((current) => ({ ...current, request_note: event.target.value }))} style={{ ...inputStyle, minHeight: 74, resize: "vertical" }} placeholder="Example: I want to run this one for fun and help the team earn owner money." />
+              </label>
+              <button type="submit" disabled={developmentSubmitting || !isDriverAuthorized} style={{ ...themedPrimaryButtonStyle, marginTop: 12 }}>
+                {developmentSubmitting ? "Submitting..." : "Request Development Ride"}
+              </button>
+              {!isDriverAuthorized && <div style={{ fontSize: 12, opacity: 0.65, marginTop: 8 }}>Unlock this driver profile first to submit a request.</div>}
+            </form>
+          ) : (
+            <div style={{ opacity: 0.7, marginBottom: 12 }}>Developmental ride requests are only available for Cup Series drivers.</div>
+          )}
+
+          <h3 style={{ marginTop: 0 }}>My Requests</h3>
+          {myDevelopmentTransactions.length === 0 ? (
+            <div style={{ opacity: 0.65 }}>No developmental ride requests yet.</div>
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table style={tableStyle}>
+                <thead>
+                  <tr><th style={thStyle}>Series</th><th style={thStyle}>Team</th><th style={thStyle}>Race</th><th style={thStyle}>Owner</th><th style={thStyle}>Board</th><th style={thStyle}>Final</th></tr>
+                </thead>
+                <tbody>
+                  {myDevelopmentTransactions.map((tx) => (
+                    <tr key={tx.id}>
+                      <td style={tdStyle}>{String(tx.requested_series || "").toUpperCase()}</td>
+                      <td style={tdStyle}>{tx.requested_team || "—"}</td>
+                      <td style={tdStyle}>{tx.race_name || "Owner assigns"}</td>
+                      <td style={tdStyle}>{getDevelopmentStatusLabel(tx.owner_status)}</td>
+                      <td style={tdStyle}>{tx.requires_board_approval ? getDevelopmentStatusLabel(tx.board_status) : "Not needed"}</td>
+                      <td style={{ ...tdStyle, fontWeight: 900 }}>
+                        <span style={{ display: "inline-flex", border: "1px solid", borderRadius: 999, padding: "4px 8px", ...developmentBadgeStyle(tx.final_status) }}>
+                          {getDevelopmentStatusLabel(tx.final_status)}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
         <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 20 }}>
           {[
             { label: "POINTS", value: calculatedStats.points },
