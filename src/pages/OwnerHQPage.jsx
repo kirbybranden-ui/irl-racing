@@ -13,6 +13,39 @@ const mobileActionStyle = { width: "100%", minHeight: 48, borderRadius: 14, bord
 const mobileStatGridStyle = { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10, marginBottom: 12 };
 const mobileStatCardStyle = { background: "#111827", border: "1px solid #263244", borderRadius: 16, padding: 12 };
 
+
+function safeGo(go, path) {
+  if (typeof go === "function") {
+    go(path);
+    return;
+  }
+  window.location.href = path;
+}
+
+function renderTeamBadge(team, size = 44) {
+  const label = String(team || "?").slice(0, 4).toUpperCase();
+
+  return (
+    <div
+      style={{
+        width: size,
+        height: size,
+        borderRadius: 999,
+        background: "#d4af37",
+        color: "#111",
+        display: "grid",
+        placeItems: "center",
+        fontWeight: 1000,
+        fontSize: Math.max(12, size * 0.24),
+        border: "1px solid rgba(255,255,255,0.2)",
+        flex: "0 0 auto",
+      }}
+    >
+      {label}
+    </div>
+  );
+}
+
 function MobileCard({ children }) {
   return <section style={mobileCardStyle}>{children}</section>;
 }
@@ -101,7 +134,7 @@ export default function OwnerHQPage({ drivers = [], teams = [], seasonName = "",
       <MobileCard>
         <MobileAction
           label="🔐 Owner Login"
-          onClick={() => go("/owner")}
+          onClick={() => safeGo(go, "/owner")}
         />
         <div style={{ marginTop: 10, color: "#aab3c2", fontSize: 12, lineHeight: 1.45 }}>
           Opens the full Team HQ owner portal with the same login, password rules, and tools as desktop.
@@ -140,8 +173,8 @@ export default function OwnerHQPage({ drivers = [], teams = [], seasonName = "",
               ["Budget", money(getTeamBudget(currentTeam.team))],
             ]} />
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              <MobileAction label="Open Full HQ" onClick={() => { window.location.href = "/owners?desktop=1"; }} secondary />
-              <MobileAction label="Team Page" onClick={() => go(`/team/${encodeURIComponent(currentTeam.team)}`)} />
+              <MobileAction label="Open Full HQ" onClick={() => safeGo(go, "/owners?desktop=1")} secondary />
+              <MobileAction label="Team Page" onClick={() => safeGo(go, `/team/${encodeURIComponent(currentTeam.team)}`)} />
             </div>
           </MobileCard>
 
@@ -151,7 +184,7 @@ export default function OwnerHQPage({ drivers = [], teams = [], seasonName = "",
             <button
               type="button"
               key={`${driver.number}-${driver.name}`}
-              onClick={() => go(`/driver/${driver.number}`)}
+              onClick={() => safeGo(go, `/driver/${driver.number}`)}
               style={mobileDriverCardStyle}
             >
               <div style={mobileRankStyle}>#{driver.number}</div>
