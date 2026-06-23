@@ -34,6 +34,7 @@ import { trackOverviewData } from "./data/trackOverview";
 import {
   teamLogos,
   manufacturerLogos,
+  teamBudgets,
   getTeamFullName,
   getTeamBudget,
   getTeamBranding,
@@ -3634,7 +3635,7 @@ function MobileLeagueApp({
   }
 
   if (["/team-hq", "/hq", "/teamhq"].includes(path)) {
-    return frame("Team HQ", "more", <OwnerHQPage drivers={drivers} teams={teams} seasonName={seasonName} go={go} />);
+    return frame("Team HQ", "more", <OwnerHQPage drivers={drivers} teams={teams} seasonName={seasonName} tracks={tracks} go={go} supabase={supabase} />);
   }
 
   if (path.startsWith("/team/")) {
