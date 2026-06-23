@@ -25,6 +25,7 @@ import AdminPortal from "./pages/AdminPortal";
 import LeagueMessageCenter from "./pages/LeagueMessageCenter";
 import InSeasonTournamentPage from "./pages/InSeasonTournamentPage";
 import DriverMarketPage from "./pages/DriverMarketPage";
+import DevelopmentRequestsPage from "./pages/DevelopmentRequestsPage";
 import LeagueChatPage from "./LeagueChatPage";
 import OwnersPage from "./OwnersPage.jsx";
 import { defaultDrivers } from "./data/drivers";
@@ -3495,6 +3496,15 @@ function MobileLeagueApp({
   if (path === "/interviews") return frame("Interviews", "interviews", <MobileInterviewsHub session={mobileSession} go={go} />);
   if (path === "/contracts") return dataFrame("Contracts", "more", <ContractsPage drivers={drivers} />);
   if (path === "/driver-market" || path === "/transfer-portal" || path === "/silly-season") return dataFrame("Driver Market", "more", <DriverMarketPage drivers={drivers || []} raceHistory={raceHistory || []} startParkRequests={[]} paintSchemePayouts={[]} />);
+  if (path === "/development-requests" || path === "/developmental-requests" || path === "/dev-requests") return dataFrame("Development Requests", "more", (
+    <DevelopmentRequestsPage
+      leagueState={{ drivers: drivers || [], teams: teams || [] }}
+      currentUser={mobileSession}
+      isAdmin={Boolean(mobileSession?.isAdmin || mobileSession?.role === "admin" || mobileSession?.mode === "admin")}
+      supabase={supabase}
+      go={go}
+    />
+  ));
   if (path === "/memorial-day") return dataFrame("Memorial", "more", <MemorialDayPage drivers={drivers} />);
   if (path === "/tracks" || path === "/schedule" || path === "/season-schedule") {
     const sortedTracks = getSortedTracksByDate(tracks || []);
@@ -6947,6 +6957,19 @@ export default function App() {
   if (path === "/chat") return withLeagueStatusWidget(<LeagueChatPage drivers={visibleDrivers} />);
   if (path === "/message-center") return withLeagueStatusWidget(<LeagueMessageCenter drivers={visibleDrivers} />);
   if (path === "/driver-market" || path === "/transfer-portal" || path === "/silly-season") return withLeagueStatusWidget(<DriverMarketPage drivers={visibleDrivers || []} raceHistory={raceHistory || []} startParkRequests={startParkRequests || []} paintSchemePayouts={[]} />);
+  if (path === "/development-requests" || path === "/developmental-requests" || path === "/dev-requests") return withLeagueStatusWidget(
+    <DevelopmentRequestsPage
+      leagueState={{ drivers: visibleDrivers || [], teams: teamStandings || [] }}
+      currentUser={{
+        role: isAdminAuthenticated ? "admin" : "guest",
+        isAdmin: isAdminAuthenticated,
+        series: isAdminAuthenticated ? "cup" : "guest",
+      }}
+      isAdmin={isAdminAuthenticated}
+      supabase={supabase}
+      go={(to) => { window.location.href = to; }}
+    />
+  );
   if (path === "/tournament" || path === "/in-season-tournament" || path === "/in-season-bracket" || path === "/bracket") {
     return withLeagueStatusWidget(
       <InSeasonTournamentPage drivers={visibleDrivers} raceHistory={raceHistory} />
