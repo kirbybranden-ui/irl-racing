@@ -31,6 +31,33 @@ const DEFAULT_START_PARK_RACES = [
   { name: "Homestead", date: "2026-09-12" },
 ];
 
+const DEVELOPMENT_SERIES_OPTIONS = [
+  { value: "xfinity", label: "Xfinity Series" },
+  { value: "truck", label: "Truck Series" },
+  { value: "arca", label: "ARCA Series" },
+];
+
+const DEFAULT_DEVELOPMENT_ASSIGNMENT_FORM = {
+  driver_id: "",
+  requested_series: "truck",
+  race_name: "",
+  request_note: "",
+};
+
+function getDevelopmentSeriesLabel(value) {
+  const match = DEVELOPMENT_SERIES_OPTIONS.find((series) => series.value === String(value || "").toLowerCase());
+  return match?.label || value || "Development Series";
+}
+
+function normalizeDevelopmentStatus(row) {
+  const finalStatus = String(row?.final_status || "pending").toLowerCase();
+  if (finalStatus === "approved") return { label: "Approved", color: "#4ade80" };
+  if (finalStatus === "denied" || finalStatus === "cancelled") return { label: finalStatus === "cancelled" ? "Cancelled" : "Denied", color: "#f87171" };
+  if (row?.requires_board_approval || String(row?.board_status || "").toLowerCase() === "pending") return { label: "Board Review", color: "#facc15" };
+  if (String(row?.owner_status || "pending").toLowerCase() === "pending") return { label: "Owner Review", color: "#f59e0b" };
+  return { label: "Pending", color: "#f59e0b" };
+}
+
 
 function getEasternNowParts(date = new Date()) {
   const parts = new Intl.DateTimeFormat("en-US", {
@@ -598,6 +625,12 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
   const [teamStartParkMessage, setTeamStartParkMessage] = useState("");
   const [teamStartParkError, setTeamStartParkError] = useState("");
   const [teamStartParkSubmitting, setTeamStartParkSubmitting] = useState(false);
+  const [developmentTransactions, setDevelopmentTransactions] = useState([]);
+  const [developmentStarts, setDevelopmentStarts] = useState([]);
+  const [developmentForm, setDevelopmentForm] = useState(DEFAULT_DEVELOPMENT_ASSIGNMENT_FORM);
+  const [developmentMessage, setDevelopmentMessage] = useState("");
+  const [developmentError, setDevelopmentError] = useState("");
+  const [developmentBusy, setDevelopmentBusy] = useState("");
 
   const [rivalryForm, setRivalryForm] = useState({
     rivalry_name: "",
@@ -810,6 +843,59 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
   const taskCompletionRate = ownerTasks.length ? Math.round((completedTaskCount / ownerTasks.length) * 100) : 0;
   const openDriverTaskCount = driverTasks.filter((task) => String(task.status || "Assigned") !== "Completed").length;
   const completedDriverTaskCount = driverTasks.filter((task) => String(task.status || "") === "Completed").length;
+
+  const cupDriverOptions = useMemo(() => {
+    return (drivers || [])
+      .filter((driver) => !driver.retired)
+      .sort((a, b) => Number(a.number || 9999) - Number(b.number || 9999));
+  }, [drivers]);
+
+  const developmentStartCounts = useMemo(() => {
+    const counts = {};
+    (developmentStarts || []).forEach((start) => {
+      if (start?.counts_against_limit === false) return;
+      const driverNumber = String(start.driver_number || "").trim();
+      const series = String(start.series || "").toLowerCase();
+      if (!driverNumber || !series) return;
+      const key = `${driverNumber}-${series}`;
+      counts[key] = (counts[key] || 0) + 1;
+    });
+    (developmentTransactions || []).forEach((row) => {
+      if (String(row.final_status || "").toLowerCase() !== "approved") return;
+      if (row?.counts_against_limit === false) return;
+      const driverNumber = String(row.driver_number || "").trim();
+      const series = String(row.requested_series || row.current_series || "").toLowerCase();
+      if (!driverNumber || !series) return;
+      const key = `${driverNumber}-${series}`;
+      counts[key] = Math.max(counts[key] || 0, 1);
+    });
+    return counts;
+  }, [developmentStarts, developmentTransactions]);
+
+  const teamDevelopmentTransactions = useMemo(() => {
+    const teamKeys = [safeSelectedTeam, ownerTeamName, getTeamFullName(safeSelectedTeam)]
+      .filter(Boolean)
+      .map((item) => String(item).trim().toLowerCase());
+    return (developmentTransactions || [])
+      .filter((row) => {
+        const requestedTeam = String(row.requested_team || "").trim().toLowerCase();
+        const currentTeam = String(row.current_team || "").trim().toLowerCase();
+        return teamKeys.includes(requestedTeam) || teamKeys.includes(currentTeam);
+      })
+      .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+  }, [developmentTransactions, safeSelectedTeam, ownerTeamName]);
+
+  const pendingDevelopmentRequests = useMemo(() => {
+    return teamDevelopmentTransactions.filter((row) =>
+      String(row.assignment_source || "driver_request") === "driver_request" &&
+      String(row.owner_status || "pending").toLowerCase() === "pending" &&
+      ["pending", ""].includes(String(row.final_status || "pending").toLowerCase())
+    );
+  }, [teamDevelopmentTransactions]);
+
+  function getDriverDevelopmentStarts(driverNumber, series) {
+    return developmentStartCounts[`${String(driverNumber || "").trim()}-${String(series || "").toLowerCase()}`] || 0;
+  }
 
   const manufacturerSatisfaction = useMemo(() => {
     const selectedDriverIds = new Set(selected.drivers.map((driver) => String(driver.id)));
@@ -1676,6 +1762,216 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
     const interval = setInterval(loadTeamStartParkRequests, 30000);
     return () => clearInterval(interval);
   }, [isAuthorized, ownerTeamName]);
+
+
+  async function loadDevelopmentCenterData() {
+    if (!isAuthorized) {
+      setDevelopmentTransactions([]);
+      setDevelopmentStarts([]);
+      return;
+    }
+
+    setDevelopmentError("");
+
+    const { data: transactionRows, error: transactionError } = await supabase
+      .from("league_transactions")
+      .select("*")
+      .eq("transaction_type", "development_request")
+      .order("created_at", { ascending: false });
+
+    if (transactionError) {
+      console.error("Could not load development requests:", transactionError);
+      setDevelopmentError("Could not load development requests. Check league_transactions select policy.");
+      setDevelopmentTransactions([]);
+    } else {
+      setDevelopmentTransactions(transactionRows || []);
+    }
+
+    const { data: startRows, error: startsError } = await supabase
+      .from("developmental_starts")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (startsError) {
+      console.error("Could not load developmental starts:", startsError);
+      setDevelopmentStarts([]);
+    } else {
+      setDevelopmentStarts(startRows || []);
+    }
+  }
+
+  useEffect(() => {
+    if (activeHqTab !== "development" || !isAuthorized) return;
+    loadDevelopmentCenterData();
+    const interval = setInterval(loadDevelopmentCenterData, 30000);
+    return () => clearInterval(interval);
+  }, [activeHqTab, isAuthorized, safeSelectedTeam, ownerTeamName]);
+
+  function updateDevelopmentForm(field, value) {
+    setDevelopmentForm((current) => ({ ...current, [field]: value }));
+  }
+
+  async function recordDevelopmentStartFromTransaction(row, override = {}) {
+    if (!row?.driver_number || !row?.requested_series) return;
+
+    const payload = {
+      driver_number: String(row.driver_number || ""),
+      driver_name: row.driver_name || "",
+      cup_driver: true,
+      series: String(row.requested_series || "").toLowerCase(),
+      season: 2026,
+      race_name: row.race_name || "",
+      owner: ownerNames[safeSelectedTeam] || ownerTeamName,
+      team: row.requested_team || ownerTeamName,
+      points_eligible: false,
+      payout_eligible: false,
+      counts_against_limit: true,
+      admin_override: Boolean(row.admin_override),
+      admin_override_by: row.admin_override_by || null,
+      admin_override_reason: row.admin_override_reason || null,
+      created_at: new Date().toISOString(),
+      ...override,
+    };
+
+    const { error } = await supabase.from("developmental_starts").insert([payload]);
+    if (error) {
+      console.error("Could not record developmental start:", error);
+    }
+  }
+
+  async function submitOwnerDevelopmentAssignment(event) {
+    event?.preventDefault?.();
+    setDevelopmentMessage("");
+    setDevelopmentError("");
+
+    if (!isAuthorized) {
+      setDevelopmentError("Unlock Team HQ before assigning a developmental ride.");
+      return;
+    }
+
+    const driver = cupDriverOptions.find((item) => String(item.id || item.number) === String(developmentForm.driver_id));
+    const requestedSeries = String(developmentForm.requested_series || "").toLowerCase();
+    const raceName = String(developmentForm.race_name || "").trim();
+
+    if (!driver) {
+      setDevelopmentError("Choose a Cup driver to assign.");
+      return;
+    }
+    if (!requestedSeries) {
+      setDevelopmentError("Choose Xfinity, Truck, or ARCA.");
+      return;
+    }
+    if (!raceName) {
+      setDevelopmentError("Enter the developmental race name.");
+      return;
+    }
+
+    const currentStarts = getDriverDevelopmentStarts(driver.number, requestedSeries);
+    const requiresBoardApproval = currentStarts >= 2;
+
+    const payload = {
+      transaction_type: "development_request",
+      driver_number: String(driver.number || ""),
+      driver_name: driver.name || "",
+      current_series: "cup",
+      requested_series: requestedSeries,
+      current_team: driver.team || "",
+      requested_team: ownerTeamName,
+      current_owner: driver.team ? ownerNames[driver.team] || getTeamFullName(driver.team) : "",
+      requested_owner: ownerNames[safeSelectedTeam] || ownerTeamName,
+      initiated_by: ownerNames[safeSelectedTeam] || ownerTeamName,
+      owner_status: "approved",
+      board_status: requiresBoardApproval ? "pending" : "approved",
+      final_status: requiresBoardApproval ? "pending" : "approved",
+      request_note: String(developmentForm.request_note || "").trim(),
+      owner_note: requiresBoardApproval
+        ? `Owner assigned ride. Driver already has ${currentStarts}/2 ${getDevelopmentSeriesLabel(requestedSeries)} starts; board approval required.`
+        : `Owner assigned ride. Approved under 2-start limit (${currentStarts}/2 used before assignment).`,
+      race_name: raceName,
+      assignment_source: "owner_assignment",
+      assigned_by: ownerNames[safeSelectedTeam] || ownerTeamName,
+      requires_board_approval: requiresBoardApproval,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    setDevelopmentBusy("assign");
+    const { data, error } = await supabase.from("league_transactions").insert([payload]).select("*").single();
+    setDevelopmentBusy("");
+
+    if (error) {
+      console.error("Could not assign developmental ride:", error);
+      setDevelopmentError("Could not assign developmental ride. Check league_transactions insert policy and required columns.");
+      return;
+    }
+
+    if (!requiresBoardApproval) {
+      await recordDevelopmentStartFromTransaction(data || payload);
+    }
+
+    setDevelopmentTransactions((current) => [data || payload, ...(current || [])]);
+    setDevelopmentForm(DEFAULT_DEVELOPMENT_ASSIGNMENT_FORM);
+    setDevelopmentMessage(requiresBoardApproval
+      ? "Developmental ride assigned and sent to the board because the driver is over the 2-start limit."
+      : "Developmental ride assigned and approved. It will show on the driver's profile.");
+    await loadDevelopmentCenterData();
+  }
+
+  async function updateDevelopmentRequest(row, action) {
+    setDevelopmentMessage("");
+    setDevelopmentError("");
+
+    if (!isAuthorized) {
+      setDevelopmentError("Unlock Team HQ before reviewing developmental requests.");
+      return;
+    }
+
+    const currentStarts = getDriverDevelopmentStarts(row.driver_number, row.requested_series);
+    const requiresBoardApproval = currentStarts >= 2;
+    const approved = action === "approve";
+
+    const updatePayload = approved ? {
+      owner_status: "approved",
+      board_status: requiresBoardApproval ? "pending" : "approved",
+      final_status: requiresBoardApproval ? "pending" : "approved",
+      owner_note: requiresBoardApproval
+        ? `Owner approved. Driver already has ${currentStarts}/2 ${getDevelopmentSeriesLabel(row.requested_series)} starts; board approval required.`
+        : `Owner approved under 2-start limit (${currentStarts}/2 used before approval).`,
+      requires_board_approval: requiresBoardApproval,
+      updated_at: new Date().toISOString(),
+    } : {
+      owner_status: "denied",
+      final_status: "denied",
+      owner_note: "Owner denied developmental ride request.",
+      requires_board_approval: false,
+      updated_at: new Date().toISOString(),
+    };
+
+    setDevelopmentBusy(row.id || action);
+    const { data, error } = await supabase
+      .from("league_transactions")
+      .update(updatePayload)
+      .eq("id", row.id)
+      .select("*")
+      .single();
+    setDevelopmentBusy("");
+
+    if (error) {
+      console.error("Could not update development request:", error);
+      setDevelopmentError("Could not update request. Check league_transactions update policy.");
+      return;
+    }
+
+    if (approved && !requiresBoardApproval) {
+      await recordDevelopmentStartFromTransaction(data || { ...row, ...updatePayload });
+    }
+
+    setDevelopmentTransactions((current) => (current || []).map((item) => item.id === row.id ? (data || { ...item, ...updatePayload }) : item));
+    setDevelopmentMessage(approved
+      ? (requiresBoardApproval ? "Owner approved. Sent to board because driver is over the 2-start limit." : "Owner approved. The ride is now active on the driver profile.")
+      : "Developmental ride request denied.");
+    await loadDevelopmentCenterData();
+  }
 
   async function submitTeamStartParkRequest(event) {
     event?.preventDefault?.();
@@ -3845,9 +4141,134 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
 
             {activeHqTab === "development" && (
               <div style={sectionCardStyle}>
-                <h2 style={{ marginTop: 0 }}>Driver Development Program</h2>
-                <p style={{ opacity: 0.72 }}>Use this section for prospects, reserve drivers, test drivers, and future signings. Database saving can be added next with a development_drivers table.</p>
-                <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 16 }}>Recommended next action: add a prospect form with name, number, potential rating, cost, and notes.</div>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start", marginBottom: 16 }}>
+                  <div>
+                    <h2 style={{ margin: 0 }}>Development Center</h2>
+                    <p style={{ opacity: 0.72, margin: "6px 0 0", lineHeight: 1.45 }}>
+                      Assign Cup drivers to Xfinity, Truck, or ARCA rides, approve driver requests, and track the 2-start developmental limit.
+                    </p>
+                  </div>
+                  <button type="button" onClick={loadDevelopmentCenterData} style={secondaryButtonStyle}>Refresh Development</button>
+                </div>
+
+                {developmentMessage && <div style={{ background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.35)", color: "#bbf7d0", borderRadius: 12, padding: 12, marginBottom: 12, fontWeight: 800 }}>{developmentMessage}</div>}
+                {developmentError && <div style={{ background: "rgba(248,113,113,0.12)", border: "1px solid rgba(248,113,113,0.35)", color: "#fecaca", borderRadius: 12, padding: 12, marginBottom: 12, fontWeight: 800 }}>{developmentError}</div>}
+
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, marginBottom: 16 }}>
+                  <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14 }}>
+                    <div style={{ opacity: 0.65, fontSize: 12 }}>PENDING REQUESTS</div>
+                    <div style={{ fontSize: 30, fontWeight: 900 }}>{pendingDevelopmentRequests.length}</div>
+                  </div>
+                  <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14 }}>
+                    <div style={{ opacity: 0.65, fontSize: 12 }}>APPROVED ASSIGNMENTS</div>
+                    <div style={{ fontSize: 30, fontWeight: 900 }}>{teamDevelopmentTransactions.filter((row) => String(row.final_status || "").toLowerCase() === "approved").length}</div>
+                  </div>
+                  <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14 }}>
+                    <div style={{ opacity: 0.65, fontSize: 12 }}>BOARD REVIEW</div>
+                    <div style={{ fontSize: 30, fontWeight: 900, color: "#facc15" }}>{teamDevelopmentTransactions.filter((row) => row.requires_board_approval && String(row.final_status || "pending").toLowerCase() === "pending").length}</div>
+                  </div>
+                </div>
+
+                <form onSubmit={submitOwnerDevelopmentAssignment} style={{ background: "#10151d", border: "1px solid #2c3440", borderRadius: 14, padding: 16, marginBottom: 18 }}>
+                  <h3 style={{ marginTop: 0 }}>Assign Development Ride</h3>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>CUP DRIVER</div>
+                      <select value={developmentForm.driver_id} onChange={(event) => updateDevelopmentForm("driver_id", event.target.value)} style={inputStyle}>
+                        <option value="">Select driver</option>
+                        {cupDriverOptions.map((driver) => (
+                          <option key={`${driver.id || driver.number}-dev`} value={driver.id || driver.number}>#{driver.number} {driver.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>SERIES</div>
+                      <select value={developmentForm.requested_series} onChange={(event) => updateDevelopmentForm("requested_series", event.target.value)} style={inputStyle}>
+                        {DEVELOPMENT_SERIES_OPTIONS.map((series) => (
+                          <option key={series.value} value={series.value}>{series.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>RACE</div>
+                      <select value={developmentForm.race_name} onChange={(event) => updateDevelopmentForm("race_name", event.target.value)} style={inputStyle}>
+                        <option value="">Select race</option>
+                        {DEFAULT_START_PARK_RACES.map((race) => (
+                          <option key={`dev-${race.name}`} value={race.name}>{race.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div style={{ marginTop: 12 }}>
+                    <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>OWNER NOTE</div>
+                    <textarea value={developmentForm.request_note} onChange={(event) => updateDevelopmentForm("request_note", event.target.value)} placeholder="Optional note for the driver market / board review" style={{ ...inputStyle, minHeight: 84 }} />
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center", marginTop: 14 }}>
+                    <div style={{ opacity: 0.68, fontSize: 12 }}>Under 2 starts: owner approval is final. At 2 starts: sent to board.</div>
+                    <button type="submit" disabled={developmentBusy === "assign"} style={primaryButtonStyle}>{developmentBusy === "assign" ? "Assigning..." : "Assign Ride"}</button>
+                  </div>
+                </form>
+
+                <div style={{ background: "#10151d", border: "1px solid #2c3440", borderRadius: 14, padding: 16, marginBottom: 18 }}>
+                  <h3 style={{ marginTop: 0 }}>Pending Driver Requests</h3>
+                  {pendingDevelopmentRequests.length === 0 ? (
+                    <p style={{ opacity: 0.68, marginBottom: 0 }}>No pending developmental ride requests for this team.</p>
+                  ) : (
+                    <div style={{ overflowX: "auto" }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                        <thead><tr><th style={thStyle}>Driver</th><th style={thStyle}>Series</th><th style={thStyle}>Race</th><th style={thStyle}>Starts Used</th><th style={thStyle}>Note</th><th style={thStyle}>Action</th></tr></thead>
+                        <tbody>
+                          {pendingDevelopmentRequests.map((row) => {
+                            const used = getDriverDevelopmentStarts(row.driver_number, row.requested_series);
+                            return (
+                              <tr key={row.id}>
+                                <td style={{ ...tdStyle, fontWeight: 900 }}>#{row.driver_number} {row.driver_name}</td>
+                                <td style={tdStyle}>{getDevelopmentSeriesLabel(row.requested_series)}</td>
+                                <td style={tdStyle}>{row.race_name || "—"}</td>
+                                <td style={tdStyle}>{used}/2 {used >= 2 && <span style={{ color: "#facc15", fontWeight: 900 }}> Board</span>}</td>
+                                <td style={tdStyle}>{row.request_note || "—"}</td>
+                                <td style={tdStyle}>
+                                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                    <button type="button" disabled={developmentBusy === row.id} onClick={() => updateDevelopmentRequest(row, "approve")} style={primaryButtonStyle}>Approve</button>
+                                    <button type="button" disabled={developmentBusy === row.id} onClick={() => updateDevelopmentRequest(row, "deny")} style={dangerButtonStyle}>Deny</button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ background: "#10151d", border: "1px solid #2c3440", borderRadius: 14, padding: 16 }}>
+                  <h3 style={{ marginTop: 0 }}>Development Ride Board</h3>
+                  {teamDevelopmentTransactions.length === 0 ? (
+                    <p style={{ opacity: 0.68, marginBottom: 0 }}>No developmental rides or requests have been posted yet.</p>
+                  ) : (
+                    <div style={{ overflowX: "auto" }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                        <thead><tr><th style={thStyle}>Driver</th><th style={thStyle}>Series</th><th style={thStyle}>Race</th><th style={thStyle}>Source</th><th style={thStyle}>Status</th><th style={thStyle}>Driver Points / Pay</th></tr></thead>
+                        <tbody>
+                          {teamDevelopmentTransactions.map((row) => {
+                            const status = normalizeDevelopmentStatus(row);
+                            return (
+                              <tr key={row.id}>
+                                <td style={{ ...tdStyle, fontWeight: 900 }}>#{row.driver_number} {row.driver_name}</td>
+                                <td style={tdStyle}>{getDevelopmentSeriesLabel(row.requested_series)}</td>
+                                <td style={tdStyle}>{row.race_name || "—"}</td>
+                                <td style={tdStyle}>{String(row.assignment_source || "driver_request").replace(/_/g, " ")}</td>
+                                <td style={tdStyle}><span style={{ color: status.color, fontWeight: 900 }}>{status.label}</span></td>
+                                <td style={tdStyle}>0 driver points / 0 driver pay<br/><span style={{ opacity: 0.62, fontSize: 11 }}>Owner money remains active.</span></td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
