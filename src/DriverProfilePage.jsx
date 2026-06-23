@@ -2066,12 +2066,6 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
     setFeedbackForm((current) => ({ ...current, [field]: value }));
   }
 
-  async function submitDriverFeedback(event) {
-    event.preventDefault();
-    setFeedbackMessage("");
-    setFeedbackError("");
-
-  
   async function loadDevelopmentData() {
     try {
       const [txResult, startsResult] = await Promise.all([
@@ -2181,7 +2175,14 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
     }
   }
 
-  if (!driver) {
+
+  async function submitDriverFeedback(event) {
+    event.preventDefault();
+    setFeedbackMessage("");
+    setFeedbackError("");
+
+  
+    if (!driver) {
       setFeedbackError("Driver profile could not be loaded.");
       return;
     }
