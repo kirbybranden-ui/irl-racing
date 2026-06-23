@@ -123,6 +123,35 @@ const DEFAULT_START_PARK_RACES = [
   { name: "Homestead", date: "2026-09-12" },
 ];
 
+const DEVELOPMENT_SERIES_OPTIONS = [
+  { value: "xfinity", label: "Xfinity Series" },
+  { value: "truck", label: "Truck Series" },
+  { value: "arca", label: "ARCA Series" },
+];
+
+const DEVELOPMENT_FALLBACK_TEAMS = {
+  xfinity: ["Xfinity Open Team"],
+  truck: ["Truck Open Team"],
+  arca: ["ARCA Open Team"],
+};
+
+function getDevelopmentStatusLabel(value) {
+  const status = String(value || "pending").toLowerCase();
+  if (status === "approved") return "Approved";
+  if (status === "denied") return "Denied";
+  if (status === "completed") return "Completed";
+  if (status === "cancelled") return "Cancelled";
+  return "Pending";
+}
+
+function developmentBadgeStyle(value) {
+  const status = String(value || "pending").toLowerCase();
+  if (status === "approved" || status === "completed") return { background: "rgba(34,197,94,0.16)", color: "#86efac", borderColor: "rgba(34,197,94,0.4)" };
+  if (status === "denied" || status === "cancelled") return { background: "rgba(239,68,68,0.16)", color: "#fca5a5", borderColor: "rgba(239,68,68,0.4)" };
+  return { background: "rgba(234,179,8,0.16)", color: "#fde68a", borderColor: "rgba(234,179,8,0.4)" };
+}
+
+
 
 function getEasternNowParts(date = new Date()) {
   const parts = new Intl.DateTimeFormat("en-US", {
@@ -729,6 +758,17 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
   const [startParkMessage, setStartParkMessage] = useState("");
   const [startParkError, setStartParkError] = useState("");
   const [startParkSubmitting, setStartParkSubmitting] = useState(false);
+  const [developmentTransactions, setDevelopmentTransactions] = useState([]);
+  const [developmentStarts, setDevelopmentStarts] = useState([]);
+  const [developmentMessage, setDevelopmentMessage] = useState("");
+  const [developmentError, setDevelopmentError] = useState("");
+  const [developmentSubmitting, setDevelopmentSubmitting] = useState(false);
+  const [developmentForm, setDevelopmentForm] = useState({
+    requested_series: "xfinity",
+    requested_team: "",
+    race_name: "",
+    request_note: "",
+  });
   const [showDriverTodo, setShowDriverTodo] = useState(false);
 
   const driverAccessKey = driver ? String(driver.number) : String(driverNumber);
@@ -756,6 +796,45 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
   }, [tracks]);
 
   const selectedStartParkCutoff = getStartParkCutoffInfo(startParkForm.race_date);
+
+  const developmentRaceOptions = useMemo(() => {
+    const trackRows = Array.isArray(tracks) && tracks.length
+      ? tracks.map((track) => ({ name: track.name, date: track.date })).filter((track) => track.name)
+      : DEFAULT_START_PARK_RACES;
+    return trackRows.map((track) => track.name).filter(Boolean);
+  }, [tracks]);
+
+  const lowerSeriesTeamOptions = useMemo(() => {
+    const teamsBySeries = { xfinity: [], truck: [], arca: [] };
+    (selectedSeason?.teams || selectedSeason?.lowerSeriesTeams || []).forEach((team) => {
+      const series = String(team?.series || "").toLowerCase();
+      const name = team?.team || team?.name || team?.abbr;
+      if (teamsBySeries[series] && name && !teamsBySeries[series].includes(name)) {
+        teamsBySeries[series].push(name);
+      }
+    });
+    Object.keys(teamsBySeries).forEach((series) => {
+      if (!teamsBySeries[series].length) teamsBySeries[series] = DEVELOPMENT_FALLBACK_TEAMS[series];
+    });
+    return teamsBySeries;
+  }, [selectedSeason]);
+
+  const developmentStartsBySeries = useMemo(() => {
+    const counts = { xfinity: 0, truck: 0, arca: 0 };
+    developmentStarts.forEach((start) => {
+      const series = String(start?.series || "").toLowerCase();
+      if (String(start?.driver_number) === String(driver?.number || driverNumber) && counts[series] !== undefined && start?.counts_against_limit !== false) {
+        counts[series] += 1;
+      }
+    });
+    return counts;
+  }, [developmentStarts, driver?.number, driverNumber]);
+
+  const myDevelopmentTransactions = useMemo(() => {
+    return (developmentTransactions || []).filter((tx) => String(tx.driver_number) === String(driver?.number || driverNumber));
+  }, [developmentTransactions, driver?.number, driverNumber]);
+
+  const isCupDriverProfile = String(driver?.series || "cup").toLowerCase() === "cup";
 
   const driverTodoItems = useMemo(() => {
     const items = [];
@@ -1992,7 +2071,117 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
     setFeedbackMessage("");
     setFeedbackError("");
 
-    if (!driver) {
+  
+  async function loadDevelopmentData() {
+    try {
+      const [txResult, startsResult] = await Promise.all([
+        supabase
+          .from("league_transactions")
+          .select("*")
+          .eq("transaction_type", "development_request")
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("developmental_starts")
+          .select("*")
+          .order("created_at", { ascending: false }),
+      ]);
+
+      if (txResult.error) throw txResult.error;
+      if (startsResult.error) throw startsResult.error;
+      setDevelopmentTransactions(txResult.data || []);
+      setDevelopmentStarts(startsResult.data || []);
+      setDevelopmentError("");
+    } catch (error) {
+      console.error("Could not load developmental ride data:", error);
+      setDevelopmentError("Could not load developmental ride data. Check league_transactions and developmental_starts tables/RLS policies.");
+    }
+  }
+
+  useEffect(() => {
+    if (!driver) return;
+    loadDevelopmentData();
+    const interval = setInterval(loadDevelopmentData, 30000);
+    return () => clearInterval(interval);
+  }, [driver?.number]);
+
+  useEffect(() => {
+    const teams = lowerSeriesTeamOptions[developmentForm.requested_series] || [];
+    if (!developmentForm.requested_team && teams[0]) {
+      setDevelopmentForm((current) => ({ ...current, requested_team: teams[0] }));
+    }
+  }, [developmentForm.requested_series, developmentForm.requested_team, lowerSeriesTeamOptions]);
+
+  function updateDevelopmentSeries(series) {
+    const teams = lowerSeriesTeamOptions[series] || [];
+    setDevelopmentForm((current) => ({
+      ...current,
+      requested_series: series,
+      requested_team: teams[0] || "",
+    }));
+  }
+
+  async function submitDevelopmentRequest(event) {
+    event.preventDefault();
+    setDevelopmentMessage("");
+    setDevelopmentError("");
+
+    if (!isDriverAuthorized) {
+      setDevelopmentError("Enter this driver's access code before requesting a developmental ride.");
+      return;
+    }
+
+    if (!isCupDriverProfile) {
+      setDevelopmentError("Only Cup Series drivers can request developmental rides.");
+      return;
+    }
+
+    if (!developmentForm.requested_series || !developmentForm.requested_team) {
+      setDevelopmentError("Choose a series and team before submitting.");
+      return;
+    }
+
+    const startsUsed = developmentStartsBySeries[developmentForm.requested_series] || 0;
+    const requiresBoardApproval = startsUsed >= 2;
+
+    setDevelopmentSubmitting(true);
+    try {
+      const payload = {
+        transaction_type: "development_request",
+        driver_number: String(driver.number),
+        driver_name: driver.name,
+        current_series: "cup",
+        requested_series: developmentForm.requested_series,
+        current_team: driver.team || null,
+        requested_team: developmentForm.requested_team,
+        current_owner: null,
+        requested_owner: "TBD",
+        initiated_by: driver.name,
+        owner_status: "pending",
+        board_status: requiresBoardApproval ? "pending" : "approved",
+        final_status: "pending",
+        race_name: developmentForm.race_name || null,
+        assignment_source: "driver_request",
+        requires_board_approval: requiresBoardApproval,
+        request_note: developmentForm.request_note || null,
+      };
+
+      const { error } = await supabase.from("league_transactions").insert(payload);
+      if (error) throw error;
+
+      setDevelopmentMessage(requiresBoardApproval
+        ? "Request submitted. This is over the 2-start limit, so board approval will be required after owner approval."
+        : "Request submitted to the lower-series owner for approval.");
+      setDevelopmentForm((current) => ({ ...current, request_note: "" }));
+      await loadDevelopmentData();
+    } catch (error) {
+      console.error("Could not submit developmental ride request:", error);
+      setDevelopmentError(error.message || "Could not submit developmental ride request.");
+    } finally {
+      setDevelopmentSubmitting(false);
+    }
+  }
+
+  if (!driver) {
       setFeedbackError("Driver profile could not be loaded.");
       return;
     }
@@ -3286,6 +3475,103 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [] }
             </div>
           </div>
         )}
+
+        <div style={sectionCardStyle}>
+          <h2 style={{ marginTop: 0, marginBottom: 14 }}>Developmental Rides</h2>
+          <div style={{ fontSize: 13, opacity: 0.72, marginBottom: 14 }}>
+            Cup drivers can request Xfinity, Truck, or ARCA starts. Driver points and driver payout are disabled for developmental starts; team/owner credit remains active.
+          </div>
+
+          {developmentError && (
+            <div style={{ background: "rgba(239,68,68,0.14)", border: "1px solid rgba(239,68,68,0.4)", borderRadius: 10, padding: 10, marginBottom: 12, color: "#fecaca" }}>
+              {developmentError}
+            </div>
+          )}
+          {developmentMessage && (
+            <div style={{ background: "rgba(34,197,94,0.14)", border: "1px solid rgba(34,197,94,0.4)", borderRadius: 10, padding: 10, marginBottom: 12, color: "#bbf7d0" }}>
+              {developmentMessage}
+            </div>
+          )}
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12, marginBottom: 16 }}>
+            {DEVELOPMENT_SERIES_OPTIONS.map((series) => {
+              const used = developmentStartsBySeries[series.value] || 0;
+              const remaining = Math.max(0, 2 - used);
+              return (
+                <div key={series.value} style={{ background: "#0f1319", border: `1px solid ${remaining > 0 ? teamTheme.accent : "#f97316"}`, borderRadius: 10, padding: 12 }}>
+                  <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 5 }}>{series.label.toUpperCase()}</div>
+                  <div style={{ fontSize: 26, fontWeight: 900 }}>{used} / 2</div>
+                  <div style={{ fontSize: 11, opacity: 0.65 }}>{remaining > 0 ? `${remaining} start${remaining === 1 ? "" : "s"} remaining` : "Board approval required"}</div>
+                </div>
+              );
+            })}
+          </div>
+
+          {isCupDriverProfile ? (
+            <form onSubmit={submitDevelopmentRequest} style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 14, marginBottom: 16 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
+                <label>
+                  <div style={{ fontSize: 12, fontWeight: 900, marginBottom: 6 }}>Series</div>
+                  <select value={developmentForm.requested_series} onChange={(event) => updateDevelopmentSeries(event.target.value)} style={inputStyle}>
+                    {DEVELOPMENT_SERIES_OPTIONS.map((series) => <option key={series.value} value={series.value}>{series.label}</option>)}
+                  </select>
+                </label>
+                <label>
+                  <div style={{ fontSize: 12, fontWeight: 900, marginBottom: 6 }}>Team</div>
+                  <select value={developmentForm.requested_team} onChange={(event) => setDevelopmentForm((current) => ({ ...current, requested_team: event.target.value }))} style={inputStyle}>
+                    {(lowerSeriesTeamOptions[developmentForm.requested_series] || []).map((team) => <option key={team} value={team}>{team}</option>)}
+                  </select>
+                </label>
+                <label>
+                  <div style={{ fontSize: 12, fontWeight: 900, marginBottom: 6 }}>Race</div>
+                  <select value={developmentForm.race_name} onChange={(event) => setDevelopmentForm((current) => ({ ...current, race_name: event.target.value }))} style={inputStyle}>
+                    <option value="">Owner assigns later</option>
+                    {developmentRaceOptions.map((race) => <option key={race} value={race}>{race}</option>)}
+                  </select>
+                </label>
+              </div>
+              <label style={{ display: "block", marginTop: 12 }}>
+                <div style={{ fontSize: 12, fontWeight: 900, marginBottom: 6 }}>Note to Owner</div>
+                <textarea value={developmentForm.request_note} onChange={(event) => setDevelopmentForm((current) => ({ ...current, request_note: event.target.value }))} style={{ ...inputStyle, minHeight: 74, resize: "vertical" }} placeholder="Example: I want to run this one for fun and help the team earn owner money." />
+              </label>
+              <button type="submit" disabled={developmentSubmitting || !isDriverAuthorized} style={{ ...themedPrimaryButtonStyle, marginTop: 12 }}>
+                {developmentSubmitting ? "Submitting..." : "Request Development Ride"}
+              </button>
+              {!isDriverAuthorized && <div style={{ fontSize: 12, opacity: 0.65, marginTop: 8 }}>Unlock this driver profile first to submit a request.</div>}
+            </form>
+          ) : (
+            <div style={{ opacity: 0.7, marginBottom: 12 }}>Developmental ride requests are only available for Cup Series drivers.</div>
+          )}
+
+          <h3 style={{ marginTop: 0 }}>My Requests</h3>
+          {myDevelopmentTransactions.length === 0 ? (
+            <div style={{ opacity: 0.65 }}>No developmental ride requests yet.</div>
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table style={tableStyle}>
+                <thead>
+                  <tr><th style={thStyle}>Series</th><th style={thStyle}>Team</th><th style={thStyle}>Race</th><th style={thStyle}>Owner</th><th style={thStyle}>Board</th><th style={thStyle}>Final</th></tr>
+                </thead>
+                <tbody>
+                  {myDevelopmentTransactions.map((tx) => (
+                    <tr key={tx.id}>
+                      <td style={tdStyle}>{String(tx.requested_series || "").toUpperCase()}</td>
+                      <td style={tdStyle}>{tx.requested_team || "—"}</td>
+                      <td style={tdStyle}>{tx.race_name || "Owner assigns"}</td>
+                      <td style={tdStyle}>{getDevelopmentStatusLabel(tx.owner_status)}</td>
+                      <td style={tdStyle}>{tx.requires_board_approval ? getDevelopmentStatusLabel(tx.board_status) : "Not needed"}</td>
+                      <td style={{ ...tdStyle, fontWeight: 900 }}>
+                        <span style={{ display: "inline-flex", border: "1px solid", borderRadius: 999, padding: "4px 8px", ...developmentBadgeStyle(tx.final_status) }}>
+                          {getDevelopmentStatusLabel(tx.final_status)}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
 
         <div style={sectionCardStyle}>
           <h2 style={{ marginTop: 0, marginBottom: 14 }}>🎬 Replay Theater / Media Hub</h2>
