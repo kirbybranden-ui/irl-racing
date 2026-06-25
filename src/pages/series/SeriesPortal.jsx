@@ -1,40 +1,76 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
 
 const SERIES = [
-  { id: "cup", name: "Cup Series" },
-  { id: "xfinity", name: "Xfinity Series" },
-  { id: "trucks", name: "Craftsman Truck Series" },
-  { id: "arca", name: "ARCA Menards Series" },
+  { id: "cup", name: "Cup Series", sub: "Main Budweiser Cup League" },
+  { id: "xfinity", name: "Xfinity Series", sub: "Upper developmental series" },
+  { id: "trucks", name: "Craftsman Truck Series", sub: "Developmental truck division" },
+  { id: "arca", name: "ARCA Menards Series", sub: "Entry developmental ladder" },
 ];
 
+const pageStyle = {
+  minHeight: "100vh",
+  background: "radial-gradient(circle at top, #2a0505 0%, #050505 46%, #020202 100%)",
+  color: "white",
+  padding: "34px 18px",
+};
+
+const wrapStyle = { maxWidth: 1180, margin: "0 auto" };
+const cardStyle = {
+  background: "rgba(255,255,255,0.06)",
+  border: "1px solid rgba(255,255,255,0.14)",
+  borderRadius: 22,
+  padding: 22,
+  boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
+};
+
 export default function SeriesPortal() {
-  const navigate = useNavigate();
+  const go = (to) => { window.location.href = to; };
 
   return (
-    <div style={{ padding: 24, minHeight: "100vh", background: "#050505", color: "white" }}>
-      <h1>Budweiser Cup League</h1>
-      <h2>Select Your Series</h2>
+    <div style={pageStyle}>
+      <div style={wrapStyle}>
+        <div style={{ ...cardStyle, textAlign: "center", marginBottom: 22 }}>
+          <div style={{ fontSize: 13, letterSpacing: 2, textTransform: "uppercase", color: "#facc15", fontWeight: 900 }}>
+            Budweiser Cup League
+          </div>
+          <h1 style={{ fontSize: "clamp(34px, 7vw, 72px)", margin: "10px 0 8px", lineHeight: 0.95 }}>
+            Select Your Series
+          </h1>
+          <p style={{ opacity: 0.78, maxWidth: 720, margin: "0 auto", lineHeight: 1.6 }}>
+            Choose Cup, Xfinity, Trucks, or ARCA. Drivers can sign in by username or submit a request to join that feeds the admin queue.
+          </p>
+        </div>
 
-      <div style={{ display: "grid", gap: 16, marginTop: 24 }}>
-        {SERIES.map((series) => (
-          <button
-            key={series.id}
-            onClick={() => navigate(`/series/${series.id}`)}
-            style={{
-              padding: 24,
-              fontSize: 22,
-              fontWeight: "bold",
-              borderRadius: 14,
-              border: "1px solid #333",
-              background: "#b30000",
-              color: "white",
-              cursor: "pointer",
-            }}
-          >
-            {series.name}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: 16 }}>
+          {SERIES.map((series) => (
+            <button
+              key={series.id}
+              type="button"
+              onClick={() => go(`/series/${series.id}`)}
+              style={{
+                ...cardStyle,
+                minHeight: 170,
+                textAlign: "left",
+                cursor: "pointer",
+                color: "white",
+                background: "linear-gradient(145deg, rgba(185,28,28,0.95), rgba(17,24,39,0.94))",
+              }}
+            >
+              <div style={{ fontSize: 28, fontWeight: 1000 }}>{series.name}</div>
+              <div style={{ marginTop: 10, opacity: 0.78, fontWeight: 700 }}>{series.sub}</div>
+              <div style={{ marginTop: 26, fontWeight: 1000, color: "#facc15" }}>ENTER →</div>
+            </button>
+          ))}
+        </div>
+
+        <div style={{ marginTop: 18, display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
+          <button type="button" onClick={() => go("/standings")} style={{ padding: "12px 16px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.16)", background: "#111827", color: "white", fontWeight: 900 }}>
+            View Current Cup Standings
           </button>
-        ))}
+          <button type="button" onClick={() => go("/admin")} style={{ padding: "12px 16px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.16)", background: "#7f1d1d", color: "white", fontWeight: 900 }}>
+            Admin Portal
+          </button>
+        </div>
       </div>
     </div>
   );
