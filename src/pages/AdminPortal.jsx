@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 
 export default function AdminPortal({
   AdminLeagueMessageComposer,
@@ -222,6 +222,36 @@ export default function AdminPortal({
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+
+  const [adminMenuOpen, setAdminMenuOpen] = useState(false);
+
+  const adminMenuItems = [
+    { label: "Admin Home", action: goAdmin, primary: true },
+    { label: "Ticker Overlay", action: () => setViewMode("overlay-ticker") },
+    { label: "Standings", action: () => (window.location.pathname = "/standings") },
+    { label: "Team HQ", action: () => (window.location.pathname = "/team-hq") },
+    { label: "Streams", action: () => (window.location.pathname = "/streams") },
+    { label: "Discord", action: () => (window.location.pathname = "/discord") },
+    { label: "News", action: () => (window.location.pathname = "/news") },
+    { label: "Notifications", action: () => (window.location.pathname = "/notifications") },
+    { label: `Appeals (${openAppealCount || 0})`, action: () => (window.location.pathname = "/appeals") },
+    { label: `Stories (${openStoryCount || 0})`, action: () => (window.location.pathname = "/admin/stories") },
+    { label: "Car Gallery", action: () => (window.location.pathname = "/admin/car-gallery") },
+    { label: "Interviews", action: () => (window.location.pathname = "/admin/interviews") },
+    { label: "Voting", action: () => (window.location.pathname = "/admin/votes") },
+    { label: "Export App Data JSON", action: exportAppDataJson, primary: true },
+    { label: "Logout", action: logoutAdmin, danger: true },
+  ];
+
+  const adminQuickTiles = [
+    { title: "Race Control", text: "Post results, save drafts, penalties, DNFs, stages, fastest lap.", action: () => document.getElementById("admin-race-control")?.scrollIntoView({ behavior: "smooth", block: "start" }) },
+    { title: "Driver Management", text: "Add, edit, retire, restore, approve pending drivers.", action: () => document.getElementById("admin-driver-management")?.scrollIntoView({ behavior: "smooth", block: "start" }) },
+    { title: "Team Owners", text: "Assign owners and manage owner access/password routing.", action: () => document.getElementById("admin-owner-assignments")?.scrollIntoView({ behavior: "smooth", block: "start" }) },
+    { title: "Paint Scheme Payouts", text: "$10,000 weekly driver payout with $250,000 season cap.", action: () => document.getElementById("admin-paint-payouts")?.scrollIntoView({ behavior: "smooth", block: "start" }) },
+    { title: "Media Center", text: "Messages, interviews, stories, news, alerts, notifications.", action: () => document.getElementById("admin-media-center")?.scrollIntoView({ behavior: "smooth", block: "start" }) },
+    { title: "Backup Center", text: "Export, import, restore, and protect league data.", action: () => document.getElementById("admin-backup-center")?.scrollIntoView({ behavior: "smooth", block: "start" }) },
+  ];
+
   const applePageStyle = {
     ...appShellStyle,
     background:
@@ -360,6 +390,62 @@ export default function AdminPortal({
 
   const adminMutedTextStyle = { color: "#4b5563" };
 
+  const adminMenuButtonStyle = {
+    width: 50,
+    height: 50,
+    borderRadius: 16,
+    border: "1px solid rgba(17,24,39,0.10)",
+    background: "rgba(255,255,255,0.92)",
+    boxShadow: "0 10px 28px rgba(15,23,42,0.12)",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 5,
+    cursor: "pointer",
+  };
+
+  const adminMenuLineStyle = {
+    width: 22,
+    height: 2,
+    borderRadius: 999,
+    background: "#111827",
+  };
+
+  const adminMenuPanelStyle = {
+    position: "absolute",
+    right: 0,
+    top: 62,
+    zIndex: 20,
+    width: "min(360px, calc(100vw - 48px))",
+    background: "rgba(255,255,255,0.98)",
+    border: "1px solid rgba(17,24,39,0.10)",
+    borderRadius: 24,
+    boxShadow: "0 28px 80px rgba(15,23,42,0.22)",
+    padding: 12,
+    backdropFilter: "blur(18px)",
+  };
+
+  const adminTileStyle = {
+    background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
+    color: "#111827",
+    border: "1px solid #e5e7eb",
+    borderRadius: 24,
+    boxShadow: "0 14px 38px rgba(15,23,42,0.08)",
+    padding: 20,
+    textAlign: "left",
+    cursor: "pointer",
+    minHeight: 138,
+  };
+
+  const adminTileKickerStyle = {
+    width: 38,
+    height: 5,
+    borderRadius: 999,
+    background: "#111827",
+    marginBottom: 16,
+  };
+
   return (
     <div style={applePageStyle}>
       <div style={appleContainerStyle}>
@@ -376,63 +462,84 @@ export default function AdminPortal({
                 <div style={{ opacity: 0.68, marginTop: 2 }}>League control center · drivers · teams · race operations</div>
               </div>
             </div>
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <button onClick={goAdmin} style={adminPrimaryNavButtonStyle}>Admin Home</button>
-              {["admin","overlay-ticker"].map((mode) => (
-                <button key={mode} style={viewMode === mode ? adminPrimaryNavButtonStyle : adminNavButtonStyle} onClick={() => { if (mode === "admin") goAdmin(); else setViewMode(mode); }}>
-                  {mode === "admin" ? "Admin" : "Ticker Overlay"}
-                </button>
-              ))}
-              <button onClick={() => (window.location.pathname = "/standings")} style={adminNavButtonStyle}>
-                Standings
+            <div style={{ position: "relative" }}>
+              <button
+                type="button"
+                aria-label="Open admin menu"
+                onClick={() => setAdminMenuOpen((open) => !open)}
+                style={adminMenuButtonStyle}
+              >
+                <span style={adminMenuLineStyle} />
+                <span style={adminMenuLineStyle} />
+                <span style={adminMenuLineStyle} />
               </button>
-              <button onClick={() => (window.location.pathname = "/team-hq")} style={adminNavButtonStyle}>
-                🏢 Team HQ
-              </button>
-              <button onClick={logoutAdmin} style={{ ...adminNavButtonStyle, border: "1px solid rgba(180,35,24,0.35)", color: "#b42318" }}>
-                Logout
-              </button>
-              <button onClick={() => (window.location.pathname = "/streams")} style={adminNavButtonStyle}>
-                🎮 Streams
-              </button>
-              <button onClick={() => (window.location.pathname = "/discord")} style={adminNavButtonStyle}>
-                💬 Discord
-              </button>
-              <button onClick={() => (window.location.pathname = "/news")} style={adminNavButtonStyle}>
-                📰 News
-              </button>
-              <button onClick={() => (window.location.pathname = "/notifications")} style={adminNavButtonStyle}>
-                🔔 Notifications
-              </button>
-              <button onClick={() => (window.location.pathname = "/appeals")} style={adminNavButtonStyle}>
-                Appeals ({openAppealCount})
-              </button>
-              <button onClick={() => (window.location.pathname = "/admin/stories")} style={adminNavButtonStyle}>
-                Stories ({openStoryCount})
-              </button>
-              <button onClick={() => (window.location.pathname = "/admin/car-gallery")} style={adminNavButtonStyle}>
-                Car Gallery
-              </button>
-              <button onClick={() => (window.location.pathname = "/admin/interviews")} style={adminNavButtonStyle}>
-                🎙️ Interviews
-              </button>
-              <button onClick={() => (window.location.pathname = "/admin/votes")} style={adminNavButtonStyle}>
-                🗳️ Voting
-              </button>
-              <button onClick={exportAppDataJson} style={{ ...adminPrimaryNavButtonStyle, padding: "10px 14px" }}>
-                ⬇️ Export App Data JSON
-              </button>
+
+              {adminMenuOpen && (
+                <div style={adminMenuPanelStyle}>
+                  <div style={{ padding: "8px 10px 12px", borderBottom: "1px solid #e5e7eb", marginBottom: 8 }}>
+                    <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.5, textTransform: "uppercase", color: "#6b7280" }}>Admin Menu</div>
+                    <div style={{ fontSize: 20, fontWeight: 1000, color: "#111827" }}>League Control</div>
+                  </div>
+
+                  <div style={{ display: "grid", gap: 6 }}>
+                    {adminMenuItems.map((item) => (
+                      <button
+                        key={item.label}
+                        type="button"
+                        onClick={() => {
+                          setAdminMenuOpen(false);
+                          item.action?.();
+                        }}
+                        style={{
+                          border: 0,
+                          borderRadius: 14,
+                          background: item.primary ? "#111827" : item.danger ? "#fff1f2" : "#f8fafc",
+                          color: item.primary ? "#ffffff" : item.danger ? "#b42318" : "#111827",
+                          padding: "12px 14px",
+                          textAlign: "left",
+                          fontWeight: 900,
+                          cursor: "pointer",
+                        }}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
 
+        <div style={{ ...adminReadableCardStyle, padding: 24 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "end", gap: 16, flexWrap: "wrap", marginBottom: 18 }}>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.6, textTransform: "uppercase", color: "#6b7280" }}>Command Center</div>
+              <h2 style={{ margin: "4px 0 0", fontSize: 30, letterSpacing: -0.8 }}>Quick Admin Tiles</h2>
+              <p style={{ margin: "6px 0 0", color: "#4b5563", fontWeight: 650 }}>Everything important is grouped into cleaner Apple-style cards instead of a crowded button bar.</p>
+            </div>
+            <button onClick={goAdmin} style={adminPrimaryButtonStyle}>Refresh Admin Home</button>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(245px, 1fr))", gap: 14 }}>
+            {adminQuickTiles.map((tile) => (
+              <button key={tile.title} type="button" onClick={tile.action} style={adminTileStyle}>
+                <div style={adminTileKickerStyle} />
+                <div style={{ fontSize: 20, fontWeight: 1000, marginBottom: 8, letterSpacing: -0.3 }}>{tile.title}</div>
+                <div style={{ color: "#4b5563", fontWeight: 650, lineHeight: 1.45 }}>{tile.text}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div id="admin-media-center" />
         <AdminLeagueMessageComposer drivers={visibleDrivers} teams={teamStandings} />
 
         <AdminLeagueMessageDashboard drivers={visibleDrivers} teams={teamStandings} />
 
         <PaymentCompliancePanel mode="admin" />
 
-        <div style={adminReadableCardStyle}>
+        <div id="admin-owner-assignments" style={adminReadableCardStyle}>
           <h2 style={{ marginTop: 0 }}>Team Owner Assignments</h2>
           <p style={{ opacity: 0.75, marginTop: 0 }}>
             Assign which driver owns each team. That driver’s profile password will unlock the matching owner/team page. The admin master password still unlocks every team.
