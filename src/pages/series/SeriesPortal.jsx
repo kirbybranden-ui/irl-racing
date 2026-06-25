@@ -34,10 +34,13 @@ export default function SeriesPortal() {
             Budweiser Cup League
           </div>
           <h1 style={{ fontSize: "clamp(34px, 7vw, 72px)", margin: "10px 0 8px", lineHeight: 0.95 }}>
-            Select Your Series
+            Budweiser Motorsports
           </h1>
-          <p style={{ opacity: 0.78, maxWidth: 720, margin: "0 auto", lineHeight: 1.6 }}>
-            Choose Cup, Xfinity, Trucks, or ARCA. Drivers can sign in by username or submit a request to join that feeds the admin queue.
+          <p style={{ fontSize: 18, fontWeight: 1000, color: "#facc15", margin: "0 0 12px" }}>
+            One League. Four National Series. One Career.
+          </p>
+          <p style={{ opacity: 0.86, maxWidth: 860, margin: "0 auto", lineHeight: 1.7 }}>
+            The Budweiser Cup League is built different: not just weekly races, but a full motorsports ecosystem with team ownership, driver contracts, development rides, media duties, race results, standings, finances, paint scheme voting, and a true ladder from ARCA to Trucks to Xfinity to Cup. Every race matters. Every decision has consequences. Every championship is earned.
           </p>
         </div>
 
