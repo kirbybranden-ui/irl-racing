@@ -6769,9 +6769,15 @@ export default function App() {
   if (path === "/admin-login") return <AdminLoginPage />;
   if (isAdminProtectedPath && !isAdminAuthenticated) return <AdminLoginPage />;
 
+  // Series Portal - new opening page for Cup, Xfinity, Trucks, and ARCA.
+  // Existing Cup standings remain available at /standings.
+  if (path === "/" || path === "/series") {
+    return <SeriesPortal />;
+  }
+
   // Mobile experience gate — phones use the NASCAR-style mobile shell for all non-admin / non-overlay routes.
   // Desktop routes below stay unchanged. Mobile routes render real app data in a phone-friendly shell.
-  const mobileExcludedPaths = path.startsWith("/admin") || path.startsWith("/overlay") || path === "/bracket";
+  const mobileExcludedPaths = path.startsWith("/admin") || path.startsWith("/overlay") || path.startsWith("/series") || path === "/bracket";
   if (isMobileViewport && !forceDesktop && !mobileExcludedPaths) {
     if (!isHydrated) {
       return <div style={appShellStyle}><div style={pageContainerStyle}><div style={sectionCardStyle}>Loading mobile league data...</div></div></div>;
@@ -6852,6 +6858,30 @@ export default function App() {
   }
   // Loading gate — all routes below this need Supabase data
   if (!isHydrated) return <div style={appShellStyle}><div style={pageContainerStyle}><div style={sectionCardStyle}>Loading league data...</div></div></div>;
+
+  // Development series pages. These do not remove any existing Cup routes.
+  if (path.startsWith("/series/") && path.endsWith("/join")) {
+    const seriesId = decodeURIComponent(rawPath.split("/")[2] || "cup").toLowerCase();
+    return (
+      <SeriesJoinPage
+        seriesId={seriesId}
+        drivers={visibleDrivers}
+        teams={teamStandings}
+      />
+    );
+  }
+
+  if (path.startsWith("/series/")) {
+    const seriesId = decodeURIComponent(rawPath.split("/")[2] || "cup").toLowerCase();
+    return (
+      <SeriesLandingPage
+        seriesId={seriesId}
+        drivers={visibleDrivers}
+        teams={teamStandings}
+        raceHistory={raceHistory}
+      />
+    );
+  }
 
   if (path === "/admin/car-gallery") {
     return (
@@ -6979,7 +7009,7 @@ export default function App() {
       <InSeasonTournamentPage drivers={visibleDrivers} raceHistory={raceHistory} />
     );
   }
-  if (path === "/" || path === "/standings") return withLeagueStatusWidget(<StandingsPage drivers={visibleDrivers} teams={teamStandings} manufacturerStandings={manufacturerStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} />);
+  if (path === "/standings") return withLeagueStatusWidget(<StandingsPage drivers={visibleDrivers} teams={teamStandings} manufacturerStandings={manufacturerStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} />);
   if (path === "/overlay/ticker" || viewMode === "overlay-ticker") return <TickerOverlay drivers={visibleDrivers} teams={teamStandings} raceHistory={raceHistory} preview={viewMode === "overlay-ticker"} seasonName={activeSeason?.name || ""} />;
   if (path !== "/admin") {
     return <StandingsPage drivers={visibleDrivers} teams={teamStandings} manufacturerStandings={manufacturerStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} />;
