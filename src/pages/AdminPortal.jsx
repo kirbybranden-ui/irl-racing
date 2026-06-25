@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 
 export default function AdminPortal({
   AdminLeagueMessageComposer,
@@ -224,6 +224,76 @@ export default function AdminPortal({
 
 
   const [adminMenuOpen, setAdminMenuOpen] = useState(false);
+  const [adminMessagesOpen, setAdminMessagesOpen] = useState(false);
+  const [adminComposerOpen, setAdminComposerOpen] = useState(false);
+  const [adminUnreadMessages, setAdminUnreadMessages] = useState([]);
+  const [adminMessagesLoading, setAdminMessagesLoading] = useState(false);
+  const [adminMessagesError, setAdminMessagesError] = useState("");
+
+  const adminUnreadCount = adminUnreadMessages.length;
+
+  function getAdminMessageRecipientLabel(message) {
+    const type = String(message?.recipient_type || "").toLowerCase();
+    if (message?.recipient_driver_number) return `#${message.recipient_driver_number}`;
+    if (type === "team" || message?.recipient_team) return getTeamFullName(message.recipient_team || "Team");
+    if (type === "manufacturer" || message?.recipient_manufacturer) return `${message.recipient_manufacturer || "Manufacturer"} Drivers`;
+    if (type === "owners") return "Owners Only";
+    if (type === "league") return "Entire League";
+    return message?.recipient_type || "League";
+  }
+
+  async function loadAdminUnreadMessages() {
+    if (!supabase) return;
+    setAdminMessagesLoading(true);
+    setAdminMessagesError("");
+
+    const { data, error } = await supabase
+      .from("league_messages")
+      .select("*")
+      .eq("is_read", false)
+      .eq("archived", false)
+      .order("created_at", { ascending: false })
+      .limit(75);
+
+    if (error) {
+      console.error("Could not load admin unread messages:", error);
+      setAdminMessagesError("Could not load unread messages. Check league_messages select policy.");
+      setAdminUnreadMessages([]);
+      setAdminMessagesLoading(false);
+      return;
+    }
+
+    setAdminUnreadMessages(data || []);
+    setAdminMessagesLoading(false);
+  }
+
+  async function markAdminMessageRead(messageId) {
+    if (!messageId || !supabase) return;
+    const { error } = await supabase
+      .from("league_messages")
+      .update({ is_read: true })
+      .eq("id", messageId);
+
+    if (error) {
+      console.error("Could not mark admin message read:", error);
+      setAdminMessagesError("Could not mark message read. Check league_messages update policy.");
+      return;
+    }
+
+    setAdminUnreadMessages((current) => current.filter((message) => message.id !== messageId));
+  }
+
+  function openAdminMessages() {
+    setAdminMessagesOpen(true);
+    setAdminComposerOpen(false);
+    loadAdminUnreadMessages();
+  }
+
+  useEffect(() => {
+    loadAdminUnreadMessages();
+    const interval = setInterval(loadAdminUnreadMessages, 60000);
+    return () => clearInterval(interval);
+  }, [supabase]);
 
   const adminMenuItems = [
     { label: "Admin Home", action: goAdmin, primary: true },
@@ -248,7 +318,7 @@ export default function AdminPortal({
     { title: "Driver Management", text: "Add, edit, retire, restore, approve pending drivers.", action: () => document.getElementById("admin-driver-management")?.scrollIntoView({ behavior: "smooth", block: "start" }) },
     { title: "Team Owners", text: "Assign owners and manage owner access/password routing.", action: () => document.getElementById("admin-owner-assignments")?.scrollIntoView({ behavior: "smooth", block: "start" }) },
     { title: "Paint Scheme Payouts", text: "$10,000 weekly driver payout with $250,000 season cap.", action: () => document.getElementById("admin-paint-payouts")?.scrollIntoView({ behavior: "smooth", block: "start" }) },
-    { title: "Media Center", text: "Messages, interviews, stories, news, alerts, notifications.", action: () => document.getElementById("admin-media-center")?.scrollIntoView({ behavior: "smooth", block: "start" }) },
+    { title: "Messages", text: "Unread inbox, league broadcasts, owner notices, and create-message tools.", action: openAdminMessages },
     { title: "Backup Center", text: "Export, import, restore, and protect league data.", action: () => document.getElementById("admin-backup-center")?.scrollIntoView({ behavior: "smooth", block: "start" }) },
   ];
 
@@ -446,6 +516,41 @@ export default function AdminPortal({
     marginBottom: 16,
   };
 
+  const adminMessageIconButtonStyle = {
+    position: "relative",
+    width: 54,
+    height: 54,
+    borderRadius: 16,
+    border: "1px solid rgba(255,255,255,0.75)",
+    background: "linear-gradient(180deg, #34d399 0%, #10b981 100%)",
+    color: "white",
+    boxShadow: "0 16px 38px rgba(16,185,129,0.30)",
+    cursor: "pointer",
+    fontSize: 27,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  };
+
+  const adminMessageBadgeStyle = {
+    position: "absolute",
+    top: -7,
+    right: -7,
+    minWidth: 24,
+    height: 24,
+    padding: "0 7px",
+    borderRadius: 999,
+    background: "#ef4444",
+    color: "white",
+    border: "2px solid white",
+    fontSize: 12,
+    fontWeight: 1000,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    boxShadow: "0 8px 18px rgba(239,68,68,0.28)",
+  };
+
   return (
     <div style={applePageStyle}>
       <div style={appleContainerStyle}>
@@ -462,20 +567,32 @@ export default function AdminPortal({
                 <div style={{ opacity: 0.68, marginTop: 2 }}>League control center · drivers · teams · race operations</div>
               </div>
             </div>
-            <div style={{ position: "relative" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <button
                 type="button"
-                aria-label="Open admin menu"
-                onClick={() => setAdminMenuOpen((open) => !open)}
-                style={adminMenuButtonStyle}
+                aria-label="Open admin messages"
+                onClick={openAdminMessages}
+                style={adminMessageIconButtonStyle}
+                title="Messages"
               >
-                <span style={adminMenuLineStyle} />
-                <span style={adminMenuLineStyle} />
-                <span style={adminMenuLineStyle} />
+                💬
+                {adminUnreadCount > 0 && <span style={adminMessageBadgeStyle}>{adminUnreadCount > 99 ? "99+" : adminUnreadCount}</span>}
               </button>
 
-              {adminMenuOpen && (
-                <div style={adminMenuPanelStyle}>
+              <div style={{ position: "relative" }}>
+                <button
+                  type="button"
+                  aria-label="Open admin menu"
+                  onClick={() => setAdminMenuOpen((open) => !open)}
+                  style={adminMenuButtonStyle}
+                >
+                  <span style={adminMenuLineStyle} />
+                  <span style={adminMenuLineStyle} />
+                  <span style={adminMenuLineStyle} />
+                </button>
+
+                {adminMenuOpen && (
+                  <div style={adminMenuPanelStyle}>
                   <div style={{ padding: "8px 10px 12px", borderBottom: "1px solid #e5e7eb", marginBottom: 8 }}>
                     <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.5, textTransform: "uppercase", color: "#6b7280" }}>Admin Menu</div>
                     <div style={{ fontSize: 20, fontWeight: 1000, color: "#111827" }}>League Control</div>
@@ -505,8 +622,9 @@ export default function AdminPortal({
                       </button>
                     ))}
                   </div>
-                </div>
-              )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -533,9 +651,63 @@ export default function AdminPortal({
         </div>
 
         <div id="admin-media-center" />
-        <AdminLeagueMessageComposer drivers={visibleDrivers} teams={teamStandings} />
 
-        <AdminLeagueMessageDashboard drivers={visibleDrivers} teams={teamStandings} />
+        {adminMessagesOpen && (
+          <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(15, 23, 42, 0.42)", backdropFilter: "blur(14px)", display: "flex", justifyContent: "center", alignItems: "flex-start", padding: "28px 16px", overflowY: "auto" }}>
+            <div style={{ width: "min(980px, 100%)", background: "#f5f5f7", color: "#111827", borderRadius: 30, border: "1px solid rgba(255,255,255,0.86)", boxShadow: "0 34px 90px rgba(15,23,42,0.28)", padding: 22 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, marginBottom: 18 }}>
+                <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+                  <div style={{ ...adminMessageIconButtonStyle, width: 58, height: 58, cursor: "default" }}>💬</div>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.6, textTransform: "uppercase", color: "#6b7280" }}>Admin Messages</div>
+                    <h2 style={{ margin: "2px 0 0", fontSize: 30, letterSpacing: -0.8 }}>Unread Inbox</h2>
+                    <div style={{ color: "#4b5563", fontWeight: 700, marginTop: 3 }}>{adminUnreadCount} unread message{adminUnreadCount === 1 ? "" : "s"}</div>
+                  </div>
+                </div>
+                <button type="button" onClick={() => setAdminMessagesOpen(false)} style={adminSecondaryButtonStyle}>Close</button>
+              </div>
+
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 18 }}>
+                <button type="button" onClick={() => setAdminComposerOpen(false)} style={!adminComposerOpen ? adminPrimaryButtonStyle : adminSecondaryButtonStyle}>Unread Messages</button>
+                <button type="button" onClick={() => setAdminComposerOpen(true)} style={adminComposerOpen ? adminPrimaryButtonStyle : adminSecondaryButtonStyle}>Create Message</button>
+                <button type="button" onClick={loadAdminUnreadMessages} style={adminSecondaryButtonStyle}>{adminMessagesLoading ? "Refreshing..." : "Refresh"}</button>
+              </div>
+
+              {adminComposerOpen ? (
+                <AdminLeagueMessageComposer drivers={visibleDrivers} teams={teamStandings} />
+              ) : (
+                <div style={{ background: "#ffffff", border: "1px solid #d1d5db", borderRadius: 22, padding: 18, boxShadow: "0 14px 35px rgba(15,23,42,0.08)" }}>
+                  {adminMessagesError && <div style={{ color: "#b42318", fontWeight: 900, marginBottom: 12 }}>{adminMessagesError}</div>}
+                  {adminMessagesLoading ? (
+                    <div style={{ color: "#4b5563", fontWeight: 800 }}>Loading unread messages...</div>
+                  ) : adminUnreadMessages.length === 0 ? (
+                    <div style={{ color: "#4b5563", fontWeight: 800 }}>No unread messages right now.</div>
+                  ) : (
+                    <div style={{ display: "grid", gap: 12 }}>
+                      {adminUnreadMessages.map((message) => (
+                        <div key={message.id} style={{ background: "#f8fafc", border: "1px solid #e5e7eb", borderRadius: 18, padding: 15 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                            <div>
+                              <div style={{ fontSize: 18, fontWeight: 1000 }}>{message.subject || "No subject"}</div>
+                              <div style={{ color: "#6b7280", fontSize: 13, fontWeight: 800, marginTop: 4 }}>
+                                To: {getAdminMessageRecipientLabel(message)} · From: {message.sender_name || message.sender_type || "League"}
+                              </div>
+                              <div style={{ color: "#6b7280", fontSize: 12, fontWeight: 700, marginTop: 3 }}>{message.created_at ? new Date(message.created_at).toLocaleString() : ""}</div>
+                            </div>
+                            <button type="button" onClick={() => markAdminMessageRead(message.id)} style={adminSecondaryButtonStyle}>Mark Read</button>
+                          </div>
+                          <div style={{ marginTop: 12, color: "#111827", lineHeight: 1.55, whiteSpace: "pre-wrap", fontWeight: 650 }}>
+                            {message.message || "No message body."}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         <PaymentCompliancePanel mode="admin" />
 
