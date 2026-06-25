@@ -106,6 +106,40 @@ import {
 } from "./utils/messagePermissions";
 import { loadLeagueState, saveLeagueState } from "./lib/leagueState";
 import {
+
+class AdminErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+
+  componentDidCatch(error, info) {
+    console.error("Admin Portal crashed:", error, info);
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ minHeight: "100vh", background: "#050505", color: "white", padding: 24 }}>
+          <h1>Admin Portal Error</h1>
+          <p>The admin page is loading, but one section crashed while rendering.</p>
+          <pre style={{ whiteSpace: "pre-wrap", background: "#111", border: "1px solid #333", borderRadius: 12, padding: 16 }}>
+            {String(this.state.error?.message || this.state.error)}
+          </pre>
+          <button onClick={() => (window.location.pathname = "/admin-login")} style={{ padding: 12, fontWeight: 800 }}>
+            Back to Admin Login
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
   appShellStyle,
   pageContainerStyle,
   sectionCardStyle,
@@ -5052,7 +5086,7 @@ export default function App() {
   const videoFileInputRef = useRef(null);
   const importFileRef = useRef(null);
   const rawPath = window.location.pathname;
-  const path = rawPath.toLowerCase();
+  const path = (rawPath.toLowerCase().replace(/\/+$/, "") || "/");
   const isMobileViewport = useMobileViewport(768);
   const forceDesktop = typeof document !== "undefined" && document.cookie.includes("bcl-force-desktop=1");
 
@@ -6831,6 +6865,7 @@ export default function App() {
       activeRace={nextRace}
       selectedTrack={getTrackOverview(nextRace)}
     />
+    </AdminErrorBoundary>
   );
 }
   if (path === "/news") return withLeagueStatusWidget(<NewsPage />);
@@ -7016,6 +7051,7 @@ export default function App() {
     return <StandingsPage drivers={visibleDrivers} teams={teamStandings} manufacturerStandings={manufacturerStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} />;
   }
   return (
+    <AdminErrorBoundary>
     <AdminPortal
       AdminLeagueMessageComposer={AdminLeagueMessageComposer}
       AdminLeagueMessageDashboard={AdminLeagueMessageDashboard}
@@ -7230,4 +7266,3 @@ export default function App() {
       watchSaving={watchSaving}
     />
   );}
-
