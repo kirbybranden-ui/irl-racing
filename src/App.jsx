@@ -106,6 +106,25 @@ import {
 } from "./utils/messagePermissions";
 import { loadLeagueState, saveLeagueState } from "./lib/leagueState";
 import {
+  appShellStyle,
+  pageContainerStyle,
+  sectionCardStyle,
+  headerButtonStyle,
+  activeHeaderButtonStyle,
+  primaryButtonStyle,
+  secondaryButtonStyle,
+  dangerButtonStyle,
+  inputStyle,
+  racePositionInputStyle,
+  racePenaltyInputStyle,
+  raceNotesInputStyle,
+  tableStyle,
+  thStyle,
+  tdStyle,
+  raceEntryThStyle,
+  raceEntryTdStyle,
+  statBoxStyle,
+} from "./styles/sharedStyles";
 
 class AdminErrorBoundary extends React.Component {
   constructor(props) {
@@ -139,26 +158,6 @@ class AdminErrorBoundary extends React.Component {
     return this.props.children;
   }
 }
-
-  appShellStyle,
-  pageContainerStyle,
-  sectionCardStyle,
-  headerButtonStyle,
-  activeHeaderButtonStyle,
-  primaryButtonStyle,
-  secondaryButtonStyle,
-  dangerButtonStyle,
-  inputStyle,
-  racePositionInputStyle,
-  racePenaltyInputStyle,
-  raceNotesInputStyle,
-  tableStyle,
-  thStyle,
-  tdStyle,
-  raceEntryThStyle,
-  raceEntryTdStyle,
-  statBoxStyle,
-} from "./styles/sharedStyles";
 function AdminLoginPage() {
   const ADMIN_ACCESS_CODE = "BCLADMINPASSWORD2026";
   const [code, setCode] = useState("");
@@ -6865,7 +6864,6 @@ export default function App() {
       activeRace={nextRace}
       selectedTrack={getTrackOverview(nextRace)}
     />
-    </AdminErrorBoundary>
   );
 }
   if (path === "/news") return withLeagueStatusWidget(<NewsPage />);
