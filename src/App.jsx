@@ -125,41 +125,6 @@ import {
   raceEntryTdStyle,
   statBoxStyle,
 } from "./styles/sharedStyles";
-
-class AdminErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { error: null };
-  }
-
-  static getDerivedStateFromError(error) {
-    return { error };
-  }
-
-  componentDidCatch(error, info) {
-    console.error("Admin Portal crashed:", error, info);
-  }
-
-  render() {
-    if (this.state.error) {
-      return (
-        <div style={{ minHeight: "100vh", padding: 24, background: "#050505", color: "white", fontFamily: "Arial, sans-serif" }}>
-          <h1>Admin Portal Error</h1>
-          <p>The admin page crashed while loading. Copy this message and send it back so we can fix the exact issue.</p>
-          <pre style={{ whiteSpace: "pre-wrap", background: "#111", padding: 16, borderRadius: 12, border: "1px solid #333" }}>
-            {String(this.state.error?.message || this.state.error)}
-          </pre>
-          <button onClick={() => { sessionStorage.removeItem("bcl-admin-auth"); window.location.pathname = "/admin-login"; }} style={{ padding: "10px 14px", borderRadius: 10 }}>
-            Back to Admin Login
-          </button>
-        </div>
-      );
-    }
-
-    return this.props.children;
-  }
-}
-
 function AdminLoginPage() {
   const ADMIN_ACCESS_CODE = "BCLADMINPASSWORD2026";
   const [code, setCode] = useState("");
@@ -641,20 +606,12 @@ function MemorialDayPage({ drivers = [] }) {
 }
 
 
-const PAINT_SCHEME_WEEKLY_TEAM_PAYOUT_CAP = 150000;
-const PAINT_SCHEME_SEASON_TEAM_PAYOUT_CAP = 750000;
+const PAINT_SCHEME_WEEKLY_DRIVER_PAYOUT = 10000;
+const PAINT_SCHEME_SEASON_DRIVER_PAYOUT_CAP = 250000;
 
 function getPaintSchemePayout(position) {
   const pos = Number(position);
-  if (pos === 1) return { team: 20000, driver: 5000 };
-  if (pos === 2) return { team: 16000, driver: 4000 };
-  if (pos === 3) return { team: 12000, driver: 3000 };
-  if (pos === 4) return { team: 10000, driver: 2500 };
-  if (pos === 5) return { team: 8000, driver: 2000 };
-  if (pos >= 6 && pos <= 10) return { team: 6000, driver: 1500 };
-  if (pos >= 11 && pos <= 20) return { team: 4000, driver: 1000 };
-  if (pos >= 21 && pos <= 30) return { team: 2000, driver: 500 };
-  if (pos >= 31 && pos <= 40) return { team: 1000, driver: 250 };
+  if (pos >= 1 && pos <= 40) return { team: 0, driver: PAINT_SCHEME_WEEKLY_DRIVER_PAYOUT };
   return { team: 0, driver: 0 };
 }
 
@@ -692,42 +649,43 @@ function isPaintUploadEligibleForPayout(upload, deadline = getNextFridayMidnight
   return new Date(updatedAt).getTime() <= new Date(deadline).getTime();
 }
 
-function getPaintSchemeSeasonPaidByTeam(payouts = []) {
-  const paidByTeam = new Map();
+function getPaintSchemeSeasonPaidByDriver(payouts = []) {
+  const paidByDriver = new Map();
   (payouts || []).forEach((payout) => {
     (payout.rows || []).forEach((row) => {
-      const teamKey = String(row.team || "Independent");
-      paidByTeam.set(teamKey, (paidByTeam.get(teamKey) || 0) + Number(row.teamPayout || 0));
+      const driverKey = String(row.driverId || row.driverNumber || row.driverName || "Unknown Driver");
+      paidByDriver.set(driverKey, (paidByDriver.get(driverKey) || 0) + Number(row.driverPayout || 0));
     });
   });
-  return paidByTeam;
+  return paidByDriver;
 }
 
-function applyPaintSchemeTeamCaps(
+function applyPaintSchemeDriverSeasonCaps(
   rows = [],
-  weeklyCap = PAINT_SCHEME_WEEKLY_TEAM_PAYOUT_CAP,
-  seasonCap = PAINT_SCHEME_SEASON_TEAM_PAYOUT_CAP,
-  seasonPaidByTeam = new Map()
+  seasonCap = PAINT_SCHEME_SEASON_DRIVER_PAYOUT_CAP,
+  seasonPaidByDriver = new Map()
 ) {
-  const weeklyPaidByTeam = new Map();
+  const weeklyPaidByDriver = new Map();
   return rows.map((row) => {
-    const teamKey = String(row.team || "Independent");
-    const alreadyPaidThisWeek = weeklyPaidByTeam.get(teamKey) || 0;
-    const alreadyPaidThisSeason = seasonPaidByTeam.get(teamKey) || 0;
-    const weeklyRemaining = Math.max(0, weeklyCap - alreadyPaidThisWeek);
+    const driverKey = String(row.driverId || row.driverNumber || row.driverName || "Unknown Driver");
+    const alreadyPaidThisWeek = weeklyPaidByDriver.get(driverKey) || 0;
+    const alreadyPaidThisSeason = seasonPaidByDriver.get(driverKey) || 0;
     const seasonRemaining = Math.max(0, seasonCap - alreadyPaidThisSeason - alreadyPaidThisWeek);
-    const capRemaining = Math.min(weeklyRemaining, seasonRemaining);
-    const originalTeamPayout = Number(row.teamPayout || 0);
-    const cappedTeamPayout = Math.min(originalTeamPayout, capRemaining);
-    weeklyPaidByTeam.set(teamKey, alreadyPaidThisWeek + cappedTeamPayout);
+    const originalDriverPayout = Number(row.driverPayout || 0);
+    const cappedDriverPayout = Math.min(originalDriverPayout, seasonRemaining);
+    weeklyPaidByDriver.set(driverKey, alreadyPaidThisWeek + cappedDriverPayout);
     return {
       ...row,
-      originalTeamPayout,
-      teamPayout: cappedTeamPayout,
-      teamWeeklyCapApplied: cappedTeamPayout < originalTeamPayout && weeklyRemaining <= seasonRemaining,
-      teamSeasonCapApplied: cappedTeamPayout < originalTeamPayout && seasonRemaining < weeklyRemaining,
-      teamCapApplied: cappedTeamPayout < originalTeamPayout,
-      teamSeasonPaidBeforeAward: alreadyPaidThisSeason,
+      teamPayout: 0,
+      originalTeamPayout: 0,
+      teamWeeklyCapApplied: false,
+      teamSeasonCapApplied: false,
+      teamCapApplied: false,
+      teamSeasonPaidBeforeAward: 0,
+      originalDriverPayout,
+      driverPayout: cappedDriverPayout,
+      driverSeasonCapApplied: cappedDriverPayout < originalDriverPayout,
+      driverSeasonPaidBeforeAward: alreadyPaidThisSeason,
     };
   });
 }
@@ -759,7 +717,7 @@ function buildPaintSchemePayoutRows(rankedUploads = [], drivers = [], deadline =
         driverPayout: payout.driver,
       };
     });
-  return applyPaintSchemeTeamCaps(rows, PAINT_SCHEME_WEEKLY_TEAM_PAYOUT_CAP, PAINT_SCHEME_SEASON_TEAM_PAYOUT_CAP, getPaintSchemeSeasonPaidByTeam(seasonPayouts));
+  return applyPaintSchemeDriverSeasonCaps(rows, PAINT_SCHEME_SEASON_DRIVER_PAYOUT_CAP, getPaintSchemeSeasonPaidByDriver(seasonPayouts));
 }
 
 function getEasternDateTimePartsForPaintWinner(date = new Date()) {
@@ -5655,7 +5613,7 @@ export default function App() {
     const totalTeam = rows.reduce((sum, row) => sum + Number(row.teamPayout || 0), 0);
     const totalDriver = rows.reduce((sum, row) => sum + Number(row.driverPayout || 0), 0);
     const confirmed = window.confirm(
-      `Award paint scheme payouts for ${raceName}?\n\nTeam payouts: ${money(totalTeam)}\nDriver payouts: ${money(totalDriver)}\nRows: ${rows.length}`
+      `Award paint scheme payouts for ${raceName}?\n\nDriver payouts: ${money(totalDriver)}\nRows: ${rows.length}`
     );
     if (!confirmed) return;
 
@@ -5686,8 +5644,8 @@ export default function App() {
       rows,
       totalTeamPayout: totalTeam,
       totalDriverPayout: totalDriver,
-      weeklyTeamPayoutCap: PAINT_SCHEME_WEEKLY_TEAM_PAYOUT_CAP,
-      seasonTeamPayoutCap: PAINT_SCHEME_SEASON_TEAM_PAYOUT_CAP,
+      weeklyDriverPayout: PAINT_SCHEME_WEEKLY_DRIVER_PAYOUT,
+      seasonDriverPayoutCap: PAINT_SCHEME_SEASON_DRIVER_PAYOUT_CAP,
       deadlineRule: "Friday 12:00 AM ET. Uploads not updated by then are not eligible for payout.",
     };
 
@@ -5724,7 +5682,7 @@ export default function App() {
       return;
     }
 
-    setPaintPayoutStatus(`Paint scheme payouts awarded for ${raceName}. Team total ${money(totalTeam)}. Driver total ${money(totalDriver)}.`);
+    setPaintPayoutStatus(`Paint scheme payouts awarded for ${raceName}. Driver total ${money(totalDriver)}.`);
   }
 
   const clearInputs = () => {
@@ -7051,7 +7009,6 @@ export default function App() {
     return <StandingsPage drivers={visibleDrivers} teams={teamStandings} manufacturerStandings={manufacturerStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} />;
   }
   return (
-    <AdminErrorBoundary>
     <AdminPortal
       AdminLeagueMessageComposer={AdminLeagueMessageComposer}
       AdminLeagueMessageDashboard={AdminLeagueMessageDashboard}
@@ -7265,6 +7222,5 @@ export default function App() {
       watchReason={watchReason}
       watchSaving={watchSaving}
     />
-    </AdminErrorBoundary>
   );}
 
