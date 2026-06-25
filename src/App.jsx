@@ -6759,7 +6759,13 @@ export default function App() {
     window.location.pathname = "/standings";
   };
 
-  if (path === "/admin-login") return <AdminLoginPage />;
+  if (path === "/admin-login") {
+    if (isAdminAuthenticated) {
+      window.history.replaceState({}, "", "/admin");
+      return null;
+    }
+    return <AdminLoginPage />;
+  }
   if (isAdminProtectedPath && !isAdminAuthenticated) return <AdminLoginPage />;
 
   // Series Portal - new opening page for Cup, Xfinity, Trucks, and ARCA.
