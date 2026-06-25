@@ -143,21 +143,23 @@ class AdminErrorBoundary extends React.Component {
   render() {
     if (this.state.error) {
       return (
-        <div style={{ minHeight: "100vh", background: "#050505", color: "white", padding: 24 }}>
+        <div style={{ minHeight: "100vh", padding: 24, background: "#050505", color: "white", fontFamily: "Arial, sans-serif" }}>
           <h1>Admin Portal Error</h1>
-          <p>The admin page is loading, but one section crashed while rendering.</p>
-          <pre style={{ whiteSpace: "pre-wrap", background: "#111", border: "1px solid #333", borderRadius: 12, padding: 16 }}>
+          <p>The admin page crashed while loading. Copy this message and send it back so we can fix the exact issue.</p>
+          <pre style={{ whiteSpace: "pre-wrap", background: "#111", padding: 16, borderRadius: 12, border: "1px solid #333" }}>
             {String(this.state.error?.message || this.state.error)}
           </pre>
-          <button onClick={() => (window.location.pathname = "/admin-login")} style={{ padding: 12, fontWeight: 800 }}>
+          <button onClick={() => { sessionStorage.removeItem("bcl-admin-auth"); window.location.pathname = "/admin-login"; }} style={{ padding: "10px 14px", borderRadius: 10 }}>
             Back to Admin Login
           </button>
         </div>
       );
     }
+
     return this.props.children;
   }
 }
+
 function AdminLoginPage() {
   const ADMIN_ACCESS_CODE = "BCLADMINPASSWORD2026";
   const [code, setCode] = useState("");
@@ -5085,7 +5087,7 @@ export default function App() {
   const videoFileInputRef = useRef(null);
   const importFileRef = useRef(null);
   const rawPath = window.location.pathname;
-  const path = (rawPath.toLowerCase().replace(/\/+$/, "") || "/");
+  const path = rawPath.toLowerCase();
   const isMobileViewport = useMobileViewport(768);
   const forceDesktop = typeof document !== "undefined" && document.cookie.includes("bcl-force-desktop=1");
 
@@ -7263,4 +7265,6 @@ export default function App() {
       watchReason={watchReason}
       watchSaving={watchSaving}
     />
+    </AdminErrorBoundary>
   );}
+
