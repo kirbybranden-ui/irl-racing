@@ -641,7 +641,7 @@ export default function AdminPortal({
             <div>
               <h2 style={{ margin: 0 }}>🎨 Paint Scheme Payouts</h2>
               <div style={{ fontSize: 13, opacity: 0.7, marginTop: 6 }}>
-                Preview vote rankings, then award tiered payouts. Voting/payout eligibility closes Friday at 12:00 AM ET. Uploads not updated by then are excluded. Team payouts are capped at {money(PAINT_SCHEME_WEEKLY_TEAM_PAYOUT_CAP)} per team per week and {money(PAINT_SCHEME_SEASON_TEAM_PAYOUT_CAP)} per team per season. Payout tiers now start at {money(20000)} to the team and {money(5000)} to the driver for P1.
+                Preview vote rankings, then award tiered payouts. Voting/payout eligibility closes Friday at 12:00 AM ET. Uploads not updated by then are excluded. Paint scheme payouts are driver-only: $10,000 per eligible driver each week, with a $250,000 max per driver per season. Teams do not receive paint scheme payouts.
               </div>
             </div>
             <button onClick={() => loadPaintSchemePayoutPreview()} disabled={paintPayoutLoading} style={secondaryButtonStyle}>{paintPayoutLoading ? "Loading..." : "Preview Rankings"}</button>
@@ -670,8 +670,8 @@ export default function AdminPortal({
                     <th style={thStyle}>Team</th>
                     <th style={thStyle}>Votes</th>
                     <th style={thStyle}>Updated By Deadline</th>
-                    <th style={thStyle}>Team Payout</th>
                     <th style={thStyle}>Driver Payout</th>
+                    <th style={thStyle}>Season Cap</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -682,8 +682,8 @@ export default function AdminPortal({
                       <td style={tdStyle}>{getTeamFullName(row.team)}</td>
                       <td style={tdStyle}>{row.votes}</td>
                       <td style={tdStyle}>{row.updatedAt ? new Date(row.updatedAt).toLocaleString() : "—"}</td>
-                      <td style={{ ...tdStyle, color: "#4ade80", fontWeight: 900 }}>{money(row.teamPayout)}{row.teamWeeklyCapApplied ? <div style={{ color: "#fbbf24", fontSize: 11 }}>Weekly team cap applied</div> : null}{row.teamSeasonCapApplied ? <div style={{ color: "#fbbf24", fontSize: 11 }}>Season team cap applied</div> : null}</td>
                       <td style={{ ...tdStyle, color: "#d4af37", fontWeight: 900 }}>{money(row.driverPayout)}</td>
+                      <td style={{ ...tdStyle, color: row.driverSeasonCapApplied ? "#fbbf24" : "#4ade80", fontWeight: 900 }}>{row.driverSeasonCapApplied ? "Season cap applied" : "Under cap"}</td>
                     </tr>
                   ))}
                 </tbody>
