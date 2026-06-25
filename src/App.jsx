@@ -6879,6 +6879,7 @@ export default function App() {
         drivers={visibleDrivers}
         teams={teamStandings}
         raceHistory={raceHistory}
+        driverAccessCodes={driverAccessCodes}
       />
     );
   }
