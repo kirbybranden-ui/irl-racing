@@ -551,6 +551,126 @@ export default function AdminPortal({
     boxShadow: "0 8px 18px rgba(239,68,68,0.28)",
   };
 
+
+  const appleMessagesOverlayStyle = {
+    position: "fixed",
+    inset: 0,
+    zIndex: 9999,
+    background: "rgba(0, 0, 0, 0.34)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: "18px",
+    overflowY: "auto",
+  };
+
+  const appleMessagesShellStyle = {
+    width: "min(1120px, 100%)",
+    height: "min(760px, calc(100vh - 36px))",
+    background: "#f5f5f7",
+    color: "#111827",
+    borderRadius: 34,
+    border: "1px solid rgba(255,255,255,0.88)",
+    boxShadow: "0 36px 110px rgba(0,0,0,0.32)",
+    overflow: "hidden",
+    display: "grid",
+    gridTemplateColumns: "minmax(260px, 340px) 1fr",
+  };
+
+  const appleMessagesSidebarStyle = {
+    background: "rgba(255,255,255,0.72)",
+    borderRight: "1px solid #d8d8dc",
+    padding: 18,
+    overflowY: "auto",
+  };
+
+  const appleMessagesMainStyle = {
+    background: "#ffffff",
+    padding: 22,
+    overflowY: "auto",
+    display: "flex",
+    flexDirection: "column",
+    gap: 16,
+  };
+
+  const appleMessagesTitleRowStyle = {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    marginBottom: 16,
+  };
+
+  const appleMessagesTrafficButtonStyle = {
+    width: 14,
+    height: 14,
+    borderRadius: 999,
+    border: 0,
+    cursor: "pointer",
+    boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.08)",
+  };
+
+  const appleMessagesSegmentStyle = {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: 4,
+    background: "#e9e9ed",
+    borderRadius: 14,
+    padding: 4,
+    marginBottom: 16,
+  };
+
+  const appleMessagesSegmentButtonStyle = (active) => ({
+    border: 0,
+    borderRadius: 11,
+    padding: "10px 12px",
+    background: active ? "#ffffff" : "transparent",
+    color: active ? "#111827" : "#6b7280",
+    fontWeight: 1000,
+    cursor: "pointer",
+    boxShadow: active ? "0 6px 16px rgba(0,0,0,0.08)" : "none",
+  });
+
+  const appleComposeButtonStyle = {
+    width: "100%",
+    border: 0,
+    borderRadius: 18,
+    padding: "13px 14px",
+    background: "linear-gradient(180deg, #34c759 0%, #24a846 100%)",
+    color: "white",
+    fontWeight: 1000,
+    cursor: "pointer",
+    boxShadow: "0 12px 28px rgba(52,199,89,0.24)",
+    marginBottom: 12,
+  };
+
+  const appleMessageThreadStyle = {
+    width: "100%",
+    border: 0,
+    borderRadius: 18,
+    background: "#ffffff",
+    color: "#111827",
+    padding: 14,
+    textAlign: "left",
+    cursor: "pointer",
+    boxShadow: "0 10px 24px rgba(15,23,42,0.07)",
+    marginBottom: 10,
+  };
+
+  const appleMessageBubbleStyle = {
+    alignSelf: "flex-start",
+    maxWidth: "760px",
+    background: "#e9e9ee",
+    color: "#111827",
+    borderRadius: "24px 24px 24px 7px",
+    padding: "14px 16px",
+    lineHeight: 1.55,
+    whiteSpace: "pre-wrap",
+    fontWeight: 650,
+  };
+
   return (
     <div style={applePageStyle}>
       <div style={appleContainerStyle}>
@@ -653,58 +773,102 @@ export default function AdminPortal({
         <div id="admin-media-center" />
 
         {adminMessagesOpen && (
-          <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(15, 23, 42, 0.42)", backdropFilter: "blur(14px)", display: "flex", justifyContent: "center", alignItems: "flex-start", padding: "28px 16px", overflowY: "auto" }}>
-            <div style={{ width: "min(980px, 100%)", background: "#f5f5f7", color: "#111827", borderRadius: 30, border: "1px solid rgba(255,255,255,0.86)", boxShadow: "0 34px 90px rgba(15,23,42,0.28)", padding: 22 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, marginBottom: 18 }}>
-                <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
-                  <div style={{ ...adminMessageIconButtonStyle, width: 58, height: 58, cursor: "default" }}>💬</div>
+          <div style={appleMessagesOverlayStyle}>
+            <div style={appleMessagesShellStyle}>
+              <aside style={appleMessagesSidebarStyle}>
+                <div style={appleMessagesTitleRowStyle}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <button type="button" aria-label="Close messages" onClick={() => setAdminMessagesOpen(false)} style={{ ...appleMessagesTrafficButtonStyle, background: "#ff5f57" }} />
+                    <span style={{ ...appleMessagesTrafficButtonStyle, background: "#ffbd2e" }} />
+                    <span style={{ ...appleMessagesTrafficButtonStyle, background: "#28c840" }} />
+                  </div>
+                  <button type="button" onClick={loadAdminUnreadMessages} style={{ border: 0, background: "transparent", color: "#007aff", fontWeight: 1000, cursor: "pointer" }}>
+                    {adminMessagesLoading ? "Refreshing" : "Refresh"}
+                  </button>
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+                  <div style={{ ...adminMessageIconButtonStyle, width: 52, height: 52, borderRadius: 15, cursor: "default", fontSize: 25 }}>💬</div>
                   <div>
-                    <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.6, textTransform: "uppercase", color: "#6b7280" }}>Admin Messages</div>
-                    <h2 style={{ margin: "2px 0 0", fontSize: 30, letterSpacing: -0.8 }}>Unread Inbox</h2>
-                    <div style={{ color: "#4b5563", fontWeight: 700, marginTop: 3 }}>{adminUnreadCount} unread message{adminUnreadCount === 1 ? "" : "s"}</div>
+                    <div style={{ fontSize: 30, fontWeight: 1000, letterSpacing: -1 }}>Messages</div>
+                    <div style={{ color: "#6b7280", fontWeight: 800, fontSize: 13 }}>{adminUnreadCount} unread</div>
                   </div>
                 </div>
-                <button type="button" onClick={() => setAdminMessagesOpen(false)} style={adminSecondaryButtonStyle}>Close</button>
-              </div>
 
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 18 }}>
-                <button type="button" onClick={() => setAdminComposerOpen(false)} style={!adminComposerOpen ? adminPrimaryButtonStyle : adminSecondaryButtonStyle}>Unread Messages</button>
-                <button type="button" onClick={() => setAdminComposerOpen(true)} style={adminComposerOpen ? adminPrimaryButtonStyle : adminSecondaryButtonStyle}>Create Message</button>
-                <button type="button" onClick={loadAdminUnreadMessages} style={adminSecondaryButtonStyle}>{adminMessagesLoading ? "Refreshing..." : "Refresh"}</button>
-              </div>
+                <button type="button" onClick={() => setAdminComposerOpen(true)} style={appleComposeButtonStyle}>＋ New Message</button>
 
-              {adminComposerOpen ? (
-                <AdminLeagueMessageComposer drivers={visibleDrivers} teams={teamStandings} />
-              ) : (
-                <div style={{ background: "#ffffff", border: "1px solid #d1d5db", borderRadius: 22, padding: 18, boxShadow: "0 14px 35px rgba(15,23,42,0.08)" }}>
-                  {adminMessagesError && <div style={{ color: "#b42318", fontWeight: 900, marginBottom: 12 }}>{adminMessagesError}</div>}
-                  {adminMessagesLoading ? (
-                    <div style={{ color: "#4b5563", fontWeight: 800 }}>Loading unread messages...</div>
-                  ) : adminUnreadMessages.length === 0 ? (
-                    <div style={{ color: "#4b5563", fontWeight: 800 }}>No unread messages right now.</div>
-                  ) : (
-                    <div style={{ display: "grid", gap: 12 }}>
-                      {adminUnreadMessages.map((message) => (
-                        <div key={message.id} style={{ background: "#f8fafc", border: "1px solid #e5e7eb", borderRadius: 18, padding: 15 }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-                            <div>
-                              <div style={{ fontSize: 18, fontWeight: 1000 }}>{message.subject || "No subject"}</div>
-                              <div style={{ color: "#6b7280", fontSize: 13, fontWeight: 800, marginTop: 4 }}>
-                                To: {getAdminMessageRecipientLabel(message)} · From: {message.sender_name || message.sender_type || "League"}
-                              </div>
-                              <div style={{ color: "#6b7280", fontSize: 12, fontWeight: 700, marginTop: 3 }}>{message.created_at ? new Date(message.created_at).toLocaleString() : ""}</div>
-                            </div>
-                            <button type="button" onClick={() => markAdminMessageRead(message.id)} style={adminSecondaryButtonStyle}>Mark Read</button>
-                          </div>
-                          <div style={{ marginTop: 12, color: "#111827", lineHeight: 1.55, whiteSpace: "pre-wrap", fontWeight: 650 }}>
-                            {message.message || "No message body."}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                <div style={appleMessagesSegmentStyle}>
+                  <button type="button" onClick={() => setAdminComposerOpen(false)} style={appleMessagesSegmentButtonStyle(!adminComposerOpen)}>Unread</button>
+                  <button type="button" onClick={() => setAdminComposerOpen(true)} style={appleMessagesSegmentButtonStyle(adminComposerOpen)}>Compose</button>
                 </div>
-              )}
+
+                {adminMessagesError && <div style={{ color: "#b42318", fontWeight: 900, marginBottom: 12, background: "#fff1f2", borderRadius: 14, padding: 12 }}>{adminMessagesError}</div>}
+
+                {adminMessagesLoading ? (
+                  <div style={{ color: "#6b7280", fontWeight: 900, padding: 12 }}>Loading unread messages...</div>
+                ) : adminUnreadMessages.length === 0 ? (
+                  <div style={{ background: "#ffffff", borderRadius: 18, padding: 16, color: "#6b7280", fontWeight: 850, boxShadow: "0 8px 20px rgba(15,23,42,0.06)" }}>
+                    No unread messages right now.
+                  </div>
+                ) : (
+                  <div>
+                    {adminUnreadMessages.map((message) => (
+                      <button key={message.id} type="button" style={appleMessageThreadStyle} onClick={() => setAdminComposerOpen(false)}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                          <div style={{ fontWeight: 1000, fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{message.subject || "No subject"}</div>
+                          <span style={{ width: 10, height: 10, borderRadius: 999, background: "#007aff", flex: "0 0 auto" }} />
+                        </div>
+                        <div style={{ color: "#6b7280", fontSize: 12, fontWeight: 850, marginTop: 5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {message.sender_name || message.sender_type || "League"} → {getAdminMessageRecipientLabel(message)}
+                        </div>
+                        <div style={{ color: "#8a8a8e", fontSize: 12, fontWeight: 700, marginTop: 4 }}>{message.created_at ? new Date(message.created_at).toLocaleString() : ""}</div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </aside>
+
+              <main style={appleMessagesMainStyle}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, borderBottom: "1px solid #e5e7eb", paddingBottom: 16 }}>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#8a8a8e" }}>Admin Communication</div>
+                    <h2 style={{ margin: "2px 0 0", fontSize: 32, letterSpacing: -1 }}>{adminComposerOpen ? "Create Message" : "Unread Inbox"}</h2>
+                  </div>
+                  <button type="button" onClick={() => setAdminMessagesOpen(false)} style={{ border: 0, borderRadius: 999, background: "#f2f2f7", color: "#111827", width: 42, height: 42, fontSize: 20, fontWeight: 1000, cursor: "pointer" }}>×</button>
+                </div>
+
+                {adminComposerOpen ? (
+                  <div style={{ background: "#f5f5f7", borderRadius: 26, padding: 18, border: "1px solid #e5e7eb" }}>
+                    <AdminLeagueMessageComposer drivers={visibleDrivers} teams={teamStandings} />
+                  </div>
+                ) : adminUnreadMessages.length === 0 ? (
+                  <div style={{ flex: 1, display: "grid", placeItems: "center", textAlign: "center", color: "#6b7280" }}>
+                    <div>
+                      <div style={{ fontSize: 58, marginBottom: 10 }}>💬</div>
+                      <div style={{ fontSize: 24, fontWeight: 1000, color: "#111827" }}>All caught up</div>
+                      <div style={{ fontWeight: 800, marginTop: 6 }}>Unread admin messages will appear here.</div>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ display: "grid", gap: 18 }}>
+                    {adminUnreadMessages.map((message) => (
+                      <div key={message.id} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14 }}>
+                          <div>
+                            <div style={{ fontSize: 22, fontWeight: 1000, letterSpacing: -0.4 }}>{message.subject || "No subject"}</div>
+                            <div style={{ color: "#6b7280", fontSize: 13, fontWeight: 850, marginTop: 4 }}>
+                              From {message.sender_name || message.sender_type || "League"} · To {getAdminMessageRecipientLabel(message)}
+                            </div>
+                            <div style={{ color: "#8a8a8e", fontSize: 12, fontWeight: 700, marginTop: 3 }}>{message.created_at ? new Date(message.created_at).toLocaleString() : ""}</div>
+                          </div>
+                          <button type="button" onClick={() => markAdminMessageRead(message.id)} style={{ border: 0, borderRadius: 999, padding: "10px 14px", background: "#007aff", color: "white", fontWeight: 1000, cursor: "pointer" }}>Mark Read</button>
+                        </div>
+                        <div style={appleMessageBubbleStyle}>{message.message || "No message body."}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </main>
             </div>
           </div>
         )}
