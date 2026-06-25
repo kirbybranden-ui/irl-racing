@@ -31,6 +31,9 @@ import OwnersPage from "./OwnersPage.jsx";
 import { defaultDrivers } from "./data/drivers";
 import { defaultRaces } from "./data/races";
 import { trackOverviewData } from "./data/trackOverview";
+import SeriesPortal from "./pages/series/SeriesPortal";
+import SeriesLandingPage from "./pages/series/SeriesLandingPage";
+import SeriesJoinPage from "./pages/series/SeriesJoinPage";
 import {
   teamLogos,
   manufacturerLogos,
