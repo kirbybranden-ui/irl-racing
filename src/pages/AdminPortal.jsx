@@ -213,62 +213,116 @@ export default function AdminPortal({
   watchReason,
   watchSaving
 }) {
+  const goAdmin = () => {
+    if (window.location.pathname !== "/admin") {
+      window.location.pathname = "/admin";
+      return;
+    }
+    if (typeof setViewMode === "function") setViewMode("admin");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const applePageStyle = {
+    ...appShellStyle,
+    background:
+      "radial-gradient(circle at top left, rgba(255,255,255,0.10), transparent 32%), linear-gradient(180deg, #f5f5f7 0%, #e8e8ed 100%)",
+    color: "#111827",
+    minHeight: "100vh",
+  };
+
+  const appleContainerStyle = {
+    ...pageContainerStyle,
+    color: "#111827",
+  };
+
+  const appleCardStyle = {
+    ...sectionCardStyle,
+    background: "rgba(255,255,255,0.78)",
+    color: "#111827",
+    border: "1px solid rgba(255,255,255,0.72)",
+    borderRadius: 28,
+    boxShadow: "0 24px 70px rgba(15,23,42,0.16)",
+    backdropFilter: "blur(18px)",
+  };
+
+  const adminNavButtonStyle = {
+    border: "1px solid rgba(17,24,39,0.10)",
+    background: "rgba(255,255,255,0.72)",
+    color: "#111827",
+    borderRadius: 999,
+    padding: "10px 14px",
+    fontWeight: 800,
+    cursor: "pointer",
+    boxShadow: "0 8px 22px rgba(15,23,42,0.08)",
+  };
+
+  const adminPrimaryNavButtonStyle = {
+    ...adminNavButtonStyle,
+    background: "#111827",
+    color: "white",
+    border: "1px solid #111827",
+  };
+
   return (
-    <div style={appShellStyle}>
-      <div style={pageContainerStyle}>
+    <div style={applePageStyle}>
+      <div style={appleContainerStyle}>
         {/* Header */}
-        <div style={{ ...sectionCardStyle, marginBottom: 20, padding: 20, background: "linear-gradient(135deg, #17191f 0%, #101216 100%)", border: "1px solid #353b45" }}>
+        <div style={{ ...appleCardStyle, marginBottom: 22, padding: 22 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 18, flexWrap: "wrap" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-              <img src={logo} alt="League Logo" style={{ height: 54 }} />
+              <div style={{ width: 62, height: 62, borderRadius: 18, background: "linear-gradient(135deg, #111827, #3b4252)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 18px 35px rgba(15,23,42,0.18)", overflow: "hidden" }}>
+                <img src={logo} alt="League Logo" style={{ height: 50, objectFit: "contain" }} />
+              </div>
               <div>
-                <div style={{ fontSize: 30, fontWeight: 800 }}>Budweiser Cup League</div>
-                <div style={{ opacity: 0.72 }}>Admin Dashboard</div>
+                <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 2, textTransform: "uppercase", opacity: 0.62 }}>Budweiser Motorsports</div>
+                <div style={{ fontSize: 34, fontWeight: 1000, letterSpacing: -1 }}>Admin Portal</div>
+                <div style={{ opacity: 0.68, marginTop: 2 }}>League control center · drivers · teams · race operations</div>
               </div>
             </div>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <button onClick={goAdmin} style={adminPrimaryNavButtonStyle}>Admin Home</button>
               {["admin","overlay-ticker"].map((mode) => (
-                <button key={mode} style={viewMode === mode ? activeHeaderButtonStyle : headerButtonStyle} onClick={() => setViewMode(mode)}>
+                <button key={mode} style={viewMode === mode ? adminPrimaryNavButtonStyle : adminNavButtonStyle} onClick={() => { if (mode === "admin") goAdmin(); else setViewMode(mode); }}>
                   {mode === "admin" ? "Admin" : "Ticker Overlay"}
                 </button>
               ))}
-              <button onClick={() => (window.location.pathname = "/standings")} style={headerButtonStyle}>
+              <button onClick={() => (window.location.pathname = "/standings")} style={adminNavButtonStyle}>
                 Standings
               </button>
-              <button onClick={() => (window.location.pathname = "/team-hq")} style={headerButtonStyle}>
+              <button onClick={() => (window.location.pathname = "/team-hq")} style={adminNavButtonStyle}>
                 🏢 Team HQ
               </button>
-              <button onClick={logoutAdmin} style={{ ...headerButtonStyle, border: "1px solid #b42318", color: "#fecaca" }}>
+              <button onClick={logoutAdmin} style={{ ...adminNavButtonStyle, border: "1px solid rgba(180,35,24,0.35)", color: "#b42318" }}>
                 Logout
               </button>
-              <button onClick={() => (window.location.pathname = "/streams")} style={headerButtonStyle}>
+              <button onClick={() => (window.location.pathname = "/streams")} style={adminNavButtonStyle}>
                 🎮 Streams
               </button>
-              <button onClick={() => (window.location.pathname = "/discord")} style={headerButtonStyle}>
+              <button onClick={() => (window.location.pathname = "/discord")} style={adminNavButtonStyle}>
                 💬 Discord
               </button>
-              <button onClick={() => (window.location.pathname = "/news")} style={headerButtonStyle}>
+              <button onClick={() => (window.location.pathname = "/news")} style={adminNavButtonStyle}>
                 📰 News
               </button>
-              <button onClick={() => (window.location.pathname = "/notifications")} style={headerButtonStyle}>
+              <button onClick={() => (window.location.pathname = "/notifications")} style={adminNavButtonStyle}>
                 🔔 Notifications
               </button>
-              <button onClick={() => (window.location.pathname = "/appeals")} style={headerButtonStyle}>
+              <button onClick={() => (window.location.pathname = "/appeals")} style={adminNavButtonStyle}>
                 Appeals ({openAppealCount})
               </button>
-              <button onClick={() => (window.location.pathname = "/admin/stories")} style={headerButtonStyle}>
+              <button onClick={() => (window.location.pathname = "/admin/stories")} style={adminNavButtonStyle}>
                 Stories ({openStoryCount})
               </button>
-              <button onClick={() => (window.location.pathname = "/admin/car-gallery")} style={headerButtonStyle}>
+              <button onClick={() => (window.location.pathname = "/admin/car-gallery")} style={adminNavButtonStyle}>
                 Car Gallery
               </button>
-              <button onClick={() => (window.location.pathname = "/admin/interviews")} style={headerButtonStyle}>
+              <button onClick={() => (window.location.pathname = "/admin/interviews")} style={adminNavButtonStyle}>
                 🎙️ Interviews
               </button>
-              <button onClick={() => (window.location.pathname = "/admin/votes")} style={headerButtonStyle}>
+              <button onClick={() => (window.location.pathname = "/admin/votes")} style={adminNavButtonStyle}>
                 🗳️ Voting
               </button>
-              <button onClick={exportAppDataJson} style={{ ...primaryButtonStyle, padding: "10px 14px" }}>
+              <button onClick={exportAppDataJson} style={{ ...adminPrimaryNavButtonStyle, padding: "10px 14px" }}>
                 ⬇️ Export App Data JSON
               </button>
             </div>
