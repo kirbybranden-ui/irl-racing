@@ -479,7 +479,7 @@ export default function AdminPortal({
 
   const adminQuickTiles = [
     { title: "Race Control", text: "Post results, save drafts, penalties, DNFs, stages, fastest lap.", action: () => document.getElementById("admin-race-control")?.scrollIntoView({ behavior: "smooth", block: "start" }) },
-    { title: "Driver Management", text: "Add, edit, retire, restore, approve pending drivers.", action: () => openHrDepartment("drivers") },
+    { title: "HR Requests", text: "Open Human Resources for driver assignments, join requests, owners, and access.", action: () => openHrDepartment("drivers") },
     { title: "Human Resources", text: "Driver assignments, owner assignments, access codes, appeals, and contracts.", action: () => openHrDepartment("overview") },
     { title: "Messages", text: "Unread inbox, league broadcasts, owner notices, and create-message tools.", action: openAdminMessages },
     { title: "Backup Center", text: "Export, import, restore, and protect league data.", action: () => document.getElementById("admin-backup-center")?.scrollIntoView({ behavior: "smooth", block: "start" }) },
@@ -2322,36 +2322,16 @@ export default function AdminPortal({
             <input ref={importFileRef} type="file" accept=".json,application/json" onChange={handleImportBackup} style={{ display: "none" }} />
           </div>
         </div>
-        {/* Driver Management */}
+        {/* Driver Assignments moved into Human Resources. Dashboard keeps only a navigation card. */}
         <div style={adminReadableCardStyle}>
-          <h2 style={{ marginTop: 0 }}>Driver Management</h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, marginBottom: 16 }}>
-            <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Driver Name</div><input style={adminInputStyle} value={newDriverName} onChange={(e) => setNewDriverName(e.target.value)} placeholder="Enter driver name" /></div>
-            <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Number</div><input style={adminInputStyle} value={newDriverNumber} onChange={(e) => setNewDriverNumber(e.target.value)} placeholder="Enter car number" type="number" /></div>
-            <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Manufacturer</div><select style={adminInputStyle} value={newDriverManufacturer} onChange={(e) => setNewDriverManufacturer(e.target.value)}><option value="">Select manufacturer</option><option value="Chevrolet">Chevrolet</option><option value="Ford">Ford</option><option value="Toyota">Toyota</option><option value="Other">Other</option></select></div>
-            <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Team (abbreviation)</div><input style={adminInputStyle} value={newDriverTeam} onChange={(e) => setNewDriverTeam(e.target.value)} placeholder="e.g. B2J, 19XI, BXM, MER, NLM, BWR" /></div>
+          <h2 style={{ marginTop: 0 }}>Human Resources Controls</h2>
+          <div style={{ opacity: 0.78, marginBottom: 14 }}>Driver Assignments, pending join requests, Team Owner Assignments, Start & Park, contracts, appeals, and access codes now live inside Human Resources.</div>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <button type="button" onClick={() => openHrDepartment("drivers")} style={adminPrimaryButtonStyle}>Open Driver Assignments in HR</button>
+            <button type="button" onClick={() => openHrDepartment("owners")} style={adminSecondaryButtonStyle}>Open Owner Assignments in HR</button>
+            <button type="button" onClick={() => openHrDepartment("startpark")} style={adminSecondaryButtonStyle}>Open Start & Park in HR</button>
           </div>
-          <div style={{ marginBottom: 18 }}><button onClick={addDriver} style={adminPrimaryButtonStyle}>Add Driver</button></div>
-          <div style={{ overflowX: "auto" }}>
-            <table style={adminTableStyle}>
-              <thead><tr><th style={adminThStyle}>#</th><th style={adminThStyle}>Driver</th><th style={adminThStyle}>Manufacturer</th><th style={adminThStyle}>Team</th><th style={adminThStyle}>Actions</th></tr></thead>
-              <tbody>{drivers.map((d) => (<tr key={d.id}><td style={{...tdStyle, display: "flex", alignItems: "center", justifyContent: "center"}}><div style={{width: 32, height: 32, borderRadius: "50%", background: "#404854", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 12, color: "#fff", border: "2px solid #b8a059"}}>{d.number}</div></td><td style={adminTdStyle}>{d.name}</td><td style={adminTdStyle}>{d.manufacturer || "—"}</td><td style={adminTdStyle}>{getTeamFullName(d.team)} <span style={{ fontSize: 11, opacity: 0.55 }}>({d.team})</span></td><td style={adminTdStyle}><div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><button onClick={() => openEditDriver(d)} style={adminSecondaryButtonStyle}>Edit</button>{d.retired ? (<button onClick={() => unretireDriver(d.id)} style={adminSecondaryButtonStyle}>Unretire</button>) : (<button onClick={() => retireDriver(d.id)} style={{ ...secondaryButtonStyle, color: "#f59e0b", borderColor: "#f59e0b" }}>Retire</button>)}<button onClick={() => removeDriver(d.id)} style={adminDangerButtonStyle}>Remove</button></div></td></tr>))}</tbody>
-            </table>
-          </div>
-          {editingDriverId && (
-            <div style={{ marginTop: 20, paddingTop: 18, borderTop: "1px solid #313947" }}>
-              <h3 style={{ marginTop: 0 }}>Edit Driver</h3>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, marginBottom: 12 }}>
-                <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Driver Name</div><input style={adminInputStyle} value={editDriverForm.name} onChange={(e) => setEditDriverForm({ ...editDriverForm, name: e.target.value })} /></div>
-                <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Number</div><input style={adminInputStyle} value={editDriverForm.number} onChange={(e) => setEditDriverForm({ ...editDriverForm, number: e.target.value })} type="number" /></div>
-                <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Manufacturer</div><select style={adminInputStyle} value={editDriverForm.manufacturer} onChange={(e) => setEditDriverForm({ ...editDriverForm, manufacturer: e.target.value })}><option value="">Select manufacturer</option><option value="Chevrolet">Chevrolet</option><option value="Ford">Ford</option><option value="Toyota">Toyota</option><option value="Other">Other</option></select></div>
-                <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Team (abbreviation)</div><input style={adminInputStyle} value={editDriverForm.team} onChange={(e) => setEditDriverForm({ ...editDriverForm, team: e.target.value })} placeholder="e.g. B2J, 19XI, BXM, MER, NLM, BWR" /></div>
-              </div>
-              <div style={{ display: "flex", gap: 10 }}><button onClick={saveDriverEdit} style={adminPrimaryButtonStyle}>Save Changes</button><button onClick={cancelEditDriver} style={adminSecondaryButtonStyle}>Cancel</button></div>
-            </div>
-          )}
         </div>
-        {/* Pending Driver Signups moved into Human Resources > Driver Assignments. */}
 
         {/* Track Management */}
         <div style={adminReadableCardStyle}>
@@ -2392,70 +2372,7 @@ export default function AdminPortal({
             </table>
           </div>
         </div>
-        {/* Start & Park Requests */}
-        <div style={{ ...sectionCardStyle, borderColor: "#d4af37" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-            <div>
-              <h2 style={{ marginTop: 0, marginBottom: 6 }}>Start & Park Requests</h2>
-              <div style={{ opacity: 0.72, fontSize: 13 }}>
-                Drivers and Team HQ can request Start & Park until Saturday 9:00 PM ET. Admin approval places approved cars at the rear by request receipt order.
-              </div>
-            </div>
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <button onClick={loadStartParkRequests} style={adminSecondaryButtonStyle}>{startParkRequestsLoading ? "Loading..." : "Refresh Requests"}</button>
-              <button onClick={applyApprovedStartParkRequestsToRace} style={adminPrimaryButtonStyle}>Apply Approved to Selected Race</button>
-            </div>
-          </div>
-
-          {startParkRequestError && <div style={{ marginTop: 12, color: "#b42318", fontWeight: 900 }}>{startParkRequestError}</div>}
-          {startParkRequestStatus && <div style={{ marginTop: 12, color: "#047857", fontWeight: 900 }}>{startParkRequestStatus}</div>}
-
-          <div style={{ overflowX: "auto", marginTop: 14 }}>
-            <table style={{ ...tableStyle, minWidth: 980 }}>
-              <thead>
-                <tr>
-                  <th style={adminThStyle}>Order</th>
-                  <th style={adminThStyle}>Race</th>
-                  <th style={adminThStyle}>Driver</th>
-                  <th style={adminThStyle}>Team</th>
-                  <th style={adminThStyle}>Requested By</th>
-                  <th style={adminThStyle}>Received</th>
-                  <th style={adminThStyle}>Reason</th>
-                  <th style={adminThStyle}>Status</th>
-                  <th style={adminThStyle}>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(startParkRequests || []).filter((request) => !selectedRace || String(request.race_name || "") === String(selectedRace)).map((request, index) => {
-                  const status = String(request.status || "pending").toLowerCase();
-                  return (
-                    <tr key={request.id || `${request.driver_number}-${request.created_at}`}>
-                      <td style={adminTdStyle}>#{index + 1}</td>
-                      <td style={adminTdStyle}>{request.race_name || "—"}</td>
-                      <td style={{ ...tdStyle, fontWeight: 900 }}>#{request.driver_number} {request.driver_name}</td>
-                      <td style={adminTdStyle}>{getTeamFullName(request.team || request.requested_by_team || "")}</td>
-                      <td style={adminTdStyle}>{request.requested_by_type || "—"} · {request.requested_by_name || request.requested_by_team || "—"}</td>
-                      <td style={adminTdStyle}>{request.created_at ? new Date(request.created_at).toLocaleString() : "—"}</td>
-                      <td style={adminTdStyle}>{request.reason || "—"}</td>
-                      <td style={{ ...tdStyle, fontWeight: 900, color: status === "approved" ? "#4ade80" : status === "declined" ? "#f87171" : status === "applied" ? "#d4af37" : "white" }}>{status.toUpperCase()}</td>
-                      <td style={adminTdStyle}>
-                        {status === "pending" ? (
-                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                            <button onClick={() => updateStartParkRequestStatus(request, "approved")} style={{ ...primaryButtonStyle, padding: "7px 10px", fontSize: 12 }}>Approve</button>
-                            <button onClick={() => updateStartParkRequestStatus(request, "declined")} style={{ ...dangerButtonStyle, padding: "7px 10px", fontSize: 12 }}>Decline</button>
-                          </div>
-                        ) : "—"}
-                      </td>
-                    </tr>
-                  );
-                })}
-                {!(startParkRequests || []).filter((request) => !selectedRace || String(request.race_name || "") === String(selectedRace)).length && (
-                  <tr><td style={adminTdStyle} colSpan={9}>No Start & Park requests for the selected race.</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        {/* Start & Park Requests moved into Human Resources > Start & Park. */}
 
         {/* Enter Race Results */}
         <div style={adminReadableCardStyle}>
