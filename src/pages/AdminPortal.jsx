@@ -232,6 +232,13 @@ export default function AdminPortal({
   const [financeTransactions, setFinanceTransactions] = useState([]);
   const [financeLoading, setFinanceLoading] = useState(false);
   const [financeError, setFinanceError] = useState("");
+  const [financeDepartmentOpen, setFinanceDepartmentOpen] = useState(false);
+  const [financeAction, setFinanceAction] = useState("overview");
+  const [financeActionStatus, setFinanceActionStatus] = useState("");
+  const [financeActionError, setFinanceActionError] = useState("");
+  const [financeContracts, setFinanceContracts] = useState([]);
+  const [financeContractsLoading, setFinanceContractsLoading] = useState(false);
+  const [financeForm, setFinanceForm] = useState({ driverId: "", team: "", amount: "", reason: "", note: "" });
 
   const adminUnreadCount = adminUnreadMessages.length;
 
@@ -314,6 +321,100 @@ export default function AdminPortal({
     setFinanceLoading(false);
   }
 
+  function openFinanceDepartment(section = "overview") {
+    setFinanceDepartmentOpen(true);
+    setFinanceAction(section);
+    loadFinanceDepartment();
+    loadFinanceContracts();
+  }
+
+  function updateFinanceForm(key, value) {
+    setFinanceForm((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function getDriverDisplayName(driverId) {
+    const driver = (visibleDrivers || drivers || []).find((d) => String(d.id) === String(driverId));
+    if (!driver) return "Selected Driver";
+    return `#${driver.number} ${driver.name}`;
+  }
+
+  function getDriverTeam(driverId) {
+    const driver = (visibleDrivers || drivers || []).find((d) => String(d.id) === String(driverId));
+    return driver?.team || financeForm.team || "League";
+  }
+
+  async function loadFinanceContracts() {
+    if (!supabase) return;
+    setFinanceContractsLoading(true);
+    const { data, error } = await supabase
+      .from("contract_offers")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(100);
+    if (error) {
+      console.warn("Finance contracts load skipped", error);
+      setFinanceContracts([]);
+      setFinanceContractsLoading(false);
+      return;
+    }
+    setFinanceContracts(data || []);
+    setFinanceContractsLoading(false);
+  }
+
+  async function recordFinanceTransaction(kind, multiplier = 1) {
+    setFinanceActionStatus("");
+    setFinanceActionError("");
+
+    const amount = Math.abs(Number(financeForm.amount || (financeAction === "paint" ? 10000 : 0)));
+    if (!amount || amount <= 0) {
+      setFinanceActionError("Enter a valid dollar amount.");
+      return;
+    }
+
+    const driverLabel = financeForm.driverId ? getDriverDisplayName(financeForm.driverId) : "League";
+    const teamLabel = financeForm.driverId ? getDriverTeam(financeForm.driverId) : financeForm.team || "League";
+    const signedAmount = amount * multiplier;
+    const payload = {
+      type: kind,
+      category: kind,
+      amount: signedAmount,
+      driver_id: financeForm.driverId || null,
+      driver_name: driverLabel,
+      team: teamLabel,
+      note: financeForm.note || financeForm.reason || kind,
+      reason: financeForm.reason || kind,
+      created_at: new Date().toISOString(),
+    };
+
+    if (!supabase) {
+      setFinanceActionError("Supabase is not connected, so the transaction could not be saved.");
+      return;
+    }
+
+    let { error } = await supabase.from("league_transactions").insert([payload]);
+    if (error) {
+      const fallbackPayload = {
+        type: kind,
+        amount: signedAmount,
+        team: teamLabel,
+        note: `${driverLabel} — ${financeForm.note || financeForm.reason || kind}`,
+        created_at: new Date().toISOString(),
+      };
+      const fallback = await supabase.from("league_transactions").insert([fallbackPayload]);
+      error = fallback.error;
+    }
+
+    if (error) {
+      console.error("Finance transaction save error", error);
+      setFinanceActionError("Could not save finance transaction. Check league_transactions columns/RLS policy.");
+      return;
+    }
+
+    setFinanceActionStatus(`${kind} saved for ${driverLabel}.`);
+    setFinanceForm({ driverId: "", team: "", amount: "", reason: "", note: "" });
+    loadFinanceDepartment();
+  }
+
   const getFinanceAmount = (item) => Number(item?.amount ?? item?.value ?? item?.transaction_amount ?? item?.payout ?? 0) || 0;
   const getFinanceType = (item) => String(item?.type || item?.category || item?.transaction_type || item?.reason || "Transaction");
   const getFinanceTeam = (item) => item?.team || item?.team_abbr || item?.team_name || item?.from_team || item?.to_team || "League";
@@ -329,6 +430,7 @@ export default function AdminPortal({
 
   const adminMenuItems = [
     { label: "Admin Home", action: goAdmin, primary: true },
+    { label: "Finance Department", action: () => openFinanceDepartment("overview"), primary: true },
     { label: "Ticker Overlay", action: () => setViewMode("overlay-ticker") },
     { label: "Standings", action: () => (window.location.pathname = "/standings") },
     { label: "Streams", action: () => (window.location.pathname = "/streams") },
@@ -348,8 +450,6 @@ export default function AdminPortal({
     { title: "Race Control", text: "Post results, save drafts, penalties, DNFs, stages, fastest lap.", action: () => document.getElementById("admin-race-control")?.scrollIntoView({ behavior: "smooth", block: "start" }) },
     { title: "Driver Management", text: "Add, edit, retire, restore, approve pending drivers.", action: () => document.getElementById("admin-driver-management")?.scrollIntoView({ behavior: "smooth", block: "start" }) },
     { title: "Team Owners", text: "Assign owners and manage owner access/password routing.", action: () => document.getElementById("admin-owner-assignments")?.scrollIntoView({ behavior: "smooth", block: "start" }) },
-    { title: "Finance Department", text: "Team wallets, payouts, transactions, caps, and league money controls.", action: () => document.getElementById("admin-finance-department")?.scrollIntoView({ behavior: "smooth", block: "start" }) },
-    { title: "Paint Scheme Payouts", text: "$10,000 weekly driver payout with $250,000 season cap.", action: () => document.getElementById("admin-paint-payouts")?.scrollIntoView({ behavior: "smooth", block: "start" }) },
     { title: "Messages", text: "Unread inbox, league broadcasts, owner notices, and create-message tools.", action: openAdminMessages },
     { title: "Backup Center", text: "Export, import, restore, and protect league data.", action: () => document.getElementById("admin-backup-center")?.scrollIntoView({ behavior: "smooth", block: "start" }) },
   ];
@@ -768,6 +868,45 @@ export default function AdminPortal({
     fontWeight: 650,
   };
 
+  const financeOverlayStyle = {
+    position: "fixed",
+    inset: 0,
+    zIndex: 9000,
+    background: "rgba(245,245,247,0.94)",
+    backdropFilter: "blur(24px)",
+    overflowY: "auto",
+    padding: "28px 18px",
+  };
+
+  const financeShellStyle = {
+    maxWidth: 1240,
+    margin: "0 auto",
+    background: "#f5f5f7",
+    border: "1px solid rgba(17,24,39,0.10)",
+    borderRadius: 34,
+    boxShadow: "0 30px 90px rgba(15,23,42,0.22)",
+    padding: 22,
+  };
+
+  const financeSegmentButtonStyle = (active) => ({
+    border: 0,
+    borderRadius: 999,
+    padding: "11px 15px",
+    background: active ? "#111827" : "rgba(255,255,255,0.82)",
+    color: active ? "#fff" : "#111827",
+    fontWeight: 1000,
+    cursor: "pointer",
+    boxShadow: active ? "0 10px 22px rgba(15,23,42,0.18)" : "0 4px 12px rgba(15,23,42,0.08)",
+  });
+
+  const financeActionCardStyle = {
+    background: "#ffffff",
+    border: "1px solid #e5e7eb",
+    borderRadius: 24,
+    padding: 18,
+    boxShadow: "0 10px 28px rgba(15,23,42,0.08)",
+  };
+
   return (
     <div style={applePageStyle}>
       <div style={appleContainerStyle}>
@@ -867,7 +1006,32 @@ export default function AdminPortal({
           </div>
         </div>
 
-        <div id="admin-finance-department" style={walletDepartmentStyle}>
+        {financeDepartmentOpen && (
+          <div style={financeOverlayStyle}>
+            <div style={financeShellStyle}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, flexWrap: "wrap", marginBottom: 18 }}>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.8, textTransform: "uppercase", color: "#6b7280" }}>Admin Menu</div>
+                  <h1 style={{ margin: "2px 0 0", fontSize: 42, letterSpacing: -1.6 }}>Finance Department</h1>
+                  <p style={{ margin: "6px 0 0", color: "#4b5563", fontWeight: 750 }}>Apple Wallet-style control center for fines, payouts, contracts, team wallets, and money history.</p>
+                </div>
+                <button type="button" onClick={() => setFinanceDepartmentOpen(false)} style={{ border: 0, borderRadius: 999, background: "#ffffff", color: "#111827", width: 46, height: 46, fontSize: 23, fontWeight: 1000, cursor: "pointer", boxShadow: "0 8px 20px rgba(15,23,42,0.12)" }}>×</button>
+              </div>
+
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 18 }}>
+                {[
+                  ["overview", "Wallets"],
+                  ["fine", "Fine Driver"],
+                  ["interview", "Pay Interviews"],
+                  ["paint", "Pay Paint Schemes"],
+                  ["contracts", "Contracts"],
+                  ["transactions", "Transactions"],
+                ].map(([key, label]) => (
+                  <button key={key} type="button" onClick={() => setFinanceAction(key)} style={financeSegmentButtonStyle(financeAction === key)}>{label}</button>
+                ))}
+              </div>
+
+              <div id="admin-finance-department" style={walletDepartmentStyle}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, flexWrap: "wrap", marginBottom: 20 }}>
             <div>
               <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.8, textTransform: "uppercase", color: "#6b7280" }}>Finance Department</div>
@@ -878,9 +1042,85 @@ export default function AdminPortal({
             </div>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
               <button type="button" onClick={loadFinanceDepartment} style={adminSecondaryButtonStyle}>{financeLoading ? "Refreshing..." : "Refresh Finance"}</button>
-              <button type="button" onClick={() => document.getElementById("admin-paint-payouts")?.scrollIntoView({ behavior: "smooth", block: "start" })} style={adminPrimaryButtonStyle}>Paint Payouts</button>
+              <button type="button" onClick={() => setFinanceAction("paint")} style={adminPrimaryButtonStyle}>Paint Payouts</button>
             </div>
           </div>
+
+          {financeAction !== "overview" && financeAction !== "transactions" && (
+            <div style={{ ...financeActionCardStyle, marginBottom: 20 }}>
+              {financeAction === "contracts" ? (
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Contracts</div>
+                      <h3 style={{ margin: "3px 0 0", fontSize: 25, letterSpacing: -0.5 }}>Driver Contract Money</h3>
+                    </div>
+                    <button type="button" onClick={loadFinanceContracts} style={adminSecondaryButtonStyle}>{financeContractsLoading ? "Refreshing..." : "Refresh Contracts"}</button>
+                  </div>
+                  {financeContractsLoading ? (
+                    <div style={{ color: "#6b7280", fontWeight: 800 }}>Loading contracts...</div>
+                  ) : financeContracts.length === 0 ? (
+                    <div style={{ color: "#6b7280", fontWeight: 800 }}>No contract records found. This will show contract offers once contract data exists in Supabase.</div>
+                  ) : (
+                    <div style={{ display: "grid", gap: 10, maxHeight: 420, overflowY: "auto" }}>
+                      {financeContracts.map((contract, index) => (
+                        <div key={contract.id || index} style={walletTransactionRowStyle}>
+                          <div style={{ ...walletIconStyle, background: "#111827" }}>✍︎</div>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontWeight: 1000 }}>{contract.driver_name || contract.driver || contract.driver_number || "Contract Offer"}</div>
+                            <div style={{ color: "#6b7280", fontWeight: 750, fontSize: 13 }}>{contract.team || contract.team_abbr || "Team"} · {contract.status || "status unknown"}</div>
+                          </div>
+                          <div style={{ fontWeight: 1000 }}>{money(Number(contract.salary || contract.amount || contract.value || contract.signing_bonus || 0) || 0)}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Finance Action</div>
+                  <h3 style={{ margin: "3px 0 12px", fontSize: 25, letterSpacing: -0.5 }}>
+                    {financeAction === "fine" ? "Fine Driver" : financeAction === "interview" ? "Pay Interview" : "Pay Paint Scheme"}
+                  </h3>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+                    <label style={{ fontWeight: 900 }}>
+                      Driver
+                      <select value={financeForm.driverId} onChange={(event) => updateFinanceForm("driverId", event.target.value)} style={{ ...adminInputStyle, marginTop: 6 }}>
+                        <option value="">Select driver</option>
+                        {(visibleDrivers || drivers || []).map((driver) => (
+                          <option key={driver.id} value={driver.id}>#{driver.number} {driver.name}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label style={{ fontWeight: 900 }}>
+                      Amount
+                      <input type="number" min="0" value={financeForm.amount || (financeAction === "paint" ? "10000" : "")} onChange={(event) => updateFinanceForm("amount", event.target.value)} placeholder={financeAction === "paint" ? "10000" : "Amount"} style={{ ...adminInputStyle, marginTop: 6 }} />
+                    </label>
+                    <label style={{ fontWeight: 900 }}>
+                      Reason
+                      <input value={financeForm.reason} onChange={(event) => updateFinanceForm("reason", event.target.value)} placeholder={financeAction === "fine" ? "Penalty / conduct / no-show" : financeAction === "interview" ? "Pre-race / post-race interview" : "Paint scheme payout"} style={{ ...adminInputStyle, marginTop: 6 }} />
+                    </label>
+                  </div>
+                  <label style={{ display: "block", fontWeight: 900, marginTop: 12 }}>
+                    Notes
+                    <textarea value={financeForm.note} onChange={(event) => updateFinanceForm("note", event.target.value)} placeholder="Optional finance note" style={{ ...adminInputStyle, minHeight: 82, marginTop: 6 }} />
+                  </label>
+                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 14 }}>
+                    {financeAction === "fine" ? (
+                      <button type="button" onClick={() => recordFinanceTransaction("Driver Fine", -1)} style={adminDangerButtonStyle}>Apply Fine</button>
+                    ) : financeAction === "interview" ? (
+                      <button type="button" onClick={() => recordFinanceTransaction("Interview Payout", 1)} style={adminPrimaryButtonStyle}>Pay Interview</button>
+                    ) : (
+                      <button type="button" onClick={() => recordFinanceTransaction("Paint Scheme Payout", 1)} style={adminPrimaryButtonStyle}>Pay Paint Scheme</button>
+                    )}
+                    <button type="button" onClick={() => setFinanceForm({ driverId: "", team: "", amount: "", reason: "", note: "" })} style={adminSecondaryButtonStyle}>Clear</button>
+                  </div>
+                  {financeActionStatus && <div style={{ color: "#047857", fontWeight: 900, marginTop: 12 }}>{financeActionStatus}</div>}
+                  {financeActionError && <div style={{ color: "#b42318", fontWeight: 900, marginTop: 12 }}>{financeActionError}</div>}
+                </div>
+              )}
+            </div>
+          )}
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16, marginBottom: 20 }}>
             <div style={{ ...walletCardStyle, background: "linear-gradient(135deg, #111827, #374151)" }}>
@@ -910,6 +1150,13 @@ export default function AdminPortal({
           </div>
 
           {financeError && <div style={{ background: "#fff1f2", color: "#b42318", borderRadius: 16, padding: 14, fontWeight: 900, marginBottom: 16 }}>{financeError}</div>}
+
+          {financeAction === "overview" && (
+            <div style={{ ...walletLightCardStyle, marginBottom: 16 }}>
+              <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280", marginBottom: 8 }}>Payment Compliance</div>
+              {false && <PaymentCompliancePanel mode="admin" />}
+            </div>
+          )}
 
           <div style={{ display: "grid", gridTemplateColumns: "minmax(280px, 0.9fr) minmax(320px, 1.1fr)", gap: 16 }}>
             <div style={walletLightCardStyle}>
@@ -971,7 +1218,10 @@ export default function AdminPortal({
               )}
             </div>
           </div>
-        </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div id="admin-media-center" />
 
@@ -1433,6 +1683,7 @@ export default function AdminPortal({
         <PreviousRaceWinnerAdminPanel drivers={visibleDrivers} raceHistory={raceHistory} />
 
 
+        {false && (
         <div style={adminReadableCardStyle}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap", marginBottom: 14 }}>
             <div>
@@ -1488,6 +1739,7 @@ export default function AdminPortal({
             </div>
           )}
         </div>
+        )}
 
         {/* Ones to Watch Manager */}
         <div style={adminReadableCardStyle}>
