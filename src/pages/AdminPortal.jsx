@@ -1308,6 +1308,40 @@ export default function AdminPortal({
             </div>
           </div>
 
+          <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "1.15fr 0.85fr", gap: 14, marginBottom: 18 }}>
+            <div style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.92), rgba(248,250,252,0.86))", border: "1px solid rgba(255,255,255,0.78)", borderRadius: 30, padding: 18, boxShadow: "0 18px 45px rgba(15,23,42,0.10)" }}>
+              <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280", marginBottom: 12 }}>Race Weekend Status</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+                <div style={{ width: 58, height: 58, borderRadius: 20, background: "linear-gradient(135deg, #111827, #374151)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, boxShadow: "0 14px 28px rgba(15,23,42,0.18)" }}>🏁</div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 26, fontWeight: 1000, letterSpacing: -0.9 }}>{selectedRace || "No race selected"}</div>
+                  <div style={{ color: "#6b7280", fontWeight: 800, marginTop: 2 }}>{selectedRace ? "Race control is ready for official input." : "Open Race Operations to select a race and enter results."}</div>
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 16 }}>
+                <span style={{ background: "#e8f7ee", color: "#137333", borderRadius: 999, padding: "8px 11px", fontSize: 12, fontWeight: 1000 }}>{drivers.length} Drivers</span>
+                <span style={{ background: "#eaf2ff", color: "#1d4ed8", borderRadius: 999, padding: "8px 11px", fontSize: 12, fontWeight: 1000 }}>{raceHistory.length} Races Posted</span>
+                <span style={{ background: "#fff4e6", color: "#c2410c", borderRadius: 999, padding: "8px 11px", fontSize: 12, fontWeight: 1000 }}>{(raceDrafts || []).length} Drafts</span>
+                <span style={{ background: "#fee2e2", color: "#b42318", borderRadius: 999, padding: "8px 11px", fontSize: 12, fontWeight: 1000 }}>{offenseLog.length} Offenses</span>
+              </div>
+            </div>
+
+            <div style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.92), rgba(248,250,252,0.86))", border: "1px solid rgba(255,255,255,0.78)", borderRadius: 30, padding: 18, boxShadow: "0 18px 45px rgba(15,23,42,0.10)" }}>
+              <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280", marginBottom: 12 }}>Need Attention</div>
+              {[
+                ["HR", `${(pendingDrivers || []).length} join requests`, () => openHrDepartment("requests")],
+                ["Appeals", `${openAppealCount || 0} open`, () => openHrDepartment("appeals")],
+                ["Messages", `${adminUnreadCount || 0} unread`, openAdminMessages],
+                ["Stories", `${openStoryCount || 0} pending`, () => openPublicRelations("stories")],
+              ].map(([label, value, action]) => (
+                <button key={label} type="button" onClick={action} style={{ width: "100%", border: 0, background: "transparent", padding: "10px 0", borderBottom: "1px solid #e5e7eb", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, cursor: "pointer", textAlign: "left" }}>
+                  <span style={{ color: "#111827", fontWeight: 1000 }}>{label}</span>
+                  <span style={{ color: "#6b7280", fontWeight: 900 }}>{value} ›</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(3, minmax(210px, 1fr))", gap: 14, marginBottom: 18 }}>
             {adminQuickTiles.map((tile) => (
               <button
@@ -1342,39 +1376,6 @@ export default function AdminPortal({
             ))}
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "1.15fr 0.85fr", gap: 14 }}>
-            <div style={{ background: "rgba(255,255,255,0.78)", border: "1px solid rgba(209,213,219,0.75)", borderRadius: 26, padding: 18, boxShadow: "0 14px 34px rgba(15,23,42,0.08)" }}>
-              <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280", marginBottom: 12 }}>Race Weekend Status</div>
-              <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-                <div style={{ width: 58, height: 58, borderRadius: 20, background: "linear-gradient(135deg, #111827, #374151)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, boxShadow: "0 14px 28px rgba(15,23,42,0.18)" }}>🏁</div>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 26, fontWeight: 1000, letterSpacing: -0.9 }}>{selectedRace || "No race selected"}</div>
-                  <div style={{ color: "#6b7280", fontWeight: 800, marginTop: 2 }}>{selectedRace ? "Race control is ready for official input." : "Open Race Operations to select a race and enter results."}</div>
-                </div>
-              </div>
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 16 }}>
-                <span style={{ background: "#e8f7ee", color: "#137333", borderRadius: 999, padding: "8px 11px", fontSize: 12, fontWeight: 1000 }}>{drivers.length} Drivers</span>
-                <span style={{ background: "#eaf2ff", color: "#1d4ed8", borderRadius: 999, padding: "8px 11px", fontSize: 12, fontWeight: 1000 }}>{raceHistory.length} Races Posted</span>
-                <span style={{ background: "#fff4e6", color: "#c2410c", borderRadius: 999, padding: "8px 11px", fontSize: 12, fontWeight: 1000 }}>{(raceDrafts || []).length} Drafts</span>
-                <span style={{ background: "#fee2e2", color: "#b42318", borderRadius: 999, padding: "8px 11px", fontSize: 12, fontWeight: 1000 }}>{offenseLog.length} Offenses</span>
-              </div>
-            </div>
-
-            <div style={{ background: "rgba(255,255,255,0.78)", border: "1px solid rgba(209,213,219,0.75)", borderRadius: 26, padding: 18, boxShadow: "0 14px 34px rgba(15,23,42,0.08)" }}>
-              <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280", marginBottom: 12 }}>Need Attention</div>
-              {[
-                ["HR", `${(pendingDrivers || []).length} join requests`, () => openHrDepartment("requests")],
-                ["Appeals", `${openAppealCount || 0} open`, () => openHrDepartment("appeals")],
-                ["Messages", `${adminUnreadCount || 0} unread`, openAdminMessages],
-                ["Stories", `${openStoryCount || 0} pending`, () => openPublicRelations("stories")],
-              ].map(([label, value, action]) => (
-                <button key={label} type="button" onClick={action} style={{ width: "100%", border: 0, background: "transparent", padding: "10px 0", borderBottom: "1px solid #e5e7eb", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, cursor: "pointer", textAlign: "left" }}>
-                  <span style={{ color: "#111827", fontWeight: 1000 }}>{label}</span>
-                  <span style={{ color: "#6b7280", fontWeight: 900 }}>{value} ›</span>
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
 
         {publicRelationsOpen && (
