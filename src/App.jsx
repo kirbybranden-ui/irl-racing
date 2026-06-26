@@ -6667,82 +6667,201 @@ export default function App() {
   }
 
   function PaymentCompliancePanel({ mode = "admin" }) {
-    const rows = paymentComplianceSummary;
+    const rows = paymentComplianceSummary || [];
     const allMet = rows.length > 0 && rows.every((row) => row.finalEligible);
     const isAdminMode = mode === "admin";
+    const qualifiedCount = rows.filter((row) => row.finalEligible).length;
+    const needsReviewCount = Math.max(rows.length - qualifiedCount, 0);
+
+    const applePanelStyle = {
+      background: "linear-gradient(180deg, #f5f5f7 0%, #ffffff 72%)",
+      border: "1px solid rgba(0,0,0,0.08)",
+      borderRadius: 30,
+      padding: 22,
+      color: "#1d1d1f",
+      boxShadow: "0 22px 55px rgba(15, 23, 42, 0.10)",
+    };
+
+    const appleMetricStyle = {
+      background: "rgba(255,255,255,0.88)",
+      border: "1px solid rgba(0,0,0,0.07)",
+      borderRadius: 22,
+      padding: 16,
+      boxShadow: "0 10px 24px rgba(15,23,42,0.06)",
+    };
+
+    const applePill = (active, label) => (
+      <span style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 7,
+        padding: "7px 11px",
+        borderRadius: 999,
+        fontSize: 12,
+        fontWeight: 1000,
+        letterSpacing: 0.2,
+        color: active ? "#0f6b2f" : "#9f1239",
+        background: active ? "rgba(52,199,89,0.16)" : "rgba(255,59,48,0.12)",
+        border: active ? "1px solid rgba(52,199,89,0.28)" : "1px solid rgba(255,59,48,0.22)",
+      }}>
+        <span style={{ width: 8, height: 8, borderRadius: 999, background: active ? "#34c759" : "#ff3b30" }} />
+        {label}
+      </span>
+    );
+
+    const deadlineChip = (label, value) => (
+      <div style={{
+        background: "#f2f2f7",
+        border: "1px solid rgba(0,0,0,0.06)",
+        borderRadius: 16,
+        padding: "10px 12px",
+        minWidth: 145,
+      }}>
+        <div style={{ fontSize: 11, fontWeight: 1000, color: "#6e6e73", textTransform: "uppercase", letterSpacing: 0.7 }}>{label}</div>
+        <div style={{ marginTop: 4, fontSize: 13, fontWeight: 850, color: "#1d1d1f" }}>{formatPaymentTimestamp(value)}</div>
+      </div>
+    );
+
+    const checkLine = (label, met, timestamp) => (
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", padding: "7px 0", borderTop: "1px solid rgba(0,0,0,0.06)" }}>
+        <div style={{ color: "#6e6e73", fontSize: 12, fontWeight: 900 }}>{label}</div>
+        <div style={{ textAlign: "right" }}>
+          <div style={{ color: met ? "#0f6b2f" : "#b42318", fontSize: 12, fontWeight: 1000 }}>{met ? "MET" : "MISSED"}</div>
+          <div style={{ color: "#6e6e73", fontSize: 11, fontWeight: 750 }}>{formatPaymentTimestamp(timestamp)}</div>
+        </div>
+      </div>
+    );
 
     return (
-      <div style={sectionCardStyle}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+      <div style={applePanelStyle}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, flexWrap: "wrap" }}>
           <div>
-            <h2 style={{ margin: 0 }}>Team Payment Compliance</h2>
-            <p style={{ opacity: 0.75, margin: "8px 0 0", lineHeight: 1.45 }}>
-              Paint schemes and previous-race post interviews are due Wednesday at 11:59 PM ET. Upcoming-race pre interviews are due Saturday at 8:30 PM ET.
+            <div style={{ fontSize: 12, fontWeight: 1000, color: "#6e6e73", letterSpacing: 1.4, textTransform: "uppercase" }}>Finance Department</div>
+            <h2 style={{ margin: "4px 0 0", fontSize: 30, letterSpacing: -1.1, color: "#1d1d1f" }}>Team Payment Compliance</h2>
+            <p style={{ margin: "8px 0 0", color: "#6e6e73", lineHeight: 1.5, fontWeight: 750, maxWidth: 820 }}>
+              Apple Wallet-style compliance cards for team payouts. Paint schemes and previous-race post interviews are due Wednesday at 11:59 PM ET. Upcoming-race pre interviews are due Saturday at 8:30 PM ET.
             </p>
           </div>
-          <button type="button" onClick={loadPaymentComplianceData} style={primaryButtonStyle} disabled={paymentComplianceLoading}>
-            {paymentComplianceLoading ? "Refreshing..." : "Refresh Payment Tracker"}
+          <button type="button" onClick={loadPaymentComplianceData} style={{
+            border: 0,
+            borderRadius: 999,
+            padding: "12px 16px",
+            background: "#007aff",
+            color: "white",
+            fontWeight: 1000,
+            boxShadow: "0 10px 22px rgba(0,122,255,0.24)",
+            cursor: "pointer",
+          }} disabled={paymentComplianceLoading}>
+            {paymentComplianceLoading ? "Refreshing..." : "Refresh"}
           </button>
         </div>
 
-        <div style={{ marginTop: 14, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
-          <div style={statBoxStyle}><div style={{ opacity: 0.7, fontSize: 12, fontWeight: 900 }}>PREVIOUS RACE</div><div style={{ fontSize: 18, fontWeight: 900 }}>{previousRaceForPayment?.name || "—"}</div></div>
-          <div style={statBoxStyle}><div style={{ opacity: 0.7, fontSize: 12, fontWeight: 900 }}>UPCOMING RACE</div><div style={{ fontSize: 18, fontWeight: 900 }}>{upcomingRaceForPayment?.name || "—"}</div></div>
-          <div style={statBoxStyle}><div style={{ opacity: 0.7, fontSize: 12, fontWeight: 900 }}>ALL TEAMS MET TIMELINES?</div><div style={{ fontSize: 18, fontWeight: 900, color: allMet ? "#4ade80" : "#f87171" }}>{allMet ? "YES" : "NO"}</div></div>
+        <div style={{ marginTop: 18, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 12 }}>
+          <div style={appleMetricStyle}>
+            <div style={{ color: "#6e6e73", fontSize: 12, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 0.9 }}>Previous Race</div>
+            <div style={{ marginTop: 7, fontSize: 19, fontWeight: 1000, color: "#1d1d1f" }}>{previousRaceForPayment?.name || "—"}</div>
+          </div>
+          <div style={appleMetricStyle}>
+            <div style={{ color: "#6e6e73", fontSize: 12, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 0.9 }}>Upcoming Race</div>
+            <div style={{ marginTop: 7, fontSize: 19, fontWeight: 1000, color: "#1d1d1f" }}>{upcomingRaceForPayment?.name || "—"}</div>
+          </div>
+          <div style={appleMetricStyle}>
+            <div style={{ color: "#6e6e73", fontSize: 12, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 0.9 }}>Qualified Teams</div>
+            <div style={{ marginTop: 7, fontSize: 24, fontWeight: 1000, color: allMet ? "#0f6b2f" : "#1d1d1f" }}>{qualifiedCount} / {rows.length}</div>
+          </div>
+          <div style={appleMetricStyle}>
+            <div style={{ color: "#6e6e73", fontSize: 12, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 0.9 }}>Needs Review</div>
+            <div style={{ marginTop: 7, fontSize: 24, fontWeight: 1000, color: needsReviewCount ? "#b42318" : "#0f6b2f" }}>{needsReviewCount}</div>
+          </div>
         </div>
 
-        {paymentComplianceStatus && <div style={{ color: "#4ade80", marginTop: 12, fontWeight: 900 }}>{paymentComplianceStatus}</div>}
-        {paymentComplianceError && <div style={{ color: "#f87171", marginTop: 12, fontWeight: 900 }}>{paymentComplianceError}</div>}
+        {paymentComplianceStatus && <div style={{ background: "rgba(52,199,89,0.13)", color: "#0f6b2f", borderRadius: 16, padding: 12, marginTop: 14, fontWeight: 900 }}>{paymentComplianceStatus}</div>}
+        {paymentComplianceError && <div style={{ background: "rgba(255,59,48,0.11)", color: "#b42318", borderRadius: 16, padding: 12, marginTop: 14, fontWeight: 900 }}>{paymentComplianceError}</div>}
 
-        <div style={{ overflowX: "auto", marginTop: 16 }}>
-          <table style={tableStyle}>
-            <thead>
-              <tr>
-                <th style={thStyle}>Team</th>
-                <th style={thStyle}>Final Pay Status</th>
-                <th style={thStyle}>Paint Scheme Deadline</th>
-                <th style={thStyle}>Post Interview Deadline</th>
-                <th style={thStyle}>Pre Interview Deadline</th>
-                <th style={thStyle}>Driver Timestamp Details</th>
-                {isAdminMode && <th style={thStyle}>Override</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.length === 0 ? (
-                <tr><td style={tdStyle} colSpan={isAdminMode ? 7 : 6}>No team compliance data loaded yet. Click refresh.</td></tr>
-              ) : rows.map((row) => (
-                <tr key={row.teamKey}>
-                  <td style={{ ...tdStyle, fontWeight: 900 }}>{row.teamName}</td>
-                  <td style={{ ...tdStyle, color: row.finalEligible ? "#4ade80" : "#f87171", fontWeight: 1000 }}>
-                    {row.finalEligible ? "QUALIFIED" : "NOT QUALIFIED"}
-                    {row.overrideStatus && <div style={{ fontSize: 12, color: "#facc15", marginTop: 4 }}>Override: {row.overrideStatus.toUpperCase()}</div>}
-                  </td>
-                  <td style={tdStyle}>{formatPaymentTimestamp(row.paintDeadlineIso)}</td>
-                  <td style={tdStyle}>{formatPaymentTimestamp(row.postDeadlineIso)}</td>
-                  <td style={tdStyle}>{formatPaymentTimestamp(row.preDeadlineIso)}</td>
-                  <td style={{ ...tdStyle, minWidth: 420 }}>
-                    {row.driverChecks.map((check) => (
-                      <div key={check.driver.id} style={{ marginBottom: 10, paddingBottom: 8, borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
-                        <div style={{ fontWeight: 900 }}>#{check.driver.number} {check.driver.name}</div>
-                        <div style={{ fontSize: 12, opacity: 0.84 }}>Paint: <b style={{ color: check.paintMet ? "#4ade80" : "#f87171" }}>{check.paintMet ? "MET" : "MISSED"}</b> — {formatPaymentTimestamp(check.paintAt)}</div>
-                        <div style={{ fontSize: 12, opacity: 0.84 }}>Post: <b style={{ color: check.postMet ? "#4ade80" : "#f87171" }}>{check.postMet ? "MET" : "MISSED"}</b> — {formatPaymentTimestamp(check.postAt)}</div>
-                        <div style={{ fontSize: 12, opacity: 0.84 }}>Pre: <b style={{ color: check.preMet ? "#4ade80" : "#f87171" }}>{check.preMet ? "MET" : "MISSED"}</b> — {formatPaymentTimestamp(check.preAt)}</div>
+        <div style={{ marginTop: 18, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 16 }}>
+          {rows.length === 0 ? (
+            <div style={{ ...appleMetricStyle, gridColumn: "1 / -1", color: "#6e6e73", fontWeight: 850 }}>
+              No team compliance data loaded yet. Click Refresh.
+            </div>
+          ) : rows.map((row, index) => (
+            <div key={row.teamKey} style={{
+              background: "rgba(255,255,255,0.95)",
+              border: "1px solid rgba(0,0,0,0.08)",
+              borderRadius: 28,
+              overflow: "hidden",
+              boxShadow: "0 18px 38px rgba(15,23,42,0.08)",
+            }}>
+              <div style={{
+                minHeight: 118,
+                padding: 18,
+                color: "white",
+                background: row.finalEligible
+                  ? "linear-gradient(135deg, #1c1c1e, #34c759)"
+                  : index % 2 === 0
+                    ? "linear-gradient(135deg, #1c1c1e, #ff3b30)"
+                    : "linear-gradient(135deg, #2c2c2e, #ff9500)",
+                position: "relative",
+              }}>
+                <div style={{ position: "absolute", right: -35, top: -35, width: 125, height: 125, borderRadius: 999, background: "rgba(255,255,255,0.13)" }} />
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, position: "relative" }}>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 1000, opacity: 0.78, letterSpacing: 1.2, textTransform: "uppercase" }}>Team Wallet</div>
+                    <div style={{ marginTop: 5, fontSize: 22, fontWeight: 1000, letterSpacing: -0.4 }}>{row.teamName}</div>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontSize: 12, fontWeight: 1000, opacity: 0.8 }}>Final Status</div>
+                    <div style={{ marginTop: 5, fontSize: 14, fontWeight: 1000 }}>{row.finalEligible ? "QUALIFIED" : "NOT QUALIFIED"}</div>
+                  </div>
+                </div>
+                {row.overrideStatus && (
+                  <div style={{ marginTop: 15, display: "inline-flex", borderRadius: 999, background: "rgba(255,255,255,0.18)", padding: "7px 10px", fontSize: 12, fontWeight: 1000, position: "relative" }}>
+                    Admin Override: {row.overrideStatus.toUpperCase()}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ padding: 16 }}>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+                  {applePill(row.finalEligible, row.finalEligible ? "Pay Approved" : "Payment Hold")}
+                  {applePill(row.driverChecks?.every((check) => check.paintMet), "Paint")}
+                  {applePill(row.driverChecks?.every((check) => check.postMet), "Post")}
+                  {applePill(row.driverChecks?.every((check) => check.preMet), "Pre")}
+                </div>
+
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 13 }}>
+                  {deadlineChip("Paint Due", row.paintDeadlineIso)}
+                  {deadlineChip("Post Due", row.postDeadlineIso)}
+                  {deadlineChip("Pre Due", row.preDeadlineIso)}
+                </div>
+
+                <div style={{ display: "grid", gap: 10 }}>
+                  {(row.driverChecks || []).map((check) => (
+                    <details key={check.driver.id} style={{
+                      background: "#f5f5f7",
+                      border: "1px solid rgba(0,0,0,0.06)",
+                      borderRadius: 18,
+                      padding: "10px 12px",
+                    }}>
+                      <summary style={{ cursor: "pointer", fontWeight: 1000, color: "#1d1d1f" }}>#{check.driver.number} {check.driver.name}</summary>
+                      <div style={{ marginTop: 8 }}>
+                        {checkLine("Paint Scheme", check.paintMet, check.paintAt)}
+                        {checkLine("Post Interview", check.postMet, check.postAt)}
+                        {checkLine("Pre Interview", check.preMet, check.preAt)}
                       </div>
-                    ))}
-                  </td>
-                  {isAdminMode && (
-                    <td style={tdStyle}>
-                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                        <button type="button" onClick={() => savePaymentComplianceOverride(row, "approved")} style={{ ...primaryButtonStyle, padding: "8px 10px" }}>Approve Pay</button>
-                        <button type="button" onClick={() => savePaymentComplianceOverride(row, "denied")} style={{ ...dangerButtonStyle, padding: "8px 10px" }}>Deny Pay</button>
-                        <button type="button" onClick={() => savePaymentComplianceOverride(row, "")} style={{ ...secondaryButtonStyle, padding: "8px 10px" }}>Clear</button>
-                      </div>
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    </details>
+                  ))}
+                </div>
+
+                {isAdminMode && (
+                  <div style={{ display: "flex", gap: 9, flexWrap: "wrap", marginTop: 14 }}>
+                    <button type="button" onClick={() => savePaymentComplianceOverride(row, "approved")} style={{ border: 0, borderRadius: 999, padding: "10px 13px", background: "#34c759", color: "white", fontWeight: 1000, cursor: "pointer" }}>Approve Pay</button>
+                    <button type="button" onClick={() => savePaymentComplianceOverride(row, "denied")} style={{ border: 0, borderRadius: 999, padding: "10px 13px", background: "#ff3b30", color: "white", fontWeight: 1000, cursor: "pointer" }}>Deny Pay</button>
+                    <button type="button" onClick={() => savePaymentComplianceOverride(row, "")} style={{ border: "1px solid rgba(0,0,0,0.10)", borderRadius: 999, padding: "10px 13px", background: "white", color: "#1d1d1f", fontWeight: 1000, cursor: "pointer" }}>Clear</button>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     );
