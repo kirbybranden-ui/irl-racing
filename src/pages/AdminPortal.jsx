@@ -1010,16 +1010,6 @@ export default function AdminPortal({
     gap: 12,
   };
 
-  const prBoardNoticeStyle = {
-    background: "#eef2ff",
-    border: "1px solid #c7d2fe",
-    color: "#1e3a8a",
-    borderRadius: 18,
-    padding: isAdminMobile ? 12 : 14,
-    fontWeight: 850,
-    lineHeight: 1.45,
-    marginBottom: 16,
-  };
 
   return (
     <div style={applePageStyle}>
@@ -1133,7 +1123,6 @@ export default function AdminPortal({
                 <button type="button" onClick={() => setPublicRelationsOpen(false)} style={{ flex: "0 0 auto", border: 0, borderRadius: 999, background: "#ffffff", color: "#111827", width: isAdminMobile ? 42 : 46, height: isAdminMobile ? 42 : 46, fontSize: 23, fontWeight: 1000, cursor: "pointer", boxShadow: "0 8px 20px rgba(15,23,42,0.12)" }}>×</button>
               </div>
 
-              <div style={prBoardNoticeStyle}>This is not a public page. This is the board's control room for creating, reviewing, and publishing content that appears on the public league pages.</div>
 
               <div style={prTabBarStyle}>
                 {[
