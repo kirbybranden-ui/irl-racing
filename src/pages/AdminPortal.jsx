@@ -827,6 +827,8 @@ export default function AdminPortal({
     alignItems: "center",
     gap: 5,
     cursor: "pointer",
+    position: "relative",
+    zIndex: 100002,
   };
 
   const adminMenuLineStyle = {
@@ -836,16 +838,24 @@ export default function AdminPortal({
     background: "#111827",
   };
 
+  const adminMenuBackdropStyle = {
+    position: "fixed",
+    inset: 0,
+    zIndex: 100000,
+    background: "rgba(15,23,42,0.20)",
+    backdropFilter: "blur(6px)",
+  };
+
   const adminMenuPanelStyle = {
-    position: "absolute",
-    right: 0,
-    top: 62,
-    zIndex: 20,
+    position: "fixed",
+    right: 24,
+    top: 96,
+    zIndex: 100001,
     width: "min(360px, calc(100vw - 48px))",
     background: "rgba(255,255,255,0.98)",
     border: "1px solid rgba(17,24,39,0.10)",
     borderRadius: 24,
-    boxShadow: "0 28px 80px rgba(15,23,42,0.22)",
+    boxShadow: "0 28px 80px rgba(15,23,42,0.30)",
     padding: 12,
     backdropFilter: "blur(18px)",
   };
@@ -1241,7 +1251,14 @@ export default function AdminPortal({
                 </button>
 
                 {adminMenuOpen && (
-                  <div style={adminMenuPanelStyle}>
+                  <>
+                    <button
+                      type="button"
+                      aria-label="Close admin menu"
+                      onClick={() => setAdminMenuOpen(false)}
+                      style={adminMenuBackdropStyle}
+                    />
+                    <div style={adminMenuPanelStyle}>
                   <div style={{ padding: "8px 10px 12px", borderBottom: "1px solid #e5e7eb", marginBottom: 8 }}>
                     <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.5, textTransform: "uppercase", color: "#6b7280" }}>Admin Menu</div>
                     <div style={{ fontSize: 20, fontWeight: 1000, color: "#111827" }}>League Control</div>
@@ -1271,7 +1288,8 @@ export default function AdminPortal({
                       </button>
                     ))}
                   </div>
-                  </div>
+                    </div>
+                  </>
                 )}
               </div>
             </div>
