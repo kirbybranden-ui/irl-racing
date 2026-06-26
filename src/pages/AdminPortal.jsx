@@ -235,6 +235,8 @@ export default function AdminPortal({
   const [financeDepartmentOpen, setFinanceDepartmentOpen] = useState(false);
   const [publicRelationsOpen, setPublicRelationsOpen] = useState(false);
   const [publicRelationsTab, setPublicRelationsTab] = useState("overview");
+  const [hrDepartmentOpen, setHrDepartmentOpen] = useState(false);
+  const [hrTab, setHrTab] = useState("overview");
   const [financeAction, setFinanceAction] = useState("overview");
   const [financeActionStatus, setFinanceActionStatus] = useState("");
   const [financeActionError, setFinanceActionError] = useState("");
@@ -331,6 +333,14 @@ export default function AdminPortal({
 
     setFinanceTransactions(data || []);
     setFinanceLoading(false);
+  }
+
+  function openHrDepartment(section = "overview") {
+    setHrDepartmentOpen(true);
+    setHrTab(section);
+    setAdminMenuOpen(false);
+    loadDriverAccessCodes?.();
+    loadFinanceContracts?.();
   }
 
   function openFinanceDepartment(section = "overview") {
@@ -448,6 +458,7 @@ export default function AdminPortal({
 
   const adminMenuItems = [
     { label: "Admin Home", action: goAdmin, primary: true },
+    { label: "Human Resources", action: () => openHrDepartment("overview"), primary: true },
     { label: "Finance Department", action: () => openFinanceDepartment("overview"), primary: true },
     { label: "Public Relations", action: () => openPublicRelations("overview"), primary: true },
     { label: "Ticker Overlay", action: () => setViewMode("overlay-ticker") },
@@ -468,6 +479,7 @@ export default function AdminPortal({
   const adminQuickTiles = [
     { title: "Race Control", text: "Post results, save drafts, penalties, DNFs, stages, fastest lap.", action: () => document.getElementById("admin-race-control")?.scrollIntoView({ behavior: "smooth", block: "start" }) },
     { title: "Driver Management", text: "Add, edit, retire, restore, approve pending drivers.", action: () => document.getElementById("admin-driver-management")?.scrollIntoView({ behavior: "smooth", block: "start" }) },
+    { title: "Human Resources", text: "Driver assignments, owner assignments, access codes, appeals, and contracts.", action: () => openHrDepartment("overview") },
     { title: "Team Owners", text: "Assign owners and manage owner access/password routing.", action: () => document.getElementById("admin-owner-assignments")?.scrollIntoView({ behavior: "smooth", block: "start" }) },
     { title: "Messages", text: "Unread inbox, league broadcasts, owner notices, and create-message tools.", action: openAdminMessages },
     { title: "Public Relations", text: "Board posting tools for ticker promos, winner spotlights, hype videos, stories, and interviews.", action: () => openPublicRelations("overview") },
@@ -1404,6 +1416,207 @@ export default function AdminPortal({
                     <button type="button" onClick={() => (window.location.pathname = "/admin/interviews")} style={adminPrimaryButtonStyle}>Open Interview Admin</button>
                     <button type="button" onClick={() => openFinanceDepartment("interview")} style={adminSecondaryButtonStyle}>Pay Interviews in Finance</button>
                   </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+
+        {hrDepartmentOpen && (
+          <div style={financeOverlayStyle}>
+            <div style={financeShellStyle}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, flexWrap: "wrap", marginBottom: 18 }}>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.8, textTransform: "uppercase", color: "#6b7280" }}>Admin Menu</div>
+                  <h1 style={{ margin: "2px 0 0", fontSize: isAdminMobile ? 34 : 42, letterSpacing: -1.6 }}>Human Resources</h1>
+                  <p style={{ margin: "6px 0 0", color: "#4b5563", fontWeight: 750 }}>People operations for drivers, owners, assignments, access, appeals, and contracts.</p>
+                </div>
+                <button type="button" onClick={() => setHrDepartmentOpen(false)} style={{ border: 0, borderRadius: 999, background: "#ffffff", color: "#111827", width: 46, height: 46, fontSize: 23, fontWeight: 1000, cursor: "pointer", boxShadow: "0 8px 20px rgba(15,23,42,0.12)" }}>×</button>
+              </div>
+
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 18 }}>
+                {[
+                  ["overview", "HR Home"],
+                  ["drivers", "Driver Assignments"],
+                  ["owners", "Owner Assignments"],
+                  ["access", "Access Codes"],
+                  ["appeals", "Appeals"],
+                  ["contracts", "Contracts"],
+                ].map(([key, label]) => (
+                  <button key={key} type="button" onClick={() => setHrTab(key)} style={financeSegmentButtonStyle(hrTab === key)}>{label}</button>
+                ))}
+              </div>
+
+              {hrTab === "overview" && (
+                <div>
+                  <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(4, minmax(160px, 1fr))", gap: 14, marginBottom: 18 }}>
+                    {[
+                      ["Active Drivers", visibleDrivers?.length || drivers?.length || 0],
+                      ["Team Owners", ownerPortalTeams?.length || 0],
+                      ["Open Appeals", openAppealCount || 0],
+                      ["Contracts", financeContracts?.length || 0],
+                    ].map(([label, value]) => (
+                      <div key={label} style={{ ...walletLightCardStyle, padding: 18 }}>
+                        <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.2, textTransform: "uppercase", color: "#6b7280" }}>{label}</div>
+                        <div style={{ fontSize: 34, fontWeight: 1000, letterSpacing: -1, marginTop: 8 }}>{value}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(3, minmax(240px, 1fr))", gap: 14 }}>
+                    {[
+                      ["👤", "Driver Assignments", "Assign drivers to teams, edit numbers, manufacturers, and active status.", "drivers"],
+                      ["🏢", "Team Owner Assignments", "Manage owner access and team-owner responsibility.", "owners"],
+                      ["🔐", "Access & Security", "Driver passwords, owner codes, account access, and security controls.", "access"],
+                      ["⚖️", "Appeals", "Review open appeals and move them through the board workflow.", "appeals"],
+                      ["📑", "Contracts", "View driver contracts, statuses, salary records, and team obligations.", "contracts"],
+                      ["🧾", "Personnel Actions", "Use the existing admin tools for edits while HR becomes the people hub.", "drivers"],
+                    ].map(([icon, title, text, tab]) => (
+                      <button key={title} type="button" onClick={() => setHrTab(tab)} style={{ ...prCardStyle, textAlign: "left", cursor: "pointer" }}>
+                        <div style={prIconStyle}>{icon}</div>
+                        <div style={{ fontSize: 21, fontWeight: 1000, marginTop: 14, letterSpacing: -0.4 }}>{title}</div>
+                        <div style={{ color: "#6b7280", fontWeight: 750, marginTop: 6, lineHeight: 1.45 }}>{text}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {hrTab === "drivers" && (
+                <div style={walletLightCardStyle}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Driver Assignments</div>
+                      <h2 style={{ margin: "3px 0 0", fontSize: 26, letterSpacing: -0.6 }}>Driver Roster</h2>
+                      <p style={{ margin: "6px 0 0", color: "#4b5563", fontWeight: 700 }}>Quick view of each driver, team, number, and manufacturer.</p>
+                    </div>
+                    <button type="button" onClick={() => { setHrDepartmentOpen(false); setTimeout(() => document.getElementById("admin-driver-management")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50); }} style={adminPrimaryButtonStyle}>Open Full Driver Editor</button>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(auto-fit, minmax(245px, 1fr))", gap: 12, maxHeight: 520, overflowY: "auto" }}>
+                    {(visibleDrivers || drivers || []).map((driver) => (
+                      <div key={driver.id || driver.number} style={{ borderRadius: 24, padding: 16, background: "#ffffff", border: "1px solid #e5e7eb", boxShadow: "0 12px 30px rgba(15,23,42,0.07)" }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                          <div style={{ width: 48, height: 48, borderRadius: 16, background: "#111827", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 1000 }}>#{driver.number}</div>
+                          <div style={{ fontSize: 12, fontWeight: 1000, color: driver.retired ? "#ff3b30" : "#34c759" }}>{driver.retired ? "INACTIVE" : "ACTIVE"}</div>
+                        </div>
+                        <div style={{ fontSize: 20, fontWeight: 1000, marginTop: 12, letterSpacing: -0.4 }}>{driver.name}</div>
+                        <div style={{ color: "#6b7280", fontWeight: 800, marginTop: 4 }}>{getTeamFullName(driver.team)} · {driver.manufacturer || "Manufacturer TBD"}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {hrTab === "owners" && (
+                <div style={walletLightCardStyle}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Team Owner Assignments</div>
+                      <h2 style={{ margin: "3px 0 0", fontSize: 26, letterSpacing: -0.6 }}>Owner Directory</h2>
+                      <p style={{ margin: "6px 0 0", color: "#4b5563", fontWeight: 700 }}>Owners can use their driver passwords for owner access where mapped in the app.</p>
+                    </div>
+                    <button type="button" onClick={() => { setHrDepartmentOpen(false); setTimeout(() => document.getElementById("admin-owner-assignments")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50); }} style={adminPrimaryButtonStyle}>Open Owner Assignment Editor</button>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(auto-fit, minmax(250px, 1fr))", gap: 12 }}>
+                    {(ownerPortalTeams || []).map((team) => {
+                      const teamDrivers = (visibleDrivers || []).filter((driver) => driver.team === team);
+                      return (
+                        <div key={team} style={{ borderRadius: 26, padding: 18, color: "white", background: "linear-gradient(135deg, #1c1c1e, #3a3a3c)", boxShadow: "0 16px 38px rgba(15,23,42,0.16)" }}>
+                          <div style={{ fontSize: 12, fontWeight: 1000, opacity: 0.75, letterSpacing: 1.3 }}>{team}</div>
+                          <div style={{ fontSize: 22, fontWeight: 1000, marginTop: 8 }}>{getTeamFullName(team)}</div>
+                          <div style={{ opacity: 0.82, fontWeight: 800, marginTop: 8 }}>{teamDrivers.length} assigned drivers</div>
+                          <div style={{ marginTop: 12, fontSize: 13, opacity: 0.82 }}>{teamDrivers.map((driver) => `#${driver.number} ${driver.name}`).join(" · ") || "No drivers assigned"}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {hrTab === "access" && (
+                <div style={walletLightCardStyle}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Access & Security</div>
+                      <h2 style={{ margin: "3px 0 0", fontSize: 26, letterSpacing: -0.6 }}>Access Codes</h2>
+                      <p style={{ margin: "6px 0 0", color: "#4b5563", fontWeight: 700 }}>Driver codes and owner portal codes live here for quick HR review.</p>
+                    </div>
+                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                      <button type="button" onClick={loadDriverAccessCodes} style={adminSecondaryButtonStyle}>Refresh Driver Codes</button>
+                      <button type="button" onClick={generateAllOwnerCodes} style={adminPrimaryButtonStyle}>Generate Owner Codes</button>
+                    </div>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "1fr 1fr", gap: 14 }}>
+                    <div style={{ borderRadius: 24, background: "#ffffff", border: "1px solid #e5e7eb", padding: 16 }}>
+                      <h3 style={{ marginTop: 0 }}>Driver Access</h3>
+                      <div style={{ display: "grid", gap: 8, maxHeight: 420, overflowY: "auto" }}>
+                        {(visibleDrivers || []).map((driver) => {
+                          const codeRow = driverAccessCodes.find((row) => String(row.driver_number) === String(driver.number) && row.active !== false);
+                          return (
+                            <div key={driver.id || driver.number} style={walletTransactionRowStyle}>
+                              <div style={walletIconStyle}>#{driver.number}</div>
+                              <div><div style={{ fontWeight: 1000 }}>{driver.name}</div><div style={{ color: "#6b7280", fontWeight: 750, fontSize: 13 }}>{getTeamFullName(driver.team)}</div></div>
+                              <div style={{ fontFamily: "monospace", fontWeight: 1000 }}>{codeRow?.code || "—"}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <div style={{ borderRadius: 24, background: "#ffffff", border: "1px solid #e5e7eb", padding: 16 }}>
+                      <h3 style={{ marginTop: 0 }}>Owner Portal Access</h3>
+                      <div style={{ display: "grid", gap: 8, maxHeight: 420, overflowY: "auto" }}>
+                        {(ownerPortalTeams || []).map((team) => (
+                          <div key={team} style={walletTransactionRowStyle}>
+                            <div style={walletIconStyle}>🏢</div>
+                            <div><div style={{ fontWeight: 1000 }}>{getTeamFullName(team)}</div><div style={{ color: "#6b7280", fontWeight: 750, fontSize: 13 }}>{team}</div></div>
+                            <div style={{ fontFamily: "monospace", fontWeight: 1000 }}>{ownerAccessCodes[team] || "—"}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {hrTab === "appeals" && (
+                <div style={walletLightCardStyle}>
+                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Appeals</div>
+                  <h2 style={{ margin: "3px 0 0", fontSize: 26, letterSpacing: -0.6 }}>Board Appeal Queue</h2>
+                  <p style={{ color: "#4b5563", fontWeight: 750 }}>Open appeals remain managed by the appeals page, but HR now owns the people/discipline view.</p>
+                  <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", marginTop: 16 }}>
+                    <div style={{ padding: "14px 18px", borderRadius: 20, background: "#ffffff", border: "1px solid #e5e7eb", fontWeight: 1000 }}>{openAppealCount || 0} open appeals</div>
+                    <button type="button" onClick={() => (window.location.pathname = "/appeals")} style={adminPrimaryButtonStyle}>Open Appeals</button>
+                  </div>
+                </div>
+              )}
+
+              {hrTab === "contracts" && (
+                <div style={walletLightCardStyle}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Contracts</div>
+                      <h2 style={{ margin: "3px 0 0", fontSize: 26, letterSpacing: -0.6 }}>Contract Records</h2>
+                      <p style={{ margin: "6px 0 0", color: "#4b5563", fontWeight: 700 }}>HR owns contract status. Finance still handles payments and money movement.</p>
+                    </div>
+                    <button type="button" onClick={loadFinanceContracts} style={adminSecondaryButtonStyle}>Refresh Contracts</button>
+                  </div>
+                  {financeContractsLoading ? (
+                    <div style={{ color: "#6b7280", fontWeight: 800 }}>Loading contracts...</div>
+                  ) : (financeContracts || []).length === 0 ? (
+                    <div style={{ color: "#6b7280", fontWeight: 800 }}>No contract records found yet.</div>
+                  ) : (
+                    <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(auto-fit, minmax(260px, 1fr))", gap: 12 }}>
+                      {financeContracts.map((contract, index) => (
+                        <div key={contract.id || index} style={{ borderRadius: 24, background: "#ffffff", border: "1px solid #e5e7eb", padding: 16, boxShadow: "0 12px 30px rgba(15,23,42,0.07)" }}>
+                          <div style={{ fontSize: 12, fontWeight: 1000, color: "#6b7280", letterSpacing: 1.2 }}>{contract.status || "STATUS UNKNOWN"}</div>
+                          <div style={{ fontSize: 20, fontWeight: 1000, marginTop: 8 }}>{contract.driver_name || contract.driver || contract.driver_number || "Contract Offer"}</div>
+                          <div style={{ color: "#6b7280", fontWeight: 800, marginTop: 4 }}>{contract.team || contract.team_abbr || "Team"}</div>
+                          <div style={{ fontSize: 24, fontWeight: 1000, marginTop: 12 }}>{money(Number(contract.salary || contract.amount || contract.value || contract.signing_bonus || 0) || 0)}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
