@@ -5483,13 +5483,41 @@ export default function App() {
     return () => clearInterval(interval);
   }, []);
   useEffect(() => {
+    const normalizeSeriesJoinRequests = () => {
+      try {
+        const saved = JSON.parse(localStorage.getItem("series_join_requests") || "[]");
+        return (Array.isArray(saved) ? saved : [])
+          .filter((request) => String(request.status || "pending").toLowerCase() === "pending")
+          .map((request) => ({
+            ...request,
+            id: `series-${request.id}`,
+            original_id: request.id,
+            request_source: "series_join_requests",
+            driver_name: request.username || request.gamertag || "Pending Driver",
+            car_number: request.preferredNumber || request.preferred_number || "",
+            team_name: request.preferredTeam || request.preferred_team || "Independent",
+            manufacturer: request.manufacturer || "",
+            created_at: request.submittedAt || request.submitted_at || new Date().toISOString(),
+            series_name: request.seriesName || request.series_name || request.seriesId || "League",
+            notes: request.notes || "",
+          }));
+      } catch {
+        return [];
+      }
+    };
+
     async function loadPendingDrivers() {
+      const localRequests = normalizeSeriesJoinRequests();
       const { data, error } = await supabase
         .from("pending_drivers")
         .select("*")
         .eq("status", "pending")
         .order("created_at", { ascending: false });
-      if (!error && data) setPendingDrivers(data);
+      if (!error && data) {
+        setPendingDrivers([...localRequests, ...data]);
+      } else {
+        setPendingDrivers(localRequests);
+      }
     }
     loadPendingDrivers();
     const interval = setInterval(loadPendingDrivers, 5000);
@@ -6359,10 +6387,16 @@ export default function App() {
       const newRoster = [...drivers.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer || "", manufacturerLogo: d.manufacturerLogo || null, team: d.team, startingPoints: 0, manualWins: 0 })), newDriver];
       patchActiveSeason({ drivers: rebuildDriversFromHistory(raceHistory, newRoster) });
       // Update pending driver status to approved
-      await supabase
-        .from("pending_drivers")
-        .update({ status: "approved" })
-        .eq("id", pendingDriver.id);
+      if (pendingDriver.request_source === "series_join_requests") {
+        const saved = JSON.parse(localStorage.getItem("series_join_requests") || "[]");
+        const updated = saved.map((request) => String(request.id) === String(pendingDriver.original_id) ? { ...request, status: "approved", reviewedAt: new Date().toISOString() } : request);
+        localStorage.setItem("series_join_requests", JSON.stringify(updated));
+      } else {
+        await supabase
+          .from("pending_drivers")
+          .update({ status: "approved" })
+          .eq("id", pendingDriver.id);
+      }
       setPendingDrivers((prev) => prev.filter((d) => d.id !== pendingDriver.id));
       alert(`${pendingDriver.driver_name} has been added to the league!`);
     } catch (err) {
@@ -6373,10 +6407,16 @@ export default function App() {
   const rejectPendingDriver = async (pendingDriver) => {
     if (!window.confirm(`Reject ${pendingDriver.driver_name}?`)) return;
     try {
-      await supabase
-        .from("pending_drivers")
-        .update({ status: "rejected" })
-        .eq("id", pendingDriver.id);
+      if (pendingDriver.request_source === "series_join_requests") {
+        const saved = JSON.parse(localStorage.getItem("series_join_requests") || "[]");
+        const updated = saved.map((request) => String(request.id) === String(pendingDriver.original_id) ? { ...request, status: "rejected", reviewedAt: new Date().toISOString() } : request);
+        localStorage.setItem("series_join_requests", JSON.stringify(updated));
+      } else {
+        await supabase
+          .from("pending_drivers")
+          .update({ status: "rejected" })
+          .eq("id", pendingDriver.id);
+      }
       setPendingDrivers((prev) => prev.filter((d) => d.id !== pendingDriver.id));
     } catch (err) {
       console.error("Error rejecting driver:", err);
