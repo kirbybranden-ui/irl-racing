@@ -557,19 +557,11 @@ export default function AdminPortal({
   const adminMenuItems = [
     { label: "Admin Home", action: goAdmin, primary: true },
     { label: "Human Resources", action: () => openHrDepartment("overview"), primary: true },
+    { label: "Race Operations", action: openRaceOperations, primary: true },
     { label: "Finance Department", action: () => openFinanceDepartment("overview"), primary: true },
     { label: "Public Relations", action: () => openPublicRelations("overview"), primary: true },
-    { label: "Race Operations", action: openRaceOperations, primary: true },
-    { label: "Ticker Overlay", action: () => setViewMode("overlay-ticker") },
-    { label: "Standings", action: () => (window.location.pathname = "/standings") },
+    { label: "Messages", action: openAdminMessages, primary: true },
     { label: "Streams", action: () => (window.location.pathname = "/streams") },
-    { label: "Discord", action: () => (window.location.pathname = "/discord") },
-    { label: "News", action: () => (window.location.pathname = "/news") },
-    { label: "Notifications", action: () => (window.location.pathname = "/notifications") },
-    { label: `Appeals (${openAppealCount || 0})`, action: () => (window.location.pathname = "/appeals") },
-    { label: `Stories (${openStoryCount || 0})`, action: () => (window.location.pathname = "/admin/stories") },
-    { label: "Car Gallery", action: () => (window.location.pathname = "/admin/car-gallery") },
-    { label: "Interviews", action: () => (window.location.pathname = "/admin/interviews") },
     { label: "Voting", action: () => (window.location.pathname = "/admin/votes") },
     { label: "Export App Data JSON", action: exportAppDataJson, primary: true },
     { label: "Logout", action: logoutAdmin, danger: true },
@@ -1306,7 +1298,10 @@ export default function AdminPortal({
               <h2 style={{ margin: "2px 0 0", fontSize: isAdminMobile ? 34 : 42, letterSpacing: -1.4, lineHeight: 1.02 }}>Admin Home</h2>
               <p style={{ margin: "8px 0 0", color: "#4b5563", fontWeight: 750, maxWidth: 780 }}>Executive briefing cards for the departments that need attention. Open a department from the tile instead of managing tools on the homepage.</p>
             </div>
-            <button onClick={goAdmin} style={{ ...adminPrimaryButtonStyle, borderRadius: 999, padding: "12px 16px", boxShadow: "0 12px 28px rgba(17,24,39,0.16)" }}>Refresh Center</button>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: isAdminMobile ? "flex-start" : "flex-end" }}>
+              <button onClick={goAdmin} style={{ ...adminSecondaryButtonStyle, borderRadius: 999, padding: "12px 16px", background: "#ffffff", boxShadow: "0 12px 28px rgba(17,24,39,0.10)" }}>⌂ Home</button>
+              <button onClick={goAdmin} style={{ ...adminPrimaryButtonStyle, borderRadius: 999, padding: "12px 16px", boxShadow: "0 12px 28px rgba(17,24,39,0.16)" }}>Refresh Center</button>
+            </div>
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(3, minmax(210px, 1fr))", gap: 14, marginBottom: 18 }}>
@@ -1365,9 +1360,9 @@ export default function AdminPortal({
               <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280", marginBottom: 12 }}>Need Attention</div>
               {[
                 ["HR", `${(pendingDrivers || []).length} join requests`, () => openHrDepartment("requests")],
-                ["Appeals", `${openAppealCount || 0} open`, () => (window.location.pathname = "/appeals")],
+                ["Appeals", `${openAppealCount || 0} open`, () => openHrDepartment("appeals")],
                 ["Messages", `${adminUnreadCount || 0} unread`, openAdminMessages],
-                ["Stories", `${openStoryCount || 0} pending`, () => (window.location.pathname = "/admin/stories")],
+                ["Stories", `${openStoryCount || 0} pending`, () => openPublicRelations("stories")],
               ].map(([label, value, action]) => (
                 <button key={label} type="button" onClick={action} style={{ width: "100%", border: 0, background: "transparent", padding: "10px 0", borderBottom: "1px solid #e5e7eb", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, cursor: "pointer", textAlign: "left" }}>
                   <span style={{ color: "#111827", fontWeight: 1000 }}>{label}</span>
@@ -1436,6 +1431,7 @@ export default function AdminPortal({
                   ["ticker", "Ticker"],
                   ["winner", "Race Winner"],
                   ["media", "Featured Media"],
+                  ["carGallery", "Car Gallery"],
                   ["watch", "Ones to Watch"],
                   ["stories", "Stories"],
                   ["interviews", "Interviews"],
@@ -1460,6 +1456,7 @@ export default function AdminPortal({
                       ["📣", "Ticker Promotions", `${tickerMessages?.filter?.((m) => m.active !== false)?.length || 0} active messages`, "ticker"],
                       ["🏆", "Race Winner", latestWinner ? `Latest: #${latestWinner.number || ""} ${latestWinner.name || latestWinner.driver || "Winner"}` : "Manage winner spotlight", "winner"],
                       ["✨", "Featured Media", featuredVideo ? (featuredVideo.title || "Featured media live") : "Post a photo or video", "media"],
+                      ["🎨", "Car Gallery", "Manage paint schemes and public car media", "carGallery"],
                       ["🔥", "Ones to Watch", `${manualWatchPicks?.filter?.((p) => p.active !== false)?.length || 0} active picks`, "watch"],
                       ["📰", "Stories", `${openStoryCount || 0} open stories`, "stories"],
                       ["🎤", "Interviews", "Pre-race and post-race media", "interviews"],
@@ -1626,6 +1623,18 @@ export default function AdminPortal({
                     }}
                   />
                   <button type="button" disabled={videoUploading} onClick={() => videoFileInputRef.current?.click()} style={{ ...adminPrimaryButtonStyle, opacity: videoUploading ? 0.65 : 1 }}>{videoUploading ? "Uploading..." : "Post Photo or Video"}</button>
+                </div>
+              )}
+
+              {publicRelationsTab === "carGallery" && (
+                <div style={prCardStyle}>
+                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Car Gallery</div>
+                  <h2 style={{ margin: "3px 0 6px", fontSize: 28, letterSpacing: -0.7 }}>Public Car Gallery</h2>
+                  <p style={{ color: "#4b5563", fontWeight: 750 }}>Manage the league car gallery from Public Relations. Public viewers can still see media on the public pages, but the board controls the gallery here.</p>
+                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 14 }}>
+                    <button type="button" onClick={() => (window.location.pathname = "/admin/car-gallery")} style={adminPrimaryButtonStyle}>Open Car Gallery</button>
+                    <button type="button" onClick={() => setPublicRelationsTab("media")} style={adminSecondaryButtonStyle}>Featured Media</button>
+                  </div>
                 </div>
               )}
 
@@ -3043,33 +3052,7 @@ export default function AdminPortal({
 
         {/* League Ticker Manager moved into Public Relations > Ticker. */}
 
-        {/* Discord Settings */}
-        <div style={adminReadableCardStyle}>
-          <h2 style={{ marginTop: 0 }}>Discord Hub Settings</h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12, marginBottom: 14 }}>
-            <div>
-              <div style={{ marginBottom: 6, fontWeight: 700 }}>Discord Invite Link</div>
-              <input style={adminInputStyle} value={discordInviteUrl} onChange={(e) => setDiscordInviteUrl(e.target.value)} placeholder="https://discord.gg/your-link" />
-            </div>
-            <div>
-              <div style={{ marginBottom: 6, fontWeight: 700 }}>Discord Page Announcement</div>
-              <input style={adminInputStyle} value={discordAnnouncement} onChange={(e) => setDiscordAnnouncement(e.target.value)} placeholder="Join the league Discord..." />
-            </div>
-          </div>
-          <div style={{ marginBottom: 12 }}>
-            <div style={{ marginBottom: 6, fontWeight: 700 }}>Discord Rules / Conduct Notes</div>
-            <textarea
-              style={{ ...inputStyle, minHeight: 130, resize: "vertical", lineHeight: 1.45 }}
-              value={discordRulesText}
-              onChange={(e) => setDiscordRulesText(e.target.value)}
-              placeholder="One rule per line"
-            />
-          </div>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <button onClick={saveDiscordSettings} style={adminPrimaryButtonStyle}>Save Discord Settings</button>
-            <button onClick={() => (window.location.pathname = "/discord")} style={adminSecondaryButtonStyle}>View Discord Page</button>
-          </div>
-        </div>
+        {/* Discord Settings removed from Admin Portal. Discord remains public/homepage only. */}
         {/* Season Manager moved into the Operations Center. */}
         {/* Stat Boxes */}
         <div style={{ display: "flex", flexWrap: "wrap", gap: 16, marginBottom: 20 }}>
