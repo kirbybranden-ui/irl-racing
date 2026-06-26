@@ -597,7 +597,7 @@ export default function AdminPortal({
       meta: `${(financeTransactions || []).length} ledger items`,
       text: "Treasury, payouts, fines, paint payments, interviews, and ledgers.",
       action: () => openFinanceDepartment("overview"),
-      gradient: "linear-gradient(135deg, #111827 0%, #374151 48%, #6b7280 100%)",
+      gradient: "linear-gradient(135deg, #8e8e93 0%, #6366f1 48%, #007aff 100%)",
     },
     {
       title: "Public Relations",
@@ -892,25 +892,6 @@ export default function AdminPortal({
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-  };
-
-
-
-  const adminHomeIconButtonStyle = {
-    position: "relative",
-    width: 54,
-    height: 54,
-    borderRadius: 18,
-    border: "1px solid rgba(255,255,255,0.78)",
-    background: "linear-gradient(180deg, #fef3c7 0%, #f59e0b 100%)",
-    color: "#ffffff",
-    boxShadow: "0 16px 38px rgba(245,158,11,0.30)",
-    cursor: "pointer",
-    fontSize: 28,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    WebkitTapHighlightColor: "transparent",
   };
 
   const adminMessageBadgeStyle = {
@@ -1287,16 +1268,6 @@ export default function AdminPortal({
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <button
                 type="button"
-                aria-label="Go to admin home"
-                onClick={goAdmin}
-                style={adminHomeIconButtonStyle}
-                title="Home"
-              >
-                🏠
-              </button>
-
-              <button
-                type="button"
                 aria-label="Open admin messages"
                 onClick={openAdminMessages}
                 style={adminMessageIconButtonStyle}
@@ -1332,39 +1303,59 @@ export default function AdminPortal({
               <p style={{ margin: "8px 0 0", color: "#4b5563", fontWeight: 750, maxWidth: 780 }}>Executive briefing cards for the departments that need attention. Open a department from the tile instead of managing tools on the homepage.</p>
             </div>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: isAdminMobile ? "flex-start" : "flex-end" }}>
+              <button onClick={goAdmin} style={{ ...adminSecondaryButtonStyle, borderRadius: 999, padding: "12px 16px", background: "#ffffff", boxShadow: "0 12px 28px rgba(17,24,39,0.10)" }}>⌂ Home</button>
               <button onClick={goAdmin} style={{ ...adminPrimaryButtonStyle, borderRadius: 999, padding: "12px 16px", boxShadow: "0 12px 28px rgba(17,24,39,0.16)" }}>Refresh Center</button>
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "1.15fr 0.85fr", gap: 14, marginBottom: 18 }}>
-            <div style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.92), rgba(248,250,252,0.86))", border: "1px solid rgba(255,255,255,0.78)", borderRadius: 30, padding: 18, boxShadow: "0 18px 45px rgba(15,23,42,0.10)" }}>
-              <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280", marginBottom: 12 }}>Race Weekend Status</div>
-              <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-                <div style={{ width: 58, height: 58, borderRadius: 20, background: "linear-gradient(135deg, #111827, #374151)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, boxShadow: "0 14px 28px rgba(15,23,42,0.18)" }}>🏁</div>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 26, fontWeight: 1000, letterSpacing: -0.9 }}>{selectedRace || "No race selected"}</div>
-                  <div style={{ color: "#6b7280", fontWeight: 800, marginTop: 2 }}>{selectedRace ? "Race control is ready for official input." : "Open Race Operations to select a race and enter results."}</div>
+          <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "1.1fr 0.9fr", gap: 14, marginBottom: 18 }}>
+            <div style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.96), rgba(244,247,251,0.90))", border: "1px solid rgba(255,255,255,0.86)", borderRadius: 32, padding: 18, boxShadow: "0 20px 55px rgba(15,23,42,0.10)", backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#8e8e93" }}>Race Weekend</div>
+                  <div style={{ fontSize: isAdminMobile ? 26 : 30, fontWeight: 1000, letterSpacing: -1, marginTop: 2 }}>{selectedRace || "No race selected"}</div>
                 </div>
+                <div style={{ width: 58, height: 58, borderRadius: 21, background: "linear-gradient(135deg, #ffffff 0%, #eaf2ff 100%)", border: "1px solid rgba(0,122,255,0.16)", color: "#007aff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 29, boxShadow: "inset 0 1px 0 rgba(255,255,255,0.9), 0 14px 28px rgba(0,122,255,0.14)" }}>🏁</div>
               </div>
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 16 }}>
-                <span style={{ background: "#e8f7ee", color: "#137333", borderRadius: 999, padding: "8px 11px", fontSize: 12, fontWeight: 1000 }}>{drivers.length} Drivers</span>
-                <span style={{ background: "#eaf2ff", color: "#1d4ed8", borderRadius: 999, padding: "8px 11px", fontSize: 12, fontWeight: 1000 }}>{raceHistory.length} Races Posted</span>
-                <span style={{ background: "#fff4e6", color: "#c2410c", borderRadius: 999, padding: "8px 11px", fontSize: 12, fontWeight: 1000 }}>{(raceDrafts || []).length} Drafts</span>
-                <span style={{ background: "#fee2e2", color: "#b42318", borderRadius: 999, padding: "8px 11px", fontSize: 12, fontWeight: 1000 }}>{offenseLog.length} Offenses</span>
+              <div style={{ color: "#6b7280", fontWeight: 800, marginBottom: 14 }}>{selectedRace ? "Race control is ready for official input." : "Open Race Operations to select a race and enter results."}</div>
+              <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "repeat(2, minmax(0, 1fr))" : "repeat(4, minmax(0, 1fr))", gap: 10 }}>
+                {[
+                  ["Drivers", drivers.length, "#34c759", "👥"],
+                  ["Posted", raceHistory.length, "#007aff", "📚"],
+                  ["Drafts", (raceDrafts || []).length, "#ff9500", "📄"],
+                  ["Offenses", offenseLog.length, "#ff3b30", "⚠️"],
+                ].map(([label, value, color, icon]) => (
+                  <div key={label} style={{ borderRadius: 22, padding: "13px 12px", background: "rgba(255,255,255,0.82)", border: "1px solid rgba(229,231,235,0.92)", boxShadow: "0 10px 24px rgba(15,23,42,0.06)" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                      <span style={{ color: "#8e8e93", fontSize: 11, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 0.9 }}>{label}</span>
+                      <span style={{ width: 24, height: 24, borderRadius: 9, background: `${color}18`, color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13 }}>{icon}</span>
+                    </div>
+                    <div style={{ marginTop: 8, fontSize: 24, fontWeight: 1000, color: "#111827", letterSpacing: -0.8 }}>{value}</div>
+                  </div>
+                ))}
               </div>
             </div>
 
-            <div style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.92), rgba(248,250,252,0.86))", border: "1px solid rgba(255,255,255,0.78)", borderRadius: 30, padding: 18, boxShadow: "0 18px 45px rgba(15,23,42,0.10)" }}>
-              <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280", marginBottom: 12 }}>Need Attention</div>
+            <div style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.96), rgba(244,247,251,0.90))", border: "1px solid rgba(255,255,255,0.86)", borderRadius: 32, padding: 18, boxShadow: "0 20px 55px rgba(15,23,42,0.10)", backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 14 }}>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#8e8e93" }}>Need Attention</div>
+                  <div style={{ color: "#6b7280", fontWeight: 800, marginTop: 2 }}>Tap a row to open the owning department.</div>
+                </div>
+                <div style={{ width: 42, height: 42, borderRadius: 16, background: "linear-gradient(135deg, #fff7ed 0%, #fff1f2 100%)", color: "#ff3b30", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, border: "1px solid rgba(255,59,48,0.12)" }}>􀁞</div>
+              </div>
               {[
-                ["HR", `${(pendingDrivers || []).length} join requests`, () => openHrDepartment("requests")],
-                ["Appeals", `${openAppealCount || 0} open`, () => openHrDepartment("appeals")],
-                ["Messages", `${adminUnreadCount || 0} unread`, openAdminMessages],
-                ["Stories", `${openStoryCount || 0} pending`, () => openPublicRelations("stories")],
-              ].map(([label, value, action]) => (
-                <button key={label} type="button" onClick={action} style={{ width: "100%", border: 0, background: "transparent", padding: "10px 0", borderBottom: "1px solid #e5e7eb", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, cursor: "pointer", textAlign: "left" }}>
-                  <span style={{ color: "#111827", fontWeight: 1000 }}>{label}</span>
-                  <span style={{ color: "#6b7280", fontWeight: 900 }}>{value} ›</span>
+                ["Human Resources", `${(pendingDrivers || []).length} join requests`, "👥", "#34c759", () => openHrDepartment("requests")],
+                ["Appeals", `${openAppealCount || 0} open`, "📣", "#ff9500", () => openHrDepartment("appeals")],
+                ["Messages", `${adminUnreadCount || 0} unread`, "💬", "#007aff", openAdminMessages],
+                ["Public Relations", `${openStoryCount || 0} stories pending`, "📰", "#af52de", () => openPublicRelations("stories")],
+              ].map(([label, value, icon, color, action]) => (
+                <button key={label} type="button" onClick={action} style={{ width: "100%", border: "1px solid rgba(229,231,235,0.82)", background: "rgba(255,255,255,0.76)", padding: "10px 12px", borderRadius: 18, marginTop: 8, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, cursor: "pointer", textAlign: "left", boxShadow: "0 8px 18px rgba(15,23,42,0.045)" }}>
+                  <span style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                    <span style={{ width: 34, height: 34, borderRadius: 13, background: `${color}16`, color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>{icon}</span>
+                    <span style={{ color: "#111827", fontWeight: 1000, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label}</span>
+                  </span>
+                  <span style={{ color: "#6b7280", fontWeight: 900, whiteSpace: "nowrap" }}>{value} ›</span>
                 </button>
               ))}
             </div>
