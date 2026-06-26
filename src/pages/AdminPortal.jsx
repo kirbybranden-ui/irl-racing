@@ -1563,12 +1563,12 @@ export default function AdminPortal({
 
               <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(3, minmax(180px, 1fr))", gap: 14, marginBottom: 18 }}>
                 {[
-                  ["tracks", "Track Management", (tracks || []).length, "Update schedule tracks and stage counts.", "linear-gradient(135deg, #34c759 0%, #30d158 45%, #0a7f3f 100%)"],
-                  ["input", "Race Input", selectedRace ? "Active" : "Ready", "Enter finishes, stages, penalties, DNFs, and fastest lap.", "linear-gradient(135deg, #007aff 0%, #5ac8fa 45%, #5856d6 100%)"],
-                  ["history", "Previous Race Results", raceHistory.length, "Open the race archive and download single races or the season.", "linear-gradient(135deg, #ff9500 0%, #ffcc00 48%, #ff3b30 100%)"],
-                  ["drafts", "Saved Drafts", (raceDrafts || []).length, "Load, post, or delete admin-only race drafts.", "linear-gradient(135deg, #af52de 0%, #ff2d55 52%, #5856d6 100%)"],
-                  ["offenses", "Offense Log", offenseLog.length, "Review season offense penalties.", "linear-gradient(135deg, #ff3b30 0%, #ff2d55 50%, #8e8e93 100%)"],
-                ].map(([key, label, value, description, gradient]) => (
+                  ["tracks", "Track Management", "🏁", `${(tracks || []).length} Tracks`, "Schedule + stages", "Update schedule tracks and stage counts.", "linear-gradient(135deg, #34c759 0%, #30d158 45%, #0a7f3f 100%)"],
+                  ["input", "Race Input", "🏎️", selectedRace ? "Active" : "Ready", selectedRace || "Select a race", "Enter finishes, stages, penalties, DNFs, and fastest lap.", "linear-gradient(135deg, #007aff 0%, #5ac8fa 45%, #5856d6 100%)"],
+                  ["history", "Previous Race Results", "📚", `${raceHistory.length} Races`, "Season archive", "Open the race archive and download single races or the season.", "linear-gradient(135deg, #ff9500 0%, #ffcc00 48%, #ff3b30 100%)"],
+                  ["drafts", "Saved Drafts", "📄", `${(raceDrafts || []).length} Draft${(raceDrafts || []).length === 1 ? "" : "s"}`, "Private race control", "Resume, post, or delete admin-only race drafts.", "linear-gradient(135deg, #af52de 0%, #ff2d55 52%, #5856d6 100%)"],
+                  ["offenses", "Offense Log", "⚠️", `${offenseLog.length} Open`, "Season discipline", "Review season offense penalties.", "linear-gradient(135deg, #ff3b30 0%, #ff2d55 50%, #8e8e93 100%)"],
+                ].map(([key, label, icon, value, meta, description, gradient]) => (
                   <button
                     key={key}
                     type="button"
@@ -1590,10 +1590,14 @@ export default function AdminPortal({
                     }}
                   >
                     <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at top right, rgba(255,255,255,0.38), transparent 36%)", pointerEvents: "none" }} />
-                    <div style={{ position: "relative", zIndex: 1 }}>
-                      <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.2, textTransform: "uppercase", color: "rgba(255,255,255,0.82)" }}>{label}</div>
-                      <div style={{ fontSize: 36, fontWeight: 1000, letterSpacing: -1, marginTop: 10, color: "#ffffff" }}>{value}</div>
-                      <div style={{ marginTop: 10, color: "rgba(255,255,255,0.88)", fontSize: 13, fontWeight: 800, lineHeight: 1.35 }}>{description}</div>
+                    <div style={{ position: "relative", zIndex: 1, minHeight: 118, display: "flex", flexDirection: "column" }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                        <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.2, textTransform: "uppercase", color: "rgba(255,255,255,0.82)" }}>{label}</div>
+                        <div style={{ width: 36, height: 36, borderRadius: 14, background: "rgba(255,255,255,0.18)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, boxShadow: "inset 0 1px 0 rgba(255,255,255,0.28)" }}>{icon}</div>
+                      </div>
+                      <div style={{ fontSize: 30, fontWeight: 1000, letterSpacing: -1, marginTop: 12, color: "#ffffff" }}>{value}</div>
+                      <div style={{ marginTop: 2, color: "rgba(255,255,255,0.76)", fontSize: 12, fontWeight: 1000 }}>{meta}</div>
+                      <div style={{ marginTop: "auto", paddingTop: 10, color: "rgba(255,255,255,0.88)", fontSize: 13, fontWeight: 800, lineHeight: 1.35 }}>{description}</div>
                     </div>
                   </button>
                 ))}
@@ -1821,35 +1825,71 @@ export default function AdminPortal({
           </div>
         </div>}
         {/* Admin-Only Results Drafts */}
-        {raceOperationsTab === "drafts" && <div style={adminReadableCardStyle}>
-          <h2 style={{ marginTop: 0 }}>Admin-Only Results Drafts</h2>
-          <div style={{ opacity: 0.78, marginBottom: 14 }}>Drafts let you capture finishing points, penalties, DNFs, and notes without changing public standings. Post only when race control is ready.</div>
-          <div style={{ overflowX: "auto" }}>
-            <table style={adminTableStyle}>
-              <thead><tr><th style={adminThStyle}>Race</th><th style={adminThStyle}>Saved</th><th style={adminThStyle}>Leader</th><th style={adminThStyle}>Rows</th><th style={adminThStyle}>Actions</th></tr></thead>
-              <tbody>
-                {(raceDrafts || []).length === 0 ? (
-                  <tr><td style={adminTdStyle} colSpan={5}><div style={{ opacity: 0.7 }}>No private drafts saved.</div></td></tr>
-                ) : (raceDrafts || []).map((draft) => {
-                  const leader = (draft.results || []).find((result) => result.finishPos === 1) || (draft.results || [])[0];
-                  return (
-                    <tr key={draft.id || draft.raceName}>
-                      <td style={{ ...tdStyle, fontWeight: 900 }}>{draft.raceName}</td>
-                      <td style={adminTdStyle}>{draft.draftSavedAt ? new Date(draft.draftSavedAt).toLocaleString() : "—"}</td>
-                      <td style={adminTdStyle}>{leader ? `#${leader.number} ${leader.name} (${leader.totalRacePoints} pts)` : "—"}</td>
-                      <td style={adminTdStyle}>{(draft.results || []).length}</td>
-                      <td style={adminTdStyle}>
-                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                          <button type="button" onClick={() => loadResultsDraft(draft)} style={adminSecondaryButtonStyle}>Load/Edit</button>
-                          <button type="button" onClick={() => postResultsDraft(draft)} style={adminPrimaryButtonStyle}>Post to Standings</button>
-                          <button type="button" onClick={() => deleteResultsDraft(draft.id)} style={adminDangerButtonStyle}>Delete</button>
+        {raceOperationsTab === "drafts" && <div style={{ ...adminReadableCardStyle, padding: isAdminMobile ? 18 : 26, borderRadius: 34, background: "linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.92))", boxShadow: "0 22px 60px rgba(15,23,42,0.12)", border: "1px solid rgba(255,255,255,0.75)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap", marginBottom: 18 }}>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.6, textTransform: "uppercase", color: "#af52de" }}>Race Control</div>
+              <h2 style={{ margin: "2px 0 0", fontSize: isAdminMobile ? 30 : 38, letterSpacing: -1.2 }}>Saved Drafts</h2>
+              <p style={{ margin: "8px 0 0", color: "#6b7280", fontWeight: 800, maxWidth: 720 }}>Private scoring notes for unfinished races. Resume a draft, post official results, or remove old race-control work.</p>
+            </div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+              <span style={{ display: "inline-flex", alignItems: "center", padding: "10px 14px", borderRadius: 999, background: "rgba(175,82,222,0.12)", color: "#7e22ce", fontWeight: 1000, fontSize: 13 }}>{(raceDrafts || []).length} Draft{(raceDrafts || []).length === 1 ? "" : "s"}</span>
+              <span style={{ display: "inline-flex", alignItems: "center", padding: "10px 14px", borderRadius: 999, background: "rgba(0,122,255,0.10)", color: "#1d4ed8", fontWeight: 1000, fontSize: 13 }}>Admin Only</span>
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "minmax(280px, 0.85fr) minmax(420px, 1.45fr)", gap: 16, alignItems: "start" }}>
+            <div style={{ borderRadius: 30, padding: 18, background: "linear-gradient(135deg, rgba(175,82,222,0.16), rgba(255,255,255,0.92))", border: "1px solid rgba(175,82,222,0.22)", boxShadow: "0 14px 35px rgba(15,23,42,0.08)" }}>
+              <div style={{ fontSize: 13, fontWeight: 1000, color: "#7e22ce", letterSpacing: 0.4 }}>Draft Queue</div>
+              <div style={{ width: 58, height: 58, borderRadius: 20, background: "linear-gradient(135deg, #af52de, #5856d6)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 1000, fontSize: 24, margin: "16px 0 14px", boxShadow: "0 14px 26px rgba(88,86,214,0.25)" }}>📄</div>
+              <h3 style={{ margin: 0, fontSize: 22, letterSpacing: -0.5 }}>Race Notes</h3>
+              <p style={{ margin: "8px 0 0", color: "#6b7280", fontWeight: 800, lineHeight: 1.45 }}>Drafts do not touch standings until they are posted as official results.</p>
+              <div style={{ display: "grid", gap: 10, marginTop: 18 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 14px", borderRadius: 18, background: "rgba(255,255,255,0.74)", border: "1px solid rgba(255,255,255,0.82)" }}><span style={{ color: "#6b7280", fontWeight: 900 }}>Saved Drafts</span><b>{(raceDrafts || []).length}</b></div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 14px", borderRadius: 18, background: "rgba(255,255,255,0.74)", border: "1px solid rgba(255,255,255,0.82)" }}><span style={{ color: "#6b7280", fontWeight: 900 }}>Visibility</span><b>Private</b></div>
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gap: 14 }}>
+              {(raceDrafts || []).length === 0 ? (
+                <div style={{ borderRadius: 30, padding: isAdminMobile ? 20 : 26, background: "rgba(255,255,255,0.86)", border: "1px solid rgba(229,231,235,0.92)", boxShadow: "0 14px 34px rgba(15,23,42,0.08)", color: "#4b5563", fontWeight: 850 }}>
+                  <div style={{ width: 48, height: 48, borderRadius: 18, background: "rgba(175,82,222,0.12)", color: "#7e22ce", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, marginBottom: 12 }}>📄</div>
+                  <div style={{ fontWeight: 1000, color: "#111827", fontSize: 20 }}>No private drafts saved</div>
+                  <div style={{ marginTop: 6 }}>Use <b>Save Admin-Only Draft</b> from Race Input when you need to pause scoring before posting official results.</div>
+                </div>
+              ) : (raceDrafts || []).map((draft) => {
+                const draftResults = draft.results || [];
+                const leader = draftResults.find((result) => Number(result.finishPos) === 1) || draftResults[0];
+                const completedDrivers = draftResults.filter((result) => result.finishPos !== "" && result.finishPos !== null && result.finishPos !== undefined).length;
+                const readyToPost = draftResults.length > 0 && completedDrivers === draftResults.length;
+                return (
+                  <div key={draft.id || draft.raceName} style={{ borderRadius: 30, padding: isAdminMobile ? 18 : 20, background: "rgba(255,255,255,0.88)", border: "1px solid rgba(229,231,235,0.92)", boxShadow: "0 14px 34px rgba(15,23,42,0.08)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 14, alignItems: "flex-start", flexWrap: "wrap" }}>
+                      <div style={{ display: "flex", gap: 14, minWidth: 0, alignItems: "center" }}>
+                        <div style={{ width: 54, height: 54, borderRadius: 20, background: "linear-gradient(135deg, #af52de, #5856d6)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 1000, fontSize: 24, boxShadow: "0 12px 24px rgba(88,86,214,0.24)", flexShrink: 0 }}>📄</div>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontWeight: 1000, color: "#111827", fontSize: 20, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{draft.raceName || "Race Results Draft"}</div>
+                          <div style={{ marginTop: 4, color: "#6b7280", fontWeight: 800, fontSize: 13 }}>{draft.draftSavedAt ? `Saved ${new Date(draft.draftSavedAt).toLocaleString()}` : "Saved time unavailable"}</div>
                         </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                      </div>
+                      <span style={{ display: "inline-flex", alignItems: "center", padding: "9px 12px", borderRadius: 999, background: readyToPost ? "rgba(52,199,89,0.12)" : "rgba(255,149,0,0.12)", color: readyToPost ? "#166534" : "#9a3412", fontWeight: 1000, fontSize: 12 }}>{readyToPost ? "Ready to Post" : "In Progress"}</span>
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(3, 1fr)", gap: 10, marginTop: 16 }}>
+                      <div style={{ padding: "12px 14px", borderRadius: 18, background: "rgba(248,250,252,0.9)", border: "1px solid rgba(229,231,235,0.78)" }}><div style={{ color: "#6b7280", fontSize: 12, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 0.8 }}>Completed</div><div style={{ marginTop: 4, fontWeight: 1000, color: "#111827" }}>{completedDrivers}/{draftResults.length || 0} Drivers</div></div>
+                      <div style={{ padding: "12px 14px", borderRadius: 18, background: "rgba(248,250,252,0.9)", border: "1px solid rgba(229,231,235,0.78)" }}><div style={{ color: "#6b7280", fontSize: 12, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 0.8 }}>Leader</div><div style={{ marginTop: 4, fontWeight: 1000, color: "#111827", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{leader ? `#${leader.number} ${leader.name}` : "—"}</div></div>
+                      <div style={{ padding: "12px 14px", borderRadius: 18, background: "rgba(248,250,252,0.9)", border: "1px solid rgba(229,231,235,0.78)" }}><div style={{ color: "#6b7280", fontSize: 12, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 0.8 }}>Rows</div><div style={{ marginTop: 4, fontWeight: 1000, color: "#111827" }}>{draftResults.length || 0} Scored</div></div>
+                    </div>
+
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end", marginTop: 16 }}>
+                      <button type="button" onClick={() => loadResultsDraft(draft)} style={{ ...adminSecondaryButtonStyle, borderRadius: 16, padding: "10px 14px" }}>Resume</button>
+                      <button type="button" onClick={() => postResultsDraft(draft)} style={{ ...adminPrimaryButtonStyle, borderRadius: 16, padding: "10px 14px" }}>Post Official Results</button>
+                      <button type="button" onClick={() => deleteResultsDraft(draft.id)} style={{ ...adminDangerButtonStyle, borderRadius: 16, padding: "10px 14px" }}>Delete</button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>}
         {/* Race History */}
@@ -1974,27 +2014,73 @@ export default function AdminPortal({
           </div>
         </div>}
         {/* Offense Log */}
-        {raceOperationsTab === "offenses" && <div style={adminReadableCardStyle}>
-          <h2 style={{ marginTop: 0 }}>Offense Log</h2>
-          {offenseLog.length === 0 ? <div style={{ opacity: 0.75 }}>No offenses logged yet.</div> : (
-            <div style={{ overflowX: "auto" }}>
-              <table style={adminTableStyle}>
-                <thead><tr><th style={adminThStyle}>Race</th><th style={adminThStyle}>#</th><th style={adminThStyle}>Driver</th><th style={adminThStyle}>Offense #</th><th style={adminThStyle}>Penalty</th></tr></thead>
-                <tbody>
-                  {offenseLog.map((entry, i) => (
-                    <tr key={`${entry.raceName}-${entry.number}-${i}`}>
-                      <td style={adminTdStyle}>{entry.raceName}</td>
-                      <td style={adminTdStyle}>{entry.number}</td>
-                      <td style={adminTdStyle}>{entry.name}</td>
-                      <td style={adminTdStyle}>#{entry.offenseNumber}</td>
-                      <td style={{ ...tdStyle, color: "#b42318" }}>-{entry.penaltyPoints} pts</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+        {raceOperationsTab === "offenses" && <div style={{ ...adminReadableCardStyle, padding: isAdminMobile ? 18 : 26, borderRadius: 34, background: "linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.92))", boxShadow: "0 22px 60px rgba(15,23,42,0.12)", border: "1px solid rgba(255,255,255,0.75)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap", marginBottom: 18 }}>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.6, textTransform: "uppercase", color: "#ff3b30" }}>Race Control</div>
+              <h2 style={{ margin: "2px 0 0", fontSize: isAdminMobile ? 30 : 38, letterSpacing: -1.2 }}>Offense Log</h2>
+              <p style={{ margin: "8px 0 0", color: "#6b7280", fontWeight: 800, maxWidth: 720 }}>Incident cards for penalties, repeat offenses, and race-control discipline history.</p>
             </div>
-          )}
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+              <span style={{ display: "inline-flex", alignItems: "center", padding: "10px 14px", borderRadius: 999, background: offenseLog.length ? "rgba(255,59,48,0.12)" : "rgba(52,199,89,0.12)", color: offenseLog.length ? "#b42318" : "#15803d", fontWeight: 1000, fontSize: 13 }}>{offenseLog.length} Offense{offenseLog.length === 1 ? "" : "s"}</span>
+              <span style={{ display: "inline-flex", alignItems: "center", padding: "10px 14px", borderRadius: 999, background: "rgba(142,142,147,0.12)", color: "#6b7280", fontWeight: 1000, fontSize: 13 }}>Season Log</span>
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "minmax(280px, 0.85fr) minmax(420px, 1.45fr)", gap: 16, alignItems: "start" }}>
+            <div style={{ borderRadius: 30, padding: 18, background: "linear-gradient(135deg, rgba(255,59,48,0.14), rgba(255,255,255,0.92))", border: "1px solid rgba(255,59,48,0.22)", boxShadow: "0 14px 35px rgba(15,23,42,0.08)" }}>
+              <div style={{ fontSize: 13, fontWeight: 1000, color: "#b42318", letterSpacing: 0.4 }}>Discipline Summary</div>
+              <div style={{ width: 58, height: 58, borderRadius: 20, background: "linear-gradient(135deg, #ff3b30, #ff9500)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 1000, fontSize: 24, margin: "16px 0 14px", boxShadow: "0 14px 26px rgba(255,59,48,0.22)" }}>⚠️</div>
+              <h3 style={{ margin: 0, fontSize: 22, letterSpacing: -0.5 }}>Race Control</h3>
+              <p style={{ margin: "8px 0 0", color: "#6b7280", fontWeight: 800, lineHeight: 1.45 }}>Every posted offense becomes a card so discipline history is easy to scan.</p>
+              <div style={{ display: "grid", gap: 10, marginTop: 18 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 14px", borderRadius: 18, background: "rgba(255,255,255,0.74)", border: "1px solid rgba(255,255,255,0.82)" }}><span style={{ color: "#6b7280", fontWeight: 900 }}>Total Offenses</span><b>{offenseLog.length}</b></div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 14px", borderRadius: 18, background: "rgba(255,255,255,0.74)", border: "1px solid rgba(255,255,255,0.82)" }}><span style={{ color: "#6b7280", fontWeight: 900 }}>Penalty Points</span><b>-{offenseLog.reduce((sum, entry) => sum + Number(entry.penaltyPoints || 0), 0)}</b></div>
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gap: 14 }}>
+              {offenseLog.length === 0 ? (
+                <div style={{ borderRadius: 30, padding: isAdminMobile ? 20 : 26, background: "rgba(255,255,255,0.86)", border: "1px solid rgba(229,231,235,0.92)", boxShadow: "0 14px 34px rgba(15,23,42,0.08)", color: "#4b5563", fontWeight: 850 }}>
+                  <div style={{ width: 48, height: 48, borderRadius: 18, background: "rgba(52,199,89,0.12)", color: "#166534", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, marginBottom: 12 }}>✓</div>
+                  <div style={{ fontWeight: 1000, color: "#111827", fontSize: 20 }}>No offenses logged</div>
+                  <div style={{ marginTop: 6 }}>Penalties marked in Race Input will appear here after results are posted.</div>
+                </div>
+              ) : offenseLog.map((entry, i) => {
+                const penaltyValue = Number(entry.penaltyPoints || 0);
+                const severe = penaltyValue >= 25 || Number(entry.offenseNumber || 0) >= 3;
+                const warning = penaltyValue > 0 && !severe;
+                return (
+                  <details key={`${entry.raceName}-${entry.number}-${i}`} style={{ borderRadius: 30, padding: 0, background: "rgba(255,255,255,0.88)", border: "1px solid rgba(229,231,235,0.92)", boxShadow: "0 14px 34px rgba(15,23,42,0.08)", overflow: "hidden" }}>
+                    <summary style={{ listStyle: "none", cursor: "pointer", padding: isAdminMobile ? 18 : 20 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: 14, alignItems: "flex-start", flexWrap: "wrap" }}>
+                        <div style={{ display: "flex", gap: 14, alignItems: "center", minWidth: 0 }}>
+                          <div style={{ width: 54, height: 54, borderRadius: "50%", background: "linear-gradient(135deg, #111827, #4b5563)", color: "#fff", border: "2px solid rgba(255,204,0,0.78)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 1000, fontSize: 15, flexShrink: 0 }}>{entry.number}</div>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontWeight: 1000, color: "#111827", fontSize: 20, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{entry.name || "Driver"}</div>
+                            <div style={{ marginTop: 4, color: "#6b7280", fontWeight: 800, fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{entry.raceName || "Race"}</div>
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                          <span style={{ display: "inline-flex", alignItems: "center", padding: "9px 12px", borderRadius: 999, background: severe ? "rgba(255,59,48,0.12)" : warning ? "rgba(255,149,0,0.12)" : "rgba(142,142,147,0.12)", color: severe ? "#b42318" : warning ? "#9a3412" : "#6b7280", fontWeight: 1000, fontSize: 12 }}>{severe ? "Major" : warning ? "Penalty" : "Logged"}</span>
+                          <span style={{ display: "inline-flex", alignItems: "center", padding: "9px 12px", borderRadius: 999, background: "rgba(255,59,48,0.12)", color: "#b42318", fontWeight: 1000, fontSize: 12 }}>-{penaltyValue} pts</span>
+                        </div>
+                      </div>
+                    </summary>
+                    <div style={{ padding: isAdminMobile ? "0 18px 18px" : "0 20px 20px" }}>
+                      <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(3, 1fr)", gap: 10, borderTop: "1px solid rgba(229,231,235,0.78)", paddingTop: 16 }}>
+                        <div style={{ padding: "12px 14px", borderRadius: 18, background: "rgba(248,250,252,0.9)", border: "1px solid rgba(229,231,235,0.78)" }}><div style={{ color: "#6b7280", fontSize: 12, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 0.8 }}>Offense</div><div style={{ marginTop: 4, fontWeight: 1000, color: "#111827" }}>#{entry.offenseNumber || i + 1}</div></div>
+                        <div style={{ padding: "12px 14px", borderRadius: 18, background: "rgba(248,250,252,0.9)", border: "1px solid rgba(229,231,235,0.78)" }}><div style={{ color: "#6b7280", fontSize: 12, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 0.8 }}>Penalty</div><div style={{ marginTop: 4, fontWeight: 1000, color: penaltyValue ? "#b42318" : "#111827" }}>-{penaltyValue} points</div></div>
+                        <div style={{ padding: "12px 14px", borderRadius: 18, background: "rgba(248,250,252,0.9)", border: "1px solid rgba(229,231,235,0.78)" }}><div style={{ color: "#6b7280", fontSize: 12, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 0.8 }}>Status</div><div style={{ marginTop: 4, fontWeight: 1000, color: "#111827" }}>{severe ? "Review Required" : "Served"}</div></div>
+                      </div>
+                    </div>
+                  </details>
+                );
+              })}
+            </div>
+          </div>
         </div>}
+
 
             </div>
           </div>
