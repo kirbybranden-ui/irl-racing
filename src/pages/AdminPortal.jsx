@@ -1607,42 +1607,89 @@ export default function AdminPortal({
               )}
 
         {/* Track Management */}
-        {raceOperationsTab === "tracks" && <div style={adminReadableCardStyle}>
-          <h2 style={{ marginTop: 0 }}>Track Management</h2>
-          <div style={{ opacity: 0.78, marginBottom: 14 }}>Add or remove tracks from the race schedule. Stage count controls how many scoring stages each track has (1, 2, or 3).</div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, marginBottom: 16 }}>
-            <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Track Name</div><input style={adminInputStyle} value={newTrackName} onChange={(e) => setNewTrackName(e.target.value)} placeholder="Example: Bristol Night Race" /></div>
-            <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Stage Count</div><select style={adminInputStyle} value={newTrackStageCount} onChange={(e) => setNewTrackStageCount(Number(e.target.value))}><option value={1}>1 stage</option><option value={2}>2 stages</option><option value={3}>3 stages</option></select></div>
+        {raceOperationsTab === "tracks" && <div style={{ ...adminReadableCardStyle, padding: isAdminMobile ? 18 : 26, borderRadius: 34, background: "linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.92))", boxShadow: "0 22px 60px rgba(15,23,42,0.12)", border: "1px solid rgba(255,255,255,0.75)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap", marginBottom: 18 }}>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.6, textTransform: "uppercase", color: "#34c759" }}>Race Operations</div>
+              <h2 style={{ margin: "3px 0 6px", fontSize: isAdminMobile ? 30 : 38, letterSpacing: -1.35 }}>Track Management</h2>
+              <div style={{ color: "#6b7280", fontWeight: 750, maxWidth: 720 }}>Update the race schedule only when needed. Stage counts feed race input and scoring setup.</div>
+            </div>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <div style={{ padding: "10px 14px", borderRadius: 999, background: "rgba(52,199,89,0.12)", color: "#166534", fontWeight: 1000, fontSize: 13 }}>{tracks.length} Tracks</div>
+              <div style={{ padding: "10px 14px", borderRadius: 999, background: "rgba(0,122,255,0.10)", color: "#1d4ed8", fontWeight: 1000, fontSize: 13 }}>{tracks.filter((t) => Number(t.stageCount) === 3).length} 3-Stage</div>
+            </div>
           </div>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 18 }}>
-            <button onClick={addTrack} style={adminPrimaryButtonStyle}>Add Track</button>
-            <button onClick={restoreDefaultTracks} style={adminSecondaryButtonStyle}>Restore Default Schedule</button>
-          </div>
-          <div style={{ overflowX: "auto" }}>
-            <table style={adminTableStyle}>
-              <thead><tr><th style={adminThStyle}>Track Name</th><th style={adminThStyle}>Stage Count</th><th style={adminThStyle}>Used in History?</th><th style={adminThStyle}>Actions</th></tr></thead>
-              <tbody>
+
+          <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "minmax(280px, 0.85fr) minmax(420px, 1.45fr)", gap: 16, alignItems: "start" }}>
+            <div style={{ borderRadius: 30, padding: 18, background: "linear-gradient(135deg, rgba(52,199,89,0.16), rgba(255,255,255,0.92))", border: "1px solid rgba(52,199,89,0.22)", boxShadow: "0 14px 35px rgba(15,23,42,0.08)" }}>
+              <div style={{ fontSize: 13, fontWeight: 1000, color: "#166534", letterSpacing: 0.4 }}>Add Track</div>
+              <div style={{ marginTop: 12 }}>
+                <div style={{ marginBottom: 6, fontWeight: 900, color: "#374151" }}>Track Name</div>
+                <input style={{ ...adminInputStyle, borderRadius: 18, background: "rgba(255,255,255,0.88)" }} value={newTrackName} onChange={(e) => setNewTrackName(e.target.value)} placeholder="Example: Bristol Night Race" />
+              </div>
+              <div style={{ marginTop: 12 }}>
+                <div style={{ marginBottom: 6, fontWeight: 900, color: "#374151" }}>Stage Count</div>
+                <select style={{ ...adminInputStyle, borderRadius: 18, background: "rgba(255,255,255,0.88)" }} value={newTrackStageCount} onChange={(e) => setNewTrackStageCount(Number(e.target.value))}>
+                  <option value={1}>1 stage</option>
+                  <option value={2}>2 stages</option>
+                  <option value={3}>3 stages</option>
+                </select>
+              </div>
+              <button onClick={addTrack} style={{ ...adminPrimaryButtonStyle, width: "100%", marginTop: 14, borderRadius: 18 }}>Add Track</button>
+              <button onClick={restoreDefaultTracks} style={{ ...adminSecondaryButtonStyle, width: "100%", marginTop: 10, borderRadius: 18 }}>Restore Default Schedule</button>
+              <div style={{ marginTop: 12, color: "#6b7280", fontSize: 12, fontWeight: 750, lineHeight: 1.35 }}>Tip: keep this tucked away unless the league schedule or stage format changes.</div>
+            </div>
+
+            <div style={{ borderRadius: 30, overflow: "hidden", background: "rgba(255,255,255,0.86)", border: "1px solid rgba(229,231,235,0.95)", boxShadow: "0 14px 35px rgba(15,23,42,0.07)" }}>
+              <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "1.2fr 0.6fr 0.7fr 0.7fr", gap: 10, padding: "12px 16px", background: "rgba(243,244,246,0.72)", color: "#6b7280", fontSize: 12, fontWeight: 1000, letterSpacing: 0.8, textTransform: "uppercase" }}>
+                <div>Track</div>
+                {!isAdminMobile && <div>Stages</div>}
+                {!isAdminMobile && <div>History</div>}
+                {!isAdminMobile && <div style={{ textAlign: "right" }}>Action</div>}
+              </div>
+
+              <div style={{ display: "grid" }}>
                 {tracks.length === 0 ? (
-                  <tr><td style={adminTdStyle} colSpan={4}><div style={{ opacity: 0.75 }}>No tracks defined. Add one above or restore the default schedule.</div></td></tr>
+                  <div style={{ padding: 18, color: "#6b7280", fontWeight: 750 }}>No tracks defined. Add one on the left or restore the default schedule.</div>
                 ) : tracks.map((t) => {
                   const usedInHistory = seasons.some((s) => (s.raceHistory || []).some((r) => r.raceName === t.name));
                   return (
-                    <tr key={t.name}>
-                      <td style={{ ...tdStyle, fontWeight: 700 }}>{t.name}</td>
-                      <td style={adminTdStyle}>
-                        <select style={{ ...inputStyle, maxWidth: 160 }} value={t.stageCount} onChange={(e) => updateTrackStageCount(t.name, e.target.value)}>
+                    <div key={t.name} style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "1.2fr 0.6fr 0.7fr 0.7fr", gap: 10, alignItems: "center", padding: "14px 16px", borderTop: "1px solid rgba(229,231,235,0.75)" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+                        <div style={{ width: 42, height: 42, borderRadius: 16, background: "linear-gradient(135deg, #34c759, #30d158)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 1000, boxShadow: "0 10px 20px rgba(52,199,89,0.24)" }}>🏁</div>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontWeight: 1000, color: "#111827", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.name}</div>
+                          {isAdminMobile && <div style={{ marginTop: 5, color: "#6b7280", fontSize: 12, fontWeight: 800 }}>{t.stageCount} stage{Number(t.stageCount) === 1 ? "" : "s"} • {usedInHistory ? "Used in history" : "Not used yet"}</div>}
+                        </div>
+                      </div>
+
+                      <div style={{ display: isAdminMobile ? "none" : "block" }}>
+                        <select style={{ ...adminInputStyle, maxWidth: 150, borderRadius: 16, padding: "9px 11px" }} value={t.stageCount} onChange={(e) => updateTrackStageCount(t.name, e.target.value)}>
                           <option value={1}>1 stage</option>
                           <option value={2}>2 stages</option>
                           <option value={3}>3 stages</option>
                         </select>
-                      </td>
-                      <td style={adminTdStyle}>{usedInHistory ? <span style={{ color: "#f59e0b", fontWeight: 700 }}>Yes</span> : <span style={{ opacity: 0.7 }}>No</span>}</td>
-                      <td style={adminTdStyle}><button onClick={() => removeTrack(t.name)} style={adminDangerButtonStyle}>Remove</button></td>
-                    </tr>
+                      </div>
+
+                      <div style={{ display: isAdminMobile ? "none" : "block" }}>
+                        <span style={{ display: "inline-flex", alignItems: "center", padding: "8px 11px", borderRadius: 999, background: usedInHistory ? "rgba(255,149,0,0.14)" : "rgba(142,142,147,0.12)", color: usedInHistory ? "#b45309" : "#6b7280", fontWeight: 1000, fontSize: 12 }}>{usedInHistory ? "Used" : "Unused"}</span>
+                      </div>
+
+                      <div style={{ display: "flex", justifyContent: isAdminMobile ? "flex-start" : "flex-end", gap: 8, flexWrap: "wrap" }}>
+                        {isAdminMobile && (
+                          <select style={{ ...adminInputStyle, maxWidth: 150, borderRadius: 16, padding: "9px 11px" }} value={t.stageCount} onChange={(e) => updateTrackStageCount(t.name, e.target.value)}>
+                            <option value={1}>1 stage</option>
+                            <option value={2}>2 stages</option>
+                            <option value={3}>3 stages</option>
+                          </select>
+                        )}
+                        <button onClick={() => removeTrack(t.name)} style={{ ...adminDangerButtonStyle, borderRadius: 16, padding: "9px 12px" }}>Remove</button>
+                      </div>
+                    </div>
                   );
                 })}
-              </tbody>
-            </table>
+              </div>
+            </div>
           </div>
         </div>}
         {/* Start & Park Requests moved into Human Resources > Start & Park. */}
