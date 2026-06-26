@@ -229,6 +229,9 @@ export default function AdminPortal({
   const [adminUnreadMessages, setAdminUnreadMessages] = useState([]);
   const [adminMessagesLoading, setAdminMessagesLoading] = useState(false);
   const [adminMessagesError, setAdminMessagesError] = useState("");
+  const [financeTransactions, setFinanceTransactions] = useState([]);
+  const [financeLoading, setFinanceLoading] = useState(false);
+  const [financeError, setFinanceError] = useState("");
 
   const adminUnreadCount = adminUnreadMessages.length;
 
@@ -289,8 +292,37 @@ export default function AdminPortal({
     loadAdminUnreadMessages();
   }
 
+  async function loadFinanceDepartment() {
+    if (!supabase) return;
+    setFinanceLoading(true);
+    setFinanceError("");
+
+    const { data, error } = await supabase
+      .from("league_transactions")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(75);
+
+    if (error) {
+      setFinanceError("Could not load league transactions. Check league_transactions select policy.");
+      setFinanceTransactions([]);
+      setFinanceLoading(false);
+      return;
+    }
+
+    setFinanceTransactions(data || []);
+    setFinanceLoading(false);
+  }
+
+  const getFinanceAmount = (item) => Number(item?.amount ?? item?.value ?? item?.transaction_amount ?? item?.payout ?? 0) || 0;
+  const getFinanceType = (item) => String(item?.type || item?.category || item?.transaction_type || item?.reason || "Transaction");
+  const getFinanceTeam = (item) => item?.team || item?.team_abbr || item?.team_name || item?.from_team || item?.to_team || "League";
+  const getFinanceNote = (item) => item?.note || item?.notes || item?.description || item?.memo || item?.reason || "League finance activity";
+  const getFinanceDate = (item) => item?.created_at || item?.submitted_at || item?.paid_at || item?.updated_at;
+
   useEffect(() => {
     loadAdminUnreadMessages();
+    loadFinanceDepartment();
     const interval = setInterval(loadAdminUnreadMessages, 60000);
     return () => clearInterval(interval);
   }, [supabase]);
@@ -299,7 +331,6 @@ export default function AdminPortal({
     { label: "Admin Home", action: goAdmin, primary: true },
     { label: "Ticker Overlay", action: () => setViewMode("overlay-ticker") },
     { label: "Standings", action: () => (window.location.pathname = "/standings") },
-    { label: "Team HQ", action: () => (window.location.pathname = "/team-hq") },
     { label: "Streams", action: () => (window.location.pathname = "/streams") },
     { label: "Discord", action: () => (window.location.pathname = "/discord") },
     { label: "News", action: () => (window.location.pathname = "/news") },
@@ -317,10 +348,24 @@ export default function AdminPortal({
     { title: "Race Control", text: "Post results, save drafts, penalties, DNFs, stages, fastest lap.", action: () => document.getElementById("admin-race-control")?.scrollIntoView({ behavior: "smooth", block: "start" }) },
     { title: "Driver Management", text: "Add, edit, retire, restore, approve pending drivers.", action: () => document.getElementById("admin-driver-management")?.scrollIntoView({ behavior: "smooth", block: "start" }) },
     { title: "Team Owners", text: "Assign owners and manage owner access/password routing.", action: () => document.getElementById("admin-owner-assignments")?.scrollIntoView({ behavior: "smooth", block: "start" }) },
+    { title: "Finance Department", text: "Team wallets, payouts, transactions, caps, and league money controls.", action: () => document.getElementById("admin-finance-department")?.scrollIntoView({ behavior: "smooth", block: "start" }) },
     { title: "Paint Scheme Payouts", text: "$10,000 weekly driver payout with $250,000 season cap.", action: () => document.getElementById("admin-paint-payouts")?.scrollIntoView({ behavior: "smooth", block: "start" }) },
     { title: "Messages", text: "Unread inbox, league broadcasts, owner notices, and create-message tools.", action: openAdminMessages },
     { title: "Backup Center", text: "Export, import, restore, and protect league data.", action: () => document.getElementById("admin-backup-center")?.scrollIntoView({ behavior: "smooth", block: "start" }) },
   ];
+
+
+  const financeTeamWallets = (teamStandings || [])
+    .filter((team) => team.team && team.team !== "Independent" && team.team !== "IND")
+    .map((team) => ({
+      team: team.team,
+      name: getTeamFullName(team.team),
+      balance: Number(team.budget ?? team.balance ?? team.cash ?? team.money ?? 0) || 0,
+      drivers: Number(team.drivers ?? team.driverCount ?? team.count ?? 0) || 0,
+    }));
+
+  const financeTransactionTotal = financeTransactions.reduce((sum, item) => sum + getFinanceAmount(item), 0);
+  const financeRecentPayouts = financeTransactions.filter((item) => /payout|paint|bonus|race|salary|contract|fine|penalty/i.test(getFinanceType(item) + " " + getFinanceNote(item))).slice(0, 8);
 
   const applePageStyle = {
     ...appShellStyle,
@@ -659,6 +704,58 @@ export default function AdminPortal({
     marginBottom: 10,
   };
 
+
+  const walletDepartmentStyle = {
+    ...adminReadableCardStyle,
+    padding: 24,
+    background: "linear-gradient(180deg, #ffffff 0%, #f5f5f7 100%)",
+    border: "1px solid #e5e7eb",
+    boxShadow: "0 22px 60px rgba(15,23,42,0.10)",
+  };
+
+  const walletCardStyle = {
+    border: 0,
+    borderRadius: 28,
+    padding: 22,
+    color: "white",
+    minHeight: 158,
+    boxShadow: "0 22px 45px rgba(15,23,42,0.18)",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "space-between",
+    overflow: "hidden",
+    position: "relative",
+  };
+
+  const walletLightCardStyle = {
+    background: "#ffffff",
+    border: "1px solid #e5e7eb",
+    borderRadius: 24,
+    padding: 18,
+    boxShadow: "0 14px 34px rgba(15,23,42,0.07)",
+  };
+
+  const walletTransactionRowStyle = {
+    display: "grid",
+    gridTemplateColumns: "44px 1fr auto",
+    gap: 12,
+    alignItems: "center",
+    padding: "13px 0",
+    borderBottom: "1px solid #eef0f4",
+  };
+
+  const walletIconStyle = {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    background: "linear-gradient(135deg, #34c759, #30d158)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: 21,
+    boxShadow: "0 8px 18px rgba(52,199,89,0.25)",
+  };
+
   const appleMessageBubbleStyle = {
     alignSelf: "flex-start",
     maxWidth: "760px",
@@ -767,6 +864,112 @@ export default function AdminPortal({
                 <div style={{ color: "#4b5563", fontWeight: 650, lineHeight: 1.45 }}>{tile.text}</div>
               </button>
             ))}
+          </div>
+        </div>
+
+        <div id="admin-finance-department" style={walletDepartmentStyle}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, flexWrap: "wrap", marginBottom: 20 }}>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.8, textTransform: "uppercase", color: "#6b7280" }}>Finance Department</div>
+              <h2 style={{ margin: "4px 0 0", fontSize: 34, letterSpacing: -1 }}>Apple Wallet-style League Money Center</h2>
+              <p style={{ margin: "8px 0 0", color: "#4b5563", fontWeight: 650, maxWidth: 850 }}>
+                All money controls live here: team wallets, payouts, paint scheme awards, penalties, contract money, transaction history, and finance audits. This replaces sending admins to Team HQ for money items.
+              </p>
+            </div>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <button type="button" onClick={loadFinanceDepartment} style={adminSecondaryButtonStyle}>{financeLoading ? "Refreshing..." : "Refresh Finance"}</button>
+              <button type="button" onClick={() => document.getElementById("admin-paint-payouts")?.scrollIntoView({ behavior: "smooth", block: "start" })} style={adminPrimaryButtonStyle}>Paint Payouts</button>
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16, marginBottom: 20 }}>
+            <div style={{ ...walletCardStyle, background: "linear-gradient(135deg, #111827, #374151)" }}>
+              <div style={{ position: "absolute", right: -35, top: -35, width: 120, height: 120, borderRadius: 999, background: "rgba(255,255,255,0.10)" }} />
+              <div>
+                <div style={{ opacity: 0.72, fontWeight: 900, letterSpacing: 1.5, textTransform: "uppercase", fontSize: 12 }}>League Wallet</div>
+                <div style={{ fontSize: 34, fontWeight: 1000, letterSpacing: -1, marginTop: 10 }}>{money(financeTransactionTotal)}</div>
+              </div>
+              <div style={{ opacity: 0.8, fontWeight: 800 }}>Recent transaction net</div>
+            </div>
+
+            <div style={{ ...walletCardStyle, background: "linear-gradient(135deg, #007aff, #5e5ce6)" }}>
+              <div>
+                <div style={{ opacity: 0.78, fontWeight: 900, letterSpacing: 1.5, textTransform: "uppercase", fontSize: 12 }}>Paint Program</div>
+                <div style={{ fontSize: 32, fontWeight: 1000, letterSpacing: -1, marginTop: 10 }}>$10,000</div>
+              </div>
+              <div style={{ opacity: 0.86, fontWeight: 800 }}>$250,000 season max per driver</div>
+            </div>
+
+            <div style={{ ...walletCardStyle, background: "linear-gradient(135deg, #34c759, #0a7f3f)" }}>
+              <div>
+                <div style={{ opacity: 0.78, fontWeight: 900, letterSpacing: 1.5, textTransform: "uppercase", fontSize: 12 }}>Team Wallets</div>
+                <div style={{ fontSize: 34, fontWeight: 1000, letterSpacing: -1, marginTop: 10 }}>{financeTeamWallets.length}</div>
+              </div>
+              <div style={{ opacity: 0.86, fontWeight: 800 }}>Active organization accounts</div>
+            </div>
+          </div>
+
+          {financeError && <div style={{ background: "#fff1f2", color: "#b42318", borderRadius: 16, padding: 14, fontWeight: 900, marginBottom: 16 }}>{financeError}</div>}
+
+          <div style={{ display: "grid", gridTemplateColumns: "minmax(280px, 0.9fr) minmax(320px, 1.1fr)", gap: 16 }}>
+            <div style={walletLightCardStyle}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Team Cards</div>
+                  <h3 style={{ margin: "3px 0 0", fontSize: 24, letterSpacing: -0.5 }}>Wallet Stack</h3>
+                </div>
+                <span style={{ background: "#f2f2f7", borderRadius: 999, padding: "8px 10px", fontSize: 12, fontWeight: 1000 }}>{financeTeamWallets.length} teams</span>
+              </div>
+              <div style={{ display: "grid", gap: 10, maxHeight: 390, overflowY: "auto", paddingRight: 4 }}>
+                {financeTeamWallets.length === 0 ? (
+                  <div style={{ color: "#6b7280", fontWeight: 750, padding: 14 }}>No team wallet data found yet.</div>
+                ) : financeTeamWallets.map((wallet, index) => (
+                  <div key={wallet.team} style={{ borderRadius: 20, padding: 16, color: "white", background: index % 3 === 0 ? "linear-gradient(135deg, #1c1c1e, #3a3a3c)" : index % 3 === 1 ? "linear-gradient(135deg, #007aff, #64d2ff)" : "linear-gradient(135deg, #af52de, #ff2d55)", boxShadow: "0 12px 26px rgba(15,23,42,0.13)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                      <div>
+                        <div style={{ fontWeight: 1000, fontSize: 18 }}>{wallet.name}</div>
+                        <div style={{ opacity: 0.78, fontSize: 12, fontWeight: 850, marginTop: 3 }}>{wallet.team}</div>
+                      </div>
+                      <div style={{ textAlign: "right", fontWeight: 1000 }}>{money(wallet.balance)}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div style={walletLightCardStyle}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Recent Money Activity</div>
+                  <h3 style={{ margin: "3px 0 0", fontSize: 24, letterSpacing: -0.5 }}>Transactions</h3>
+                </div>
+                <span style={{ background: "#f2f2f7", borderRadius: 999, padding: "8px 10px", fontSize: 12, fontWeight: 1000 }}>{financeTransactions.length} loaded</span>
+              </div>
+
+              {financeLoading ? (
+                <div style={{ color: "#6b7280", fontWeight: 800, padding: 18 }}>Loading finance activity...</div>
+              ) : financeRecentPayouts.length === 0 ? (
+                <div style={{ color: "#6b7280", fontWeight: 750, padding: 14 }}>No recent finance transactions found yet.</div>
+              ) : (
+                <div style={{ maxHeight: 390, overflowY: "auto", paddingRight: 4 }}>
+                  {financeRecentPayouts.map((item, index) => {
+                    const amount = getFinanceAmount(item);
+                    const date = getFinanceDate(item);
+                    return (
+                      <div key={item.id || `${getFinanceType(item)}-${index}`} style={walletTransactionRowStyle}>
+                        <div style={walletIconStyle}>$</div>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontWeight: 1000, color: "#111827", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{getFinanceType(item)}</div>
+                          <div style={{ color: "#6b7280", fontWeight: 700, fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{getFinanceTeam(item)} · {getFinanceNote(item)}</div>
+                          {date && <div style={{ color: "#9ca3af", fontWeight: 750, fontSize: 12, marginTop: 2 }}>{new Date(date).toLocaleString()}</div>}
+                        </div>
+                        <div style={{ fontWeight: 1000, color: amount < 0 ? "#ff3b30" : "#34c759", whiteSpace: "nowrap" }}>{money(amount)}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
