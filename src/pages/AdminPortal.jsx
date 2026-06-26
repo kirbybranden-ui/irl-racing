@@ -245,6 +245,7 @@ export default function AdminPortal({
   const [financeContractsLoading, setFinanceContractsLoading] = useState(false);
   const [hrAccessStatus, setHrAccessStatus] = useState("");
   const [hrAccessError, setHrAccessError] = useState("");
+  const [selectedAccessDriverNumber, setSelectedAccessDriverNumber] = useState("");
   const [financeForm, setFinanceForm] = useState({ driverId: "", team: "", amount: "", reason: "", note: "" });
   const [adminViewportWidth, setAdminViewportWidth] = useState(() => (typeof window !== "undefined" ? window.innerWidth : 1200));
 
@@ -258,6 +259,24 @@ export default function AdminPortal({
 
   const isAdminMobile = adminViewportWidth < 760;
   const adminUnreadCount = adminUnreadMessages.length;
+
+  const accessDrivers = (visibleDrivers || drivers || []).filter((driver) => driver?.number && !isInactivePlaceholderDriver?.(driver));
+  const selectedAccessDriver = accessDrivers.find((driver) => String(driver.number) === String(selectedAccessDriverNumber)) || accessDrivers[0] || null;
+  const selectedAccessCodeRow = selectedAccessDriver
+    ? (driverAccessCodes || []).find((row) => String(row.driver_number) === String(selectedAccessDriver.number) && row.active !== false)
+    : null;
+  const selectedAccessCode = selectedAccessCodeRow?.code || "";
+
+  useEffect(() => {
+    if (!accessDrivers.length) {
+      if (selectedAccessDriverNumber) setSelectedAccessDriverNumber("");
+      return;
+    }
+    const stillExists = accessDrivers.some((driver) => String(driver.number) === String(selectedAccessDriverNumber));
+    if (!selectedAccessDriverNumber || !stillExists) {
+      setSelectedAccessDriverNumber(String(accessDrivers[0].number));
+    }
+  }, [accessDrivers.map((driver) => String(driver.number)).join("|"), selectedAccessDriverNumber]);
 
   function getAdminMessageRecipientLabel(message) {
     const type = String(message?.recipient_type || "").toLowerCase();
@@ -1761,48 +1780,95 @@ export default function AdminPortal({
                     <div style={{ marginBottom: 12, padding: "10px 12px", borderRadius: 16, background: "#fef2f2", color: "#991b1b", fontWeight: 900 }}>{hrAccessError}</div>
                   ) : null}
                   <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "1.35fr 0.65fr", gap: 14 }}>
-                    <div style={{ borderRadius: 24, background: "#ffffff", border: "1px solid #e5e7eb", padding: 16 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
+                    <div style={{ borderRadius: 30, background: "#ffffff", border: "1px solid #e5e7eb", overflow: "hidden", boxShadow: "0 18px 45px rgba(15,23,42,0.08)" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap", padding: 16, borderBottom: "1px solid #eef2f7", background: "linear-gradient(180deg, #ffffff, #f8fafc)" }}>
                         <div>
-                          <h3 style={{ margin: 0 }}>Driver Contract Access</h3>
-                          <div style={{ marginTop: 4, color: "#6b7280", fontSize: 13, fontWeight: 750 }}>Generate, reset, copy, or clear driver codes used to unlock contract offers.</div>
+                          <h3 style={{ margin: 0, letterSpacing: -0.25 }}>Driver Contract Access</h3>
+                          <div style={{ marginTop: 4, color: "#6b7280", fontSize: 13, fontWeight: 750 }}>Apple Contacts-style access list. Click a driver to manage their contract password.</div>
                         </div>
                         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                          <button type="button" onClick={resetAllDriverAccessCodes} style={adminPrimaryButtonStyle}>Reset All Driver Codes</button>
-                          <button type="button" onClick={clearAllDriverAccessCodes} style={dangerButtonStyle}>Clear All Codes</button>
+                          <button type="button" onClick={resetAllDriverAccessCodes} style={adminPrimaryButtonStyle}>Reset All</button>
+                          <button type="button" onClick={clearAllDriverAccessCodes} style={dangerButtonStyle}>Clear All</button>
                         </div>
                       </div>
-                      <div style={{ overflowX: "auto", maxHeight: 520, overflowY: "auto" }}>
-                        <table style={adminTableStyle}>
-                          <thead>
-                            <tr>
-                              <th style={adminThStyle}>Driver</th>
-                              <th style={adminThStyle}>Team</th>
-                              <th style={adminThStyle}>Code</th>
-                              <th style={adminThStyle}>Reset Options</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {(visibleDrivers || []).map((driver) => {
-                              const codeRow = driverAccessCodes.find((row) => String(row.driver_number) === String(driver.number) && row.active !== false);
-                              const code = codeRow?.code || "";
-                              return (
-                                <tr key={driver.id || driver.number}>
-                                  <td style={{ ...tdStyle, fontWeight: 900 }}>#{driver.number} {driver.name}</td>
-                                  <td style={adminTdStyle}>{getTeamFullName(driver.team)} <span style={{ fontSize: 11, opacity: 0.55 }}>({driver.team || "—"})</span></td>
-                                  <td style={{ ...tdStyle, fontFamily: "monospace", fontWeight: 900, color: code ? "#111827" : "#ef4444" }}>{code || "Not generated"}</td>
-                                  <td style={adminTdStyle}>
-                                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                                      <button type="button" onClick={() => resetSingleDriverAccessCode(driver)} style={adminPrimaryButtonStyle}>{code ? "Reset Code" : "Generate Code"}</button>
-                                      <button type="button" onClick={() => copyDriverAccessCode(driver, code)} disabled={!code} style={{ ...secondaryButtonStyle, opacity: code ? 1 : 0.45 }}>Copy</button>
-                                      <button type="button" onClick={() => clearDriverAccessCode(driver)} disabled={!code} style={{ ...dangerButtonStyle, opacity: code ? 1 : 0.45 }}>Clear</button>
-                                    </div>
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
+
+                      <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "320px 1fr", minHeight: 520 }}>
+                        <div style={{ borderRight: isAdminMobile ? "none" : "1px solid #eef2f7", borderBottom: isAdminMobile ? "1px solid #eef2f7" : "none", background: "#f9fafb", maxHeight: isAdminMobile ? 320 : 560, overflowY: "auto" }}>
+                          {(accessDrivers || []).map((driver) => {
+                            const codeRow = (driverAccessCodes || []).find((row) => String(row.driver_number) === String(driver.number) && row.active !== false);
+                            const isSelected = selectedAccessDriver && String(selectedAccessDriver.number) === String(driver.number);
+                            const initials = String(driver.name || "?").split(/\s|_/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "D";
+                            return (
+                              <button
+                                key={driver.id || driver.number}
+                                type="button"
+                                onClick={() => setSelectedAccessDriverNumber(String(driver.number))}
+                                style={{
+                                  width: "100%",
+                                  border: "none",
+                                  borderBottom: "1px solid #eef2f7",
+                                  background: isSelected ? "#e8f1ff" : "transparent",
+                                  padding: "12px 14px",
+                                  display: "grid",
+                                  gridTemplateColumns: "46px 1fr auto",
+                                  gap: 12,
+                                  alignItems: "center",
+                                  textAlign: "left",
+                                  cursor: "pointer"
+                                }}
+                              >
+                                <div style={{ width: 46, height: 46, borderRadius: 16, background: isSelected ? "linear-gradient(135deg, #007aff, #5ac8fa)" : "linear-gradient(135deg, #d1d5db, #f3f4f6)", color: isSelected ? "white" : "#111827", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 1000 }}>
+                                  {initials}
+                                </div>
+                                <div style={{ minWidth: 0 }}>
+                                  <div style={{ fontWeight: 1000, color: "#111827", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>#{driver.number} {driver.name}</div>
+                                  <div style={{ color: "#6b7280", fontSize: 12, fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{getTeamFullName(driver.team)} · {driver.manufacturer || "Manufacturer TBD"}</div>
+                                </div>
+                                <div style={{ width: 10, height: 10, borderRadius: 999, background: codeRow?.code ? "#34c759" : "#ff3b30" }} title={codeRow?.code ? "Code active" : "No code"} />
+                              </button>
+                            );
+                          })}
+                          {!accessDrivers.length && (
+                            <div style={{ padding: 18, color: "#6b7280", fontWeight: 800 }}>No active drivers found.</div>
+                          )}
+                        </div>
+
+                        <div style={{ padding: isAdminMobile ? 18 : 24, background: "#ffffff" }}>
+                          {selectedAccessDriver ? (
+                            <div>
+                              <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+                                <div style={{ width: 82, height: 82, borderRadius: 28, background: "linear-gradient(135deg, #111827, #3b82f6)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 1000, fontSize: 24 }}>#{selectedAccessDriver.number}</div>
+                                <div>
+                                  <div style={{ fontSize: 28, fontWeight: 1000, letterSpacing: -0.7 }}>{selectedAccessDriver.name}</div>
+                                  <div style={{ color: "#6b7280", fontWeight: 850, marginTop: 4 }}>{getTeamFullName(selectedAccessDriver.team)} · {selectedAccessDriver.manufacturer || "Manufacturer TBD"}</div>
+                                </div>
+                              </div>
+
+                              <div style={{ marginTop: 22, borderRadius: 24, border: "1px solid #e5e7eb", background: "#f9fafb", overflow: "hidden" }}>
+                                <div style={{ padding: "14px 16px", display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", borderBottom: "1px solid #eef2f7" }}>
+                                  <div>
+                                    <div style={{ color: "#6b7280", fontSize: 12, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 1.1 }}>Contract Access Password</div>
+                                    <div style={{ marginTop: 6, fontFamily: "monospace", fontSize: 22, fontWeight: 1000, color: selectedAccessCode ? "#111827" : "#ef4444" }}>{selectedAccessCode || "Not generated"}</div>
+                                  </div>
+                                  <div style={{ padding: "6px 10px", borderRadius: 999, background: selectedAccessCode ? "#ecfdf5" : "#fef2f2", color: selectedAccessCode ? "#047857" : "#b42318", fontWeight: 1000, fontSize: 12 }}>{selectedAccessCode ? "ACTIVE" : "MISSING"}</div>
+                                </div>
+                                <div style={{ padding: 16, display: "grid", gap: 10 }}>
+                                  <button type="button" onClick={() => resetSingleDriverAccessCode(selectedAccessDriver)} style={{ ...adminPrimaryButtonStyle, width: "100%", justifyContent: "center" }}>{selectedAccessCode ? "Reset Driver Password" : "Generate Driver Password"}</button>
+                                  <button type="button" onClick={() => copyDriverAccessCode(selectedAccessDriver, selectedAccessCode)} disabled={!selectedAccessCode} style={{ ...secondaryButtonStyle, width: "100%", justifyContent: "center", opacity: selectedAccessCode ? 1 : 0.45 }}>Copy Password</button>
+                                  <button type="button" onClick={() => clearDriverAccessCode(selectedAccessDriver)} disabled={!selectedAccessCode} style={{ ...dangerButtonStyle, width: "100%", justifyContent: "center", opacity: selectedAccessCode ? 1 : 0.45 }}>Clear Password</button>
+                                </div>
+                              </div>
+
+                              <div style={{ marginTop: 18, display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(3, 1fr)", gap: 10 }}>
+                                <div style={{ borderRadius: 18, background: "#f3f4f6", padding: 12 }}><div style={{ color: "#6b7280", fontSize: 11, fontWeight: 1000 }}>CAR</div><div style={{ fontWeight: 1000, marginTop: 4 }}>#{selectedAccessDriver.number}</div></div>
+                                <div style={{ borderRadius: 18, background: "#f3f4f6", padding: 12 }}><div style={{ color: "#6b7280", fontSize: 11, fontWeight: 1000 }}>TEAM</div><div style={{ fontWeight: 1000, marginTop: 4 }}>{selectedAccessDriver.team || "—"}</div></div>
+                                <div style={{ borderRadius: 18, background: "#f3f4f6", padding: 12 }}><div style={{ color: "#6b7280", fontSize: 11, fontWeight: 1000 }}>STATUS</div><div style={{ fontWeight: 1000, marginTop: 4 }}>{selectedAccessCode ? "Password Set" : "Needs Password"}</div></div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div style={{ color: "#6b7280", fontWeight: 800 }}>Select a driver to view access details.</div>
+                          )}
+                        </div>
                       </div>
                     </div>
                     <div style={{ borderRadius: 24, background: "#ffffff", border: "1px solid #e5e7eb", padding: 16 }}>
