@@ -243,6 +243,8 @@ export default function AdminPortal({
   const [financeActionError, setFinanceActionError] = useState("");
   const [financeContracts, setFinanceContracts] = useState([]);
   const [financeContractsLoading, setFinanceContractsLoading] = useState(false);
+  const [hrAccessStatus, setHrAccessStatus] = useState("");
+  const [hrAccessError, setHrAccessError] = useState("");
   const [financeForm, setFinanceForm] = useState({ driverId: "", team: "", amount: "", reason: "", note: "" });
   const [adminViewportWidth, setAdminViewportWidth] = useState(() => (typeof window !== "undefined" ? window.innerWidth : 1200));
 
@@ -265,6 +267,68 @@ export default function AdminPortal({
     if (type === "owners") return "Owners Only";
     if (type === "league") return "Entire League";
     return message?.recipient_type || "League";
+  }
+
+  async function resetSingleDriverAccessCode(driver) {
+    if (!driver) return;
+    setHrAccessError("");
+    setHrAccessStatus(`Resetting access code for #${driver.number} ${driver.name}...`);
+    try {
+      await generateDriverAccessCode?.(driver);
+      await loadDriverAccessCodes?.();
+      setHrAccessStatus(`Access code reset for #${driver.number} ${driver.name}.`);
+    } catch (error) {
+      console.error("Could not reset driver access code:", error);
+      setHrAccessError("Could not reset that driver code. Check driver_access_codes permissions or try again.");
+      setHrAccessStatus("");
+    }
+  }
+
+  async function resetAllDriverAccessCodes() {
+    const resetCandidates = (visibleDrivers || []).filter((driver) => driver?.number && !isInactivePlaceholderDriver?.(driver));
+    if (!resetCandidates.length) {
+      setHrAccessError("No active drivers found to reset.");
+      return;
+    }
+    const ok = window.confirm(`Reset contract access codes for ${resetCandidates.length} active drivers? This will replace their current codes.`);
+    if (!ok) return;
+    setHrAccessError("");
+    setHrAccessStatus(`Resetting ${resetCandidates.length} driver access codes...`);
+    try {
+      for (const driver of resetCandidates) {
+        await generateDriverAccessCode?.(driver);
+      }
+      await loadDriverAccessCodes?.();
+      setHrAccessStatus(`Reset complete. ${resetCandidates.length} driver access codes were regenerated.`);
+    } catch (error) {
+      console.error("Could not reset all driver access codes:", error);
+      setHrAccessError("Could not reset all driver codes. Some may have changed; refresh and verify the list.");
+      setHrAccessStatus("");
+    }
+  }
+
+  async function clearAllDriverAccessCodes() {
+    const activeCodeRows = (driverAccessCodes || []).filter((row) => row?.active !== false);
+    if (!activeCodeRows.length) {
+      setHrAccessError("There are no active driver codes to clear.");
+      return;
+    }
+    const ok = window.confirm(`Clear ${activeCodeRows.length} active driver access codes? Drivers will lose contract access until new codes are generated.`);
+    if (!ok) return;
+    setHrAccessError("");
+    setHrAccessStatus(`Clearing ${activeCodeRows.length} driver access codes...`);
+    try {
+      for (const row of activeCodeRows) {
+        const driver = (visibleDrivers || drivers || []).find((item) => String(item.number) === String(row.driver_number)) || { number: row.driver_number, name: row.driver_name || "Driver" };
+        await clearDriverAccessCode?.(driver);
+      }
+      await loadDriverAccessCodes?.();
+      setHrAccessStatus(`Clear complete. ${activeCodeRows.length} driver access codes were removed.`);
+    } catch (error) {
+      console.error("Could not clear all driver access codes:", error);
+      setHrAccessError("Could not clear all driver codes. Refresh and verify the list.");
+      setHrAccessStatus("");
+    }
   }
 
   async function loadAdminUnreadMessages() {
@@ -1690,30 +1754,66 @@ export default function AdminPortal({
                       <button type="button" onClick={generateAllOwnerCodes} style={adminPrimaryButtonStyle}>Generate Owner Codes</button>
                     </div>
                   </div>
-                  <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "1fr 1fr", gap: 14 }}>
+                  {hrAccessStatus ? (
+                    <div style={{ marginBottom: 12, padding: "10px 12px", borderRadius: 16, background: "#ecfdf5", color: "#065f46", fontWeight: 900 }}>{hrAccessStatus}</div>
+                  ) : null}
+                  {hrAccessError ? (
+                    <div style={{ marginBottom: 12, padding: "10px 12px", borderRadius: 16, background: "#fef2f2", color: "#991b1b", fontWeight: 900 }}>{hrAccessError}</div>
+                  ) : null}
+                  <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "1.35fr 0.65fr", gap: 14 }}>
                     <div style={{ borderRadius: 24, background: "#ffffff", border: "1px solid #e5e7eb", padding: 16 }}>
-                      <h3 style={{ marginTop: 0 }}>Driver Access</h3>
-                      <div style={{ display: "grid", gap: 8, maxHeight: 420, overflowY: "auto" }}>
-                        {(visibleDrivers || []).map((driver) => {
-                          const codeRow = driverAccessCodes.find((row) => String(row.driver_number) === String(driver.number) && row.active !== false);
-                          return (
-                            <div key={driver.id || driver.number} style={walletTransactionRowStyle}>
-                              <div style={walletIconStyle}>#{driver.number}</div>
-                              <div><div style={{ fontWeight: 1000 }}>{driver.name}</div><div style={{ color: "#6b7280", fontWeight: 750, fontSize: 13 }}>{getTeamFullName(driver.team)}</div></div>
-                              <div style={{ fontFamily: "monospace", fontWeight: 1000 }}>{codeRow?.code || "—"}</div>
-                            </div>
-                          );
-                        })}
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
+                        <div>
+                          <h3 style={{ margin: 0 }}>Driver Contract Access</h3>
+                          <div style={{ marginTop: 4, color: "#6b7280", fontSize: 13, fontWeight: 750 }}>Generate, reset, copy, or clear driver codes used to unlock contract offers.</div>
+                        </div>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          <button type="button" onClick={resetAllDriverAccessCodes} style={adminPrimaryButtonStyle}>Reset All Driver Codes</button>
+                          <button type="button" onClick={clearAllDriverAccessCodes} style={dangerButtonStyle}>Clear All Codes</button>
+                        </div>
+                      </div>
+                      <div style={{ overflowX: "auto", maxHeight: 520, overflowY: "auto" }}>
+                        <table style={adminTableStyle}>
+                          <thead>
+                            <tr>
+                              <th style={adminThStyle}>Driver</th>
+                              <th style={adminThStyle}>Team</th>
+                              <th style={adminThStyle}>Code</th>
+                              <th style={adminThStyle}>Reset Options</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(visibleDrivers || []).map((driver) => {
+                              const codeRow = driverAccessCodes.find((row) => String(row.driver_number) === String(driver.number) && row.active !== false);
+                              const code = codeRow?.code || "";
+                              return (
+                                <tr key={driver.id || driver.number}>
+                                  <td style={{ ...tdStyle, fontWeight: 900 }}>#{driver.number} {driver.name}</td>
+                                  <td style={adminTdStyle}>{getTeamFullName(driver.team)} <span style={{ fontSize: 11, opacity: 0.55 }}>({driver.team || "—"})</span></td>
+                                  <td style={{ ...tdStyle, fontFamily: "monospace", fontWeight: 900, color: code ? "#111827" : "#ef4444" }}>{code || "Not generated"}</td>
+                                  <td style={adminTdStyle}>
+                                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                      <button type="button" onClick={() => resetSingleDriverAccessCode(driver)} style={adminPrimaryButtonStyle}>{code ? "Reset Code" : "Generate Code"}</button>
+                                      <button type="button" onClick={() => copyDriverAccessCode(driver, code)} disabled={!code} style={{ ...secondaryButtonStyle, opacity: code ? 1 : 0.45 }}>Copy</button>
+                                      <button type="button" onClick={() => clearDriverAccessCode(driver)} disabled={!code} style={{ ...dangerButtonStyle, opacity: code ? 1 : 0.45 }}>Clear</button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
                       </div>
                     </div>
                     <div style={{ borderRadius: 24, background: "#ffffff", border: "1px solid #e5e7eb", padding: 16 }}>
                       <h3 style={{ marginTop: 0 }}>Owner Portal Access</h3>
+                      <p style={{ marginTop: -4, color: "#6b7280", fontSize: 13, fontWeight: 750 }}>Owners use their driver password as their owner password. Legacy owner codes are shown here only for review.</p>
                       <div style={{ display: "grid", gap: 8, maxHeight: 420, overflowY: "auto" }}>
                         {(ownerPortalTeams || []).map((team) => (
                           <div key={team} style={walletTransactionRowStyle}>
                             <div style={walletIconStyle}>🏢</div>
                             <div><div style={{ fontWeight: 1000 }}>{getTeamFullName(team)}</div><div style={{ color: "#6b7280", fontWeight: 750, fontSize: 13 }}>{team}</div></div>
-                            <div style={{ fontFamily: "monospace", fontWeight: 1000 }}>{ownerAccessCodes[team] || "—"}</div>
+                            <div style={{ fontFamily: "monospace", fontWeight: 1000 }}>{ownerAccessCodes[team] || "Driver Code"}</div>
                           </div>
                         ))}
                       </div>
@@ -2205,123 +2305,8 @@ export default function AdminPortal({
         </div>
         {/* Owner Portal Access moved into Human Resources > Access Codes. */}
 
-        {/* Driver Access Code Manager */}
-        <div style={adminReadableCardStyle}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap", marginBottom: 14 }}>
-            <div>
-              <h2 style={{ margin: 0 }}>🔐 Driver Contract Access</h2>
-              <div style={{ fontSize: 13, opacity: 0.7, marginTop: 6 }}>Generate driver passwords here. Drivers use these codes on their driver profile to unlock contract offers.</div>
-            </div>
-            <button onClick={loadDriverAccessCodes} style={adminSecondaryButtonStyle}>Refresh Driver Codes</button>
-          </div>
-          <div style={{ overflowX: "auto" }}>
-            <table style={adminTableStyle}>
-              <thead>
-                <tr>
-                  <th style={adminThStyle}>Driver</th>
-                  <th style={adminThStyle}>Team</th>
-                  <th style={adminThStyle}>Driver Code</th>
-                  <th style={adminThStyle}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visibleDrivers.map((driver) => {
-                  const codeRow = driverAccessCodes.find((row) => String(row.driver_number) === String(driver.number) && row.active !== false);
-                  const code = codeRow?.code || "";
-                  return (
-                    <tr key={driver.id}>
-                      <td style={{ ...tdStyle, fontWeight: 900 }}>#{driver.number} {driver.name}</td>
-                      <td style={adminTdStyle}>{getTeamFullName(driver.team)} <span style={{ fontSize: 11, opacity: 0.55 }}>({driver.team})</span></td>
-                      <td style={{ ...tdStyle, fontFamily: "monospace", fontWeight: 900, color: code ? "#d4af37" : "#f87171" }}>{code || "Not generated"}</td>
-                      <td style={adminTdStyle}>
-                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                          <button onClick={() => generateDriverAccessCode(driver)} style={adminSecondaryButtonStyle}>{code ? "Regenerate" : "Generate"}</button>
-                          <button onClick={() => copyDriverAccessCode(driver, code)} disabled={!code} style={{ ...secondaryButtonStyle, opacity: code ? 1 : 0.45 }}>Copy</button>
-                          <button onClick={() => clearDriverAccessCode(driver)} disabled={!code} style={{ ...dangerButtonStyle, opacity: code ? 1 : 0.45 }}>Clear</button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        {/* Driver Contract Access moved into Human Resources > Access Codes. */}
 
-        {false && <PreviousRaceWinnerAdminPanel drivers={visibleDrivers} raceHistory={raceHistory} />}
-
-
-        {false && (
-        <div style={adminReadableCardStyle}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap", marginBottom: 14 }}>
-            <div>
-              <h2 style={{ margin: 0 }}>🎨 Paint Scheme Payouts</h2>
-              <div style={{ fontSize: 13, opacity: 0.7, marginTop: 6 }}>
-                Preview vote rankings, then award tiered payouts. Voting/payout eligibility closes Friday at 12:00 AM ET. Uploads not updated by then are excluded. Paint scheme payouts are driver-only: $10,000 per eligible driver each week, with a $250,000 max per driver per season. Teams do not receive paint scheme payouts.
-              </div>
-            </div>
-            <button onClick={() => loadPaintSchemePayoutPreview()} disabled={paintPayoutLoading} style={adminSecondaryButtonStyle}>{paintPayoutLoading ? "Loading..." : "Preview Rankings"}</button>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12, marginBottom: 14 }}>
-            <div>
-              <div style={{ marginBottom: 6, fontWeight: 700 }}>Race / Vote Week</div>
-              <select style={adminInputStyle} value={paintPayoutRace} onChange={(event) => setPaintPayoutRace(event.target.value)}>
-                <option value="">Auto-select previous completed race</option>
-                {(tracks || []).map((track) => <option key={track.name} value={track.name}>{track.name}</option>)}
-              </select>
-            </div>
-            <div style={{ display: "flex", alignItems: "end", gap: 10, flexWrap: "wrap" }}>
-              <button onClick={awardPaintSchemePayouts} disabled={!paintPayoutRows.length} style={{ ...primaryButtonStyle, opacity: paintPayoutRows.length ? 1 : 0.55 }}>Award Paint Scheme Payouts</button>
-            </div>
-          </div>
-          {paintPayoutStatus && <div style={{ color: "#047857", fontWeight: 900, marginBottom: 10 }}>{paintPayoutStatus}</div>}
-          {paintPayoutError && <div style={{ color: "#b42318", fontWeight: 900, marginBottom: 10 }}>{paintPayoutError}</div>}
-          {paintPayoutRows.length > 0 && (
-            <div style={{ overflowX: "auto" }}>
-              <table style={adminTableStyle}>
-                <thead>
-                  <tr>
-                    <th style={adminThStyle}>Rank</th>
-                    <th style={adminThStyle}>Driver</th>
-                    <th style={adminThStyle}>Team</th>
-                    <th style={adminThStyle}>Votes</th>
-                    <th style={adminThStyle}>Updated By Deadline</th>
-                    <th style={adminThStyle}>Driver Payout</th>
-                    <th style={adminThStyle}>Season Cap</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paintPayoutRows.map((row) => (
-                    <tr key={`${row.rank}-${row.uploadId}`}>
-                      <td style={{ ...tdStyle, fontWeight: 900 }}>P{row.rank}</td>
-                      <td style={{ ...tdStyle, fontWeight: 900 }}>#{row.driverNumber} {row.driverName}</td>
-                      <td style={adminTdStyle}>{getTeamFullName(row.team)}</td>
-                      <td style={adminTdStyle}>{row.votes}</td>
-                      <td style={adminTdStyle}>{row.updatedAt ? new Date(row.updatedAt).toLocaleString() : "—"}</td>
-                      <td style={{ ...tdStyle, color: "#d4af37", fontWeight: 900 }}>{money(row.driverPayout)}</td>
-                      <td style={{ ...tdStyle, color: row.driverSeasonCapApplied ? "#fbbf24" : "#4ade80", fontWeight: 900 }}>{row.driverSeasonCapApplied ? "Season cap applied" : "Under cap"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-        )}
-
-
-
-        {/* Backup & Restore */}
-        <div style={adminReadableCardStyle}>
-          <h2 style={{ marginTop: 0 }}>Backup & Restore</h2>
-          <div style={{ opacity: 0.78, marginBottom: 14 }}>Export the active season, export all seasons, or import a backup.</div>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <button onClick={exportBackup} style={adminPrimaryButtonStyle}>Export Active Season</button>
-            <button onClick={exportAllSeasonsBackup} style={adminSecondaryButtonStyle}>Export All Seasons</button>
-            <button onClick={() => importFileRef.current?.click()} style={adminSecondaryButtonStyle}>Import Backup</button>
-            <input ref={importFileRef} type="file" accept=".json,application/json" onChange={handleImportBackup} style={{ display: "none" }} />
-          </div>
-        </div>
         {/* Driver Assignments moved into Human Resources. Dashboard keeps only a navigation card. */}
         <div style={adminReadableCardStyle}>
           <h2 style={{ marginTop: 0 }}>Human Resources Controls</h2>
