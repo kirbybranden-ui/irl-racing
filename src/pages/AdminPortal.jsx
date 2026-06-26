@@ -237,6 +237,7 @@ export default function AdminPortal({
   const [publicRelationsTab, setPublicRelationsTab] = useState("overview");
   const [hrDepartmentOpen, setHrDepartmentOpen] = useState(false);
   const [hrTab, setHrTab] = useState("overview");
+  const [raceOperationsOpen, setRaceOperationsOpen] = useState(false);
   const [hrLocalRefresh, setHrLocalRefresh] = useState(0);
   const [financeAction, setFinanceAction] = useState("overview");
   const [financeActionStatus, setFinanceActionStatus] = useState("");
@@ -441,6 +442,11 @@ export default function AdminPortal({
     loadFinanceContracts();
   }
 
+  function openRaceOperations() {
+    setRaceOperationsOpen(true);
+    setAdminMenuOpen(false);
+  }
+
   function openPublicRelations(tab = "overview") {
     setPublicRelationsOpen(true);
     setPublicRelationsTab(tab);
@@ -552,6 +558,7 @@ export default function AdminPortal({
     { label: "Human Resources", action: () => openHrDepartment("overview"), primary: true },
     { label: "Finance Department", action: () => openFinanceDepartment("overview"), primary: true },
     { label: "Public Relations", action: () => openPublicRelations("overview"), primary: true },
+    { label: "Race Operations", action: openRaceOperations, primary: true },
     { label: "Ticker Overlay", action: () => setViewMode("overlay-ticker") },
     { label: "Standings", action: () => (window.location.pathname = "/standings") },
     { label: "Streams", action: () => (window.location.pathname = "/streams") },
@@ -568,9 +575,7 @@ export default function AdminPortal({
   ];
 
   const adminQuickTiles = [
-    { title: "Race Control", text: "Post results, save drafts, penalties, DNFs, stages, fastest lap.", action: () => document.getElementById("admin-race-control")?.scrollIntoView({ behavior: "smooth", block: "start" }) },
-    { title: "HR Requests", text: "Open Human Resources for driver assignments, join requests, owners, and access.", action: () => openHrDepartment("drivers") },
-    { title: "Human Resources", text: "Driver assignments, owner assignments, access codes, appeals, and contracts.", action: () => openHrDepartment("overview") },
+    { title: "Race Operations", text: "Track management, race input, race drafts, race history, and offense log.", action: openRaceOperations },
     { title: "Messages", text: "Unread inbox, league broadcasts, owner notices, and create-message tools.", action: openAdminMessages },
     { title: "Backup Center", text: "Export, import, restore, and protect league data.", action: () => document.getElementById("admin-backup-center")?.scrollIntoView({ behavior: "smooth", block: "start" }) },
   ];
@@ -1543,6 +1548,318 @@ export default function AdminPortal({
         )}
 
 
+        {raceOperationsOpen && (
+          <div style={financeOverlayStyle}>
+            <div style={financeShellStyle}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, flexWrap: "wrap", marginBottom: 18 }}>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.8, textTransform: "uppercase", color: "#6b7280" }}>Admin Menu</div>
+                  <h1 style={{ margin: "2px 0 0", fontSize: isAdminMobile ? 34 : 42, letterSpacing: -1.6 }}>Race Operations</h1>
+                  <p style={{ margin: "6px 0 0", color: "#4b5563", fontWeight: 750 }}>Track management, race input, drafts, race history, backups, and offense tracking now live here.</p>
+                </div>
+                <button type="button" onClick={() => setRaceOperationsOpen(false)} style={{ border: 0, borderRadius: 999, background: "#ffffff", color: "#111827", width: 46, height: 46, fontSize: 23, fontWeight: 1000, cursor: "pointer", boxShadow: "0 8px 20px rgba(15,23,42,0.12)" }}>×</button>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(3, minmax(180px, 1fr))", gap: 14, marginBottom: 18 }}>
+                {[
+                  ["Tracks", (tracks || []).length],
+                  ["Races Posted", raceHistory.length],
+                  ["Saved Drafts", savedRaceDrafts.length],
+                ].map(([label, value]) => (
+                  <div key={label} style={{ ...walletLightCardStyle, padding: 18 }}>
+                    <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.2, textTransform: "uppercase", color: "#6b7280" }}>{label}</div>
+                    <div style={{ fontSize: 34, fontWeight: 1000, letterSpacing: -1, marginTop: 8 }}>{value}</div>
+                  </div>
+                ))}
+              </div>
+
+        {/* Track Management */}
+        <div style={adminReadableCardStyle}>
+          <h2 style={{ marginTop: 0 }}>Track Management</h2>
+          <div style={{ opacity: 0.78, marginBottom: 14 }}>Add or remove tracks from the race schedule. Stage count controls how many scoring stages each track has (1, 2, or 3).</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, marginBottom: 16 }}>
+            <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Track Name</div><input style={adminInputStyle} value={newTrackName} onChange={(e) => setNewTrackName(e.target.value)} placeholder="Example: Bristol Night Race" /></div>
+            <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Stage Count</div><select style={adminInputStyle} value={newTrackStageCount} onChange={(e) => setNewTrackStageCount(Number(e.target.value))}><option value={1}>1 stage</option><option value={2}>2 stages</option><option value={3}>3 stages</option></select></div>
+          </div>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 18 }}>
+            <button onClick={addTrack} style={adminPrimaryButtonStyle}>Add Track</button>
+            <button onClick={restoreDefaultTracks} style={adminSecondaryButtonStyle}>Restore Default Schedule</button>
+          </div>
+          <div style={{ overflowX: "auto" }}>
+            <table style={adminTableStyle}>
+              <thead><tr><th style={adminThStyle}>Track Name</th><th style={adminThStyle}>Stage Count</th><th style={adminThStyle}>Used in History?</th><th style={adminThStyle}>Actions</th></tr></thead>
+              <tbody>
+                {tracks.length === 0 ? (
+                  <tr><td style={adminTdStyle} colSpan={4}><div style={{ opacity: 0.75 }}>No tracks defined. Add one above or restore the default schedule.</div></td></tr>
+                ) : tracks.map((t) => {
+                  const usedInHistory = seasons.some((s) => (s.raceHistory || []).some((r) => r.raceName === t.name));
+                  return (
+                    <tr key={t.name}>
+                      <td style={{ ...tdStyle, fontWeight: 700 }}>{t.name}</td>
+                      <td style={adminTdStyle}>
+                        <select style={{ ...inputStyle, maxWidth: 160 }} value={t.stageCount} onChange={(e) => updateTrackStageCount(t.name, e.target.value)}>
+                          <option value={1}>1 stage</option>
+                          <option value={2}>2 stages</option>
+                          <option value={3}>3 stages</option>
+                        </select>
+                      </td>
+                      <td style={adminTdStyle}>{usedInHistory ? <span style={{ color: "#f59e0b", fontWeight: 700 }}>Yes</span> : <span style={{ opacity: 0.7 }}>No</span>}</td>
+                      <td style={adminTdStyle}><button onClick={() => removeTrack(t.name)} style={adminDangerButtonStyle}>Remove</button></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {/* Start & Park Requests moved into Human Resources > Start & Park. */}
+
+        {/* Enter Race Results */}
+        <div style={adminReadableCardStyle}>
+          <h2 style={{ marginTop: 0 }}>{editingRaceName ? `Edit Race: ${editingRaceName}` : "Enter Race Results"}</h2>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 14, marginBottom: 18 }}>
+            <div>
+              <label style={{ display: "block", marginBottom: 6, fontWeight: 700 }}>Race</label>
+              <select style={adminInputStyle} value={selectedRace} onChange={(e) => patchActiveSeason({ selectedRace: e.target.value })}>
+                <option value="">Select a race</option>
+                {tracks.map((r) => <option key={r.name} value={r.name}>{r.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{ display: "block", marginBottom: 6, fontWeight: 700 }}>Stage Setup</label>
+              <div style={{ ...inputStyle, display: "flex", alignItems: "center", minHeight: 42 }}>{selectedRace ? `${stageCount} scoring stage${stageCount === 1 ? "" : "s"}` : "Select a race to view stage count"}</div>
+            </div>
+          </div>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ ...tableStyle, minWidth: 1550 }}>
+              <thead>
+                <tr>
+                  <th style={{ ...thStyle, minWidth: 72 }}>#</th><th style={{ ...thStyle, minWidth: 190 }}>Driver</th><th style={{ ...thStyle, minWidth: 170 }}>Team</th>
+                  <th style={raceEntryThStyle}>Finish</th>
+                  {stageCount >= 1 && <th style={raceEntryThStyle}>Stage 1</th>}
+                  {stageCount >= 2 && <th style={raceEntryThStyle}>Stage 2</th>}
+                  {stageCount === 3 && <th style={raceEntryThStyle}>Stage 3</th>}
+                  <th style={{ ...thStyle, minWidth: 90 }}>DNF</th><th style={{ ...thStyle, minWidth: 120 }}>Start & Park</th><th style={{ ...thStyle, minWidth: 110 }}>Fastest Lap</th>
+                  <th style={{ ...thStyle, minWidth: 110 }}>Offense</th><th style={{ ...thStyle, minWidth: 145 }}>Manual Penalty</th><th style={{ ...thStyle, minWidth: 120 }}>Points Preview</th><th style={{ ...thStyle, minWidth: 280 }}>Notes</th><th style={{ ...thStyle, minWidth: 90 }}>Move</th><th style={{ ...thStyle, minWidth: 120 }}>Offense #</th>
+                </tr>
+              </thead>
+              <tbody>
+                {activeDrivers.map((driver) => {
+                  const prior = seasonOffenseCounts[driver.id] || 0;
+                  const thisOffense = offenseMap[driver.id] ? prior + 1 : null;
+                  return (
+                    <tr key={driver.id}>
+                      <td style={{...tdStyle, display: "flex", alignItems: "center", justifyContent: "center"}}><div style={{width: 36, height: 36, borderRadius: "50%", background: "#404854", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 14, color: "#fff", border: "2px solid #b8a059"}}>{driver.number}</div></td>
+                      <td style={adminTdStyle}>{driver.name}</td>
+                      <td style={adminTdStyle}>{getTeamFullName(driver.team)} <span style={{ fontSize: 11, opacity: 0.5 }}>({driver.team})</span></td>
+                      <td style={raceEntryTdStyle}><input type="number" min="1" max="40" style={racePositionInputStyle} value={positions[driver.id] || ""} onChange={(e) => handlePositionChange(driver.id, e.target.value)} /></td>
+                      {stageCount >= 1 && <td style={raceEntryTdStyle}><input type="number" min="1" max="10" style={racePositionInputStyle} value={stage1[driver.id] || ""} onChange={(e) => handleStage1Change(driver.id, e.target.value)} /></td>}
+                      {stageCount >= 2 && <td style={raceEntryTdStyle}><input type="number" min="1" max="10" style={racePositionInputStyle} value={stage2[driver.id] || ""} onChange={(e) => handleStage2Change(driver.id, e.target.value)} /></td>}
+                      {stageCount === 3 && <td style={raceEntryTdStyle}><input type="number" min="1" max="10" style={racePositionInputStyle} value={stage3[driver.id] || ""} onChange={(e) => handleStage3Change(driver.id, e.target.value)} /></td>}
+                      <td style={adminTdStyle}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                          <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <input type="checkbox" checked={!!dnfMap[driver.id]} onChange={(e) => handleDnfChange(driver.id, e.target.checked)} />DNF
+                          </label>
+                          {dnfMap[driver.id] && (
+                            <select
+                              style={{ ...inputStyle, fontSize: 12, padding: "6px 8px" }}
+                              value={dnfReasons[driver.id] || ""}
+                              onChange={(e) => setDnfReasons({ ...dnfReasons, [driver.id]: e.target.value })}
+                            >
+                              <option value="">Select reason...</option>
+                              <option value="Mechanical">Mechanical Failure</option>
+                              <option value="Crash">Crash/Incident</option>
+                              <option value="Engine">Engine Failure</option>
+                              <option value="Transmission">Transmission Issue</option>
+                              <option value="Fuel">Fuel System</option>
+                              <option value="Suspension">Suspension Damage</option>
+                              <option value="Pit Stop">Pit Stop Error</option>
+                              <option value="Other">Other</option>
+                            </select>
+                          )}
+                        </div>
+                      </td>
+                      <td style={adminTdStyle}>
+                        <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <input type="checkbox" checked={!!startParkMap[driver.id]} onChange={(e) => handleStartParkChange(driver.id, e.target.checked)} />Start & Park
+                        </label>
+                        <div style={{ fontSize: 11, opacity: 0.65, marginTop: 5 }}>Finish points only; stage points zeroed.</div>
+                      </td>
+                      <td style={adminTdStyle}><label style={{ display: "flex", alignItems: "center", gap: 8 }}><input type="radio" name="fastestLap" checked={!!fastestLapMap[driver.id]} onChange={() => handleFastestLapChange(driver.id)} />FL +1</label></td>
+                      <td style={adminTdStyle}><label style={{ display: "flex", alignItems: "center", gap: 8 }}><input type="checkbox" checked={!!offenseMap[driver.id]} onChange={(e) => handleOffenseChange(driver.id, e.target.checked)} />Offense</label></td>
+                      <td style={adminTdStyle}><input type="number" min="0" style={racePenaltyInputStyle} value={penaltyMap[driver.id] || ""} onChange={(e) => handleManualPenaltyChange(driver.id, e.target.value)} placeholder="0" /></td>
+                      <td style={{ ...tdStyle, fontWeight: 900, color: "#d4af37" }}>{(() => { const fp = positions[driver.id] ? pointsTable[(Number(positions[driver.id]) || 1) - 1] || 0 : 0; const sp = startParkMap[driver.id] ? 0 : getStagePoints(stage1[driver.id]) + getStagePoints(stage2[driver.id]) + (stageCount === 3 ? getStagePoints(stage3[driver.id]) : 0); const fl = fastestLapMap[driver.id] ? 1 : 0; const op = thisOffense ? getOffensePenaltyPoints(thisOffense) : 0; const mp = Number(penaltyMap[driver.id] || 0); return fp + sp + fl - op - mp; })()}</td>
+                      <td style={adminTdStyle}><input style={raceNotesInputStyle} value={resultNotesMap[driver.id] || ""} onChange={(e) => handleResultNoteChange(driver.id, e.target.value)} placeholder="Penalty note, ruling, etc." /></td>
+                      <td style={adminTdStyle}><div style={{ display: "flex", gap: 6 }}><button type="button" onClick={() => moveDriverFinishPosition(driver.id, -1)} style={{ ...secondaryButtonStyle, padding: "6px 9px" }}>↑</button><button type="button" onClick={() => moveDriverFinishPosition(driver.id, 1)} style={{ ...secondaryButtonStyle, padding: "6px 9px" }}>↓</button></div></td>
+                      <td style={{ ...tdStyle, color: thisOffense ? "#f87171" : "inherit" }}>
+                        {thisOffense ? `#${thisOffense} (-${getOffensePenaltyPoints(thisOffense)} pts)` : prior > 0 ? `${prior} prior` : "—"}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 18 }}>
+            <button onClick={saveResultsDraft} style={adminSecondaryButtonStyle}>Save Admin-Only Draft</button>
+            <button onClick={() => submitResults()} style={adminPrimaryButtonStyle}>{editingRaceName ? "Update Posted Race" : "Post to Standings"}</button>
+            {editingRaceName && <button onClick={clearInputs} style={adminSecondaryButtonStyle}>Cancel Edit</button>}
+            <button onClick={clearInputs} style={adminSecondaryButtonStyle}>Clear Inputs</button>
+            <button onClick={resetSeason} style={adminDangerButtonStyle}>Archive + Reset Active Season</button>
+          </div>
+        </div>
+        {/* Admin-Only Results Drafts */}
+        <div style={adminReadableCardStyle}>
+          <h2 style={{ marginTop: 0 }}>Admin-Only Results Drafts</h2>
+          <div style={{ opacity: 0.78, marginBottom: 14 }}>Drafts let you capture finishing points, penalties, DNFs, and notes without changing public standings. Post only when race control is ready.</div>
+          <div style={{ overflowX: "auto" }}>
+            <table style={adminTableStyle}>
+              <thead><tr><th style={adminThStyle}>Race</th><th style={adminThStyle}>Saved</th><th style={adminThStyle}>Leader</th><th style={adminThStyle}>Rows</th><th style={adminThStyle}>Actions</th></tr></thead>
+              <tbody>
+                {(raceDrafts || []).length === 0 ? (
+                  <tr><td style={adminTdStyle} colSpan={5}><div style={{ opacity: 0.7 }}>No private drafts saved.</div></td></tr>
+                ) : (raceDrafts || []).map((draft) => {
+                  const leader = (draft.results || []).find((result) => result.finishPos === 1) || (draft.results || [])[0];
+                  return (
+                    <tr key={draft.id || draft.raceName}>
+                      <td style={{ ...tdStyle, fontWeight: 900 }}>{draft.raceName}</td>
+                      <td style={adminTdStyle}>{draft.draftSavedAt ? new Date(draft.draftSavedAt).toLocaleString() : "—"}</td>
+                      <td style={adminTdStyle}>{leader ? `#${leader.number} ${leader.name} (${leader.totalRacePoints} pts)` : "—"}</td>
+                      <td style={adminTdStyle}>{(draft.results || []).length}</td>
+                      <td style={adminTdStyle}>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          <button type="button" onClick={() => loadResultsDraft(draft)} style={adminSecondaryButtonStyle}>Load/Edit</button>
+                          <button type="button" onClick={() => postResultsDraft(draft)} style={adminPrimaryButtonStyle}>Post to Standings</button>
+                          <button type="button" onClick={() => deleteResultsDraft(draft.id)} style={adminDangerButtonStyle}>Delete</button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {/* Race History */}
+        <div style={adminReadableCardStyle}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
+            <h2 style={{ margin: 0 }}>Race History</h2>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <button
+                type="button"
+                onClick={() => downloadRaceHistoryCsv(raceHistory, activeSeason?.name || "Season")}
+                style={adminPrimaryButtonStyle}
+              >
+                ⬇️ Download Race History CSV
+              </button>
+              <button
+                type="button"
+                onClick={handleDownloadLeagueBackup}
+                style={adminSecondaryButtonStyle}
+              >
+                💾 Backup Results
+              </button>
+              <button
+                type="button"
+                onClick={() => backupFileInputRef.current?.click()}
+                style={adminSecondaryButtonStyle}
+              >
+                ♻️ Restore From Backup
+              </button>
+              <input
+                ref={backupFileInputRef}
+                type="file"
+                accept="application/json"
+                onChange={handleRestoreLeagueBackup}
+                style={{ display: "none" }}
+              />
+            </div>
+          </div>
+          {raceHistory.length === 0 ? <div style={{ opacity: 0.75 }}>No races entered yet.</div> : (
+            <div style={{ display: "grid", gap: 16 }}>
+              {raceHistory.map((race) => {
+                const winner = race.results?.find((r) => r.finishPos === 1);
+                return (
+                  <div key={race.raceName} style={{ background: "#10141b", border: "1px solid #2b3441", borderRadius: 14, padding: 16 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 10 }}>
+                      <div>
+                        <div style={{ fontSize: 20, fontWeight: 800 }}>{race.raceName}</div>
+                        <div style={{ opacity: 0.75 }}>{race.stageCount} scoring stage{race.stageCount === 1 ? "" : "s"}{winner ? ` • Winner: #${winner.number} ${winner.name}` : ""}</div>
+                      </div>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button onClick={() => handleEditRace(race)} style={adminSecondaryButtonStyle}>Edit</button>
+                        <button onClick={() => handleDeleteRace(race.raceName)} style={adminDangerButtonStyle}>Delete</button>
+                      </div>
+                    </div>
+                    <div style={{ overflowX: "auto" }}>
+                      <table style={adminTableStyle}>
+                        <thead>
+                          <tr>
+                            <th style={adminThStyle}>Finish</th><th style={adminThStyle}>#</th><th style={adminThStyle}>Driver</th><th style={adminThStyle}>Team</th>
+                            <th style={adminThStyle}>Race Pts</th>
+                            {race.stageCount >= 1 && <th style={adminThStyle}>S1</th>}
+                            {race.stageCount >= 2 && <th style={adminThStyle}>S2</th>}
+                            {race.stageCount === 3 && <th style={adminThStyle}>S3</th>}
+                            <th style={adminThStyle}>FL</th><th style={adminThStyle}>DNF</th><th style={adminThStyle}>Start & Park</th>
+                            <th style={adminThStyle}>Offense</th><th style={adminThStyle}>Penalty</th><th style={adminThStyle}>Total</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {race.results.map((r) => (
+                            <tr key={r.driverId}>
+                              <td style={adminTdStyle}>{r.finishPos ?? "—"}</td>
+                              <td style={{...tdStyle, display: "flex", alignItems: "center", justifyContent: "center"}}><div style={{width: 36, height: 36, borderRadius: "50%", background: "#404854", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 14, color: "#fff", border: "2px solid #b8a059"}}>{r.number}</div></td>
+                              <td style={adminTdStyle}>{r.name}</td>
+                              <td style={adminTdStyle}>{getTeamFullName(r.team)}</td>
+                              <td style={adminTdStyle}>{r.finishPoints}</td>
+                              {race.stageCount >= 1 && <td style={adminTdStyle}>{r.stage1Points}</td>}
+                              {race.stageCount >= 2 && <td style={adminTdStyle}>{r.stage2Points}</td>}
+                              {race.stageCount === 3 && <td style={adminTdStyle}>{r.stage3Points}</td>}
+                              <td style={adminTdStyle}>{r.fastestLap ? "+1" : "—"}</td>
+                              <td style={adminTdStyle}>{r.dnf ? (r.dnfReason ? `DNF (${r.dnfReason})` : "DNF") : "—"}</td>
+                              <td style={adminTdStyle}>{r.startPark ? "Yes" : "—"}</td>
+                              <td style={adminTdStyle}>{r.offense ? `#${r.offenseNumber}` : "—"}</td>
+                              <td style={{ ...tdStyle, color: r.penaltyPoints > 0 ? "#f87171" : "inherit" }}>{r.penaltyPoints > 0 ? `-${r.penaltyPoints}` : "0"}</td>
+                              <td style={{ ...tdStyle, fontWeight: 800 }}>{r.totalRacePoints}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+        {/* Offense Log */}
+        <div style={adminReadableCardStyle}>
+          <h2 style={{ marginTop: 0 }}>Offense Log</h2>
+          {offenseLog.length === 0 ? <div style={{ opacity: 0.75 }}>No offenses logged yet.</div> : (
+            <div style={{ overflowX: "auto" }}>
+              <table style={adminTableStyle}>
+                <thead><tr><th style={adminThStyle}>Race</th><th style={adminThStyle}>#</th><th style={adminThStyle}>Driver</th><th style={adminThStyle}>Offense #</th><th style={adminThStyle}>Penalty</th></tr></thead>
+                <tbody>
+                  {offenseLog.map((entry, i) => (
+                    <tr key={`${entry.raceName}-${entry.number}-${i}`}>
+                      <td style={adminTdStyle}>{entry.raceName}</td>
+                      <td style={adminTdStyle}>{entry.number}</td>
+                      <td style={adminTdStyle}>{entry.name}</td>
+                      <td style={adminTdStyle}>#{entry.offenseNumber}</td>
+                      <td style={{ ...tdStyle, color: "#b42318" }}>-{entry.penaltyPoints} pts</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+            </div>
+          </div>
+        )}
+
         {hrDepartmentOpen && (
           <div style={financeOverlayStyle}>
             <div style={financeShellStyle}>
@@ -2392,329 +2709,9 @@ export default function AdminPortal({
 
         {/* Driver Contract Access moved into Human Resources > Access Codes. */}
 
-        {/* Driver Assignments moved into Human Resources. Dashboard keeps only a navigation card. */}
-        <div style={adminReadableCardStyle}>
-          <h2 style={{ marginTop: 0 }}>Human Resources Controls</h2>
-          <div style={{ opacity: 0.78, marginBottom: 14 }}>Driver Assignments, pending join requests, Team Owner Assignments, Start & Park, contracts, appeals, and access codes now live inside Human Resources.</div>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <button type="button" onClick={() => openHrDepartment("drivers")} style={adminPrimaryButtonStyle}>Open Driver Assignments in HR</button>
-            <button type="button" onClick={() => openHrDepartment("owners")} style={adminSecondaryButtonStyle}>Open Owner Assignments in HR</button>
-            <button type="button" onClick={() => openHrDepartment("startpark")} style={adminSecondaryButtonStyle}>Open Start & Park in HR</button>
-          </div>
-        </div>
+        {/* Human Resources controls removed from Admin Home. Use the Human Resources menu item. */}
 
-        {/* Track Management */}
-        <div style={adminReadableCardStyle}>
-          <h2 style={{ marginTop: 0 }}>Track Management</h2>
-          <div style={{ opacity: 0.78, marginBottom: 14 }}>Add or remove tracks from the race schedule. Stage count controls how many scoring stages each track has (1, 2, or 3).</div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, marginBottom: 16 }}>
-            <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Track Name</div><input style={adminInputStyle} value={newTrackName} onChange={(e) => setNewTrackName(e.target.value)} placeholder="Example: Bristol Night Race" /></div>
-            <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Stage Count</div><select style={adminInputStyle} value={newTrackStageCount} onChange={(e) => setNewTrackStageCount(Number(e.target.value))}><option value={1}>1 stage</option><option value={2}>2 stages</option><option value={3}>3 stages</option></select></div>
-          </div>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 18 }}>
-            <button onClick={addTrack} style={adminPrimaryButtonStyle}>Add Track</button>
-            <button onClick={restoreDefaultTracks} style={adminSecondaryButtonStyle}>Restore Default Schedule</button>
-          </div>
-          <div style={{ overflowX: "auto" }}>
-            <table style={adminTableStyle}>
-              <thead><tr><th style={adminThStyle}>Track Name</th><th style={adminThStyle}>Stage Count</th><th style={adminThStyle}>Used in History?</th><th style={adminThStyle}>Actions</th></tr></thead>
-              <tbody>
-                {tracks.length === 0 ? (
-                  <tr><td style={adminTdStyle} colSpan={4}><div style={{ opacity: 0.75 }}>No tracks defined. Add one above or restore the default schedule.</div></td></tr>
-                ) : tracks.map((t) => {
-                  const usedInHistory = seasons.some((s) => (s.raceHistory || []).some((r) => r.raceName === t.name));
-                  return (
-                    <tr key={t.name}>
-                      <td style={{ ...tdStyle, fontWeight: 700 }}>{t.name}</td>
-                      <td style={adminTdStyle}>
-                        <select style={{ ...inputStyle, maxWidth: 160 }} value={t.stageCount} onChange={(e) => updateTrackStageCount(t.name, e.target.value)}>
-                          <option value={1}>1 stage</option>
-                          <option value={2}>2 stages</option>
-                          <option value={3}>3 stages</option>
-                        </select>
-                      </td>
-                      <td style={adminTdStyle}>{usedInHistory ? <span style={{ color: "#f59e0b", fontWeight: 700 }}>Yes</span> : <span style={{ opacity: 0.7 }}>No</span>}</td>
-                      <td style={adminTdStyle}><button onClick={() => removeTrack(t.name)} style={adminDangerButtonStyle}>Remove</button></td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-        {/* Start & Park Requests moved into Human Resources > Start & Park. */}
-
-        {/* Enter Race Results */}
-        <div style={adminReadableCardStyle}>
-          <h2 style={{ marginTop: 0 }}>{editingRaceName ? `Edit Race: ${editingRaceName}` : "Enter Race Results"}</h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 14, marginBottom: 18 }}>
-            <div>
-              <label style={{ display: "block", marginBottom: 6, fontWeight: 700 }}>Race</label>
-              <select style={adminInputStyle} value={selectedRace} onChange={(e) => patchActiveSeason({ selectedRace: e.target.value })}>
-                <option value="">Select a race</option>
-                {tracks.map((r) => <option key={r.name} value={r.name}>{r.name}</option>)}
-              </select>
-            </div>
-            <div>
-              <label style={{ display: "block", marginBottom: 6, fontWeight: 700 }}>Stage Setup</label>
-              <div style={{ ...inputStyle, display: "flex", alignItems: "center", minHeight: 42 }}>{selectedRace ? `${stageCount} scoring stage${stageCount === 1 ? "" : "s"}` : "Select a race to view stage count"}</div>
-            </div>
-          </div>
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ ...tableStyle, minWidth: 1550 }}>
-              <thead>
-                <tr>
-                  <th style={{ ...thStyle, minWidth: 72 }}>#</th><th style={{ ...thStyle, minWidth: 190 }}>Driver</th><th style={{ ...thStyle, minWidth: 170 }}>Team</th>
-                  <th style={raceEntryThStyle}>Finish</th>
-                  {stageCount >= 1 && <th style={raceEntryThStyle}>Stage 1</th>}
-                  {stageCount >= 2 && <th style={raceEntryThStyle}>Stage 2</th>}
-                  {stageCount === 3 && <th style={raceEntryThStyle}>Stage 3</th>}
-                  <th style={{ ...thStyle, minWidth: 90 }}>DNF</th><th style={{ ...thStyle, minWidth: 120 }}>Start & Park</th><th style={{ ...thStyle, minWidth: 110 }}>Fastest Lap</th>
-                  <th style={{ ...thStyle, minWidth: 110 }}>Offense</th><th style={{ ...thStyle, minWidth: 145 }}>Manual Penalty</th><th style={{ ...thStyle, minWidth: 120 }}>Points Preview</th><th style={{ ...thStyle, minWidth: 280 }}>Notes</th><th style={{ ...thStyle, minWidth: 90 }}>Move</th><th style={{ ...thStyle, minWidth: 120 }}>Offense #</th>
-                </tr>
-              </thead>
-              <tbody>
-                {activeDrivers.map((driver) => {
-                  const prior = seasonOffenseCounts[driver.id] || 0;
-                  const thisOffense = offenseMap[driver.id] ? prior + 1 : null;
-                  return (
-                    <tr key={driver.id}>
-                      <td style={{...tdStyle, display: "flex", alignItems: "center", justifyContent: "center"}}><div style={{width: 36, height: 36, borderRadius: "50%", background: "#404854", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 14, color: "#fff", border: "2px solid #b8a059"}}>{driver.number}</div></td>
-                      <td style={adminTdStyle}>{driver.name}</td>
-                      <td style={adminTdStyle}>{getTeamFullName(driver.team)} <span style={{ fontSize: 11, opacity: 0.5 }}>({driver.team})</span></td>
-                      <td style={raceEntryTdStyle}><input type="number" min="1" max="40" style={racePositionInputStyle} value={positions[driver.id] || ""} onChange={(e) => handlePositionChange(driver.id, e.target.value)} /></td>
-                      {stageCount >= 1 && <td style={raceEntryTdStyle}><input type="number" min="1" max="10" style={racePositionInputStyle} value={stage1[driver.id] || ""} onChange={(e) => handleStage1Change(driver.id, e.target.value)} /></td>}
-                      {stageCount >= 2 && <td style={raceEntryTdStyle}><input type="number" min="1" max="10" style={racePositionInputStyle} value={stage2[driver.id] || ""} onChange={(e) => handleStage2Change(driver.id, e.target.value)} /></td>}
-                      {stageCount === 3 && <td style={raceEntryTdStyle}><input type="number" min="1" max="10" style={racePositionInputStyle} value={stage3[driver.id] || ""} onChange={(e) => handleStage3Change(driver.id, e.target.value)} /></td>}
-                      <td style={adminTdStyle}>
-                        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                          <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <input type="checkbox" checked={!!dnfMap[driver.id]} onChange={(e) => handleDnfChange(driver.id, e.target.checked)} />DNF
-                          </label>
-                          {dnfMap[driver.id] && (
-                            <select
-                              style={{ ...inputStyle, fontSize: 12, padding: "6px 8px" }}
-                              value={dnfReasons[driver.id] || ""}
-                              onChange={(e) => setDnfReasons({ ...dnfReasons, [driver.id]: e.target.value })}
-                            >
-                              <option value="">Select reason...</option>
-                              <option value="Mechanical">Mechanical Failure</option>
-                              <option value="Crash">Crash/Incident</option>
-                              <option value="Engine">Engine Failure</option>
-                              <option value="Transmission">Transmission Issue</option>
-                              <option value="Fuel">Fuel System</option>
-                              <option value="Suspension">Suspension Damage</option>
-                              <option value="Pit Stop">Pit Stop Error</option>
-                              <option value="Other">Other</option>
-                            </select>
-                          )}
-                        </div>
-                      </td>
-                      <td style={adminTdStyle}>
-                        <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <input type="checkbox" checked={!!startParkMap[driver.id]} onChange={(e) => handleStartParkChange(driver.id, e.target.checked)} />Start & Park
-                        </label>
-                        <div style={{ fontSize: 11, opacity: 0.65, marginTop: 5 }}>Finish points only; stage points zeroed.</div>
-                      </td>
-                      <td style={adminTdStyle}><label style={{ display: "flex", alignItems: "center", gap: 8 }}><input type="radio" name="fastestLap" checked={!!fastestLapMap[driver.id]} onChange={() => handleFastestLapChange(driver.id)} />FL +1</label></td>
-                      <td style={adminTdStyle}><label style={{ display: "flex", alignItems: "center", gap: 8 }}><input type="checkbox" checked={!!offenseMap[driver.id]} onChange={(e) => handleOffenseChange(driver.id, e.target.checked)} />Offense</label></td>
-                      <td style={adminTdStyle}><input type="number" min="0" style={racePenaltyInputStyle} value={penaltyMap[driver.id] || ""} onChange={(e) => handleManualPenaltyChange(driver.id, e.target.value)} placeholder="0" /></td>
-                      <td style={{ ...tdStyle, fontWeight: 900, color: "#d4af37" }}>{(() => { const fp = positions[driver.id] ? pointsTable[(Number(positions[driver.id]) || 1) - 1] || 0 : 0; const sp = startParkMap[driver.id] ? 0 : getStagePoints(stage1[driver.id]) + getStagePoints(stage2[driver.id]) + (stageCount === 3 ? getStagePoints(stage3[driver.id]) : 0); const fl = fastestLapMap[driver.id] ? 1 : 0; const op = thisOffense ? getOffensePenaltyPoints(thisOffense) : 0; const mp = Number(penaltyMap[driver.id] || 0); return fp + sp + fl - op - mp; })()}</td>
-                      <td style={adminTdStyle}><input style={raceNotesInputStyle} value={resultNotesMap[driver.id] || ""} onChange={(e) => handleResultNoteChange(driver.id, e.target.value)} placeholder="Penalty note, ruling, etc." /></td>
-                      <td style={adminTdStyle}><div style={{ display: "flex", gap: 6 }}><button type="button" onClick={() => moveDriverFinishPosition(driver.id, -1)} style={{ ...secondaryButtonStyle, padding: "6px 9px" }}>↑</button><button type="button" onClick={() => moveDriverFinishPosition(driver.id, 1)} style={{ ...secondaryButtonStyle, padding: "6px 9px" }}>↓</button></div></td>
-                      <td style={{ ...tdStyle, color: thisOffense ? "#f87171" : "inherit" }}>
-                        {thisOffense ? `#${thisOffense} (-${getOffensePenaltyPoints(thisOffense)} pts)` : prior > 0 ? `${prior} prior` : "—"}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 18 }}>
-            <button onClick={saveResultsDraft} style={adminSecondaryButtonStyle}>Save Admin-Only Draft</button>
-            <button onClick={() => submitResults()} style={adminPrimaryButtonStyle}>{editingRaceName ? "Update Posted Race" : "Post to Standings"}</button>
-            {editingRaceName && <button onClick={clearInputs} style={adminSecondaryButtonStyle}>Cancel Edit</button>}
-            <button onClick={clearInputs} style={adminSecondaryButtonStyle}>Clear Inputs</button>
-            <button onClick={resetSeason} style={adminDangerButtonStyle}>Archive + Reset Active Season</button>
-          </div>
-        </div>
-        {/* Admin-Only Results Drafts */}
-        <div style={adminReadableCardStyle}>
-          <h2 style={{ marginTop: 0 }}>Admin-Only Results Drafts</h2>
-          <div style={{ opacity: 0.78, marginBottom: 14 }}>Drafts let you capture finishing points, penalties, DNFs, and notes without changing public standings. Post only when race control is ready.</div>
-          <div style={{ overflowX: "auto" }}>
-            <table style={adminTableStyle}>
-              <thead><tr><th style={adminThStyle}>Race</th><th style={adminThStyle}>Saved</th><th style={adminThStyle}>Leader</th><th style={adminThStyle}>Rows</th><th style={adminThStyle}>Actions</th></tr></thead>
-              <tbody>
-                {(raceDrafts || []).length === 0 ? (
-                  <tr><td style={adminTdStyle} colSpan={5}><div style={{ opacity: 0.7 }}>No private drafts saved.</div></td></tr>
-                ) : (raceDrafts || []).map((draft) => {
-                  const leader = (draft.results || []).find((result) => result.finishPos === 1) || (draft.results || [])[0];
-                  return (
-                    <tr key={draft.id || draft.raceName}>
-                      <td style={{ ...tdStyle, fontWeight: 900 }}>{draft.raceName}</td>
-                      <td style={adminTdStyle}>{draft.draftSavedAt ? new Date(draft.draftSavedAt).toLocaleString() : "—"}</td>
-                      <td style={adminTdStyle}>{leader ? `#${leader.number} ${leader.name} (${leader.totalRacePoints} pts)` : "—"}</td>
-                      <td style={adminTdStyle}>{(draft.results || []).length}</td>
-                      <td style={adminTdStyle}>
-                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                          <button type="button" onClick={() => loadResultsDraft(draft)} style={adminSecondaryButtonStyle}>Load/Edit</button>
-                          <button type="button" onClick={() => postResultsDraft(draft)} style={adminPrimaryButtonStyle}>Post to Standings</button>
-                          <button type="button" onClick={() => deleteResultsDraft(draft.id)} style={adminDangerButtonStyle}>Delete</button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-        {/* Driver Standings */}
-        <div style={adminReadableCardStyle}>
-          <h2 style={{ marginTop: 0 }}>Driver Standings</h2>
-          <div style={{ overflowX: "auto" }}>
-            <table style={adminTableStyle}>
-              <thead><tr><th style={adminThStyle}>Pos</th><th style={adminThStyle}>#</th><th style={adminThStyle}>Driver</th><th style={adminThStyle}>Team</th><th style={adminThStyle}>Points</th><th style={adminThStyle}>Wins</th><th style={adminThStyle}>Top 3</th><th style={adminThStyle}>Top 5</th><th style={adminThStyle}>DNFs</th></tr></thead>
-              <tbody>{sortedDrivers.map((d, i) => (<tr key={d.id}><td style={adminTdStyle}>{i+1}</td><td style={{...tdStyle, display: "flex", alignItems: "center", justifyContent: "center"}}><div style={{width: 36, height: 36, borderRadius: "50%", background: "#404854", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 14, color: "#fff", border: "2px solid #b8a059"}}>{d.number}</div></td><td style={adminTdStyle}>{d.name}{d.retired && <span style={{ marginLeft: 6, fontSize: 11, background: "#2a3140", color: "#f59e0b", borderRadius: 6, padding: "2px 6px", fontWeight: 700 }}>R</span>}</td><td style={adminTdStyle}>{getTeamFullName(d.team)}</td><td style={adminTdStyle}>{d.points}</td><td style={adminTdStyle}>{d.wins}</td><td style={adminTdStyle}>{d.top3}</td><td style={adminTdStyle}>{d.top5}</td><td style={adminTdStyle}>{d.dnfs || 0}</td></tr>))}</tbody>
-            </table>
-          </div>
-        </div>
-        {/* Team Standings */}
-        <div style={adminReadableCardStyle}>
-          <h2 style={{ marginTop: 0 }}>Team Standings</h2>
-          <div style={{ overflowX: "auto" }}>
-            <table style={adminTableStyle}>
-              <thead><tr><th style={adminThStyle}>Pos</th><th style={adminThStyle}>Team</th><th style={adminThStyle}>Points</th><th style={adminThStyle}>Wins</th><th style={adminThStyle}>Top 3</th><th style={adminThStyle}>Top 5</th><th style={adminThStyle}>Drivers</th></tr></thead>
-              <tbody>{teamStandings.map((t, i) => (<tr key={t.team} onClick={() => (window.location.href = `/team/${t.team}`)} style={{ cursor: "pointer" }}><td style={adminTdStyle}>{i+1}</td><td style={adminTdStyle}>{getTeamFullName(t.team)}</td><td style={adminTdStyle}>{t.points}</td><td style={adminTdStyle}>{t.wins}</td><td style={adminTdStyle}>{t.top3}</td><td style={adminTdStyle}>{t.top5}</td><td style={adminTdStyle}>{t.drivers}</td></tr>))}</tbody>
-            </table>
-          </div>
-        </div>
-        {/* Manufacturer Standings */}
-        <div style={adminReadableCardStyle}>
-          <h2 style={{ marginTop: 0 }}>Manufacturer Standings</h2>
-          <div style={{ overflowX: "auto" }}>
-            <table style={adminTableStyle}>
-              <thead><tr><th style={adminThStyle}>Pos</th><th style={adminThStyle}>Manufacturer</th><th style={adminThStyle}>Points</th><th style={adminThStyle}>Wins</th><th style={adminThStyle}>Top 3</th><th style={adminThStyle}>Top 5</th><th style={adminThStyle}>Drivers</th></tr></thead>
-              <tbody>{manufacturerStandings.map((m, i) => (<tr key={m.manufacturer} onClick={() => (window.location.href = `/manufacturer/${encodeURIComponent(m.manufacturer)}`)} style={{ cursor: "pointer" }}><td style={adminTdStyle}>{i+1}</td><td style={adminTdStyle}>{m.manufacturer}</td><td style={adminTdStyle}>{m.points}</td><td style={adminTdStyle}>{m.wins}</td><td style={adminTdStyle}>{m.top3}</td><td style={adminTdStyle}>{m.top5}</td><td style={adminTdStyle}>{m.drivers}</td></tr>))}</tbody>
-            </table>
-          </div>
-        </div>
-        {/* Race History */}
-        <div style={adminReadableCardStyle}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
-            <h2 style={{ margin: 0 }}>Race History</h2>
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <button
-                type="button"
-                onClick={() => downloadRaceHistoryCsv(raceHistory, activeSeason?.name || "Season")}
-                style={adminPrimaryButtonStyle}
-              >
-                ⬇️ Download Race History CSV
-              </button>
-              <button
-                type="button"
-                onClick={handleDownloadLeagueBackup}
-                style={adminSecondaryButtonStyle}
-              >
-                💾 Backup Results
-              </button>
-              <button
-                type="button"
-                onClick={() => backupFileInputRef.current?.click()}
-                style={adminSecondaryButtonStyle}
-              >
-                ♻️ Restore From Backup
-              </button>
-              <input
-                ref={backupFileInputRef}
-                type="file"
-                accept="application/json"
-                onChange={handleRestoreLeagueBackup}
-                style={{ display: "none" }}
-              />
-            </div>
-          </div>
-          {raceHistory.length === 0 ? <div style={{ opacity: 0.75 }}>No races entered yet.</div> : (
-            <div style={{ display: "grid", gap: 16 }}>
-              {raceHistory.map((race) => {
-                const winner = race.results?.find((r) => r.finishPos === 1);
-                return (
-                  <div key={race.raceName} style={{ background: "#10141b", border: "1px solid #2b3441", borderRadius: 14, padding: 16 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 10 }}>
-                      <div>
-                        <div style={{ fontSize: 20, fontWeight: 800 }}>{race.raceName}</div>
-                        <div style={{ opacity: 0.75 }}>{race.stageCount} scoring stage{race.stageCount === 1 ? "" : "s"}{winner ? ` • Winner: #${winner.number} ${winner.name}` : ""}</div>
-                      </div>
-                      <div style={{ display: "flex", gap: 8 }}>
-                        <button onClick={() => handleEditRace(race)} style={adminSecondaryButtonStyle}>Edit</button>
-                        <button onClick={() => handleDeleteRace(race.raceName)} style={adminDangerButtonStyle}>Delete</button>
-                      </div>
-                    </div>
-                    <div style={{ overflowX: "auto" }}>
-                      <table style={adminTableStyle}>
-                        <thead>
-                          <tr>
-                            <th style={adminThStyle}>Finish</th><th style={adminThStyle}>#</th><th style={adminThStyle}>Driver</th><th style={adminThStyle}>Team</th>
-                            <th style={adminThStyle}>Race Pts</th>
-                            {race.stageCount >= 1 && <th style={adminThStyle}>S1</th>}
-                            {race.stageCount >= 2 && <th style={adminThStyle}>S2</th>}
-                            {race.stageCount === 3 && <th style={adminThStyle}>S3</th>}
-                            <th style={adminThStyle}>FL</th><th style={adminThStyle}>DNF</th><th style={adminThStyle}>Start & Park</th>
-                            <th style={adminThStyle}>Offense</th><th style={adminThStyle}>Penalty</th><th style={adminThStyle}>Total</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {race.results.map((r) => (
-                            <tr key={r.driverId}>
-                              <td style={adminTdStyle}>{r.finishPos ?? "—"}</td>
-                              <td style={{...tdStyle, display: "flex", alignItems: "center", justifyContent: "center"}}><div style={{width: 36, height: 36, borderRadius: "50%", background: "#404854", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 14, color: "#fff", border: "2px solid #b8a059"}}>{r.number}</div></td>
-                              <td style={adminTdStyle}>{r.name}</td>
-                              <td style={adminTdStyle}>{getTeamFullName(r.team)}</td>
-                              <td style={adminTdStyle}>{r.finishPoints}</td>
-                              {race.stageCount >= 1 && <td style={adminTdStyle}>{r.stage1Points}</td>}
-                              {race.stageCount >= 2 && <td style={adminTdStyle}>{r.stage2Points}</td>}
-                              {race.stageCount === 3 && <td style={adminTdStyle}>{r.stage3Points}</td>}
-                              <td style={adminTdStyle}>{r.fastestLap ? "+1" : "—"}</td>
-                              <td style={adminTdStyle}>{r.dnf ? (r.dnfReason ? `DNF (${r.dnfReason})` : "DNF") : "—"}</td>
-                              <td style={adminTdStyle}>{r.startPark ? "Yes" : "—"}</td>
-                              <td style={adminTdStyle}>{r.offense ? `#${r.offenseNumber}` : "—"}</td>
-                              <td style={{ ...tdStyle, color: r.penaltyPoints > 0 ? "#f87171" : "inherit" }}>{r.penaltyPoints > 0 ? `-${r.penaltyPoints}` : "0"}</td>
-                              <td style={{ ...tdStyle, fontWeight: 800 }}>{r.totalRacePoints}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-        {/* Offense Log */}
-        <div style={adminReadableCardStyle}>
-          <h2 style={{ marginTop: 0 }}>Offense Log</h2>
-          {offenseLog.length === 0 ? <div style={{ opacity: 0.75 }}>No offenses logged yet.</div> : (
-            <div style={{ overflowX: "auto" }}>
-              <table style={adminTableStyle}>
-                <thead><tr><th style={adminThStyle}>Race</th><th style={adminThStyle}>#</th><th style={adminThStyle}>Driver</th><th style={adminThStyle}>Offense #</th><th style={adminThStyle}>Penalty</th></tr></thead>
-                <tbody>
-                  {offenseLog.map((entry, i) => (
-                    <tr key={`${entry.raceName}-${entry.number}-${i}`}>
-                      <td style={adminTdStyle}>{entry.raceName}</td>
-                      <td style={adminTdStyle}>{entry.number}</td>
-                      <td style={adminTdStyle}>{entry.name}</td>
-                      <td style={adminTdStyle}>#{entry.offenseNumber}</td>
-                      <td style={{ ...tdStyle, color: "#b42318" }}>-{entry.penaltyPoints} pts</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+        {/* Race Operations moved out of Admin Home. Use the Race Operations menu item. */}
       </div>
     </div>
   );
