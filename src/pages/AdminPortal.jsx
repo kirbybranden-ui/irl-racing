@@ -1695,98 +1695,129 @@ export default function AdminPortal({
         {/* Start & Park Requests moved into Human Resources > Start & Park. */}
 
         {/* Enter Race Results */}
-        {raceOperationsTab === "input" && <div style={adminReadableCardStyle}>
-          <h2 style={{ marginTop: 0 }}>{editingRaceName ? `Edit Race: ${editingRaceName}` : "Enter Race Results"}</h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 14, marginBottom: 18 }}>
-            <div>
-              <label style={{ display: "block", marginBottom: 6, fontWeight: 700 }}>Race</label>
-              <select style={adminInputStyle} value={selectedRace} onChange={(e) => patchActiveSeason({ selectedRace: e.target.value })}>
+        {raceOperationsTab === "input" && <div style={{ ...adminReadableCardStyle, padding: isAdminMobile ? 18 : 28, borderRadius: 34, background: "linear-gradient(180deg, rgba(255,255,255,0.97), rgba(248,250,252,0.94))", boxShadow: "0 22px 60px rgba(15,23,42,0.12)", border: "1px solid rgba(255,255,255,0.78)" }}>
+          <div style={{ textAlign: "center", marginBottom: 22 }}>
+            <h2 style={{ margin: 0, fontSize: isAdminMobile ? 30 : 42, letterSpacing: -1.5, lineHeight: 1 }}>{editingRaceName ? `Edit Race: ${editingRaceName}` : "Race Results"}</h2>
+            <div style={{ color: "#6b7280", fontWeight: 750, maxWidth: 760, margin: "10px auto 0", lineHeight: 1.45 }}>Enter official finishing order, stage points, DNFs, penalties, fastest lap, and race-control notes for the selected race.</div>
+            <div style={{ display: "flex", justifyContent: "center", gap: 10, flexWrap: "wrap", marginTop: 18 }}>
+              <span style={{ display: "inline-flex", alignItems: "center", padding: "10px 14px", borderRadius: 999, background: selectedRace ? "rgba(52,199,89,0.14)" : "rgba(142,142,147,0.12)", color: selectedRace ? "#15803d" : "#6b7280", fontWeight: 1000, fontSize: 13 }}>{selectedRace ? "Race Selected" : "Select Race"}</span>
+              <span style={{ display: "inline-flex", alignItems: "center", padding: "10px 14px", borderRadius: 999, background: "rgba(0,122,255,0.12)", color: "#1d4ed8", fontWeight: 1000, fontSize: 13 }}>{activeDrivers.length} Drivers</span>
+              <span style={{ display: "inline-flex", alignItems: "center", padding: "10px 14px", borderRadius: 999, background: "rgba(88,86,214,0.12)", color: "#4338ca", fontWeight: 1000, fontSize: 13 }}>{selectedRace ? `${stageCount} Stage${stageCount === 1 ? "" : "s"}` : "Stage Setup"}</span>
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "minmax(280px, 0.75fr) minmax(420px, 1.25fr)", gap: 16, alignItems: "stretch", marginBottom: 20 }}>
+            <div style={{ borderRadius: 30, padding: 18, background: "linear-gradient(160deg, rgba(0,122,255,0.12), rgba(90,200,250,0.10))", border: "1px solid rgba(0,122,255,0.16)", boxShadow: "0 14px 34px rgba(15,23,42,0.08)" }}>
+              <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.1, textTransform: "uppercase", color: "#1d4ed8", marginBottom: 10 }}>Current Race</div>
+              <select style={{ ...adminInputStyle, borderRadius: 18, minHeight: 46, background: "rgba(255,255,255,0.88)", fontWeight: 850 }} value={selectedRace} onChange={(e) => patchActiveSeason({ selectedRace: e.target.value })}>
                 <option value="">Select a race</option>
                 {tracks.map((r) => <option key={r.name} value={r.name}>{r.name}</option>)}
               </select>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
+                <span style={{ padding: "8px 11px", borderRadius: 999, background: "rgba(255,255,255,0.78)", color: "#111827", fontWeight: 950, fontSize: 12 }}>{selectedRace || "No race selected"}</span>
+                <span style={{ padding: "8px 11px", borderRadius: 999, background: "rgba(255,255,255,0.78)", color: "#111827", fontWeight: 950, fontSize: 12 }}>{selectedRace ? `${stageCount} scoring stage${stageCount === 1 ? "" : "s"}` : "Stage count pending"}</span>
+              </div>
             </div>
-            <div>
-              <label style={{ display: "block", marginBottom: 6, fontWeight: 700 }}>Stage Setup</label>
-              <div style={{ ...inputStyle, display: "flex", alignItems: "center", minHeight: 42 }}>{selectedRace ? `${stageCount} scoring stage${stageCount === 1 ? "" : "s"}` : "Select a race to view stage count"}</div>
+
+            <div style={{ borderRadius: 30, padding: 18, background: "rgba(255,255,255,0.82)", border: "1px solid rgba(226,232,240,0.9)", boxShadow: "0 14px 34px rgba(15,23,42,0.07)" }}>
+              <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.1, textTransform: "uppercase", color: "#6b7280", marginBottom: 10 }}>Race Control</div>
+              <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(3, 1fr)", gap: 10 }}>
+                <button onClick={saveResultsDraft} style={{ ...adminSecondaryButtonStyle, borderRadius: 18, minHeight: 48 }}>Save Draft</button>
+                <button onClick={() => submitResults()} style={{ ...adminPrimaryButtonStyle, borderRadius: 18, minHeight: 48 }}>{editingRaceName ? "Update Posted Race" : "Post Official Results"}</button>
+                <button onClick={clearInputs} style={{ ...adminSecondaryButtonStyle, borderRadius: 18, minHeight: 48 }}>{editingRaceName ? "Cancel / Clear" : "Clear Inputs"}</button>
+              </div>
+              <div style={{ marginTop: 12, color: "#6b7280", fontWeight: 700, fontSize: 13 }}>Use each driver card for finish position and stage points. Open More for DNFs, penalties, notes, and offense tracking.</div>
             </div>
           </div>
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ ...tableStyle, minWidth: 1550 }}>
-              <thead>
-                <tr>
-                  <th style={{ ...thStyle, minWidth: 72 }}>#</th><th style={{ ...thStyle, minWidth: 190 }}>Driver</th><th style={{ ...thStyle, minWidth: 170 }}>Team</th>
-                  <th style={raceEntryThStyle}>Finish</th>
-                  {stageCount >= 1 && <th style={raceEntryThStyle}>Stage 1</th>}
-                  {stageCount >= 2 && <th style={raceEntryThStyle}>Stage 2</th>}
-                  {stageCount === 3 && <th style={raceEntryThStyle}>Stage 3</th>}
-                  <th style={{ ...thStyle, minWidth: 90 }}>DNF</th><th style={{ ...thStyle, minWidth: 120 }}>Start & Park</th><th style={{ ...thStyle, minWidth: 110 }}>Fastest Lap</th>
-                  <th style={{ ...thStyle, minWidth: 110 }}>Offense</th><th style={{ ...thStyle, minWidth: 145 }}>Manual Penalty</th><th style={{ ...thStyle, minWidth: 120 }}>Points Preview</th><th style={{ ...thStyle, minWidth: 280 }}>Notes</th><th style={{ ...thStyle, minWidth: 90 }}>Move</th><th style={{ ...thStyle, minWidth: 120 }}>Offense #</th>
-                </tr>
-              </thead>
-              <tbody>
-                {activeDrivers.map((driver) => {
-                  const prior = seasonOffenseCounts[driver.id] || 0;
-                  const thisOffense = offenseMap[driver.id] ? prior + 1 : null;
-                  return (
-                    <tr key={driver.id}>
-                      <td style={{...tdStyle, display: "flex", alignItems: "center", justifyContent: "center"}}><div style={{width: 36, height: 36, borderRadius: "50%", background: "#404854", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 14, color: "#fff", border: "2px solid #b8a059"}}>{driver.number}</div></td>
-                      <td style={adminTdStyle}>{driver.name}</td>
-                      <td style={adminTdStyle}>{getTeamFullName(driver.team)} <span style={{ fontSize: 11, opacity: 0.5 }}>({driver.team})</span></td>
-                      <td style={raceEntryTdStyle}><input type="number" min="1" max="40" style={racePositionInputStyle} value={positions[driver.id] || ""} onChange={(e) => handlePositionChange(driver.id, e.target.value)} /></td>
-                      {stageCount >= 1 && <td style={raceEntryTdStyle}><input type="number" min="1" max="10" style={racePositionInputStyle} value={stage1[driver.id] || ""} onChange={(e) => handleStage1Change(driver.id, e.target.value)} /></td>}
-                      {stageCount >= 2 && <td style={raceEntryTdStyle}><input type="number" min="1" max="10" style={racePositionInputStyle} value={stage2[driver.id] || ""} onChange={(e) => handleStage2Change(driver.id, e.target.value)} /></td>}
-                      {stageCount === 3 && <td style={raceEntryTdStyle}><input type="number" min="1" max="10" style={racePositionInputStyle} value={stage3[driver.id] || ""} onChange={(e) => handleStage3Change(driver.id, e.target.value)} /></td>}
-                      <td style={adminTdStyle}>
-                        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                          <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <input type="checkbox" checked={!!dnfMap[driver.id]} onChange={(e) => handleDnfChange(driver.id, e.target.checked)} />DNF
-                          </label>
-                          {dnfMap[driver.id] && (
-                            <select
-                              style={{ ...inputStyle, fontSize: 12, padding: "6px 8px" }}
-                              value={dnfReasons[driver.id] || ""}
-                              onChange={(e) => setDnfReasons({ ...dnfReasons, [driver.id]: e.target.value })}
-                            >
-                              <option value="">Select reason...</option>
-                              <option value="Mechanical">Mechanical Failure</option>
-                              <option value="Crash">Crash/Incident</option>
-                              <option value="Engine">Engine Failure</option>
-                              <option value="Transmission">Transmission Issue</option>
-                              <option value="Fuel">Fuel System</option>
-                              <option value="Suspension">Suspension Damage</option>
-                              <option value="Pit Stop">Pit Stop Error</option>
-                              <option value="Other">Other</option>
-                            </select>
-                          )}
-                        </div>
-                      </td>
-                      <td style={adminTdStyle}>
-                        <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <input type="checkbox" checked={!!startParkMap[driver.id]} onChange={(e) => handleStartParkChange(driver.id, e.target.checked)} />Start & Park
+
+          <div style={{ display: "grid", gap: 12 }}>
+            {activeDrivers.map((driver) => {
+              const prior = seasonOffenseCounts[driver.id] || 0;
+              const thisOffense = offenseMap[driver.id] ? prior + 1 : null;
+              const fp = positions[driver.id] ? pointsTable[(Number(positions[driver.id]) || 1) - 1] || 0 : 0;
+              const sp = startParkMap[driver.id] ? 0 : getStagePoints(stage1[driver.id]) + getStagePoints(stage2[driver.id]) + (stageCount === 3 ? getStagePoints(stage3[driver.id]) : 0);
+              const fl = fastestLapMap[driver.id] ? 1 : 0;
+              const op = thisOffense ? getOffensePenaltyPoints(thisOffense) : 0;
+              const mp = Number(penaltyMap[driver.id] || 0);
+              const previewPoints = fp + sp + fl - op - mp;
+              return (
+                <details key={driver.id} style={{ borderRadius: 26, background: "rgba(255,255,255,0.92)", border: "1px solid rgba(226,232,240,0.92)", boxShadow: "0 12px 28px rgba(15,23,42,0.06)", overflow: "hidden" }}>
+                  <summary style={{ listStyle: "none", cursor: "pointer", padding: isAdminMobile ? 14 : 16, display: "grid", gridTemplateColumns: isAdminMobile ? "52px 1fr" : "58px 1.1fr 1fr 1fr 1fr auto", gap: 12, alignItems: "center" }}>
+                    <div style={{ width: 44, height: 44, borderRadius: "50%", background: "linear-gradient(145deg, #374151, #111827)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 1000, fontSize: 14, color: "#fff", border: "2px solid #d4af37", boxShadow: "0 8px 18px rgba(17,24,39,0.18)" }}>{driver.number}</div>
+                    <div>
+                      <div style={{ fontWeight: 1000, color: "#111827", letterSpacing: -0.2 }}>{driver.name}</div>
+                      <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 800 }}>{getTeamFullName(driver.team)} <span style={{ opacity: 0.62 }}>({driver.team})</span></div>
+                    </div>
+                    <label style={{ display: "grid", gap: 5, fontSize: 12, color: "#6b7280", fontWeight: 900 }} onClick={(e) => e.stopPropagation()}>Finish
+                      <input type="number" min="1" max="40" style={{ ...racePositionInputStyle, borderRadius: 16, background: "#f8fafc", minHeight: 42 }} value={positions[driver.id] || ""} onChange={(e) => handlePositionChange(driver.id, e.target.value)} />
+                    </label>
+                    {stageCount >= 1 && <label style={{ display: "grid", gap: 5, fontSize: 12, color: "#6b7280", fontWeight: 900 }} onClick={(e) => e.stopPropagation()}>Stage 1
+                      <input type="number" min="1" max="10" style={{ ...racePositionInputStyle, borderRadius: 16, background: "#f8fafc", minHeight: 42 }} value={stage1[driver.id] || ""} onChange={(e) => handleStage1Change(driver.id, e.target.value)} />
+                    </label>}
+                    {stageCount >= 2 && <label style={{ display: "grid", gap: 5, fontSize: 12, color: "#6b7280", fontWeight: 900 }} onClick={(e) => e.stopPropagation()}>Stage 2
+                      <input type="number" min="1" max="10" style={{ ...racePositionInputStyle, borderRadius: 16, background: "#f8fafc", minHeight: 42 }} value={stage2[driver.id] || ""} onChange={(e) => handleStage2Change(driver.id, e.target.value)} />
+                    </label>}
+                    {stageCount === 3 && <label style={{ display: "grid", gap: 5, fontSize: 12, color: "#6b7280", fontWeight: 900 }} onClick={(e) => e.stopPropagation()}>Stage 3
+                      <input type="number" min="1" max="10" style={{ ...racePositionInputStyle, borderRadius: 16, background: "#f8fafc", minHeight: 42 }} value={stage3[driver.id] || ""} onChange={(e) => handleStage3Change(driver.id, e.target.value)} />
+                    </label>}
+                    <div style={{ display: "flex", justifyContent: isAdminMobile ? "flex-start" : "flex-end", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                      <span style={{ padding: "8px 11px", borderRadius: 999, background: "rgba(52,199,89,0.12)", color: "#15803d", fontWeight: 1000, fontSize: 12 }}>{previewPoints} pts</span>
+                      <span style={{ padding: "8px 11px", borderRadius: 999, background: "rgba(142,142,147,0.12)", color: "#6b7280", fontWeight: 1000, fontSize: 12 }}>More</span>
+                    </div>
+                  </summary>
+
+                  <div style={{ borderTop: "1px solid rgba(226,232,240,0.9)", padding: isAdminMobile ? 14 : 16, background: "linear-gradient(180deg, rgba(248,250,252,0.96), rgba(255,255,255,0.96))" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(4, minmax(180px, 1fr))", gap: 12 }}>
+                      <div style={{ borderRadius: 20, padding: 13, background: "rgba(255,255,255,0.9)", border: "1px solid rgba(226,232,240,0.9)" }}>
+                        <label style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 900 }}><input type="checkbox" checked={!!dnfMap[driver.id]} onChange={(e) => handleDnfChange(driver.id, e.target.checked)} />DNF</label>
+                        {dnfMap[driver.id] && (
+                          <select style={{ ...inputStyle, fontSize: 12, padding: "8px 10px", borderRadius: 14, marginTop: 10 }} value={dnfReasons[driver.id] || ""} onChange={(e) => setDnfReasons({ ...dnfReasons, [driver.id]: e.target.value })}>
+                            <option value="">Select reason...</option>
+                            <option value="Mechanical">Mechanical Failure</option>
+                            <option value="Crash">Crash/Incident</option>
+                            <option value="Engine">Engine Failure</option>
+                            <option value="Transmission">Transmission Issue</option>
+                            <option value="Fuel">Fuel System</option>
+                            <option value="Suspension">Suspension Damage</option>
+                            <option value="Pit Stop">Pit Stop Error</option>
+                            <option value="Other">Other</option>
+                          </select>
+                        )}
+                      </div>
+                      <div style={{ borderRadius: 20, padding: 13, background: "rgba(255,255,255,0.9)", border: "1px solid rgba(226,232,240,0.9)" }}>
+                        <label style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 900 }}><input type="checkbox" checked={!!startParkMap[driver.id]} onChange={(e) => handleStartParkChange(driver.id, e.target.checked)} />Start & Park</label>
+                        <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 700, marginTop: 8 }}>Finish points only; stage points zeroed.</div>
+                      </div>
+                      <div style={{ borderRadius: 20, padding: 13, background: "rgba(255,255,255,0.9)", border: "1px solid rgba(226,232,240,0.9)" }}>
+                        <label style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 900 }}><input type="radio" name="fastestLap" checked={!!fastestLapMap[driver.id]} onChange={() => handleFastestLapChange(driver.id)} />Fastest Lap +1</label>
+                        <label style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 900, marginTop: 10 }}><input type="checkbox" checked={!!offenseMap[driver.id]} onChange={(e) => handleOffenseChange(driver.id, e.target.checked)} />Offense</label>
+                        <div style={{ fontSize: 12, color: thisOffense ? "#dc2626" : "#6b7280", fontWeight: 800, marginTop: 8 }}>{thisOffense ? `Offense #${thisOffense} (-${getOffensePenaltyPoints(thisOffense)} pts)` : prior > 0 ? `${prior} prior offense(s)` : "No prior offenses"}</div>
+                      </div>
+                      <div style={{ borderRadius: 20, padding: 13, background: "rgba(255,255,255,0.9)", border: "1px solid rgba(226,232,240,0.9)" }}>
+                        <label style={{ display: "grid", gap: 7, fontSize: 12, color: "#6b7280", fontWeight: 900 }}>Manual Penalty
+                          <input type="number" min="0" style={{ ...racePenaltyInputStyle, borderRadius: 14, background: "#f8fafc" }} value={penaltyMap[driver.id] || ""} onChange={(e) => handleManualPenaltyChange(driver.id, e.target.value)} placeholder="0" />
                         </label>
-                        <div style={{ fontSize: 11, opacity: 0.65, marginTop: 5 }}>Finish points only; stage points zeroed.</div>
-                      </td>
-                      <td style={adminTdStyle}><label style={{ display: "flex", alignItems: "center", gap: 8 }}><input type="radio" name="fastestLap" checked={!!fastestLapMap[driver.id]} onChange={() => handleFastestLapChange(driver.id)} />FL +1</label></td>
-                      <td style={adminTdStyle}><label style={{ display: "flex", alignItems: "center", gap: 8 }}><input type="checkbox" checked={!!offenseMap[driver.id]} onChange={(e) => handleOffenseChange(driver.id, e.target.checked)} />Offense</label></td>
-                      <td style={adminTdStyle}><input type="number" min="0" style={racePenaltyInputStyle} value={penaltyMap[driver.id] || ""} onChange={(e) => handleManualPenaltyChange(driver.id, e.target.value)} placeholder="0" /></td>
-                      <td style={{ ...tdStyle, fontWeight: 900, color: "#d4af37" }}>{(() => { const fp = positions[driver.id] ? pointsTable[(Number(positions[driver.id]) || 1) - 1] || 0 : 0; const sp = startParkMap[driver.id] ? 0 : getStagePoints(stage1[driver.id]) + getStagePoints(stage2[driver.id]) + (stageCount === 3 ? getStagePoints(stage3[driver.id]) : 0); const fl = fastestLapMap[driver.id] ? 1 : 0; const op = thisOffense ? getOffensePenaltyPoints(thisOffense) : 0; const mp = Number(penaltyMap[driver.id] || 0); return fp + sp + fl - op - mp; })()}</td>
-                      <td style={adminTdStyle}><input style={raceNotesInputStyle} value={resultNotesMap[driver.id] || ""} onChange={(e) => handleResultNoteChange(driver.id, e.target.value)} placeholder="Penalty note, ruling, etc." /></td>
-                      <td style={adminTdStyle}><div style={{ display: "flex", gap: 6 }}><button type="button" onClick={() => moveDriverFinishPosition(driver.id, -1)} style={{ ...secondaryButtonStyle, padding: "6px 9px" }}>↑</button><button type="button" onClick={() => moveDriverFinishPosition(driver.id, 1)} style={{ ...secondaryButtonStyle, padding: "6px 9px" }}>↓</button></div></td>
-                      <td style={{ ...tdStyle, color: thisOffense ? "#f87171" : "inherit" }}>
-                        {thisOffense ? `#${thisOffense} (-${getOffensePenaltyPoints(thisOffense)} pts)` : prior > 0 ? `${prior} prior` : "—"}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                      </div>
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "1fr auto", gap: 12, marginTop: 12, alignItems: "center" }}>
+                      <input style={{ ...raceNotesInputStyle, borderRadius: 18, background: "#f8fafc", minHeight: 46 }} value={resultNotesMap[driver.id] || ""} onChange={(e) => handleResultNoteChange(driver.id, e.target.value)} placeholder="Race-control notes, penalty ruling, incident detail..." />
+                      <div style={{ display: "flex", gap: 8, justifyContent: isAdminMobile ? "flex-start" : "flex-end" }}>
+                        <button type="button" onClick={() => moveDriverFinishPosition(driver.id, -1)} style={{ ...secondaryButtonStyle, borderRadius: 14, padding: "9px 12px" }}>Move Up</button>
+                        <button type="button" onClick={() => moveDriverFinishPosition(driver.id, 1)} style={{ ...secondaryButtonStyle, borderRadius: 14, padding: "9px 12px" }}>Move Down</button>
+                      </div>
+                    </div>
+                  </div>
+                </details>
+              );
+            })}
           </div>
+
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 18 }}>
-            <button onClick={saveResultsDraft} style={adminSecondaryButtonStyle}>Save Admin-Only Draft</button>
-            <button onClick={() => submitResults()} style={adminPrimaryButtonStyle}>{editingRaceName ? "Update Posted Race" : "Post to Standings"}</button>
-            {editingRaceName && <button onClick={clearInputs} style={adminSecondaryButtonStyle}>Cancel Edit</button>}
-            <button onClick={clearInputs} style={adminSecondaryButtonStyle}>Clear Inputs</button>
-            <button onClick={resetSeason} style={adminDangerButtonStyle}>Archive + Reset Active Season</button>
+            <button onClick={saveResultsDraft} style={{ ...adminSecondaryButtonStyle, borderRadius: 18 }}>Save Admin-Only Draft</button>
+            <button onClick={() => submitResults()} style={{ ...adminPrimaryButtonStyle, borderRadius: 18 }}>{editingRaceName ? "Update Posted Race" : "Post to Standings"}</button>
+            {editingRaceName && <button onClick={clearInputs} style={{ ...adminSecondaryButtonStyle, borderRadius: 18 }}>Cancel Edit</button>}
+            <button onClick={clearInputs} style={{ ...adminSecondaryButtonStyle, borderRadius: 18 }}>Clear Inputs</button>
+            <button onClick={resetSeason} style={{ ...adminDangerButtonStyle, borderRadius: 18 }}>Archive + Reset Active Season</button>
           </div>
         </div>}
         {/* Admin-Only Results Drafts */}
