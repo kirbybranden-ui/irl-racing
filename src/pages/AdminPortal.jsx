@@ -238,6 +238,7 @@ export default function AdminPortal({
   const [hrDepartmentOpen, setHrDepartmentOpen] = useState(false);
   const [hrTab, setHrTab] = useState("overview");
   const [raceOperationsOpen, setRaceOperationsOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [raceOperationsTab, setRaceOperationsTab] = useState("overview");
   const [hrLocalRefresh, setHrLocalRefresh] = useState(0);
   const [financeAction, setFinanceAction] = useState("overview");
@@ -560,10 +561,8 @@ export default function AdminPortal({
     { label: "Race Operations", action: openRaceOperations, primary: true },
     { label: "Finance Department", action: () => openFinanceDepartment("overview"), primary: true },
     { label: "Public Relations", action: () => openPublicRelations("overview"), primary: true },
-    { label: "Messages", action: openAdminMessages, primary: true },
+    { label: "Settings", action: openSettings, primary: true },
     { label: "Streams", action: () => (window.location.pathname = "/streams") },
-    { label: "Voting", action: () => (window.location.pathname = "/admin/votes") },
-    { label: "Export App Data JSON", action: exportAppDataJson, primary: true },
     { label: "Logout", action: logoutAdmin, danger: true },
   ];
 
@@ -614,12 +613,12 @@ export default function AdminPortal({
       gradient: "linear-gradient(135deg, #30d158 0%, #32ade6 45%, #007aff 100%)",
     },
     {
-      title: "Backup Center",
-      icon: "🛡️",
-      value: "Secure",
-      meta: activeSeason?.name || "League data",
-      text: "Export, import, restore, and protect league data.",
-      action: () => document.getElementById("admin-backup-center")?.scrollIntoView({ behavior: "smooth", block: "start" }),
+      title: "Settings",
+      icon: "⚙️",
+      value: "Data",
+      meta: activeSeason?.name || "League settings",
+      text: "Season Manager, backups, exports, imports, and restore controls.",
+      action: openSettings,
       gradient: "linear-gradient(135deg, #af52de 0%, #ff2d55 52%, #5856d6 100%)",
     },
   ];
@@ -1371,46 +1370,7 @@ export default function AdminPortal({
               ))}
             </div>
           </div>
-
-          <div style={{ marginTop: 14, background: "rgba(255,255,255,0.82)", border: "1px solid rgba(209,213,219,0.75)", borderRadius: 26, padding: 18, boxShadow: "0 14px 34px rgba(15,23,42,0.08)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap", marginBottom: 14 }}>
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280", marginBottom: 4 }}>Season Manager</div>
-                <div style={{ fontSize: 28, fontWeight: 1000, letterSpacing: -0.9, color: "#111827" }}>{activeSeason?.name || "No active season"}</div>
-                <div style={{ color: "#6b7280", fontWeight: 800, marginTop: 3 }}>Create, rename, switch, or delete the active league season from the Operations Center.</div>
-              </div>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <span style={{ background: "#eaf2ff", color: "#1d4ed8", borderRadius: 999, padding: "8px 11px", fontSize: 12, fontWeight: 1000 }}>{seasons.length} Seasons</span>
-                <span style={{ background: "#e8f7ee", color: "#137333", borderRadius: 999, padding: "8px 11px", fontSize: 12, fontWeight: 1000 }}>{raceHistory.length} Races</span>
-                <span style={{ background: "#fff4e6", color: "#c2410c", borderRadius: 999, padding: "8px 11px", fontSize: 12, fontWeight: 1000 }}>{drivers.length} Drivers</span>
-              </div>
-            </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "1.1fr 1fr 1fr", gap: 12, marginBottom: 14 }}>
-              <div style={{ background: "rgba(248,250,252,0.92)", border: "1px solid #e5e7eb", borderRadius: 22, padding: 14 }}>
-                <div style={{ marginBottom: 8, fontSize: 12, fontWeight: 1000, color: "#6b7280", textTransform: "uppercase", letterSpacing: 1 }}>Active Season</div>
-                <select style={{ ...adminInputStyle, borderRadius: 16, minHeight: 46, fontWeight: 850 }} value={activeSeasonId} onChange={(e) => switchSeason(e.target.value)}>
-                  {seasons.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </select>
-              </div>
-              <div style={{ background: "rgba(248,250,252,0.92)", border: "1px solid #e5e7eb", borderRadius: 22, padding: 14 }}>
-                <div style={{ marginBottom: 8, fontSize: 12, fontWeight: 1000, color: "#6b7280", textTransform: "uppercase", letterSpacing: 1 }}>Create New Season</div>
-                <input style={{ ...adminInputStyle, borderRadius: 16, minHeight: 46, fontWeight: 850 }} value={newSeasonName} onChange={(e) => setNewSeasonName(e.target.value)} placeholder="Example: 2026 Regular Season" />
-              </div>
-              <div style={{ background: "rgba(248,250,252,0.92)", border: "1px solid #e5e7eb", borderRadius: 22, padding: 14 }}>
-                <div style={{ marginBottom: 8, fontSize: 12, fontWeight: 1000, color: "#6b7280", textTransform: "uppercase", letterSpacing: 1 }}>Rename Active Season</div>
-                <input style={{ ...adminInputStyle, borderRadius: 16, minHeight: 46, fontWeight: 850 }} value={renameSeasonName} onChange={(e) => setRenameSeasonName(e.target.value)} placeholder="Rename current season" />
-              </div>
-            </div>
-
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <button onClick={createSeason} style={{ ...adminPrimaryButtonStyle, borderRadius: 18 }}>Create Season</button>
-              <button onClick={renameActiveSeason} style={{ ...adminSecondaryButtonStyle, borderRadius: 18 }}>Save Season Name</button>
-              <button onClick={deleteActiveSeason} style={{ ...adminDangerButtonStyle, borderRadius: 18 }}>Delete Active Season</button>
-            </div>
-          </div>
         </div>
-
 
         {publicRelationsOpen && (
           <div style={financeOverlayStyle}>
@@ -1745,6 +1705,7 @@ export default function AdminPortal({
                   ["history", "Previous Race Results", "📚", `${raceHistory.length} Races`, "Season archive", "Open the race archive and download single races or the season.", "linear-gradient(135deg, #ff9500 0%, #ffcc00 48%, #ff3b30 100%)"],
                   ["drafts", "Saved Drafts", "📄", `${(raceDrafts || []).length} Draft${(raceDrafts || []).length === 1 ? "" : "s"}`, "Private race control", "Resume, post, or delete admin-only race drafts.", "linear-gradient(135deg, #af52de 0%, #ff2d55 52%, #5856d6 100%)"],
                   ["offenses", "Offense Log", "⚠️", `${offenseLog.length} Open`, "Season discipline", "Review season offense penalties.", "linear-gradient(135deg, #ff3b30 0%, #ff2d55 50%, #8e8e93 100%)"],
+                  ["voting", "Voting", "🗳️", "Admin", "League votes", "Create and review league votes from Race Operations.", "linear-gradient(135deg, #5856d6 0%, #007aff 48%, #32ade6 100%)"],
                 ].map(([key, label, icon, value, meta, description, gradient]) => (
                   <button
                     key={key}
@@ -1783,7 +1744,25 @@ export default function AdminPortal({
               {raceOperationsTab === "overview" && (
                 <div style={adminReadableCardStyle}>
                   <h2 style={{ marginTop: 0 }}>Race Operations Hub</h2>
-                  <div style={{ opacity: 0.78 }}>Choose a tile above. Track Management and Previous Race Results are tucked away until you need them, keeping this page focused for race night.</div>
+                  <div style={{ opacity: 0.78 }}>Choose a tile above. Track Management, Race Input, Voting, and Previous Race Results are tucked away until you need them, keeping this page focused for race night.</div>
+                </div>
+              )}
+
+              {raceOperationsTab === "voting" && (
+                <div style={{ ...adminReadableCardStyle, padding: isAdminMobile ? 18 : 26, borderRadius: 34, background: "linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.92))", boxShadow: "0 22px 60px rgba(15,23,42,0.12)", border: "1px solid rgba(255,255,255,0.75)" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap" }}>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.6, textTransform: "uppercase", color: "#5856d6" }}>Race Operations</div>
+                      <h2 style={{ margin: "3px 0 6px", fontSize: isAdminMobile ? 30 : 38, letterSpacing: -1.35 }}>Voting</h2>
+                      <div style={{ color: "#6b7280", fontWeight: 750, maxWidth: 720 }}>Create, review, and manage league votes from Race Operations instead of keeping voting in the main admin menu.</div>
+                    </div>
+                    <div style={{ width: 58, height: 58, borderRadius: 20, background: "linear-gradient(135deg, #5856d6, #32ade6)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, boxShadow: "0 14px 28px rgba(88,86,214,0.24)" }}>🗳️</div>
+                  </div>
+                  <div style={{ marginTop: 18, borderRadius: 28, padding: 18, background: "linear-gradient(135deg, rgba(88,86,214,0.12), rgba(255,255,255,0.92))", border: "1px solid rgba(88,86,214,0.18)", boxShadow: "0 14px 35px rgba(15,23,42,0.08)" }}>
+                    <h3 style={{ margin: 0, fontSize: 24, letterSpacing: -0.5 }}>League Vote Manager</h3>
+                    <p style={{ margin: "8px 0 16px", color: "#6b7280", fontWeight: 800, lineHeight: 1.45 }}>Voting stays under race control so paint schemes, league votes, and race-week polls do not clutter the admin menu.</p>
+                    <button type="button" onClick={() => (window.location.pathname = "/admin/votes")} style={{ ...adminPrimaryButtonStyle, borderRadius: 18 }}>Open Voting Manager</button>
+                  </div>
                 </div>
               )}
 
@@ -2089,9 +2068,6 @@ export default function AdminPortal({
               <div style={{ marginTop: 12, color: "#374151", fontWeight: 900, lineHeight: 1.35 }}>Previous race results are stored here instead of cluttering the standings page.</div>
               <div style={{ display: "grid", gap: 10, marginTop: 16 }}>
                 <button type="button" onClick={() => downloadRaceHistoryCsv(raceHistory, activeSeason?.name || "Season")} style={{ ...adminPrimaryButtonStyle, width: "100%", borderRadius: 18 }}>Download Full Season CSV</button>
-                <button type="button" onClick={handleDownloadLeagueBackup} style={{ ...adminSecondaryButtonStyle, width: "100%", borderRadius: 18 }}>Backup Results</button>
-                <button type="button" onClick={() => backupFileInputRef.current?.click()} style={{ ...adminSecondaryButtonStyle, width: "100%", borderRadius: 18 }}>Restore From Backup</button>
-                <input ref={backupFileInputRef} type="file" accept="application/json" onChange={handleRestoreLeagueBackup} style={{ display: "none" }} />
               </div>
               <div style={{ marginTop: 12, color: "#6b7280", fontSize: 12, fontWeight: 750, lineHeight: 1.35 }}>Tip: use the per-race download button when you only need one event.</div>
             </div>
@@ -2946,6 +2922,84 @@ export default function AdminPortal({
         )}
 
         <div id="admin-media-center" />
+
+        {settingsOpen && (
+          <div style={financeOverlayStyle}>
+            <div style={financeShellStyle}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, flexWrap: "wrap", marginBottom: 18 }}>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.8, textTransform: "uppercase", color: "#6b7280" }}>Admin Menu</div>
+                  <h1 style={{ margin: "2px 0 0", fontSize: isAdminMobile ? 34 : 42, letterSpacing: -1.6 }}>Settings</h1>
+                  <p style={{ margin: "6px 0 0", color: "#4b5563", fontWeight: 750 }}>Season Manager, backup controls, export tools, and data upload/restore live here.</p>
+                </div>
+                <button type="button" onClick={() => setSettingsOpen(false)} style={{ border: 0, borderRadius: 999, background: "#ffffff", color: "#111827", width: 46, height: 46, fontSize: 23, fontWeight: 1000, cursor: "pointer", boxShadow: "0 8px 20px rgba(15,23,42,0.12)" }}>×</button>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "minmax(320px, 0.9fr) minmax(420px, 1.2fr)", gap: 16, alignItems: "start" }}>
+                <div style={{ ...adminReadableCardStyle, padding: 22, borderRadius: 32, background: "linear-gradient(135deg, rgba(175,82,222,0.14), rgba(255,255,255,0.94))", border: "1px solid rgba(175,82,222,0.20)", boxShadow: "0 18px 44px rgba(15,23,42,0.10)" }}>
+                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#7e22ce" }}>League Settings</div>
+                  <h2 style={{ margin: "4px 0 8px", fontSize: 30, letterSpacing: -0.9 }}>Season Manager</h2>
+                  <p style={{ margin: 0, color: "#6b7280", fontWeight: 800, lineHeight: 1.45 }}>Create, rename, switch, or delete league seasons from Settings instead of the Operations Center homepage.</p>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 16 }}>
+                    <span style={{ background: "#eaf2ff", color: "#1d4ed8", borderRadius: 999, padding: "8px 11px", fontSize: 12, fontWeight: 1000 }}>{seasons.length} Seasons</span>
+                    <span style={{ background: "#e8f7ee", color: "#137333", borderRadius: 999, padding: "8px 11px", fontSize: 12, fontWeight: 1000 }}>{raceHistory.length} Races</span>
+                    <span style={{ background: "#fff4e6", color: "#c2410c", borderRadius: 999, padding: "8px 11px", fontSize: 12, fontWeight: 1000 }}>{drivers.length} Drivers</span>
+                  </div>
+                </div>
+
+                <div style={{ ...adminReadableCardStyle, padding: 22, borderRadius: 32, background: "linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.92))", border: "1px solid rgba(229,231,235,0.90)", boxShadow: "0 18px 44px rgba(15,23,42,0.08)" }}>
+                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280", marginBottom: 12 }}>Season Controls</div>
+                  <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "1fr 1fr", gap: 12 }}>
+                    <div>
+                      <div style={{ marginBottom: 6, fontWeight: 900, color: "#374151" }}>Active Season</div>
+                      <select style={{ ...adminInputStyle, borderRadius: 16, minHeight: 46, fontWeight: 850 }} value={activeSeasonId} onChange={(e) => switchSeason(e.target.value)}>
+                        {seasons.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <div style={{ marginBottom: 6, fontWeight: 900, color: "#374151" }}>Create New Season</div>
+                      <input style={{ ...adminInputStyle, borderRadius: 16, minHeight: 46, fontWeight: 850 }} value={newSeasonName} onChange={(e) => setNewSeasonName(e.target.value)} placeholder="Example: 2026 Regular Season" />
+                    </div>
+                    <div style={{ gridColumn: isAdminMobile ? "auto" : "1 / -1" }}>
+                      <div style={{ marginBottom: 6, fontWeight: 900, color: "#374151" }}>Rename Active Season</div>
+                      <input style={{ ...adminInputStyle, borderRadius: 16, minHeight: 46, fontWeight: 850 }} value={renameSeasonName} onChange={(e) => setRenameSeasonName(e.target.value)} placeholder="Rename current season" />
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 14 }}>
+                    <button onClick={createSeason} style={{ ...adminPrimaryButtonStyle, borderRadius: 18 }}>Create Season</button>
+                    <button onClick={renameActiveSeason} style={{ ...adminSecondaryButtonStyle, borderRadius: 18 }}>Save Season Name</button>
+                    <button onClick={deleteActiveSeason} style={{ ...adminDangerButtonStyle, borderRadius: 18 }}>Delete Active Season</button>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(2, minmax(280px, 1fr))", gap: 16 }}>
+                <div style={{ ...adminReadableCardStyle, padding: 22, borderRadius: 32, background: "linear-gradient(135deg, rgba(0,122,255,0.12), rgba(255,255,255,0.94))", border: "1px solid rgba(0,122,255,0.18)", boxShadow: "0 18px 44px rgba(15,23,42,0.08)" }}>
+                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#1d4ed8" }}>Backup Data</div>
+                  <h2 style={{ margin: "4px 0 8px", fontSize: 28, letterSpacing: -0.8 }}>Download League Data</h2>
+                  <p style={{ margin: "0 0 16px", color: "#6b7280", fontWeight: 800, lineHeight: 1.45 }}>Export a full league backup before major edits or download app data for safekeeping.</p>
+                  <div style={{ display: "grid", gap: 10 }}>
+                    <button type="button" onClick={handleDownloadLeagueBackup} style={{ ...adminPrimaryButtonStyle, borderRadius: 18 }}>Download League Backup</button>
+                    <button type="button" onClick={exportAppDataJson} style={{ ...adminSecondaryButtonStyle, borderRadius: 18 }}>Export App Data JSON</button>
+                    <button type="button" onClick={exportAllSeasonsBackup} style={{ ...adminSecondaryButtonStyle, borderRadius: 18 }}>Export All Seasons Backup</button>
+                  </div>
+                </div>
+
+                <div style={{ ...adminReadableCardStyle, padding: 22, borderRadius: 32, background: "linear-gradient(135deg, rgba(255,149,0,0.14), rgba(255,255,255,0.94))", border: "1px solid rgba(255,149,0,0.20)", boxShadow: "0 18px 44px rgba(15,23,42,0.08)" }}>
+                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#c2410c" }}>Upload Data</div>
+                  <h2 style={{ margin: "4px 0 8px", fontSize: 28, letterSpacing: -0.8 }}>Restore / Import</h2>
+                  <p style={{ margin: "0 0 16px", color: "#6b7280", fontWeight: 800, lineHeight: 1.45 }}>Upload a saved JSON backup to restore or import league data.</p>
+                  <div style={{ display: "grid", gap: 10 }}>
+                    <button type="button" onClick={() => backupFileInputRef.current?.click()} style={{ ...adminPrimaryButtonStyle, borderRadius: 18 }}>Upload League Backup</button>
+                    <button type="button" onClick={() => importFileRef.current?.click()} style={{ ...adminSecondaryButtonStyle, borderRadius: 18 }}>Upload App Data JSON</button>
+                    <input ref={backupFileInputRef} type="file" accept="application/json" onChange={handleRestoreLeagueBackup} style={{ display: "none" }} />
+                    <input ref={importFileRef} type="file" accept="application/json" onChange={handleImportBackup} style={{ display: "none" }} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {adminMessagesOpen && (
           <div style={appleMessagesOverlayStyle}>
