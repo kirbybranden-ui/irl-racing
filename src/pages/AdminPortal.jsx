@@ -241,7 +241,17 @@ export default function AdminPortal({
   const [financeContracts, setFinanceContracts] = useState([]);
   const [financeContractsLoading, setFinanceContractsLoading] = useState(false);
   const [financeForm, setFinanceForm] = useState({ driverId: "", team: "", amount: "", reason: "", note: "" });
+  const [adminViewportWidth, setAdminViewportWidth] = useState(() => (typeof window !== "undefined" ? window.innerWidth : 1200));
 
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const handleResize = () => setAdminViewportWidth(window.innerWidth);
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const isAdminMobile = adminViewportWidth < 760;
   const adminUnreadCount = adminUnreadMessages.length;
 
   function getAdminMessageRecipientLabel(message) {
@@ -460,7 +470,7 @@ export default function AdminPortal({
     { title: "Driver Management", text: "Add, edit, retire, restore, approve pending drivers.", action: () => document.getElementById("admin-driver-management")?.scrollIntoView({ behavior: "smooth", block: "start" }) },
     { title: "Team Owners", text: "Assign owners and manage owner access/password routing.", action: () => document.getElementById("admin-owner-assignments")?.scrollIntoView({ behavior: "smooth", block: "start" }) },
     { title: "Messages", text: "Unread inbox, league broadcasts, owner notices, and create-message tools.", action: openAdminMessages },
-    { title: "Public Relations", text: "Ticker promos, race winner spotlight, hype videos, stories, and interviews.", action: () => openPublicRelations("overview") },
+    { title: "Public Relations", text: "Board posting tools for ticker promos, winner spotlights, hype videos, stories, and interviews.", action: () => openPublicRelations("overview") },
     { title: "Backup Center", text: "Export, import, restore, and protect league data.", action: () => document.getElementById("admin-backup-center")?.scrollIntoView({ behavior: "smooth", block: "start" }) },
   ];
 
@@ -947,11 +957,68 @@ export default function AdminPortal({
 
   const prListRowStyle = {
     display: "grid",
-    gridTemplateColumns: "52px 1fr auto",
-    gap: 12,
+    gridTemplateColumns: isAdminMobile ? "44px 1fr" : "52px 1fr auto",
+    gap: isAdminMobile ? 10 : 12,
     alignItems: "center",
     padding: "14px 0",
     borderBottom: "1px solid #eef0f4",
+  };
+
+  const prDepartmentShellStyle = {
+    ...financeShellStyle,
+    width: "100%",
+    maxWidth: 1240,
+    borderRadius: isAdminMobile ? 22 : 34,
+    padding: isAdminMobile ? 14 : 22,
+  };
+
+  const prDepartmentHeaderStyle = {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: isAdminMobile ? "flex-start" : "center",
+    gap: 14,
+    flexWrap: "nowrap",
+    marginBottom: 18,
+  };
+
+  const prTitleStyle = {
+    margin: "2px 0 0",
+    fontSize: isAdminMobile ? 30 : 42,
+    letterSpacing: isAdminMobile ? -0.8 : -1.6,
+    lineHeight: 1.04,
+  };
+
+  const prTabBarStyle = {
+    display: "flex",
+    gap: 10,
+    overflowX: "auto",
+    paddingBottom: 8,
+    marginBottom: 18,
+    WebkitOverflowScrolling: "touch",
+  };
+
+  const prOverviewGridStyle = {
+    display: "grid",
+    gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(auto-fit, minmax(235px, 1fr))",
+    gap: 14,
+    marginTop: 16,
+  };
+
+  const prMobileStackStyle = {
+    display: "grid",
+    gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(auto-fit, minmax(220px, 1fr))",
+    gap: 12,
+  };
+
+  const prBoardNoticeStyle = {
+    background: "#eef2ff",
+    border: "1px solid #c7d2fe",
+    color: "#1e3a8a",
+    borderRadius: 18,
+    padding: isAdminMobile ? 12 : 14,
+    fontWeight: 850,
+    lineHeight: 1.45,
+    marginBottom: 16,
   };
 
   return (
@@ -1056,17 +1123,19 @@ export default function AdminPortal({
 
         {publicRelationsOpen && (
           <div style={financeOverlayStyle}>
-            <div style={financeShellStyle}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, flexWrap: "wrap", marginBottom: 18 }}>
-                <div>
-                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.8, textTransform: "uppercase", color: "#6b7280" }}>Admin Menu</div>
-                  <h1 style={{ margin: "2px 0 0", fontSize: 42, letterSpacing: -1.6 }}>Public Relations</h1>
-                  <p style={{ margin: "6px 0 0", color: "#4b5563", fontWeight: 750 }}>Promotional command center for ticker messages, race winners, hype videos, stories, and interviews.</p>
+            <div style={prDepartmentShellStyle}>
+              <div style={prDepartmentHeaderStyle}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.8, textTransform: "uppercase", color: "#6b7280" }}>Board Workspace</div>
+                  <h1 style={prTitleStyle}>Public Relations</h1>
+                  <p style={{ margin: "6px 0 0", color: "#4b5563", fontWeight: 750, maxWidth: 760 }}>Internal board posting center for promotional ticker messages, previous race winner spotlights, hype videos, stories, and interviews.</p>
                 </div>
-                <button type="button" onClick={() => setPublicRelationsOpen(false)} style={{ border: 0, borderRadius: 999, background: "#ffffff", color: "#111827", width: 46, height: 46, fontSize: 23, fontWeight: 1000, cursor: "pointer", boxShadow: "0 8px 20px rgba(15,23,42,0.12)" }}>×</button>
+                <button type="button" onClick={() => setPublicRelationsOpen(false)} style={{ flex: "0 0 auto", border: 0, borderRadius: 999, background: "#ffffff", color: "#111827", width: isAdminMobile ? 42 : 46, height: isAdminMobile ? 42 : 46, fontSize: 23, fontWeight: 1000, cursor: "pointer", boxShadow: "0 8px 20px rgba(15,23,42,0.12)" }}>×</button>
               </div>
 
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 18 }}>
+              <div style={prBoardNoticeStyle}>This is not a public page. This is the board's control room for creating, reviewing, and publishing content that appears on the public league pages.</div>
+
+              <div style={prTabBarStyle}>
                 {[
                   ["overview", "PR Home"],
                   ["ticker", "Ticker"],
@@ -1075,7 +1144,7 @@ export default function AdminPortal({
                   ["stories", "Stories"],
                   ["interviews", "Interviews"],
                 ].map(([key, label]) => (
-                  <button key={key} type="button" onClick={() => setPublicRelationsTab(key)} style={financeSegmentButtonStyle(publicRelationsTab === key)}>{label}</button>
+                  <button key={key} type="button" onClick={() => setPublicRelationsTab(key)} style={{ ...financeSegmentButtonStyle(publicRelationsTab === key), flex: "0 0 auto" }}>{label}</button>
                 ))}
               </div>
 
@@ -1084,13 +1153,13 @@ export default function AdminPortal({
                   <div style={prHeroCardStyle}>
                     <div style={{ position: "absolute", right: -40, top: -40, width: 150, height: 150, borderRadius: 999, background: "rgba(255,255,255,0.12)" }} />
                     <div>
-                      <div style={{ opacity: 0.78, fontWeight: 1000, letterSpacing: 1.7, textTransform: "uppercase", fontSize: 12 }}>Budweiser Motorsports PR</div>
-                      <div style={{ fontSize: 36, fontWeight: 1000, letterSpacing: -1.2, marginTop: 10 }}>Control the league story.</div>
+                      <div style={{ opacity: 0.78, fontWeight: 1000, letterSpacing: 1.7, textTransform: "uppercase", fontSize: 12 }}>Board PR Department</div>
+                      <div style={{ fontSize: isAdminMobile ? 28 : 36, fontWeight: 1000, letterSpacing: -1.2, marginTop: 10 }}>Create. Review. Publish.</div>
                     </div>
-                    <div style={{ opacity: 0.88, fontWeight: 850 }}>Ticker promotions · winner spotlight · hype videos · stories · interviews</div>
+                    <div style={{ opacity: 0.88, fontWeight: 850 }}>Internal board tools for every public-facing league post</div>
                   </div>
 
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(235px, 1fr))", gap: 14, marginTop: 16 }}>
+                  <div style={prOverviewGridStyle}>
                     {[
                       ["📣", "Ticker Promotions", `${tickerMessages?.filter?.((m) => m.active !== false)?.length || 0} active messages`, "ticker"],
                       ["🏆", "Race Winner", latestWinner ? `Latest: #${latestWinner.number || ""} ${latestWinner.name || latestWinner.driver || "Winner"}` : "Manage winner spotlight", "winner"],
@@ -1113,8 +1182,8 @@ export default function AdminPortal({
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap", marginBottom: 14 }}>
                     <div>
                       <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Ticker Promotions</div>
-                      <h2 style={{ margin: "3px 0 0", fontSize: 28, letterSpacing: -0.7 }}>League Ticker Messages</h2>
-                      <p style={{ margin: "6px 0 0", color: "#4b5563", fontWeight: 700 }}>Add race promos, sponsor notes, breaking news, app updates, and next-event hype.</p>
+                      <h2 style={{ margin: "3px 0 0", fontSize: 28, letterSpacing: -0.7 }}>Board Ticker Posts</h2>
+                      <p style={{ margin: "6px 0 0", color: "#4b5563", fontWeight: 700 }}>Create and manage the ticker posts that the board wants displayed across the league app.</p>
                     </div>
                     <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                       <button type="button" onClick={loadTickerMessages} style={adminSecondaryButtonStyle}>Refresh</button>
@@ -1123,7 +1192,7 @@ export default function AdminPortal({
                   </div>
 
                   <form onSubmit={saveTickerMessage} style={{ background: "#f5f5f7", border: "1px solid #e5e7eb", borderRadius: 22, padding: 16, marginBottom: 16 }}>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+                    <div style={prMobileStackStyle}>
                       <label style={{ fontWeight: 900 }}>Category
                         <select style={{ ...adminInputStyle, marginTop: 6 }} value={tickerForm.category} onChange={(event) => setTickerForm((current) => ({ ...current, category: event.target.value }))}>
                           <option value="BREAKING">BREAKING</option><option value="NEWS">NEWS</option><option value="TRANSACTION">TRANSACTION</option><option value="TEAM UPDATE">TEAM UPDATE</option><option value="RACE CONTROL">RACE CONTROL</option><option value="RESULTS">RESULTS</option><option value="APP UPDATE">APP UPDATE</option><option value="NEXT EVENT">NEXT EVENT</option><option value="SPONSOR">SPONSOR</option>
@@ -1176,8 +1245,8 @@ export default function AdminPortal({
 
               {publicRelationsTab === "winner" && (
                 <div style={prCardStyle}>
-                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Winner Spotlight</div>
-                  <h2 style={{ margin: "3px 0 14px", fontSize: 28, letterSpacing: -0.7 }}>Race Winner Promotion</h2>
+                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Board Winner Spotlight</div>
+                  <h2 style={{ margin: "3px 0 14px", fontSize: 28, letterSpacing: -0.7 }}>Previous Race Winner Post</h2>
                   <PreviousRaceWinnerAdminPanel drivers={visibleDrivers} raceHistory={raceHistory} />
                 </div>
               )}
@@ -1185,8 +1254,8 @@ export default function AdminPortal({
               {publicRelationsTab === "video" && (
                 <div style={prCardStyle}>
                   <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Hype Videos</div>
-                  <h2 style={{ margin: "3px 0 6px", fontSize: 28, letterSpacing: -0.7 }}>Featured Video Control</h2>
-                  <p style={{ margin: "0 0 16px", color: "#4b5563", fontWeight: 700 }}>Upload pre-race hype, race recaps, playoff promos, and league highlight videos for the public-facing pages.</p>
+                  <h2 style={{ margin: "3px 0 6px", fontSize: 28, letterSpacing: -0.7 }}>Hype Video Posting</h2>
+                  <p style={{ margin: "0 0 16px", color: "#4b5563", fontWeight: 700 }}>Upload or replace the hype videos the board wants promoted on league pages.</p>
                   {featuredVideo && (
                     <div style={{ background: "#f5f5f7", border: "1px solid #e5e7eb", borderRadius: 22, padding: 14, marginBottom: 16 }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap", marginBottom: 10 }}>
@@ -1199,7 +1268,7 @@ export default function AdminPortal({
                       <video controls crossOrigin="anonymous" style={{ width: "100%", maxHeight: 260, borderRadius: 18, background: "#000" }} src={featuredVideo.video_url} />
                     </div>
                   )}
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, marginBottom: 14 }}>
+                  <div style={{ ...prMobileStackStyle, marginBottom: 14 }}>
                     <label style={{ fontWeight: 900 }}>Title
                       <input style={{ ...adminInputStyle, marginTop: 6 }} value={videoTitle} onChange={e => setVideoTitle(e.target.value)} placeholder="e.g. Las Vegas Race Week Hype" />
                     </label>
@@ -1214,8 +1283,8 @@ export default function AdminPortal({
               {publicRelationsTab === "stories" && (
                 <div style={prCardStyle}>
                   <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Stories</div>
-                  <h2 style={{ margin: "3px 0 6px", fontSize: 28, letterSpacing: -0.7 }}>League Newsroom</h2>
-                  <p style={{ color: "#4b5563", fontWeight: 750 }}>Review, publish, and manage race stories, team announcements, transactions, and league headlines.</p>
+                  <h2 style={{ margin: "3px 0 6px", fontSize: 28, letterSpacing: -0.7 }}>Board Story Desk</h2>
+                  <p style={{ color: "#4b5563", fontWeight: 750 }}>Review, write, and publish stories from the board workspace.</p>
                   <button type="button" onClick={() => (window.location.pathname = "/admin/stories")} style={adminPrimaryButtonStyle}>Open Stories Manager ({openStoryCount || 0})</button>
                 </div>
               )}
@@ -1223,8 +1292,8 @@ export default function AdminPortal({
               {publicRelationsTab === "interviews" && (
                 <div style={prCardStyle}>
                   <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Interviews</div>
-                  <h2 style={{ margin: "3px 0 6px", fontSize: 28, letterSpacing: -0.7 }}>Media Center</h2>
-                  <p style={{ color: "#4b5563", fontWeight: 750 }}>Track pre-race and post-race interview activity, review submissions, and support media payouts through Finance.</p>
+                  <h2 style={{ margin: "3px 0 6px", fontSize: 28, letterSpacing: -0.7 }}>Board Interview Desk</h2>
+                  <p style={{ color: "#4b5563", fontWeight: 750 }}>Review interview submissions and prepare the media content the board wants posted.</p>
                   <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                     <button type="button" onClick={() => (window.location.pathname = "/admin/interviews")} style={adminPrimaryButtonStyle}>Open Interview Admin</button>
                     <button type="button" onClick={() => openFinanceDepartment("interview")} style={adminSecondaryButtonStyle}>Pay Interviews in Finance</button>
@@ -1312,7 +1381,7 @@ export default function AdminPortal({
                   <h3 style={{ margin: "3px 0 12px", fontSize: 25, letterSpacing: -0.5 }}>
                     {financeAction === "fine" ? "Fine Driver" : financeAction === "interview" ? "Pay Interview" : "Pay Paint Scheme"}
                   </h3>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+                  <div style={prMobileStackStyle}>
                     <label style={{ fontWeight: 900 }}>
                       Driver
                       <select value={financeForm.driverId} onChange={(event) => updateFinanceForm("driverId", event.target.value)} style={{ ...adminInputStyle, marginTop: 6 }}>
@@ -1644,7 +1713,7 @@ export default function AdminPortal({
           </div>
 
           <form onSubmit={saveTickerMessage} style={{ background: "#f8fafc", border: "1px solid #dbe3ee", borderRadius: 14, padding: 14, marginBottom: 16 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+            <div style={prMobileStackStyle}>
               <div>
                 <div style={{ marginBottom: 6, fontWeight: 800 }}>Category</div>
                 <select
@@ -1986,7 +2055,7 @@ export default function AdminPortal({
             <button onClick={loadManualWatchPicks} style={adminSecondaryButtonStyle}>Refresh Picks</button>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, marginBottom: 14 }}>
+          <div style={{ ...prMobileStackStyle, marginBottom: 14 }}>
             <div>
               <div style={{ marginBottom: 6, fontWeight: 700 }}>Driver</div>
               <select style={adminInputStyle} value={watchDriverId} onChange={(e) => setWatchDriverId(e.target.value)}>
@@ -2082,7 +2151,7 @@ export default function AdminPortal({
               <video controls crossOrigin="anonymous" style={{ width: "100%", maxHeight: 240, borderRadius: 8, background: "#000" }} src={featuredVideo.video_url} />
             </div>
           )}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, marginBottom: 14 }}>
+          <div style={{ ...prMobileStackStyle, marginBottom: 14 }}>
             <div>
               <div style={{ marginBottom: 6, fontWeight: 700 }}>Title (optional)</div>
               <input style={adminInputStyle} value={videoTitle} onChange={e => setVideoTitle(e.target.value)} placeholder="e.g. Preseason Michigan Highlights" />
