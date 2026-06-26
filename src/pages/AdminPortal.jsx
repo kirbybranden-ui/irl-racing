@@ -238,6 +238,7 @@ export default function AdminPortal({
   const [hrDepartmentOpen, setHrDepartmentOpen] = useState(false);
   const [hrTab, setHrTab] = useState("overview");
   const [raceOperationsOpen, setRaceOperationsOpen] = useState(false);
+  const [raceOperationsTab, setRaceOperationsTab] = useState("overview");
   const [hrLocalRefresh, setHrLocalRefresh] = useState(0);
   const [financeAction, setFinanceAction] = useState("overview");
   const [financeActionStatus, setFinanceActionStatus] = useState("");
@@ -1562,19 +1563,41 @@ export default function AdminPortal({
 
               <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(3, minmax(180px, 1fr))", gap: 14, marginBottom: 18 }}>
                 {[
-                  ["Tracks", (tracks || []).length],
-                  ["Races Posted", raceHistory.length],
-                  ["Saved Drafts", (raceDrafts || []).length],
-                ].map(([label, value]) => (
-                  <div key={label} style={{ ...walletLightCardStyle, padding: 18 }}>
+                  ["tracks", "Track Management", (tracks || []).length, "Update schedule tracks and stage counts."],
+                  ["input", "Race Input", selectedRace ? "Active" : "Ready", "Enter finishes, stages, penalties, DNFs, and fastest lap."],
+                  ["history", "Previous Race Results", raceHistory.length, "Open the race archive and download single races or the season."],
+                  ["drafts", "Saved Drafts", (raceDrafts || []).length, "Load, post, or delete admin-only race drafts."],
+                  ["offenses", "Offense Log", offenseLog.length, "Review season offense penalties."],
+                ].map(([key, label, value, description]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setRaceOperationsTab(key)}
+                    style={{
+                      ...walletLightCardStyle,
+                      padding: 18,
+                      textAlign: "left",
+                      cursor: "pointer",
+                      border: raceOperationsTab === key ? "2px solid #111827" : walletLightCardStyle.border || "1px solid rgba(15,23,42,0.10)",
+                      boxShadow: raceOperationsTab === key ? "0 18px 38px rgba(15,23,42,0.18)" : walletLightCardStyle.boxShadow,
+                    }}
+                  >
                     <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.2, textTransform: "uppercase", color: "#6b7280" }}>{label}</div>
                     <div style={{ fontSize: 34, fontWeight: 1000, letterSpacing: -1, marginTop: 8 }}>{value}</div>
-                  </div>
+                    <div style={{ marginTop: 8, color: "#4b5563", fontSize: 13, fontWeight: 750, lineHeight: 1.35 }}>{description}</div>
+                  </button>
                 ))}
               </div>
 
+              {raceOperationsTab === "overview" && (
+                <div style={adminReadableCardStyle}>
+                  <h2 style={{ marginTop: 0 }}>Race Operations Hub</h2>
+                  <div style={{ opacity: 0.78 }}>Choose a tile above. Track Management and Previous Race Results are tucked away until you need them, keeping this page focused for race night.</div>
+                </div>
+              )}
+
         {/* Track Management */}
-        <div style={adminReadableCardStyle}>
+        {raceOperationsTab === "tracks" && <div style={adminReadableCardStyle}>
           <h2 style={{ marginTop: 0 }}>Track Management</h2>
           <div style={{ opacity: 0.78, marginBottom: 14 }}>Add or remove tracks from the race schedule. Stage count controls how many scoring stages each track has (1, 2, or 3).</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, marginBottom: 16 }}>
@@ -1611,11 +1634,11 @@ export default function AdminPortal({
               </tbody>
             </table>
           </div>
-        </div>
+        </div>}
         {/* Start & Park Requests moved into Human Resources > Start & Park. */}
 
         {/* Enter Race Results */}
-        <div style={adminReadableCardStyle}>
+        {raceOperationsTab === "input" && <div style={adminReadableCardStyle}>
           <h2 style={{ marginTop: 0 }}>{editingRaceName ? `Edit Race: ${editingRaceName}` : "Enter Race Results"}</h2>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 14, marginBottom: 18 }}>
             <div>
@@ -1708,9 +1731,9 @@ export default function AdminPortal({
             <button onClick={clearInputs} style={adminSecondaryButtonStyle}>Clear Inputs</button>
             <button onClick={resetSeason} style={adminDangerButtonStyle}>Archive + Reset Active Season</button>
           </div>
-        </div>
+        </div>}
         {/* Admin-Only Results Drafts */}
-        <div style={adminReadableCardStyle}>
+        {raceOperationsTab === "drafts" && <div style={adminReadableCardStyle}>
           <h2 style={{ marginTop: 0 }}>Admin-Only Results Drafts</h2>
           <div style={{ opacity: 0.78, marginBottom: 14 }}>Drafts let you capture finishing points, penalties, DNFs, and notes without changing public standings. Post only when race control is ready.</div>
           <div style={{ overflowX: "auto" }}>
@@ -1740,9 +1763,9 @@ export default function AdminPortal({
               </tbody>
             </table>
           </div>
-        </div>
+        </div>}
         {/* Race History */}
-        <div style={adminReadableCardStyle}>
+        {raceOperationsTab === "history" && <div style={adminReadableCardStyle}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
             <h2 style={{ margin: 0 }}>Race History</h2>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
@@ -1788,6 +1811,7 @@ export default function AdminPortal({
                         <div style={{ opacity: 0.75 }}>{race.stageCount} scoring stage{race.stageCount === 1 ? "" : "s"}{winner ? ` • Winner: #${winner.number} ${winner.name}` : ""}</div>
                       </div>
                       <div style={{ display: "flex", gap: 8 }}>
+                        <button onClick={() => downloadRaceHistoryCsv([race], race.raceName || "Race")} style={adminSecondaryButtonStyle}>Download</button>
                         <button onClick={() => handleEditRace(race)} style={adminSecondaryButtonStyle}>Edit</button>
                         <button onClick={() => handleDeleteRace(race.raceName)} style={adminDangerButtonStyle}>Delete</button>
                       </div>
@@ -1832,9 +1856,9 @@ export default function AdminPortal({
               })}
             </div>
           )}
-        </div>
+        </div>}
         {/* Offense Log */}
-        <div style={adminReadableCardStyle}>
+        {raceOperationsTab === "offenses" && <div style={adminReadableCardStyle}>
           <h2 style={{ marginTop: 0 }}>Offense Log</h2>
           {offenseLog.length === 0 ? <div style={{ opacity: 0.75 }}>No offenses logged yet.</div> : (
             <div style={{ overflowX: "auto" }}>
@@ -1854,7 +1878,7 @@ export default function AdminPortal({
               </table>
             </div>
           )}
-        </div>
+        </div>}
 
             </div>
           </div>
