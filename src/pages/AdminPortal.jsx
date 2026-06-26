@@ -841,16 +841,17 @@ export default function AdminPortal({
   const adminMenuBackdropStyle = {
     position: "fixed",
     inset: 0,
-    zIndex: 100000,
-    background: "rgba(15,23,42,0.20)",
-    backdropFilter: "blur(6px)",
+    zIndex: 2147483000,
+    background: "rgba(15,23,42,0.22)",
+    backdropFilter: "blur(10px)",
+    WebkitBackdropFilter: "blur(10px)",
   };
 
   const adminMenuPanelStyle = {
     position: "fixed",
     right: 24,
     top: 96,
-    zIndex: 100001,
+    zIndex: 2147483001,
     width: "min(360px, calc(100vw - 48px))",
     background: "rgba(255,255,255,0.98)",
     border: "1px solid rgba(17,24,39,0.10)",
@@ -858,6 +859,7 @@ export default function AdminPortal({
     boxShadow: "0 28px 80px rgba(15,23,42,0.30)",
     padding: 12,
     backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
   };
 
   const adminTileStyle = {
@@ -1212,6 +1214,47 @@ export default function AdminPortal({
 
   return (
     <div style={applePageStyle}>
+      {adminMenuOpen && (
+        <>
+          <button
+            type="button"
+            aria-label="Close admin menu"
+            onClick={() => setAdminMenuOpen(false)}
+            style={adminMenuBackdropStyle}
+          />
+          <div style={adminMenuPanelStyle}>
+            <div style={{ padding: "8px 10px 12px", borderBottom: "1px solid #e5e7eb", marginBottom: 8 }}>
+              <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.5, textTransform: "uppercase", color: "#6b7280" }}>Admin Menu</div>
+              <div style={{ fontSize: 20, fontWeight: 1000, color: "#111827" }}>League Control</div>
+            </div>
+
+            <div style={{ display: "grid", gap: 6 }}>
+              {adminMenuItems.map((item) => (
+                <button
+                  key={item.label}
+                  type="button"
+                  onClick={() => {
+                    setAdminMenuOpen(false);
+                    item.action?.();
+                  }}
+                  style={{
+                    border: 0,
+                    borderRadius: 14,
+                    background: item.primary ? "#111827" : item.danger ? "#fff1f2" : "#f8fafc",
+                    color: item.primary ? "#ffffff" : item.danger ? "#b42318" : "#111827",
+                    padding: "12px 14px",
+                    textAlign: "left",
+                    fontWeight: 900,
+                    cursor: "pointer",
+                  }}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
       <div style={appleContainerStyle}>
         {/* Header */}
         <div style={{ ...appleCardStyle, marginBottom: 22, padding: 22 }}>
@@ -1250,47 +1293,7 @@ export default function AdminPortal({
                   <span style={adminMenuLineStyle} />
                 </button>
 
-                {adminMenuOpen && (
-                  <>
-                    <button
-                      type="button"
-                      aria-label="Close admin menu"
-                      onClick={() => setAdminMenuOpen(false)}
-                      style={adminMenuBackdropStyle}
-                    />
-                    <div style={adminMenuPanelStyle}>
-                  <div style={{ padding: "8px 10px 12px", borderBottom: "1px solid #e5e7eb", marginBottom: 8 }}>
-                    <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.5, textTransform: "uppercase", color: "#6b7280" }}>Admin Menu</div>
-                    <div style={{ fontSize: 20, fontWeight: 1000, color: "#111827" }}>League Control</div>
-                  </div>
 
-                  <div style={{ display: "grid", gap: 6 }}>
-                    {adminMenuItems.map((item) => (
-                      <button
-                        key={item.label}
-                        type="button"
-                        onClick={() => {
-                          setAdminMenuOpen(false);
-                          item.action?.();
-                        }}
-                        style={{
-                          border: 0,
-                          borderRadius: 14,
-                          background: item.primary ? "#111827" : item.danger ? "#fff1f2" : "#f8fafc",
-                          color: item.primary ? "#ffffff" : item.danger ? "#b42318" : "#111827",
-                          padding: "12px 14px",
-                          textAlign: "left",
-                          fontWeight: 900,
-                          cursor: "pointer",
-                        }}
-                      >
-                        {item.label}
-                      </button>
-                    ))}
-                  </div>
-                    </div>
-                  </>
-                )}
               </div>
             </div>
           </div>
