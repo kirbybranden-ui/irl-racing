@@ -478,7 +478,7 @@ export default function AdminPortal({
 
   const adminQuickTiles = [
     { title: "Race Control", text: "Post results, save drafts, penalties, DNFs, stages, fastest lap.", action: () => document.getElementById("admin-race-control")?.scrollIntoView({ behavior: "smooth", block: "start" }) },
-    { title: "Driver Management", text: "Add, edit, retire, restore, approve pending drivers.", action: () => document.getElementById("admin-driver-management")?.scrollIntoView({ behavior: "smooth", block: "start" }) },
+    { title: "Driver Management", text: "Add, edit, retire, restore, approve pending drivers.", action: () => openHrDepartment("drivers") },
     { title: "Human Resources", text: "Driver assignments, owner assignments, access codes, appeals, and contracts.", action: () => openHrDepartment("overview") },
     { title: "Team Owners", text: "Assign owners and manage owner access/password routing.", action: () => document.getElementById("admin-owner-assignments")?.scrollIntoView({ behavior: "smooth", block: "start" }) },
     { title: "Messages", text: "Unread inbox, league broadcasts, owner notices, and create-message tools.", action: openAdminMessages },
@@ -1443,6 +1443,7 @@ export default function AdminPortal({
                   ["access", "Access Codes"],
                   ["appeals", "Appeals"],
                   ["contracts", "Contracts"],
+                  ["startpark", "Start & Park"],
                 ].map(([key, label]) => (
                   <button key={key} type="button" onClick={() => setHrTab(key)} style={financeSegmentButtonStyle(hrTab === key)}>{label}</button>
                 ))}
@@ -1450,12 +1451,13 @@ export default function AdminPortal({
 
               {hrTab === "overview" && (
                 <div>
-                  <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(4, minmax(160px, 1fr))", gap: 14, marginBottom: 18 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(5, minmax(150px, 1fr))", gap: 14, marginBottom: 18 }}>
                     {[
                       ["Active Drivers", visibleDrivers?.length || drivers?.length || 0],
                       ["Team Owners", ownerPortalTeams?.length || 0],
                       ["Open Appeals", openAppealCount || 0],
                       ["Contracts", financeContracts?.length || 0],
+                      ["Start & Park", (startParkRequests || []).filter((request) => String(request.status || "pending").toLowerCase() === "pending").length],
                     ].map(([label, value]) => (
                       <div key={label} style={{ ...walletLightCardStyle, padding: 18 }}>
                         <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.2, textTransform: "uppercase", color: "#6b7280" }}>{label}</div>
@@ -1471,7 +1473,8 @@ export default function AdminPortal({
                       ["🔐", "Access & Security", "Driver passwords, owner codes, account access, and security controls.", "access"],
                       ["⚖️", "Appeals", "Review open appeals and move them through the board workflow.", "appeals"],
                       ["📑", "Contracts", "View driver contracts, statuses, salary records, and team obligations.", "contracts"],
-                      ["🧾", "Personnel Actions", "Use the existing admin tools for edits while HR becomes the people hub.", "drivers"],
+                      ["🟨", "Start & Park", "Approve, decline, and apply Start & Park requests from drivers and owners.", "startpark"],
+                      ["➕", "Add / Approve Drivers", "Add new drivers and approve pending signup requests directly inside HR.", "drivers"],
                     ].map(([icon, title, text, tab]) => (
                       <button key={title} type="button" onClick={() => setHrTab(tab)} style={{ ...prCardStyle, textAlign: "left", cursor: "pointer" }}>
                         <div style={prIconStyle}>{icon}</div>
@@ -1491,8 +1494,56 @@ export default function AdminPortal({
                       <h2 style={{ margin: "3px 0 0", fontSize: 26, letterSpacing: -0.6 }}>Driver Roster</h2>
                       <p style={{ margin: "6px 0 0", color: "#4b5563", fontWeight: 700 }}>Quick view of each driver, team, number, and manufacturer.</p>
                     </div>
-                    <button type="button" onClick={() => { setHrDepartmentOpen(false); setTimeout(() => document.getElementById("admin-driver-management")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50); }} style={adminPrimaryButtonStyle}>Open Full Driver Editor</button>
                   </div>
+
+                  <div style={{ borderRadius: 24, background: "#ffffff", border: "1px solid #e5e7eb", padding: 16, marginBottom: 14 }}>
+                    <h3 style={{ margin: "0 0 12px", fontSize: 21, letterSpacing: -0.4 }}>Add Driver</h3>
+                    <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(4, minmax(170px, 1fr))", gap: 12, marginBottom: 12 }}>
+                      <div><div style={{ marginBottom: 6, fontWeight: 900, color: "#374151" }}>Driver Name</div><input style={adminInputStyle} value={newDriverName} onChange={(e) => setNewDriverName(e.target.value)} placeholder="Enter driver name" /></div>
+                      <div><div style={{ marginBottom: 6, fontWeight: 900, color: "#374151" }}>Number</div><input style={adminInputStyle} value={newDriverNumber} onChange={(e) => setNewDriverNumber(e.target.value)} placeholder="Car number" /></div>
+                      <div><div style={{ marginBottom: 6, fontWeight: 900, color: "#374151" }}>Manufacturer</div><select style={adminInputStyle} value={newDriverManufacturer} onChange={(e) => setNewDriverManufacturer(e.target.value)}><option value="">Select manufacturer</option><option value="Chevrolet">Chevrolet</option><option value="Ford">Ford</option><option value="Toyota">Toyota</option><option value="Other">Other</option></select></div>
+                      <div><div style={{ marginBottom: 6, fontWeight: 900, color: "#374151" }}>Team</div><input style={adminInputStyle} value={newDriverTeam} onChange={(e) => setNewDriverTeam(e.target.value)} placeholder="B2J, 19XI, BXM..." /></div>
+                    </div>
+                    <button type="button" onClick={addDriver} style={adminPrimaryButtonStyle}>Add Driver</button>
+                  </div>
+
+                  {(pendingDrivers || []).length > 0 && (
+                    <div style={{ borderRadius: 24, background: "#ffffff", border: "1px solid #e5e7eb", padding: 16, marginBottom: 14 }}>
+                      <h3 style={{ margin: "0 0 6px", fontSize: 21, letterSpacing: -0.4 }}>Pending Driver Requests ({pendingDrivers.length})</h3>
+                      <p style={{ margin: "0 0 12px", color: "#6b7280", fontWeight: 750 }}>Approve or reject new driver requests without leaving HR.</p>
+                      <div style={{ display: "grid", gap: 10 }}>
+                        {pendingDrivers.map((d) => (
+                          <div key={d.id} style={{ ...walletTransactionRowStyle, alignItems: isAdminMobile ? "flex-start" : "center", flexDirection: isAdminMobile ? "column" : "row" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                              <div style={walletIconStyle}>#{d.car_number || "?"}</div>
+                              <div>
+                                <div style={{ fontWeight: 1000 }}>{d.driver_name || "Pending Driver"}</div>
+                                <div style={{ color: "#6b7280", fontWeight: 750, fontSize: 13 }}>{d.manufacturer || "Manufacturer TBD"} · {d.team_name || "Team TBD"}</div>
+                              </div>
+                            </div>
+                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginLeft: isAdminMobile ? 0 : "auto" }}>
+                              <button onClick={() => approvePendingDriver(d)} style={{ ...primaryButtonStyle, padding: "8px 12px", fontSize: 12 }}>Approve</button>
+                              <button onClick={() => rejectPendingDriver(d)} style={{ ...dangerButtonStyle, padding: "8px 12px", fontSize: 12 }}>Reject</button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {editingDriverId && (
+                    <div style={{ borderRadius: 24, background: "#ffffff", border: "1px solid #e5e7eb", padding: 16, marginBottom: 14 }}>
+                      <h3 style={{ margin: "0 0 12px", fontSize: 21, letterSpacing: -0.4 }}>Edit Driver</h3>
+                      <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(4, minmax(170px, 1fr))", gap: 12, marginBottom: 12 }}>
+                        <div><div style={{ marginBottom: 6, fontWeight: 900, color: "#374151" }}>Driver Name</div><input style={adminInputStyle} value={editDriverForm.name} onChange={(e) => setEditDriverForm({ ...editDriverForm, name: e.target.value })} /></div>
+                        <div><div style={{ marginBottom: 6, fontWeight: 900, color: "#374151" }}>Number</div><input style={adminInputStyle} value={editDriverForm.number} onChange={(e) => setEditDriverForm({ ...editDriverForm, number: e.target.value })} /></div>
+                        <div><div style={{ marginBottom: 6, fontWeight: 900, color: "#374151" }}>Manufacturer</div><select style={adminInputStyle} value={editDriverForm.manufacturer} onChange={(e) => setEditDriverForm({ ...editDriverForm, manufacturer: e.target.value })}><option value="">Select manufacturer</option><option value="Chevrolet">Chevrolet</option><option value="Ford">Ford</option><option value="Toyota">Toyota</option><option value="Other">Other</option></select></div>
+                        <div><div style={{ marginBottom: 6, fontWeight: 900, color: "#374151" }}>Team</div><input style={adminInputStyle} value={editDriverForm.team} onChange={(e) => setEditDriverForm({ ...editDriverForm, team: e.target.value })} /></div>
+                      </div>
+                      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}><button onClick={saveDriverEdit} style={adminPrimaryButtonStyle}>Save Changes</button><button onClick={cancelEditDriver} style={adminSecondaryButtonStyle}>Cancel</button></div>
+                    </div>
+                  )}
+
                   <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(auto-fit, minmax(245px, 1fr))", gap: 12, maxHeight: 520, overflowY: "auto" }}>
                     {(visibleDrivers || drivers || []).map((driver) => (
                       <div key={driver.id || driver.number} style={{ borderRadius: 24, padding: 16, background: "#ffffff", border: "1px solid #e5e7eb", boxShadow: "0 12px 30px rgba(15,23,42,0.07)" }}>
@@ -1502,6 +1553,11 @@ export default function AdminPortal({
                         </div>
                         <div style={{ fontSize: 20, fontWeight: 1000, marginTop: 12, letterSpacing: -0.4 }}>{driver.name}</div>
                         <div style={{ color: "#6b7280", fontWeight: 800, marginTop: 4 }}>{getTeamFullName(driver.team)} · {driver.manufacturer || "Manufacturer TBD"}</div>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
+                          <button onClick={() => openEditDriver(driver)} style={{ ...adminSecondaryButtonStyle, padding: "8px 12px", fontSize: 12 }}>Edit</button>
+                          {driver.retired ? (<button onClick={() => unretireDriver(driver.id)} style={{ ...adminSecondaryButtonStyle, padding: "8px 12px", fontSize: 12 }}>Unretire</button>) : (<button onClick={() => retireDriver(driver.id)} style={{ ...adminSecondaryButtonStyle, padding: "8px 12px", fontSize: 12 }}>Retire</button>)}
+                          <button onClick={() => removeDriver(driver.id)} style={{ ...adminDangerButtonStyle, padding: "8px 12px", fontSize: 12 }}>Remove</button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -1588,6 +1644,55 @@ export default function AdminPortal({
                     <div style={{ padding: "14px 18px", borderRadius: 20, background: "#ffffff", border: "1px solid #e5e7eb", fontWeight: 1000 }}>{openAppealCount || 0} open appeals</div>
                     <button type="button" onClick={() => (window.location.pathname = "/appeals")} style={adminPrimaryButtonStyle}>Open Appeals</button>
                   </div>
+                </div>
+              )}
+
+              {hrTab === "startpark" && (
+                <div style={walletLightCardStyle}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Start & Park</div>
+                      <h2 style={{ margin: "3px 0 0", fontSize: 26, letterSpacing: -0.6 }}>Start & Park Requests</h2>
+                      <p style={{ margin: "6px 0 0", color: "#4b5563", fontWeight: 700 }}>HR manages driver availability requests, owner requests, approvals, denials, and race application.</p>
+                    </div>
+                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                      <button type="button" onClick={loadStartParkRequests} style={adminSecondaryButtonStyle}>{startParkRequestsLoading ? "Loading..." : "Refresh"}</button>
+                      <button type="button" onClick={applyApprovedStartParkRequestsToRace} style={adminPrimaryButtonStyle}>Apply Approved</button>
+                    </div>
+                  </div>
+
+                  {startParkRequestError && <div style={{ marginBottom: 12, color: "#b42318", fontWeight: 900 }}>{startParkRequestError}</div>}
+                  {startParkRequestStatus && <div style={{ marginBottom: 12, color: "#047857", fontWeight: 900 }}>{startParkRequestStatus}</div>}
+
+                  <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(auto-fit, minmax(280px, 1fr))", gap: 12 }}>
+                    {(startParkRequests || []).filter((request) => !selectedRace || String(request.race_name || "") === String(selectedRace)).map((request, index) => {
+                      const status = String(request.status || "pending").toLowerCase();
+                      const statusColor = status === "approved" ? "#34c759" : status === "declined" ? "#ff3b30" : status === "applied" ? "#007aff" : "#ff9f0a";
+                      return (
+                        <div key={request.id || `${request.driver_number}-${request.created_at}`} style={{ borderRadius: 28, background: "#ffffff", border: "1px solid #e5e7eb", padding: 18, boxShadow: "0 14px 34px rgba(15,23,42,0.08)" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
+                            <div style={{ width: 54, height: 54, borderRadius: 18, background: "linear-gradient(135deg, #111827, #374151)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 1000 }}>#{request.driver_number || "?"}</div>
+                            <div style={{ padding: "6px 10px", borderRadius: 999, background: `${statusColor}20`, color: statusColor, fontWeight: 1000, fontSize: 12 }}>{status.toUpperCase()}</div>
+                          </div>
+                          <div style={{ fontSize: 21, fontWeight: 1000, marginTop: 14 }}>{request.driver_name || "Driver"}</div>
+                          <div style={{ color: "#6b7280", fontWeight: 800, marginTop: 4 }}>{request.race_name || selectedRace || "Race TBD"}</div>
+                          <div style={{ marginTop: 10, color: "#374151", fontWeight: 750, lineHeight: 1.45 }}>{request.reason || "No reason provided."}</div>
+                          <div style={{ marginTop: 12, fontSize: 13, color: "#6b7280", fontWeight: 750 }}>Requested by {request.requested_by_type || "—"} · {request.requested_by_name || request.requested_by_team || "—"}</div>
+                          {request.created_at && <div style={{ marginTop: 4, fontSize: 12, color: "#9ca3af", fontWeight: 800 }}>Received {new Date(request.created_at).toLocaleString()}</div>}
+                          {status === "pending" && (
+                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
+                              <button onClick={() => updateStartParkRequestStatus(request, "approved")} style={{ ...primaryButtonStyle, padding: "8px 12px", fontSize: 12 }}>Approve</button>
+                              <button onClick={() => updateStartParkRequestStatus(request, "declined")} style={{ ...dangerButtonStyle, padding: "8px 12px", fontSize: 12 }}>Decline</button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {!(startParkRequests || []).filter((request) => !selectedRace || String(request.race_name || "") === String(selectedRace)).length && (
+                    <div style={{ borderRadius: 22, background: "#ffffff", border: "1px solid #e5e7eb", padding: 18, color: "#6b7280", fontWeight: 800 }}>No Start & Park requests for the selected race.</div>
+                  )}
                 </div>
               )}
 
