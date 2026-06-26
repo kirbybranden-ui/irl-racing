@@ -233,6 +233,8 @@ export default function AdminPortal({
   const [financeLoading, setFinanceLoading] = useState(false);
   const [financeError, setFinanceError] = useState("");
   const [financeDepartmentOpen, setFinanceDepartmentOpen] = useState(false);
+  const [publicRelationsOpen, setPublicRelationsOpen] = useState(false);
+  const [publicRelationsTab, setPublicRelationsTab] = useState("overview");
   const [financeAction, setFinanceAction] = useState("overview");
   const [financeActionStatus, setFinanceActionStatus] = useState("");
   const [financeActionError, setFinanceActionError] = useState("");
@@ -326,6 +328,12 @@ export default function AdminPortal({
     setFinanceAction(section);
     loadFinanceDepartment();
     loadFinanceContracts();
+  }
+
+  function openPublicRelations(tab = "overview") {
+    setPublicRelationsOpen(true);
+    setPublicRelationsTab(tab);
+    if (typeof loadTickerMessages === "function") loadTickerMessages();
   }
 
   function updateFinanceForm(key, value) {
@@ -431,6 +439,7 @@ export default function AdminPortal({
   const adminMenuItems = [
     { label: "Admin Home", action: goAdmin, primary: true },
     { label: "Finance Department", action: () => openFinanceDepartment("overview"), primary: true },
+    { label: "Public Relations", action: () => openPublicRelations("overview"), primary: true },
     { label: "Ticker Overlay", action: () => setViewMode("overlay-ticker") },
     { label: "Standings", action: () => (window.location.pathname = "/standings") },
     { label: "Streams", action: () => (window.location.pathname = "/streams") },
@@ -451,6 +460,7 @@ export default function AdminPortal({
     { title: "Driver Management", text: "Add, edit, retire, restore, approve pending drivers.", action: () => document.getElementById("admin-driver-management")?.scrollIntoView({ behavior: "smooth", block: "start" }) },
     { title: "Team Owners", text: "Assign owners and manage owner access/password routing.", action: () => document.getElementById("admin-owner-assignments")?.scrollIntoView({ behavior: "smooth", block: "start" }) },
     { title: "Messages", text: "Unread inbox, league broadcasts, owner notices, and create-message tools.", action: openAdminMessages },
+    { title: "Public Relations", text: "Ticker promos, race winner spotlight, hype videos, stories, and interviews.", action: () => openPublicRelations("overview") },
     { title: "Backup Center", text: "Export, import, restore, and protect league data.", action: () => document.getElementById("admin-backup-center")?.scrollIntoView({ behavior: "smooth", block: "start" }) },
   ];
 
@@ -907,6 +917,43 @@ export default function AdminPortal({
     boxShadow: "0 10px 28px rgba(15,23,42,0.08)",
   };
 
+
+  const prHeroCardStyle = {
+    ...walletCardStyle,
+    minHeight: 176,
+    background: "linear-gradient(135deg, #111827 0%, #1d4ed8 48%, #7c3aed 100%)",
+  };
+
+  const prCardStyle = {
+    background: "#ffffff",
+    border: "1px solid #e5e7eb",
+    borderRadius: 26,
+    padding: 20,
+    boxShadow: "0 16px 42px rgba(15,23,42,0.08)",
+  };
+
+  const prIconStyle = {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    background: "linear-gradient(135deg, #007aff, #5856d6)",
+    color: "white",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: 24,
+    boxShadow: "0 12px 24px rgba(0,122,255,0.22)",
+  };
+
+  const prListRowStyle = {
+    display: "grid",
+    gridTemplateColumns: "52px 1fr auto",
+    gap: 12,
+    alignItems: "center",
+    padding: "14px 0",
+    borderBottom: "1px solid #eef0f4",
+  };
+
   return (
     <div style={applePageStyle}>
       <div style={appleContainerStyle}>
@@ -1005,6 +1052,188 @@ export default function AdminPortal({
             ))}
           </div>
         </div>
+
+
+        {publicRelationsOpen && (
+          <div style={financeOverlayStyle}>
+            <div style={financeShellStyle}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, flexWrap: "wrap", marginBottom: 18 }}>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.8, textTransform: "uppercase", color: "#6b7280" }}>Admin Menu</div>
+                  <h1 style={{ margin: "2px 0 0", fontSize: 42, letterSpacing: -1.6 }}>Public Relations</h1>
+                  <p style={{ margin: "6px 0 0", color: "#4b5563", fontWeight: 750 }}>Promotional command center for ticker messages, race winners, hype videos, stories, and interviews.</p>
+                </div>
+                <button type="button" onClick={() => setPublicRelationsOpen(false)} style={{ border: 0, borderRadius: 999, background: "#ffffff", color: "#111827", width: 46, height: 46, fontSize: 23, fontWeight: 1000, cursor: "pointer", boxShadow: "0 8px 20px rgba(15,23,42,0.12)" }}>×</button>
+              </div>
+
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 18 }}>
+                {[
+                  ["overview", "PR Home"],
+                  ["ticker", "Ticker"],
+                  ["winner", "Race Winner"],
+                  ["video", "Hype Videos"],
+                  ["stories", "Stories"],
+                  ["interviews", "Interviews"],
+                ].map(([key, label]) => (
+                  <button key={key} type="button" onClick={() => setPublicRelationsTab(key)} style={financeSegmentButtonStyle(publicRelationsTab === key)}>{label}</button>
+                ))}
+              </div>
+
+              {publicRelationsTab === "overview" && (
+                <div>
+                  <div style={prHeroCardStyle}>
+                    <div style={{ position: "absolute", right: -40, top: -40, width: 150, height: 150, borderRadius: 999, background: "rgba(255,255,255,0.12)" }} />
+                    <div>
+                      <div style={{ opacity: 0.78, fontWeight: 1000, letterSpacing: 1.7, textTransform: "uppercase", fontSize: 12 }}>Budweiser Motorsports PR</div>
+                      <div style={{ fontSize: 36, fontWeight: 1000, letterSpacing: -1.2, marginTop: 10 }}>Control the league story.</div>
+                    </div>
+                    <div style={{ opacity: 0.88, fontWeight: 850 }}>Ticker promotions · winner spotlight · hype videos · stories · interviews</div>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(235px, 1fr))", gap: 14, marginTop: 16 }}>
+                    {[
+                      ["📣", "Ticker Promotions", `${tickerMessages?.filter?.((m) => m.active !== false)?.length || 0} active messages`, "ticker"],
+                      ["🏆", "Race Winner", latestWinner ? `Latest: #${latestWinner.number || ""} ${latestWinner.name || latestWinner.driver || "Winner"}` : "Manage winner spotlight", "winner"],
+                      ["🎬", "Hype Videos", featuredVideo ? (featuredVideo.title || "Featured video live") : "Upload a featured video", "video"],
+                      ["📰", "Stories", `${openStoryCount || 0} open stories`, "stories"],
+                      ["🎤", "Interviews", "Pre-race and post-race media", "interviews"],
+                    ].map(([icon, title, text, tab]) => (
+                      <button key={title} type="button" onClick={() => setPublicRelationsTab(tab)} style={{ ...prCardStyle, textAlign: "left", cursor: "pointer" }}>
+                        <div style={prIconStyle}>{icon}</div>
+                        <div style={{ fontSize: 20, fontWeight: 1000, marginTop: 14, letterSpacing: -0.4 }}>{title}</div>
+                        <div style={{ color: "#6b7280", fontWeight: 750, marginTop: 6, lineHeight: 1.45 }}>{text}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {publicRelationsTab === "ticker" && (
+                <div style={prCardStyle}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap", marginBottom: 14 }}>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Ticker Promotions</div>
+                      <h2 style={{ margin: "3px 0 0", fontSize: 28, letterSpacing: -0.7 }}>League Ticker Messages</h2>
+                      <p style={{ margin: "6px 0 0", color: "#4b5563", fontWeight: 700 }}>Add race promos, sponsor notes, breaking news, app updates, and next-event hype.</p>
+                    </div>
+                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                      <button type="button" onClick={loadTickerMessages} style={adminSecondaryButtonStyle}>Refresh</button>
+                      <button type="button" onClick={seedWeeklyTickerMessages} style={adminPrimaryButtonStyle}>Add Weekly Headlines</button>
+                    </div>
+                  </div>
+
+                  <form onSubmit={saveTickerMessage} style={{ background: "#f5f5f7", border: "1px solid #e5e7eb", borderRadius: 22, padding: 16, marginBottom: 16 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+                      <label style={{ fontWeight: 900 }}>Category
+                        <select style={{ ...adminInputStyle, marginTop: 6 }} value={tickerForm.category} onChange={(event) => setTickerForm((current) => ({ ...current, category: event.target.value }))}>
+                          <option value="BREAKING">BREAKING</option><option value="NEWS">NEWS</option><option value="TRANSACTION">TRANSACTION</option><option value="TEAM UPDATE">TEAM UPDATE</option><option value="RACE CONTROL">RACE CONTROL</option><option value="RESULTS">RESULTS</option><option value="APP UPDATE">APP UPDATE</option><option value="NEXT EVENT">NEXT EVENT</option><option value="SPONSOR">SPONSOR</option>
+                        </select>
+                      </label>
+                      <label style={{ fontWeight: 900 }}>Page
+                        <select style={{ ...adminInputStyle, marginTop: 6 }} value={tickerForm.page} onChange={(event) => setTickerForm((current) => ({ ...current, page: event.target.value }))}>
+                          <option value="standings">/standings only</option><option value="all">All pages using ticker</option>
+                        </select>
+                      </label>
+                      <label style={{ fontWeight: 900 }}>Sort Order
+                        <input type="number" style={{ ...adminInputStyle, marginTop: 6 }} value={tickerForm.sort_order} onChange={(event) => setTickerForm((current) => ({ ...current, sort_order: event.target.value }))} />
+                      </label>
+                      <label style={{ fontWeight: 900 }}>Auto-Expire
+                        <input type="datetime-local" style={{ ...adminInputStyle, marginTop: 6 }} value={tickerForm.expires_at} onChange={(event) => setTickerForm((current) => ({ ...current, expires_at: event.target.value }))} />
+                      </label>
+                    </div>
+                    <label style={{ display: "block", fontWeight: 900, marginTop: 12 }}>Ticker Message
+                      <input style={{ ...adminInputStyle, marginTop: 6 }} value={tickerForm.message} onChange={(event) => setTickerForm((current) => ({ ...current, message: event.target.value }))} placeholder="Example: Las Vegas race week is live • Playoff pressure is building" />
+                    </label>
+                    <div style={{ display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap", marginTop: 14 }}>
+                      <label style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 900 }}><input type="checkbox" checked={tickerForm.active} onChange={(event) => setTickerForm((current) => ({ ...current, active: event.target.checked }))} />Active</label>
+                      <label style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 900 }}><input type="checkbox" checked={tickerForm.pinned} onChange={(event) => setTickerForm((current) => ({ ...current, pinned: event.target.checked }))} />Pin First</label>
+                      <button type="submit" style={adminPrimaryButtonStyle}>{editingTickerId ? "Save Ticker Message" : "Add Ticker Message"}</button>
+                      {editingTickerId && <button type="button" onClick={resetTickerForm} style={adminSecondaryButtonStyle}>Cancel Edit</button>}
+                    </div>
+                    {tickerStatus && <div style={{ color: "#047857", marginTop: 12, fontWeight: 900 }}>{tickerStatus}</div>}
+                    {tickerError && <div style={{ color: "#b42318", marginTop: 12, fontWeight: 900 }}>{tickerError}</div>}
+                  </form>
+
+                  <div style={{ maxHeight: 460, overflowY: "auto" }}>
+                    {(tickerMessages || []).length === 0 ? (
+                      <div style={{ color: "#6b7280", fontWeight: 800, padding: 16 }}>No ticker messages saved yet.</div>
+                    ) : tickerMessages.map((item) => (
+                      <div key={item.id} style={prListRowStyle}>
+                        <div style={{ ...prIconStyle, background: item.active === false ? "linear-gradient(135deg, #8e8e93, #636366)" : "linear-gradient(135deg, #34c759, #30d158)" }}>{item.pinned ? "📌" : "📣"}</div>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontWeight: 1000, color: "#111827" }}>{item.category || "NEWS"}</div>
+                          <div style={{ color: "#4b5563", fontWeight: 750, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.message}</div>
+                        </div>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                          <button type="button" onClick={() => editTickerMessage(item)} style={adminSecondaryButtonStyle}>Edit</button>
+                          <button type="button" onClick={() => toggleTickerActive(item)} style={adminSecondaryButtonStyle}>{item.active === false ? "Activate" : "Disable"}</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {publicRelationsTab === "winner" && (
+                <div style={prCardStyle}>
+                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Winner Spotlight</div>
+                  <h2 style={{ margin: "3px 0 14px", fontSize: 28, letterSpacing: -0.7 }}>Race Winner Promotion</h2>
+                  <PreviousRaceWinnerAdminPanel drivers={visibleDrivers} raceHistory={raceHistory} />
+                </div>
+              )}
+
+              {publicRelationsTab === "video" && (
+                <div style={prCardStyle}>
+                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Hype Videos</div>
+                  <h2 style={{ margin: "3px 0 6px", fontSize: 28, letterSpacing: -0.7 }}>Featured Video Control</h2>
+                  <p style={{ margin: "0 0 16px", color: "#4b5563", fontWeight: 700 }}>Upload pre-race hype, race recaps, playoff promos, and league highlight videos for the public-facing pages.</p>
+                  {featuredVideo && (
+                    <div style={{ background: "#f5f5f7", border: "1px solid #e5e7eb", borderRadius: 22, padding: 14, marginBottom: 16 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap", marginBottom: 10 }}>
+                        <div>
+                          <div style={{ fontWeight: 1000 }}>{featuredVideo.title || "Untitled Video"}</div>
+                          {featuredVideo.description && <div style={{ color: "#6b7280", fontWeight: 700, marginTop: 3 }}>{featuredVideo.description}</div>}
+                        </div>
+                        <button style={adminDangerButtonStyle} onClick={async () => { if (!window.confirm("Remove the featured video from standings?")) return; if (featuredVideo.file_path) await supabase.storage.from("car-uploads").remove([featuredVideo.file_path]); await supabase.from("featured_video").delete().eq("id", featuredVideo.id); setFeaturedVideo(null); }}>Remove</button>
+                      </div>
+                      <video controls crossOrigin="anonymous" style={{ width: "100%", maxHeight: 260, borderRadius: 18, background: "#000" }} src={featuredVideo.video_url} />
+                    </div>
+                  )}
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, marginBottom: 14 }}>
+                    <label style={{ fontWeight: 900 }}>Title
+                      <input style={{ ...adminInputStyle, marginTop: 6 }} value={videoTitle} onChange={e => setVideoTitle(e.target.value)} placeholder="e.g. Las Vegas Race Week Hype" />
+                    </label>
+                    <label style={{ fontWeight: 900 }}>Description
+                      <input style={{ ...adminInputStyle, marginTop: 6 }} value={videoDescription} onChange={e => setVideoDescription(e.target.value)} placeholder="e.g. Race recap, promo, or playoff preview" />
+                    </label>
+                  </div>
+                  <button type="button" disabled={videoUploading} onClick={() => videoFileInputRef.current?.click()} style={{ ...adminPrimaryButtonStyle, opacity: videoUploading ? 0.65 : 1 }}>{videoUploading ? "Uploading..." : "Upload Hype Video"}</button>
+                </div>
+              )}
+
+              {publicRelationsTab === "stories" && (
+                <div style={prCardStyle}>
+                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Stories</div>
+                  <h2 style={{ margin: "3px 0 6px", fontSize: 28, letterSpacing: -0.7 }}>League Newsroom</h2>
+                  <p style={{ color: "#4b5563", fontWeight: 750 }}>Review, publish, and manage race stories, team announcements, transactions, and league headlines.</p>
+                  <button type="button" onClick={() => (window.location.pathname = "/admin/stories")} style={adminPrimaryButtonStyle}>Open Stories Manager ({openStoryCount || 0})</button>
+                </div>
+              )}
+
+              {publicRelationsTab === "interviews" && (
+                <div style={prCardStyle}>
+                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Interviews</div>
+                  <h2 style={{ margin: "3px 0 6px", fontSize: 28, letterSpacing: -0.7 }}>Media Center</h2>
+                  <p style={{ color: "#4b5563", fontWeight: 750 }}>Track pre-race and post-race interview activity, review submissions, and support media payouts through Finance.</p>
+                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                    <button type="button" onClick={() => (window.location.pathname = "/admin/interviews")} style={adminPrimaryButtonStyle}>Open Interview Admin</button>
+                    <button type="button" onClick={() => openFinanceDepartment("interview")} style={adminSecondaryButtonStyle}>Pay Interviews in Finance</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {financeDepartmentOpen && (
           <div style={financeOverlayStyle}>
