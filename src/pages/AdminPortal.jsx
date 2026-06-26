@@ -894,6 +894,25 @@ export default function AdminPortal({
     justifyContent: "center",
   };
 
+
+
+  const adminHomeIconButtonStyle = {
+    position: "relative",
+    width: 54,
+    height: 54,
+    borderRadius: 18,
+    border: "1px solid rgba(255,255,255,0.78)",
+    background: "linear-gradient(180deg, #fef3c7 0%, #f59e0b 100%)",
+    color: "#ffffff",
+    boxShadow: "0 16px 38px rgba(245,158,11,0.30)",
+    cursor: "pointer",
+    fontSize: 28,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    WebkitTapHighlightColor: "transparent",
+  };
+
   const adminMessageBadgeStyle = {
     position: "absolute",
     top: -7,
@@ -1268,6 +1287,16 @@ export default function AdminPortal({
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <button
                 type="button"
+                aria-label="Go to admin home"
+                onClick={goAdmin}
+                style={adminHomeIconButtonStyle}
+                title="Home"
+              >
+                🏠
+              </button>
+
+              <button
+                type="button"
                 aria-label="Open admin messages"
                 onClick={openAdminMessages}
                 style={adminMessageIconButtonStyle}
@@ -1303,7 +1332,6 @@ export default function AdminPortal({
               <p style={{ margin: "8px 0 0", color: "#4b5563", fontWeight: 750, maxWidth: 780 }}>Executive briefing cards for the departments that need attention. Open a department from the tile instead of managing tools on the homepage.</p>
             </div>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: isAdminMobile ? "flex-start" : "flex-end" }}>
-              <button onClick={goAdmin} style={{ ...adminSecondaryButtonStyle, borderRadius: 999, padding: "12px 16px", background: "#ffffff", boxShadow: "0 12px 28px rgba(17,24,39,0.10)" }}>⌂ Home</button>
               <button onClick={goAdmin} style={{ ...adminPrimaryButtonStyle, borderRadius: 999, padding: "12px 16px", boxShadow: "0 12px 28px rgba(17,24,39,0.16)" }}>Refresh Center</button>
             </div>
           </div>
