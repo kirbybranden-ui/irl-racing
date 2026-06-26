@@ -1354,6 +1354,8 @@ export default function AdminPortal({
                 </button>
               ))}
             </div>
+          </div>
+
           <div style={{ marginTop: 14, background: "rgba(255,255,255,0.82)", border: "1px solid rgba(209,213,219,0.75)", borderRadius: 26, padding: 18, boxShadow: "0 14px 34px rgba(15,23,42,0.08)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap", marginBottom: 14 }}>
               <div>
