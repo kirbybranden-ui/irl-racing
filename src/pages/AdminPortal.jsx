@@ -1025,6 +1025,7 @@ export default function AdminPortal({
                   ["interview", "Pay Interviews"],
                   ["paint", "Pay Paint Schemes"],
                   ["contracts", "Contracts"],
+                  ["compliance", "Team Compliance"],
                   ["transactions", "Transactions"],
                 ].map(([key, label]) => (
                   <button key={key} type="button" onClick={() => setFinanceAction(key)} style={financeSegmentButtonStyle(financeAction === key)}>{label}</button>
@@ -1046,7 +1047,7 @@ export default function AdminPortal({
             </div>
           </div>
 
-          {financeAction !== "overview" && financeAction !== "transactions" && (
+          {financeAction !== "overview" && financeAction !== "transactions" && financeAction !== "compliance" && (
             <div style={{ ...financeActionCardStyle, marginBottom: 20 }}>
               {financeAction === "contracts" ? (
                 <div>
@@ -1151,10 +1152,17 @@ export default function AdminPortal({
 
           {financeError && <div style={{ background: "#fff1f2", color: "#b42318", borderRadius: 16, padding: 14, fontWeight: 900, marginBottom: 16 }}>{financeError}</div>}
 
-          {financeAction === "overview" && (
+          {financeAction === "compliance" && (
             <div style={{ ...walletLightCardStyle, marginBottom: 16 }}>
-              <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280", marginBottom: 8 }}>Payment Compliance</div>
-              {false && <PaymentCompliancePanel mode="admin" />}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Team Payment Compliance</div>
+                  <h3 style={{ margin: "3px 0 0", fontSize: 25, letterSpacing: -0.5 }}>Owner / Team Money Checklist</h3>
+                  <p style={{ margin: "6px 0 0", color: "#4b5563", fontWeight: 700 }}>All payment compliance now lives inside the Finance Department instead of the admin home screen.</p>
+                </div>
+                <button type="button" onClick={loadFinanceDepartment} style={adminSecondaryButtonStyle}>Refresh Finance</button>
+              </div>
+              <PaymentCompliancePanel mode="admin" />
             </div>
           )}
 
@@ -1325,8 +1333,6 @@ export default function AdminPortal({
             </div>
           </div>
         )}
-
-        <PaymentCompliancePanel mode="admin" />
 
         <div id="admin-owner-assignments" style={adminReadableCardStyle}>
           <h2 style={{ marginTop: 0 }}>Team Owner Assignments</h2>
