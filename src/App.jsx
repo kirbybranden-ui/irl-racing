@@ -1295,103 +1295,184 @@ function PreviousRaceWinnerAdminPanel({ drivers = [], raceHistory = [] }) {
     alert("Previous race winner cleared.");
   }
 
+  const isWinnerMobile = typeof window !== "undefined" && window.innerWidth < 760;
+
+  const winnerShellStyle = {
+    background: "#f5f5f7",
+    color: "#1d1d1f",
+    border: "1px solid #e5e5ea",
+    borderRadius: isWinnerMobile ? 24 : 34,
+    padding: isWinnerMobile ? 14 : 22,
+    boxShadow: "0 22px 60px rgba(0,0,0,0.08)",
+  };
+
+  const winnerHeroStyle = {
+    position: "relative",
+    overflow: "hidden",
+    minHeight: isWinnerMobile ? 360 : 430,
+    borderRadius: isWinnerMobile ? 22 : 32,
+    padding: isWinnerMobile ? 20 : 34,
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "space-between",
+    background: form.mediaUrl
+      ? "linear-gradient(180deg, rgba(0,0,0,0.20), rgba(0,0,0,0.76))"
+      : "radial-gradient(circle at top left, #ffffff 0%, #e8eefc 34%, #111827 100%)",
+    color: "#ffffff",
+    boxShadow: "0 24px 55px rgba(15,23,42,0.24)",
+  };
+
+  const appleInputStyle = {
+    ...inputStyle,
+    background: "#ffffff",
+    color: "#111827",
+    border: "1px solid #d1d5db",
+    borderRadius: 16,
+    minHeight: 46,
+  };
+
+  const appleLabelStyle = {
+    display: "block",
+    fontSize: 11,
+    fontWeight: 1000,
+    letterSpacing: 1.15,
+    textTransform: "uppercase",
+    color: "#6b7280",
+    marginBottom: 8,
+  };
+
+  const appleActionRowStyle = {
+    display: "flex",
+    gap: 10,
+    flexWrap: "wrap",
+    alignItems: "center",
+    marginTop: 18,
+  };
+
+  const appleFormCardStyle = {
+    background: "#ffffff",
+    border: "1px solid #e5e7eb",
+    borderRadius: isWinnerMobile ? 20 : 26,
+    padding: isWinnerMobile ? 14 : 18,
+    boxShadow: "0 12px 28px rgba(15,23,42,0.06)",
+  };
+
   return (
-    <div style={sectionCardStyle}>
-      <h2 style={{ marginTop: 0 }}>🏁 Previous Race Winner</h2>
-      <div style={{ opacity: 0.72, marginBottom: 14 }}>
-        Feed the winner card shown on /standings. You can auto-fill from the latest saved race or enter it manually.
-      </div>
-
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
-        <button type="button" onClick={autofillFromLatestRace} style={secondaryButtonStyle}>
-          Auto-Fill From Latest Race
-        </button>
-        <button type="button" onClick={saveWinner} style={primaryButtonStyle}>
-          {savingWinner ? "Saving..." : "Save Winner to Standings"}
-        </button>
-        <button type="button" onClick={clearWinner} style={dangerButtonStyle}>
-          Clear Winner
-        </button>
-      </div>
-
-      {winnerMessage && <div style={{ color: "#4ade80", marginBottom: 12, fontWeight: 900 }}>{winnerMessage}</div>}
-      {winnerError && <div style={{ color: "#f87171", marginBottom: 12, fontWeight: 900 }}>{winnerError}</div>}
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
-        <div>
-          <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>RACE NAME</label>
-          <input value={form.raceName || ""} onChange={(event) => updateField("raceName", event.target.value)} placeholder="Daytona (Night)" style={inputStyle} />
-        </div>
-
-        <div>
-          <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>SELECT DRIVER</label>
-          <select value={form.driverId || ""} onChange={(event) => chooseDriver(event.target.value)} style={inputStyle}>
-            <option value="">Manual / choose driver</option>
-            {(drivers || []).map((driver) => (
-              <option key={driver.id} value={driver.id}>#{driver.number} {driver.name}</option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>NUMBER</label>
-          <input value={form.number || ""} onChange={(event) => updateField("number", event.target.value)} placeholder="16" style={inputStyle} />
-        </div>
-
-        <div>
-          <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>DRIVER NAME</label>
-          <input value={form.name || ""} onChange={(event) => updateField("name", event.target.value)} placeholder="Driver name" style={inputStyle} />
-        </div>
-
-        <div>
-          <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>TEAM</label>
-          <input value={form.team || ""} onChange={(event) => updateField("team", event.target.value)} placeholder="B2J" style={inputStyle} />
-        </div>
-
-        <div>
-          <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>MANUFACTURER</label>
-          <input value={form.manufacturer || ""} onChange={(event) => updateField("manufacturer", event.target.value)} placeholder="Chevrolet" style={inputStyle} />
-        </div>
-
-        <div>
-          <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>POINTS</label>
-          <input value={form.points || ""} onChange={(event) => updateField("points", event.target.value)} placeholder="55" style={inputStyle} />
-        </div>
-      </div>
-
-      <div style={{ marginTop: 14, background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14 }}>
-        <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 10 }}>WINNER MEDIA OPTIONAL</label>
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-          <button type="button" onClick={openWinnerImageUploader} style={{ ...secondaryButtonStyle, opacity: cloudinaryReady ? 1 : 0.6 }}>
-            {cloudinaryReady ? "📷 Upload Winner Picture" : "⏳ Loading Uploader"}
-          </button>
-          <button type="button" onClick={openWinnerVideoUploader} style={{ ...secondaryButtonStyle, background: "#dc2626", border: "1px solid #ef4444", opacity: cloudinaryReady ? 1 : 0.6 }}>
-            {cloudinaryReady ? "🎥 Upload Winner Video" : "⏳ Loading Uploader"}
-          </button>
+    <div style={winnerShellStyle}>
+      <div style={{ display: "grid", gridTemplateColumns: isWinnerMobile ? "1fr" : "1.05fr 0.95fr", gap: isWinnerMobile ? 16 : 22, alignItems: "stretch" }}>
+        <div style={winnerHeroStyle}>
           {form.mediaUrl && (
-            <button type="button" onClick={() => setForm((current) => ({ ...current, mediaUrl: "", mediaType: "" }))} style={dangerButtonStyle}>
-              Remove Media
-            </button>
+            form.mediaType === "video" ? (
+              <video src={form.mediaUrl} muted playsInline autoPlay loop style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", zIndex: 0 }} />
+            ) : (
+              <img src={form.mediaUrl} alt="Winner media preview" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", zIndex: 0 }} />
+            )
           )}
+          <div style={{ position: "absolute", inset: 0, background: form.mediaUrl ? "linear-gradient(180deg, rgba(0,0,0,0.12), rgba(0,0,0,0.82))" : "linear-gradient(180deg, rgba(15,23,42,0.04), rgba(15,23,42,0.74))", zIndex: 1 }} />
+
+          <div style={{ position: "relative", zIndex: 2 }}>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 999, background: "rgba(255,255,255,0.18)", border: "1px solid rgba(255,255,255,0.22)", backdropFilter: "blur(16px)", fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase" }}>
+              🏁 Previous Race
+            </div>
+          </div>
+
+          <div style={{ position: "relative", zIndex: 2 }}>
+            <div style={{ fontSize: isWinnerMobile ? 15 : 17, fontWeight: 900, opacity: 0.86, letterSpacing: 1.2, textTransform: "uppercase" }}>{form.raceName || "Race Weekend"}</div>
+            <div style={{ marginTop: 8, fontSize: isWinnerMobile ? 44 : 64, lineHeight: 0.94, fontWeight: 1000, letterSpacing: isWinnerMobile ? -1.6 : -3.2 }}>
+              #{form.number || "--"}<br />{form.name || "Winner"}
+            </div>
+            <div style={{ marginTop: 18, display: "flex", flexWrap: "wrap", gap: 10 }}>
+              <span style={{ padding: "9px 12px", borderRadius: 999, background: "rgba(255,255,255,0.16)", backdropFilter: "blur(18px)", fontWeight: 900 }}>{form.team || "Team TBD"}</span>
+              <span style={{ padding: "9px 12px", borderRadius: 999, background: "rgba(255,255,255,0.16)", backdropFilter: "blur(18px)", fontWeight: 900 }}>{form.manufacturer || "Manufacturer TBD"}</span>
+              <span style={{ padding: "9px 12px", borderRadius: 999, background: "rgba(255,255,255,0.16)", backdropFilter: "blur(18px)", fontWeight: 900 }}>{form.points || "0"} pts</span>
+            </div>
+            {form.note && <div style={{ marginTop: 18, maxWidth: 620, fontSize: isWinnerMobile ? 14 : 16, lineHeight: 1.5, opacity: 0.9 }}>{form.note}</div>}
+          </div>
         </div>
 
-        {form.mediaUrl && (
-          <div style={{ marginTop: 12 }}>
-            <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 8 }}>
-              Current media: {form.mediaType === "video" ? "Video" : "Picture"}
+        <div style={appleFormCardStyle}>
+          <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.5, textTransform: "uppercase", color: "#6b7280" }}>Race Weekend Recap</div>
+          <h2 style={{ margin: "5px 0 6px", fontSize: isWinnerMobile ? 28 : 38, lineHeight: 1.02, letterSpacing: -1.2 }}>Winner Spotlight</h2>
+          <div style={{ color: "#6b7280", fontWeight: 750, lineHeight: 1.45 }}>Create the Apple-style winner feature that feeds the standings page.</div>
+
+          <div style={appleActionRowStyle}>
+            <button type="button" onClick={autofillFromLatestRace} style={{ ...secondaryButtonStyle, background: "#f3f4f6", color: "#111827", border: "1px solid #e5e7eb", borderRadius: 999 }}>
+              Auto-Fill Latest Race
+            </button>
+            <button type="button" onClick={saveWinner} style={{ ...primaryButtonStyle, borderRadius: 999 }}>
+              {savingWinner ? "Saving..." : "Save Winner"}
+            </button>
+            <button type="button" onClick={clearWinner} style={{ ...dangerButtonStyle, borderRadius: 999 }}>
+              Clear
+            </button>
+          </div>
+
+          {winnerMessage && <div style={{ marginTop: 14, color: "#047857", background: "#ecfdf5", border: "1px solid #a7f3d0", borderRadius: 14, padding: 12, fontWeight: 900 }}>{winnerMessage}</div>}
+          {winnerError && <div style={{ marginTop: 14, color: "#b91c1c", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 14, padding: 12, fontWeight: 900 }}>{winnerError}</div>}
+
+          <div style={{ display: "grid", gridTemplateColumns: isWinnerMobile ? "1fr" : "repeat(2, minmax(0, 1fr))", gap: 12, marginTop: 18 }}>
+            <div style={{ gridColumn: isWinnerMobile ? "auto" : "span 2" }}>
+              <label style={appleLabelStyle}>Race Name</label>
+              <input value={form.raceName || ""} onChange={(event) => updateField("raceName", event.target.value)} placeholder="Las Vegas" style={appleInputStyle} />
             </div>
-            {form.mediaType === "video" ? (
-              <video controls src={form.mediaUrl} style={{ width: "100%", maxWidth: 520, borderRadius: 12, border: "1px solid #2c3440" }} />
-            ) : (
-              <img src={form.mediaUrl} alt="Winner media preview" style={{ width: "100%", maxWidth: 520, borderRadius: 12, border: "1px solid #2c3440" }} />
+
+            <div style={{ gridColumn: isWinnerMobile ? "auto" : "span 2" }}>
+              <label style={appleLabelStyle}>Select Driver</label>
+              <select value={form.driverId || ""} onChange={(event) => chooseDriver(event.target.value)} style={appleInputStyle}>
+                <option value="">Manual / choose driver</option>
+                {(drivers || []).map((driver) => (
+                  <option key={driver.id} value={driver.id}>#{driver.number} {driver.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label style={appleLabelStyle}>Number</label>
+              <input value={form.number || ""} onChange={(event) => updateField("number", event.target.value)} placeholder="21" style={appleInputStyle} />
+            </div>
+            <div>
+              <label style={appleLabelStyle}>Points</label>
+              <input value={form.points || ""} onChange={(event) => updateField("points", event.target.value)} placeholder="55" style={appleInputStyle} />
+            </div>
+            <div style={{ gridColumn: isWinnerMobile ? "auto" : "span 2" }}>
+              <label style={appleLabelStyle}>Driver Name</label>
+              <input value={form.name || ""} onChange={(event) => updateField("name", event.target.value)} placeholder="Driver name" style={appleInputStyle} />
+            </div>
+            <div>
+              <label style={appleLabelStyle}>Team</label>
+              <input value={form.team || ""} onChange={(event) => updateField("team", event.target.value)} placeholder="Nine Line Motorsports" style={appleInputStyle} />
+            </div>
+            <div>
+              <label style={appleLabelStyle}>Manufacturer</label>
+              <input value={form.manufacturer || ""} onChange={(event) => updateField("manufacturer", event.target.value)} placeholder="Toyota" style={appleInputStyle} />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: isWinnerMobile ? "1fr" : "0.9fr 1.1fr", gap: 14, marginTop: 16 }}>
+        <div style={appleFormCardStyle}>
+          <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.3, textTransform: "uppercase", color: "#6b7280", marginBottom: 10 }}>Winner Media</div>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <button type="button" onClick={openWinnerImageUploader} style={{ ...secondaryButtonStyle, background: "#f3f4f6", color: "#111827", border: "1px solid #e5e7eb", borderRadius: 999, opacity: cloudinaryReady ? 1 : 0.6 }}>
+              {cloudinaryReady ? "Upload Picture" : "Loading Uploader"}
+            </button>
+            <button type="button" onClick={openWinnerVideoUploader} style={{ ...secondaryButtonStyle, background: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: 999, opacity: cloudinaryReady ? 1 : 0.6 }}>
+              {cloudinaryReady ? "Upload Video" : "Loading Uploader"}
+            </button>
+            {form.mediaUrl && (
+              <button type="button" onClick={() => setForm((current) => ({ ...current, mediaUrl: "", mediaType: "" }))} style={{ ...dangerButtonStyle, borderRadius: 999 }}>
+                Remove
+              </button>
             )}
           </div>
-        )}
-      </div>
+          <div style={{ marginTop: 12, color: "#6b7280", fontWeight: 750, lineHeight: 1.45 }}>Use a winner car photo, burnout shot, reveal graphic, or short hype video.</div>
+        </div>
 
-      <div style={{ marginTop: 12 }}>
-        <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>SHORT NOTE OPTIONAL</label>
-        <textarea value={form.note || ""} onChange={(event) => updateField("note", event.target.value)} rows={3} placeholder="Example: Survived Daytona chaos and delivered the team its first win." style={{ ...inputStyle, resize: "vertical" }} />
+        <div style={appleFormCardStyle}>
+          <label style={appleLabelStyle}>Short Note Optional</label>
+          <textarea value={form.note || ""} onChange={(event) => updateField("note", event.target.value)} rows={isWinnerMobile ? 4 : 5} placeholder="Example: Controlled the closing run and delivered a statement win under the lights." style={{ ...appleInputStyle, resize: "vertical", width: "100%" }} />
+        </div>
       </div>
     </div>
   );
