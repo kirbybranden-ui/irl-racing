@@ -1354,6 +1354,42 @@ export default function AdminPortal({
                 </button>
               ))}
             </div>
+          <div style={{ marginTop: 14, background: "rgba(255,255,255,0.82)", border: "1px solid rgba(209,213,219,0.75)", borderRadius: 26, padding: 18, boxShadow: "0 14px 34px rgba(15,23,42,0.08)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap", marginBottom: 14 }}>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280", marginBottom: 4 }}>Season Manager</div>
+                <div style={{ fontSize: 28, fontWeight: 1000, letterSpacing: -0.9, color: "#111827" }}>{activeSeason?.name || "No active season"}</div>
+                <div style={{ color: "#6b7280", fontWeight: 800, marginTop: 3 }}>Create, rename, switch, or delete the active league season from the Operations Center.</div>
+              </div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <span style={{ background: "#eaf2ff", color: "#1d4ed8", borderRadius: 999, padding: "8px 11px", fontSize: 12, fontWeight: 1000 }}>{seasons.length} Seasons</span>
+                <span style={{ background: "#e8f7ee", color: "#137333", borderRadius: 999, padding: "8px 11px", fontSize: 12, fontWeight: 1000 }}>{raceHistory.length} Races</span>
+                <span style={{ background: "#fff4e6", color: "#c2410c", borderRadius: 999, padding: "8px 11px", fontSize: 12, fontWeight: 1000 }}>{drivers.length} Drivers</span>
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "1.1fr 1fr 1fr", gap: 12, marginBottom: 14 }}>
+              <div style={{ background: "rgba(248,250,252,0.92)", border: "1px solid #e5e7eb", borderRadius: 22, padding: 14 }}>
+                <div style={{ marginBottom: 8, fontSize: 12, fontWeight: 1000, color: "#6b7280", textTransform: "uppercase", letterSpacing: 1 }}>Active Season</div>
+                <select style={{ ...adminInputStyle, borderRadius: 16, minHeight: 46, fontWeight: 850 }} value={activeSeasonId} onChange={(e) => switchSeason(e.target.value)}>
+                  {seasons.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
+              <div style={{ background: "rgba(248,250,252,0.92)", border: "1px solid #e5e7eb", borderRadius: 22, padding: 14 }}>
+                <div style={{ marginBottom: 8, fontSize: 12, fontWeight: 1000, color: "#6b7280", textTransform: "uppercase", letterSpacing: 1 }}>Create New Season</div>
+                <input style={{ ...adminInputStyle, borderRadius: 16, minHeight: 46, fontWeight: 850 }} value={newSeasonName} onChange={(e) => setNewSeasonName(e.target.value)} placeholder="Example: 2026 Regular Season" />
+              </div>
+              <div style={{ background: "rgba(248,250,252,0.92)", border: "1px solid #e5e7eb", borderRadius: 22, padding: 14 }}>
+                <div style={{ marginBottom: 8, fontSize: 12, fontWeight: 1000, color: "#6b7280", textTransform: "uppercase", letterSpacing: 1 }}>Rename Active Season</div>
+                <input style={{ ...adminInputStyle, borderRadius: 16, minHeight: 46, fontWeight: 850 }} value={renameSeasonName} onChange={(e) => setRenameSeasonName(e.target.value)} placeholder="Rename current season" />
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <button onClick={createSeason} style={{ ...adminPrimaryButtonStyle, borderRadius: 18 }}>Create Season</button>
+              <button onClick={renameActiveSeason} style={{ ...adminSecondaryButtonStyle, borderRadius: 18 }}>Save Season Name</button>
+              <button onClick={deleteActiveSeason} style={{ ...adminDangerButtonStyle, borderRadius: 18 }}>Delete Active Season</button>
+            </div>
           </div>
         </div>
 
@@ -3011,20 +3047,7 @@ export default function AdminPortal({
             <button onClick={() => (window.location.pathname = "/discord")} style={adminSecondaryButtonStyle}>View Discord Page</button>
           </div>
         </div>
-        {/* Season Manager */}
-        <div style={adminReadableCardStyle}>
-          <h2 style={{ marginTop: 0 }}>Season Manager</h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12, marginBottom: 16 }}>
-            <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Active Season</div><select style={adminInputStyle} value={activeSeasonId} onChange={(e) => switchSeason(e.target.value)}>{seasons.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
-            <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Create New Season</div><input style={adminInputStyle} value={newSeasonName} onChange={(e) => setNewSeasonName(e.target.value)} placeholder="Example: 2026 Regular Season" /></div>
-            <div><div style={{ marginBottom: 6, fontWeight: 700 }}>Rename Active Season</div><input style={adminInputStyle} value={renameSeasonName} onChange={(e) => setRenameSeasonName(e.target.value)} placeholder="Rename current season" /></div>
-          </div>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <button onClick={createSeason} style={adminPrimaryButtonStyle}>Create Season</button>
-            <button onClick={renameActiveSeason} style={adminSecondaryButtonStyle}>Save Season Name</button>
-            <button onClick={deleteActiveSeason} style={adminDangerButtonStyle}>Delete Active Season</button>
-          </div>
-        </div>
+        {/* Season Manager moved into the Operations Center. */}
         {/* Stat Boxes */}
         <div style={{ display: "flex", flexWrap: "wrap", gap: 16, marginBottom: 20 }}>
           {[
