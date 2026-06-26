@@ -1822,12 +1822,12 @@ export default function AdminPortal({
           </div>
         </div>}
         {/* Race History */}
-        {raceOperationsTab === "history" && <div style={{ ...adminReadableCardStyle, padding: isAdminMobile ? 18 : 26, borderRadius: 34, background: "linear-gradient(180deg, rgba(255,255,255,0.97), rgba(248,250,252,0.94))", boxShadow: "0 22px 60px rgba(15,23,42,0.12)", border: "1px solid rgba(255,255,255,0.78)" }}>
+        {raceOperationsTab === "history" && <div style={{ ...adminReadableCardStyle, padding: isAdminMobile ? 18 : 26, borderRadius: 34, background: "linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.92))", boxShadow: "0 22px 60px rgba(15,23,42,0.12)", border: "1px solid rgba(255,255,255,0.75)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap", marginBottom: 18 }}>
             <div>
               <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.6, textTransform: "uppercase", color: "#ff9500" }}>Race Operations</div>
               <h2 style={{ margin: "3px 0 6px", fontSize: isAdminMobile ? 30 : 38, letterSpacing: -1.35 }}>Previous Race Results</h2>
-              <div style={{ color: "#6b7280", fontWeight: 750, maxWidth: 760 }}>A clean season archive for posted results. Open a race, edit it, or download one race at a time without cluttering the standings page.</div>
+              <div style={{ color: "#6b7280", fontWeight: 750, maxWidth: 720 }}>Season results are tucked into a clean race archive. Download one race, edit history, or export the whole season from one place.</div>
             </div>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
               <div style={{ padding: "10px 14px", borderRadius: 999, background: "rgba(255,149,0,0.12)", color: "#9a3412", fontWeight: 1000, fontSize: 13 }}>{raceHistory.length} Races</div>
@@ -1835,111 +1835,110 @@ export default function AdminPortal({
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "minmax(260px, 0.85fr) minmax(460px, 1.45fr)", gap: 16, alignItems: "start" }}>
-            <div style={{ borderRadius: 30, padding: 18, background: "linear-gradient(135deg, rgba(255,149,0,0.16), rgba(255,255,255,0.94))", border: "1px solid rgba(255,149,0,0.22)", boxShadow: "0 14px 35px rgba(15,23,42,0.08)", position: "sticky", top: isAdminMobile ? "auto" : 18 }}>
-              <div style={{ width: 62, height: 62, borderRadius: 22, background: "linear-gradient(135deg, #ff9500, #ffcc00)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30, boxShadow: "0 14px 28px rgba(255,149,0,0.28)" }}>🏁</div>
-              <div style={{ marginTop: 14, fontSize: 24, fontWeight: 1000, letterSpacing: -0.7 }}>Season Archive</div>
-              <div style={{ marginTop: 6, color: "#6b7280", fontWeight: 750, lineHeight: 1.35 }}>Download the full season, back up results, or restore the saved league file from here.</div>
+          <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "minmax(280px, 0.85fr) minmax(420px, 1.45fr)", gap: 16, alignItems: "start" }}>
+            <div style={{ borderRadius: 30, padding: 18, background: "linear-gradient(135deg, rgba(255,149,0,0.16), rgba(255,255,255,0.92))", border: "1px solid rgba(255,149,0,0.22)", boxShadow: "0 14px 35px rgba(15,23,42,0.08)" }}>
+              <div style={{ fontSize: 13, fontWeight: 1000, color: "#9a3412", letterSpacing: 0.4 }}>Season Archive</div>
+              <div style={{ marginTop: 12, color: "#374151", fontWeight: 900, lineHeight: 1.35 }}>Previous race results are stored here instead of cluttering the standings page.</div>
               <div style={{ display: "grid", gap: 10, marginTop: 16 }}>
                 <button type="button" onClick={() => downloadRaceHistoryCsv(raceHistory, activeSeason?.name || "Season")} style={{ ...adminPrimaryButtonStyle, width: "100%", borderRadius: 18 }}>Download Full Season CSV</button>
                 <button type="button" onClick={handleDownloadLeagueBackup} style={{ ...adminSecondaryButtonStyle, width: "100%", borderRadius: 18 }}>Backup Results</button>
                 <button type="button" onClick={() => backupFileInputRef.current?.click()} style={{ ...adminSecondaryButtonStyle, width: "100%", borderRadius: 18 }}>Restore From Backup</button>
                 <input ref={backupFileInputRef} type="file" accept="application/json" onChange={handleRestoreLeagueBackup} style={{ display: "none" }} />
               </div>
+              <div style={{ marginTop: 12, color: "#6b7280", fontSize: 12, fontWeight: 750, lineHeight: 1.35 }}>Tip: use the per-race download button when you only need one event.</div>
             </div>
 
-            <div style={{ display: "grid", gap: 14 }}>
-              {raceHistory.length === 0 ? (
-                <div style={{ borderRadius: 30, padding: 26, background: "rgba(255,255,255,0.9)", border: "1px solid rgba(229,231,235,0.95)", color: "#6b7280", fontWeight: 800 }}>No races entered yet.</div>
-              ) : raceHistory.map((race, raceIndex) => {
-                const results = race.results || [];
-                const winner = results.find((r) => r.finishPos === 1) || results[0];
-                const podium = results.filter((r) => Number(r.finishPos || 0) >= 1 && Number(r.finishPos || 0) <= 3).sort((a, b) => Number(a.finishPos || 99) - Number(b.finishPos || 99));
-                const penaltyCount = results.filter((r) => Number(r.penaltyPoints || 0) > 0 || r.offense).length;
-                const dnfCount = results.filter((r) => r.dnf).length;
-                return (
-                  <div key={race.raceName || raceIndex} style={{ borderRadius: 32, overflow: "hidden", background: "rgba(255,255,255,0.96)", border: "1px solid rgba(229,231,235,0.92)", boxShadow: "0 16px 38px rgba(15,23,42,0.09)" }}>
-                    <div style={{ padding: isAdminMobile ? 16 : 20, background: "linear-gradient(135deg, rgba(255,149,0,0.16), rgba(255,255,255,0.94) 58%, rgba(0,122,255,0.08))", borderBottom: "1px solid rgba(229,231,235,0.88)" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
-                        <div style={{ minWidth: 0 }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                            <div style={{ width: 42, height: 42, borderRadius: 16, background: "linear-gradient(135deg, #ff9500, #ffcc00)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 1000, boxShadow: "0 10px 22px rgba(255,149,0,0.25)" }}>{raceIndex + 1}</div>
-                            <div>
-                              <div style={{ fontSize: isAdminMobile ? 22 : 26, fontWeight: 1000, letterSpacing: -0.8, color: "#111827" }}>{race.raceName}</div>
-                              <div style={{ color: "#6b7280", fontWeight: 800, marginTop: 2 }}>{race.stageCount} scoring stage{race.stageCount === 1 ? "" : "s"}{winner ? ` • Winner: #${winner.number} ${winner.name}` : ""}</div>
-                            </div>
+            <div style={{ borderRadius: 30, overflow: "hidden", background: "rgba(255,255,255,0.86)", border: "1px solid rgba(229,231,235,0.95)", boxShadow: "0 14px 35px rgba(15,23,42,0.07)" }}>
+              <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "1.2fr 0.7fr 0.7fr 0.9fr", gap: 10, padding: "12px 16px", background: "rgba(243,244,246,0.72)", color: "#6b7280", fontSize: 12, fontWeight: 1000, letterSpacing: 0.8, textTransform: "uppercase" }}>
+                <div>Race</div>
+                {!isAdminMobile && <div>Winner</div>}
+                {!isAdminMobile && <div>Entries</div>}
+                {!isAdminMobile && <div style={{ textAlign: "right" }}>Action</div>}
+              </div>
+
+              <div style={{ display: "grid" }}>
+                {raceHistory.length === 0 ? (
+                  <div style={{ padding: 18, color: "#6b7280", fontWeight: 750 }}>No races entered yet. Race results will appear here after you post them.</div>
+                ) : raceHistory.map((race, raceIndex) => {
+                  const results = race.results || [];
+                  const winner = results.find((r) => Number(r.finishPos) === 1) || results[0];
+                  const podium = results.filter((r) => Number(r.finishPos || 0) >= 1 && Number(r.finishPos || 0) <= 3).sort((a, b) => Number(a.finishPos || 99) - Number(b.finishPos || 99));
+                  const penaltyCount = results.filter((r) => Number(r.penaltyPoints || 0) > 0 || r.offense).length;
+                  const dnfCount = results.filter((r) => r.dnf).length;
+                  return (
+                    <details key={race.raceName || raceIndex} style={{ borderTop: "1px solid rgba(229,231,235,0.75)", background: "rgba(255,255,255,0.72)" }}>
+                      <summary style={{ listStyle: "none", cursor: "pointer", display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "1.2fr 0.7fr 0.7fr 0.9fr", gap: 10, alignItems: "center", padding: "14px 16px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+                          <div style={{ width: 42, height: 42, borderRadius: 16, background: "linear-gradient(135deg, #ff9500, #ffcc00)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 1000, boxShadow: "0 10px 20px rgba(255,149,0,0.24)" }}>{raceIndex + 1}</div>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontWeight: 1000, color: "#111827", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{race.raceName}</div>
+                            {isAdminMobile && <div style={{ marginTop: 5, color: "#6b7280", fontSize: 12, fontWeight: 800 }}>{winner ? `Winner #${winner.number} ${winner.name}` : "No winner listed"} • {results.length} entries</div>}
                           </div>
                         </div>
-                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: isAdminMobile ? "flex-start" : "flex-end" }}>
-                          <button type="button" onClick={() => downloadRaceHistoryCsv([race], race.raceName || "Race")} style={{ ...adminSecondaryButtonStyle, borderRadius: 999 }}>Download Race</button>
-                          <button type="button" onClick={() => handleEditRace(race)} style={{ ...adminSecondaryButtonStyle, borderRadius: 999 }}>Edit</button>
-                          <button type="button" onClick={() => handleDeleteRace(race.raceName)} style={{ ...adminDangerButtonStyle, borderRadius: 999 }}>Delete</button>
+
+                        <div style={{ display: isAdminMobile ? "none" : "block", color: "#111827", fontWeight: 900, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{winner ? `#${winner.number} ${winner.name}` : "—"}</div>
+
+                        <div style={{ display: isAdminMobile ? "none" : "block" }}>
+                          <span style={{ display: "inline-flex", alignItems: "center", padding: "8px 11px", borderRadius: 999, background: "rgba(0,122,255,0.10)", color: "#1d4ed8", fontWeight: 1000, fontSize: 12 }}>{results.length} Drivers</span>
                         </div>
-                      </div>
 
-                      <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(4, minmax(110px, 1fr))", gap: 10, marginTop: 16 }}>
-                        {[
-                          ["Winner", winner ? `#${winner.number} ${winner.name}` : "—"],
-                          ["Entries", results.length],
-                          ["DNFs", dnfCount],
-                          ["Penalties", penaltyCount],
-                        ].map(([label, value]) => (
-                          <div key={label} style={{ borderRadius: 20, padding: 12, background: "rgba(255,255,255,0.74)", border: "1px solid rgba(255,255,255,0.82)" }}>
-                            <div style={{ fontSize: 11, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 1, color: "#6b7280" }}>{label}</div>
-                            <div style={{ marginTop: 5, fontSize: 16, fontWeight: 1000, color: "#111827", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{value}</div>
-                          </div>
-                        ))}
-                      </div>
+                        <div style={{ display: "flex", justifyContent: isAdminMobile ? "flex-start" : "flex-end", gap: 8, flexWrap: "wrap", marginTop: isAdminMobile ? 12 : 0 }}>
+                          <button type="button" onClick={(e) => { e.preventDefault(); downloadRaceHistoryCsv([race], race.raceName || "Race"); }} style={{ ...adminSecondaryButtonStyle, borderRadius: 16, padding: "9px 12px" }}>Download</button>
+                          <button type="button" onClick={(e) => { e.preventDefault(); handleEditRace(race); }} style={{ ...adminSecondaryButtonStyle, borderRadius: 16, padding: "9px 12px" }}>Edit</button>
+                          <button type="button" onClick={(e) => { e.preventDefault(); handleDeleteRace(race.raceName); }} style={{ ...adminDangerButtonStyle, borderRadius: 16, padding: "9px 12px" }}>Remove</button>
+                        </div>
+                      </summary>
 
-                      {podium.length > 0 && (
-                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
+                      <div style={{ padding: "0 16px 16px" }}>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+                          <span style={{ display: "inline-flex", alignItems: "center", padding: "8px 11px", borderRadius: 999, background: "rgba(255,149,0,0.14)", color: "#9a3412", fontWeight: 1000, fontSize: 12 }}>{race.stageCount} Stage{Number(race.stageCount) === 1 ? "" : "s"}</span>
+                          <span style={{ display: "inline-flex", alignItems: "center", padding: "8px 11px", borderRadius: 999, background: dnfCount ? "rgba(255,59,48,0.12)" : "rgba(142,142,147,0.12)", color: dnfCount ? "#b42318" : "#6b7280", fontWeight: 1000, fontSize: 12 }}>{dnfCount} DNF</span>
+                          <span style={{ display: "inline-flex", alignItems: "center", padding: "8px 11px", borderRadius: 999, background: penaltyCount ? "rgba(255,59,48,0.12)" : "rgba(142,142,147,0.12)", color: penaltyCount ? "#b42318" : "#6b7280", fontWeight: 1000, fontSize: 12 }}>{penaltyCount} Penalties</span>
                           {podium.map((r) => (
-                            <div key={`${race.raceName}-${r.driverId}-podium`} style={{ padding: "8px 11px", borderRadius: 999, background: r.finishPos === 1 ? "rgba(255,204,0,0.2)" : "rgba(229,231,235,0.72)", color: "#111827", fontWeight: 1000, fontSize: 13 }}>P{r.finishPos} · #{r.number} {r.name}</div>
+                            <span key={`${race.raceName}-${r.driverId}-podium`} style={{ display: "inline-flex", alignItems: "center", padding: "8px 11px", borderRadius: 999, background: r.finishPos === 1 ? "rgba(255,204,0,0.2)" : "rgba(229,231,235,0.72)", color: "#111827", fontWeight: 1000, fontSize: 12 }}>P{r.finishPos} · #{r.number} {r.name}</span>
                           ))}
                         </div>
-                      )}
-                    </div>
 
-                    <div style={{ padding: isAdminMobile ? 10 : 14 }}>
-                      <div style={{ overflowX: "auto", borderRadius: 24, border: "1px solid rgba(229,231,235,0.92)", background: "rgba(248,250,252,0.88)" }}>
-                        <table style={{ ...adminTableStyle, minWidth: 980 }}>
-                          <thead>
-                            <tr>
-                              <th style={adminThStyle}>Finish</th><th style={adminThStyle}>#</th><th style={adminThStyle}>Driver</th><th style={adminThStyle}>Team</th>
-                              <th style={adminThStyle}>Race Pts</th>
-                              {race.stageCount >= 1 && <th style={adminThStyle}>S1</th>}
-                              {race.stageCount >= 2 && <th style={adminThStyle}>S2</th>}
-                              {race.stageCount === 3 && <th style={adminThStyle}>S3</th>}
-                              <th style={adminThStyle}>FL</th><th style={adminThStyle}>DNF</th><th style={adminThStyle}>Start & Park</th>
-                              <th style={adminThStyle}>Offense</th><th style={adminThStyle}>Penalty</th><th style={adminThStyle}>Total</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {results.map((r) => (
-                              <tr key={r.driverId}>
-                                <td style={{ ...adminTdStyle, fontWeight: 1000 }}>{r.finishPos ?? "—"}</td>
-                                <td style={{...tdStyle, display: "flex", alignItems: "center", justifyContent: "center"}}><div style={{width: 34, height: 34, borderRadius: "50%", background: "linear-gradient(135deg, #111827, #4b5563)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 13, color: "#fff", border: "2px solid rgba(255,204,0,0.78)"}}>{r.number}</div></td>
-                                <td style={{ ...adminTdStyle, fontWeight: 900 }}>{r.name}</td>
-                                <td style={adminTdStyle}>{getTeamFullName(r.team)}</td>
-                                <td style={adminTdStyle}>{r.finishPoints}</td>
-                                {race.stageCount >= 1 && <td style={adminTdStyle}>{r.stage1Points}</td>}
-                                {race.stageCount >= 2 && <td style={adminTdStyle}>{r.stage2Points}</td>}
-                                {race.stageCount === 3 && <td style={adminTdStyle}>{r.stage3Points}</td>}
-                                <td style={adminTdStyle}>{r.fastestLap ? "+1" : "—"}</td>
-                                <td style={adminTdStyle}>{r.dnf ? (r.dnfReason ? `DNF (${r.dnfReason})` : "DNF") : "—"}</td>
-                                <td style={adminTdStyle}>{r.startPark ? "Yes" : "—"}</td>
-                                <td style={adminTdStyle}>{r.offense ? `#${r.offenseNumber}` : "—"}</td>
-                                <td style={{ ...tdStyle, color: r.penaltyPoints > 0 ? "#dc2626" : "inherit", fontWeight: 900 }}>{r.penaltyPoints > 0 ? `-${r.penaltyPoints}` : "0"}</td>
-                                <td style={{ ...tdStyle, fontWeight: 1000 }}>{r.totalRacePoints}</td>
+                        <div style={{ overflowX: "auto", borderRadius: 24, border: "1px solid rgba(229,231,235,0.92)", background: "rgba(248,250,252,0.88)" }}>
+                          <table style={{ ...adminTableStyle, minWidth: 980 }}>
+                            <thead>
+                              <tr>
+                                <th style={adminThStyle}>Finish</th><th style={adminThStyle}>#</th><th style={adminThStyle}>Driver</th><th style={adminThStyle}>Team</th>
+                                <th style={adminThStyle}>Race Pts</th>
+                                {race.stageCount >= 1 && <th style={adminThStyle}>S1</th>}
+                                {race.stageCount >= 2 && <th style={adminThStyle}>S2</th>}
+                                {race.stageCount === 3 && <th style={adminThStyle}>S3</th>}
+                                <th style={adminThStyle}>FL</th><th style={adminThStyle}>DNF</th><th style={adminThStyle}>Start & Park</th>
+                                <th style={adminThStyle}>Offense</th><th style={adminThStyle}>Penalty</th><th style={adminThStyle}>Total</th>
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                            </thead>
+                            <tbody>
+                              {results.map((r) => (
+                                <tr key={r.driverId}>
+                                  <td style={{ ...adminTdStyle, fontWeight: 1000 }}>{r.finishPos ?? "—"}</td>
+                                  <td style={{...tdStyle, display: "flex", alignItems: "center", justifyContent: "center"}}><div style={{width: 34, height: 34, borderRadius: "50%", background: "linear-gradient(135deg, #111827, #4b5563)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 13, color: "#fff", border: "2px solid rgba(255,204,0,0.78)"}}>{r.number}</div></td>
+                                  <td style={{ ...adminTdStyle, fontWeight: 900 }}>{r.name}</td>
+                                  <td style={adminTdStyle}>{getTeamFullName(r.team)}</td>
+                                  <td style={adminTdStyle}>{r.finishPoints}</td>
+                                  {race.stageCount >= 1 && <td style={adminTdStyle}>{r.stage1Points}</td>}
+                                  {race.stageCount >= 2 && <td style={adminTdStyle}>{r.stage2Points}</td>}
+                                  {race.stageCount === 3 && <td style={adminTdStyle}>{r.stage3Points}</td>}
+                                  <td style={adminTdStyle}>{r.fastestLap ? "+1" : "—"}</td>
+                                  <td style={adminTdStyle}>{r.dnf ? (r.dnfReason ? `DNF (${r.dnfReason})` : "DNF") : "—"}</td>
+                                  <td style={adminTdStyle}>{r.startPark ? "Yes" : "—"}</td>
+                                  <td style={adminTdStyle}>{r.offense ? `#${r.offenseNumber}` : "—"}</td>
+                                  <td style={{ ...tdStyle, color: r.penaltyPoints > 0 ? "#dc2626" : "inherit", fontWeight: 900 }}>{r.penaltyPoints > 0 ? `-${r.penaltyPoints}` : "0"}</td>
+                                  <td style={{ ...tdStyle, fontWeight: 1000 }}>{r.totalRacePoints}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                );
-              })}
+                    </details>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>}
