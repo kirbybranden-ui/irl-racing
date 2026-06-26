@@ -576,9 +576,60 @@ export default function AdminPortal({
   ];
 
   const adminQuickTiles = [
-    { title: "Race Operations", text: "Track management, race input, race drafts, race history, and offense log.", action: openRaceOperations },
-    { title: "Messages", text: "Unread inbox, league broadcasts, owner notices, and create-message tools.", action: openAdminMessages },
-    { title: "Backup Center", text: "Export, import, restore, and protect league data.", action: () => document.getElementById("admin-backup-center")?.scrollIntoView({ behavior: "smooth", block: "start" }) },
+    {
+      title: "Human Resources",
+      icon: "👥",
+      value: `${(pendingDrivers || []).length + (openAppealCount || 0)}`,
+      meta: "Items to review",
+      text: "Join requests, driver assignments, owner access, appeals, and start & park.",
+      action: () => openHrDepartment("overview"),
+      gradient: "linear-gradient(135deg, #34c759 0%, #30d158 45%, #0a7f3f 100%)",
+    },
+    {
+      title: "Race Operations",
+      icon: "🏁",
+      value: selectedRace ? "Active" : "Ready",
+      meta: selectedRace || `${raceHistory.length} races posted`,
+      text: "Race input, track management, drafts, archive, and offense log.",
+      action: openRaceOperations,
+      gradient: "linear-gradient(135deg, #007aff 0%, #5ac8fa 45%, #5856d6 100%)",
+    },
+    {
+      title: "Finance",
+      icon: "💳",
+      value: money((financeTransactions || []).reduce((sum, item) => sum + (Number(item?.amount ?? item?.value ?? item?.transaction_amount ?? item?.payout ?? 0) || 0), 0)),
+      meta: `${(financeTransactions || []).length} ledger items`,
+      text: "Treasury, payouts, fines, paint payments, interviews, and ledgers.",
+      action: () => openFinanceDepartment("overview"),
+      gradient: "linear-gradient(135deg, #111827 0%, #374151 48%, #6b7280 100%)",
+    },
+    {
+      title: "Public Relations",
+      icon: "📰",
+      value: `${(openStoryCount || 0)}`,
+      meta: "Open stories",
+      text: "Ticker, winner spotlight, featured media, Ones to Watch, and interviews.",
+      action: () => openPublicRelations("overview"),
+      gradient: "linear-gradient(135deg, #ff9500 0%, #ffcc00 48%, #ff3b30 100%)",
+    },
+    {
+      title: "Messages",
+      icon: "💬",
+      value: `${adminUnreadCount || 0}`,
+      meta: "Unread messages",
+      text: "Inbox, league broadcasts, owner notices, and admin conversations.",
+      action: openAdminMessages,
+      gradient: "linear-gradient(135deg, #30d158 0%, #32ade6 45%, #007aff 100%)",
+    },
+    {
+      title: "Backup Center",
+      icon: "🛡️",
+      value: "Secure",
+      meta: activeSeason?.name || "League data",
+      text: "Export, import, restore, and protect league data.",
+      action: () => document.getElementById("admin-backup-center")?.scrollIntoView({ behavior: "smooth", block: "start" }),
+      gradient: "linear-gradient(135deg, #af52de 0%, #ff2d55 52%, #5856d6 100%)",
+    },
   ];
 
 
@@ -1227,24 +1278,82 @@ export default function AdminPortal({
           </div>
         </div>
 
-        <div style={{ ...adminReadableCardStyle, padding: 24 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "end", gap: 16, flexWrap: "wrap", marginBottom: 18 }}>
+        <div style={{ ...adminReadableCardStyle, padding: isAdminMobile ? 18 : 28, borderRadius: 34, background: "linear-gradient(180deg, rgba(255,255,255,0.97), rgba(248,250,252,0.92))", boxShadow: "0 24px 70px rgba(15,23,42,0.14)", border: "1px solid rgba(255,255,255,0.78)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, flexWrap: "wrap", marginBottom: 18 }}>
             <div>
-              <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.6, textTransform: "uppercase", color: "#6b7280" }}>Command Center</div>
-              <h2 style={{ margin: "4px 0 0", fontSize: 30, letterSpacing: -0.8 }}>Quick Admin Tiles</h2>
-              <p style={{ margin: "6px 0 0", color: "#4b5563", fontWeight: 650 }}>Everything important is grouped into cleaner Apple-style cards instead of a crowded button bar.</p>
+              <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.8, textTransform: "uppercase", color: "#6b7280" }}>Operations Center</div>
+              <h2 style={{ margin: "2px 0 0", fontSize: isAdminMobile ? 34 : 42, letterSpacing: -1.4, lineHeight: 1.02 }}>Admin Home</h2>
+              <p style={{ margin: "8px 0 0", color: "#4b5563", fontWeight: 750, maxWidth: 780 }}>Executive briefing cards for the departments that need attention. Open a department from the tile instead of managing tools on the homepage.</p>
             </div>
-            <button onClick={goAdmin} style={adminPrimaryButtonStyle}>Refresh Admin Home</button>
+            <button onClick={goAdmin} style={{ ...adminPrimaryButtonStyle, borderRadius: 999, padding: "12px 16px", boxShadow: "0 12px 28px rgba(17,24,39,0.16)" }}>Refresh Center</button>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(245px, 1fr))", gap: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(3, minmax(210px, 1fr))", gap: 14, marginBottom: 18 }}>
             {adminQuickTiles.map((tile) => (
-              <button key={tile.title} type="button" onClick={tile.action} style={adminTileStyle}>
-                <div style={adminTileKickerStyle} />
-                <div style={{ fontSize: 20, fontWeight: 1000, marginBottom: 8, letterSpacing: -0.3 }}>{tile.title}</div>
-                <div style={{ color: "#4b5563", fontWeight: 650, lineHeight: 1.45 }}>{tile.text}</div>
+              <button
+                key={tile.title}
+                type="button"
+                onClick={tile.action}
+                style={{
+                  padding: 18,
+                  minHeight: 164,
+                  textAlign: "left",
+                  cursor: "pointer",
+                  borderRadius: 30,
+                  border: "1px solid rgba(255,255,255,0.42)",
+                  background: tile.gradient,
+                  color: "#ffffff",
+                  boxShadow: "0 18px 40px rgba(15,23,42,0.18)",
+                  overflow: "hidden",
+                  position: "relative",
+                }}
+              >
+                <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at top right, rgba(255,255,255,0.40), transparent 36%)", pointerEvents: "none" }} />
+                <div style={{ position: "relative", zIndex: 1, minHeight: 124, display: "flex", flexDirection: "column" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                    <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.25, textTransform: "uppercase", color: "rgba(255,255,255,0.84)" }}>{tile.title}</div>
+                    <div style={{ width: 38, height: 38, borderRadius: 15, background: "rgba(255,255,255,0.18)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 19, boxShadow: "inset 0 1px 0 rgba(255,255,255,0.28)" }}>{tile.icon}</div>
+                  </div>
+                  <div style={{ fontSize: isAdminMobile ? 30 : 34, fontWeight: 1000, letterSpacing: -1.2, marginTop: 12, color: "#ffffff" }}>{tile.value}</div>
+                  <div style={{ marginTop: 2, color: "rgba(255,255,255,0.76)", fontSize: 12, fontWeight: 1000 }}>{tile.meta}</div>
+                  <div style={{ marginTop: "auto", paddingTop: 10, color: "rgba(255,255,255,0.90)", fontSize: 13, fontWeight: 850, lineHeight: 1.35 }}>{tile.text}</div>
+                </div>
               </button>
             ))}
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "1.15fr 0.85fr", gap: 14 }}>
+            <div style={{ background: "rgba(255,255,255,0.78)", border: "1px solid rgba(209,213,219,0.75)", borderRadius: 26, padding: 18, boxShadow: "0 14px 34px rgba(15,23,42,0.08)" }}>
+              <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280", marginBottom: 12 }}>Race Weekend Status</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+                <div style={{ width: 58, height: 58, borderRadius: 20, background: "linear-gradient(135deg, #111827, #374151)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, boxShadow: "0 14px 28px rgba(15,23,42,0.18)" }}>🏁</div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 26, fontWeight: 1000, letterSpacing: -0.9 }}>{selectedRace || "No race selected"}</div>
+                  <div style={{ color: "#6b7280", fontWeight: 800, marginTop: 2 }}>{selectedRace ? "Race control is ready for official input." : "Open Race Operations to select a race and enter results."}</div>
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 16 }}>
+                <span style={{ background: "#e8f7ee", color: "#137333", borderRadius: 999, padding: "8px 11px", fontSize: 12, fontWeight: 1000 }}>{drivers.length} Drivers</span>
+                <span style={{ background: "#eaf2ff", color: "#1d4ed8", borderRadius: 999, padding: "8px 11px", fontSize: 12, fontWeight: 1000 }}>{raceHistory.length} Races Posted</span>
+                <span style={{ background: "#fff4e6", color: "#c2410c", borderRadius: 999, padding: "8px 11px", fontSize: 12, fontWeight: 1000 }}>{(raceDrafts || []).length} Drafts</span>
+                <span style={{ background: "#fee2e2", color: "#b42318", borderRadius: 999, padding: "8px 11px", fontSize: 12, fontWeight: 1000 }}>{offenseLog.length} Offenses</span>
+              </div>
+            </div>
+
+            <div style={{ background: "rgba(255,255,255,0.78)", border: "1px solid rgba(209,213,219,0.75)", borderRadius: 26, padding: 18, boxShadow: "0 14px 34px rgba(15,23,42,0.08)" }}>
+              <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280", marginBottom: 12 }}>Need Attention</div>
+              {[
+                ["HR", `${(pendingDrivers || []).length} join requests`, () => openHrDepartment("requests")],
+                ["Appeals", `${openAppealCount || 0} open`, () => (window.location.pathname = "/appeals")],
+                ["Messages", `${adminUnreadCount || 0} unread`, openAdminMessages],
+                ["Stories", `${openStoryCount || 0} pending`, () => (window.location.pathname = "/admin/stories")],
+              ].map(([label, value, action]) => (
+                <button key={label} type="button" onClick={action} style={{ width: "100%", border: 0, background: "transparent", padding: "10px 0", borderBottom: "1px solid #e5e7eb", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, cursor: "pointer", textAlign: "left" }}>
+                  <span style={{ color: "#111827", fontWeight: 1000 }}>{label}</span>
+                  <span style={{ color: "#6b7280", fontWeight: 900 }}>{value} ›</span>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
