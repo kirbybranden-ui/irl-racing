@@ -1564,7 +1564,7 @@ export default function AdminPortal({
                 {[
                   ["Tracks", (tracks || []).length],
                   ["Races Posted", raceHistory.length],
-                  ["Saved Drafts", savedRaceDrafts.length],
+                  ["Saved Drafts", (raceDrafts || []).length],
                 ].map(([label, value]) => (
                   <div key={label} style={{ ...walletLightCardStyle, padding: 18 }}>
                     <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.2, textTransform: "uppercase", color: "#6b7280" }}>{label}</div>
