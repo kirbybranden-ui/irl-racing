@@ -1563,28 +1563,38 @@ export default function AdminPortal({
 
               <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(3, minmax(180px, 1fr))", gap: 14, marginBottom: 18 }}>
                 {[
-                  ["tracks", "Track Management", (tracks || []).length, "Update schedule tracks and stage counts."],
-                  ["input", "Race Input", selectedRace ? "Active" : "Ready", "Enter finishes, stages, penalties, DNFs, and fastest lap."],
-                  ["history", "Previous Race Results", raceHistory.length, "Open the race archive and download single races or the season."],
-                  ["drafts", "Saved Drafts", (raceDrafts || []).length, "Load, post, or delete admin-only race drafts."],
-                  ["offenses", "Offense Log", offenseLog.length, "Review season offense penalties."],
-                ].map(([key, label, value, description]) => (
+                  ["tracks", "Track Management", (tracks || []).length, "Update schedule tracks and stage counts.", "linear-gradient(135deg, #34c759 0%, #30d158 45%, #0a7f3f 100%)"],
+                  ["input", "Race Input", selectedRace ? "Active" : "Ready", "Enter finishes, stages, penalties, DNFs, and fastest lap.", "linear-gradient(135deg, #007aff 0%, #5ac8fa 45%, #5856d6 100%)"],
+                  ["history", "Previous Race Results", raceHistory.length, "Open the race archive and download single races or the season.", "linear-gradient(135deg, #ff9500 0%, #ffcc00 48%, #ff3b30 100%)"],
+                  ["drafts", "Saved Drafts", (raceDrafts || []).length, "Load, post, or delete admin-only race drafts.", "linear-gradient(135deg, #af52de 0%, #ff2d55 52%, #5856d6 100%)"],
+                  ["offenses", "Offense Log", offenseLog.length, "Review season offense penalties.", "linear-gradient(135deg, #ff3b30 0%, #ff2d55 50%, #8e8e93 100%)"],
+                ].map(([key, label, value, description, gradient]) => (
                   <button
                     key={key}
                     type="button"
                     onClick={() => setRaceOperationsTab(key)}
                     style={{
-                      ...walletLightCardStyle,
                       padding: 18,
+                      minHeight: 156,
                       textAlign: "left",
                       cursor: "pointer",
-                      border: raceOperationsTab === key ? "2px solid #111827" : walletLightCardStyle.border || "1px solid rgba(15,23,42,0.10)",
-                      boxShadow: raceOperationsTab === key ? "0 18px 38px rgba(15,23,42,0.18)" : walletLightCardStyle.boxShadow,
+                      borderRadius: 30,
+                      border: raceOperationsTab === key ? "2px solid rgba(255,255,255,0.95)" : "1px solid rgba(255,255,255,0.38)",
+                      background: gradient,
+                      color: "#ffffff",
+                      boxShadow: raceOperationsTab === key ? "0 22px 46px rgba(15,23,42,0.28)" : "0 16px 34px rgba(15,23,42,0.18)",
+                      transform: raceOperationsTab === key ? "translateY(-2px)" : "translateY(0)",
+                      transition: "transform 160ms ease, box-shadow 160ms ease, border 160ms ease",
+                      overflow: "hidden",
+                      position: "relative",
                     }}
                   >
-                    <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.2, textTransform: "uppercase", color: "#6b7280" }}>{label}</div>
-                    <div style={{ fontSize: 34, fontWeight: 1000, letterSpacing: -1, marginTop: 8 }}>{value}</div>
-                    <div style={{ marginTop: 8, color: "#4b5563", fontSize: 13, fontWeight: 750, lineHeight: 1.35 }}>{description}</div>
+                    <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at top right, rgba(255,255,255,0.38), transparent 36%)", pointerEvents: "none" }} />
+                    <div style={{ position: "relative", zIndex: 1 }}>
+                      <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.2, textTransform: "uppercase", color: "rgba(255,255,255,0.82)" }}>{label}</div>
+                      <div style={{ fontSize: 36, fontWeight: 1000, letterSpacing: -1, marginTop: 10, color: "#ffffff" }}>{value}</div>
+                      <div style={{ marginTop: 10, color: "rgba(255,255,255,0.88)", fontSize: 13, fontWeight: 800, lineHeight: 1.35 }}>{description}</div>
+                    </div>
                   </button>
                 ))}
               </div>
