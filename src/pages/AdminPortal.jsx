@@ -455,6 +455,11 @@ export default function AdminPortal({
     if (typeof loadTickerMessages === "function") loadTickerMessages();
   }
 
+  function openSettings() {
+    setSettingsOpen(true);
+    setAdminMenuOpen(false);
+  }
+
   function updateFinanceForm(key, value) {
     setFinanceForm((prev) => ({ ...prev, [key]: value }));
   }
