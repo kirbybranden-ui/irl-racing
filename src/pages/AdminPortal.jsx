@@ -222,6 +222,10 @@ export default function AdminPortal({
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  const goStandings = () => {
+    window.location.pathname = "/standings";
+  };
+
 
   const [adminMenuOpen, setAdminMenuOpen] = useState(false);
   const [adminMessagesOpen, setAdminMessagesOpen] = useState(false);
@@ -1268,6 +1272,16 @@ export default function AdminPortal({
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <button
                 type="button"
+                aria-label="Go to standings home page"
+                onClick={goStandings}
+                style={{ ...adminMessageIconButtonStyle, background: "linear-gradient(180deg, #ffd60a 0%, #ff9f0a 100%)", boxShadow: "0 16px 38px rgba(255,159,10,0.30)" }}
+                title="Home / Standings"
+              >
+                🏠
+              </button>
+
+              <button
+                type="button"
                 aria-label="Open admin messages"
                 onClick={openAdminMessages}
                 style={adminMessageIconButtonStyle}
@@ -1303,7 +1317,6 @@ export default function AdminPortal({
               <p style={{ margin: "8px 0 0", color: "#4b5563", fontWeight: 750, maxWidth: 780 }}>Executive briefing cards for the departments that need attention. Open a department from the tile instead of managing tools on the homepage.</p>
             </div>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: isAdminMobile ? "flex-start" : "flex-end" }}>
-              <button onClick={goAdmin} style={{ ...adminSecondaryButtonStyle, borderRadius: 999, padding: "12px 16px", background: "#ffffff", boxShadow: "0 12px 28px rgba(17,24,39,0.10)" }}>⌂ Home</button>
               <button onClick={goAdmin} style={{ ...adminPrimaryButtonStyle, borderRadius: 999, padding: "12px 16px", boxShadow: "0 12px 28px rgba(17,24,39,0.16)" }}>Refresh Center</button>
             </div>
           </div>
@@ -3133,21 +3146,7 @@ export default function AdminPortal({
 
         {/* Discord Settings removed from Admin Portal. Discord remains public/homepage only. */}
         {/* Season Manager moved into the Operations Center. */}
-        {/* Stat Boxes */}
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 16, marginBottom: 20 }}>
-          {[
-            { label: "ACTIVE SEASON", value: activeSeason?.name || "—" },
-            { label: "CURRENT LEADER", value: currentLeader ? `#${currentLeader.number} ${currentLeader.name}` : "—" },
-            { label: "TOTAL DRIVERS", value: drivers.length },
-            { label: "RACES ENTERED", value: raceHistory.length },
-            { label: "LATEST WINNER", value: latestWinner ? `#${latestWinner.number} ${latestWinner.name}` : "—" },
-          ].map((stat) => (
-            <div key={stat.label} style={statBoxStyle}>
-              <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 6 }}>{stat.label}</div>
-              <div style={{ fontSize: 24, fontWeight: 800 }}>{stat.value}</div>
-            </div>
-          ))}
-        </div>
+        {/* Duplicate bottom stat boxes removed. Executive status now lives at the top of Admin Home. */}
         {/* Owner Portal Access moved into Human Resources > Access Codes. */}
 
         {/* Driver Contract Access moved into Human Resources > Access Codes. */}
