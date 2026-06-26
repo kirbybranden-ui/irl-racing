@@ -246,6 +246,7 @@ export default function AdminPortal({
   const [hrAccessStatus, setHrAccessStatus] = useState("");
   const [hrAccessError, setHrAccessError] = useState("");
   const [selectedAccessDriverNumber, setSelectedAccessDriverNumber] = useState("");
+  const [accessCodeModalDriverNumber, setAccessCodeModalDriverNumber] = useState("");
   const [financeForm, setFinanceForm] = useState({ driverId: "", team: "", amount: "", reason: "", note: "" });
   const [adminViewportWidth, setAdminViewportWidth] = useState(() => (typeof window !== "undefined" ? window.innerWidth : 1200));
 
@@ -266,6 +267,11 @@ export default function AdminPortal({
     ? (driverAccessCodes || []).find((row) => String(row.driver_number) === String(selectedAccessDriver.number) && row.active !== false)
     : null;
   const selectedAccessCode = selectedAccessCodeRow?.code || "";
+  const accessCodeModalDriver = accessDrivers.find((driver) => String(driver.number) === String(accessCodeModalDriverNumber)) || null;
+  const accessCodeModalRow = accessCodeModalDriver
+    ? (driverAccessCodes || []).find((row) => String(row.driver_number) === String(accessCodeModalDriver.number) && row.active !== false)
+    : null;
+  const accessCodeModalCode = accessCodeModalRow?.code || "";
 
   useEffect(() => {
     if (!accessDrivers.length) {
@@ -1802,7 +1808,10 @@ export default function AdminPortal({
                               <button
                                 key={driver.id || driver.number}
                                 type="button"
-                                onClick={() => setSelectedAccessDriverNumber(String(driver.number))}
+                                onClick={() => {
+                                  setSelectedAccessDriverNumber(String(driver.number));
+                                  setAccessCodeModalDriverNumber(String(driver.number));
+                                }}
                                 style={{
                                   width: "100%",
                                   border: "none",
@@ -1834,43 +1843,53 @@ export default function AdminPortal({
                         </div>
 
                         <div style={{ padding: isAdminMobile ? 18 : 24, background: "#ffffff" }}>
-                          {selectedAccessDriver ? (
+                          <div style={{ minHeight: 360, borderRadius: 28, background: "linear-gradient(180deg, #f9fafb, #ffffff)", border: "1px solid #eef2f7", display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", padding: 24 }}>
                             <div>
-                              <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-                                <div style={{ width: 82, height: 82, borderRadius: 28, background: "linear-gradient(135deg, #111827, #3b82f6)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 1000, fontSize: 24 }}>#{selectedAccessDriver.number}</div>
-                                <div>
-                                  <div style={{ fontSize: 28, fontWeight: 1000, letterSpacing: -0.7 }}>{selectedAccessDriver.name}</div>
-                                  <div style={{ color: "#6b7280", fontWeight: 850, marginTop: 4 }}>{getTeamFullName(selectedAccessDriver.team)} · {selectedAccessDriver.manufacturer || "Manufacturer TBD"}</div>
-                                </div>
-                              </div>
-
-                              <div style={{ marginTop: 22, borderRadius: 24, border: "1px solid #e5e7eb", background: "#f9fafb", overflow: "hidden" }}>
-                                <div style={{ padding: "14px 16px", display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", borderBottom: "1px solid #eef2f7" }}>
-                                  <div>
-                                    <div style={{ color: "#6b7280", fontSize: 12, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 1.1 }}>Contract Access Password</div>
-                                    <div style={{ marginTop: 6, fontFamily: "monospace", fontSize: 22, fontWeight: 1000, color: selectedAccessCode ? "#111827" : "#ef4444" }}>{selectedAccessCode || "Not generated"}</div>
-                                  </div>
-                                  <div style={{ padding: "6px 10px", borderRadius: 999, background: selectedAccessCode ? "#ecfdf5" : "#fef2f2", color: selectedAccessCode ? "#047857" : "#b42318", fontWeight: 1000, fontSize: 12 }}>{selectedAccessCode ? "ACTIVE" : "MISSING"}</div>
-                                </div>
-                                <div style={{ padding: 16, display: "grid", gap: 10 }}>
-                                  <button type="button" onClick={() => resetSingleDriverAccessCode(selectedAccessDriver)} style={{ ...adminPrimaryButtonStyle, width: "100%", justifyContent: "center" }}>{selectedAccessCode ? "Reset Driver Password" : "Generate Driver Password"}</button>
-                                  <button type="button" onClick={() => copyDriverAccessCode(selectedAccessDriver, selectedAccessCode)} disabled={!selectedAccessCode} style={{ ...secondaryButtonStyle, width: "100%", justifyContent: "center", opacity: selectedAccessCode ? 1 : 0.45 }}>Copy Password</button>
-                                  <button type="button" onClick={() => clearDriverAccessCode(selectedAccessDriver)} disabled={!selectedAccessCode} style={{ ...dangerButtonStyle, width: "100%", justifyContent: "center", opacity: selectedAccessCode ? 1 : 0.45 }}>Clear Password</button>
-                                </div>
-                              </div>
-
-                              <div style={{ marginTop: 18, display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(3, 1fr)", gap: 10 }}>
-                                <div style={{ borderRadius: 18, background: "#f3f4f6", padding: 12 }}><div style={{ color: "#6b7280", fontSize: 11, fontWeight: 1000 }}>CAR</div><div style={{ fontWeight: 1000, marginTop: 4 }}>#{selectedAccessDriver.number}</div></div>
-                                <div style={{ borderRadius: 18, background: "#f3f4f6", padding: 12 }}><div style={{ color: "#6b7280", fontSize: 11, fontWeight: 1000 }}>TEAM</div><div style={{ fontWeight: 1000, marginTop: 4 }}>{selectedAccessDriver.team || "—"}</div></div>
-                                <div style={{ borderRadius: 18, background: "#f3f4f6", padding: 12 }}><div style={{ color: "#6b7280", fontSize: 11, fontWeight: 1000 }}>STATUS</div><div style={{ fontWeight: 1000, marginTop: 4 }}>{selectedAccessCode ? "Password Set" : "Needs Password"}</div></div>
-                              </div>
+                              <div style={{ width: 86, height: 86, borderRadius: 30, margin: "0 auto", background: "linear-gradient(135deg, #111827, #3b82f6)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 1000, fontSize: 30 }}>🔐</div>
+                              <h3 style={{ margin: "18px 0 6px", fontSize: 24, letterSpacing: -0.4 }}>Passwords stay hidden</h3>
+                              <p style={{ margin: 0, color: "#6b7280", fontWeight: 800, lineHeight: 1.45 }}>Click a driver's name to open their secure access card. The password will only show inside that pop-up.</p>
                             </div>
-                          ) : (
-                            <div style={{ color: "#6b7280", fontWeight: 800 }}>Select a driver to view access details.</div>
-                          )}
+                          </div>
                         </div>
                       </div>
                     </div>
+
+                  {accessCodeModalDriver ? (
+                    <div style={{ position: "fixed", inset: 0, zIndex: 10050, background: "rgba(0,0,0,0.38)", backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 18 }} onClick={() => setAccessCodeModalDriverNumber("")}>
+                      <div style={{ width: "min(560px, 100%)", borderRadius: 34, background: "#f5f5f7", border: "1px solid rgba(255,255,255,0.9)", boxShadow: "0 34px 110px rgba(0,0,0,0.35)", overflow: "hidden" }} onClick={(event) => event.stopPropagation()}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "16px 18px", borderBottom: "1px solid #e5e7eb", background: "rgba(255,255,255,0.82)" }}>
+                          <div>
+                            <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.2, textTransform: "uppercase", color: "#6b7280" }}>Contract Access</div>
+                            <div style={{ fontSize: 22, fontWeight: 1000, letterSpacing: -0.4 }}>#{accessCodeModalDriver.number} {accessCodeModalDriver.name}</div>
+                          </div>
+                          <button type="button" onClick={() => setAccessCodeModalDriverNumber("")} aria-label="Close access card" style={{ width: 38, height: 38, borderRadius: 999, border: "1px solid #d1d5db", background: "#ffffff", color: "#111827", fontWeight: 1000, fontSize: 18, cursor: "pointer" }}>×</button>
+                        </div>
+                        <div style={{ padding: 18 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16 }}>
+                            <div style={{ width: 72, height: 72, borderRadius: 25, background: "linear-gradient(135deg, #007aff, #5ac8fa)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 1000, fontSize: 22 }}>#{accessCodeModalDriver.number}</div>
+                            <div>
+                              <div style={{ color: "#111827", fontWeight: 1000, fontSize: 18 }}>{getTeamFullName(accessCodeModalDriver.team)}</div>
+                              <div style={{ color: "#6b7280", fontWeight: 850, marginTop: 4 }}>{accessCodeModalDriver.manufacturer || "Manufacturer TBD"}</div>
+                            </div>
+                          </div>
+                          <div style={{ borderRadius: 24, background: "#ffffff", border: "1px solid #e5e7eb", overflow: "hidden" }}>
+                            <div style={{ padding: "15px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, borderBottom: "1px solid #eef2f7" }}>
+                              <div>
+                                <div style={{ color: "#6b7280", fontSize: 12, fontWeight: 1000, letterSpacing: 1.1, textTransform: "uppercase" }}>Password</div>
+                                <div style={{ marginTop: 6, fontFamily: "monospace", fontSize: 24, fontWeight: 1000, color: accessCodeModalCode ? "#111827" : "#ef4444" }}>{accessCodeModalCode || "Not generated"}</div>
+                              </div>
+                              <div style={{ padding: "6px 10px", borderRadius: 999, background: accessCodeModalCode ? "#ecfdf5" : "#fef2f2", color: accessCodeModalCode ? "#047857" : "#b42318", fontWeight: 1000, fontSize: 12 }}>{accessCodeModalCode ? "ACTIVE" : "MISSING"}</div>
+                            </div>
+                            <div style={{ padding: 16, display: "grid", gap: 10 }}>
+                              <button type="button" onClick={() => resetSingleDriverAccessCode(accessCodeModalDriver)} style={{ ...adminPrimaryButtonStyle, width: "100%", justifyContent: "center" }}>{accessCodeModalCode ? "Reset Password" : "Generate Password"}</button>
+                              <button type="button" onClick={() => copyDriverAccessCode(accessCodeModalDriver, accessCodeModalCode)} disabled={!accessCodeModalCode} style={{ ...secondaryButtonStyle, width: "100%", justifyContent: "center", opacity: accessCodeModalCode ? 1 : 0.45 }}>Copy Password</button>
+                              <button type="button" onClick={() => clearDriverAccessCode(accessCodeModalDriver)} disabled={!accessCodeModalCode} style={{ ...dangerButtonStyle, width: "100%", justifyContent: "center", opacity: accessCodeModalCode ? 1 : 0.45 }}>Clear Password</button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
                     <div style={{ borderRadius: 24, background: "#ffffff", border: "1px solid #e5e7eb", padding: 16 }}>
                       <h3 style={{ marginTop: 0 }}>Owner Portal Access</h3>
                       <p style={{ marginTop: -4, color: "#6b7280", fontSize: 13, fontWeight: 750 }}>Owners use their driver password as their owner password. Legacy owner codes are shown here only for review.</p>
