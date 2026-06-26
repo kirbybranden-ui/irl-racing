@@ -1118,7 +1118,7 @@ export default function AdminPortal({
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.8, textTransform: "uppercase", color: "#6b7280" }}>Board Workspace</div>
                   <h1 style={prTitleStyle}>Public Relations</h1>
-                  <p style={{ margin: "6px 0 0", color: "#4b5563", fontWeight: 750, maxWidth: 760 }}>Internal board posting center for promotional ticker messages, previous race winner spotlights, hype videos, stories, and interviews.</p>
+                  <p style={{ margin: "6px 0 0", color: "#4b5563", fontWeight: 750, maxWidth: 760 }}>Board posting center for ticker promos, previous race winner spotlights, featured media, Ones to Watch, stories, and interviews.</p>
                 </div>
                 <button type="button" onClick={() => setPublicRelationsOpen(false)} style={{ flex: "0 0 auto", border: 0, borderRadius: 999, background: "#ffffff", color: "#111827", width: isAdminMobile ? 42 : 46, height: isAdminMobile ? 42 : 46, fontSize: 23, fontWeight: 1000, cursor: "pointer", boxShadow: "0 8px 20px rgba(15,23,42,0.12)" }}>×</button>
               </div>
@@ -1129,7 +1129,8 @@ export default function AdminPortal({
                   ["overview", "PR Home"],
                   ["ticker", "Ticker"],
                   ["winner", "Race Winner"],
-                  ["video", "Hype Videos"],
+                  ["media", "Featured Media"],
+                  ["watch", "Ones to Watch"],
                   ["stories", "Stories"],
                   ["interviews", "Interviews"],
                 ].map(([key, label]) => (
@@ -1152,7 +1153,8 @@ export default function AdminPortal({
                     {[
                       ["📣", "Ticker Promotions", `${tickerMessages?.filter?.((m) => m.active !== false)?.length || 0} active messages`, "ticker"],
                       ["🏆", "Race Winner", latestWinner ? `Latest: #${latestWinner.number || ""} ${latestWinner.name || latestWinner.driver || "Winner"}` : "Manage winner spotlight", "winner"],
-                      ["🎬", "Hype Videos", featuredVideo ? (featuredVideo.title || "Featured video live") : "Upload a featured video", "video"],
+                      ["✨", "Featured Media", featuredVideo ? (featuredVideo.title || "Featured media live") : "Post a photo or video", "media"],
+                      ["🔥", "Ones to Watch", `${manualWatchPicks?.filter?.((p) => p.active !== false)?.length || 0} active picks`, "watch"],
                       ["📰", "Stories", `${openStoryCount || 0} open stories`, "stories"],
                       ["🎤", "Interviews", "Pre-race and post-race media", "interviews"],
                     ].map(([icon, title, text, tab]) => (
@@ -1240,32 +1242,147 @@ export default function AdminPortal({
                 </div>
               )}
 
-              {publicRelationsTab === "video" && (
+              {publicRelationsTab === "media" && (
                 <div style={prCardStyle}>
-                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Hype Videos</div>
-                  <h2 style={{ margin: "3px 0 6px", fontSize: 28, letterSpacing: -0.7 }}>Hype Video Posting</h2>
-                  <p style={{ margin: "0 0 16px", color: "#4b5563", fontWeight: 700 }}>Upload or replace the hype videos the board wants promoted on league pages.</p>
+                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Featured Media</div>
+                  <h2 style={{ margin: "3px 0 6px", fontSize: 28, letterSpacing: -0.7 }}>Photos & Videos</h2>
+                  <p style={{ margin: "0 0 16px", color: "#4b5563", fontWeight: 700 }}>Post the media the board wants featured: race hype videos, winner photos, paint scheme images, promo graphics, and recap clips.</p>
                   {featuredVideo && (
-                    <div style={{ background: "#f5f5f7", border: "1px solid #e5e7eb", borderRadius: 22, padding: 14, marginBottom: 16 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap", marginBottom: 10 }}>
+                    <div style={{ background: "#f5f5f7", border: "1px solid #e5e7eb", borderRadius: 28, padding: 18, marginBottom: 18, boxShadow: "0 18px 45px rgba(15, 23, 42, 0.08)" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
                         <div>
-                          <div style={{ fontWeight: 1000 }}>{featuredVideo.title || "Untitled Video"}</div>
+                          <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.3, textTransform: "uppercase", color: "#6b7280" }}>Currently Featured</div>
+                          <div style={{ fontSize: 22, fontWeight: 1000, letterSpacing: -0.5 }}>{featuredVideo.title || "Untitled Media"}</div>
                           {featuredVideo.description && <div style={{ color: "#6b7280", fontWeight: 700, marginTop: 3 }}>{featuredVideo.description}</div>}
                         </div>
-                        <button style={adminDangerButtonStyle} onClick={async () => { if (!window.confirm("Remove the featured video from standings?")) return; if (featuredVideo.file_path) await supabase.storage.from("car-uploads").remove([featuredVideo.file_path]); await supabase.from("featured_video").delete().eq("id", featuredVideo.id); setFeaturedVideo(null); }}>Remove</button>
+                        <button style={adminDangerButtonStyle} onClick={async () => { if (!window.confirm("Remove the featured media?")) return; if (featuredVideo.file_path) await supabase.storage.from("car-uploads").remove([featuredVideo.file_path]); await supabase.from("featured_video").delete().eq("id", featuredVideo.id); setFeaturedVideo(null); }}>Remove</button>
                       </div>
-                      <video controls crossOrigin="anonymous" style={{ width: "100%", maxHeight: 260, borderRadius: 18, background: "#000" }} src={featuredVideo.video_url} />
+                      {String(featuredVideo.file_path || featuredVideo.video_url || "").match(/\.(png|jpg|jpeg|gif|webp|avif)$/i) ? (
+                        <img alt={featuredVideo.title || "Featured media"} src={featuredVideo.video_url} style={{ width: "100%", maxHeight: 360, objectFit: "cover", borderRadius: 22, background: "#111" }} />
+                      ) : (
+                        <video controls crossOrigin="anonymous" style={{ width: "100%", maxHeight: 360, borderRadius: 22, background: "#000" }} src={featuredVideo.video_url} />
+                      )}
                     </div>
                   )}
                   <div style={{ ...prMobileStackStyle, marginBottom: 14 }}>
-                    <label style={{ fontWeight: 900 }}>Title
-                      <input style={{ ...adminInputStyle, marginTop: 6 }} value={videoTitle} onChange={e => setVideoTitle(e.target.value)} placeholder="e.g. Las Vegas Race Week Hype" />
-                    </label>
-                    <label style={{ fontWeight: 900 }}>Description
-                      <input style={{ ...adminInputStyle, marginTop: 6 }} value={videoDescription} onChange={e => setVideoDescription(e.target.value)} placeholder="e.g. Race recap, promo, or playoff preview" />
-                    </label>
+                    <div>
+                      <div style={{ marginBottom: 6, fontWeight: 900 }}>Title</div>
+                      <input style={{ ...adminInputStyle, marginTop: 6 }} value={videoTitle} onChange={e => setVideoTitle(e.target.value)} placeholder="e.g. Las Vegas Winner Photo" />
+                    </div>
+                    <div>
+                      <div style={{ marginBottom: 6, fontWeight: 900 }}>Description</div>
+                      <input style={{ ...adminInputStyle, marginTop: 6 }} value={videoDescription} onChange={e => setVideoDescription(e.target.value)} placeholder="e.g. Race recap, promo, photo, or playoff preview" />
+                    </div>
                   </div>
-                  <button type="button" disabled={videoUploading} onClick={() => videoFileInputRef.current?.click()} style={{ ...adminPrimaryButtonStyle, opacity: videoUploading ? 0.65 : 1 }}>{videoUploading ? "Uploading..." : "Upload Hype Video"}</button>
+                  <input
+                    ref={videoFileInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/jpg,image/webp,image/gif,video/mp4,video/mov,video/quicktime,video/avi,video/webm"
+                    style={{ display: "none" }}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      setVideoUploading(true);
+                      try {
+                        const fileExt = file.name.split(".").pop();
+                        const isImage = file.type?.startsWith("image/");
+                        const fileName = `featured-media-${Date.now()}.${fileExt}`;
+                        const filePath = `featured/${fileName}`;
+                        const { error: storageError } = await supabase.storage.from("car-uploads").upload(filePath, file, {
+                          cacheControl: "3600",
+                          upsert: false,
+                          contentType: file.type || (isImage ? "image/jpeg" : "video/mp4"),
+                        });
+                        if (storageError) throw storageError;
+                        const { data: urlData } = supabase.storage.from("car-uploads").getPublicUrl(filePath);
+                        if (featuredVideo) {
+                          if (featuredVideo.file_path) await supabase.storage.from("car-uploads").remove([featuredVideo.file_path]);
+                          await supabase.from("featured_video").delete().eq("id", featuredVideo.id);
+                        }
+                        const { data: saved, error: dbError } = await supabase.from("featured_video").insert({
+                          video_url: urlData.publicUrl,
+                          file_path: filePath,
+                          title: videoTitle.trim() || (isImage ? "Featured Photo" : "Featured Video"),
+                          description: videoDescription.trim() || null,
+                          uploaded_at: new Date().toISOString(),
+                        }).select().single();
+                        if (dbError) throw dbError;
+                        setFeaturedVideo(saved);
+                        setVideoTitle("");
+                        setVideoDescription("");
+                        alert(`✅ ${isImage ? "Photo" : "Video"} posted to Featured Media.`);
+                      } catch (err) {
+                        console.error("Featured media upload error:", err);
+                        alert(`Upload failed: ${err.message}`);
+                      }
+                      setVideoUploading(false);
+                      if (videoFileInputRef.current) videoFileInputRef.current.value = "";
+                    }}
+                  />
+                  <button type="button" disabled={videoUploading} onClick={() => videoFileInputRef.current?.click()} style={{ ...adminPrimaryButtonStyle, opacity: videoUploading ? 0.65 : 1 }}>{videoUploading ? "Uploading..." : "Post Photo or Video"}</button>
+                </div>
+              )}
+
+              {publicRelationsTab === "watch" && (
+                <div style={prCardStyle}>
+                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Ones to Watch</div>
+                  <h2 style={{ margin: "3px 0 6px", fontSize: 28, letterSpacing: -0.7 }}>Race Weekend Storylines</h2>
+                  <p style={{ margin: "0 0 16px", color: "#4b5563", fontWeight: 700 }}>Choose the drivers the board wants promoted on the standings page. Manual picks override the automatic watch list.</p>
+                  <div style={{ ...prMobileStackStyle, marginBottom: 14 }}>
+                    <div>
+                      <div style={{ marginBottom: 6, fontWeight: 900 }}>Driver</div>
+                      <select style={adminInputStyle} value={watchDriverId} onChange={(e) => setWatchDriverId(e.target.value)}>
+                        <option value="">Select driver...</option>
+                        {visibleDrivers.map((d) => <option key={d.id} value={d.id}>#{d.number} {d.name}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <div style={{ marginBottom: 6, fontWeight: 900 }}>Badge</div>
+                      <select style={adminInputStyle} value={watchBadge} onChange={(e) => setWatchBadge(e.target.value)}>
+                        <option value="DIRECTOR PICK">DIRECTOR PICK</option>
+                        <option value="HOT SEAT">HOT SEAT</option>
+                        <option value="MOMENTUM">MOMENTUM</option>
+                        <option value="UNDERDOG">UNDERDOG</option>
+                        <option value="REBOUND WATCH">REBOUND WATCH</option>
+                        <option value="TITLE THREAT">TITLE THREAT</option>
+                      </select>
+                    </div>
+                    <div>
+                      <div style={{ marginBottom: 6, fontWeight: 900 }}>Display Order</div>
+                      <input style={adminInputStyle} type="number" min="1" value={watchDisplayOrder} onChange={(e) => setWatchDisplayOrder(e.target.value)} />
+                    </div>
+                  </div>
+                  <div style={{ marginBottom: 14 }}>
+                    <div style={{ marginBottom: 6, fontWeight: 900 }}>Reason / Storyline</div>
+                    <input style={adminInputStyle} value={watchReason} onChange={(e) => setWatchReason(e.target.value)} placeholder="Example: Coming off a podium and showing long-run speed" />
+                  </div>
+                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 18 }}>
+                    <button onClick={addManualWatchPick} disabled={watchSaving} style={{ ...adminPrimaryButtonStyle, opacity: watchSaving ? 0.6 : 1 }}>{watchSaving ? "Saving..." : "Add to Ones to Watch"}</button>
+                    <button onClick={loadManualWatchPicks} style={adminSecondaryButtonStyle}>Refresh Picks</button>
+                    <button onClick={() => { setWatchDriverId(""); setWatchReason(""); setWatchBadge("DIRECTOR PICK"); setWatchDisplayOrder("1"); }} style={adminSecondaryButtonStyle}>Clear Form</button>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(auto-fit, minmax(260px, 1fr))", gap: 12 }}>
+                    {manualWatchPicks.length === 0 ? (
+                      <div style={{ padding: 18, borderRadius: 22, background: "#f5f5f7", color: "#6b7280", fontWeight: 800 }}>No manual picks yet. The standings page will use the automatic watch list.</div>
+                    ) : manualWatchPicks.map((pick) => {
+                      const driver = drivers.find((d) => Number(d.id) === Number(pick.driver_id));
+                      return (
+                        <div key={pick.id} style={{ padding: 18, borderRadius: 26, background: pick.active ? "linear-gradient(135deg, #ffffff, #f5f5f7)" : "#f5f5f7", border: "1px solid #e5e7eb", boxShadow: pick.active ? "0 16px 40px rgba(15, 23, 42, 0.08)" : "none" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
+                            <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.2, color: pick.active ? "#34c759" : "#8e8e93" }}>{pick.active ? "ACTIVE" : "OFF"}</div>
+                            <div style={{ fontSize: 12, fontWeight: 1000, color: "#6b7280" }}>#{pick.display_order || "—"}</div>
+                          </div>
+                          <div style={{ fontSize: 22, fontWeight: 1000, letterSpacing: -0.4, marginTop: 8 }}>{driver ? `#${driver.number} ${driver.name}` : `Driver ID ${pick.driver_id}`}</div>
+                          <div style={{ display: "inline-flex", padding: "6px 10px", borderRadius: 999, background: "#111827", color: "#fff", fontSize: 11, fontWeight: 1000, marginTop: 10 }}>{pick.badge || "DIRECTOR PICK"}</div>
+                          <p style={{ color: "#4b5563", fontWeight: 700, lineHeight: 1.45 }}>{pick.reason || "No storyline added."}</p>
+                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                            <button onClick={() => toggleManualWatchPick(pick)} style={adminSecondaryButtonStyle}>{pick.active ? "Turn Off" : "Activate"}</button>
+                            <button onClick={() => deleteManualWatchPick(pick.id)} style={adminDangerButtonStyle}>Delete</button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
 
@@ -1973,7 +2090,7 @@ export default function AdminPortal({
           </div>
         </div>
 
-        <PreviousRaceWinnerAdminPanel drivers={visibleDrivers} raceHistory={raceHistory} />
+        {false && <PreviousRaceWinnerAdminPanel drivers={visibleDrivers} raceHistory={raceHistory} />}
 
 
         {false && (
@@ -2034,6 +2151,7 @@ export default function AdminPortal({
         </div>
         )}
 
+        {false && (
         {/* Ones to Watch Manager */}
         <div style={adminReadableCardStyle}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap", marginBottom: 14 }}>
@@ -2108,6 +2226,9 @@ export default function AdminPortal({
           </div>
         </div>
 
+        )}
+
+        {false && (
         {/* Featured Video */}
         <div style={adminReadableCardStyle}>
           <h2 style={{ marginTop: 0 }}>🎬 Featured Video</h2>
@@ -2211,6 +2332,8 @@ export default function AdminPortal({
             <div style={{ marginTop: 10, fontSize: 13, opacity: 0.7 }}>Uploading — large files may take a moment...</div>
           )}
         </div>
+        )}
+
         {/* Backup & Restore */}
         <div style={adminReadableCardStyle}>
           <h2 style={{ marginTop: 0 }}>Backup & Restore</h2>
