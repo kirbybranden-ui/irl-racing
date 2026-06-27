@@ -131,14 +131,14 @@ function renderManufacturerLogo(manufacturer, size = 72) {
           width: size,
           height: size,
           minWidth: size,
-          borderRadius: 24,
-          background: "rgba(255,255,255,0.88)",
+          borderRadius: 30,
+          background: "rgba(255,255,255,0.94)",
           border: "1px solid rgba(15,23,42,0.08)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          padding: 10,
-          boxShadow: "0 14px 30px rgba(15,23,42,0.08)",
+          padding: 14,
+          boxShadow: "0 18px 38px rgba(15,23,42,0.10)",
         }}
       >
         <img
@@ -876,7 +876,7 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
           color: "#1d1d1f",
         }}
       >
-        <div style={{ width: 38, height: 38, borderRadius: 14, background: isLeader ? "#1d1d1f" : "#f2f2f7", color: isLeader ? "#fff" : "#1d1d1f", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 950 }}>
+        <div style={{ width: 44, height: 44, borderRadius: 16, background: isLeader ? "#1d1d1f" : "#f2f2f7", color: isLeader ? "#fff" : "#1d1d1f", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 950 }}>
           {index + 1}
         </div>
         {renderTeamBadge(driver.team, 44)}
@@ -955,14 +955,14 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
           textAlign: "left",
           cursor: "pointer",
           display: "grid",
-          gridTemplateColumns: "auto 1fr auto",
-          gap: 14,
+          gridTemplateColumns: "auto auto 1fr auto",
+          gap: 18,
           alignItems: "center",
           color: "#1d1d1f",
         }}
       >
-        <div style={{ width: 38, height: 38, borderRadius: 14, background: "#f5f5f7", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 950 }}>{index + 1}</div>
-        {renderTeamBadge(team.team, 50)}
+        <div style={{ width: 44, height: 44, borderRadius: 16, background: "#f5f5f7", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 950 }}>{index + 1}</div>
+        {renderTeamBadge(team.team, 64)}
         <div style={{ minWidth: 0 }}>
           <div style={{ fontSize: 20, fontWeight: 950 }}>{getTeamFullName(team.team)}</div>
           <div style={{ marginTop: 5, color: "#6e6e73", fontWeight: 720 }}>{team.wins || 0} wins • {team.top5 || 0} top 5s</div>
@@ -988,16 +988,17 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
         onClick={() => (window.location.href = `/manufacturer/${encodeURIComponent(manufacturerName)}`)}
         style={{
           ...glassCard,
-          padding: 20,
-          textAlign: "left",
+          padding: 24,
+          textAlign: "center",
           cursor: "pointer",
-          minHeight: 210,
+          minHeight: 280,
           color: "#1d1d1f",
           position: "relative",
           overflow: "hidden",
           display: "flex",
           flexDirection: "column",
           justifyContent: "space-between",
+          alignItems: "center",
         }}
       >
         <div style={{ position: "absolute", right: -42, top: -42, width: 150, height: 150, borderRadius: "50%", background: `${color}1f` }} />
@@ -1008,11 +1009,22 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
           </div>
         </div>
 
-        <div style={{ position: "relative", zIndex: 1, marginTop: 18 }}>
-          <div style={{ fontSize: 28, fontWeight: 1000, letterSpacing: -0.8 }}>{manufacturerName}</div>
-          <div style={{ marginTop: 4, color: "#6e6e73", fontWeight: 750 }}>{item.drivers || 0} drivers • {item.wins || 0} wins • {item.top5 || 0} top 5s</div>
-          <div style={{ marginTop: 16, fontSize: 34, fontWeight: 1000 }}>{item.points || 0}</div>
-          <div style={{ color: "#86868b", fontWeight: 900, fontSize: 12 }}>MANUFACTURER POINTS</div>
+        <div style={{ position: "relative", zIndex: 1, marginTop: 20, width: "100%" }}>
+          <div style={{ fontSize: 32, fontWeight: 1000, letterSpacing: -1 }}>{manufacturerName}</div>
+          <div style={{ marginTop: 8, fontSize: 42, fontWeight: 1000, letterSpacing: -1.4 }}>{item.points || 0}</div>
+          <div style={{ color: "#86868b", fontWeight: 900, fontSize: 12, letterSpacing: 1.1 }}>MANUFACTURER POINTS</div>
+          <div style={{ marginTop: 18, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+            {[
+              ["WINS", item.wins || 0],
+              ["TOP 5", item.top5 || 0],
+              ["DRIVERS", item.drivers || 0],
+            ].map(([label, value]) => (
+              <div key={label} style={{ background: `${color}12`, border: `1px solid ${color}22`, borderRadius: 18, padding: "10px 8px" }}>
+                <div style={{ fontSize: 17, fontWeight: 1000, color }}>{value}</div>
+                <div style={{ marginTop: 2, fontSize: 10, color: "#6e6e73", fontWeight: 950, letterSpacing: 0.7 }}>{label}</div>
+              </div>
+            ))}
+          </div>
         </div>
       </button>
     );
@@ -1266,7 +1278,7 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
           <section style={{ ...glassCard, padding: 18, marginBottom: 20 }}>
             <div style={{ color: "#ff9f0a", fontSize: 12, fontWeight: 1000, letterSpacing: 1.3, textTransform: "uppercase" }}>Manufacturer Battle</div>
             <h2 style={{ margin: "4px 0 16px", fontSize: 34, letterSpacing: -1.2 }}>Manufacturer Standings</h2>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(290px, 1fr))", gap: 16 }}>
               {manufacturerRows.map((item, index) => <ManufacturerCard key={item.manufacturer || index} item={item} index={index} />)}
             </div>
           </section>
@@ -1276,7 +1288,7 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
           <section style={{ ...glassCard, padding: 18, marginBottom: 20 }}>
             <div style={{ color: "#5856d6", fontSize: 12, fontWeight: 1000, letterSpacing: 1.3, textTransform: "uppercase" }}>Rules Reference</div>
             <h2 style={{ margin: "4px 0 16px", fontSize: 34, letterSpacing: -1.2 }}>Points & Penalties</h2>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(290px, 1fr))", gap: 16 }}>
               {pointCards.map((card) => (
                 <div key={card.title} style={{ background: "rgba(255,255,255,0.82)", border: "1px solid rgba(15,23,42,0.08)", borderRadius: 24, padding: 18, boxShadow: "0 12px 30px rgba(15,23,42,0.06)" }}>
                   <div style={{ width: 46, height: 46, borderRadius: 16, background: "#f5f5f7", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>{card.icon}</div>
