@@ -3710,6 +3710,9 @@ function MobileLeagueApp({
           tracks={tracks}
           paymentCompliance={paymentCompliance}
           onApplyTeamTransaction={onApplyTeamTransaction}
+          supabase={supabase}
+          ownerDriverAssignments={ownerDriverAssignments}
+          loadOwnerDriverAssignments={loadOwnerDriverAssignments}
         />
       </>
     ));
@@ -7600,6 +7603,9 @@ export default function App() {
         activeSeasonId={activeSeasonId}
         paymentCompliance={paymentComplianceSummary}
         onApplyTeamTransaction={applyOwnerPortalTeamTransaction}
+        supabase={supabase}
+        ownerDriverAssignments={ownerDriverAssignments}
+        loadOwnerDriverAssignments={loadOwnerDriverAssignments}
       />
     );
   }
