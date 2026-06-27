@@ -5300,27 +5300,37 @@ function AppleSeriesPortalLanding() {
                 onClick={() => openSeries(series.route)}
                 aria-label={`Open ${series.title}`}
                 style={{
-                  minHeight: 310,
+                  minHeight: 260,
                   border: 0,
                   borderRadius: 28,
                   padding: 0,
                   overflow: "hidden",
                   position: "relative",
                   cursor: "pointer",
-                  backgroundColor: "#050505",
-                  backgroundImage: `url(${series.image})`,
-                  backgroundSize: "contain",
-                  backgroundPosition: "center",
-                  backgroundRepeat: "no-repeat",
-                  boxShadow: "0 24px 50px rgba(0,0,0,0.20)",
+                  background: "transparent",
+                  boxShadow: "0 18px 42px rgba(0,0,0,0.10)",
                   transform: "translateZ(0)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
                 }}
               >
+                <img
+                  src={series.image}
+                  alt={series.title}
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    display: "block",
+                    objectFit: "contain",
+                    background: "transparent",
+                  }}
+                />
                 <span style={{
                   position: "absolute",
                   inset: 0,
                   borderRadius: 28,
-                  boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.18), inset 0 1px 0 rgba(255,255,255,0.22)",
+                  boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.30), inset 0 1px 0 rgba(255,255,255,0.45)",
                   pointerEvents: "none",
                 }} />
               </button>
