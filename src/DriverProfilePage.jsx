@@ -685,7 +685,7 @@ function AppealModal({ isOpen, onClose, selectedSeason }) {
   );
 }
 
-export default function DriverProfilePage({ seasons, activeSeason, tracks = [], ownerDriverAssignments: ownerDriverAssignmentsProp = [], loadOwnerDriverAssignments }) {
+export default function DriverProfilePage({ seasons, activeSeason, tracks = [], ownerDriverAssignments = [], loadOwnerDriverAssignments }) {
   const pathParts = window.location.pathname.split("/");
   const requestedDriverNumber = pathParts[2];
   const driverNumber = String(requestedDriverNumber) === "46" ? "39" : requestedDriverNumber;
@@ -738,7 +738,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
   const [feedbackError, setFeedbackError] = useState("");
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
   const [driverAssignments, setDriverAssignments] = useState([]);
-  const [ownerDriverAssignments, setOwnerDriverAssignments] = useState(ownerDriverAssignmentsProp || []);
+  const [raceAssignmentRequests, setRaceAssignmentRequests] = useState([]);
   const [driverAssignmentMessage, setDriverAssignmentMessage] = useState("");
   const [driverAssignmentError, setDriverAssignmentError] = useState("");
   const [unreadMessages, setUnreadMessages] = useState(0);
@@ -1318,37 +1318,6 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
   }, [driver?.id]);
 
   useEffect(() => {
-    setOwnerDriverAssignments(ownerDriverAssignmentsProp || []);
-  }, [ownerDriverAssignmentsProp]);
-
-  useEffect(() => {
-    if (!driver?.number || !isDriverAuthorized) {
-      setOwnerDriverAssignments([]);
-      return;
-    }
-
-    async function loadOwnerDriverAssignmentRequests() {
-      const { data, error } = await supabase
-        .from("owner_driver_assignments")
-        .select("*")
-        .eq("series", "cup")
-        .order("created_at", { ascending: false });
-
-      if (error) {
-        console.error("Failed to load substitute driver requests:", error);
-        setDriverAssignmentError("Could not load substitute requests. Check owner_driver_assignments RLS select policy.");
-        return;
-      }
-
-      setOwnerDriverAssignments(data || []);
-    }
-
-    loadOwnerDriverAssignmentRequests();
-    const interval = setInterval(loadOwnerDriverAssignmentRequests, 15000);
-    return () => clearInterval(interval);
-  }, [driver?.number, isDriverAuthorized]);
-
-  useEffect(() => {
     if (!driver?.number || !isDriverAuthorized) {
       setDriverAssignments([]);
       return;
@@ -1375,6 +1344,51 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
     const interval = setInterval(loadDriverAssignments, 15000);
     return () => clearInterval(interval);
   }, [driver?.number, isDriverAuthorized]);
+
+
+  useEffect(() => {
+    if (!driver?.number || !isDriverAuthorized) {
+      setRaceAssignmentRequests([]);
+      return;
+    }
+
+    let isMounted = true;
+
+    async function loadRaceAssignmentRequests() {
+      const localMatches = (ownerDriverAssignments || []).filter((assignment) => {
+        const status = String(assignment?.status || "").toLowerCase();
+        const numberMatches = String(assignment?.assigned_driver_number || "").replace("#", "") === String(driver.number || "").replace("#", "");
+        const idMatches = assignment?.assigned_driver_id && driver?.id && String(assignment.assigned_driver_id) === String(driver.id);
+        return status === "approved_pending_driver" && (numberMatches || idMatches);
+      });
+
+      if (localMatches.length) {
+        if (isMounted) setRaceAssignmentRequests(localMatches);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("owner_driver_assignments")
+        .select("*")
+        .eq("assigned_driver_number", String(driver.number))
+        .eq("status", "approved_pending_driver")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Failed to load race assignment requests:", error);
+        return;
+      }
+
+      if (isMounted) setRaceAssignmentRequests(data || []);
+    }
+
+    loadRaceAssignmentRequests();
+    const interval = setInterval(loadRaceAssignmentRequests, 15000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [driver?.id, driver?.number, isDriverAuthorized, ownerDriverAssignments]);
 
   useEffect(() => {
     if (!driver?.number) {
@@ -2094,21 +2108,8 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
     setDriverAssignmentMessage(status === "Completed" ? "Assignment marked complete." : `Assignment marked ${status}.`);
   }
 
-
-  function driverNumberMatchesAssignment(assignment) {
-    const assignedNumber = String(assignment?.assigned_driver_number || "").replace("#", "").trim();
-    const currentNumber = String(driver?.number || "").replace("#", "").trim();
-    const assignedId = assignment?.assigned_driver_id ? String(assignment.assigned_driver_id) : "";
-    const currentId = driver?.id ? String(driver.id) : "";
-    return (assignedNumber && currentNumber && assignedNumber === currentNumber) || (assignedId && currentId && assignedId === currentId);
-  }
-
-  const pendingSubstituteAssignments = (ownerDriverAssignments || []).filter((assignment) => {
-    const status = String(assignment?.status || "").toLowerCase();
-    return status === "approved_pending_driver" && driverNumberMatchesAssignment(assignment);
-  });
-
-  async function respondToSubstituteAssignment(assignmentId, response) {
+  async function respondToRaceAssignment(assignmentId, response) {
+    if (!assignmentId) return;
     setDriverAssignmentMessage("");
     setDriverAssignmentError("");
 
@@ -2126,14 +2127,14 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
       .eq("id", assignmentId);
 
     if (error) {
-      console.error("Could not update substitute assignment:", error);
-      setDriverAssignmentError("Could not submit substitute response. Check owner_driver_assignments update policy/RLS.");
+      console.error("Could not update race assignment:", error);
+      setDriverAssignmentError("Could not update substitute request. Check owner_driver_assignments update policy.");
       return;
     }
 
-    setOwnerDriverAssignments((current) => current.map((assignment) => assignment.id === assignmentId ? { ...assignment, status: nextStatus, driver_response: normalizedResponse } : assignment));
+    setRaceAssignmentRequests((current) => current.filter((assignment) => assignment.id !== assignmentId));
     await loadOwnerDriverAssignments?.();
-    setDriverAssignmentMessage(normalizedResponse === "accepted" ? "Substitute assignment accepted." : "Substitute assignment declined.");
+    setDriverAssignmentMessage(normalizedResponse === "accepted" ? "Race assignment accepted." : "Race assignment declined.");
   }
 
   function updateFeedbackField(field, value) {
@@ -2747,45 +2748,38 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
                 <div style={{ fontSize: 13, opacity: 0.65, marginTop: 6 }}>Review owner-issued tasks, accept them, reject them, or mark them complete.</div>
               </div>
               <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 999, padding: "8px 12px", fontSize: 12, fontWeight: 900 }}>
-                {driverAssignments.length + pendingSubstituteAssignments.length} assignment{driverAssignments.length + pendingSubstituteAssignments.length !== 1 ? "s" : ""}
+                {driverAssignments.length} assignment{driverAssignments.length !== 1 ? "s" : ""}
               </div>
             </div>
 
             {driverAssignmentMessage && <div style={{ color: "#4ade80", marginBottom: 12, fontWeight: 900 }}>{driverAssignmentMessage}</div>}
             {driverAssignmentError && <div style={{ color: "#f87171", marginBottom: 12, fontWeight: 900 }}>{driverAssignmentError}</div>}
 
-            {pendingSubstituteAssignments.length > 0 && (
+            {raceAssignmentRequests.length > 0 && (
               <div style={{ display: "grid", gap: 14, marginBottom: 18 }}>
-                {pendingSubstituteAssignments.map((assignment) => (
-                  <div key={assignment.id} style={{ background: "#111827", border: `1px solid ${teamTheme.accent}`, borderRadius: 16, padding: 16 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start", flexWrap: "wrap", marginBottom: 10 }}>
-                      <div>
-                        <div style={{ fontSize: 11, fontWeight: 900, opacity: 0.65, textTransform: "uppercase" }}>Substitute Assignment • Waiting on Your Response</div>
-                        <div style={{ fontSize: 20, fontWeight: 900, marginTop: 5 }}>🏁 {assignment.race_name || assignment.race_id || "Selected Race"}</div>
-                      </div>
-                      <div style={{ background: "rgba(212,175,55,0.14)", color: teamTheme.accent, border: `1px solid ${teamTheme.accent}`, borderRadius: 999, padding: "7px 10px", fontSize: 11, fontWeight: 1000 }}>
-                        ACTION REQUIRED
-                      </div>
+                {raceAssignmentRequests.map((assignment) => (
+                  <div key={assignment.id} style={{ background: "#101827", border: `1px solid ${teamTheme.accent}`, borderRadius: 14, padding: 16 }}>
+                    <div style={{ fontSize: 11, fontWeight: 900, opacity: 0.72, textTransform: "uppercase" }}>Race Assignment Request</div>
+                    <div style={{ fontSize: 20, fontWeight: 900, marginTop: 5 }}>
+                      {assignment.race_name || assignment.race_id || "Selected Race"}
                     </div>
-
-                    <div style={{ opacity: 0.82, fontSize: 13, lineHeight: 1.6, marginBottom: 12 }}>
-                      <div><strong>Team:</strong> {assignment.team_name || getTeamFullName(assignment.team_key)}</div>
-                      <div><strong>Original Car:</strong> #{assignment.car_number || assignment.original_driver_number} {assignment.original_driver_name || ""}</div>
+                    <div style={{ opacity: 0.82, fontSize: 13, lineHeight: 1.6, marginTop: 8 }}>
+                      <div><strong>Team:</strong> {assignment.team_name || assignment.team_key || "Team"}</div>
+                      <div><strong>Original Car:</strong> #{assignment.original_driver_number || assignment.car_number} {assignment.original_driver_name || ""}</div>
                       <div><strong>Requested Driver:</strong> #{assignment.assigned_driver_number || driver.number} {assignment.assigned_driver_name || driver.name}</div>
                       <div><strong>Type:</strong> {String(assignment.assignment_type || "substitute").replaceAll("_", " ")}</div>
                       {assignment.owner_note && <div><strong>Owner Note:</strong> {assignment.owner_note}</div>}
                     </div>
-
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      <button type="button" onClick={() => respondToSubstituteAssignment(assignment.id, "accepted")} style={{ ...primaryButtonStyle, background: "#22c55e" }}>Accept Substitute Assignment</button>
-                      <button type="button" onClick={() => respondToSubstituteAssignment(assignment.id, "declined")} style={dangerButtonStyle}>Decline</button>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
+                      <button type="button" onClick={() => respondToRaceAssignment(assignment.id, "accepted")} style={{ ...primaryButtonStyle, background: "#22c55e" }}>Accept Race Assignment</button>
+                      <button type="button" onClick={() => respondToRaceAssignment(assignment.id, "declined")} style={dangerButtonStyle}>Decline</button>
                     </div>
                   </div>
                 ))}
               </div>
             )}
 
-            {driverAssignments.length === 0 && pendingSubstituteAssignments.length === 0 ? (
+            {driverAssignments.length === 0 ? (
               <div style={{ opacity: 0.72 }}>No team assignments have been sent to you yet.</div>
             ) : (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 14 }}>
