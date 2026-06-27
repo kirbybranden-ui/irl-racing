@@ -3716,7 +3716,7 @@ function MobileLeagueApp({
   }
 
   if (["/team-hq", "/hq", "/teamhq"].includes(path)) {
-    return frame("Team HQ", "more", <OwnerHQPage drivers={drivers} teams={teams} seasonName={seasonName} tracks={tracks} go={go} supabase={supabase} />);
+    return frame("Team HQ", "more", <OwnerHQPage drivers={drivers} teams={teams} seasonName={seasonName} tracks={tracks} go={go} supabase={supabase} ownerDriverAssignments={ownerDriverAssignments} loadOwnerDriverAssignments={loadOwnerDriverAssignments} />);
   }
 
   if (path.startsWith("/team/")) {
@@ -3866,7 +3866,7 @@ function MobileLeagueApp({
     );
   }
 
-  return dataFrame("Budweiser Cup", "standings", <StandingsPage drivers={drivers} teams={teams} manufacturerStandings={manufacturerStandings} seasonName={seasonName} tracks={tracks} raceHistory={raceHistory} />);
+  return dataFrame("Budweiser Cup", "standings", <StandingsPage drivers={drivers} teams={teams} manufacturerStandings={manufacturerStandings} seasonName={seasonName} tracks={tracks} raceHistory={raceHistory} ownerDriverAssignments={ownerDriverAssignments} />);
 }
 
 
@@ -5424,6 +5424,9 @@ export default function App() {
   const [featuredVideo, setFeaturedVideo] = useState(null);
   const [manualWatchPicks, setManualWatchPicks] = useState([]);
   const [ownerAssignments, setOwnerAssignments] = useState([]);
+  const [ownerDriverAssignments, setOwnerDriverAssignments] = useState([]);
+  const [ownerDriverAssignmentsLoading, setOwnerDriverAssignmentsLoading] = useState(false);
+  const [ownerDriverAssignmentError, setOwnerDriverAssignmentError] = useState("");
   const [selectedOwnerTeam, setSelectedOwnerTeam] = useState("");
   const [selectedOwnerDriverNumber, setSelectedOwnerDriverNumber] = useState("");
   const [ownerAssignmentMessage, setOwnerAssignmentMessage] = useState("");
@@ -6335,23 +6338,54 @@ export default function App() {
   const teamStandings = useMemo(() => {
     const teams = {};
     for (const d of visibleDrivers) {
-      if (!teams[d.team]) teams[d.team] = { team: d.team, points: 0, wins: 0, top3: 0, top5: 0, drivers: 0, budget: getTeamBudget(d.team) };
+      if (!teams[d.team]) teams[d.team] = { team: d.team, points: 0, wins: 0, top3: 0, top5: 0, drivers: 0, budget: getTeamBudget(d.team), substitutePoints: 0 };
       teams[d.team].budget = getTeamBudget(d.team);
       teams[d.team].points += d.points || 0; teams[d.team].wins += d.wins || 0;
       teams[d.team].top3 += d.top3 || 0; teams[d.team].top5 += d.top5 || 0; teams[d.team].drivers += 1;
     }
+
+    (raceHistory || []).forEach((race) => {
+      (race.results || []).forEach((result) => {
+        if (!result?.isSubstituteStart || result.teamPointsAwarded === false) return;
+        const teamKey = result.ownerTeam || result.team;
+        if (!teamKey) return;
+        if (!teams[teamKey]) teams[teamKey] = { team: teamKey, points: 0, wins: 0, top3: 0, top5: 0, drivers: 0, budget: getTeamBudget(teamKey), substitutePoints: 0 };
+        const points = Number(result.ownerTeamPoints ?? result.rawRacePoints ?? 0) || 0;
+        teams[teamKey].points += points;
+        teams[teamKey].substitutePoints += points;
+        if (result.isWin) teams[teamKey].wins += 1;
+        if (result.isTop3) teams[teamKey].top3 += 1;
+        if (result.isTop5) teams[teamKey].top5 += 1;
+      });
+    });
+
     return Object.values(teams).sort((a, b) => b.points - a.points || b.wins - a.wins || b.top3 - a.top3 || a.team.localeCompare(b.team));
-  }, [visibleDrivers]);
+  }, [visibleDrivers, raceHistory]);
   const manufacturerStandings = useMemo(() => {
     const mfrs = {};
     for (const d of visibleDrivers) {
       const mfr = d.manufacturer || "Unknown";
-      if (!mfrs[mfr]) mfrs[mfr] = { manufacturer: mfr, points: 0, wins: 0, top3: 0, top5: 0, drivers: 0 };
+      if (!mfrs[mfr]) mfrs[mfr] = { manufacturer: mfr, points: 0, wins: 0, top3: 0, top5: 0, drivers: 0, substitutePoints: 0 };
       mfrs[mfr].points += d.points || 0; mfrs[mfr].wins += d.wins || 0;
       mfrs[mfr].top3 += d.top3 || 0; mfrs[mfr].top5 += d.top5 || 0; mfrs[mfr].drivers += 1;
     }
+
+    (raceHistory || []).forEach((race) => {
+      (race.results || []).forEach((result) => {
+        if (!result?.isSubstituteStart || result.manufacturerPointsAwarded === false) return;
+        const mfr = result.manufacturer || "Unknown";
+        if (!mfrs[mfr]) mfrs[mfr] = { manufacturer: mfr, points: 0, wins: 0, top3: 0, top5: 0, drivers: 0, substitutePoints: 0 };
+        const points = Number(result.ownerManufacturerPoints ?? result.rawRacePoints ?? 0) || 0;
+        mfrs[mfr].points += points;
+        mfrs[mfr].substitutePoints += points;
+        if (result.isWin) mfrs[mfr].wins += 1;
+        if (result.isTop3) mfrs[mfr].top3 += 1;
+        if (result.isTop5) mfrs[mfr].top5 += 1;
+      });
+    });
+
     return Object.values(mfrs).sort((a, b) => b.points - a.points || b.wins - a.wins || b.top3 - a.top3 || a.manufacturer.localeCompare(b.manufacturer));
-  }, [visibleDrivers]);
+  }, [visibleDrivers, raceHistory]);
   const sortedDrivers = [...visibleDrivers].sort((a, b) => b.points - a.points || b.wins - a.wins || b.top3 - a.top3 || a.name.localeCompare(b.name));
   const currentLeader = sortedDrivers[0] || null;
   const latestRace = raceHistory.length > 0 ? raceHistory[raceHistory.length - 1] : null;
@@ -6373,6 +6407,76 @@ export default function App() {
     previousRace: previousRaceForPayment,
     upcomingRace: upcomingRaceForPayment,
   }), [teamStandings, visibleDrivers, paymentComplianceInterviews, paymentComplianceUploads, paymentComplianceOverrides, previousRaceForPayment, upcomingRaceForPayment]);
+  const loadOwnerDriverAssignments = async () => {
+    if (!supabase) return [];
+    setOwnerDriverAssignmentsLoading(true);
+    setOwnerDriverAssignmentError("");
+
+    const { data, error } = await supabase
+      .from("owner_driver_assignments")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    setOwnerDriverAssignmentsLoading(false);
+
+    if (error) {
+      console.error("Failed to load owner driver assignments:", error);
+      setOwnerDriverAssignments([]);
+      setOwnerDriverAssignmentError("Could not load owner driver assignments. Check the owner_driver_assignments table/RLS.");
+      return [];
+    }
+
+    setOwnerDriverAssignments(data || []);
+    return data || [];
+  };
+
+  const updateOwnerDriverAssignmentStatus = async (assignmentId, status, extraFields = {}) => {
+    if (!assignmentId || !supabase) return { ok: false, error: "Missing assignment or Supabase client." };
+
+    const patch = {
+      status,
+      reviewed_by: extraFields.reviewed_by || "Admin",
+      reviewed_at: extraFields.reviewed_at || new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      ...extraFields,
+    };
+
+    const { error } = await supabase
+      .from("owner_driver_assignments")
+      .update(patch)
+      .eq("id", assignmentId);
+
+    if (error) {
+      console.error("Failed to update owner driver assignment:", error);
+      setOwnerDriverAssignmentError("Could not update owner driver assignment. Check update policy/RLS.");
+      return { ok: false, error };
+    }
+
+    await loadOwnerDriverAssignments();
+    return { ok: true };
+  };
+
+  const deleteOwnerDriverAssignment = async (assignmentId) => {
+    if (!assignmentId || !supabase) return { ok: false, error: "Missing assignment or Supabase client." };
+    const { error } = await supabase
+      .from("owner_driver_assignments")
+      .delete()
+      .eq("id", assignmentId);
+
+    if (error) {
+      console.error("Failed to delete owner driver assignment:", error);
+      setOwnerDriverAssignmentError("Could not delete owner driver assignment. Check delete policy/RLS.");
+      return { ok: false, error };
+    }
+
+    await loadOwnerDriverAssignments();
+    return { ok: true };
+  };
+
+  useEffect(() => {
+    loadOwnerDriverAssignments();
+  }, [supabase]);
+
   const saveOwnerAccessCodes = (nextCodes) => {
     setOwnerAccessCodes(nextCodes);
     localStorage.setItem("ownerPortalAccessCodes", JSON.stringify(nextCodes));
@@ -6789,6 +6893,26 @@ export default function App() {
     drivers.forEach((d) => { counts[d.id] = countPriorOffenses(raceHistory, d.id, editingRaceName); });
     return counts;
   }, [raceHistory, drivers, editingRaceName]);
+  const getApprovedOwnerDriverAssignmentForRaceEntry = (driver, raceName) => {
+    const cleanRaceName = String(raceName || "").trim().toLowerCase();
+    if (!driver || !cleanRaceName) return null;
+
+    return (ownerDriverAssignments || []).find((assignment) => {
+      const status = String(assignment?.status || "").toLowerCase();
+      if (!["approved", "completed"].includes(status)) return false;
+      if (String(assignment?.series || "cup").toLowerCase() !== "cup") return false;
+
+      const assignmentRace = String(assignment?.race_name || assignment?.race_id || "").trim().toLowerCase();
+      if (assignmentRace && assignmentRace !== cleanRaceName) return false;
+
+      const originalDriverMatch = assignment?.original_driver_id && String(assignment.original_driver_id) === String(driver.id);
+      const originalNumberMatch = assignment?.original_driver_number && String(assignment.original_driver_number) === String(driver.number);
+      const carNumberMatch = assignment?.car_number && String(assignment.car_number) === String(driver.number);
+
+      return originalDriverMatch || originalNumberMatch || carNumberMatch;
+    }) || null;
+  };
+
   const buildRaceResultsFromCurrentInputs = () => {
     return drivers.map((driver) => {
       const finishPos = positions[driver.id];
@@ -6806,15 +6930,76 @@ export default function App() {
       const offenseNumber = offense ? priorOffenses + 1 : 0;
       const offensePenalty = offense ? getOffensePenaltyPoints(offenseNumber) : 0;
       const penaltyPoints = offensePenalty + manualPenaltyPoints;
-      const totalRacePoints = finishPoints + stage1Points + stage2Points + stage3Points + fastestLapPoints - penaltyPoints;
+      const rawRacePoints = finishPoints + stage1Points + stage2Points + stage3Points + fastestLapPoints - penaltyPoints;
+      const approvedAssignment = getApprovedOwnerDriverAssignmentForRaceEntry(driver, selectedRace);
+      const isSubstituteStart = Boolean(approvedAssignment);
+      const assignedDriverName = approvedAssignment?.assigned_driver_name || driver.name;
+      const assignedDriverNumber = approvedAssignment?.assigned_driver_number || driver.number;
+      const assignedDriverId = approvedAssignment?.assigned_driver_id || null;
+      const originalDriverName = approvedAssignment?.original_driver_name || driver.name;
+      const originalDriverNumber = approvedAssignment?.original_driver_number || driver.number;
+      const ownerTeamKey = approvedAssignment?.team_key || driver.team;
+      const ownerTeamName = approvedAssignment?.team_name || getTeamFullName(ownerTeamKey);
+      const driverPointsAwarded = isSubstituteStart ? Boolean(approvedAssignment?.driver_points_awarded) : true;
+      const originalDriverPointsAwarded = isSubstituteStart ? Boolean(approvedAssignment?.original_driver_points_awarded) : true;
+      const teamPointsAwarded = isSubstituteStart ? approvedAssignment?.team_points_awarded !== false : true;
+      const manufacturerPointsAwarded = isSubstituteStart ? approvedAssignment?.manufacturer_points_awarded !== false : true;
+      const totalRacePoints = isSubstituteStart && !driverPointsAwarded && !originalDriverPointsAwarded ? 0 : rawRacePoints;
+      const ownerTeamPoints = isSubstituteStart && teamPointsAwarded ? rawRacePoints : 0;
+      const ownerManufacturerPoints = isSubstituteStart && manufacturerPointsAwarded ? rawRacePoints : 0;
+      const subNote = isSubstituteStart
+        ? `SUBSTITUTE: ${assignedDriverName}${assignedDriverNumber ? ` (#${assignedDriverNumber})` : ""} driving the #${driver.number} for ${originalDriverName}. Driver points are not awarded; team/manufacturer points count for ${ownerTeamName}.`
+        : "";
+
       return {
-        driverId: driver.id, name: driver.name, number: driver.number, team: driver.team, manufacturer: driver.manufacturer || "",
-        finishPos: finishPos || null, stage1Pos: stage1Pos || null, stage2Pos: stage2Pos || null, stage3Pos: stageCount === 3 ? stage3Pos || null : null,
-        finishPoints, stage1Points, stage2Points, stage3Points, fastestLap, fastestLapPoints,
-        offense, offenseNumber, offensePenalty, manualPenaltyPoints, penaltyPoints, totalRacePoints,
-        isWin: finishPos === 1, isTop3: finishPos >= 1 && finishPos <= 3, isTop5: finishPos >= 1 && finishPos <= 5,
-        dnf, startPark, dnfReason: dnf ? (dnfReasons[driver.id] || "Unknown") : null,
-        notes: resultNotesMap[driver.id] || "",
+        driverId: driver.id,
+        name: isSubstituteStart ? assignedDriverName : driver.name,
+        number: driver.number,
+        team: ownerTeamKey,
+        manufacturer: driver.manufacturer || "",
+        finishPos: finishPos || null,
+        stage1Pos: stage1Pos || null,
+        stage2Pos: stage2Pos || null,
+        stage3Pos: stageCount === 3 ? stage3Pos || null : null,
+        finishPoints,
+        stage1Points,
+        stage2Points,
+        stage3Points,
+        fastestLap,
+        fastestLapPoints,
+        offense,
+        offenseNumber,
+        offensePenalty,
+        manualPenaltyPoints,
+        penaltyPoints,
+        rawRacePoints,
+        totalRacePoints,
+        isWin: finishPos === 1,
+        isTop3: finishPos >= 1 && finishPos <= 3,
+        isTop5: finishPos >= 1 && finishPos <= 5,
+        dnf,
+        startPark,
+        dnfReason: dnf ? (dnfReasons[driver.id] || "Unknown") : null,
+        notes: [resultNotesMap[driver.id] || "", subNote].filter(Boolean).join("\n"),
+        ownerDriverAssignmentId: approvedAssignment?.id || null,
+        isSubstituteStart,
+        assignmentType: approvedAssignment?.assignment_type || null,
+        assignedDriverId,
+        assignedDriverName: isSubstituteStart ? assignedDriverName : null,
+        assignedDriverNumber: isSubstituteStart ? assignedDriverNumber : null,
+        originalDriverId: isSubstituteStart ? (approvedAssignment?.original_driver_id || driver.id) : null,
+        originalDriverName: isSubstituteStart ? originalDriverName : null,
+        originalDriverNumber: isSubstituteStart ? originalDriverNumber : null,
+        substituteForName: isSubstituteStart ? originalDriverName : null,
+        substituteForNumber: isSubstituteStart ? originalDriverNumber : null,
+        driverPointsAwarded,
+        originalDriverPointsAwarded,
+        teamPointsAwarded,
+        manufacturerPointsAwarded,
+        ownerTeam: ownerTeamKey,
+        ownerTeamName,
+        ownerTeamPoints,
+        ownerManufacturerPoints,
       };
     }).sort((a, b) => { if (a.finishPos === null) return 1; if (b.finishPos === null) return -1; return a.finishPos - b.finishPos; });
   };
@@ -6925,6 +7110,26 @@ export default function App() {
       tracks,
     });
 
+    const assignmentResultRows = (updatedRace.results || []).filter((result) => result.ownerDriverAssignmentId);
+    if (assignmentResultRows.length && supabase) {
+      await Promise.all(assignmentResultRows.map((result) =>
+        supabase
+          .from("owner_driver_assignments")
+          .update({
+            status: "completed",
+            finish_position: result.finishPos || null,
+            race_points: Number(result.finishPoints || 0),
+            stage_points: Number(result.stage1Points || 0) + Number(result.stage2Points || 0) + Number(result.stage3Points || 0),
+            penalty_points: Number(result.penaltyPoints || 0),
+            total_team_points: Number(result.ownerTeamPoints || 0),
+            total_manufacturer_points: Number(result.ownerManufacturerPoints || 0),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", result.ownerDriverAssignmentId)
+      ));
+      await loadOwnerDriverAssignments();
+    }
+
     if (!backupResult.ok && !ledgerResult.ok) {
       alert("Race points posted locally and a JSON backup downloaded, but Supabase backup AND race_results ledger failed. Check race_data_backups and race_results tables/RLS.");
     } else if (!backupResult.ok) {
@@ -6991,6 +7196,7 @@ export default function App() {
       "driver_tasks",
       "paint_scheme_votes",
       "start_park_requests",
+      "owner_driver_assignments",
       "streams",
       "ticker_messages",
       "app_update_banners",
@@ -7019,6 +7225,7 @@ export default function App() {
         raceHistory,
         selectedRace,
         ownerAssignments,
+        ownerDriverAssignments,
       },
       supabaseTables: {},
     };
@@ -7602,10 +7809,10 @@ export default function App() {
       <InSeasonTournamentPage drivers={visibleDrivers} raceHistory={raceHistory} />
     );
   }
-  if (path === "/standings") return withLeagueStatusWidget(<StandingsPage drivers={visibleDrivers} teams={teamStandings} manufacturerStandings={manufacturerStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} />);
+  if (path === "/standings") return withLeagueStatusWidget(<StandingsPage drivers={visibleDrivers} teams={teamStandings} manufacturerStandings={manufacturerStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} ownerDriverAssignments={ownerDriverAssignments} />);
   if (path === "/overlay/ticker" || viewMode === "overlay-ticker") return <TickerOverlay drivers={visibleDrivers} teams={teamStandings} raceHistory={raceHistory} preview={viewMode === "overlay-ticker"} seasonName={activeSeason?.name || ""} />;
   if (path !== "/admin") {
-    return <StandingsPage drivers={visibleDrivers} teams={teamStandings} manufacturerStandings={manufacturerStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} />;
+    return <StandingsPage drivers={visibleDrivers} teams={teamStandings} manufacturerStandings={manufacturerStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} ownerDriverAssignments={ownerDriverAssignments} />;
   }
   return (
     <AdminPortal
@@ -7710,6 +7917,12 @@ export default function App() {
       ownerAssignmentError={ownerAssignmentError}
       ownerAssignmentMessage={ownerAssignmentMessage}
       ownerAssignments={ownerAssignments}
+      ownerDriverAssignments={ownerDriverAssignments}
+      ownerDriverAssignmentsLoading={ownerDriverAssignmentsLoading}
+      ownerDriverAssignmentError={ownerDriverAssignmentError}
+      loadOwnerDriverAssignments={loadOwnerDriverAssignments}
+      updateOwnerDriverAssignmentStatus={updateOwnerDriverAssignmentStatus}
+      deleteOwnerDriverAssignment={deleteOwnerDriverAssignment}
       ownerPortalTeams={ownerPortalTeams}
       pageContainerStyle={pageContainerStyle}
       paintPayoutError={paintPayoutError}
