@@ -3,6 +3,7 @@ import logo from "../assets/logo1.png";
 import ncsLogo from "../assets/series/NCS.png";
 import {
   supabase } from "../lib/supabase"; import { teamLogos,
+  manufacturerLogos,
   getTeamFullName,
   getTeamBranding } from "../data/teams"; import { trackOverviewData } from "../data/trackOverview"; import { dedupeDriversByNumber,
   isInactivePlaceholderDriver } from "../utils/driverHelpers"; import {   getUpcomingRaceByDate,
@@ -110,6 +111,64 @@ function renderTeamBadge(teamName, size = 44) {
   return (
     <div style={{ width: size, height: size, minWidth: size, borderRadius: "50%", background: `linear-gradient(135deg, ${brand.accent} 0%, ${brand.dark} 100%)`, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, color: "white", border: "2px solid rgba(255,255,255,0.15)", boxShadow: "0 6px 16px rgba(0,0,0,0.25)", fontSize: size * 0.28 }}>
       {brand.logo}
+    </div>
+  );
+}
+
+function renderManufacturerLogo(manufacturer, size = 72) {
+  const name = String(manufacturer || "Unknown").trim();
+  const logoSrc =
+    manufacturerLogos?.[name] ||
+    manufacturerLogos?.[name.toLowerCase()] ||
+    manufacturerLogos?.[name.toUpperCase()];
+  const colorMap = { Toyota: "#ef4444", Chevrolet: "#f59e0b", Ford: "#2563eb" };
+  const color = colorMap[name] || "#6366f1";
+
+  if (logoSrc) {
+    return (
+      <div
+        style={{
+          width: size,
+          height: size,
+          minWidth: size,
+          borderRadius: 24,
+          background: "rgba(255,255,255,0.88)",
+          border: "1px solid rgba(15,23,42,0.08)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 10,
+          boxShadow: "0 14px 30px rgba(15,23,42,0.08)",
+        }}
+      >
+        <img
+          src={logoSrc}
+          alt={`${name} logo`}
+          style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      style={{
+        width: size,
+        height: size,
+        minWidth: size,
+        borderRadius: 24,
+        background: `${color}18`,
+        color,
+        border: `1px solid ${color}30`,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontWeight: 1000,
+        fontSize: Math.max(18, size * 0.22),
+        boxShadow: "0 14px 30px rgba(15,23,42,0.08)",
+      }}
+    >
+      {name.slice(0, 3).toUpperCase()}
     </div>
   );
 }
@@ -920,29 +979,41 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
   };
 
   const ManufacturerCard = ({ item, index }) => {
+    const manufacturerName = item.manufacturer || "Unknown";
     const colorMap = { Toyota: "#ef4444", Chevrolet: "#f59e0b", Ford: "#2563eb" };
-    const color = colorMap[item.manufacturer] || "#6366f1";
+    const color = colorMap[manufacturerName] || "#6366f1";
     return (
       <button
         type="button"
-        onClick={() => (window.location.href = `/manufacturer/${encodeURIComponent(item.manufacturer)}`)}
+        onClick={() => (window.location.href = `/manufacturer/${encodeURIComponent(manufacturerName)}`)}
         style={{
           ...glassCard,
           padding: 20,
           textAlign: "left",
           cursor: "pointer",
-          minHeight: 180,
+          minHeight: 210,
           color: "#1d1d1f",
           position: "relative",
           overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "space-between",
         }}
       >
-        <div style={{ position: "absolute", right: -42, top: -42, width: 140, height: 140, borderRadius: "50%", background: `${color}1f` }} />
-        <div style={{ width: 46, height: 46, borderRadius: 17, background: `${color}20`, color, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 1000 }}>P{index + 1}</div>
-        <div style={{ marginTop: 18, fontSize: 28, fontWeight: 1000 }}>{item.manufacturer}</div>
-        <div style={{ marginTop: 4, color: "#6e6e73", fontWeight: 750 }}>{item.drivers || 0} drivers • {item.wins || 0} wins</div>
-        <div style={{ marginTop: 16, fontSize: 34, fontWeight: 1000 }}>{item.points || 0}</div>
-        <div style={{ color: "#86868b", fontWeight: 900, fontSize: 12 }}>MANUFACTURER POINTS</div>
+        <div style={{ position: "absolute", right: -42, top: -42, width: 150, height: 150, borderRadius: "50%", background: `${color}1f` }} />
+        <div style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14 }}>
+          {renderManufacturerLogo(manufacturerName, 76)}
+          <div style={{ width: 46, height: 46, borderRadius: 17, background: `${color}20`, color, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 1000 }}>
+            P{index + 1}
+          </div>
+        </div>
+
+        <div style={{ position: "relative", zIndex: 1, marginTop: 18 }}>
+          <div style={{ fontSize: 28, fontWeight: 1000, letterSpacing: -0.8 }}>{manufacturerName}</div>
+          <div style={{ marginTop: 4, color: "#6e6e73", fontWeight: 750 }}>{item.drivers || 0} drivers • {item.wins || 0} wins • {item.top5 || 0} top 5s</div>
+          <div style={{ marginTop: 16, fontSize: 34, fontWeight: 1000 }}>{item.points || 0}</div>
+          <div style={{ color: "#86868b", fontWeight: 900, fontSize: 12 }}>MANUFACTURER POINTS</div>
+        </div>
       </button>
     );
   };
