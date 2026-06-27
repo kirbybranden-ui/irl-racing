@@ -809,6 +809,71 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
     boxShadow: "0 10px 28px rgba(15,23,42,0.06)",
   };
 
+  const publicMessageIconButtonStyle = {
+    width: 50,
+    height: 50,
+    borderRadius: 16,
+    border: "1px solid rgba(17,24,39,0.10)",
+    background: "linear-gradient(180deg, #007aff 0%, #5856d6 100%)",
+    color: "#ffffff",
+    boxShadow: "0 16px 38px rgba(0,122,255,0.26)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+    position: "relative",
+    fontSize: 20,
+    fontWeight: 1000,
+  };
+
+  const publicMenuButtonStyle = {
+    width: 50,
+    height: 50,
+    borderRadius: 16,
+    border: "1px solid rgba(17,24,39,0.10)",
+    background: "rgba(255,255,255,0.92)",
+    boxShadow: "0 10px 28px rgba(15,23,42,0.12)",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 5,
+    cursor: "pointer",
+    position: "relative",
+    zIndex: 100002,
+  };
+
+  const publicMenuLineStyle = {
+    width: 22,
+    height: 2,
+    borderRadius: 999,
+    background: "#111827",
+  };
+
+  const publicMenuBackdropStyle = {
+    position: "fixed",
+    inset: 0,
+    zIndex: 2147483000,
+    background: "rgba(15,23,42,0.22)",
+    backdropFilter: "blur(10px)",
+    WebkitBackdropFilter: "blur(10px)",
+  };
+
+  const publicMenuPanelStyle = {
+    position: "fixed",
+    right: 24,
+    top: 96,
+    zIndex: 2147483001,
+    width: "min(360px, calc(100vw - 48px))",
+    background: "rgba(255,255,255,0.98)",
+    border: "1px solid rgba(17,24,39,0.10)",
+    borderRadius: 24,
+    boxShadow: "0 28px 80px rgba(15,23,42,0.30)",
+    padding: 12,
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
+  };
+
   const navItems = [
     { label: "Streams", subtitle: "Live broadcasts", icon: "📡", route: "/streams" },
     { label: "News", subtitle: "League stories", icon: "📰", route: "/news" },
@@ -1048,102 +1113,95 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
           .bcl-apple-button:hover { transform: translateY(-2px); box-shadow: 0 18px 45px rgba(15,23,42,0.12) !important; }
         `}</style>
 
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10, flexWrap: "wrap", marginBottom: 18 }}>
-          <button
-            type="button"
-            onClick={() => (window.location.pathname = "/")}
-            style={{
-              ...pillButton,
-              background: "rgba(255,255,255,0.94)",
-              color: "#1d1d1f",
-              border: "1px solid rgba(15,23,42,0.08)",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 8,
-              boxShadow: "0 12px 30px rgba(15,23,42,0.08)",
-            }}
-          >
-            <span style={{ width: 26, height: 26, borderRadius: 9, background: "linear-gradient(135deg, #34c759, #30d158)", color: "#ffffff", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>⌂</span>
-            Home
-          </button>
-          <button
-            type="button"
-            onClick={() => (window.location.pathname = "/message-center")}
-            style={{
-              ...pillButton,
-              background: "linear-gradient(135deg, #007aff, #5856d6)",
-              color: "#fff",
-              border: "none",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 8,
-              boxShadow: "0 12px 30px rgba(0,122,255,0.22)",
-            }}
-          >
-            <span style={{ width: 26, height: 26, borderRadius: 9, background: "rgba(255,255,255,0.20)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>💬</span>
-            Messages
-          </button>
-          <button
-            type="button"
-            aria-label="Open menu"
-            onClick={() => setPublicMenuOpen(true)}
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: 16,
-              border: "1px solid rgba(15,23,42,0.08)",
-              background: "rgba(255,255,255,0.94)",
-              color: "#1d1d1f",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-              boxShadow: "0 12px 30px rgba(15,23,42,0.08)",
-            }}
-          >
-            <span style={{ display: "grid", gap: 4 }}>
-              <span style={{ display: "block", width: 20, height: 2.5, borderRadius: 999, background: "#1d1d1f" }} />
-              <span style={{ display: "block", width: 20, height: 2.5, borderRadius: 999, background: "#1d1d1f" }} />
-              <span style={{ display: "block", width: 20, height: 2.5, borderRadius: 999, background: "#1d1d1f" }} />
-            </span>
-          </button>
+        <div style={{ ...glassCard, marginBottom: 18, padding: 18 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 18, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
+              <div style={{ width: 62, height: 62, borderRadius: 18, background: "linear-gradient(135deg, #ffffff, #f5f5f7)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 18px 35px rgba(15,23,42,0.12)", overflow: "hidden", border: "1px solid rgba(17,24,39,0.08)" }}>
+                <img src={logo} alt="League Logo" style={{ height: 50, objectFit: "contain" }} />
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 2, textTransform: "uppercase", opacity: 0.62 }}>Budweiser Racing League</div>
+                <div style={{ fontSize: "clamp(25px, 3vw, 34px)", fontWeight: 1000, letterSpacing: -1, color: "#111827", lineHeight: 1.04 }}>Cup Series</div>
+                <div style={{ opacity: 0.68, marginTop: 2, color: "#4b5563", fontWeight: 720 }}>Standings · race weekend · driver performance</div>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <button
+                type="button"
+                aria-label="Go to league landing page"
+                onClick={() => (window.location.pathname = "/")}
+                style={{ ...publicMessageIconButtonStyle, background: "linear-gradient(180deg, #ffd60a 0%, #ff9f0a 100%)", boxShadow: "0 16px 38px rgba(255,159,10,0.30)" }}
+                title="Home"
+              >
+                🏠
+              </button>
+
+              <button
+                type="button"
+                aria-label="Open messages"
+                onClick={() => (window.location.pathname = "/message-center")}
+                style={publicMessageIconButtonStyle}
+                title="Messages"
+              >
+                💬
+              </button>
+
+              <button
+                type="button"
+                aria-label="Open menu"
+                onClick={() => setPublicMenuOpen((open) => !open)}
+                style={publicMenuButtonStyle}
+                title="Menu"
+              >
+                <span style={publicMenuLineStyle} />
+                <span style={publicMenuLineStyle} />
+                <span style={publicMenuLineStyle} />
+              </button>
+            </div>
+          </div>
         </div>
 
         {publicMenuOpen && (
-          <div style={{ position: "fixed", inset: 0, zIndex: 999999, display: "flex" }}>
+          <>
             <button
               type="button"
-              aria-label="Close menu"
+              aria-label="Close public menu"
               onClick={() => setPublicMenuOpen(false)}
-              style={{ position: "absolute", inset: 0, border: "none", background: "rgba(15,23,42,0.28)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", cursor: "default" }}
+              style={publicMenuBackdropStyle}
             />
-            <aside style={{ position: "relative", width: "min(390px, calc(100vw - 28px))", height: "calc(100vh - 28px)", margin: 14, borderRadius: 30, background: "rgba(255,255,255,0.90)", border: "1px solid rgba(255,255,255,0.86)", boxShadow: "0 30px 90px rgba(15,23,42,0.26)", backdropFilter: "blur(30px)", WebkitBackdropFilter: "blur(30px)", padding: 18, overflowY: "auto", color: "#1d1d1f" }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 18 }}>
-                <div>
-                  <div style={{ fontSize: 12, color: "#86868b", fontWeight: 950, letterSpacing: 1.2, textTransform: "uppercase" }}>Cup Series</div>
-                  <div style={{ fontSize: 28, fontWeight: 1000, letterSpacing: -0.8 }}>Menu</div>
-                </div>
-                <button type="button" onClick={() => setPublicMenuOpen(false)} style={{ width: 38, height: 38, borderRadius: 999, border: "1px solid rgba(15,23,42,0.08)", background: "#f5f5f7", color: "#1d1d1f", fontSize: 22, fontWeight: 900, cursor: "pointer" }}>×</button>
+            <div style={publicMenuPanelStyle}>
+              <div style={{ padding: "8px 10px 12px", borderBottom: "1px solid #e5e7eb", marginBottom: 8 }}>
+                <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.5, textTransform: "uppercase", color: "#6b7280" }}>Cup Series Menu</div>
+                <div style={{ fontSize: 20, fontWeight: 1000, color: "#111827" }}>League Pages</div>
               </div>
-              <div style={{ display: "grid", gap: 10 }}>
+
+              <div style={{ display: "grid", gap: 6 }}>
                 {navItems.map((item) => (
                   <button
                     key={item.label}
                     type="button"
-                    onClick={() => (window.location.pathname = item.route)}
-                    style={{ display: "grid", gridTemplateColumns: "44px 1fr auto", gap: 12, alignItems: "center", width: "100%", textAlign: "left", border: "1px solid rgba(15,23,42,0.07)", background: "rgba(255,255,255,0.72)", borderRadius: 20, padding: 12, cursor: "pointer", color: "#1d1d1f", boxShadow: "0 10px 25px rgba(15,23,42,0.05)" }}
+                    onClick={() => {
+                      setPublicMenuOpen(false);
+                      window.location.pathname = item.route;
+                    }}
+                    style={{
+                      border: 0,
+                      borderRadius: 14,
+                      background: item.route === "/admin" ? "#111827" : "#f8fafc",
+                      color: item.route === "/admin" ? "#ffffff" : "#111827",
+                      padding: "12px 14px",
+                      textAlign: "left",
+                      fontWeight: 900,
+                      cursor: "pointer",
+                    }}
                   >
-                    <span style={{ width: 44, height: 44, borderRadius: 16, background: "#f5f5f7", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>{item.icon}</span>
-                    <span>
-                      <span style={{ display: "block", fontSize: 16, fontWeight: 950 }}>{item.label}</span>
-                      <span style={{ display: "block", marginTop: 2, fontSize: 12, color: "#86868b", fontWeight: 750 }}>{item.subtitle}</span>
-                    </span>
-                    <span style={{ color: "#86868b", fontSize: 22, fontWeight: 900 }}>›</span>
+                    {item.icon} {item.label}
                   </button>
                 ))}
               </div>
-            </aside>
-          </div>
+            </div>
+          </>
         )}
 
         <section style={{ ...glassCard, padding: "clamp(18px, 2.5vw, 26px)", marginBottom: 18, position: "relative", overflow: "hidden" }}>
