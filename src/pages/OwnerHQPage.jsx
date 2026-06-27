@@ -164,11 +164,40 @@ export default function OwnerHQPage({ drivers = [], teams = [], seasonName = "",
     note: "",
   });
 
+  const [substitutionRequests, setSubstitutionRequests] = useState([]);
+  const [substitutionLoading, setSubstitutionLoading] = useState(false);
+  const [substitutionMessage, setSubstitutionMessage] = useState("");
+  const [substitutionError, setSubstitutionError] = useState("");
+  const [substitutionForm, setSubstitutionForm] = useState({
+    raceName: "",
+    originalDriverId: "",
+    substituteDriverId: "",
+    assignmentType: "substitute",
+    note: "",
+  });
+
   useEffect(() => {
     if (!assignmentForm.driverNumber && cupDrivers.length > 0) {
       setAssignmentForm((current) => ({ ...current, driverNumber: getDriverNumber(cupDrivers[0]) }));
     }
   }, [assignmentForm.driverNumber, cupDrivers]);
+
+  useEffect(() => {
+    if (!substitutionForm.originalDriverId && roster.length > 0) {
+      setSubstitutionForm((current) => ({ ...current, originalDriverId: String(roster[0].id || "") }));
+    }
+  }, [substitutionForm.originalDriverId, roster]);
+
+  const selectedOriginalDriver = roster.find((driver) => String(driver?.id || "") === String(substitutionForm.originalDriverId || "")) || roster[0] || null;
+  const substituteDriverOptions = cupDrivers
+    .filter((driver) => String(driver?.id || "") !== String(selectedOriginalDriver?.id || ""))
+    .sort((a, b) => Number(getDriverNumber(a) || 9999) - Number(getDriverNumber(b) || 9999));
+
+  useEffect(() => {
+    if (!substitutionForm.substituteDriverId && substituteDriverOptions.length > 0) {
+      setSubstitutionForm((current) => ({ ...current, substituteDriverId: String(substituteDriverOptions[0].id || "") }));
+    }
+  }, [substitutionForm.substituteDriverId, substituteDriverOptions.map((driver) => String(driver.id)).join("|")]);
 
   async function loadDevelopmentRequests() {
     if (!currentTeam?.team) return;
@@ -194,7 +223,111 @@ export default function OwnerHQPage({ drivers = [], teams = [], seasonName = "",
 
   useEffect(() => {
     loadDevelopmentRequests();
+    loadSubstitutionRequests();
   }, [currentTeam?.team]);
+
+  async function loadSubstitutionRequests() {
+    if (!currentTeam?.team) return;
+    setSubstitutionLoading(true);
+    setSubstitutionError("");
+
+    const { data, error } = await supabase
+      .from("owner_driver_assignments")
+      .select("*")
+      .eq("series", "cup")
+      .eq("team_key", currentTeam.team)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      setSubstitutionError(error.message || "Could not load substitution requests.");
+      setSubstitutionRequests([]);
+    } else {
+      setSubstitutionRequests(Array.isArray(data) ? data : []);
+    }
+
+    setSubstitutionLoading(false);
+  }
+
+  async function submitSubstitutionRequest(event) {
+    event.preventDefault();
+    setSubstitutionMessage("");
+    setSubstitutionError("");
+
+    const originalDriver = roster.find((driver) => String(driver?.id || "") === String(substitutionForm.originalDriverId || ""));
+    const substituteDriver = cupDrivers.find((driver) => String(driver?.id || "") === String(substitutionForm.substituteDriverId || ""));
+
+    if (!currentTeam?.team) {
+      setSubstitutionError("Select a team before submitting a substitution request.");
+      return;
+    }
+
+    if (!substitutionForm.raceName.trim()) {
+      setSubstitutionError("Enter the race this substitution applies to.");
+      return;
+    }
+
+    if (!originalDriver) {
+      setSubstitutionError("Select the Cup car / roster driver being substituted.");
+      return;
+    }
+
+    if (!substituteDriver) {
+      setSubstitutionError("Select the substitute driver.");
+      return;
+    }
+
+    if (String(originalDriver.id) === String(substituteDriver.id)) {
+      setSubstitutionError("The substitute driver must be different from the original roster driver.");
+      return;
+    }
+
+    const payload = {
+      series: "cup",
+      race_id: substitutionForm.raceName.trim(),
+      race_name: substitutionForm.raceName.trim(),
+      team_key: currentTeam.team,
+      team_name: currentTeam.name || getTeamFullName(currentTeam.team),
+      owner_name: currentTeam.name || currentTeam.team,
+      car_number: getDriverNumber(originalDriver),
+      original_driver_id: String(originalDriver.id || ""),
+      original_driver_name: getDriverDisplayName(originalDriver),
+      original_driver_number: getDriverNumber(originalDriver),
+      assigned_driver_id: String(substituteDriver.id || ""),
+      assigned_driver_name: getDriverDisplayName(substituteDriver),
+      assigned_driver_number: getDriverNumber(substituteDriver),
+      assignment_type: substitutionForm.assignmentType || "substitute",
+      driver_points_awarded: false,
+      original_driver_points_awarded: false,
+      team_points_awarded: true,
+      manufacturer_points_awarded: true,
+      status: "pending",
+      requested_by: currentTeam.name || currentTeam.team,
+      requested_by_role: "owner",
+      owner_note: substitutionForm.note || null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error } = await supabase.from("owner_driver_assignments").insert([payload]);
+
+    if (error) {
+      setSubstitutionError(error.message || "Could not submit substitution request.");
+      return;
+    }
+
+    setSubstitutionForm((current) => ({ ...current, raceName: "", note: "" }));
+    setSubstitutionMessage("Substitution request submitted to Race Operations for admin approval.");
+    await loadSubstitutionRequests();
+  }
+
+  function getSubstitutionStatusLabel(request) {
+    const status = String(request?.status || "pending").toLowerCase();
+    if (status === "approved") return "Approved";
+    if (status === "denied") return "Denied";
+    if (status === "completed") return "Completed";
+    if (status === "cancelled") return "Cancelled";
+    return "Pending Admin";
+  }
 
   async function getDevelopmentStartCount(driverNumber, requestedSeries) {
     const { count, error } = await supabase
@@ -372,6 +505,111 @@ export default function OwnerHQPage({ drivers = [], teams = [], seasonName = "",
               <MobileAction label="Open Full HQ" onClick={() => safeGo(go, "/owners?desktop=1")} secondary />
               <MobileAction label="Team Page" onClick={() => safeGo(go, `/team/${encodeURIComponent(currentTeam.team)}`)} />
             </div>
+          </MobileCard>
+
+          <MobileSectionTitle>Driver Assignment Center</MobileSectionTitle>
+          <MobileCard>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 10 }}>
+              <div>
+                <div style={mobileKickerStyle}>Cup Substitute Requests</div>
+                <h3 style={{ margin: "2px 0 0" }}>Request a Substitute Driver</h3>
+              </div>
+              <button
+                type="button"
+                onClick={loadSubstitutionRequests}
+                style={{ border: "1px solid #263244", background: "#0b1220", color: "#fff", borderRadius: 12, padding: "9px 12px", fontWeight: 900 }}
+              >
+                Refresh
+              </button>
+            </div>
+
+            <p style={{ margin: "0 0 12px", color: "#aab3c2", fontSize: 12, lineHeight: 1.45 }}>
+              Submit a Cup substitution request for one race. If approved, the car earns team/manufacturer points, while the original driver and substitute driver receive 0 driver points.
+            </p>
+
+            {substitutionError && <div style={{ background: "rgba(239,68,68,0.14)", border: "1px solid rgba(239,68,68,0.35)", color: "#fecaca", borderRadius: 12, padding: 10, marginBottom: 10, fontWeight: 800 }}>{substitutionError}</div>}
+            {substitutionMessage && <div style={{ background: "rgba(34,197,94,0.14)", border: "1px solid rgba(34,197,94,0.35)", color: "#bbf7d0", borderRadius: 12, padding: 10, marginBottom: 10, fontWeight: 800 }}>{substitutionMessage}</div>}
+
+            <form onSubmit={submitSubstitutionRequest} style={{ display: "grid", gap: 10 }}>
+              <label style={{ color: "#aab3c2", fontSize: 11, fontWeight: 1000, textTransform: "uppercase" }}>Race</label>
+              <input
+                value={substitutionForm.raceName}
+                onChange={(event) => setSubstitutionForm((current) => ({ ...current, raceName: event.target.value }))}
+                placeholder="Example: Las Vegas"
+                style={{ ...inputStyle, minHeight: 46 }}
+              />
+
+              <label style={{ color: "#aab3c2", fontSize: 11, fontWeight: 1000, textTransform: "uppercase" }}>Car / Original Driver</label>
+              <select
+                value={substitutionForm.originalDriverId}
+                onChange={(event) => setSubstitutionForm((current) => ({ ...current, originalDriverId: event.target.value, substituteDriverId: "" }))}
+                style={{ ...inputStyle, minHeight: 46 }}
+              >
+                {roster.map((driver) => (
+                  <option key={`${driver.id}-${getDriverNumber(driver)}`} value={driver.id}>
+                    #{getDriverNumber(driver)} {getDriverDisplayName(driver)}
+                  </option>
+                ))}
+              </select>
+
+              <label style={{ color: "#aab3c2", fontSize: 11, fontWeight: 1000, textTransform: "uppercase" }}>Substitute Driver</label>
+              <select
+                value={substitutionForm.substituteDriverId}
+                onChange={(event) => setSubstitutionForm((current) => ({ ...current, substituteDriverId: event.target.value }))}
+                style={{ ...inputStyle, minHeight: 46 }}
+              >
+                {substituteDriverOptions.map((driver) => (
+                  <option key={`${driver.id}-${getDriverNumber(driver)}`} value={driver.id}>
+                    #{getDriverNumber(driver)} {getDriverDisplayName(driver)}
+                  </option>
+                ))}
+              </select>
+
+              <label style={{ color: "#aab3c2", fontSize: 11, fontWeight: 1000, textTransform: "uppercase" }}>Assignment Type</label>
+              <select
+                value={substitutionForm.assignmentType}
+                onChange={(event) => setSubstitutionForm((current) => ({ ...current, assignmentType: event.target.value }))}
+                style={{ ...inputStyle, minHeight: 46 }}
+              >
+                <option value="substitute">Substitute Driver</option>
+                <option value="emergency_replacement">Emergency Replacement</option>
+                <option value="one_off">One-Off Start</option>
+                <option value="start_and_park">Start & Park Assignment</option>
+              </select>
+
+              <label style={{ color: "#aab3c2", fontSize: 11, fontWeight: 1000, textTransform: "uppercase" }}>Owner Note</label>
+              <textarea
+                value={substitutionForm.note}
+                onChange={(event) => setSubstitutionForm((current) => ({ ...current, note: event.target.value }))}
+                placeholder="Why is a substitute needed?"
+                style={{ ...inputStyle, minHeight: 84, resize: "vertical" }}
+              />
+
+              <button type="submit" style={{ ...mobileActionStyle, background: "#34c759", borderColor: "#34c759", color: "#07110b" }}>
+                Submit to Race Operations
+              </button>
+            </form>
+          </MobileCard>
+
+          <MobileCard>
+            <div style={mobileKickerStyle}>Substitution Request History</div>
+            {substitutionLoading && <p style={{ color: "#aab3c2" }}>Loading substitution requests...</p>}
+            {!substitutionLoading && substitutionRequests.length === 0 && (
+              <p style={{ margin: "8px 0 0", color: "#aab3c2" }}>No substitution requests submitted for this team.</p>
+            )}
+            {substitutionRequests.slice(0, 8).map((request) => (
+              <div key={request.id} style={{ border: "1px solid #263244", borderRadius: 14, padding: 12, marginTop: 10, background: "#0b1220" }}>
+                <strong>#{request.car_number} {request.assigned_driver_name}</strong>
+                <div style={{ color: "#aab3c2", fontSize: 12, marginTop: 4 }}>
+                  {request.race_name || "Race TBD"} • Sub for {request.original_driver_name || "Original Driver"} • {getSubstitutionStatusLabel(request)}
+                </div>
+                <div style={{ marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <span style={{ background: "rgba(52,199,89,0.14)", color: "#bbf7d0", border: "1px solid rgba(52,199,89,0.30)", borderRadius: 999, padding: "6px 9px", fontSize: 11, fontWeight: 1000 }}>Team points: YES</span>
+                  <span style={{ background: "rgba(239,68,68,0.14)", color: "#fecaca", border: "1px solid rgba(239,68,68,0.30)", borderRadius: 999, padding: "6px 9px", fontSize: 11, fontWeight: 1000 }}>Driver points: 0</span>
+                </div>
+                {request.owner_note && <p style={{ margin: "8px 0 0", color: "#d1d5db", fontSize: 12 }}>{request.owner_note}</p>}
+              </div>
+            ))}
           </MobileCard>
 
           <MobileSectionTitle>Development Center</MobileSectionTitle>
