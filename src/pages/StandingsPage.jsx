@@ -718,7 +718,7 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
 
   const applePage = {
     minHeight: "100vh",
-    background: "radial-gradient(circle at 15% 0%, rgba(255,255,255,0.95), rgba(245,245,247,0.96) 34%, #f5f5f7 72%), linear-gradient(135deg, rgba(212,175,55,0.18), rgba(255,255,255,0))",
+    background: "radial-gradient(circle at 10% 0%, rgba(0,122,255,0.16), transparent 28%), radial-gradient(circle at 82% 8%, rgba(255,149,0,0.15), transparent 26%), radial-gradient(circle at 50% 0%, rgba(88,86,214,0.10), transparent 36%), #f5f5f7",
     color: "#1d1d1f",
     fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif",
   };
@@ -730,10 +730,10 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
   };
 
   const glassCard = {
-    background: "rgba(255,255,255,0.76)",
-    border: "1px solid rgba(255,255,255,0.82)",
+    background: "rgba(255,255,255,0.88)",
+    border: "1px solid rgba(255,255,255,0.92)",
     borderRadius: 30,
-    boxShadow: "0 24px 70px rgba(15,23,42,0.09)",
+    boxShadow: "0 24px 70px rgba(15,23,42,0.10)",
     backdropFilter: "blur(24px)",
     WebkitBackdropFilter: "blur(24px)",
   };
@@ -765,7 +765,7 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
     { label: "Admin Portal", subtitle: "League control", icon: "🔐", route: "/admin" },
   ];
 
-  const StatCard = ({ icon, label, value, detail, onClick }) => (
+  const StatCard = ({ icon, label, value, detail, onClick, accent = "#007aff", tint = "rgba(0,122,255,0.12)" }) => (
     <button
       type="button"
       onClick={onClick}
@@ -774,20 +774,21 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
         textAlign: "left",
         padding: 18,
         minHeight: 132,
+        background: `linear-gradient(135deg, ${tint}, rgba(255,255,255,0.94))`,
         cursor: onClick ? "pointer" : "default",
         width: "100%",
         transition: "transform 180ms ease, box-shadow 180ms ease",
       }}
     >
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-        <div style={{ width: 44, height: 44, borderRadius: 16, background: "linear-gradient(135deg, #ffffff, #eef2ff)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, boxShadow: "inset 0 0 0 1px rgba(15,23,42,0.06)" }}>
+        <div style={{ width: 44, height: 44, borderRadius: 16, background: accent, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, boxShadow: `0 10px 24px ${accent}33` }}>
           {icon}
         </div>
         {onClick && <div style={{ opacity: 0.38, fontWeight: 900 }}>›</div>}
       </div>
-      <div style={{ marginTop: 16, fontSize: 11, fontWeight: 950, letterSpacing: 1.1, color: "#6e6e73", textTransform: "uppercase" }}>{label}</div>
-      <div style={{ marginTop: 4, fontSize: 24, lineHeight: 1.05, fontWeight: 950, letterSpacing: -0.5 }}>{value || "—"}</div>
-      {detail && <div style={{ marginTop: 6, fontSize: 13, color: "#6e6e73", fontWeight: 700 }}>{detail}</div>}
+      <div style={{ marginTop: 16, fontSize: 11, fontWeight: 950, letterSpacing: 1.1, color: "#4b5563", textTransform: "uppercase" }}>{label}</div>
+      <div style={{ marginTop: 4, fontSize: 24, lineHeight: 1.05, fontWeight: 950, letterSpacing: -0.5, color: "#111827" }}>{value || "—"}</div>
+      {detail && <div style={{ marginTop: 6, fontSize: 13, color: "#374151", fontWeight: 750 }}>{detail}</div>}
     </button>
   );
 
@@ -798,15 +799,16 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
       <button
         type="button"
         onClick={() => handleDriverClick(driver.number)}
+        className="bcl-driver-row"
         style={{
           border: "1px solid rgba(15,23,42,0.08)",
-          background: isLeader ? "linear-gradient(135deg, rgba(255,214,10,0.38), rgba(255,255,255,0.90))" : "rgba(255,255,255,0.82)",
+          background: isLeader ? "linear-gradient(135deg, rgba(255,214,10,0.32), rgba(255,255,255,0.96))" : "rgba(255,255,255,0.94)",
           borderRadius: 24,
           padding: 16,
           width: "100%",
           textAlign: "left",
           cursor: "pointer",
-          boxShadow: isLeader ? "0 18px 44px rgba(212,175,55,0.18)" : "0 12px 30px rgba(15,23,42,0.06)",
+          boxShadow: isLeader ? "0 18px 44px rgba(212,175,55,0.18)" : "0 12px 30px rgba(15,23,42,0.07)",
           display: "grid",
           gridTemplateColumns: "auto auto minmax(180px, 1.4fr) repeat(6, minmax(70px, 0.65fr)) auto",
           gap: 12,
@@ -956,7 +958,7 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
       <div style={container}>
         <style>{`
           @media (max-width: 920px) {
-            .bcl-driver-row { grid-template-columns: 1fr !important; }
+            .bcl-driver-row { grid-template-columns: 1fr !important; min-width: 0 !important; }
             .bcl-driver-row-stats { grid-template-columns: repeat(3, 1fr) !important; }
           }
           .bcl-apple-button:hover { transform: translateY(-2px); box-shadow: 0 18px 45px rgba(15,23,42,0.12) !important; }
@@ -967,8 +969,8 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
             ← Series Hub
           </button>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-            <button type="button" onClick={() => (window.location.pathname = "/message-center")} style={{ ...pillButton, background: "#1d1d1f", color: "#fff" }}>📩 Messages</button>
-            <button type="button" onClick={() => setPublicMenuOpen(true)} style={{ ...pillButton, background: "rgba(255,255,255,0.92)", color: "#1d1d1f" }}>☰ Menu</button>
+            <button type="button" onClick={() => (window.location.pathname = "/message-center")} style={{ ...pillButton, background: "linear-gradient(135deg, #007aff, #5856d6)", color: "#fff", border: "none" }}>📩 Messages</button>
+            <button type="button" onClick={() => setPublicMenuOpen(true)} style={{ ...pillButton, background: "rgba(255,255,255,0.96)", color: "#111827" }}>☰ Menu</button>
           </div>
         </div>
 
@@ -1057,11 +1059,11 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
         )}
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 14, marginBottom: 18 }}>
-          <StatCard icon="🏆" label="Active Season" value={seasonName || "Season"} detail={`${completedRaceCount} races entered`} />
-          <StatCard icon="👑" label="Points Leader" value={leader ? `#${leader.number} ${leader.name}` : "—"} detail={leader ? `${leader.points} points` : "No leader yet"} onClick={() => leader && handleDriverClick(leader.number)} />
-          <StatCard icon="👥" label="Active Drivers" value={sorted.length} detail={`${teams.length} teams`} />
-          <StatCard icon="🏁" label="Current Race" value={nextRace?.name || "Complete"} detail={nextRace?.date ? new Date(nextRace.date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "Season finished"} onClick={() => setScheduleOpen(true)} />
-          <StatCard icon="🍾" label="Latest Winner" value={latestWinner ? `#${latestWinner.number || latestWinner.driverNumber || ""} ${latestWinner.name || latestWinner.driverName || "Winner"}` : "—"} detail={latestRace?.raceName || "No race posted"} />
+          <StatCard icon="🏆" label="Active Season" value={seasonName || "Season"} detail={`${completedRaceCount} races entered`} accent="#ff9f0a" tint="rgba(255,159,10,0.16)" />
+          <StatCard icon="👑" label="Points Leader" value={leader ? `#${leader.number} ${leader.name}` : "—"} detail={leader ? `${leader.points} points` : "No leader yet"} onClick={() => leader && handleDriverClick(leader.number)} accent="#5856d6" tint="rgba(88,86,214,0.14)" />
+          <StatCard icon="👥" label="Active Drivers" value={sorted.length} detail={`${teams.length} teams`} accent="#34c759" tint="rgba(52,199,89,0.14)" />
+          <StatCard icon="🏁" label="Current Race" value={nextRace?.name || "Complete"} detail={nextRace?.date ? new Date(nextRace.date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "Season finished"} onClick={() => setScheduleOpen(true)} accent="#007aff" tint="rgba(0,122,255,0.14)" />
+          <StatCard icon="🍾" label="Latest Winner" value={latestWinner ? `#${latestWinner.number || latestWinner.driverNumber || ""} ${latestWinner.name || latestWinner.driverName || "Winner"}` : "—"} detail={latestRace?.raceName || "No race posted"} accent="#ff3b30" tint="rgba(255,59,48,0.12)" />
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 14, marginBottom: 18 }}>
@@ -1149,8 +1151,8 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
                 border: "none",
                 borderRadius: 999,
                 padding: "13px 16px",
-                background: standingsTab === tab.key ? "#1d1d1f" : "transparent",
-                color: standingsTab === tab.key ? "#fff" : "#1d1d1f",
+                    background: standingsTab === tab.key ? "linear-gradient(135deg, #007aff, #5856d6)" : "transparent",
+                color: standingsTab === tab.key ? "#fff" : "#111827",
                 fontWeight: 950,
                 cursor: "pointer",
               }}
@@ -1164,7 +1166,7 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
           <section style={{ ...glassCard, padding: 18, marginBottom: 20 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
               <div>
-                <div style={{ color: "#86868b", fontSize: 12, fontWeight: 1000, letterSpacing: 1.3, textTransform: "uppercase" }}>Championship Table</div>
+                <div style={{ color: "#2563eb", fontSize: 12, fontWeight: 1000, letterSpacing: 1.3, textTransform: "uppercase" }}>Championship Table</div>
                 <h2 style={{ margin: "4px 0 0", fontSize: 34, letterSpacing: -1.2 }}>Driver Standings</h2>
               </div>
               <div style={{ color: "#6e6e73", fontWeight: 850 }}>{sorted.length} active drivers • {totalPoints} points awarded</div>
@@ -1177,7 +1179,7 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
 
         {standingsTab === "teams" && (
           <section style={{ ...glassCard, padding: 18, marginBottom: 20 }}>
-            <div style={{ color: "#86868b", fontSize: 12, fontWeight: 1000, letterSpacing: 1.3, textTransform: "uppercase" }}>Organizations</div>
+            <div style={{ color: "#34c759", fontSize: 12, fontWeight: 1000, letterSpacing: 1.3, textTransform: "uppercase" }}>Organizations</div>
             <h2 style={{ margin: "4px 0 16px", fontSize: 34, letterSpacing: -1.2 }}>Team Standings</h2>
             <div style={{ display: "grid", gap: 12 }}>
               {teamRows.map((team, index) => <TeamCard key={team.team || index} team={team} index={index} />)}
@@ -1187,7 +1189,7 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
 
         {standingsTab === "manufacturers" && (
           <section style={{ ...glassCard, padding: 18, marginBottom: 20 }}>
-            <div style={{ color: "#86868b", fontSize: 12, fontWeight: 1000, letterSpacing: 1.3, textTransform: "uppercase" }}>Manufacturer Battle</div>
+            <div style={{ color: "#ff9f0a", fontSize: 12, fontWeight: 1000, letterSpacing: 1.3, textTransform: "uppercase" }}>Manufacturer Battle</div>
             <h2 style={{ margin: "4px 0 16px", fontSize: 34, letterSpacing: -1.2 }}>Manufacturer Standings</h2>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14 }}>
               {manufacturerRows.map((item, index) => <ManufacturerCard key={item.manufacturer || index} item={item} index={index} />)}
@@ -1197,7 +1199,7 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
 
         {standingsTab === "points" && (
           <section style={{ ...glassCard, padding: 18, marginBottom: 20 }}>
-            <div style={{ color: "#86868b", fontSize: 12, fontWeight: 1000, letterSpacing: 1.3, textTransform: "uppercase" }}>Rules Reference</div>
+            <div style={{ color: "#5856d6", fontSize: 12, fontWeight: 1000, letterSpacing: 1.3, textTransform: "uppercase" }}>Rules Reference</div>
             <h2 style={{ margin: "4px 0 16px", fontSize: 34, letterSpacing: -1.2 }}>Points & Penalties</h2>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14 }}>
               {pointCards.map((card) => (
