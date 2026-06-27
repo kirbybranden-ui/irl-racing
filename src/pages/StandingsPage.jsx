@@ -1113,8 +1113,9 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
           .bcl-apple-button:hover { transform: translateY(-2px); box-shadow: 0 18px 45px rgba(15,23,42,0.12) !important; }
         `}</style>
 
-        <div style={{ ...glassCard, marginBottom: 18, padding: 14 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 12, flexWrap: "wrap" }}>
+        <div style={{ ...glassCard, marginBottom: 16, padding: "18px 20px", background: "rgba(255,255,255,0.82)", boxShadow: "0 18px 48px rgba(15,23,42,0.08)" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
+            <div style={{ fontSize: 13, color: "#6e6e73", fontWeight: 950, letterSpacing: 1.1, textTransform: "uppercase" }}>Cup Control Center</div>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <button
                 type="button"
@@ -1197,9 +1198,6 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
           <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 88% 0%, rgba(212,175,55,0.16), transparent 34%)", pointerEvents: "none" }} />
           <div style={{ position: "relative", display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(240px, 0.62fr)", gap: 20, alignItems: "center" }}>
             <div>
-              <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 999, background: "rgba(255,255,255,0.72)", border: "1px solid rgba(15,23,42,0.07)", fontSize: 12, color: "#6e6e73", fontWeight: 950, letterSpacing: 1.2, textTransform: "uppercase" }}>
-                🏁 Cup Series Standings
-              </div>
               <img
                 src={ncsLogo}
                 alt="NASCAR Cup Series"
@@ -1208,13 +1206,10 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
                   width: "min(420px, 92vw)",
                   maxHeight: 150,
                   objectFit: "contain",
-                  margin: "18px 0 10px",
+                  margin: "4px 0 6px",
                   filter: "drop-shadow(0 18px 34px rgba(15,23,42,0.16))",
                 }}
               />
-              <p style={{ margin: 0, maxWidth: 720, color: "#6e6e73", fontSize: "clamp(15px, 1.7vw, 18px)", lineHeight: 1.45, fontWeight: 720 }}>
-                Championship standings, race weekend status, team performance, and manufacturer battles in one clean Cup Series view.
-              </p>
             </div>
             <div style={{ ...glassCard, padding: 18, background: "rgba(255,255,255,0.62)", boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.5), 0 18px 50px rgba(15,23,42,0.08)" }}>
               <div style={{ fontSize: 12, color: "#6e6e73", fontWeight: 950, letterSpacing: 1.15, textTransform: "uppercase" }}>Race Weekend</div>
@@ -1253,7 +1248,6 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
           <StatCard icon="🏆" label="Active Season" value={seasonName || "Season"} detail={`${completedRaceCount} races entered`} accent="#ff9f0a" tint="rgba(255,159,10,0.16)" />
           <StatCard icon="👑" label="Points Leader" value={leader ? `#${leader.number} ${leader.name}` : "—"} detail={leader ? `${leader.points} points` : "No leader yet"} onClick={() => leader && handleDriverClick(leader.number)} accent="#5856d6" tint="rgba(88,86,214,0.14)" />
           <StatCard icon="👥" label="Active Drivers" value={sorted.length} detail={`${teams.length} teams`} accent="#34c759" tint="rgba(52,199,89,0.14)" />
-          <StatCard icon="🏁" label="Current Race" value={nextRace?.name || "Complete"} detail={nextRace?.date ? new Date(nextRace.date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "Season finished"} onClick={() => setScheduleOpen(true)} accent="#007aff" tint="rgba(0,122,255,0.14)" />
           <StatCard icon="🍾" label="Latest Winner" value={latestWinner ? `#${latestWinner.number || latestWinner.driverNumber || ""} ${latestWinner.name || latestWinner.driverName || "Winner"}` : "—"} detail={latestRace?.raceName || "No race posted"} accent="#ff3b30" tint="rgba(255,59,48,0.12)" />
         </div>
 
