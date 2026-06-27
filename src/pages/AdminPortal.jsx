@@ -244,6 +244,26 @@ export default function AdminPortal({
   const [raceOperationsOpen, setRaceOperationsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [raceOperationsTab, setRaceOperationsTab] = useState("overview");
+  const [ownerDriverAssignments, setOwnerDriverAssignments] = useState([]);
+  const [ownerDriverAssignmentsLoading, setOwnerDriverAssignmentsLoading] = useState(false);
+  const [ownerDriverAssignmentStatus, setOwnerDriverAssignmentStatus] = useState("");
+  const [ownerDriverAssignmentError, setOwnerDriverAssignmentError] = useState("");
+  const [ownerDriverAssignmentForm, setOwnerDriverAssignmentForm] = useState({
+    series: "cup",
+    raceId: "",
+    raceName: "",
+    teamKey: "",
+    ownerName: "",
+    carNumber: "",
+    originalDriverId: "",
+    originalDriverName: "",
+    originalDriverNumber: "",
+    assignedDriverId: "",
+    assignedDriverName: "",
+    assignedDriverNumber: "",
+    assignmentType: "substitute",
+    ownerNote: "",
+  });
   const [hrLocalRefresh, setHrLocalRefresh] = useState(0);
   const [financeAction, setFinanceAction] = useState("overview");
   const [financeActionStatus, setFinanceActionStatus] = useState("");
@@ -451,6 +471,7 @@ export default function AdminPortal({
   function openRaceOperations() {
     setRaceOperationsOpen(true);
     setAdminMenuOpen(false);
+    loadOwnerDriverAssignments?.();
   }
 
   function openPublicRelations(tab = "overview") {
@@ -462,6 +483,179 @@ export default function AdminPortal({
   function openSettings() {
     setSettingsOpen(true);
     setAdminMenuOpen(false);
+  }
+
+  const assignmentDrivers = (visibleDrivers || drivers || [])
+    .filter((driver) => driver?.id && driver?.number && !isInactivePlaceholderDriver?.(driver))
+    .sort((a, b) => Number(a.number || 9999) - Number(b.number || 9999));
+
+  const assignmentTracks = (tracks || []).filter((track) => track?.name);
+
+  function updateOwnerDriverAssignmentForm(key, value) {
+    setOwnerDriverAssignmentForm((current) => ({ ...current, [key]: value }));
+  }
+
+  function chooseOwnerAssignmentRace(value) {
+    const track = assignmentTracks.find((item) => String(item.name) === String(value) || String(item.id || item.name) === String(value));
+    setOwnerDriverAssignmentForm((current) => ({
+      ...current,
+      raceId: track?.id ? String(track.id) : String(track?.name || value || ""),
+      raceName: track?.name || value || "",
+    }));
+  }
+
+  function chooseOwnerAssignmentOriginalDriver(driverId) {
+    const driver = assignmentDrivers.find((item) => String(item.id) === String(driverId));
+    if (!driver) {
+      setOwnerDriverAssignmentForm((current) => ({ ...current, originalDriverId: driverId }));
+      return;
+    }
+    const ownerRecord = (ownerAssignments || []).find((item) => String(item.team) === String(driver.team));
+    setOwnerDriverAssignmentForm((current) => ({
+      ...current,
+      originalDriverId: String(driver.id),
+      originalDriverName: driver.name || "",
+      originalDriverNumber: String(driver.number || ""),
+      carNumber: String(driver.number || ""),
+      teamKey: driver.team || current.teamKey || "",
+      ownerName: ownerRecord?.owner_driver_name || current.ownerName || "",
+    }));
+  }
+
+  function chooseOwnerAssignmentAssignedDriver(driverId) {
+    const driver = assignmentDrivers.find((item) => String(item.id) === String(driverId));
+    if (!driver) {
+      setOwnerDriverAssignmentForm((current) => ({ ...current, assignedDriverId: driverId }));
+      return;
+    }
+    setOwnerDriverAssignmentForm((current) => ({
+      ...current,
+      assignedDriverId: String(driver.id),
+      assignedDriverName: driver.name || "",
+      assignedDriverNumber: String(driver.number || ""),
+    }));
+  }
+
+  async function loadOwnerDriverAssignments() {
+    if (!supabase) return;
+    setOwnerDriverAssignmentsLoading(true);
+    setOwnerDriverAssignmentError("");
+    const { data, error } = await supabase
+      .from("owner_driver_assignments")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(100);
+    if (error) {
+      console.error("Could not load owner driver assignments:", error);
+      setOwnerDriverAssignments([]);
+      setOwnerDriverAssignmentsLoading(false);
+      setOwnerDriverAssignmentError("Could not load driver assignments. Check owner_driver_assignments table/RLS.");
+      return;
+    }
+    setOwnerDriverAssignments(data || []);
+    setOwnerDriverAssignmentsLoading(false);
+  }
+
+  async function saveOwnerDriverAssignment(event) {
+    event?.preventDefault?.();
+    setOwnerDriverAssignmentStatus("");
+    setOwnerDriverAssignmentError("");
+    const form = ownerDriverAssignmentForm;
+    if (!form.raceName || !form.teamKey || !form.carNumber || !form.originalDriverName || !form.assignedDriverName) {
+      setOwnerDriverAssignmentError("Select a race, original car/driver, team, and substitute driver before saving.");
+      return;
+    }
+    if (String(form.originalDriverId) === String(form.assignedDriverId)) {
+      setOwnerDriverAssignmentError("The substitute driver must be different from the original driver.");
+      return;
+    }
+    const payload = {
+      series: form.series || "cup",
+      season_id: activeSeasonId || activeSeason?.id || null,
+      race_id: form.raceId || form.raceName,
+      race_name: form.raceName,
+      team_key: form.teamKey,
+      team_name: getTeamFullName?.(form.teamKey) || form.teamKey,
+      owner_name: form.ownerName || null,
+      car_number: String(form.carNumber || form.originalDriverNumber || ""),
+      original_driver_id: form.originalDriverId ? String(form.originalDriverId) : null,
+      original_driver_name: form.originalDriverName || null,
+      original_driver_number: form.originalDriverNumber || form.carNumber || null,
+      assigned_driver_id: form.assignedDriverId ? String(form.assignedDriverId) : null,
+      assigned_driver_name: form.assignedDriverName,
+      assigned_driver_number: form.assignedDriverNumber || null,
+      assignment_type: form.assignmentType || "substitute",
+      driver_points_awarded: false,
+      original_driver_points_awarded: false,
+      team_points_awarded: true,
+      manufacturer_points_awarded: true,
+      status: "pending",
+      requested_by: form.ownerName || "Admin",
+      requested_by_role: "owner",
+      owner_note: form.ownerNote || null,
+    };
+    const { error } = await supabase.from("owner_driver_assignments").insert([payload]);
+    if (error) {
+      console.error("Could not save owner driver assignment:", error);
+      setOwnerDriverAssignmentError("Could not save assignment. Check owner_driver_assignments insert policy/columns.");
+      return;
+    }
+    setOwnerDriverAssignmentStatus("Driver assignment request saved. Approve it before race results are posted.");
+    setOwnerDriverAssignmentForm({
+      series: "cup",
+      raceId: "",
+      raceName: "",
+      teamKey: "",
+      ownerName: "",
+      carNumber: "",
+      originalDriverId: "",
+      originalDriverName: "",
+      originalDriverNumber: "",
+      assignedDriverId: "",
+      assignedDriverName: "",
+      assignedDriverNumber: "",
+      assignmentType: "substitute",
+      ownerNote: "",
+    });
+    await loadOwnerDriverAssignments();
+  }
+
+  async function updateOwnerDriverAssignmentStatus(id, status) {
+    if (!id || !supabase) return;
+    setOwnerDriverAssignmentStatus("");
+    setOwnerDriverAssignmentError("");
+    const patch = {
+      status,
+      reviewed_by: "Admin",
+      reviewed_at: new Date().toISOString(),
+    };
+    const { error } = await supabase
+      .from("owner_driver_assignments")
+      .update(patch)
+      .eq("id", id);
+    if (error) {
+      console.error("Could not update assignment status:", error);
+      setOwnerDriverAssignmentError("Could not update assignment status. Check update policy.");
+      return;
+    }
+    setOwnerDriverAssignmentStatus(`Assignment marked ${status}.`);
+    await loadOwnerDriverAssignments();
+  }
+
+  async function deleteOwnerDriverAssignment(id) {
+    if (!id || !supabase) return;
+    if (!window.confirm("Delete this owner driver assignment request?")) return;
+    const { error } = await supabase
+      .from("owner_driver_assignments")
+      .delete()
+      .eq("id", id);
+    if (error) {
+      console.error("Could not delete assignment:", error);
+      setOwnerDriverAssignmentError("Could not delete assignment. Check delete policy.");
+      return;
+    }
+    setOwnerDriverAssignmentStatus("Assignment deleted.");
+    await loadOwnerDriverAssignments();
   }
 
   function updateFinanceForm(key, value) {
@@ -1740,6 +1934,7 @@ export default function AdminPortal({
                 {[
                   ["tracks", "Track Management", "🏁", `${(tracks || []).length} Tracks`, "Schedule + stages", "Update schedule tracks and stage counts.", "linear-gradient(135deg, #34c759 0%, #30d158 45%, #0a7f3f 100%)"],
                   ["input", "Race Input", "🏎️", selectedRace ? "Active" : "Ready", selectedRace || "Select a race", "Enter finishes, stages, penalties, DNFs, and fastest lap.", "linear-gradient(135deg, #007aff 0%, #5ac8fa 45%, #5856d6 100%)"],
+                  ["assignments", "Driver Assignments", "🔁", `${(ownerDriverAssignments || []).filter((item) => item.status === "pending").length} Pending`, "Owner center", "Approve substitutes and one-off drivers without awarding driver points.", "linear-gradient(135deg, #0a84ff 0%, #34c759 52%, #30d158 100%)"],
                   ["history", "Previous Race Results", "📚", `${raceHistory.length} Races`, "Season archive", "Open the race archive and download single races or the season.", "linear-gradient(135deg, #ff9500 0%, #ffcc00 48%, #ff3b30 100%)"],
                   ["drafts", "Saved Drafts", "📄", `${(raceDrafts || []).length} Draft${(raceDrafts || []).length === 1 ? "" : "s"}`, "Private race control", "Resume, post, or delete admin-only race drafts.", "linear-gradient(135deg, #af52de 0%, #ff2d55 52%, #5856d6 100%)"],
                   ["offenses", "Offense Log", "⚠️", `${offenseLog.length} Open`, "Season discipline", "Review season offense penalties.", "linear-gradient(135deg, #ff3b30 0%, #ff2d55 50%, #8e8e93 100%)"],
@@ -1800,6 +1995,160 @@ export default function AdminPortal({
                     <h3 style={{ margin: 0, fontSize: 24, letterSpacing: -0.5 }}>League Vote Manager</h3>
                     <p style={{ margin: "8px 0 16px", color: "#6b7280", fontWeight: 800, lineHeight: 1.45 }}>Voting stays under race control so paint schemes, league votes, and race-week polls do not clutter the admin menu.</p>
                     <button type="button" onClick={() => (window.location.pathname = "/admin/votes")} style={{ ...adminPrimaryButtonStyle, borderRadius: 18 }}>Open Voting Manager</button>
+                  </div>
+                </div>
+              )}
+
+              {raceOperationsTab === "assignments" && (
+                <div style={{ ...adminReadableCardStyle, padding: isAdminMobile ? 18 : 26, borderRadius: 34, background: "linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.92))", boxShadow: "0 22px 60px rgba(15,23,42,0.12)", border: "1px solid rgba(255,255,255,0.75)" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap", marginBottom: 18 }}>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.6, textTransform: "uppercase", color: "#0a84ff" }}>Race Operations</div>
+                      <h2 style={{ margin: "3px 0 6px", fontSize: isAdminMobile ? 30 : 38, letterSpacing: -1.35 }}>Owner Driver Assignment Center</h2>
+                      <div style={{ color: "#6b7280", fontWeight: 750, maxWidth: 820, lineHeight: 1.45 }}>
+                        Owners can place a substitute, development call-up, emergency replacement, or one-off driver in an existing Cup car. The car earns team/manufacturer points, but the substitute and original driver receive no driver points.
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                      <span style={{ display: "inline-flex", alignItems: "center", padding: "10px 14px", borderRadius: 999, background: "rgba(10,132,255,0.10)", color: "#1d4ed8", fontWeight: 1000, fontSize: 13 }}>{(ownerDriverAssignments || []).length} Total</span>
+                      <span style={{ display: "inline-flex", alignItems: "center", padding: "10px 14px", borderRadius: 999, background: "rgba(52,199,89,0.12)", color: "#047857", fontWeight: 1000, fontSize: 13 }}>{(ownerDriverAssignments || []).filter((item) => item.status === "approved").length} Approved</span>
+                    </div>
+                  </div>
+
+                  <form onSubmit={saveOwnerDriverAssignment} style={{ borderRadius: 30, padding: isAdminMobile ? 16 : 20, background: "linear-gradient(135deg, rgba(10,132,255,0.10), rgba(255,255,255,0.94))", border: "1px solid rgba(10,132,255,0.18)", boxShadow: "0 14px 35px rgba(15,23,42,0.08)", marginBottom: 18 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
+                      <div>
+                        <h3 style={{ margin: 0, fontSize: 24, letterSpacing: -0.5 }}>Create Assignment</h3>
+                        <p style={{ margin: "6px 0 0", color: "#6b7280", fontWeight: 800 }}>Use this before race night or during Race Input for approved substitute appearances.</p>
+                      </div>
+                      <button type="button" onClick={loadOwnerDriverAssignments} style={{ ...adminSecondaryButtonStyle, borderRadius: 18 }}>Refresh</button>
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(3, minmax(0, 1fr))", gap: 12 }}>
+                      <label style={{ display: "grid", gap: 7, fontSize: 12, color: "#6b7280", fontWeight: 900 }}>Series
+                        <select value={ownerDriverAssignmentForm.series} onChange={(e) => updateOwnerDriverAssignmentForm("series", e.target.value)} style={adminInputStyle}>
+                          <option value="cup">Cup</option>
+                          <option value="xfinity">Xfinity</option>
+                          <option value="truck">Truck</option>
+                          <option value="arca">ARCA</option>
+                        </select>
+                      </label>
+                      <label style={{ display: "grid", gap: 7, fontSize: 12, color: "#6b7280", fontWeight: 900 }}>Race
+                        <select value={ownerDriverAssignmentForm.raceName} onChange={(e) => chooseOwnerAssignmentRace(e.target.value)} style={adminInputStyle}>
+                          <option value="">Select race</option>
+                          {assignmentTracks.map((track) => <option key={track.id || track.name} value={track.name}>{track.name}{track.date ? ` • ${track.date}` : ""}</option>)}
+                        </select>
+                      </label>
+                      <label style={{ display: "grid", gap: 7, fontSize: 12, color: "#6b7280", fontWeight: 900 }}>Assignment Type
+                        <select value={ownerDriverAssignmentForm.assignmentType} onChange={(e) => updateOwnerDriverAssignmentForm("assignmentType", e.target.value)} style={adminInputStyle}>
+                          <option value="substitute">Substitute Driver</option>
+                          <option value="development_callup">Development Call-Up</option>
+                          <option value="emergency_replacement">Emergency Replacement</option>
+                          <option value="one_off">One-Off Start</option>
+                          <option value="start_and_park">Start & Park</option>
+                        </select>
+                      </label>
+                      <label style={{ display: "grid", gap: 7, fontSize: 12, color: "#6b7280", fontWeight: 900 }}>Original Cup Car
+                        <select value={ownerDriverAssignmentForm.originalDriverId} onChange={(e) => chooseOwnerAssignmentOriginalDriver(e.target.value)} style={adminInputStyle}>
+                          <option value="">Select roster car/driver</option>
+                          {assignmentDrivers.map((driver) => <option key={driver.id} value={driver.id}>#{driver.number} {driver.name} • {getTeamFullName?.(driver.team) || driver.team}</option>)}
+                        </select>
+                      </label>
+                      <label style={{ display: "grid", gap: 7, fontSize: 12, color: "#6b7280", fontWeight: 900 }}>Substitute / Assigned Driver
+                        <select value={ownerDriverAssignmentForm.assignedDriverId} onChange={(e) => chooseOwnerAssignmentAssignedDriver(e.target.value)} style={adminInputStyle}>
+                          <option value="">Select assigned driver</option>
+                          {assignmentDrivers.map((driver) => <option key={driver.id} value={driver.id}>#{driver.number} {driver.name}</option>)}
+                        </select>
+                      </label>
+                      <label style={{ display: "grid", gap: 7, fontSize: 12, color: "#6b7280", fontWeight: 900 }}>Team
+                        <select value={ownerDriverAssignmentForm.teamKey} onChange={(e) => updateOwnerDriverAssignmentForm("teamKey", e.target.value)} style={adminInputStyle}>
+                          <option value="">Select team</option>
+                          {(ownerPortalTeams || []).map((team) => <option key={team} value={team}>{getTeamFullName?.(team) || team}</option>)}
+                        </select>
+                      </label>
+                      <label style={{ display: "grid", gap: 7, fontSize: 12, color: "#6b7280", fontWeight: 900 }}>Car Number
+                        <input value={ownerDriverAssignmentForm.carNumber} onChange={(e) => updateOwnerDriverAssignmentForm("carNumber", e.target.value)} style={adminInputStyle} placeholder="18" />
+                      </label>
+                      <label style={{ display: "grid", gap: 7, fontSize: 12, color: "#6b7280", fontWeight: 900 }}>Owner Name
+                        <input value={ownerDriverAssignmentForm.ownerName} onChange={(e) => updateOwnerDriverAssignmentForm("ownerName", e.target.value)} style={adminInputStyle} placeholder="Team owner" />
+                      </label>
+                      <label style={{ display: "grid", gap: 7, fontSize: 12, color: "#6b7280", fontWeight: 900, gridColumn: isAdminMobile ? "auto" : "span 3" }}>Owner / Admin Note
+                        <textarea value={ownerDriverAssignmentForm.ownerNote} onChange={(e) => updateOwnerDriverAssignmentForm("ownerNote", e.target.value)} style={{ ...adminInputStyle, minHeight: 86, resize: "vertical" }} placeholder="Example: Owner-approved substitute for Las Vegas. Team receives car finish points; drivers receive no points." />
+                      </label>
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(4, minmax(0, 1fr))", gap: 10, marginTop: 14 }}>
+                      {[
+                        ["Driver Points", "0", "Substitute receives no driver points"],
+                        ["Original Driver", "0", "Original roster driver receives no points"],
+                        ["Team Points", "Yes", "Owner/team receives finish points"],
+                        ["Manufacturer", "Yes", "Manufacturer receives points if applicable"],
+                      ].map(([label, value, help]) => (
+                        <div key={label} style={{ borderRadius: 18, padding: 13, background: "rgba(255,255,255,0.78)", border: "1px solid rgba(229,231,235,0.9)" }}>
+                          <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 1000, textTransform: "uppercase", letterSpacing: 0.6 }}>{label}</div>
+                          <div style={{ fontSize: 22, fontWeight: 1000, color: value === "Yes" ? "#047857" : "#dc2626", marginTop: 4 }}>{value}</div>
+                          <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 750, marginTop: 4, lineHeight: 1.35 }}>{help}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {ownerDriverAssignmentStatus && <div style={{ marginTop: 12, color: "#047857", background: "#ecfdf5", border: "1px solid #a7f3d0", borderRadius: 16, padding: 12, fontWeight: 900 }}>{ownerDriverAssignmentStatus}</div>}
+                    {ownerDriverAssignmentError && <div style={{ marginTop: 12, color: "#b91c1c", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 16, padding: 12, fontWeight: 900 }}>{ownerDriverAssignmentError}</div>}
+
+                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 16 }}>
+                      <button type="submit" style={{ ...adminPrimaryButtonStyle, borderRadius: 18 }}>Submit Assignment Request</button>
+                      <button type="button" onClick={() => setOwnerDriverAssignmentForm({ series: "cup", raceId: "", raceName: "", teamKey: "", ownerName: "", carNumber: "", originalDriverId: "", originalDriverName: "", originalDriverNumber: "", assignedDriverId: "", assignedDriverName: "", assignedDriverNumber: "", assignmentType: "substitute", ownerNote: "" })} style={{ ...adminSecondaryButtonStyle, borderRadius: 18 }}>Clear</button>
+                    </div>
+                  </form>
+
+                  <div style={{ display: "grid", gap: 14 }}>
+                    {ownerDriverAssignmentsLoading ? (
+                      <div style={{ borderRadius: 24, padding: 20, background: "rgba(255,255,255,0.82)", border: "1px solid rgba(229,231,235,0.9)", color: "#6b7280", fontWeight: 900 }}>Loading assignments...</div>
+                    ) : (ownerDriverAssignments || []).length === 0 ? (
+                      <div style={{ borderRadius: 24, padding: 20, background: "rgba(255,255,255,0.82)", border: "1px solid rgba(229,231,235,0.9)", color: "#6b7280", fontWeight: 900 }}>No owner driver assignments yet.</div>
+                    ) : (ownerDriverAssignments || []).map((assignment) => {
+                      const statusColor = assignment.status === "approved" ? "#047857" : assignment.status === "denied" ? "#b91c1c" : assignment.status === "completed" ? "#1d4ed8" : "#92400e";
+                      return (
+                        <div key={assignment.id} style={{ borderRadius: 28, padding: isAdminMobile ? 16 : 18, background: "rgba(255,255,255,0.88)", border: "1px solid rgba(229,231,235,0.92)", boxShadow: "0 12px 28px rgba(15,23,42,0.08)" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+                            <div style={{ display: "flex", gap: 14, alignItems: "center", minWidth: 0 }}>
+                              <div style={{ width: 58, height: 58, borderRadius: 22, background: "linear-gradient(135deg, #0a84ff, #34c759)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 1000, fontSize: 22, boxShadow: "0 12px 24px rgba(10,132,255,0.22)", flexShrink: 0 }}>#{assignment.car_number}</div>
+                              <div style={{ minWidth: 0 }}>
+                                <div style={{ fontSize: 20, fontWeight: 1000, color: "#111827", letterSpacing: -0.4 }}>{assignment.race_name || "Race TBD"}</div>
+                                <div style={{ color: "#4b5563", fontWeight: 850, marginTop: 3 }}>
+                                  {assignment.assigned_driver_name} driving for {assignment.original_driver_name || `#${assignment.car_number}`}
+                                </div>
+                                <div style={{ color: "#6b7280", fontWeight: 750, marginTop: 3 }}>{assignment.team_name || getTeamFullName?.(assignment.team_key) || assignment.team_key} • {String(assignment.assignment_type || "substitute").replaceAll("_", " ")}</div>
+                              </div>
+                            </div>
+                            <span style={{ padding: "9px 12px", borderRadius: 999, background: `${statusColor}18`, color: statusColor, fontWeight: 1000, textTransform: "uppercase", fontSize: 12, letterSpacing: 0.7 }}>{assignment.status || "pending"}</span>
+                          </div>
+
+                          <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(4, minmax(0, 1fr))", gap: 10, marginTop: 14 }}>
+                            {[
+                              ["Driver Points", assignment.driver_points_awarded ? "Yes" : "0"],
+                              ["Original Driver", assignment.original_driver_points_awarded ? "Yes" : "0"],
+                              ["Team Points", assignment.team_points_awarded ? "Yes" : "No"],
+                              ["Manufacturer", assignment.manufacturer_points_awarded ? "Yes" : "No"],
+                            ].map(([label, value]) => (
+                              <div key={label} style={{ borderRadius: 16, padding: "10px 12px", background: "rgba(248,250,252,0.9)", border: "1px solid rgba(229,231,235,0.9)" }}>
+                                <div style={{ fontSize: 10, color: "#6b7280", fontWeight: 1000, textTransform: "uppercase" }}>{label}</div>
+                                <div style={{ fontSize: 16, fontWeight: 1000, color: value === "Yes" ? "#047857" : "#dc2626", marginTop: 3 }}>{value}</div>
+                              </div>
+                            ))}
+                          </div>
+
+                          {assignment.owner_note && <div style={{ marginTop: 12, borderRadius: 16, padding: 12, background: "rgba(10,132,255,0.08)", color: "#374151", fontWeight: 750, lineHeight: 1.45 }}>{assignment.owner_note}</div>}
+
+                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
+                            {assignment.status !== "approved" && <button type="button" onClick={() => updateOwnerDriverAssignmentStatus(assignment.id, "approved")} style={{ ...adminPrimaryButtonStyle, borderRadius: 16, padding: "9px 13px" }}>Approve</button>}
+                            {assignment.status !== "denied" && <button type="button" onClick={() => updateOwnerDriverAssignmentStatus(assignment.id, "denied")} style={{ ...adminDangerButtonStyle, borderRadius: 16, padding: "9px 13px" }}>Deny</button>}
+                            {assignment.status !== "completed" && <button type="button" onClick={() => updateOwnerDriverAssignmentStatus(assignment.id, "completed")} style={{ ...adminSecondaryButtonStyle, borderRadius: 16, padding: "9px 13px" }}>Mark Completed</button>}
+                            <button type="button" onClick={() => deleteOwnerDriverAssignment(assignment.id)} style={{ ...adminSecondaryButtonStyle, borderRadius: 16, padding: "9px 13px" }}>Delete</button>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
