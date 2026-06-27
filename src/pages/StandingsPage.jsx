@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import logo from "../assets/logo1.png";
+import ncsLogo from "../assets/series/NCS.png";
 import {
   supabase } from "../lib/supabase"; import { teamLogos,
   getTeamFullName,
@@ -1016,13 +1017,22 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
           <div style={{ position: "relative", display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(240px, 0.62fr)", gap: 20, alignItems: "center" }}>
             <div>
               <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 999, background: "rgba(255,255,255,0.72)", border: "1px solid rgba(15,23,42,0.07)", fontSize: 12, color: "#6e6e73", fontWeight: 950, letterSpacing: 1.2, textTransform: "uppercase" }}>
-                🏁 NASCAR Cup Series
+                🏁 Cup Series Standings
               </div>
-              <h1 style={{ margin: "14px 0 6px", fontSize: "clamp(32px, 5vw, 58px)", lineHeight: 0.94, letterSpacing: -2.2, fontWeight: 1000 }}>
-                Standings
-              </h1>
+              <img
+                src={ncsLogo}
+                alt="NASCAR Cup Series"
+                style={{
+                  display: "block",
+                  width: "min(420px, 92vw)",
+                  maxHeight: 150,
+                  objectFit: "contain",
+                  margin: "18px 0 10px",
+                  filter: "drop-shadow(0 18px 34px rgba(15,23,42,0.16))",
+                }}
+              />
               <p style={{ margin: 0, maxWidth: 720, color: "#6e6e73", fontSize: "clamp(15px, 1.7vw, 18px)", lineHeight: 1.45, fontWeight: 720 }}>
-                Championship leaders, race weekend status, team performance, and manufacturer battles in one clean Cup Series view.
+                Championship standings, race weekend status, team performance, and manufacturer battles in one clean Cup Series view.
               </p>
             </div>
             <div style={{ ...glassCard, padding: 18, background: "rgba(255,255,255,0.62)", boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.5), 0 18px 50px rgba(15,23,42,0.08)" }}>
@@ -1064,12 +1074,6 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
           <StatCard icon="👥" label="Active Drivers" value={sorted.length} detail={`${teams.length} teams`} accent="#34c759" tint="rgba(52,199,89,0.14)" />
           <StatCard icon="🏁" label="Current Race" value={nextRace?.name || "Complete"} detail={nextRace?.date ? new Date(nextRace.date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "Season finished"} onClick={() => setScheduleOpen(true)} accent="#007aff" tint="rgba(0,122,255,0.14)" />
           <StatCard icon="🍾" label="Latest Winner" value={latestWinner ? `#${latestWinner.number || latestWinner.driverNumber || ""} ${latestWinner.name || latestWinner.driverName || "Winner"}` : "—"} detail={latestRace?.raceName || "No race posted"} accent="#ff3b30" tint="rgba(255,59,48,0.12)" />
-        </div>
-
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 14, marginBottom: 18 }}>
-          <CompactDriverCard driver={leader} place={1} />
-          <CompactDriverCard driver={second} place={2} />
-          <CompactDriverCard driver={third} place={3} />
         </div>
 
         <PaintSchemeWinnerStandingsCard tracks={tracks} drivers={drivers} />
