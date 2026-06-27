@@ -1113,19 +1113,8 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
           .bcl-apple-button:hover { transform: translateY(-2px); box-shadow: 0 18px 45px rgba(15,23,42,0.12) !important; }
         `}</style>
 
-        <div style={{ ...glassCard, marginBottom: 18, padding: 18 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 18, flexWrap: "wrap" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
-              <div style={{ width: 62, height: 62, borderRadius: 18, background: "linear-gradient(135deg, #ffffff, #f5f5f7)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 18px 35px rgba(15,23,42,0.12)", overflow: "hidden", border: "1px solid rgba(17,24,39,0.08)" }}>
-                <img src={logo} alt="League Logo" style={{ height: 50, objectFit: "contain" }} />
-              </div>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 2, textTransform: "uppercase", opacity: 0.62 }}>Budweiser Racing League</div>
-                <div style={{ fontSize: "clamp(25px, 3vw, 34px)", fontWeight: 1000, letterSpacing: -1, color: "#111827", lineHeight: 1.04 }}>Cup Series</div>
-                <div style={{ opacity: 0.68, marginTop: 2, color: "#4b5563", fontWeight: 720 }}>Standings · race weekend · driver performance</div>
-              </div>
-            </div>
-
+        <div style={{ ...glassCard, marginBottom: 18, padding: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 12, flexWrap: "wrap" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <button
                 type="button"
