@@ -1,5 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import logo from "./assets/logo1.png";
+import ncsLogo from "./assets/series/NCS.png";
+import nxsLogo from "./assets/series/NXS.png";
+import ctsLogo from "./assets/series/CTS.png";
+import amsLogo from "./assets/series/AMS.png";
 import FilesPage from "./FilesPage";
 import SubmitAppealPage from "./SubmitAppealPage";
 import AppealsPage from "./AppealsPage";
@@ -5040,6 +5044,394 @@ function LeagueStatusWidget({ tracks = [], seasonName = "", mobile = false }) {
   );
 }
 
+
+function AppleSeriesPortalLanding() {
+  const seriesCards = [
+    {
+      id: "cup",
+      title: "NASCAR Cup Series",
+      shortTitle: "Cup Series",
+      eyebrow: "Premier Division",
+      route: "/standings",
+      logo: ncsLogo,
+      accent: "#f6c343",
+      gradient: "linear-gradient(135deg, rgba(246,195,67,0.84), rgba(255,255,255,0.10), rgba(0,0,0,0.82))",
+      status: "Live Season",
+      meta: "Standings • Teams • Race Center",
+    },
+    {
+      id: "xfinity",
+      title: "NASCAR Xfinity Series",
+      shortTitle: "Xfinity Series",
+      eyebrow: "Development Division",
+      route: "/series/xfinity",
+      logo: nxsLogo,
+      accent: "#7c3aed",
+      gradient: "linear-gradient(135deg, rgba(124,58,237,0.78), rgba(236,72,153,0.20), rgba(0,0,0,0.84))",
+      status: "Series Portal",
+      meta: "Drivers • Teams • Join Requests",
+    },
+    {
+      id: "truck",
+      title: "NASCAR Craftsman Truck Series",
+      shortTitle: "Truck Series",
+      eyebrow: "Short Track Division",
+      route: "/series/truck",
+      logo: ctsLogo,
+      accent: "#0ea5e9",
+      gradient: "linear-gradient(135deg, rgba(14,165,233,0.78), rgba(30,64,175,0.22), rgba(0,0,0,0.84))",
+      status: "Series Portal",
+      meta: "Schedule • Rosters • Media",
+    },
+    {
+      id: "arca",
+      title: "ARCA Menards Series",
+      shortTitle: "ARCA Series",
+      eyebrow: "Entry Division",
+      route: "/series/arca",
+      logo: amsLogo,
+      accent: "#ef4444",
+      gradient: "linear-gradient(135deg, rgba(239,68,68,0.80), rgba(245,158,11,0.22), rgba(0,0,0,0.84))",
+      status: "Series Portal",
+      meta: "Numbers • Drivers • Development",
+    },
+  ];
+
+  const openSeries = (route) => {
+    window.location.pathname = route;
+  };
+
+  return (
+    <div style={{
+      minHeight: "100vh",
+      background: "radial-gradient(circle at top left, rgba(255,255,255,0.95), rgba(245,245,247,0.94) 36%, rgba(229,229,234,0.98) 100%)",
+      color: "#1d1d1f",
+      padding: "clamp(18px, 4vw, 42px)",
+      boxSizing: "border-box",
+      fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif",
+    }}>
+      <div style={{ maxWidth: 1180, margin: "0 auto" }}>
+        <header style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 18,
+          marginBottom: 26,
+          flexWrap: "wrap",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <div style={{
+              width: 54,
+              height: 54,
+              borderRadius: 18,
+              background: "linear-gradient(135deg, rgba(255,255,255,0.95), rgba(255,255,255,0.55))",
+              boxShadow: "0 18px 42px rgba(0,0,0,0.14), inset 0 0 0 1px rgba(255,255,255,0.7)",
+              display: "grid",
+              placeItems: "center",
+              overflow: "hidden",
+            }}>
+              <img src={logo} alt="Budweiser Motorsports" style={{ width: "82%", height: "82%", objectFit: "contain" }} />
+            </div>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 900, letterSpacing: "0.16em", textTransform: "uppercase", color: "rgba(29,29,31,0.58)" }}>
+                Budweiser Motorsports
+              </div>
+              <h1 style={{ margin: "4px 0 0", fontSize: "clamp(30px, 5vw, 58px)", lineHeight: 0.96, letterSpacing: "-0.055em" }}>
+                Choose Your Series
+              </h1>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => (window.location.pathname = "/admin-login")}
+            style={{
+              border: "1px solid rgba(0,0,0,0.08)",
+              borderRadius: 999,
+              padding: "12px 16px",
+              background: "rgba(255,255,255,0.72)",
+              backdropFilter: "blur(16px)",
+              WebkitBackdropFilter: "blur(16px)",
+              color: "#1d1d1f",
+              fontWeight: 900,
+              cursor: "pointer",
+              boxShadow: "0 14px 32px rgba(0,0,0,0.08)",
+            }}
+          >
+            Admin Portal
+          </button>
+        </header>
+
+        <section style={{
+          marginBottom: 18,
+          borderRadius: 30,
+          padding: "clamp(18px, 3vw, 28px)",
+          background: "linear-gradient(135deg, rgba(255,255,255,0.86), rgba(255,255,255,0.58))",
+          border: "1px solid rgba(255,255,255,0.78)",
+          boxShadow: "0 24px 70px rgba(0,0,0,0.10)",
+          backdropFilter: "blur(22px)",
+          WebkitBackdropFilter: "blur(22px)",
+          overflow: "hidden",
+          position: "relative",
+        }}>
+          <div style={{
+            position: "absolute",
+            inset: "-40% -20% auto auto",
+            width: 320,
+            height: 320,
+            borderRadius: "50%",
+            background: "radial-gradient(circle, rgba(0,122,255,0.18), rgba(255,59,48,0.08), transparent 68%)",
+            pointerEvents: "none",
+          }} />
+
+          <div style={{ position: "relative", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 18, alignItems: "stretch" }}>
+            <div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
+                <span style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 7,
+                  borderRadius: 999,
+                  padding: "8px 11px",
+                  background: "rgba(0,122,255,0.12)",
+                  color: "#0057d9",
+                  fontWeight: 1000,
+                  fontSize: 12,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                }}>Version 3</span>
+                <span style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 7,
+                  borderRadius: 999,
+                  padding: "8px 11px",
+                  background: "rgba(52,199,89,0.12)",
+                  color: "#147d35",
+                  fontWeight: 1000,
+                  fontSize: 12,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                }}>BRL Rebrand</span>
+                <span style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 7,
+                  borderRadius: 999,
+                  padding: "8px 11px",
+                  background: "rgba(255,149,0,0.14)",
+                  color: "#9a5a00",
+                  fontWeight: 1000,
+                  fontSize: 12,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                }}>Expected Downtime: ~5 Days</span>
+              </div>
+
+              <h2 style={{ margin: 0, fontSize: "clamp(27px, 4vw, 46px)", lineHeight: 0.98, letterSpacing: "-0.055em", color: "#1d1d1f" }}>
+                The next generation of Budweiser Racing League is coming.
+              </h2>
+              <p style={{ margin: "14px 0 0", maxWidth: 760, color: "rgba(29,29,31,0.72)", fontSize: "clamp(14px, 2vw, 17px)", lineHeight: 1.55, fontWeight: 750 }}>
+                Budweiser Cup League will transition to <strong>Budweiser Racing League</strong> with Version 3, a complete platform redesign built to support Cup, Xfinity, Truck, and ARCA under one seamless league experience.
+              </p>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(175px, 1fr))", gap: 10, marginTop: 18 }}>
+                {[
+                  ["Unified Login", "One access point across every series."],
+                  ["Enhanced View", "Apple-inspired visuals and easier navigation."],
+                  ["Season 2 Contracts", "More stability for owners and drivers."],
+                  ["ARCA Ready", "Fully functional before its season begins."],
+                ].map(([title, text]) => (
+                  <div key={title} style={{
+                    borderRadius: 20,
+                    padding: 14,
+                    background: "rgba(255,255,255,0.64)",
+                    border: "1px solid rgba(0,0,0,0.06)",
+                    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.75)",
+                  }}>
+                    <div style={{ color: "#1d1d1f", fontSize: 13, fontWeight: 1000 }}>{title}</div>
+                    <div style={{ marginTop: 5, color: "rgba(29,29,31,0.62)", fontSize: 12.5, fontWeight: 750, lineHeight: 1.35 }}>{text}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <aside style={{
+              borderRadius: 26,
+              padding: 18,
+              background: "linear-gradient(180deg, rgba(29,29,31,0.92), rgba(44,44,46,0.86))",
+              color: "white",
+              boxShadow: "0 24px 55px rgba(0,0,0,0.18)",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "space-between",
+              gap: 18,
+            }}>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: "0.12em", textTransform: "uppercase", opacity: 0.62 }}>Platform Upgrade</div>
+                <div style={{ marginTop: 8, fontSize: 30, fontWeight: 1000, letterSpacing: "-0.045em", lineHeight: 1 }}>Version 3</div>
+                <p style={{ margin: "10px 0 0", color: "rgba(255,255,255,0.72)", fontSize: 13.5, lineHeight: 1.45, fontWeight: 750 }}>
+                  The migration will include redesigned contracts, smaller budgets, clearer logistical requirements, and a stronger foundation for league funds.
+                </p>
+              </div>
+              <div style={{ display: "grid", gap: 8 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: 13, fontWeight: 900 }}><span style={{ opacity: 0.65 }}>Downtime</span><span>~5 Days</span></div>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: 13, fontWeight: 900 }}><span style={{ opacity: 0.65 }}>New Identity</span><span>BRL</span></div>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: 13, fontWeight: 900 }}><span style={{ opacity: 0.65 }}>ARCA Launch</span><span>Fully Supported</span></div>
+              </div>
+            </aside>
+          </div>
+        </section>
+
+        <div style={{
+          borderRadius: 30,
+          padding: "18px",
+          background: "rgba(255,255,255,0.52)",
+          border: "1px solid rgba(255,255,255,0.72)",
+          boxShadow: "0 24px 70px rgba(0,0,0,0.10)",
+          backdropFilter: "blur(22px)",
+          WebkitBackdropFilter: "blur(22px)",
+        }}>
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
+            gap: 16,
+          }}>
+            {seriesCards.map((series) => (
+              <button
+                key={series.id}
+                type="button"
+                onClick={() => openSeries(series.route)}
+                style={{
+                  minHeight: 310,
+                  border: 0,
+                  borderRadius: 28,
+                  padding: 0,
+                  overflow: "hidden",
+                  position: "relative",
+                  cursor: "pointer",
+                  textAlign: "left",
+                  color: "white",
+                  backgroundImage: series.gradient,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                  boxShadow: "0 24px 50px rgba(0,0,0,0.20)",
+                  transform: "translateZ(0)",
+                }}
+                aria-label={`Open ${series.title}`}
+              >
+                <div style={{
+                  position: "absolute",
+                  inset: 0,
+                  background: "linear-gradient(180deg, rgba(255,255,255,0.10), rgba(0,0,0,0.12) 42%, rgba(0,0,0,0.72))",
+                  pointerEvents: "none",
+                }} />
+                <div style={{
+                  position: "absolute",
+                  inset: 0,
+                  display: "grid",
+                  placeItems: "center",
+                  padding: 30,
+                  pointerEvents: "none",
+                }}>
+                  <img
+                    src={series.logo}
+                    alt={`${series.title} logo`}
+                    style={{
+                      width: "92%",
+                      maxWidth: 430,
+                      maxHeight: 190,
+                      objectFit: "contain",
+                      filter: "drop-shadow(0 22px 34px rgba(0,0,0,0.55))",
+                      opacity: 0.96,
+                    }}
+                  />
+                </div>
+                <div style={{
+                  position: "absolute",
+                  top: 16,
+                  left: 16,
+                  right: 16,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 10,
+                }}>
+                  <span style={{
+                    borderRadius: 999,
+                    padding: "8px 11px",
+                    background: "rgba(255,255,255,0.22)",
+                    border: "1px solid rgba(255,255,255,0.34)",
+                    backdropFilter: "blur(14px)",
+                    WebkitBackdropFilter: "blur(14px)",
+                    fontSize: 11,
+                    fontWeight: 1000,
+                    letterSpacing: "0.12em",
+                    textTransform: "uppercase",
+                  }}>
+                    {series.eyebrow}
+                  </span>
+                  <span style={{
+                    width: 14,
+                    height: 14,
+                    borderRadius: 999,
+                    background: series.accent,
+                    boxShadow: `0 0 0 7px ${series.accent}33`,
+                    flex: "0 0 auto",
+                  }} />
+                </div>
+
+                <div style={{ position: "absolute", left: 18, right: 18, bottom: 18 }}>
+                  <div style={{
+                    borderRadius: 24,
+                    padding: 18,
+                    background: "rgba(20,20,22,0.46)",
+                    border: "1px solid rgba(255,255,255,0.20)",
+                    backdropFilter: "blur(18px)",
+                    WebkitBackdropFilter: "blur(18px)",
+                    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.18)",
+                  }}>
+                    <div style={{ fontSize: 13, fontWeight: 900, opacity: 0.82, marginBottom: 6 }}>{series.status}</div>
+                    <div style={{ fontSize: "clamp(30px, 4vw, 42px)", fontWeight: 1000, letterSpacing: "-0.055em", lineHeight: 0.95 }}>
+                      {series.title}
+                    </div>
+                    <div style={{ marginTop: 10, fontSize: 13, fontWeight: 800, opacity: 0.84 }}>{series.meta}</div>
+                    <div style={{
+                      marginTop: 14,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 7,
+                      borderRadius: 999,
+                      padding: "9px 12px",
+                      background: "rgba(255,255,255,0.16)",
+                      fontWeight: 1000,
+                      fontSize: 12,
+                    }}>
+                      Enter Series <span aria-hidden="true">›</span>
+                    </div>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div style={{
+          display: "flex",
+          justifyContent: "center",
+          marginTop: 18,
+          color: "rgba(29,29,31,0.55)",
+          fontSize: 13,
+          fontWeight: 750,
+          textAlign: "center",
+        }}>
+          Series logos load from src/assets/series: NCS.png, NXS.png, CTS.png, and AMS.png.
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   useEffect(() => {
     // syncCruiserNumberAndNumberOwnership();
@@ -7011,7 +7403,7 @@ export default function App() {
   // Series Portal - new opening page for Cup, Xfinity, Trucks, and ARCA.
   // Existing Cup standings remain available at /standings.
   if (path === "/" || path === "/series") {
-    return <SeriesPortal />;
+    return <AppleSeriesPortalLanding />;
   }
 
   // Mobile experience gate — phones use the NASCAR-style mobile shell for all non-admin / non-overlay routes.
