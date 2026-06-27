@@ -5049,49 +5049,45 @@ function AppleSeriesPortalLanding() {
   const seriesCards = [
     {
       id: "cup",
-      title: "NASCAR Cup Series",
-      shortTitle: "Cup Series",
+      title: "Cup Series",
       eyebrow: "Premier Division",
       route: "/standings",
-      logo: ncsLogo,
-      accent: "#f6c343",
-      gradient: "linear-gradient(135deg, rgba(246,195,67,0.84), rgba(255,255,255,0.10), rgba(0,0,0,0.82))",
+      image: ncsLogo,
+      accent: "#007aff",
+      gradient: "linear-gradient(135deg, rgba(0,122,255,0.92), rgba(10,132,255,0.55), rgba(0,0,0,0.82))",
       status: "Live Season",
       meta: "Standings • Teams • Race Center",
     },
     {
       id: "xfinity",
-      title: "NASCAR Xfinity Series",
-      shortTitle: "Xfinity Series",
+      title: "Xfinity Series",
       eyebrow: "Development Division",
       route: "/series/xfinity",
-      logo: nxsLogo,
-      accent: "#7c3aed",
-      gradient: "linear-gradient(135deg, rgba(124,58,237,0.78), rgba(236,72,153,0.20), rgba(0,0,0,0.84))",
+      image: nxsLogo,
+      accent: "#a855f7",
+      gradient: "linear-gradient(135deg, rgba(168,85,247,0.92), rgba(236,72,153,0.48), rgba(0,0,0,0.82))",
       status: "Series Portal",
       meta: "Drivers • Teams • Join Requests",
     },
     {
       id: "truck",
-      title: "NASCAR Craftsman Truck Series",
-      shortTitle: "Truck Series",
+      title: "Truck Series",
       eyebrow: "Short Track Division",
       route: "/series/truck",
-      logo: ctsLogo,
-      accent: "#0ea5e9",
-      gradient: "linear-gradient(135deg, rgba(14,165,233,0.78), rgba(30,64,175,0.22), rgba(0,0,0,0.84))",
+      image: ctsLogo,
+      accent: "#ff9500",
+      gradient: "linear-gradient(135deg, rgba(255,149,0,0.92), rgba(255,204,0,0.45), rgba(0,0,0,0.82))",
       status: "Series Portal",
       meta: "Schedule • Rosters • Media",
     },
     {
       id: "arca",
-      title: "ARCA Menards Series",
-      shortTitle: "ARCA Series",
+      title: "ARCA Series",
       eyebrow: "Entry Division",
       route: "/series/arca",
-      logo: amsLogo,
-      accent: "#ef4444",
-      gradient: "linear-gradient(135deg, rgba(239,68,68,0.80), rgba(245,158,11,0.22), rgba(0,0,0,0.84))",
+      image: amsLogo,
+      accent: "#ff3b30",
+      gradient: "linear-gradient(135deg, rgba(255,59,48,0.92), rgba(255,149,0,0.46), rgba(0,0,0,0.82))",
       status: "Series Portal",
       meta: "Numbers • Drivers • Development",
     },
@@ -5312,7 +5308,7 @@ function AppleSeriesPortalLanding() {
                   cursor: "pointer",
                   textAlign: "left",
                   color: "white",
-                  backgroundImage: series.gradient,
+                  backgroundImage: `linear-gradient(180deg, rgba(0,0,0,0.04), rgba(0,0,0,0.16) 42%, rgba(0,0,0,0.70)), url(${series.image})`,
                   backgroundSize: "cover",
                   backgroundPosition: "center",
                   boxShadow: "0 24px 50px rgba(0,0,0,0.20)",
@@ -5323,30 +5319,9 @@ function AppleSeriesPortalLanding() {
                 <div style={{
                   position: "absolute",
                   inset: 0,
-                  background: "linear-gradient(180deg, rgba(255,255,255,0.10), rgba(0,0,0,0.12) 42%, rgba(0,0,0,0.72))",
+                  background: `radial-gradient(circle at top left, ${series.accent}38, transparent 42%), linear-gradient(180deg, rgba(255,255,255,0.06), rgba(0,0,0,0.10) 42%, rgba(0,0,0,0.74))`,
                   pointerEvents: "none",
                 }} />
-                <div style={{
-                  position: "absolute",
-                  inset: 0,
-                  display: "grid",
-                  placeItems: "center",
-                  padding: 30,
-                  pointerEvents: "none",
-                }}>
-                  <img
-                    src={series.logo}
-                    alt={`${series.title} logo`}
-                    style={{
-                      width: "92%",
-                      maxWidth: 430,
-                      maxHeight: 190,
-                      objectFit: "contain",
-                      filter: "drop-shadow(0 22px 34px rgba(0,0,0,0.55))",
-                      opacity: 0.96,
-                    }}
-                  />
-                </div>
                 <div style={{
                   position: "absolute",
                   top: 16,
@@ -5425,7 +5400,7 @@ function AppleSeriesPortalLanding() {
           fontWeight: 750,
           textAlign: "center",
         }}>
-          Series logos load from src/assets/series: NCS.png, NXS.png, CTS.png, and AMS.png.
+          Series tile backgrounds are loaded from src/assets/series/NCS.png, NXS.png, CTS.png, and AMS.png.
         </div>
       </div>
     </div>
