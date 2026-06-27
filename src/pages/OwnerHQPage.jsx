@@ -322,9 +322,11 @@ export default function OwnerHQPage({ drivers = [], teams = [], seasonName = "",
 
   function getSubstitutionStatusLabel(request) {
     const status = String(request?.status || "pending").toLowerCase();
-    if (status === "approved") return "Approved";
-    if (status === "denied") return "Denied";
+    if (status === "approved_pending_driver") return "Approved - Waiting on Driver";
+    if (status === "driver_accepted") return "Driver Accepted";
+    if (status === "driver_declined") return "Driver Declined";
     if (status === "completed") return "Completed";
+    if (status === "denied") return "Denied";
     if (status === "cancelled") return "Cancelled";
     return "Pending Admin";
   }
