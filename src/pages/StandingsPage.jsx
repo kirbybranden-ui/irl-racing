@@ -604,6 +604,18 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
   const [publicMenuOpen, setPublicMenuOpen] = useState(false);
   const [featuredVideo, setFeaturedVideo] = useState(null);
   const [manualOnesToWatch, setManualOnesToWatch] = useState([]);
+  const [viewportWidth, setViewportWidth] = useState(() => (typeof window !== "undefined" ? window.innerWidth : 1200));
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const handleResize = () => setViewportWidth(window.innerWidth);
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const isMobile = viewportWidth < 760;
+  const isTablet = viewportWidth >= 760 && viewportWidth < 1040;
 
   const handleDriverClick = (number) => {
     window.location.pathname = `/driver/${number}`;
@@ -786,7 +798,7 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
   const container = {
     maxWidth: 1440,
     margin: "0 auto",
-    padding: "22px clamp(14px, 2vw, 28px) 50px",
+    padding: isMobile ? "12px 10px 34px" : "22px clamp(14px, 2vw, 28px) 50px",
   };
 
   const glassCard = {
@@ -810,9 +822,9 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
   };
 
   const publicMessageIconButtonStyle = {
-    width: 50,
-    height: 50,
-    borderRadius: 16,
+    width: isMobile ? 44 : 50,
+    height: isMobile ? 44 : 50,
+    borderRadius: isMobile ? 14 : 16,
     border: "1px solid rgba(17,24,39,0.10)",
     background: "linear-gradient(180deg, #007aff 0%, #5856d6 100%)",
     color: "#ffffff",
@@ -827,9 +839,9 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
   };
 
   const publicMenuButtonStyle = {
-    width: 50,
-    height: 50,
-    borderRadius: 16,
+    width: isMobile ? 44 : 50,
+    height: isMobile ? 44 : 50,
+    borderRadius: isMobile ? 14 : 16,
     border: "1px solid rgba(17,24,39,0.10)",
     background: "rgba(255,255,255,0.92)",
     boxShadow: "0 10px 28px rgba(15,23,42,0.12)",
@@ -861,10 +873,10 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
 
   const publicMenuPanelStyle = {
     position: "fixed",
-    right: 24,
-    top: 96,
+    right: isMobile ? 10 : 24,
+    top: isMobile ? 78 : 96,
     zIndex: 2147483001,
-    width: "min(360px, calc(100vw - 48px))",
+    width: isMobile ? "calc(100vw - 20px)" : "min(360px, calc(100vw - 48px))",
     background: "rgba(255,255,255,0.98)",
     border: "1px solid rgba(17,24,39,0.10)",
     borderRadius: 24,
@@ -897,8 +909,8 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
       style={{
         ...glassCard,
         textAlign: "left",
-        padding: 18,
-        minHeight: 132,
+        padding: isMobile ? 14 : 18,
+        minHeight: isMobile ? 112 : 132,
         background: `linear-gradient(135deg, ${tint}, rgba(255,255,255,0.94))`,
         cursor: onClick ? "pointer" : "default",
         width: "100%",
@@ -911,8 +923,8 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
         </div>
         {onClick && <div style={{ opacity: 0.38, fontWeight: 900 }}>›</div>}
       </div>
-      <div style={{ marginTop: 16, fontSize: 11, fontWeight: 950, letterSpacing: 1.1, color: "#4b5563", textTransform: "uppercase" }}>{label}</div>
-      <div style={{ marginTop: 4, fontSize: 24, lineHeight: 1.05, fontWeight: 950, letterSpacing: -0.5, color: "#111827" }}>{value || "—"}</div>
+      <div style={{ marginTop: isMobile ? 12 : 16, fontSize: 11, fontWeight: 950, letterSpacing: 1.1, color: "#4b5563", textTransform: "uppercase" }}>{label}</div>
+      <div style={{ marginTop: 4, fontSize: isMobile ? 20 : 24, lineHeight: 1.05, fontWeight: 950, letterSpacing: -0.5, color: "#111827" }}>{value || "—"}</div>
       {detail && <div style={{ marginTop: 6, fontSize: 13, color: "#374151", fontWeight: 750 }}>{detail}</div>}
     </button>
   );
@@ -935,8 +947,8 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
           cursor: "pointer",
           boxShadow: isLeader ? "0 18px 44px rgba(212,175,55,0.18)" : "0 12px 30px rgba(15,23,42,0.07)",
           display: "grid",
-          gridTemplateColumns: "auto auto minmax(180px, 1.4fr) repeat(6, minmax(70px, 0.65fr)) auto",
-          gap: 12,
+          gridTemplateColumns: isMobile ? "auto 1fr auto" : (isTablet ? "auto auto minmax(220px, 1fr) repeat(3, minmax(66px, 0.55fr)) auto" : "auto auto minmax(180px, 1.4fr) repeat(6, minmax(70px, 0.65fr)) auto"),
+          gap: isMobile ? 10 : 12,
           alignItems: "center",
           color: "#1d1d1f",
         }}
@@ -956,14 +968,14 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
             <div style={{ width: `${leader?.points ? Math.max(4, Math.min(100, (Number(driver.points || 0) / Number(leader.points || 1)) * 100)) : 0}%`, height: "100%", borderRadius: 999, background: brand.accent }} />
           </div>
         </div>
-        {[
+        {([
           ["PTS", driver.points],
           ["W", driver.wins],
           ["T3", driver.top3],
           ["T5", driver.top5],
           ["DNF", driver.dnfs || 0],
           ["PEN", driver.totalPenalties ? `-${driver.totalPenalties}` : "0"],
-        ].map(([label, value]) => (
+        ]).filter(([label]) => !isMobile || ["PTS", "W", "T5"].includes(label)).filter(([label]) => !isTablet || ["PTS", "W", "T3"].includes(label)).map(([label, value]) => (
           <div key={label} style={{ background: "#f5f5f7", borderRadius: 16, padding: "10px 8px", textAlign: "center" }}>
             <div style={{ fontSize: 10, color: "#86868b", fontWeight: 950 }}>{label}</div>
             <div style={{ marginTop: 3, fontSize: 18, fontWeight: 950, color: label === "PEN" && String(value).startsWith("-") ? "#dc2626" : "#1d1d1f" }}>{value}</div>
@@ -1020,8 +1032,8 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
           textAlign: "left",
           cursor: "pointer",
           display: "grid",
-          gridTemplateColumns: "auto auto 1fr auto",
-          gap: 18,
+          gridTemplateColumns: isMobile ? "auto 1fr" : "auto auto 1fr auto",
+          gap: isMobile ? 12 : 18,
           alignItems: "center",
           color: "#1d1d1f",
         }}
@@ -1053,10 +1065,10 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
         onClick={() => (window.location.href = `/manufacturer/${encodeURIComponent(manufacturerName)}`)}
         style={{
           ...glassCard,
-          padding: 24,
+          padding: isMobile ? 18 : 24,
           textAlign: "center",
           cursor: "pointer",
-          minHeight: 280,
+          minHeight: isMobile ? 230 : 280,
           color: "#1d1d1f",
           position: "relative",
           overflow: "hidden",
@@ -1068,15 +1080,15 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
       >
         <div style={{ position: "absolute", right: -42, top: -42, width: 150, height: 150, borderRadius: "50%", background: `${color}1f` }} />
         <div style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14 }}>
-          {renderManufacturerLogo(manufacturerName, 76)}
+          {renderManufacturerLogo(manufacturerName, isMobile ? 64 : 76)}
           <div style={{ width: 46, height: 46, borderRadius: 17, background: `${color}20`, color, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 1000 }}>
             P{index + 1}
           </div>
         </div>
 
         <div style={{ position: "relative", zIndex: 1, marginTop: 20, width: "100%" }}>
-          <div style={{ fontSize: 32, fontWeight: 1000, letterSpacing: -1 }}>{manufacturerName}</div>
-          <div style={{ marginTop: 8, fontSize: 42, fontWeight: 1000, letterSpacing: -1.4 }}>{item.points || 0}</div>
+          <div style={{ fontSize: isMobile ? 26 : 32, fontWeight: 1000, letterSpacing: -1 }}>{manufacturerName}</div>
+          <div style={{ marginTop: 8, fontSize: isMobile ? 34 : 42, fontWeight: 1000, letterSpacing: -1.4 }}>{item.points || 0}</div>
           <div style={{ color: "#86868b", fontWeight: 900, fontSize: 12, letterSpacing: 1.1 }}>MANUFACTURER POINTS</div>
           <div style={{ marginTop: 18, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
             {[
@@ -1106,17 +1118,21 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
     <div style={applePage}>
       <div style={container}>
         <style>{`
-          @media (max-width: 920px) {
-            .bcl-driver-row { grid-template-columns: 1fr !important; min-width: 0 !important; }
-            .bcl-driver-row-stats { grid-template-columns: repeat(3, 1fr) !important; }
+          * { box-sizing: border-box; }
+          @media (max-width: 760px) {
+            .bcl-driver-row { min-width: 0 !important; }
+            .bcl-scroll-safe { overflow-x: hidden !important; }
+            button, a { -webkit-tap-highlight-color: transparent; }
           }
-          .bcl-apple-button:hover { transform: translateY(-2px); box-shadow: 0 18px 45px rgba(15,23,42,0.12) !important; }
+          @media (hover: hover) {
+            .bcl-apple-button:hover { transform: translateY(-2px); box-shadow: 0 18px 45px rgba(15,23,42,0.12) !important; }
+          }
         `}</style>
 
-        <div style={{ ...glassCard, marginBottom: 16, padding: "18px 20px", background: "rgba(255,255,255,0.82)", boxShadow: "0 18px 48px rgba(15,23,42,0.08)" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
-            <div style={{ fontSize: 13, color: "#6e6e73", fontWeight: 950, letterSpacing: 1.1, textTransform: "uppercase" }}>Cup Control Center</div>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ ...glassCard, marginBottom: isMobile ? 10 : 16, padding: isMobile ? "12px" : "18px 20px", background: "rgba(255,255,255,0.82)", boxShadow: "0 18px 48px rgba(15,23,42,0.08)" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: isMobile ? 10 : 14, flexWrap: "nowrap" }}>
+            <div style={{ fontSize: isMobile ? 11 : 13, color: "#6e6e73", fontWeight: 950, letterSpacing: 1.1, textTransform: "uppercase" }}>{isMobile ? "Cup" : "Cup Control Center"}</div>
+            <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 8 : 12 }}>
               <button
                 type="button"
                 aria-label="Go to league landing page"
@@ -1194,17 +1210,17 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
           </>
         )}
 
-        <section style={{ ...glassCard, padding: "clamp(18px, 2.5vw, 26px)", marginBottom: 18, position: "relative", overflow: "hidden" }}>
+        <section style={{ ...glassCard, padding: isMobile ? 14 : "clamp(18px, 2.5vw, 26px)", marginBottom: isMobile ? 12 : 18, position: "relative", overflow: "hidden" }}>
           <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 88% 0%, rgba(212,175,55,0.16), transparent 34%)", pointerEvents: "none" }} />
-          <div style={{ position: "relative", display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(240px, 0.62fr)", gap: 20, alignItems: "center" }}>
+          <div style={{ position: "relative", display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 1fr) minmax(240px, 0.62fr)", gap: isMobile ? 12 : 20, alignItems: "center" }}>
             <div>
               <img
                 src={ncsLogo}
                 alt="NASCAR Cup Series"
                 style={{
                   display: "block",
-                  width: "min(420px, 92vw)",
-                  maxHeight: 150,
+                  width: isMobile ? "min(260px, 78vw)" : "min(420px, 92vw)",
+                  maxHeight: isMobile ? 100 : 150,
                   objectFit: "contain",
                   margin: "4px 0 6px",
                   filter: "drop-shadow(0 18px 34px rgba(15,23,42,0.16))",
@@ -1213,7 +1229,7 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
             </div>
             <div style={{ ...glassCard, padding: 18, background: "rgba(255,255,255,0.62)", boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.5), 0 18px 50px rgba(15,23,42,0.08)" }}>
               <div style={{ fontSize: 12, color: "#6e6e73", fontWeight: 950, letterSpacing: 1.15, textTransform: "uppercase" }}>Race Weekend</div>
-              <div style={{ marginTop: 10, fontSize: 30, lineHeight: 1.02, fontWeight: 1000 }}>{nextRace?.name || "Season Complete"}</div>
+              <div style={{ marginTop: 10, fontSize: isMobile ? 24 : 30, lineHeight: 1.02, fontWeight: 1000 }}>{nextRace?.name || "Season Complete"}</div>
               <div style={{ marginTop: 8, color: "#6e6e73", fontWeight: 800 }}>
                 {nextRace?.date ? new Date(nextRace.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }) : "All scheduled races complete"}
               </div>
@@ -1244,7 +1260,7 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
           </section>
         )}
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 14, marginBottom: 18 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(auto-fit, minmax(210px, 1fr))", gap: isMobile ? 10 : 14, marginBottom: isMobile ? 12 : 18 }}>
           <StatCard icon="🏆" label="Active Season" value={seasonName || "Season"} detail={`${completedRaceCount} races entered`} accent="#ff9f0a" tint="rgba(255,159,10,0.16)" />
           <StatCard icon="👑" label="Points Leader" value={leader ? `#${leader.number} ${leader.name}` : "—"} detail={leader ? `${leader.points} points` : "No leader yet"} onClick={() => leader && handleDriverClick(leader.number)} accent="#5856d6" tint="rgba(88,86,214,0.14)" />
           <StatCard icon="👥" label="Active Drivers" value={sorted.length} detail={`${teams.length} teams`} accent="#34c759" tint="rgba(52,199,89,0.14)" />
@@ -1261,15 +1277,15 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
             ...glassCard,
             width: "100%",
             textAlign: "left",
-            padding: 22,
-            marginBottom: 18,
+            padding: isMobile ? 16 : 22,
+            marginBottom: isMobile ? 12 : 18,
             cursor: "pointer",
             color: "#1d1d1f",
             background: "linear-gradient(135deg, rgba(255,255,255,0.90), rgba(255,248,220,0.86))",
           }}
         >
           <div style={{ color: "#b45309", fontSize: 12, fontWeight: 1000, letterSpacing: 1.3, textTransform: "uppercase" }}>Silly Season</div>
-          <div style={{ marginTop: 6, fontSize: 30, fontWeight: 1000 }}>🔥 Driver Market</div>
+          <div style={{ marginTop: 6, fontSize: isMobile ? 24 : 30, fontWeight: 1000 }}>🔥 Driver Market</div>
           <div style={{ marginTop: 5, color: "#6e6e73", fontWeight: 720 }}>Scout drivers, track current-team re-sign interest, and follow the market before signing day.</div>
         </button>
 
@@ -1278,7 +1294,7 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 14, flexWrap: "wrap", marginBottom: 14 }}>
               <div>
                 <div style={{ color: "#b45309", fontSize: 12, fontWeight: 1000, letterSpacing: 1.3, textTransform: "uppercase" }}>Broadcast Feature</div>
-                <h2 style={{ margin: "5px 0 0", fontSize: 34, letterSpacing: -1.2 }}>🔥 Ones to Watch</h2>
+                <h2 style={{ margin: "5px 0 0", fontSize: isMobile ? 26 : 34, letterSpacing: -1.2 }}>🔥 Ones to Watch</h2>
               </div>
               <div style={{ color: "#86868b", fontWeight: 900, fontSize: 12 }}>{onesToWatchMode}</div>
             </div>
@@ -1326,7 +1342,7 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
               type="button"
               onClick={() => setStandingsTab(tab.key)}
               style={{
-                flex: "1 1 180px",
+                flex: isMobile ? "1 1 calc(50% - 8px)" : "1 1 180px",
                 border: "none",
                 borderRadius: 999,
                 padding: "13px 16px",
@@ -1342,11 +1358,11 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
         </div>
 
         {standingsTab === "drivers" && (
-          <section style={{ ...glassCard, padding: 18, marginBottom: 20 }}>
+          <section style={{ ...glassCard, padding: isMobile ? 14 : 18, marginBottom: isMobile ? 14 : 20 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
               <div>
                 <div style={{ color: "#2563eb", fontSize: 12, fontWeight: 1000, letterSpacing: 1.3, textTransform: "uppercase" }}>Championship Table</div>
-                <h2 style={{ margin: "4px 0 0", fontSize: 34, letterSpacing: -1.2 }}>Driver Standings</h2>
+                <h2 style={{ margin: "4px 0 0", fontSize: isMobile ? 27 : 34, letterSpacing: -1.2 }}>Driver Standings</h2>
               </div>
               <div style={{ color: "#6e6e73", fontWeight: 850 }}>{sorted.length} active drivers • {totalPoints} points awarded</div>
             </div>
@@ -1357,9 +1373,9 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
         )}
 
         {standingsTab === "teams" && (
-          <section style={{ ...glassCard, padding: 18, marginBottom: 20 }}>
+          <section style={{ ...glassCard, padding: isMobile ? 14 : 18, marginBottom: isMobile ? 14 : 20 }}>
             <div style={{ color: "#34c759", fontSize: 12, fontWeight: 1000, letterSpacing: 1.3, textTransform: "uppercase" }}>Organizations</div>
-            <h2 style={{ margin: "4px 0 16px", fontSize: 34, letterSpacing: -1.2 }}>Team Standings</h2>
+            <h2 style={{ margin: "4px 0 16px", fontSize: isMobile ? 27 : 34, letterSpacing: -1.2 }}>Team Standings</h2>
             <div style={{ display: "grid", gap: 12 }}>
               {teamRows.map((team, index) => <TeamCard key={team.team || index} team={team} index={index} />)}
             </div>
@@ -1367,20 +1383,20 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
         )}
 
         {standingsTab === "manufacturers" && (
-          <section style={{ ...glassCard, padding: 18, marginBottom: 20 }}>
+          <section style={{ ...glassCard, padding: isMobile ? 14 : 18, marginBottom: isMobile ? 14 : 20 }}>
             <div style={{ color: "#ff9f0a", fontSize: 12, fontWeight: 1000, letterSpacing: 1.3, textTransform: "uppercase" }}>Manufacturer Battle</div>
-            <h2 style={{ margin: "4px 0 16px", fontSize: 34, letterSpacing: -1.2 }}>Manufacturer Standings</h2>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(290px, 1fr))", gap: 16 }}>
+            <h2 style={{ margin: "4px 0 16px", fontSize: isMobile ? 27 : 34, letterSpacing: -1.2 }}>Manufacturer Standings</h2>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fit, minmax(290px, 1fr))", gap: isMobile ? 12 : 16 }}>
               {manufacturerRows.map((item, index) => <ManufacturerCard key={item.manufacturer || index} item={item} index={index} />)}
             </div>
           </section>
         )}
 
         {standingsTab === "points" && (
-          <section style={{ ...glassCard, padding: 18, marginBottom: 20 }}>
+          <section style={{ ...glassCard, padding: isMobile ? 14 : 18, marginBottom: isMobile ? 14 : 20 }}>
             <div style={{ color: "#5856d6", fontSize: 12, fontWeight: 1000, letterSpacing: 1.3, textTransform: "uppercase" }}>Rules Reference</div>
-            <h2 style={{ margin: "4px 0 16px", fontSize: 34, letterSpacing: -1.2 }}>Points & Penalties</h2>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(290px, 1fr))", gap: 16 }}>
+            <h2 style={{ margin: "4px 0 16px", fontSize: isMobile ? 27 : 34, letterSpacing: -1.2 }}>Points & Penalties</h2>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fit, minmax(290px, 1fr))", gap: isMobile ? 12 : 16 }}>
               {pointCards.map((card) => (
                 <div key={card.title} style={{ background: "rgba(255,255,255,0.82)", border: "1px solid rgba(15,23,42,0.08)", borderRadius: 24, padding: 18, boxShadow: "0 12px 30px rgba(15,23,42,0.06)" }}>
                   <div style={{ width: 46, height: 46, borderRadius: 16, background: "#f5f5f7", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>{card.icon}</div>
@@ -1393,8 +1409,8 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
         )}
 
         {scheduleOpen && (
-          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.34)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 }}>
-            <div style={{ ...glassCard, background: "rgba(255,255,255,0.92)", padding: 22, maxWidth: 640, width: "100%", maxHeight: "84vh", overflowY: "auto" }}>
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.34)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: isMobile ? 10 : 20 }}>
+            <div style={{ ...glassCard, background: "rgba(255,255,255,0.92)", padding: isMobile ? 14 : 22, maxWidth: 640, width: "100%", maxHeight: isMobile ? "92vh" : "84vh", overflowY: "auto" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 18 }}>
                 <div>
                   <div style={{ color: "#86868b", fontSize: 12, fontWeight: 1000, letterSpacing: 1.3, textTransform: "uppercase" }}>Cup Series</div>
@@ -1423,8 +1439,8 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
         )}
 
         {selectedTrackInfo && (
-          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.38)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1100, padding: 20 }}>
-            <div style={{ ...glassCard, background: "rgba(255,255,255,0.94)", padding: 22, maxWidth: 940, width: "100%", maxHeight: "88vh", overflowY: "auto" }}>
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.38)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1100, padding: isMobile ? 10 : 20 }}>
+            <div style={{ ...glassCard, background: "rgba(255,255,255,0.94)", padding: isMobile ? 14 : 22, maxWidth: 940, width: "100%", maxHeight: isMobile ? "92vh" : "88vh", overflowY: "auto" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 18 }}>
                 <div>
                   <div style={{ color: "#86868b", fontSize: 12, fontWeight: 1000, letterSpacing: 1.3, textTransform: "uppercase" }}>iRacing Track Info</div>
