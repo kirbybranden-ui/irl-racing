@@ -4827,7 +4827,7 @@ function MobileDriverProfilePolished({ driver, driverNumber, raceHistory = [], t
         </div>
         <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", paddingBottom: 4 }}>
           <div style={{ minWidth: 360 }}>
-            <DriverProfilePage seasons={seasons} activeSeason={activeSeason} tracks={tracks} />
+            <DriverProfilePage seasons={seasons} activeSeason={activeSeason} tracks={tracks} ownerDriverAssignments={ownerDriverAssignments} loadOwnerDriverAssignments={loadOwnerDriverAssignments} />
           </div>
         </div>
       </MobileCard>
@@ -6433,8 +6433,11 @@ export default function App() {
   const updateOwnerDriverAssignmentStatus = async (assignmentId, status, extraFields = {}) => {
     if (!assignmentId || !supabase) return { ok: false, error: "Missing assignment or Supabase client." };
 
+    const normalizedStatus = String(status || "").toLowerCase();
+    const nextStatus = normalizedStatus === "approved" ? "approved_pending_driver" : normalizedStatus;
+
     const patch = {
-      status,
+      status: nextStatus,
       reviewed_by: extraFields.reviewed_by || "Admin",
       reviewed_at: extraFields.reviewed_at || new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -6899,7 +6902,7 @@ export default function App() {
 
     return (ownerDriverAssignments || []).find((assignment) => {
       const status = String(assignment?.status || "").toLowerCase();
-      if (!["approved", "completed"].includes(status)) return false;
+      if (!["driver_accepted", "completed"].includes(status)) return false;
       if (String(assignment?.series || "cup").toLowerCase() !== "cup") return false;
 
       const assignmentRace = String(assignment?.race_name || assignment?.race_id || "").trim().toLowerCase();
@@ -7762,7 +7765,7 @@ export default function App() {
           </div>
         </div>
         <DriverVoteReminderStrip driverNumber={decodeURIComponent(rawPath.replace(/^\/driver\//i, "").split("/")[0])} />
-        <DriverProfilePage seasons={seasons} activeSeason={activeSeason} tracks={tracks} />
+        <DriverProfilePage seasons={seasons} activeSeason={activeSeason} tracks={tracks} ownerDriverAssignments={ownerDriverAssignments} loadOwnerDriverAssignments={loadOwnerDriverAssignments} />
       </>
     );
   }
