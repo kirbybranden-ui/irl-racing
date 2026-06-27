@@ -5046,6 +5046,8 @@ function LeagueStatusWidget({ tracks = [], seasonName = "", mobile = false }) {
 
 
 function AppleSeriesPortalLanding() {
+  const [showV3Details, setShowV3Details] = useState(false);
+
   const seriesCards = [
     {
       id: "cup",
@@ -5250,6 +5252,55 @@ function AppleSeriesPortalLanding() {
                   </div>
                 ))}
               </div>
+
+              <button
+                type="button"
+                onClick={() => setShowV3Details((current) => !current)}
+                style={{
+                  marginTop: 18,
+                  border: "1px solid rgba(0,122,255,0.20)",
+                  borderRadius: 999,
+                  padding: "11px 15px",
+                  background: "rgba(0,122,255,0.10)",
+                  color: "#0057d9",
+                  fontWeight: 1000,
+                  cursor: "pointer",
+                  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.72)",
+                }}
+              >
+                {showV3Details ? "Hide Version 3 Details" : "Read More About Version 3"}
+              </button>
+
+              {showV3Details && (
+                <div style={{
+                  marginTop: 16,
+                  borderRadius: 24,
+                  padding: "16px",
+                  background: "rgba(255,255,255,0.72)",
+                  border: "1px solid rgba(0,0,0,0.06)",
+                  boxShadow: "0 16px 34px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.78)",
+                }}>
+                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(29,29,31,0.54)", marginBottom: 8 }}>Full Update Preview</div>
+                  <h3 style={{ margin: "0 0 10px", fontSize: 24, lineHeight: 1.05, letterSpacing: "-0.04em" }}>What Version 3 is designed to accomplish</h3>
+                  <div style={{ display: "grid", gap: 12, color: "rgba(29,29,31,0.72)", fontWeight: 760, lineHeight: 1.5, fontSize: 14 }}>
+                    <p style={{ margin: 0 }}>
+                      Version 3 is more than a visual refresh. The league is being rebuilt into the <strong>Budweiser Racing League</strong>, a unified platform designed to support Cup, Xfinity, Truck, and ARCA from one connected home.
+                    </p>
+                    <p style={{ margin: 0 }}>
+                      The redesign will focus on a cleaner Apple-inspired view, easier navigation, improved mobile support, and a seamless login experience that connects every series without forcing drivers or owners to jump between separate systems.
+                    </p>
+                    <p style={{ margin: 0 }}>
+                      Season 2 will also include a contract and team-ownership revamp. The goal is to give owners and drivers more stability through clearer logistical requirements, smaller and more controlled budgets, stronger fund management, and a better foundation for long-term team planning.
+                    </p>
+                    <p style={{ margin: 0 }}>
+                      The ARCA Series will be fully functional before the start of its season, including driver and owner management, contracts, race operations, HR tools, PR tools, voting, standings, race history, and team/driver pages under the same league guidelines.
+                    </p>
+                    <p style={{ margin: 0 }}>
+                      To complete the Version 3 migration and rebrand, the platform is expected to have approximately <strong>five days of scheduled downtime</strong> while data is secured, moved, tested, and deployed.
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
 
             <aside style={{
