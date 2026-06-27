@@ -541,6 +541,7 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
   const [standingsTab, setStandingsTab] = useState("drivers");
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [selectedTrackInfo, setSelectedTrackInfo] = useState(null);
+  const [publicMenuOpen, setPublicMenuOpen] = useState(false);
   const [featuredVideo, setFeaturedVideo] = useState(null);
   const [manualOnesToWatch, setManualOnesToWatch] = useState([]);
 
@@ -749,16 +750,19 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
   };
 
   const navItems = [
-    { label: "Streams", icon: "📡", route: "/streams" },
-    { label: "News", icon: "📰", route: "/news" },
-    { label: "Interviews", icon: "🎤", route: "/interviews" },
-    { label: "Gallery", icon: "🎨", route: "/paint-scheme-vote" },
-    { label: "Bracket", icon: "🏆", route: "/bracket" },
-    { label: "Vote", icon: "🗳️", route: "/vote" },
-    { label: "Team HQ", icon: "🏢", route: "/team-hq" },
-    { label: "Contracts", icon: "📄", route: "/contracts" },
-    { label: "Messages", icon: "📩", route: "/message-center" },
-    { label: "Admin", icon: "🔐", route: "/admin" },
+    { label: "Streams", subtitle: "Live broadcasts", icon: "📡", route: "/streams" },
+    { label: "News", subtitle: "League stories", icon: "📰", route: "/news" },
+    { label: "Interviews", subtitle: "Driver media", icon: "🎤", route: "/interviews" },
+    { label: "Paint Scheme Vote", subtitle: "Weekly fan voting", icon: "🎨", route: "/paint-scheme-vote" },
+    { label: "In-Season Bracket", subtitle: "Tournament hub", icon: "🏆", route: "/bracket" },
+    { label: "League Vote", subtitle: "Polls and ballots", icon: "🗳️", route: "/vote" },
+    { label: "Team HQ", subtitle: "Owner workspace", icon: "🏢", route: "/team-hq" },
+    { label: "Active Contracts", subtitle: "Current agreements", icon: "📄", route: "/contracts" },
+    { label: "Add Story", subtitle: "Submit content", icon: "✍️", route: "/submit-story" },
+    { label: "Notifications", subtitle: "Public alerts", icon: "🔔", route: "/notifications" },
+    { label: "Message Center", subtitle: "League inbox", icon: "📩", route: "/message-center" },
+    { label: "League Chat", subtitle: "Community room", icon: "💬", route: "/chat" },
+    { label: "Admin Portal", subtitle: "League control", icon: "🔐", route: "/admin" },
   ];
 
   const StatCard = ({ icon, label, value, detail, onClick }) => (
@@ -962,33 +966,62 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
           <button type="button" onClick={() => (window.location.pathname = "/")} style={{ ...pillButton, display: "inline-flex", alignItems: "center", gap: 8 }}>
             ← Series Hub
           </button>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
             <button type="button" onClick={() => (window.location.pathname = "/message-center")} style={{ ...pillButton, background: "#1d1d1f", color: "#fff" }}>📩 Messages</button>
-            <button type="button" onClick={() => (window.location.pathname = "/admin")} style={{ ...pillButton }}>🔐 Admin</button>
+            <button type="button" onClick={() => setPublicMenuOpen(true)} style={{ ...pillButton, background: "rgba(255,255,255,0.92)", color: "#1d1d1f" }}>☰ Menu</button>
           </div>
         </div>
 
-        <section style={{ ...glassCard, padding: "clamp(20px, 3vw, 34px)", marginBottom: 18, position: "relative", overflow: "hidden" }}>
-          <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 88% 0%, rgba(212,175,55,0.20), transparent 34%)", pointerEvents: "none" }} />
-          <div style={{ position: "relative", display: "grid", gridTemplateColumns: "minmax(0, 1.4fr) minmax(260px, 0.6fr)", gap: 20, alignItems: "center" }}>
-            <div>
-              <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-                <img src={logo} alt="League Logo" style={{ height: 62, filter: "drop-shadow(0 10px 20px rgba(15,23,42,0.10))" }} />
-                <span style={{ padding: "8px 12px", borderRadius: 999, background: "rgba(255,255,255,0.75)", border: "1px solid rgba(15,23,42,0.08)", fontSize: 12, fontWeight: 950, color: "#6e6e73", letterSpacing: 1.1 }}>CUP SERIES</span>
+        {publicMenuOpen && (
+          <div style={{ position: "fixed", inset: 0, zIndex: 999999, display: "flex" }}>
+            <button
+              type="button"
+              aria-label="Close menu"
+              onClick={() => setPublicMenuOpen(false)}
+              style={{ position: "absolute", inset: 0, border: "none", background: "rgba(15,23,42,0.28)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", cursor: "default" }}
+            />
+            <aside style={{ position: "relative", width: "min(390px, calc(100vw - 28px))", height: "calc(100vh - 28px)", margin: 14, borderRadius: 30, background: "rgba(255,255,255,0.90)", border: "1px solid rgba(255,255,255,0.86)", boxShadow: "0 30px 90px rgba(15,23,42,0.26)", backdropFilter: "blur(30px)", WebkitBackdropFilter: "blur(30px)", padding: 18, overflowY: "auto", color: "#1d1d1f" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 18 }}>
+                <div>
+                  <div style={{ fontSize: 12, color: "#86868b", fontWeight: 950, letterSpacing: 1.2, textTransform: "uppercase" }}>Cup Series</div>
+                  <div style={{ fontSize: 28, fontWeight: 1000, letterSpacing: -0.8 }}>Menu</div>
+                </div>
+                <button type="button" onClick={() => setPublicMenuOpen(false)} style={{ width: 38, height: 38, borderRadius: 999, border: "1px solid rgba(15,23,42,0.08)", background: "#f5f5f7", color: "#1d1d1f", fontSize: 22, fontWeight: 900, cursor: "pointer" }}>×</button>
               </div>
-              <h1 style={{ margin: "18px 0 8px", fontSize: "clamp(42px, 7vw, 84px)", lineHeight: 0.9, letterSpacing: -3.2, fontWeight: 1000 }}>
-                Budweiser Racing League
-              </h1>
-              <p style={{ margin: 0, maxWidth: 760, color: "#6e6e73", fontSize: "clamp(16px, 2vw, 20px)", lineHeight: 1.45, fontWeight: 720 }}>
-                Cup Series standings, race weekend status, championship leaders, team performance, and manufacturer battles in one clean view.
-              </p>
-              <div style={{ marginTop: 20, display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <div style={{ display: "grid", gap: 10 }}>
                 {navItems.map((item) => (
-                  <button key={item.label} type="button" onClick={() => (window.location.pathname = item.route)} style={{ ...pillButton, display: "inline-flex", alignItems: "center", gap: 8 }}>
-                    <span>{item.icon}</span>{item.label}
+                  <button
+                    key={item.label}
+                    type="button"
+                    onClick={() => (window.location.pathname = item.route)}
+                    style={{ display: "grid", gridTemplateColumns: "44px 1fr auto", gap: 12, alignItems: "center", width: "100%", textAlign: "left", border: "1px solid rgba(15,23,42,0.07)", background: "rgba(255,255,255,0.72)", borderRadius: 20, padding: 12, cursor: "pointer", color: "#1d1d1f", boxShadow: "0 10px 25px rgba(15,23,42,0.05)" }}
+                  >
+                    <span style={{ width: 44, height: 44, borderRadius: 16, background: "#f5f5f7", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>{item.icon}</span>
+                    <span>
+                      <span style={{ display: "block", fontSize: 16, fontWeight: 950 }}>{item.label}</span>
+                      <span style={{ display: "block", marginTop: 2, fontSize: 12, color: "#86868b", fontWeight: 750 }}>{item.subtitle}</span>
+                    </span>
+                    <span style={{ color: "#86868b", fontSize: 22, fontWeight: 900 }}>›</span>
                   </button>
                 ))}
               </div>
+            </aside>
+          </div>
+        )}
+
+        <section style={{ ...glassCard, padding: "clamp(18px, 2.5vw, 26px)", marginBottom: 18, position: "relative", overflow: "hidden" }}>
+          <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 88% 0%, rgba(212,175,55,0.16), transparent 34%)", pointerEvents: "none" }} />
+          <div style={{ position: "relative", display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(240px, 0.62fr)", gap: 20, alignItems: "center" }}>
+            <div>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 999, background: "rgba(255,255,255,0.72)", border: "1px solid rgba(15,23,42,0.07)", fontSize: 12, color: "#6e6e73", fontWeight: 950, letterSpacing: 1.2, textTransform: "uppercase" }}>
+                🏁 NASCAR Cup Series
+              </div>
+              <h1 style={{ margin: "14px 0 6px", fontSize: "clamp(32px, 5vw, 58px)", lineHeight: 0.94, letterSpacing: -2.2, fontWeight: 1000 }}>
+                Standings
+              </h1>
+              <p style={{ margin: 0, maxWidth: 720, color: "#6e6e73", fontSize: "clamp(15px, 1.7vw, 18px)", lineHeight: 1.45, fontWeight: 720 }}>
+                Championship leaders, race weekend status, team performance, and manufacturer battles in one clean Cup Series view.
+              </p>
             </div>
             <div style={{ ...glassCard, padding: 18, background: "rgba(255,255,255,0.62)", boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.5), 0 18px 50px rgba(15,23,42,0.08)" }}>
               <div style={{ fontSize: 12, color: "#6e6e73", fontWeight: 950, letterSpacing: 1.15, textTransform: "uppercase" }}>Race Weekend</div>
