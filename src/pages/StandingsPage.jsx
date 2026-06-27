@@ -1048,14 +1048,65 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
           .bcl-apple-button:hover { transform: translateY(-2px); box-shadow: 0 18px 45px rgba(15,23,42,0.12) !important; }
         `}</style>
 
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap", marginBottom: 18 }}>
-          <button type="button" onClick={() => (window.location.pathname = "/")} style={{ ...pillButton, display: "inline-flex", alignItems: "center", gap: 8 }}>
-            ← Series Hub
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10, flexWrap: "wrap", marginBottom: 18 }}>
+          <button
+            type="button"
+            onClick={() => (window.location.pathname = "/")}
+            style={{
+              ...pillButton,
+              background: "rgba(255,255,255,0.94)",
+              color: "#1d1d1f",
+              border: "1px solid rgba(15,23,42,0.08)",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              boxShadow: "0 12px 30px rgba(15,23,42,0.08)",
+            }}
+          >
+            <span style={{ width: 26, height: 26, borderRadius: 9, background: "linear-gradient(135deg, #34c759, #30d158)", color: "#ffffff", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>⌂</span>
+            Home
           </button>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-            <button type="button" onClick={() => (window.location.pathname = "/message-center")} style={{ ...pillButton, background: "linear-gradient(135deg, #007aff, #5856d6)", color: "#fff", border: "none" }}>📩 Messages</button>
-            <button type="button" onClick={() => setPublicMenuOpen(true)} style={{ ...pillButton, background: "rgba(255,255,255,0.96)", color: "#111827" }}>☰ Menu</button>
-          </div>
+          <button
+            type="button"
+            onClick={() => (window.location.pathname = "/message-center")}
+            style={{
+              ...pillButton,
+              background: "linear-gradient(135deg, #007aff, #5856d6)",
+              color: "#fff",
+              border: "none",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              boxShadow: "0 12px 30px rgba(0,122,255,0.22)",
+            }}
+          >
+            <span style={{ width: 26, height: 26, borderRadius: 9, background: "rgba(255,255,255,0.20)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>💬</span>
+            Messages
+          </button>
+          <button
+            type="button"
+            aria-label="Open menu"
+            onClick={() => setPublicMenuOpen(true)}
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: 16,
+              border: "1px solid rgba(15,23,42,0.08)",
+              background: "rgba(255,255,255,0.94)",
+              color: "#1d1d1f",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              boxShadow: "0 12px 30px rgba(15,23,42,0.08)",
+            }}
+          >
+            <span style={{ display: "grid", gap: 4 }}>
+              <span style={{ display: "block", width: 20, height: 2.5, borderRadius: 999, background: "#1d1d1f" }} />
+              <span style={{ display: "block", width: 20, height: 2.5, borderRadius: 999, background: "#1d1d1f" }} />
+              <span style={{ display: "block", width: 20, height: 2.5, borderRadius: 999, background: "#1d1d1f" }} />
+            </span>
+          </button>
         </div>
 
         {publicMenuOpen && (
