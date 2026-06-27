@@ -5298,6 +5298,7 @@ function AppleSeriesPortalLanding() {
                 key={series.id}
                 type="button"
                 onClick={() => openSeries(series.route)}
+                aria-label={`Open ${series.title}`}
                 style={{
                   minHeight: 310,
                   border: 0,
@@ -5306,101 +5307,25 @@ function AppleSeriesPortalLanding() {
                   overflow: "hidden",
                   position: "relative",
                   cursor: "pointer",
-                  textAlign: "left",
-                  color: "white",
-                  backgroundImage: `linear-gradient(180deg, rgba(0,0,0,0.04), rgba(0,0,0,0.16) 42%, rgba(0,0,0,0.70)), url(${series.image})`,
-                  backgroundSize: "cover",
+                  backgroundColor: "#050505",
+                  backgroundImage: `url(${series.image})`,
+                  backgroundSize: "contain",
                   backgroundPosition: "center",
+                  backgroundRepeat: "no-repeat",
                   boxShadow: "0 24px 50px rgba(0,0,0,0.20)",
                   transform: "translateZ(0)",
                 }}
-                aria-label={`Open ${series.title}`}
               >
-                <div style={{
+                <span style={{
                   position: "absolute",
                   inset: 0,
-                  background: `radial-gradient(circle at top left, ${series.accent}38, transparent 42%), linear-gradient(180deg, rgba(255,255,255,0.06), rgba(0,0,0,0.10) 42%, rgba(0,0,0,0.74))`,
+                  borderRadius: 28,
+                  boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.18), inset 0 1px 0 rgba(255,255,255,0.22)",
                   pointerEvents: "none",
                 }} />
-                <div style={{
-                  position: "absolute",
-                  top: 16,
-                  left: 16,
-                  right: 16,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: 10,
-                }}>
-                  <span style={{
-                    borderRadius: 999,
-                    padding: "8px 11px",
-                    background: "rgba(255,255,255,0.22)",
-                    border: "1px solid rgba(255,255,255,0.34)",
-                    backdropFilter: "blur(14px)",
-                    WebkitBackdropFilter: "blur(14px)",
-                    fontSize: 11,
-                    fontWeight: 1000,
-                    letterSpacing: "0.12em",
-                    textTransform: "uppercase",
-                  }}>
-                    {series.eyebrow}
-                  </span>
-                  <span style={{
-                    width: 14,
-                    height: 14,
-                    borderRadius: 999,
-                    background: series.accent,
-                    boxShadow: `0 0 0 7px ${series.accent}33`,
-                    flex: "0 0 auto",
-                  }} />
-                </div>
-
-                <div style={{ position: "absolute", left: 18, right: 18, bottom: 18 }}>
-                  <div style={{
-                    borderRadius: 24,
-                    padding: 18,
-                    background: "rgba(20,20,22,0.46)",
-                    border: "1px solid rgba(255,255,255,0.20)",
-                    backdropFilter: "blur(18px)",
-                    WebkitBackdropFilter: "blur(18px)",
-                    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.18)",
-                  }}>
-                    <div style={{ fontSize: 13, fontWeight: 900, opacity: 0.82, marginBottom: 6 }}>{series.status}</div>
-                    <div style={{ fontSize: "clamp(30px, 4vw, 42px)", fontWeight: 1000, letterSpacing: "-0.055em", lineHeight: 0.95 }}>
-                      {series.title}
-                    </div>
-                    <div style={{ marginTop: 10, fontSize: 13, fontWeight: 800, opacity: 0.84 }}>{series.meta}</div>
-                    <div style={{
-                      marginTop: 14,
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 7,
-                      borderRadius: 999,
-                      padding: "9px 12px",
-                      background: "rgba(255,255,255,0.16)",
-                      fontWeight: 1000,
-                      fontSize: 12,
-                    }}>
-                      Enter Series <span aria-hidden="true">›</span>
-                    </div>
-                  </div>
-                </div>
               </button>
             ))}
           </div>
-        </div>
-
-        <div style={{
-          display: "flex",
-          justifyContent: "center",
-          marginTop: 18,
-          color: "rgba(29,29,31,0.55)",
-          fontSize: 13,
-          fontWeight: 750,
-          textAlign: "center",
-        }}>
-          Series tile backgrounds are loaded from src/assets/series/NCS.png, NXS.png, CTS.png, and AMS.png.
         </div>
       </div>
     </div>
