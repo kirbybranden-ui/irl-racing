@@ -641,27 +641,8 @@ export default function AdminPortal({
       setOwnerDriverAssignmentError("Could not update assignment status. Check update policy.");
       return;
     }
-    setOwnerDriverAssignmentStatus(nextStatus === "approved_pending_driver" ? "Assignment approved and sent to the substitute driver's Driver HQ." : `Assignment marked ${nextStatus}.`);
+    setOwnerDriverAssignmentStatus(`Assignment marked ${nextStatus}.`);
     await loadOwnerDriverAssignments();
-  }
-
-  function getOwnerDriverAssignmentStatusLabel(status) {
-    const value = String(status || "pending").toLowerCase();
-    if (value === "approved_pending_driver") return "Approved - Waiting on Driver";
-    if (value === "driver_accepted") return "Driver Accepted";
-    if (value === "driver_declined") return "Driver Declined";
-    if (value === "completed") return "Completed";
-    if (value === "denied") return "Denied";
-    if (value === "cancelled") return "Cancelled";
-    return "Pending Admin";
-  }
-
-  function getOwnerDriverAssignmentStatusColor(status) {
-    const value = String(status || "pending").toLowerCase();
-    if (value === "driver_accepted" || value === "completed") return "#047857";
-    if (value === "driver_declined" || value === "denied" || value === "cancelled") return "#b91c1c";
-    if (value === "approved_pending_driver") return "#92400e";
-    return "#92400e";
   }
 
   async function deleteOwnerDriverAssignment(id) {
@@ -2129,7 +2110,7 @@ export default function AdminPortal({
                     ) : (ownerDriverAssignments || []).length === 0 ? (
                       <div style={{ borderRadius: 24, padding: 20, background: "rgba(255,255,255,0.82)", border: "1px solid rgba(229,231,235,0.9)", color: "#6b7280", fontWeight: 900 }}>No owner driver assignments yet.</div>
                     ) : (ownerDriverAssignments || []).map((assignment) => {
-                      const statusColor = getOwnerDriverAssignmentStatusColor(assignment.status);
+                      const statusColor = assignment.status === "approved" ? "#047857" : assignment.status === "denied" ? "#b91c1c" : assignment.status === "completed" ? "#1d4ed8" : "#92400e";
                       return (
                         <div key={assignment.id} style={{ borderRadius: 28, padding: isAdminMobile ? 16 : 18, background: "rgba(255,255,255,0.88)", border: "1px solid rgba(229,231,235,0.92)", boxShadow: "0 12px 28px rgba(15,23,42,0.08)" }}>
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
@@ -2143,7 +2124,7 @@ export default function AdminPortal({
                                 <div style={{ color: "#6b7280", fontWeight: 750, marginTop: 3 }}>{assignment.team_name || getTeamFullName?.(assignment.team_key) || assignment.team_key} • {String(assignment.assignment_type || "substitute").replaceAll("_", " ")}</div>
                               </div>
                             </div>
-                            <span style={{ padding: "9px 12px", borderRadius: 999, background: `${statusColor}18`, color: statusColor, fontWeight: 1000, textTransform: "uppercase", fontSize: 12, letterSpacing: 0.7 }}>{getOwnerDriverAssignmentStatusLabel(assignment.status)}</span>
+                            <span style={{ padding: "9px 12px", borderRadius: 999, background: `${statusColor}18`, color: statusColor, fontWeight: 1000, textTransform: "uppercase", fontSize: 12, letterSpacing: 0.7 }}>{assignment.status || "pending"}</span>
                           </div>
 
                           <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(4, minmax(0, 1fr))", gap: 10, marginTop: 14 }}>
@@ -2163,7 +2144,7 @@ export default function AdminPortal({
                           {assignment.owner_note && <div style={{ marginTop: 12, borderRadius: 16, padding: 12, background: "rgba(10,132,255,0.08)", color: "#374151", fontWeight: 750, lineHeight: 1.45 }}>{assignment.owner_note}</div>}
 
                           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
-                            {String(assignment.status || "pending").toLowerCase() === "pending" && <button type="button" onClick={() => updateOwnerDriverAssignmentStatus(assignment.id, "approved")} style={{ ...adminPrimaryButtonStyle, borderRadius: 16, padding: "9px 13px" }}>Approve - Send to Driver HQ</button>}
+                            {!["approved_pending_driver", "driver_accepted", "completed"].includes(String(assignment.status || "").toLowerCase()) && <button type="button" onClick={() => updateOwnerDriverAssignmentStatus(assignment.id, "approved")} style={{ ...adminPrimaryButtonStyle, borderRadius: 16, padding: "9px 13px" }}>Approve / Send to Driver</button>}
                             {assignment.status !== "denied" && <button type="button" onClick={() => updateOwnerDriverAssignmentStatus(assignment.id, "denied")} style={{ ...adminDangerButtonStyle, borderRadius: 16, padding: "9px 13px" }}>Deny</button>}
                             {assignment.status !== "completed" && <button type="button" onClick={() => updateOwnerDriverAssignmentStatus(assignment.id, "completed")} style={{ ...adminSecondaryButtonStyle, borderRadius: 16, padding: "9px 13px" }}>Mark Completed</button>}
                             <button type="button" onClick={() => deleteOwnerDriverAssignment(assignment.id)} style={{ ...adminSecondaryButtonStyle, borderRadius: 16, padding: "9px 13px" }}>Delete</button>
