@@ -62,10 +62,8 @@ function normalizeDevelopmentStatus(row) {
 
 function getOwnerAssignmentStatusMeta(status) {
   const value = String(status || "pending").toLowerCase();
-  if (value === "approved_pending_driver") return { label: "Approved - Waiting on Driver", color: "#facc15", border: "#854d0e", background: "#2a2107" };
-  if (value === "driver_accepted") return { label: "Driver Accepted", color: "#4ade80", border: "#166534", background: "#102a16" };
-  if (value === "driver_declined") return { label: "Driver Declined", color: "#f87171", border: "#7f1d1d", background: "#2a1010" };
-  if (value === "approved") return { label: "Approved", color: "#4ade80", border: "#166534", background: "#102a16" };
+  if (["approved", "approved_pending_driver", "driver_accepted"].includes(value)) return { label: "Approved", color: "#4ade80", border: "#166534", background: "#102a16" };
+  if (value === "driver_declined") return { label: "Declined / Cancelled", color: "#f87171", border: "#7f1d1d", background: "#2a1010" };
   if (value === "denied" || value === "rejected") return { label: "Denied", color: "#f87171", border: "#7f1d1d", background: "#2a1010" };
   if (value === "completed") return { label: "Completed", color: "#93c5fd", border: "#1d4ed8", background: "#0f1f3d" };
   if (value === "cancelled") return { label: "Cancelled", color: "#cbd5e1", border: "#475569", background: "#111827" };
@@ -895,8 +893,8 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
   }, [ownerDriverAssignments, safeSelectedTeam, ownerTeamName]);
 
   const pendingOwnerDriverAssignmentCount = teamOwnerDriverAssignments.filter((row) => String(row.status || "pending").toLowerCase() === "pending").length;
-  const waitingOwnerDriverAssignmentCount = teamOwnerDriverAssignments.filter((row) => String(row.status || "").toLowerCase() === "approved_pending_driver").length;
-  const acceptedOwnerDriverAssignmentCount = teamOwnerDriverAssignments.filter((row) => ["driver_accepted", "approved", "completed"].includes(String(row.status || "").toLowerCase())).length;
+  const waitingOwnerDriverAssignmentCount = 0;
+  const acceptedOwnerDriverAssignmentCount = teamOwnerDriverAssignments.filter((row) => ["approved", "approved_pending_driver", "driver_accepted", "completed"].includes(String(row.status || "").toLowerCase())).length;
 
   const ownerAssignmentRaceOptions = DEFAULT_START_PARK_RACES;
 
@@ -907,8 +905,8 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
   const ownerAssignmentSubstituteOptions = useMemo(() => {
     const originalKey = String(selectedOwnerAssignmentOriginalDriver?.id || selectedOwnerAssignmentOriginalDriver?.number || "");
     return (drivers || [])
-      .filter((driver) => !driver.retired)
-      .filter((driver) => String(driver.id || driver.number) !== originalKey)
+      .filter((driver) => !driver.retired || String(driver?.driver_type || driver?.status || "").toLowerCase().includes("substitute"))
+      .filter((driver) => String(driver.id || driver.number || driver.name) !== originalKey)
       .sort((a, b) => Number(a.number || 9999) - Number(b.number || 9999));
   }, [drivers, selectedOwnerAssignmentOriginalDriver]);
 
@@ -2960,7 +2958,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
     }
 
     setOwnerDriverAssignmentForm({ race_name: "", original_driver_id: "", assigned_driver_id: "", assignment_type: "substitute", owner_note: "" });
-    setOwnerDriverAssignmentMessage("Substitute request sent to Race Operations for approval.");
+    setOwnerDriverAssignmentMessage("Substitute request sent to Race Operations. Once admin approves, it is final.");
     await loadOwnerDriverAssignments();
   }
 
@@ -3678,7 +3676,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
 
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 18 }}>
                   <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14 }}><div style={{ opacity: 0.65, fontSize: 12 }}>Pending Admin</div><div style={{ fontSize: 28, fontWeight: 900 }}>{pendingOwnerDriverAssignmentCount}</div></div>
-                  <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14 }}><div style={{ opacity: 0.65, fontSize: 12 }}>Waiting on Driver</div><div style={{ fontSize: 28, fontWeight: 900 }}>{waitingOwnerDriverAssignmentCount}</div></div>
+                  <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14 }}><div style={{ opacity: 0.65, fontSize: 12 }}>Admin Approved / Final</div><div style={{ fontSize: 28, fontWeight: 900 }}>{acceptedOwnerDriverAssignmentCount}</div></div>
                   <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14 }}><div style={{ opacity: 0.65, fontSize: 12 }}>Accepted / Active</div><div style={{ fontSize: 28, fontWeight: 900 }}>{acceptedOwnerDriverAssignmentCount}</div></div>
                 </div>
 
@@ -3711,7 +3709,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
                       <select value={ownerDriverAssignmentForm.assigned_driver_id} onChange={(event) => updateOwnerDriverAssignmentForm("assigned_driver_id", event.target.value)} style={inputStyle}>
                         <option value="">Select substitute...</option>
                         {ownerAssignmentSubstituteOptions.map((driver) => (
-                          <option key={`${driver.id || driver.number}-assigned`} value={driver.id || driver.number}>#{driver.number} {driver.name} {driver.team ? `• ${getTeamFullName(driver.team)}` : ""}</option>
+                          <option key={`${driver.id || driver.number || driver.name}-assigned`} value={driver.id || driver.number || driver.name}>{driver.number ? `#${driver.number} ` : ""}{driver.name} {driver.team ? `• ${getTeamFullName(driver.team)}` : "• Sub Only"}</option>
                         ))}
                       </select>
                     </div>
@@ -3746,7 +3744,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 12 }}>
                     {teamOwnerDriverAssignments.map((assignment) => {
                       const statusMeta = getOwnerAssignmentStatusMeta(assignment.status);
-                      const canCancel = ["pending", "approved_pending_driver"].includes(String(assignment.status || "pending").toLowerCase());
+                      const canCancel = ["pending"].includes(String(assignment.status || "pending").toLowerCase());
                       return (
                         <div key={assignment.id || `${assignment.race_name}-${assignment.original_driver_number}-${assignment.assigned_driver_number}`} style={{ background: statusMeta.background, border: `1px solid ${statusMeta.border}`, borderRadius: 14, padding: 16 }}>
                           <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
