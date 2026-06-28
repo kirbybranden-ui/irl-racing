@@ -7421,8 +7421,89 @@ export default function App() {
     setPaymentComplianceStatus(`Payment override saved for ${row.teamName}.`);
   }
 
-  function PaymentCompliancePanel({ mode = "admin" }) {
-    const rows = paymentComplianceSummary || [];
+  function PaymentCompliancePanel({
+    mode = "admin",
+    selectedRace = "",
+    raceName = "",
+    complianceRace = "",
+    paymentRace = "",
+    activeRace = "",
+  }) {
+    const requestedPaymentRaceName = String(selectedRace || raceName || complianceRace || paymentRace || activeRace || "").trim();
+
+    const panelUpcomingRaceForPayment = useMemo(() => {
+      if (!requestedPaymentRaceName) return upcomingRaceForPayment;
+      const normalizedRequested = normalizeTrackName(requestedPaymentRaceName);
+      const matchedTrack = (tracks || []).find((track) => normalizeTrackName(track?.name || track?.race_name || track?.title) === normalizedRequested);
+      if (matchedTrack) {
+        return {
+          ...matchedTrack,
+          name: matchedTrack.name || matchedTrack.race_name || matchedTrack.title || requestedPaymentRaceName,
+          date: matchedTrack.date || matchedTrack.race_date || matchedTrack.raceDate || "",
+        };
+      }
+
+      const matchedHistory = (raceHistory || []).find((race) => normalizeTrackName(race?.raceName || race?.race_name || race?.track || race?.name) === normalizedRequested);
+      if (matchedHistory) {
+        return {
+          name: matchedHistory.raceName || matchedHistory.race_name || matchedHistory.track || matchedHistory.name || requestedPaymentRaceName,
+          date: matchedHistory.raceDate || matchedHistory.race_date || matchedHistory.date || matchedHistory.postedAt || matchedHistory.savedAt || "",
+        };
+      }
+
+      return { name: requestedPaymentRaceName, date: "" };
+    }, [requestedPaymentRaceName, upcomingRaceForPayment, tracks, raceHistory]);
+
+    const panelPreviousRaceForPayment = useMemo(() => {
+      if (!requestedPaymentRaceName) return previousRaceForPayment;
+
+      const selectedName = panelUpcomingRaceForPayment?.name || requestedPaymentRaceName;
+      const selectedDate = String(panelUpcomingRaceForPayment?.date || "").slice(0, 10);
+      const normalizedSelected = normalizeTrackName(selectedName);
+
+      const postedHistoryBeforeSelected = (raceHistory || [])
+        .filter((race) => {
+          const raceName = race?.raceName || race?.race_name || race?.track || race?.name || "";
+          const raceDate = String(race?.raceDate || race?.race_date || race?.date || race?.postedAt || race?.savedAt || "").slice(0, 10);
+          if (normalizeTrackName(raceName) === normalizedSelected) return false;
+          if (!selectedDate || !raceDate) return true;
+          return raceDate <= selectedDate;
+        })
+        .sort((a, b) => new Date(b?.raceDate || b?.race_date || b?.date || b?.postedAt || b?.savedAt || 0) - new Date(a?.raceDate || a?.race_date || a?.date || a?.postedAt || a?.savedAt || 0));
+
+      if (postedHistoryBeforeSelected.length > 0) {
+        const race = postedHistoryBeforeSelected[0];
+        const raceName = race?.raceName || race?.race_name || race?.track || race?.name || "";
+        const track = (tracks || []).find((item) => normalizeTrackName(item?.name || item?.race_name || item?.title) === normalizeTrackName(raceName)) || {};
+        return {
+          name: raceName,
+          date: track.date || race.raceDate || race.race_date || race.date || race.postedAt || race.savedAt || "",
+        };
+      }
+
+      const sortedTracks = getSortedTracksByDate(tracks || []);
+      const selectedIndex = sortedTracks.findIndex((track) => normalizeTrackName(track?.name || track?.race_name || track?.title) === normalizedSelected);
+      if (selectedIndex > 0) {
+        const priorTrack = sortedTracks[selectedIndex - 1];
+        return {
+          ...priorTrack,
+          name: priorTrack.name || priorTrack.race_name || priorTrack.title || "",
+          date: priorTrack.date || priorTrack.race_date || priorTrack.raceDate || "",
+        };
+      }
+
+      return previousRaceForPayment;
+    }, [requestedPaymentRaceName, panelUpcomingRaceForPayment, previousRaceForPayment, raceHistory, tracks]);
+
+    const rows = useMemo(() => buildPaymentComplianceRows({
+      teams: teamStandings,
+      drivers: visibleDrivers,
+      interviews: paymentComplianceInterviews,
+      carUploads: paymentComplianceUploads,
+      overrides: paymentComplianceOverrides,
+      previousRace: panelPreviousRaceForPayment,
+      upcomingRace: panelUpcomingRaceForPayment,
+    }), [teamStandings, visibleDrivers, paymentComplianceInterviews, paymentComplianceUploads, paymentComplianceOverrides, panelPreviousRaceForPayment, panelUpcomingRaceForPayment]);
     const allMet = rows.length > 0 && rows.every((row) => row.finalEligible);
     const isAdminMode = mode === "admin";
     const qualifiedCount = rows.filter((row) => row.finalEligible).length;
@@ -7514,11 +7595,11 @@ export default function App() {
         <div style={{ marginTop: 18, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 12 }}>
           <div style={appleMetricStyle}>
             <div style={{ color: "#6e6e73", fontSize: 12, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 0.9 }}>Previous Race</div>
-            <div style={{ marginTop: 7, fontSize: 19, fontWeight: 1000, color: "#1d1d1f" }}>{previousRaceForPayment?.name || "—"}</div>
+            <div style={{ marginTop: 7, fontSize: 19, fontWeight: 1000, color: "#1d1d1f" }}>{panelPreviousRaceForPayment?.name || "—"}</div>
           </div>
           <div style={appleMetricStyle}>
             <div style={{ color: "#6e6e73", fontSize: 12, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 0.9 }}>Upcoming Race</div>
-            <div style={{ marginTop: 7, fontSize: 19, fontWeight: 1000, color: "#1d1d1f" }}>{upcomingRaceForPayment?.name || "—"}</div>
+            <div style={{ marginTop: 7, fontSize: 19, fontWeight: 1000, color: "#1d1d1f" }}>{panelUpcomingRaceForPayment?.name || "—"}</div>
           </div>
           <div style={appleMetricStyle}>
             <div style={{ color: "#6e6e73", fontSize: 12, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 0.9 }}>Qualified Teams</div>
