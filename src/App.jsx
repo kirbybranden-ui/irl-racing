@@ -2432,6 +2432,22 @@ function getWednesdayBeforeRaceDate(dateKey) {
   return date.toISOString().slice(0, 10);
 }
 
+function getPreviousScheduledRaceForPayment(selectedRace = null, tracks = []) {
+  if (!selectedRace) return null;
+  const selectedName = normalizeTrackName(selectedRace?.name || selectedRace?.raceName || "");
+  const selectedDate = String(selectedRace?.date || "").slice(0, 10);
+  const sorted = [...(tracks || [])]
+    .filter((track) => track?.name)
+    .sort((a, b) => new Date(`${String(a.date || "9999-12-31").slice(0, 10)}T12:00:00Z`) - new Date(`${String(b.date || "9999-12-31").slice(0, 10)}T12:00:00Z`));
+  const selectedIndex = sorted.findIndex((track) => {
+    const nameMatch = selectedName && normalizeTrackName(track?.name) === selectedName;
+    const dateMatch = selectedDate && String(track?.date || "").slice(0, 10) === selectedDate;
+    return nameMatch || dateMatch;
+  });
+  if (selectedIndex > 0) return sorted[selectedIndex - 1];
+  return null;
+}
+
 function getRecordRaceName(row = {}) {
   row = row || {};
   return String(row.race_name || row.raceName || row.track_name || row.track || row.race || row.event_name || row.event || "").trim();
@@ -2485,10 +2501,10 @@ function recordMatchesDriver(row = {}, driver = {}) {
 }
 
 function recordMatchesRace(row = {}, raceName = "") {
-  const rowRace = getRecordRaceName(row).toLowerCase();
-  const wanted = String(raceName || "").trim().toLowerCase();
+  const rowRace = normalizeTrackName(getRecordRaceName(row));
+  const wanted = normalizeTrackName(String(raceName || "").trim());
   if (!wanted) return true;
-  if (!rowRace) return true;
+  if (!rowRace) return false;
   return rowRace === wanted;
 }
 
@@ -2512,7 +2528,7 @@ function getPaintSchemeWinnerRows({ carUploads = [], votes = [], drivers = [], r
 
   const raceUploads = (Array.isArray(carUploads) ? carUploads : [])
     .filter((upload) => isPaintImageUploadForStandings(upload))
-    .filter((upload) => !wantedRace || !normalizeTrackName(getPaintUploadRaceForStandings(upload)) || normalizeTrackName(getPaintUploadRaceForStandings(upload)) === wantedRace)
+    .filter((upload) => !wantedRace || normalizeTrackName(getPaintUploadRaceForStandings(upload)) === wantedRace)
     .map((upload) => {
       const matchedDriver = (drivers || []).find((driver) => recordMatchesDriver(upload, driver));
       return {
@@ -2551,16 +2567,19 @@ function buildPaymentComplianceRows({ teams = [], drivers = [], interviews = [],
   carUploads = (Array.isArray(carUploads) ? carUploads : []).filter((row) => row && typeof row === "object");
   paintVotes = (Array.isArray(paintVotes) ? paintVotes : []).filter((row) => row && typeof row === "object");
   overrides = (Array.isArray(overrides) ? overrides : []).filter((row) => row && typeof row === "object");
-  const previousRaceDate = previousRace?.date || "";
-  const upcomingRaceDate = upcomingRace?.date || "";
-  const previousRaceName = previousRace?.name || "";
-  const upcomingRaceName = upcomingRace?.name || "";
-  const paymentPeriodKey = `${previousRaceName || "no-previous"}__${upcomingRaceName || "no-upcoming"}`;
-  const engagementDeadlineDate = upcomingRaceDate ? addDaysToDateKey(getWednesdayBeforeRaceDate(upcomingRaceDate), 2) : "";
-  const engagementDeadlineIso = engagementDeadlineDate ? `${engagementDeadlineDate}T23:59:00-05:00` : ""; // Friday 11:59 PM Central
-  const paintDeadlineIso = engagementDeadlineIso;
-  const postDeadlineIso = engagementDeadlineIso;
-  const preDeadlineIso = engagementDeadlineIso;
+  const upcomingRaceDate = String(upcomingRace?.date || "").slice(0, 10);
+  const upcomingRaceName = upcomingRace?.name || upcomingRace?.raceName || "";
+  const previousRaceDate = String(previousRace?.date || "").slice(0, 10);
+  const previousRaceName = previousRace?.name || previousRace?.raceName || "";
+  const paymentPeriodKey = `${upcomingRaceName || "no-race"}`;
+
+  // Owner Engagement Program deadlines for the selected upcoming race week.
+  // Paint schemes and previous-race post interviews are due Wednesday at 11:59 PM ET.
+  // Upcoming-race pre interviews are due before 9:00 PM ET on race night.
+  const wednesdayDeadlineDate = upcomingRaceDate ? getWednesdayBeforeRaceDate(upcomingRaceDate) : "";
+  const paintDeadlineIso = wednesdayDeadlineDate ? makeEasternIso(wednesdayDeadlineDate, "23:59") : "";
+  const postDeadlineIso = paintDeadlineIso;
+  const preDeadlineIso = upcomingRaceDate ? makeEasternIso(upcomingRaceDate, "21:00") : "";
   const paintWinnerRows = getPaintSchemeWinnerRows({ carUploads, votes: paintVotes, drivers, raceName: upcomingRaceName });
 
   const eligibleTeams = (teams || [])
@@ -2598,9 +2617,9 @@ function buildPaymentComplianceRows({ teams = [], drivers = [], interviews = [],
       };
     });
 
-    const participatingDriverCount = driverChecks.filter((check) => check.paintMet && (check.postMet || check.preMet)).length;
+    const participatingDriverCount = driverChecks.filter((check) => check.paintMet && check.postMet && check.preMet).length;
     const participationBonusPoints = getOwnerEngagementBonusPoints(participatingDriverCount, teamDrivers.length);
-    const baseMet = teamDrivers.length > 0 && participatingDriverCount > 0;
+    const baseMet = teamDrivers.length > 0 && participationBonusPoints > 0;
     const teamPaintWinnerRows = paintWinnerRows.filter((winner) => String(winner.winningTeamKey || "") === String(team.team));
     const override = getTeamPaymentOverride(overrides, team.team, paymentPeriodKey);
     const overrideStatus = override?.override_status || override?.status || "";
@@ -2616,7 +2635,7 @@ function buildPaymentComplianceRows({ teams = [], drivers = [], interviews = [],
     const finalPaintWinnerRows = [...teamPaintWinnerRows, ...manualPaintWinnerRows];
     const paintWinnerBonusPoints = finalPaintWinnerRows.length > 0 ? 5 : 0;
     const totalOwnerEngagementPoints = participationBonusPoints + paintWinnerBonusPoints;
-    const finalEligible = overrideStatus === "approved" ? true : overrideStatus === "denied" ? false : (baseMet || paintWinnerBonusPoints > 0);
+    const finalEligible = overrideStatus === "approved" ? true : overrideStatus === "denied" ? false : (participationBonusPoints > 0 || paintWinnerBonusPoints > 0);
 
     return {
       teamKey: team.team,
@@ -5581,6 +5600,7 @@ export default function App() {
   const [paymentComplianceLoading, setPaymentComplianceLoading] = useState(false);
   const [paymentComplianceStatus, setPaymentComplianceStatus] = useState("");
   const [paymentComplianceError, setPaymentComplianceError] = useState("");
+  const [paymentComplianceRaceName, setPaymentComplianceRaceName] = useState("");
   const [manualPaintWinnerSelections, setManualPaintWinnerSelections] = useState({});
   const [ownerAccessCodes, setOwnerAccessCodes] = useState(() => {
     try {
@@ -6505,13 +6525,14 @@ export default function App() {
   const latestRace = raceHistory.length > 0 ? raceHistory[raceHistory.length - 1] : null;
   const latestWinner = latestRace?.results?.find((r) => r.finishPos === 1) || null;
 
-  const previousRaceForPayment = useMemo(() => {
-    const lastPostedRace = raceHistory.length > 0 ? raceHistory[raceHistory.length - 1] : null;
-    if (!lastPostedRace) return null;
-    const track = tracks.find((item) => item.name === lastPostedRace.raceName) || {};
-    return { name: lastPostedRace.raceName, date: track.date || lastPostedRace.raceDate || lastPostedRace.date || lastPostedRace.postedAt || lastPostedRace.savedAt || "" };
-  }, [raceHistory, tracks]);
   const upcomingRaceForPayment = useMemo(() => getUpcomingRaceByDate(tracks) || tracks[0] || null, [tracks]);
+  const selectedRaceForPayment = useMemo(() => {
+    const wanted = paymentComplianceRaceName || selectedRace || upcomingRaceForPayment?.name || "";
+    const track = (tracks || []).find((item) => normalizeTrackName(item?.name) === normalizeTrackName(wanted));
+    if (track) return track;
+    return upcomingRaceForPayment || tracks[0] || null;
+  }, [paymentComplianceRaceName, selectedRace, upcomingRaceForPayment, tracks]);
+  const previousRaceForPayment = useMemo(() => getPreviousScheduledRaceForPayment(selectedRaceForPayment, tracks || []), [selectedRaceForPayment, tracks]);
   const paymentComplianceSummary = useMemo(() => buildPaymentComplianceRows({
     teams: baseTeamStandings,
     drivers: visibleDrivers,
@@ -6520,8 +6541,8 @@ export default function App() {
     paintVotes: paymentCompliancePaintVotes,
     overrides: paymentComplianceOverrides,
     previousRace: previousRaceForPayment,
-    upcomingRace: upcomingRaceForPayment,
-  }), [baseTeamStandings, visibleDrivers, paymentComplianceInterviews, paymentComplianceUploads, paymentCompliancePaintVotes, paymentComplianceOverrides, previousRaceForPayment, upcomingRaceForPayment]);
+    upcomingRace: selectedRaceForPayment,
+  }), [baseTeamStandings, visibleDrivers, paymentComplianceInterviews, paymentComplianceUploads, paymentCompliancePaintVotes, paymentComplianceOverrides, selectedRaceForPayment, previousRaceForPayment]);
   const teamStandings = useMemo(() => {
     const ownerPointRows = paymentComplianceSummary || [];
     const byTeam = new Map(ownerPointRows.map((row) => [String(row.teamKey), row]));
@@ -7581,7 +7602,16 @@ export default function App() {
     setPaymentComplianceStatus(shouldAward ? `Manual paint winner +5 saved for ${row.teamName}. Team standings points updated.` : `Manual paint winner bonus cleared for ${row.teamName}. Team standings points updated.`);
   }
 
-  function PaymentCompliancePanel({ mode = "admin" }) {
+  function PaymentCompliancePanel({ mode = "admin", selectedRace: selectedRaceProp = "", raceName = "", complianceRace = "", paymentRace = "", activeRace = "", onRaceChange }) {
+    const externallySelectedRace = selectedRaceProp || raceName || complianceRace || paymentRace || activeRace || "";
+
+    useEffect(() => {
+      if (externallySelectedRace && normalizeTrackName(externallySelectedRace) !== normalizeTrackName(paymentComplianceRaceName)) {
+        setPaymentComplianceRaceName(externallySelectedRace);
+      }
+    }, [externallySelectedRace]);
+
+    const currentComplianceRaceName = paymentComplianceRaceName || externallySelectedRace || selectedRaceForPayment?.name || "";
     const rows = paymentComplianceSummary || [];
     const allMet = rows.length > 0 && rows.every((row) => row.finalEligible);
     const isAdminMode = mode === "admin";
@@ -7654,31 +7684,53 @@ export default function App() {
             <div style={{ fontSize: 12, fontWeight: 1000, color: "#6e6e73", letterSpacing: 1.4, textTransform: "uppercase" }}>Finance Department</div>
             <h2 style={{ margin: "4px 0 0", fontSize: 30, letterSpacing: -1.1, color: "#1d1d1f" }}>Team Payment Compliance</h2>
             <p style={{ margin: "8px 0 0", color: "#6e6e73", lineHeight: 1.5, fontWeight: 750, maxWidth: 820 }}>
-              Owner Engagement Program compliance cards. Drivers must complete paint scheme + interview by Friday at 11:59 PM Central to count. Paint Scheme Vote winner adds +5 owner points.
+              Owner Engagement Program compliance cards. Select the upcoming track, then the app checks paint scheme uploads for that track, post-race interviews from the previous race, and pre-race interviews for the selected track. Paint schemes and previous-race post interviews are due Wednesday at 11:59 PM ET. Pre-race interviews are due before 9:00 PM ET on race night. A driver only counts when all required items are completed on time. Paint Scheme Vote winner adds +5 owner points.
             </p>
           </div>
-          <button type="button" onClick={loadPaymentComplianceData} style={{
-            border: 0,
-            borderRadius: 999,
-            padding: "12px 16px",
-            background: "#007aff",
-            color: "white",
-            fontWeight: 1000,
-            boxShadow: "0 10px 22px rgba(0,122,255,0.24)",
-            cursor: "pointer",
-          }} disabled={paymentComplianceLoading}>
-            {paymentComplianceLoading ? "Refreshing..." : "Refresh"}
-          </button>
+          <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
+            <label style={{ minWidth: 240, color: "#1d1d1f", fontSize: 12, fontWeight: 1000, letterSpacing: 0.8, textTransform: "uppercase" }}>
+              Track
+              <select
+                value={currentComplianceRaceName}
+                onChange={(event) => {
+                  setPaymentComplianceRaceName(event.target.value);
+                  if (typeof onRaceChange === "function") onRaceChange(event.target.value);
+                }}
+                style={{ display: "block", width: "100%", marginTop: 6, background: "#ffffff", color: "#111827", border: "1px solid #9ca3af", borderRadius: 12, padding: "11px 12px", fontSize: 15, fontWeight: 800 }}
+              >
+                <option value="">Select track</option>
+                {(tracks || []).filter((track) => track?.name).map((track) => (
+                  <option key={track.name} value={track.name}>{track.name}</option>
+                ))}
+              </select>
+            </label>
+            <button type="button" onClick={loadPaymentComplianceData} style={{
+              border: 0,
+              borderRadius: 999,
+              padding: "12px 16px",
+              background: "#007aff",
+              color: "white",
+              fontWeight: 1000,
+              boxShadow: "0 10px 22px rgba(0,122,255,0.24)",
+              cursor: "pointer",
+            }} disabled={paymentComplianceLoading}>
+              {paymentComplianceLoading ? "Refreshing..." : "Refresh"}
+            </button>
+          </div>
         </div>
 
         <div style={{ marginTop: 18, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 12 }}>
           <div style={appleMetricStyle}>
-            <div style={{ color: "#6e6e73", fontSize: 12, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 0.9 }}>Previous Race</div>
-            <div style={{ marginTop: 7, fontSize: 19, fontWeight: 1000, color: "#1d1d1f" }}>{previousRaceForPayment?.name || "—"}</div>
+            <div style={{ color: "#6e6e73", fontSize: 12, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 0.9 }}>Selected Track</div>
+            <div style={{ marginTop: 7, fontSize: 19, fontWeight: 1000, color: "#1d1d1f" }}>{selectedRaceForPayment?.name || "—"}</div>
           </div>
           <div style={appleMetricStyle}>
-            <div style={{ color: "#6e6e73", fontSize: 12, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 0.9 }}>Upcoming Race</div>
-            <div style={{ marginTop: 7, fontSize: 19, fontWeight: 1000, color: "#1d1d1f" }}>{upcomingRaceForPayment?.name || "—"}</div>
+            <div style={{ color: "#6e6e73", fontSize: 12, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 0.9 }}>Race Date</div>
+            <div style={{ marginTop: 7, fontSize: 19, fontWeight: 1000, color: "#1d1d1f" }}>{selectedRaceForPayment?.date || "—"}</div>
+          </div>
+          <div style={appleMetricStyle}>
+            <div style={{ color: "#6e6e73", fontSize: 12, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 0.9 }}>Previous Race</div>
+            <div style={{ marginTop: 7, fontSize: 19, fontWeight: 1000, color: "#1d1d1f" }}>{previousRaceForPayment?.name || "—"}</div>
           </div>
           <div style={appleMetricStyle}>
             <div style={{ color: "#6e6e73", fontSize: 12, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 0.9 }}>Qualified Teams</div>
@@ -7745,7 +7797,8 @@ export default function App() {
                 </div>
 
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 13 }}>
-                  {deadlineChip("Deadline", row.paintDeadlineIso)}
+                  {deadlineChip("Paint/Post Due", row.paintDeadlineIso)}
+                  {deadlineChip("Pre Due", row.preDeadlineIso)}
                   {deadlineChip("Participation", `${row.participatingDriverCount || 0}/${row.driverCount || 0} drivers`)}
                   {deadlineChip("Owner Points", `${row.totalOwnerEngagementPoints || 0} pts`)}
                 </div>
