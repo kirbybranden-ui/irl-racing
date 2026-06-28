@@ -597,6 +597,27 @@ function PreviousRaceWinnerStandingsCard() {
 }
 
 
+
+function csvEscape(value) {
+  const text = String(value ?? "");
+  if (/[",\n\r]/.test(text)) return `"${text.replace(/"/g, '""')}"`;
+  return text;
+}
+
+function downloadCsv(filename, rows = []) {
+  if (!rows.length) return;
+  const csv = rows.map((row) => row.map(csvEscape).join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
 export default function StandingsPage({ drivers = [], teams = [], manufacturerStandings = [], seasonName = "", tracks = [], raceHistory = [] }) {
   const [standingsTab, setStandingsTab] = useState("drivers");
   const [scheduleOpen, setScheduleOpen] = useState(false);
@@ -1114,6 +1135,68 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
     { title: "Total Formula", icon: "🧮", text: "Finish Points + Stage Points + Bonuses - Penalties = Total Points." },
   ];
 
+  function exportDriverStandingsCsv() {
+    const generated = new Date().toISOString().slice(0, 10);
+    const rows = [["Position", "Number", "Driver", "Team", "Manufacturer", "Points", "Wins", "Top 3", "Top 5", "DNFs", "Penalty Points"]];
+    sorted.forEach((driver, index) => {
+      rows.push([
+        index + 1,
+        driver.number || "",
+        driver.name || "",
+        getTeamFullName(driver.team),
+        driver.manufacturer || "",
+        driver.points || 0,
+        driver.wins || 0,
+        driver.top3 || 0,
+        driver.top5 || 0,
+        driver.dnfs || 0,
+        driver.totalPenalties || 0,
+      ]);
+    });
+    downloadCsv(`bcl-driver-standings-${generated}.csv`, rows);
+  }
+
+  function exportTeamStandingsCsv() {
+    const generated = new Date().toISOString().slice(0, 10);
+    const rows = [["Position", "Team", "Team Key", "Points", "Wins", "Top 3", "Top 5", "Drivers"]];
+    teamRows.forEach((team, index) => {
+      rows.push([
+        index + 1,
+        getTeamFullName(team.team),
+        team.team || "",
+        team.points || 0,
+        team.wins || 0,
+        team.top3 || 0,
+        team.top5 || 0,
+        team.drivers || team.driverCount || "",
+      ]);
+    });
+    downloadCsv(`bcl-team-standings-${generated}.csv`, rows);
+  }
+
+  function exportManufacturerStandingsCsv() {
+    const generated = new Date().toISOString().slice(0, 10);
+    const rows = [["Position", "Manufacturer", "Points", "Wins", "Top 3", "Top 5", "Drivers"]];
+    manufacturerRows.forEach((item, index) => {
+      rows.push([
+        index + 1,
+        item.manufacturer || "Unknown",
+        item.points || 0,
+        item.wins || 0,
+        item.top3 || 0,
+        item.top5 || 0,
+        item.drivers || 0,
+      ]);
+    });
+    downloadCsv(`bcl-manufacturer-standings-${generated}.csv`, rows);
+  }
+
+  function exportActiveStandingsCsv() {
+    if (standingsTab === "teams") return exportTeamStandingsCsv();
+    if (standingsTab === "manufacturers") return exportManufacturerStandingsCsv();
+    return exportDriverStandingsCsv();
+  }
+
   return (
     <div style={applePage}>
       <div style={container}>
@@ -1355,6 +1438,29 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
               {tab.icon} {tab.label}
             </button>
           ))}
+        </div>
+
+        <div style={{ ...glassCard, padding: 12, marginBottom: 18, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ color: "#6e6e73", fontWeight: 900, fontSize: 13 }}>
+            Export standings for sharing, archiving, or spreadsheet review.
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button type="button" onClick={exportActiveStandingsCsv} style={{ ...pillButton, background: "#1d1d1f", color: "#ffffff" }}>
+              Export Current Tab CSV
+            </button>
+            <button type="button" onClick={exportDriverStandingsCsv} style={pillButton}>
+              Drivers CSV
+            </button>
+            <button type="button" onClick={exportTeamStandingsCsv} style={pillButton}>
+              Teams CSV
+            </button>
+            <button type="button" onClick={exportManufacturerStandingsCsv} style={pillButton}>
+              Manufacturers CSV
+            </button>
+            <button type="button" onClick={() => window.print()} style={pillButton}>
+              Print Standings
+            </button>
+          </div>
         </div>
 
         {standingsTab === "drivers" && (
