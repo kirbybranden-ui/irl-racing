@@ -2450,7 +2450,24 @@ function getPreviousScheduledRaceForPayment(selectedRace = null, tracks = []) {
 
 function getRecordRaceName(row = {}) {
   row = row || {};
-  return String(row.race_name || row.raceName || row.track_name || row.track || row.race || row.event_name || row.event || "").trim();
+  return String(
+    row.race_name ||
+    row.raceName ||
+    row.race_id ||
+    row.raceId ||
+    row.race_week ||
+    row.raceWeek ||
+    row.selected_race ||
+    row.selectedRace ||
+    row.track_name ||
+    row.trackName ||
+    row.track ||
+    row.race ||
+    row.event_name ||
+    row.eventName ||
+    row.event ||
+    ""
+  ).trim();
 }
 
 function getRecordDriverNumber(row = {}) {
@@ -2500,12 +2517,40 @@ function recordMatchesDriver(row = {}, driver = {}) {
   );
 }
 
+function compactTrackName(value = "") {
+  return normalizeTrackName(value).replace(/[^a-z0-9]/g, "");
+}
+
+function trackNamesMatch(a = "", b = "") {
+  const left = normalizeTrackName(a);
+  const right = normalizeTrackName(b);
+  if (!left || !right) return false;
+  if (left === right) return true;
+  const compactLeft = compactTrackName(left);
+  const compactRight = compactTrackName(right);
+  if (!compactLeft || !compactRight) return false;
+  return compactLeft.includes(compactRight) || compactRight.includes(compactLeft);
+}
+
 function recordMatchesRace(row = {}, raceName = "") {
-  const rowRace = normalizeTrackName(getRecordRaceName(row));
-  const wanted = normalizeTrackName(String(raceName || "").trim());
+  const rowRace = getRecordRaceName(row);
+  const wanted = String(raceName || "").trim();
   if (!wanted) return true;
   if (!rowRace) return false;
-  return rowRace === wanted;
+  return trackNamesMatch(rowRace, wanted);
+}
+
+function recordHasRace(row = {}) {
+  return Boolean(getRecordRaceName(row));
+}
+
+function timestampInRange(value, startIso = "", endIso = "") {
+  if (!value) return false;
+  const time = new Date(value).getTime();
+  if (Number.isNaN(time)) return false;
+  const start = startIso ? new Date(startIso).getTime() : Number.NEGATIVE_INFINITY;
+  const end = endIso ? new Date(endIso).getTime() : Number.POSITIVE_INFINITY;
+  return time >= start && time <= end;
 }
 
 function getTeamPaymentOverride(overrides = [], teamKey = "", periodKey = "") {
@@ -2516,7 +2561,7 @@ function getPaintVoteUploadId(vote = {}) {
   return String(vote.upload_id || vote.voted_upload_id || vote.paint_scheme_id || vote.car_upload_id || "").trim();
 }
 
-function getPaintSchemeWinnerRows({ carUploads = [], votes = [], drivers = [], raceName = "" }) {
+function getPaintSchemeWinnerRows({ carUploads = [], votes = [], drivers = [], raceName = "", paintWindowStartIso = "", paintDeadlineIso = "" }) {
   const wantedRace = normalizeTrackName(raceName || "");
   const voteCounts = new Map();
   (Array.isArray(votes) ? votes : []).forEach((vote) => {
@@ -2527,8 +2572,13 @@ function getPaintSchemeWinnerRows({ carUploads = [], votes = [], drivers = [], r
   });
 
   const raceUploads = (Array.isArray(carUploads) ? carUploads : [])
-    .filter((upload) => isPaintImageUploadForStandings(upload))
-    .filter((upload) => !wantedRace || normalizeTrackName(getPaintUploadRaceForStandings(upload)) === wantedRace)
+    .filter((upload) => isPaintImageUploadForStandings(upload) || upload?.image_url || upload?.file_url || upload?.url)
+    .filter((upload) => {
+      if (!wantedRace) return true;
+      const uploadRace = getPaintUploadRaceForStandings(upload) || getRecordRaceName(upload);
+      if (uploadRace) return trackNamesMatch(uploadRace, raceName);
+      return timestampInRange(getPaymentTimestamp(upload), paintWindowStartIso, paintDeadlineIso);
+    })
     .map((upload) => {
       const matchedDriver = (drivers || []).find((driver) => recordMatchesDriver(upload, driver));
       return {
@@ -2580,7 +2630,9 @@ function buildPaymentComplianceRows({ teams = [], drivers = [], interviews = [],
   const paintDeadlineIso = wednesdayDeadlineDate ? makeEasternIso(wednesdayDeadlineDate, "23:59") : "";
   const postDeadlineIso = paintDeadlineIso;
   const preDeadlineIso = upcomingRaceDate ? makeEasternIso(upcomingRaceDate, "21:00") : "";
-  const paintWinnerRows = getPaintSchemeWinnerRows({ carUploads, votes: paintVotes, drivers, raceName: upcomingRaceName });
+  const paintWindowStartDate = previousRaceDate || (wednesdayDeadlineDate ? addDaysToDateKey(wednesdayDeadlineDate, -7) : "");
+  const paintWindowStartIso = paintWindowStartDate ? makeEasternIso(paintWindowStartDate, "21:00") : "";
+  const paintWinnerRows = getPaintSchemeWinnerRows({ carUploads, votes: paintVotes, drivers, raceName: upcomingRaceName, paintWindowStartIso, paintDeadlineIso });
 
   const eligibleTeams = (teams || [])
     .filter((team) => team?.team && team.team !== "Independent" && team.team !== "IND")
@@ -2593,7 +2645,12 @@ function buildPaymentComplianceRows({ teams = [], drivers = [], interviews = [],
 
     const driverChecks = teamDrivers.map((driver) => {
       const paintRecord = (carUploads || [])
-        .filter((row) => recordMatchesDriver(row, driver) && recordMatchesRace(row, upcomingRaceName))
+        .filter((row) => {
+          if (!recordMatchesDriver(row, driver)) return false;
+          if (recordMatchesRace(row, upcomingRaceName)) return true;
+          if (!recordHasRace(row)) return timestampInRange(getPaymentTimestamp(row), paintWindowStartIso, paintDeadlineIso);
+          return false;
+        })
         .sort((a, b) => new Date(getPaymentTimestamp(b) || 0) - new Date(getPaymentTimestamp(a) || 0))[0] || null;
       const postRecord = (interviews || [])
         .filter((row) => getInterviewKind(row) === "post" && interviewLooksAnswered(row) && recordMatchesDriver(row, driver) && recordMatchesRace(row, previousRaceName))
@@ -2655,6 +2712,7 @@ function buildPaymentComplianceRows({ teams = [], drivers = [], interviews = [],
       paintDeadlineIso,
       postDeadlineIso,
       preDeadlineIso,
+      paintWindowStartIso,
       baseMet,
       finalEligible,
       override,
