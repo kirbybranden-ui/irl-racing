@@ -277,6 +277,7 @@ export default function AdminPortal({
   const [showAccessCodePassword, setShowAccessCodePassword] = useState(false);
   const [financeForm, setFinanceForm] = useState({ driverId: "", team: "", amount: "", reason: "", note: "" });
   const [adminViewportWidth, setAdminViewportWidth] = useState(() => (typeof window !== "undefined" ? window.innerWidth : 1200));
+  const [financeComplianceRace, setFinanceComplianceRace] = useState(() => selectedRace || paintPayoutRace || "");
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
@@ -288,6 +289,21 @@ export default function AdminPortal({
 
   const isAdminMobile = adminViewportWidth < 760;
   const adminUnreadCount = adminUnreadMessages.length;
+
+  const financeComplianceRaceOptions = Array.from(
+    new Set([
+      selectedRace,
+      paintPayoutRace,
+      ...(tracks || []).map((track) => track?.name || track?.race_name || track?.title).filter(Boolean),
+      ...(raceHistory || []).map((race) => race?.raceName || race?.race_name || race?.track || race?.name).filter(Boolean),
+    ].filter(Boolean).map((race) => String(race)))
+  );
+
+  useEffect(() => {
+    if (!financeComplianceRace && (selectedRace || paintPayoutRace)) {
+      setFinanceComplianceRace(selectedRace || paintPayoutRace || "");
+    }
+  }, [financeComplianceRace, selectedRace, paintPayoutRace]);
 
   const accessDrivers = (visibleDrivers || drivers || []).filter((driver) => driver?.number && !isInactivePlaceholderDriver?.(driver));
   const selectedAccessDriver = accessDrivers.find((driver) => String(driver.number) === String(selectedAccessDriverNumber)) || accessDrivers[0] || null;
@@ -3244,9 +3260,34 @@ export default function AdminPortal({
                   <h3 style={{ margin: "3px 0 0", fontSize: 25, letterSpacing: -0.5 }}>Owner / Team Money Checklist</h3>
                   <p style={{ margin: "6px 0 0", color: "#4b5563", fontWeight: 700 }}>All payment compliance now lives inside the Finance Department instead of the admin home screen.</p>
                 </div>
-                <button type="button" onClick={loadFinanceDepartment} style={adminSecondaryButtonStyle}>Refresh Finance</button>
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", justifyContent: "flex-end" }}>
+                  <label style={{ minWidth: 240, fontWeight: 1000, color: "#111827" }}>
+                    Compliance Race
+                    <select
+                      value={financeComplianceRace}
+                      onChange={(event) => setFinanceComplianceRace(event.target.value)}
+                      style={{ ...adminInputStyle, marginTop: 6 }}
+                    >
+                      <option value="">Select race</option>
+                      {financeComplianceRaceOptions.map((race) => (
+                        <option key={race} value={race}>{race}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <button type="button" onClick={loadFinanceDepartment} style={{ ...adminSecondaryButtonStyle, alignSelf: "flex-end" }}>Refresh Finance</button>
+                </div>
               </div>
-              <PaymentCompliancePanel mode="admin" />
+              <PaymentCompliancePanel
+                key={financeComplianceRace || "all-races"}
+                mode="admin"
+                selectedRace={financeComplianceRace}
+                raceName={financeComplianceRace}
+                complianceRace={financeComplianceRace}
+                paymentRace={financeComplianceRace}
+                activeRace={financeComplianceRace}
+                onRaceChange={setFinanceComplianceRace}
+                setRaceName={setFinanceComplianceRace}
+              />
             </div>
           )}
 
