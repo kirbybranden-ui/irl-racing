@@ -2496,18 +2496,99 @@ function getTeamPaymentOverride(overrides = [], teamKey = "", periodKey = "") {
   return (overrides || []).find((item) => String(item.team_key || item.team || "") === String(teamKey) && String(item.period_key || item.periodKey || "") === String(periodKey));
 }
 
-function buildPaymentComplianceRows({ teams = [], drivers = [], interviews = [], carUploads = [], overrides = [], previousRace = null, upcomingRace = null }) {
+function makeCentralIso(dateKey, time = "23:59") {
+  // League owner engagement standard: Friday at 11:59 PM Central.
+  // The 2026 race season falls during daylight time, so -05:00 keeps the deadline aligned to CT.
+  return `${dateKey}T${time}:00-05:00`;
+}
+
+function getFridayBeforeOrOnRaceDate(dateKey) {
+  if (!dateKey) return "";
+  const date = new Date(`${String(dateKey).slice(0, 10)}T12:00:00Z`);
+  const day = date.getUTCDay();
+  const daysBack = (day - 5 + 7) % 7;
+  date.setUTCDate(date.getUTCDate() - daysBack);
+  return date.toISOString().slice(0, 10);
+}
+
+function getOwnerEngagementBonusPoints(percent) {
+  const value = Number(percent) || 0;
+  if (value >= 100) return 9;
+  if (value >= 75) return 6;
+  if (value >= 50) return 4;
+  if (value >= 25) return 2;
+  return 0;
+}
+
+function getVoteUploadId(row = {}) {
+  return String(row.upload_id || row.voted_upload_id || row.paint_scheme_id || row.car_upload_id || row.uploadId || row.paintSchemeId || "").trim();
+}
+
+function getPaintUploadId(row = {}) {
+  return String(row.id || row.upload_id || row.paint_scheme_id || row.car_upload_id || "").trim();
+}
+
+function buildPaintSchemeVoteWinnerInfo({ carUploads = [], paintVotes = [], drivers = [], raceName = "", deadlineIso = "" }) {
+  const raceUploads = (carUploads || [])
+    .filter((row) => recordMatchesRace(row, raceName))
+    .filter((row) => !deadlineIso || !getPaymentTimestamp(row) || new Date(getPaymentTimestamp(row)) <= new Date(deadlineIso));
+
+  if (!raceUploads.length) return null;
+
+  const counts = new Map();
+  (paintVotes || []).forEach((vote) => {
+    if (!recordMatchesRace(vote, raceName)) return;
+    const key = getVoteUploadId(vote);
+    if (!key) return;
+    counts.set(key, (counts.get(key) || 0) + 1);
+  });
+
+  let bestUpload = null;
+  let bestVotes = 0;
+  raceUploads.forEach((upload) => {
+    const uploadId = getPaintUploadId(upload);
+    const voteCount = Number(upload.voteCount || upload.votes || upload.vote_count || counts.get(uploadId) || 0) || 0;
+    if (!bestUpload || voteCount > bestVotes) {
+      bestUpload = upload;
+      bestVotes = voteCount;
+    }
+  });
+
+  if (!bestUpload || bestVotes <= 0) return null;
+
+  const winnerDriver = (drivers || []).find((driver) => recordMatchesDriver(bestUpload, driver));
+  const winnerTeam = winnerDriver?.team || getRecordTeam(bestUpload);
+  return {
+    upload: bestUpload,
+    voteCount: bestVotes,
+    driver: winnerDriver || null,
+    driverName: winnerDriver?.name || getRecordDriverName(bestUpload) || bestUpload.driver_name || bestUpload.uploader_name || "Paint winner",
+    driverNumber: winnerDriver?.number || getRecordDriverNumber(bestUpload),
+    teamKey: winnerTeam || "",
+  };
+}
+
+function buildPaymentComplianceRows({ teams = [], drivers = [], interviews = [], carUploads = [], paintVotes = [], overrides = [], previousRace = null, upcomingRace = null }) {
   interviews = (Array.isArray(interviews) ? interviews : []).filter((row) => row && typeof row === "object");
   carUploads = (Array.isArray(carUploads) ? carUploads : []).filter((row) => row && typeof row === "object");
+  paintVotes = (Array.isArray(paintVotes) ? paintVotes : []).filter((row) => row && typeof row === "object");
   overrides = (Array.isArray(overrides) ? overrides : []).filter((row) => row && typeof row === "object");
   const previousRaceDate = previousRace?.date || "";
   const upcomingRaceDate = upcomingRace?.date || "";
   const previousRaceName = previousRace?.name || "";
   const upcomingRaceName = upcomingRace?.name || "";
   const paymentPeriodKey = `${previousRaceName || "no-previous"}__${upcomingRaceName || "no-upcoming"}`;
-  const paintDeadlineIso = upcomingRaceDate ? makeEasternIso(getWednesdayBeforeRaceDate(upcomingRaceDate), "23:59") : "";
-  const postDeadlineIso = previousRaceDate ? makeEasternIso(addDaysToDateKey(previousRaceDate, 4), "23:59") : "";
-  const preDeadlineIso = upcomingRaceDate ? makeEasternIso(String(upcomingRaceDate).slice(0, 10), "20:30") : "";
+  const engagementDeadlineIso = upcomingRaceDate ? makeCentralIso(getFridayBeforeOrOnRaceDate(upcomingRaceDate), "23:59") : "";
+  const paintDeadlineIso = engagementDeadlineIso;
+  const postDeadlineIso = engagementDeadlineIso;
+  const preDeadlineIso = engagementDeadlineIso;
+  const paintVoteWinner = buildPaintSchemeVoteWinnerInfo({
+    carUploads,
+    paintVotes,
+    drivers,
+    raceName: upcomingRaceName,
+    deadlineIso: engagementDeadlineIso,
+  });
 
   const eligibleTeams = (teams || [])
     .filter((team) => team?.team && team.team !== "Independent" && team.team !== "IND")
@@ -2533,18 +2614,30 @@ function buildPaymentComplianceRows({ teams = [], drivers = [], interviews = [],
       const postAt = getPaymentTimestamp(postRecord);
       const preAt = getPaymentTimestamp(preRecord);
 
+      const paintMet = !!paintAt && (!paintDeadlineIso || new Date(paintAt) <= new Date(paintDeadlineIso));
+      const postMet = !!postAt && (!postDeadlineIso || new Date(postAt) <= new Date(postDeadlineIso));
+      const preMet = !!preAt && (!preDeadlineIso || new Date(preAt) <= new Date(preDeadlineIso));
+      const interviewMet = postMet || preMet;
+
       return {
         driver,
         paintAt,
         postAt,
         preAt,
-        paintMet: !!paintAt && (!paintDeadlineIso || new Date(paintAt) <= new Date(paintDeadlineIso)),
-        postMet: !!postAt && (!postDeadlineIso || new Date(postAt) <= new Date(postDeadlineIso)),
-        preMet: !!preAt && (!preDeadlineIso || new Date(preAt) <= new Date(preDeadlineIso)),
+        paintMet,
+        postMet,
+        preMet,
+        interviewMet,
+        participationMet: paintMet && interviewMet,
       };
     });
 
-    const baseMet = teamDrivers.length > 0 && driverChecks.every((check) => check.paintMet && check.postMet && check.preMet);
+    const completedDriverCount = driverChecks.filter((check) => check.participationMet).length;
+    const participationPercent = teamDrivers.length > 0 ? (completedDriverCount / teamDrivers.length) * 100 : 0;
+    const baseBonusPoints = getOwnerEngagementBonusPoints(participationPercent);
+    const paintWinnerBonusPoints = paintVoteWinner?.teamKey && String(paintVoteWinner.teamKey) === String(team.team) ? 5 : 0;
+    const ownerEngagementPoints = baseBonusPoints + paintWinnerBonusPoints;
+    const baseMet = teamDrivers.length > 0 && completedDriverCount === teamDrivers.length;
     const override = getTeamPaymentOverride(overrides, team.team, paymentPeriodKey);
     const overrideStatus = override?.override_status || override?.status || "";
     const finalEligible = overrideStatus === "approved" ? true : overrideStatus === "denied" ? false : baseMet;
@@ -2557,9 +2650,16 @@ function buildPaymentComplianceRows({ teams = [], drivers = [], interviews = [],
       previousRaceName,
       upcomingRaceName,
       paymentPeriodKey,
+      engagementDeadlineIso,
       paintDeadlineIso,
       postDeadlineIso,
       preDeadlineIso,
+      completedDriverCount,
+      participationPercent,
+      baseBonusPoints,
+      paintWinnerBonusPoints,
+      ownerEngagementPoints,
+      paintVoteWinner,
       baseMet,
       finalEligible,
       override,
@@ -5497,6 +5597,7 @@ export default function App() {
   const [paymentComplianceRows, setPaymentComplianceRows] = useState([]);
   const [paymentComplianceInterviews, setPaymentComplianceInterviews] = useState([]);
   const [paymentComplianceUploads, setPaymentComplianceUploads] = useState([]);
+  const [paymentComplianceVotes, setPaymentComplianceVotes] = useState([]);
   const [paymentComplianceOverrides, setPaymentComplianceOverrides] = useState(() => {
     try { return JSON.parse(localStorage.getItem(PAYMENT_COMPLIANCE_OVERRIDE_KEY) || "[]"); }
     catch { return []; }
@@ -6439,10 +6540,11 @@ export default function App() {
     drivers: visibleDrivers,
     interviews: paymentComplianceInterviews,
     carUploads: paymentComplianceUploads,
+    paintVotes: paymentComplianceVotes,
     overrides: paymentComplianceOverrides,
     previousRace: previousRaceForPayment,
     upcomingRace: upcomingRaceForPayment,
-  }), [teamStandings, visibleDrivers, paymentComplianceInterviews, paymentComplianceUploads, paymentComplianceOverrides, previousRaceForPayment, upcomingRaceForPayment]);
+  }), [teamStandings, visibleDrivers, paymentComplianceInterviews, paymentComplianceUploads, paymentComplianceVotes, paymentComplianceOverrides, previousRaceForPayment, upcomingRaceForPayment]);
   const loadOwnerDriverAssignments = async () => {
     if (!supabase) return [];
     setOwnerDriverAssignmentsLoading(true);
@@ -7352,15 +7454,20 @@ export default function App() {
 
     // Do not order in Supabase here because some league tables use submitted_at instead of created_at.
     // We pull rows first, then sort in the browser using every supported timestamp field.
-    const [{ data: interviewsData, error: interviewsError }, { data: uploadData, error: uploadError }, { data: overrideData, error: overrideError }] = await Promise.all([
+    const [{ data: interviewsData, error: interviewsError }, { data: uploadData, error: uploadError }, { data: voteData, error: voteError }, { data: overrideData, error: overrideError }] = await Promise.all([
       supabase.from("interviews").select("*"),
       supabase.from("car_uploads").select("*"),
+      supabase.from("paint_scheme_votes").select("*"),
       supabase.from("team_payment_overrides").select("*"),
     ]);
 
     if (interviewsError || uploadError) {
       console.error("Could not load payment compliance data:", interviewsError || uploadError);
       setPaymentComplianceError("Could not load interviews or paint uploads. Check interviews/car_uploads select policies.");
+    }
+
+    if (voteError) {
+      console.warn("Could not load paint_scheme_votes; paint winner bonus will stay at 0 unless uploads include vote counts.", voteError);
     }
 
     if (overrideError) {
@@ -7376,6 +7483,7 @@ export default function App() {
 
     setPaymentComplianceInterviews(sortNewest(interviewsData));
     setPaymentComplianceUploads(sortNewest(uploadData));
+    setPaymentComplianceVotes(sortNewest(voteData));
     setPaymentComplianceLoading(false);
     setPaymentComplianceStatus("Payment compliance tracker refreshed.");
   }
@@ -7503,11 +7611,12 @@ export default function App() {
       overrides: paymentComplianceOverrides,
       previousRace: panelPreviousRaceForPayment,
       upcomingRace: panelUpcomingRaceForPayment,
-    }), [teamStandings, visibleDrivers, paymentComplianceInterviews, paymentComplianceUploads, paymentComplianceOverrides, panelPreviousRaceForPayment, panelUpcomingRaceForPayment]);
+    }), [teamStandings, visibleDrivers, paymentComplianceInterviews, paymentComplianceUploads, paymentComplianceVotes, paymentComplianceOverrides, panelPreviousRaceForPayment, panelUpcomingRaceForPayment]);
     const allMet = rows.length > 0 && rows.every((row) => row.finalEligible);
     const isAdminMode = mode === "admin";
     const qualifiedCount = rows.filter((row) => row.finalEligible).length;
     const needsReviewCount = Math.max(rows.length - qualifiedCount, 0);
+    const totalOwnerEngagementPoints = rows.reduce((sum, row) => sum + (Number(row.ownerEngagementPoints) || 0), 0);
 
     const applePanelStyle = {
       background: "linear-gradient(180deg, #f5f5f7 0%, #ffffff 72%)",
@@ -7573,9 +7682,9 @@ export default function App() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, flexWrap: "wrap" }}>
           <div>
             <div style={{ fontSize: 12, fontWeight: 1000, color: "#6e6e73", letterSpacing: 1.4, textTransform: "uppercase" }}>Finance Department</div>
-            <h2 style={{ margin: "4px 0 0", fontSize: 30, letterSpacing: -1.1, color: "#1d1d1f" }}>Team Payment Compliance</h2>
+            <h2 style={{ margin: "4px 0 0", fontSize: 30, letterSpacing: -1.1, color: "#1d1d1f" }}>Owner Engagement Program</h2>
             <p style={{ margin: "8px 0 0", color: "#6e6e73", lineHeight: 1.5, fontWeight: 750, maxWidth: 820 }}>
-              Apple Wallet-style compliance cards for team payouts. Paint schemes and previous-race post interviews are due Wednesday at 11:59 PM ET. Upcoming-race pre interviews are due Saturday at 8:30 PM ET.
+              Owner bonus points follow the league standard: a driver only counts when they complete both the paint scheme upload and an interview before Friday at 11:59 PM Central. Partial submissions do not count. Teams can earn 9, 6, 4, 2, or 0 participation points, plus 5 more if one of their drivers wins the weekly Paint Scheme Vote.
             </p>
           </div>
           <button type="button" onClick={loadPaymentComplianceData} style={{
@@ -7602,12 +7711,12 @@ export default function App() {
             <div style={{ marginTop: 7, fontSize: 19, fontWeight: 1000, color: "#1d1d1f" }}>{panelUpcomingRaceForPayment?.name || "—"}</div>
           </div>
           <div style={appleMetricStyle}>
-            <div style={{ color: "#6e6e73", fontSize: 12, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 0.9 }}>Qualified Teams</div>
+            <div style={{ color: "#6e6e73", fontSize: 12, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 0.9 }}>Full Participation</div>
             <div style={{ marginTop: 7, fontSize: 24, fontWeight: 1000, color: allMet ? "#0f6b2f" : "#1d1d1f" }}>{qualifiedCount} / {rows.length}</div>
           </div>
           <div style={appleMetricStyle}>
-            <div style={{ color: "#6e6e73", fontSize: 12, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 0.9 }}>Needs Review</div>
-            <div style={{ marginTop: 7, fontSize: 24, fontWeight: 1000, color: needsReviewCount ? "#b42318" : "#0f6b2f" }}>{needsReviewCount}</div>
+            <div style={{ color: "#6e6e73", fontSize: 12, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 0.9 }}>Owner Bonus Points</div>
+            <div style={{ marginTop: 7, fontSize: 24, fontWeight: 1000, color: totalOwnerEngagementPoints ? "#0f6b2f" : "#1d1d1f" }}>{totalOwnerEngagementPoints}</div>
           </div>
         </div>
 
@@ -7645,8 +7754,8 @@ export default function App() {
                     <div style={{ marginTop: 5, fontSize: 22, fontWeight: 1000, letterSpacing: -0.4 }}>{row.teamName}</div>
                   </div>
                   <div style={{ textAlign: "right" }}>
-                    <div style={{ fontSize: 12, fontWeight: 1000, opacity: 0.8 }}>Final Status</div>
-                    <div style={{ marginTop: 5, fontSize: 14, fontWeight: 1000 }}>{row.finalEligible ? "QUALIFIED" : "NOT QUALIFIED"}</div>
+                    <div style={{ fontSize: 12, fontWeight: 1000, opacity: 0.8 }}>Bonus Points</div>
+                    <div style={{ marginTop: 5, fontSize: 20, fontWeight: 1000 }}>{row.ownerEngagementPoints || 0} / 14</div>
                   </div>
                 </div>
                 {row.overrideStatus && (
@@ -7658,16 +7767,23 @@ export default function App() {
 
               <div style={{ padding: 16 }}>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
-                  {applePill(row.finalEligible, row.finalEligible ? "Pay Approved" : "Payment Hold")}
+                  {applePill(row.finalEligible, row.finalEligible ? "100% Participation" : `${Math.round(row.participationPercent || 0)}% Participation`)}
                   {applePill(row.driverChecks?.every((check) => check.paintMet), "Paint")}
-                  {applePill(row.driverChecks?.every((check) => check.postMet), "Post")}
-                  {applePill(row.driverChecks?.every((check) => check.preMet), "Pre")}
+                  {applePill(row.driverChecks?.some((check) => check.interviewMet), "Interview")}
+                  {applePill(row.paintWinnerBonusPoints > 0, row.paintWinnerBonusPoints > 0 ? "+5 Paint Winner" : "No Paint Win")}
                 </div>
 
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 13 }}>
-                  {deadlineChip("Paint Due", row.paintDeadlineIso)}
-                  {deadlineChip("Post Due", row.postDeadlineIso)}
-                  {deadlineChip("Pre Due", row.preDeadlineIso)}
+                  {deadlineChip("Paint Due", row.engagementDeadlineIso)}
+                  {deadlineChip("Interview Due", row.engagementDeadlineIso)}
+                  {deadlineChip("Max Bonus", `${row.ownerEngagementPoints || 0} / 14 pts`)}
+                </div>
+
+                <div style={{ background: "#f5f5f7", border: "1px solid rgba(0,0,0,0.06)", borderRadius: 18, padding: 12, marginBottom: 12 }}>
+                  <div style={{ fontSize: 12, fontWeight: 1000, color: "#6e6e73", textTransform: "uppercase", letterSpacing: 0.7 }}>Team Bonus Breakdown</div>
+                  <div style={{ marginTop: 6, fontWeight: 1000, color: "#1d1d1f" }}>
+                    {row.completedDriverCount}/{row.driverCount} drivers complete both = {Math.round(row.participationPercent || 0)}% · {row.baseBonusPoints || 0} participation pts + {row.paintWinnerBonusPoints || 0} paint winner pts
+                  </div>
                 </div>
 
                 <div style={{ display: "grid", gap: 10 }}>
@@ -7681,6 +7797,7 @@ export default function App() {
                       <summary style={{ cursor: "pointer", fontWeight: 1000, color: "#1d1d1f" }}>#{check.driver.number} {check.driver.name}</summary>
                       <div style={{ marginTop: 8 }}>
                         {checkLine("Paint Scheme", check.paintMet, check.paintAt)}
+                        {checkLine("Interview Credit", check.interviewMet, check.preAt || check.postAt)}
                         {checkLine("Post Interview", check.postMet, check.postAt)}
                         {checkLine("Pre Interview", check.preMet, check.preAt)}
                       </div>
