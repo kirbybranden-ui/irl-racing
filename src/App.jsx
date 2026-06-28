@@ -41,8 +41,6 @@ import SeriesLandingPage from "./pages/series/SeriesLandingPage";
 import SeriesJoinPage from "./pages/series/SeriesJoinPage";
 import {
 
-const MAINTENANCE_MODE = true;
-const ADMIN_BYPASS_KEY = "bowhunter6758";
   teamLogos,
   manufacturerLogos,
   teamBudgets,
@@ -133,6 +131,9 @@ import {
   raceEntryTdStyle,
   statBoxStyle,
 } from "./styles/sharedStyles";
+
+const MAINTENANCE_MODE = true;
+const ADMIN_BYPASS_KEY = "bowhunter6758";
 
 const SUB_ONLY_DRIVERS = [
   {
