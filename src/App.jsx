@@ -5659,6 +5659,7 @@ export default function App() {
   const [paymentComplianceStatus, setPaymentComplianceStatus] = useState("");
   const [paymentComplianceError, setPaymentComplianceError] = useState("");
   const [paymentComplianceRaceName, setPaymentComplianceRaceName] = useState("");
+  const [paymentComplianceOpenDrivers, setPaymentComplianceOpenDrivers] = useState({});
   const [manualPaintWinnerSelections, setManualPaintWinnerSelections] = useState({});
   const [ownerAccessCodes, setOwnerAccessCodes] = useState(() => {
     try {
@@ -7725,15 +7726,30 @@ export default function App() {
       </div>
     );
 
-    const checkLine = (label, met, timestamp) => (
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", padding: "7px 0", borderTop: "1px solid rgba(0,0,0,0.06)" }}>
-        <div style={{ color: "#6e6e73", fontSize: 12, fontWeight: 900 }}>{label}</div>
-        <div style={{ textAlign: "right" }}>
-          <div style={{ color: met ? "#0f6b2f" : "#b42318", fontSize: 12, fontWeight: 1000 }}>{met ? "MET" : "MISSED"}</div>
-          <div style={{ color: "#6e6e73", fontSize: 11, fontWeight: 750 }}>{formatPaymentTimestamp(timestamp)}</div>
+    const checkLine = (label, met, timestamp, deadlineIso = "") => {
+      const hasTimestamp = Boolean(timestamp);
+      const isLate = hasTimestamp && deadlineIso && new Date(timestamp).getTime() > new Date(deadlineIso).getTime();
+      const statusText = met ? "MET" : hasTimestamp && isLate ? "LATE" : "MISSING";
+      return (
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", padding: "7px 0", borderTop: "1px solid rgba(0,0,0,0.06)" }}>
+          <div style={{ color: "#6e6e73", fontSize: 12, fontWeight: 900 }}>{label}</div>
+          <div style={{ textAlign: "right" }}>
+            <div style={{ color: met ? "#0f6b2f" : "#b42318", fontSize: 12, fontWeight: 1000 }}>{statusText}</div>
+            <div style={{ color: "#6e6e73", fontSize: 11, fontWeight: 750 }}>
+              {formatPaymentTimestamp(timestamp)}
+              {isLate ? ` · Due ${formatPaymentTimestamp(deadlineIso)}` : ""}
+            </div>
+          </div>
         </div>
-      </div>
-    );
+      );
+    };
+
+    const toggleComplianceDriverOpen = (key, open) => {
+      setPaymentComplianceOpenDrivers((current) => ({
+        ...current,
+        [key]: open,
+      }));
+    };
 
     return (
       <div style={applePanelStyle}>
@@ -7773,6 +7789,36 @@ export default function App() {
               cursor: "pointer",
             }} disabled={paymentComplianceLoading}>
               {paymentComplianceLoading ? "Refreshing..." : "Refresh"}
+            </button>
+            <button type="button" onClick={() => {
+              const next = {};
+              (rows || []).forEach((row) => {
+                (row.driverChecks || []).forEach((check) => {
+                  next[`${row.teamKey}__${row.paymentPeriodKey}__${check.driver.id || check.driver.number || check.driver.name}`] = true;
+                });
+              });
+              setPaymentComplianceOpenDrivers(next);
+            }} style={{
+              border: "1px solid rgba(0,0,0,0.10)",
+              borderRadius: 999,
+              padding: "12px 16px",
+              background: "white",
+              color: "#1d1d1f",
+              fontWeight: 1000,
+              cursor: "pointer",
+            }}>
+              Open All Drivers
+            </button>
+            <button type="button" onClick={() => setPaymentComplianceOpenDrivers({})} style={{
+              border: "1px solid rgba(0,0,0,0.10)",
+              borderRadius: 999,
+              padding: "12px 16px",
+              background: "white",
+              color: "#1d1d1f",
+              fontWeight: 1000,
+              cursor: "pointer",
+            }}>
+              Close All
             </button>
           </div>
         </div>
@@ -7868,21 +7914,36 @@ export default function App() {
                 )}
 
                 <div style={{ display: "grid", gap: 10 }}>
-                  {(row.driverChecks || []).map((check) => (
-                    <details key={check.driver.id} style={{
-                      background: "#f5f5f7",
-                      border: "1px solid rgba(0,0,0,0.06)",
-                      borderRadius: 18,
-                      padding: "10px 12px",
-                    }}>
-                      <summary style={{ cursor: "pointer", fontWeight: 1000, color: "#1d1d1f" }}>#{check.driver.number} {check.driver.name}</summary>
-                      <div style={{ marginTop: 8 }}>
-                        {checkLine("Paint Scheme", check.paintMet, check.paintAt)}
-                        {checkLine("Post Interview", check.postMet, check.postAt)}
-                        {checkLine("Pre Interview", check.preMet, check.preAt)}
-                      </div>
-                    </details>
-                  ))}
+                  {(row.driverChecks || []).map((check) => {
+                    const driverKey = `${row.teamKey}__${row.paymentPeriodKey}__${check.driver.id || check.driver.number || check.driver.name}`;
+                    const driverEligible = check.paintMet && check.postMet && check.preMet;
+                    const isOpen = Boolean(paymentComplianceOpenDrivers[driverKey]);
+                    return (
+                      <details
+                        key={driverKey}
+                        open={isOpen}
+                        onToggle={(event) => toggleComplianceDriverOpen(driverKey, event.currentTarget.open)}
+                        style={{
+                          background: "#f5f5f7",
+                          border: "1px solid rgba(0,0,0,0.06)",
+                          borderRadius: 18,
+                          padding: "10px 12px",
+                        }}
+                      >
+                        <summary style={{ cursor: "pointer", fontWeight: 1000, color: "#1d1d1f", display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
+                          <span>#{check.driver.number} {check.driver.name}</span>
+                          <span style={{ fontSize: 11, fontWeight: 1000, color: driverEligible ? "#0f6b2f" : "#b42318", background: driverEligible ? "#dcfce7" : "#fee2e2", borderRadius: 999, padding: "5px 8px" }}>
+                            {driverEligible ? "ELIGIBLE" : "NOT ELIGIBLE"}
+                          </span>
+                        </summary>
+                        <div style={{ marginTop: 8 }}>
+                          {checkLine("Paint Scheme", check.paintMet, check.paintAt, row.paintDeadlineIso)}
+                          {checkLine("Post Interview", check.postMet, check.postAt, row.postDeadlineIso)}
+                          {checkLine("Pre Interview", check.preMet, check.preAt, row.preDeadlineIso)}
+                        </div>
+                      </details>
+                    );
+                  })}
                 </div>
 
                 {isAdminMode && (
