@@ -1428,6 +1428,11 @@ export default function AdminPortal({
 
 
   return (
+    <>
+<style>{`input, textarea, select { color:#111827 !important; background:#ffffff !important; }
+input::placeholder, textarea::placeholder { color:#6b7280 !important; opacity:1; }
+option { color:#111827 !important; background:#ffffff !important; }`}</style>
+
     <div style={applePageStyle}>
       {adminMenuOpen && (
         <>
@@ -3553,6 +3558,7 @@ export default function AdminPortal({
         {/* Race Operations moved out of Admin Home. Use the Race Operations menu item. */}
       </div>
     </div>
+    </>
   );
 
 }
