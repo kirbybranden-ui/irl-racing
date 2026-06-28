@@ -11,6 +11,7 @@ import DriverProfilePage from "./DriverProfilePage";
 import TeamDetailPage from "./TeamDetailPage";
 import ManufacturerDetailPage from "./ManufacturerDetailPage";
 import WelcomePage from "./WelcomePage";
+import MaintenancePage from "./MaintenancePage";
 import { supabase } from "./lib/supabase";
 import CarGalleryPage from "./CarGalleryPage";
 import PaintSchemeVotePage from "./PaintSchemeVotePage";
@@ -39,6 +40,9 @@ import SeriesPortal from "./pages/series/SeriesPortal";
 import SeriesLandingPage from "./pages/series/SeriesLandingPage";
 import SeriesJoinPage from "./pages/series/SeriesJoinPage";
 import {
+
+const MAINTENANCE_MODE = true;
+const ADMIN_BYPASS_KEY = "bowhunter6758";
   teamLogos,
   manufacturerLogos,
   teamBudgets,
@@ -5583,6 +5587,13 @@ function AppleSeriesPortalLanding() {
 }
 
 export default function App() {
+  const params = new URLSearchParams(window.location.search);
+  const maintenanceBypass = params.get("access") === ADMIN_BYPASS_KEY;
+
+  if (MAINTENANCE_MODE && !maintenanceBypass) {
+    return <MaintenancePage />;
+  }
+
   useEffect(() => {
     // syncCruiserNumberAndNumberOwnership();
   }, []);
@@ -8456,4 +8467,3 @@ export default function App() {
       watchSaving={watchSaving}
     />
   );}
-
