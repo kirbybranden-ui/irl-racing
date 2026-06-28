@@ -1359,7 +1359,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
         const status = String(assignment?.status || "").toLowerCase();
         const numberMatches = String(assignment?.assigned_driver_number || "").replace("#", "") === String(driver.number || "").replace("#", "");
         const idMatches = assignment?.assigned_driver_id && driver?.id && String(assignment.assigned_driver_id) === String(driver.id);
-        return status === "approved_pending_driver" && (numberMatches || idMatches);
+        return ["approved", "approved_pending_driver", "driver_accepted"].includes(status) && (numberMatches || idMatches);
       });
 
       if (localMatches.length) {
@@ -1371,7 +1371,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
         .from("owner_driver_assignments")
         .select("*")
         .eq("assigned_driver_number", String(driver.number))
-        .eq("status", "approved_pending_driver")
+        .in("status", ["approved", "approved_pending_driver", "driver_accepted"])
         .order("created_at", { ascending: false });
 
       if (error) {
@@ -2759,7 +2759,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
               <div style={{ display: "grid", gap: 14, marginBottom: 18 }}>
                 {raceAssignmentRequests.map((assignment) => (
                   <div key={assignment.id} style={{ background: "#101827", border: `1px solid ${teamTheme.accent}`, borderRadius: 14, padding: 16 }}>
-                    <div style={{ fontSize: 11, fontWeight: 900, opacity: 0.72, textTransform: "uppercase" }}>Race Assignment Request</div>
+                    <div style={{ fontSize: 11, fontWeight: 900, opacity: 0.72, textTransform: "uppercase" }}>Approved Race Assignment</div>
                     <div style={{ fontSize: 20, fontWeight: 900, marginTop: 5 }}>
                       {assignment.race_name || assignment.race_id || "Selected Race"}
                     </div>
@@ -2770,9 +2770,8 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
                       <div><strong>Type:</strong> {String(assignment.assignment_type || "substitute").replaceAll("_", " ")}</div>
                       {assignment.owner_note && <div><strong>Owner Note:</strong> {assignment.owner_note}</div>}
                     </div>
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
-                      <button type="button" onClick={() => respondToRaceAssignment(assignment.id, "accepted")} style={{ ...primaryButtonStyle, background: "#22c55e" }}>Accept Race Assignment</button>
-                      <button type="button" onClick={() => respondToRaceAssignment(assignment.id, "declined")} style={dangerButtonStyle}>Decline</button>
+                    <div style={{ marginTop: 12, color: "#4ade80", fontWeight: 900 }}>
+                      Admin approved this substitute assignment. No driver approval is required.
                     </div>
                   </div>
                 ))}
