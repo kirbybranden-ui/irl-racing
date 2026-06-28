@@ -38,15 +38,126 @@ function getRaceResultMap(raceHistory = [], raceName = "") {
   return map;
 }
 
-function betterFinisher(driverA, driverB, resultMap) {
-  const a = resultMap.get(cleanNumber(driverA?.number));
-  const b = resultMap.get(cleanNumber(driverB?.number));
+function normalizeName(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
 
-  if (!a && !b) return null;
-  if (a && !b) return driverA;
-  if (!a && b) return driverB;
+function getResultDriverName(result = {}) {
+  return (
+    result.driverName ||
+    result.driver_name ||
+    result.name ||
+    result.driver ||
+    result.assigned_driver_name ||
+    result.substitute_driver_name ||
+    result.subDriverName ||
+    ""
+  );
+}
 
-  return a.finish <= b.finish ? driverA : driverB;
+function hasSubstituteFlag(result = {}) {
+  const text = [
+    result.assignment_type,
+    result.assignmentType,
+    result.driver_type,
+    result.driverType,
+    result.status,
+    result.role,
+    result.source,
+    result.note,
+    result.notes,
+  ]
+    .map((value) => String(value || "").toLowerCase())
+    .join(" ");
+
+  return (
+    result.is_substitute === true ||
+    result.isSubstitute === true ||
+    result.substitute === true ||
+    result.used_substitute === true ||
+    result.usedSubstitute === true ||
+    text.includes("substitute") ||
+    text.includes("sub-only") ||
+    text.includes("sub only") ||
+    text.includes("sub driver")
+  );
+}
+
+function isSubstituteResultForSeed(result = {}, seededDriver = {}) {
+  if (!result || !seededDriver) return false;
+
+  const seededNumber = cleanNumber(seededDriver.number);
+  const originalNumber = cleanNumber(result.original_driver_number || result.originalDriverNumber || result.original_car_number || result.originalCarNumber);
+  const assignedNumber = cleanNumber(result.assigned_driver_number || result.assignedDriverNumber || result.substitute_driver_number || result.subDriverNumber);
+  const resultNumber = cleanNumber(result.number || result.driverNumber || result.car_number);
+
+  const seededName = normalizeName(seededDriver.name);
+  const resultName = normalizeName(getResultDriverName(result));
+  const originalName = normalizeName(result.original_driver_name || result.originalDriverName);
+  const assignedName = normalizeName(result.assigned_driver_name || result.assignedDriverName || result.substitute_driver_name || result.subDriverName);
+
+  const explicitSub = hasSubstituteFlag(result);
+  const originalCarMatchesSeed = originalNumber && originalNumber === seededNumber;
+  const sameCarAsSeed = resultNumber && resultNumber === seededNumber;
+  const assignedDriverIsDifferent =
+    (assignedNumber && assignedNumber !== seededNumber) ||
+    (assignedName && seededName && assignedName !== seededName);
+
+  const resultNameIsDifferent = resultName && seededName && resultName !== seededName;
+  const originalNameMatchesSeed = originalName && seededName && originalName === seededName;
+
+  return Boolean(
+    explicitSub ||
+    (originalCarMatchesSeed && assignedDriverIsDifferent) ||
+    (sameCarAsSeed && originalNameMatchesSeed && resultNameIsDifferent) ||
+    (sameCarAsSeed && originalCarMatchesSeed && resultNameIsDifferent)
+  );
+}
+
+function getEligibleRaceEntry(driver, resultMap) {
+  if (!driver) return null;
+  const entry = resultMap.get(cleanNumber(driver.number));
+  if (!entry) return null;
+
+  if (isSubstituteResultForSeed(entry.result, driver)) {
+    return {
+      ...entry,
+      ineligible: true,
+      reason: "Substitute start/win does not count for the In-Season Tournament.",
+    };
+  }
+
+  return {
+    ...entry,
+    ineligible: false,
+    reason: "",
+  };
+}
+
+function decideMatchup(driverA, driverB, resultMap) {
+  const aEntry = getEligibleRaceEntry(driverA, resultMap);
+  const bEntry = getEligibleRaceEntry(driverB, resultMap);
+  const aEligible = aEntry && !aEntry.ineligible;
+  const bEligible = bEntry && !bEntry.ineligible;
+
+  let winner = null;
+  if (aEligible && bEligible) {
+    winner = aEntry.finish <= bEntry.finish ? driverA : driverB;
+  } else if (aEligible) {
+    winner = driverA;
+  } else if (bEligible) {
+    winner = driverB;
+  }
+
+  return {
+    a: driverA,
+    b: driverB,
+    winner,
+    aEntry,
+    bEntry,
+  };
 }
 
 function makeSeeds(drivers = []) {
@@ -70,12 +181,18 @@ function driverLabel(driver) {
   return `#${driver.number} ${driver.name}`;
 }
 
-function DriverCard({ driver, status = "" }) {
+function DriverCard({ driver, status = "", entry = null }) {
+  const resultLabel = entry
+    ? entry.ineligible
+      ? entry.reason
+      : `Finished P${entry.finish}`
+    : "";
+
   return (
     <div
       style={{
         background: "#0f1319",
-        border: "1px solid #2c3440",
+        border: entry?.ineligible ? "1px solid #f87171" : "1px solid #2c3440",
         borderRadius: 14,
         padding: 12,
       }}
@@ -89,6 +206,11 @@ function DriverCard({ driver, status = "" }) {
       <div style={{ opacity: 0.72, fontSize: 13, marginTop: 4 }}>
         {driver ? `${getTeamFullName(driver.team)} • ${driver.manufacturer || "—"}` : "Awaiting result"}
       </div>
+      {resultLabel && (
+        <div style={{ marginTop: 8, fontSize: 12, fontWeight: 900, color: entry?.ineligible ? "#f87171" : "#93c5fd" }}>
+          {resultLabel}
+        </div>
+      )}
       {status && (
         <div style={{ marginTop: 8, fontSize: 12, fontWeight: 900, color: status === "ADVANCES" ? "#4ade80" : "#f87171" }}>
           {status}
@@ -98,7 +220,7 @@ function DriverCard({ driver, status = "" }) {
   );
 }
 
-function MatchupCard({ title, driverA, driverB, winner }) {
+function MatchupCard({ title, driverA, driverB, winner, entryA, entryB }) {
   return (
     <div style={sectionCardStyle}>
       <div style={{ color: "#d4af37", fontSize: 12, fontWeight: 900, letterSpacing: 1.2 }}>
@@ -106,9 +228,17 @@ function MatchupCard({ title, driverA, driverB, winner }) {
       </div>
 
       <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
-        <DriverCard driver={driverA} status={winner && cleanNumber(winner.number) === cleanNumber(driverA?.number) ? "ADVANCES" : ""} />
+        <DriverCard
+          driver={driverA}
+          entry={entryA}
+          status={winner && cleanNumber(winner.number) === cleanNumber(driverA?.number) ? "ADVANCES" : ""}
+        />
         <div style={{ textAlign: "center", fontWeight: 900, opacity: 0.65 }}>VS</div>
-        <DriverCard driver={driverB} status={winner && cleanNumber(winner.number) === cleanNumber(driverB?.number) ? "ADVANCES" : ""} />
+        <DriverCard
+          driver={driverB}
+          entry={entryB}
+          status={winner && cleanNumber(winner.number) === cleanNumber(driverB?.number) ? "ADVANCES" : ""}
+        />
       </div>
 
       <div style={{ marginTop: 12, padding: 10, borderRadius: 12, background: "#111827", border: "1px solid #263244" }}>
@@ -139,7 +269,7 @@ function InSeasonTournamentPage({ drivers = [], raceHistory = [] }) {
     [bySeed.get(14), bySeed.get(19)],
     [bySeed.get(15), bySeed.get(18)],
     [bySeed.get(16), bySeed.get(17)],
-  ].map(([a, b]) => ({ a, b, winner: betterFinisher(a, b, vegasResults) }));
+  ].map(([a, b]) => decideMatchup(a, b, vegasResults));
 
   const roundOf16 = [
     [bySeed.get(1), playIn[3]?.winner],
@@ -150,26 +280,22 @@ function InSeasonTournamentPage({ drivers = [], raceHistory = [] }) {
     [bySeed.get(3), playIn[1]?.winner],
     [bySeed.get(6), bySeed.get(11)],
     [bySeed.get(9), bySeed.get(12)],
-  ].map(([a, b]) => ({ a, b, winner: betterFinisher(a, b, talladegaResults) }));
+  ].map(([a, b]) => decideMatchup(a, b, talladegaResults));
 
   const quarterfinals = [
     [roundOf16[0]?.winner, roundOf16[1]?.winner],
     [roundOf16[2]?.winner, roundOf16[3]?.winner],
     [roundOf16[4]?.winner, roundOf16[5]?.winner],
     [roundOf16[6]?.winner, roundOf16[7]?.winner],
-  ].map(([a, b]) => ({ a, b, winner: betterFinisher(a, b, wilkesboroResults) }));
+  ].map(([a, b]) => decideMatchup(a, b, wilkesboroResults));
 
   const semifinals = [
     [quarterfinals[0]?.winner, quarterfinals[1]?.winner],
     [quarterfinals[2]?.winner, quarterfinals[3]?.winner],
-  ].map(([a, b]) => ({ a, b, winner: betterFinisher(a, b, indyResults) }));
+  ].map(([a, b]) => decideMatchup(a, b, indyResults));
 
   const championship = [
-    {
-      a: semifinals[0]?.winner,
-      b: semifinals[1]?.winner,
-      winner: betterFinisher(semifinals[0]?.winner, semifinals[1]?.winner, newHampshireResults),
-    },
+    decideMatchup(semifinals[0]?.winner, semifinals[1]?.winner, newHampshireResults),
   ];
 
   const champion = championship[0]?.winner;
@@ -201,7 +327,7 @@ function InSeasonTournamentPage({ drivers = [], raceHistory = [] }) {
                 🏆 2026 In-Season Tournament
               </h1>
               <p style={{ margin: 0, opacity: 0.82 }}>
-                Starts this weekend at Las Vegas. Seeds are based on current championship standings.
+                Starts this weekend at Las Vegas. Seeds are based on current championship standings. Substitute starts and substitute wins do not advance a bracket seed.
               </p>
             </div>
 
@@ -252,6 +378,8 @@ function InSeasonTournamentPage({ drivers = [], raceHistory = [] }) {
                   driverA={matchup.a}
                   driverB={matchup.b}
                   winner={matchup.winner}
+                  entryA={matchup.aEntry}
+                  entryB={matchup.bEntry}
                 />
               ))}
             </div>
