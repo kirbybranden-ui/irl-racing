@@ -2602,10 +2602,20 @@ function buildPaymentComplianceRows({ teams = [], drivers = [], interviews = [],
     const participationBonusPoints = getOwnerEngagementBonusPoints(participatingDriverCount, teamDrivers.length);
     const baseMet = teamDrivers.length > 0 && participatingDriverCount > 0;
     const teamPaintWinnerRows = paintWinnerRows.filter((winner) => String(winner.winningTeamKey || "") === String(team.team));
-    const paintWinnerBonusPoints = teamPaintWinnerRows.length > 0 ? 5 : 0;
-    const totalOwnerEngagementPoints = participationBonusPoints + paintWinnerBonusPoints;
     const override = getTeamPaymentOverride(overrides, team.team, paymentPeriodKey);
     const overrideStatus = override?.override_status || override?.status || "";
+    const manualPaintWinnerBonus = override?.manual_paint_winner === true || override?.manualPaintWinner === true || override?.paint_winner_override === true || Number(override?.paint_winner_bonus_points || 0) > 0;
+    const manualPaintWinnerRows = manualPaintWinnerBonus && teamPaintWinnerRows.length === 0 ? [{
+      id: `manual-paint-${team.team}-${paymentPeriodKey}`,
+      winningTeamKey: team.team,
+      winningDriverName: override?.paint_winner_driver_name || override?.winning_driver_name || "Manual Paint Winner",
+      winningDriverNumber: override?.paint_winner_driver_number || override?.winning_driver_number || "",
+      voteCount: override?.paint_winner_vote_count || "Manual",
+      manual: true,
+    }] : [];
+    const finalPaintWinnerRows = [...teamPaintWinnerRows, ...manualPaintWinnerRows];
+    const paintWinnerBonusPoints = finalPaintWinnerRows.length > 0 ? 5 : 0;
+    const totalOwnerEngagementPoints = participationBonusPoints + paintWinnerBonusPoints;
     const finalEligible = overrideStatus === "approved" ? true : overrideStatus === "denied" ? false : (baseMet || paintWinnerBonusPoints > 0);
 
     return {
@@ -2616,7 +2626,9 @@ function buildPaymentComplianceRows({ teams = [], drivers = [], interviews = [],
       participationBonusPoints,
       paintWinnerBonusPoints,
       totalOwnerEngagementPoints,
-      paintWinnerRows: teamPaintWinnerRows,
+      paintWinnerRows: finalPaintWinnerRows,
+      detectedPaintWinnerRows: teamPaintWinnerRows,
+      manualPaintWinnerBonus,
       driverChecks,
       previousRaceName,
       upcomingRaceName,
@@ -7489,6 +7501,67 @@ export default function App() {
     setPaymentComplianceStatus(`Payment override saved for ${row.teamName}.`);
   }
 
+  async function saveManualPaintWinnerOverride(row, shouldAward) {
+    if (!row?.teamKey) return;
+    const existing = (paymentComplianceOverrides || []).find((item) =>
+      String(item.team_key || item.team) === String(row.teamKey) && String(item.period_key || item.periodKey) === String(row.paymentPeriodKey)
+    ) || {};
+
+    let winningDriverNumber = existing.paint_winner_driver_number || "";
+    let winningDriverName = existing.paint_winner_driver_name || "Manual Paint Winner";
+
+    if (shouldAward) {
+      const defaultDriver = (row.driverChecks || [])[0]?.driver || {};
+      winningDriverNumber = window.prompt("Paint scheme winner car number?", String(existing.paint_winner_driver_number || defaultDriver.number || "")) || "";
+      winningDriverName = window.prompt("Paint scheme winner driver name?", String(existing.paint_winner_driver_name || defaultDriver.name || "Manual Paint Winner")) || "Manual Paint Winner";
+    }
+
+    const payload = {
+      ...existing,
+      team_key: row.teamKey,
+      team_name: row.teamName,
+      period_key: row.paymentPeriodKey,
+      previous_race: row.previousRaceName || null,
+      upcoming_race: row.upcomingRaceName || null,
+      override_status: existing.override_status || existing.status || "",
+      manual_paint_winner: Boolean(shouldAward),
+      paint_winner_override: Boolean(shouldAward),
+      paint_winner_bonus_points: shouldAward ? 5 : 0,
+      paint_winner_driver_number: shouldAward ? winningDriverNumber : null,
+      paint_winner_driver_name: shouldAward ? winningDriverName : null,
+      paint_winner_override_reason: shouldAward ? "Admin manually awarded weekly paint scheme winner bonus" : "Admin cleared weekly paint scheme winner bonus",
+      updated_at: new Date().toISOString(),
+    };
+
+    const keepPayload = payload.override_status || payload.manual_paint_winner || Number(payload.paint_winner_bonus_points || 0) > 0;
+    const nextLocal = [payload, ...(paymentComplianceOverrides || []).filter((item) => !(String(item.team_key || item.team) === String(row.teamKey) && String(item.period_key || item.periodKey) === String(row.paymentPeriodKey)))].filter((item) => item.override_status || item.manual_paint_winner || Number(item.paint_winner_bonus_points || 0) > 0);
+    setPaymentComplianceOverrides(nextLocal);
+    localStorage.setItem(PAYMENT_COMPLIANCE_OVERRIDE_KEY, JSON.stringify(nextLocal));
+
+    if (!keepPayload) {
+      const { error } = await supabase
+        .from("team_payment_overrides")
+        .delete()
+        .eq("team_key", row.teamKey)
+        .eq("period_key", row.paymentPeriodKey);
+      if (error) console.warn("Could not clear manual paint winner from Supabase; local value was cleared.", error);
+      setPaymentComplianceStatus(`Manual paint winner bonus cleared for ${row.teamName}.`);
+      return;
+    }
+
+    const { error } = await supabase
+      .from("team_payment_overrides")
+      .upsert(payload, { onConflict: "team_key,period_key" });
+
+    if (error) {
+      console.warn("Could not save manual paint winner to Supabase; saved locally in this browser.", error);
+      setPaymentComplianceStatus(`Manual paint winner saved locally for ${row.teamName}. Add/check the manual paint columns on team_payment_overrides to sync it.`);
+      return;
+    }
+
+    setPaymentComplianceStatus(shouldAward ? `Manual paint winner +5 saved for ${row.teamName}.` : `Manual paint winner bonus cleared for ${row.teamName}.`);
+  }
+
   function PaymentCompliancePanel({ mode = "admin" }) {
     const rows = paymentComplianceSummary || [];
     const allMet = rows.length > 0 && rows.every((row) => row.finalEligible);
@@ -7686,7 +7759,9 @@ export default function App() {
                   <div style={{ display: "flex", gap: 9, flexWrap: "wrap", marginTop: 14 }}>
                     <button type="button" onClick={() => savePaymentComplianceOverride(row, "approved")} style={{ border: 0, borderRadius: 999, padding: "10px 13px", background: "#34c759", color: "white", fontWeight: 1000, cursor: "pointer" }}>Approve Pay</button>
                     <button type="button" onClick={() => savePaymentComplianceOverride(row, "denied")} style={{ border: 0, borderRadius: 999, padding: "10px 13px", background: "#ff3b30", color: "white", fontWeight: 1000, cursor: "pointer" }}>Deny Pay</button>
-                    <button type="button" onClick={() => savePaymentComplianceOverride(row, "")} style={{ border: "1px solid rgba(0,0,0,0.10)", borderRadius: 999, padding: "10px 13px", background: "white", color: "#1d1d1f", fontWeight: 1000, cursor: "pointer" }}>Clear</button>
+                    <button type="button" onClick={() => saveManualPaintWinnerOverride(row, true)} style={{ border: 0, borderRadius: 999, padding: "10px 13px", background: "#ffcc00", color: "#1d1d1f", fontWeight: 1000, cursor: "pointer" }}>Award Paint +5</button>
+                    <button type="button" onClick={() => saveManualPaintWinnerOverride(row, false)} style={{ border: "1px solid rgba(255,149,0,0.35)", borderRadius: 999, padding: "10px 13px", background: "#fff8e1", color: "#92400e", fontWeight: 1000, cursor: "pointer" }}>Clear Paint +5</button>
+                    <button type="button" onClick={() => savePaymentComplianceOverride(row, "")} style={{ border: "1px solid rgba(0,0,0,0.10)", borderRadius: 999, padding: "10px 13px", background: "white", color: "#1d1d1f", fontWeight: 1000, cursor: "pointer" }}>Clear Pay</button>
                   </div>
                 )}
               </div>
