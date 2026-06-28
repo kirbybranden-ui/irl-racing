@@ -181,6 +181,79 @@ function driverLabel(driver) {
   return `#${driver.number} ${driver.name}`;
 }
 
+
+function csvEscape(value) {
+  const text = String(value ?? "");
+  if (/[",\n\r]/.test(text)) return `"${text.replace(/"/g, '""')}"`;
+  return text;
+}
+
+function downloadCsv(filename, rows = []) {
+  if (!rows.length) return;
+  const csv = rows.map((row) => row.map(csvEscape).join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+function makeBracketExportRows(rounds = [], champion = null) {
+  const rows = [[
+    "Round",
+    "Matchup",
+    "Driver A Seed",
+    "Driver A Number",
+    "Driver A Name",
+    "Driver A Team",
+    "Driver A Finish",
+    "Driver A Status",
+    "Driver B Seed",
+    "Driver B Number",
+    "Driver B Name",
+    "Driver B Team",
+    "Driver B Finish",
+    "Driver B Status",
+    "Winner Seed",
+    "Winner Number",
+    "Winner Name",
+    "Winner Team",
+  ]];
+
+  rounds.forEach((round) => {
+    (round.matchups || []).forEach((matchup, index) => {
+      rows.push([
+        round.title,
+        `Matchup ${index + 1}`,
+        matchup.a?.seed || "",
+        matchup.a?.number || "",
+        matchup.a?.name || "TBD",
+        matchup.a ? getTeamFullName(matchup.a.team) : "",
+        matchup.aEntry?.finish || "",
+        matchup.aEntry?.ineligible ? matchup.aEntry.reason : (matchup.aEntry ? "Eligible" : "No result"),
+        matchup.b?.seed || "",
+        matchup.b?.number || "",
+        matchup.b?.name || "TBD",
+        matchup.b ? getTeamFullName(matchup.b.team) : "",
+        matchup.bEntry?.finish || "",
+        matchup.bEntry?.ineligible ? matchup.bEntry.reason : (matchup.bEntry ? "Eligible" : "No result"),
+        matchup.winner?.seed || "",
+        matchup.winner?.number || "",
+        matchup.winner?.name || "TBD",
+        matchup.winner ? getTeamFullName(matchup.winner.team) : "",
+      ]);
+    });
+  });
+
+  rows.push([]);
+  rows.push(["Champion", "", champion?.seed || "", champion?.number || "", champion?.name || "TBD", champion ? getTeamFullName(champion.team) : ""]);
+  return rows;
+}
+
 function DriverCard({ driver, status = "", entry = null }) {
   const resultLabel = entry
     ? entry.ineligible
@@ -308,6 +381,11 @@ function InSeasonTournamentPage({ drivers = [], raceHistory = [] }) {
     { title: "Championship — New Hampshire", matchups: championship },
   ];
 
+  function exportBracketCsv() {
+    const generated = new Date().toISOString().slice(0, 10);
+    downloadCsv(`bcl-in-season-bracket-${generated}.csv`, makeBracketExportRows(rounds, champion));
+  }
+
   return (
     <div style={appShellStyle}>
       <div style={pageContainerStyle}>
@@ -334,6 +412,9 @@ function InSeasonTournamentPage({ drivers = [], raceHistory = [] }) {
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
               <button type="button" onClick={() => (window.location.pathname = "/standings")} style={secondaryButtonStyle}>
                 Back to Standings
+              </button>
+              <button type="button" onClick={exportBracketCsv} style={secondaryButtonStyle}>
+                Export Bracket CSV
               </button>
               <button type="button" onClick={() => window.print()} style={primaryButtonStyle}>
                 Print Bracket
