@@ -7790,36 +7790,6 @@ export default function App() {
             }} disabled={paymentComplianceLoading}>
               {paymentComplianceLoading ? "Refreshing..." : "Refresh"}
             </button>
-            <button type="button" onClick={() => {
-              const next = {};
-              (rows || []).forEach((row) => {
-                (row.driverChecks || []).forEach((check) => {
-                  next[`${row.teamKey}__${row.paymentPeriodKey}__${check.driver.id || check.driver.number || check.driver.name}`] = true;
-                });
-              });
-              setPaymentComplianceOpenDrivers(next);
-            }} style={{
-              border: "1px solid rgba(0,0,0,0.10)",
-              borderRadius: 999,
-              padding: "12px 16px",
-              background: "white",
-              color: "#1d1d1f",
-              fontWeight: 1000,
-              cursor: "pointer",
-            }}>
-              Open All Drivers
-            </button>
-            <button type="button" onClick={() => setPaymentComplianceOpenDrivers({})} style={{
-              border: "1px solid rgba(0,0,0,0.10)",
-              borderRadius: 999,
-              padding: "12px 16px",
-              background: "white",
-              color: "#1d1d1f",
-              fontWeight: 1000,
-              cursor: "pointer",
-            }}>
-              Close All
-            </button>
           </div>
         </div>
 
@@ -7919,10 +7889,8 @@ export default function App() {
                     const driverEligible = check.paintMet && check.postMet && check.preMet;
                     const isOpen = Boolean(paymentComplianceOpenDrivers[driverKey]);
                     return (
-                      <details
+                      <div
                         key={driverKey}
-                        open={isOpen}
-                        onToggle={(event) => toggleComplianceDriverOpen(driverKey, event.currentTarget.open)}
                         style={{
                           background: "#f5f5f7",
                           border: "1px solid rgba(0,0,0,0.06)",
@@ -7930,18 +7898,40 @@ export default function App() {
                           padding: "10px 12px",
                         }}
                       >
-                        <summary style={{ cursor: "pointer", fontWeight: 1000, color: "#1d1d1f", display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
-                          <span>#{check.driver.number} {check.driver.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => toggleComplianceDriverOpen(driverKey, !isOpen)}
+                          style={{
+                            width: "100%",
+                            border: 0,
+                            background: "transparent",
+                            cursor: "pointer",
+                            padding: 0,
+                            fontWeight: 1000,
+                            color: "#1d1d1f",
+                            display: "flex",
+                            justifyContent: "space-between",
+                            gap: 10,
+                            alignItems: "center",
+                            textAlign: "left",
+                          }}
+                        >
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                            <span style={{ color: "#6e6e73", fontSize: 13 }}>{isOpen ? "▾" : "▸"}</span>
+                            <span>#{check.driver.number} {check.driver.name}</span>
+                          </span>
                           <span style={{ fontSize: 11, fontWeight: 1000, color: driverEligible ? "#0f6b2f" : "#b42318", background: driverEligible ? "#dcfce7" : "#fee2e2", borderRadius: 999, padding: "5px 8px" }}>
                             {driverEligible ? "ELIGIBLE" : "NOT ELIGIBLE"}
                           </span>
-                        </summary>
-                        <div style={{ marginTop: 8 }}>
-                          {checkLine("Paint Scheme", check.paintMet, check.paintAt, row.paintDeadlineIso)}
-                          {checkLine("Post Interview", check.postMet, check.postAt, row.postDeadlineIso)}
-                          {checkLine("Pre Interview", check.preMet, check.preAt, row.preDeadlineIso)}
-                        </div>
-                      </details>
+                        </button>
+                        {isOpen && (
+                          <div style={{ marginTop: 8 }}>
+                            {checkLine("Paint Scheme", check.paintMet, check.paintAt, row.paintDeadlineIso)}
+                            {checkLine("Post Interview", check.postMet, check.postAt, row.postDeadlineIso)}
+                            {checkLine("Pre Interview", check.preMet, check.preAt, row.preDeadlineIso)}
+                          </div>
+                        )}
+                      </div>
                     );
                   })}
                 </div>
