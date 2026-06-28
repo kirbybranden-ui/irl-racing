@@ -11,7 +11,7 @@ import DriverProfilePage from "./DriverProfilePage";
 import TeamDetailPage from "./TeamDetailPage";
 import ManufacturerDetailPage from "./ManufacturerDetailPage";
 import WelcomePage from "./WelcomePage";
-import MaintenancePage from "./MaintenancePage";
+import MaintenancePage from "./pages/MaintenancePage";
 import { supabase } from "./lib/supabase";
 import CarGalleryPage from "./CarGalleryPage";
 import PaintSchemeVotePage from "./PaintSchemeVotePage";
