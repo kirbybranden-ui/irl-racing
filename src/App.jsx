@@ -7786,6 +7786,9 @@ export default function App() {
         tracks={tracks}
         paymentCompliance={paymentComplianceSummary}
         onApplyTeamTransaction={applyOwnerPortalTeamTransaction}
+        supabase={supabase}
+        ownerDriverAssignments={ownerDriverAssignments}
+        loadOwnerDriverAssignments={loadOwnerDriverAssignments}
       />
       <div style={{ ...appShellStyle, padding: "0 20px 20px" }}>
         <div style={{ maxWidth: 1400, margin: "0 auto" }}>
