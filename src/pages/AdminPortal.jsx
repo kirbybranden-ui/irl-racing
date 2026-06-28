@@ -2110,7 +2110,9 @@ export default function AdminPortal({
                     ) : (ownerDriverAssignments || []).length === 0 ? (
                       <div style={{ borderRadius: 24, padding: 20, background: "rgba(255,255,255,0.82)", border: "1px solid rgba(229,231,235,0.9)", color: "#6b7280", fontWeight: 900 }}>No owner driver assignments yet.</div>
                     ) : (ownerDriverAssignments || []).map((assignment) => {
-                      const statusColor = assignment.status === "approved" ? "#047857" : assignment.status === "denied" ? "#b91c1c" : assignment.status === "completed" ? "#1d4ed8" : "#92400e";
+                      const assignmentStatus = String(assignment.status || "pending").toLowerCase();
+                      const statusColor = ["driver_accepted", "completed"].includes(assignmentStatus) ? "#047857" : ["denied", "driver_declined", "cancelled"].includes(assignmentStatus) ? "#b91c1c" : assignmentStatus === "approved_pending_driver" ? "#92400e" : "#92400e";
+                      const statusLabel = assignmentStatus === "approved_pending_driver" ? "Approved - Waiting on Driver" : assignmentStatus === "driver_accepted" ? "Driver Accepted" : assignmentStatus === "driver_declined" ? "Driver Declined" : assignmentStatus === "completed" ? "Completed" : assignmentStatus === "denied" ? "Denied" : "Pending Admin";
                       return (
                         <div key={assignment.id} style={{ borderRadius: 28, padding: isAdminMobile ? 16 : 18, background: "rgba(255,255,255,0.88)", border: "1px solid rgba(229,231,235,0.92)", boxShadow: "0 12px 28px rgba(15,23,42,0.08)" }}>
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
@@ -2124,7 +2126,7 @@ export default function AdminPortal({
                                 <div style={{ color: "#6b7280", fontWeight: 750, marginTop: 3 }}>{assignment.team_name || getTeamFullName?.(assignment.team_key) || assignment.team_key} • {String(assignment.assignment_type || "substitute").replaceAll("_", " ")}</div>
                               </div>
                             </div>
-                            <span style={{ padding: "9px 12px", borderRadius: 999, background: `${statusColor}18`, color: statusColor, fontWeight: 1000, textTransform: "uppercase", fontSize: 12, letterSpacing: 0.7 }}>{assignment.status || "pending"}</span>
+                            <span style={{ padding: "9px 12px", borderRadius: 999, background: `${statusColor}18`, color: statusColor, fontWeight: 1000, textTransform: "uppercase", fontSize: 12, letterSpacing: 0.7 }}>{statusLabel}</span>
                           </div>
 
                           <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(4, minmax(0, 1fr))", gap: 10, marginTop: 14 }}>
