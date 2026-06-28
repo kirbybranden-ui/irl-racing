@@ -5581,6 +5581,7 @@ export default function App() {
   const [paymentComplianceLoading, setPaymentComplianceLoading] = useState(false);
   const [paymentComplianceStatus, setPaymentComplianceStatus] = useState("");
   const [paymentComplianceError, setPaymentComplianceError] = useState("");
+  const [manualPaintWinnerSelections, setManualPaintWinnerSelections] = useState({});
   const [ownerAccessCodes, setOwnerAccessCodes] = useState(() => {
     try {
       const saved = localStorage.getItem("ownerPortalAccessCodes");
@@ -6448,7 +6449,7 @@ export default function App() {
     replaceActiveSeason({ ...activeSeason, drivers: resetDrivers, raceHistory: [], selectedRace: "", positions: {}, stage1: {}, stage2: {}, stage3: {}, dnfMap: {}, startParkMap: {}, offenseMap: {}, fastestLapMap: {} });
     resetEditorStates();
   };
-  const teamStandings = useMemo(() => {
+  const baseTeamStandings = useMemo(() => {
     const teams = {};
     for (const d of visibleDrivers) {
       if (!teams[d.team]) teams[d.team] = { team: d.team, points: 0, wins: 0, top3: 0, top5: 0, drivers: 0, budget: getTeamBudget(d.team), substitutePoints: 0 };
@@ -6512,7 +6513,7 @@ export default function App() {
   }, [raceHistory, tracks]);
   const upcomingRaceForPayment = useMemo(() => getUpcomingRaceByDate(tracks) || tracks[0] || null, [tracks]);
   const paymentComplianceSummary = useMemo(() => buildPaymentComplianceRows({
-    teams: teamStandings,
+    teams: baseTeamStandings,
     drivers: visibleDrivers,
     interviews: paymentComplianceInterviews,
     carUploads: paymentComplianceUploads,
@@ -6520,7 +6521,25 @@ export default function App() {
     overrides: paymentComplianceOverrides,
     previousRace: previousRaceForPayment,
     upcomingRace: upcomingRaceForPayment,
-  }), [teamStandings, visibleDrivers, paymentComplianceInterviews, paymentComplianceUploads, paymentCompliancePaintVotes, paymentComplianceOverrides, previousRaceForPayment, upcomingRaceForPayment]);
+  }), [baseTeamStandings, visibleDrivers, paymentComplianceInterviews, paymentComplianceUploads, paymentCompliancePaintVotes, paymentComplianceOverrides, previousRaceForPayment, upcomingRaceForPayment]);
+  const teamStandings = useMemo(() => {
+    const ownerPointRows = paymentComplianceSummary || [];
+    const byTeam = new Map(ownerPointRows.map((row) => [String(row.teamKey), row]));
+
+    return (baseTeamStandings || [])
+      .map((team) => {
+        const engagementRow = byTeam.get(String(team.team));
+        const ownerEngagementPoints = Number(engagementRow?.totalOwnerEngagementPoints || 0);
+        return {
+          ...team,
+          racePoints: Number(team.points || 0),
+          ownerEngagementPoints,
+          points: Number(team.points || 0) + ownerEngagementPoints,
+        };
+      })
+      .sort((a, b) => b.points - a.points || b.wins - a.wins || b.top3 - a.top3 || a.team.localeCompare(b.team));
+  }, [baseTeamStandings, paymentComplianceSummary]);
+
   const loadOwnerDriverAssignments = async () => {
     if (!supabase) return [];
     setOwnerDriverAssignmentsLoading(true);
@@ -7507,13 +7526,12 @@ export default function App() {
       String(item.team_key || item.team) === String(row.teamKey) && String(item.period_key || item.periodKey) === String(row.paymentPeriodKey)
     ) || {};
 
-    let winningDriverNumber = existing.paint_winner_driver_number || "";
-    let winningDriverName = existing.paint_winner_driver_name || "Manual Paint Winner";
+    const selectedDriverId = manualPaintWinnerSelections?.[`${row.teamKey}__${row.paymentPeriodKey}`] || existing.paint_winner_driver_id || "";
+    const selectedDriver = (row.driverChecks || []).map((check) => check.driver).find((driver) => String(driver.id) === String(selectedDriverId));
 
-    if (shouldAward) {
-      const defaultDriver = (row.driverChecks || [])[0]?.driver || {};
-      winningDriverNumber = window.prompt("Paint scheme winner car number?", String(existing.paint_winner_driver_number || defaultDriver.number || "")) || "";
-      winningDriverName = window.prompt("Paint scheme winner driver name?", String(existing.paint_winner_driver_name || defaultDriver.name || "Manual Paint Winner")) || "Manual Paint Winner";
+    if (shouldAward && !selectedDriver) {
+      setPaymentComplianceError(`Choose the paint scheme winning driver for ${row.teamName} before awarding +5.`);
+      return;
     }
 
     const payload = {
@@ -7527,8 +7545,9 @@ export default function App() {
       manual_paint_winner: Boolean(shouldAward),
       paint_winner_override: Boolean(shouldAward),
       paint_winner_bonus_points: shouldAward ? 5 : 0,
-      paint_winner_driver_number: shouldAward ? winningDriverNumber : null,
-      paint_winner_driver_name: shouldAward ? winningDriverName : null,
+      paint_winner_driver_id: shouldAward ? String(selectedDriver.id) : null,
+      paint_winner_driver_number: shouldAward ? String(selectedDriver.number || "") : null,
+      paint_winner_driver_name: shouldAward ? String(selectedDriver.name || "Manual Paint Winner") : null,
       paint_winner_override_reason: shouldAward ? "Admin manually awarded weekly paint scheme winner bonus" : "Admin cleared weekly paint scheme winner bonus",
       updated_at: new Date().toISOString(),
     };
@@ -7545,7 +7564,7 @@ export default function App() {
         .eq("team_key", row.teamKey)
         .eq("period_key", row.paymentPeriodKey);
       if (error) console.warn("Could not clear manual paint winner from Supabase; local value was cleared.", error);
-      setPaymentComplianceStatus(`Manual paint winner bonus cleared for ${row.teamName}.`);
+      setPaymentComplianceStatus(`Manual paint winner bonus cleared for ${row.teamName}. Team standings points updated locally.`);
       return;
     }
 
@@ -7555,11 +7574,11 @@ export default function App() {
 
     if (error) {
       console.warn("Could not save manual paint winner to Supabase; saved locally in this browser.", error);
-      setPaymentComplianceStatus(`Manual paint winner saved locally for ${row.teamName}. Add/check the manual paint columns on team_payment_overrides to sync it.`);
+      setPaymentComplianceStatus(`Manual paint winner saved locally for ${row.teamName}. Team standings points updated locally. Add/check the manual paint columns on team_payment_overrides to sync it.`);
       return;
     }
 
-    setPaymentComplianceStatus(shouldAward ? `Manual paint winner +5 saved for ${row.teamName}.` : `Manual paint winner bonus cleared for ${row.teamName}.`);
+    setPaymentComplianceStatus(shouldAward ? `Manual paint winner +5 saved for ${row.teamName}. Team standings points updated.` : `Manual paint winner bonus cleared for ${row.teamName}. Team standings points updated.`);
   }
 
   function PaymentCompliancePanel({ mode = "admin" }) {
@@ -7759,6 +7778,16 @@ export default function App() {
                   <div style={{ display: "flex", gap: 9, flexWrap: "wrap", marginTop: 14 }}>
                     <button type="button" onClick={() => savePaymentComplianceOverride(row, "approved")} style={{ border: 0, borderRadius: 999, padding: "10px 13px", background: "#34c759", color: "white", fontWeight: 1000, cursor: "pointer" }}>Approve Pay</button>
                     <button type="button" onClick={() => savePaymentComplianceOverride(row, "denied")} style={{ border: 0, borderRadius: 999, padding: "10px 13px", background: "#ff3b30", color: "white", fontWeight: 1000, cursor: "pointer" }}>Deny Pay</button>
+                    <select
+                      value={manualPaintWinnerSelections?.[`${row.teamKey}__${row.paymentPeriodKey}`] || row.override?.paint_winner_driver_id || ""}
+                      onChange={(event) => setManualPaintWinnerSelections((current) => ({ ...current, [`${row.teamKey}__${row.paymentPeriodKey}`]: event.target.value }))}
+                      style={{ border: "1px solid rgba(0,0,0,0.12)", borderRadius: 999, padding: "10px 13px", background: "white", color: "#1d1d1f", fontWeight: 900, cursor: "pointer", minWidth: 220 }}
+                    >
+                      <option value="">Select paint winner</option>
+                      {(row.driverChecks || []).map((check) => (
+                        <option key={check.driver.id} value={check.driver.id}>#{check.driver.number} {check.driver.name}</option>
+                      ))}
+                    </select>
                     <button type="button" onClick={() => saveManualPaintWinnerOverride(row, true)} style={{ border: 0, borderRadius: 999, padding: "10px 13px", background: "#ffcc00", color: "#1d1d1f", fontWeight: 1000, cursor: "pointer" }}>Award Paint +5</button>
                     <button type="button" onClick={() => saveManualPaintWinnerOverride(row, false)} style={{ border: "1px solid rgba(255,149,0,0.35)", borderRadius: 999, padding: "10px 13px", background: "#fff8e1", color: "#92400e", fontWeight: 1000, cursor: "pointer" }}>Clear Paint +5</button>
                     <button type="button" onClick={() => savePaymentComplianceOverride(row, "")} style={{ border: "1px solid rgba(0,0,0,0.10)", borderRadius: 999, padding: "10px 13px", background: "white", color: "#1d1d1f", fontWeight: 1000, cursor: "pointer" }}>Clear Pay</button>
