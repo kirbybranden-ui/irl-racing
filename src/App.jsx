@@ -129,6 +129,39 @@ import {
   raceEntryTdStyle,
   statBoxStyle,
 } from "./styles/sharedStyles";
+
+const SUB_ONLY_DRIVERS = [
+  {
+    id: "sub-red-45-neck",
+    number: "",
+    name: "Red-45-Neck",
+    team: "",
+    manufacturer: "",
+    driver_type: "substitute",
+    status: "substitute_only",
+    retired: false,
+    points: 0,
+    wins: 0,
+    top3: 0,
+    top5: 0,
+    dnfs: 0,
+  },
+];
+
+function ensureSubOnlyDrivers(roster = []) {
+  const next = Array.isArray(roster) ? [...roster] : [];
+  SUB_ONLY_DRIVERS.forEach((subDriver) => {
+    const exists = next.some((driver) => String(driver?.id || "") === subDriver.id || String(driver?.name || "").toLowerCase() === subDriver.name.toLowerCase());
+    if (!exists) next.push(subDriver);
+  });
+  return next;
+}
+
+function isSubOnlyDriver(driver) {
+  const type = String(driver?.driver_type || driver?.driverType || driver?.status || "").toLowerCase();
+  return type.includes("substitute") || type.includes("sub_only") || type.includes("sub-only");
+}
+
 function AdminLoginPage() {
   const ADMIN_ACCESS_CODE = "BCLADMINPASSWORD2026";
   const [code, setCode] = useState("");
@@ -5528,8 +5561,8 @@ export default function App() {
   // ─── Computed values (must be before all hooks) ───────────────────────────
   const activeSeason = seasons.find((s) => s.id === activeSeasonId) || seasons[0] || null;
   const withLeagueStatusWidget = (page) => (<> {page} <LeagueStatusWidget tracks={tracks} seasonName={activeSeason?.name || ""} /> </>);
-  const drivers = realignLeagueDrivers(activeSeason?.drivers || []);
-  const visibleDrivers = drivers.filter((d) => !isInactivePlaceholderDriver(d));
+  const drivers = ensureSubOnlyDrivers(realignLeagueDrivers(activeSeason?.drivers || []));
+  const visibleDrivers = drivers.filter((d) => !isInactivePlaceholderDriver(d) && !isSubOnlyDriver(d));
   const activeDrivers = visibleDrivers.filter((d) => !d.retired);
   const ownerPortalTeams = useMemo(() => {
     const fixedTeams = ["B2J", "19XI", "BXM", "MER", "NLM", "BWR", "MMS"];
@@ -6437,7 +6470,7 @@ export default function App() {
     if (!assignmentId || !supabase) return { ok: false, error: "Missing assignment or Supabase client." };
 
     const normalizedStatus = String(status || "").toLowerCase();
-    const nextStatus = normalizedStatus === "approved" ? "approved_pending_driver" : normalizedStatus;
+    const nextStatus = normalizedStatus === "approved" ? "approved" : normalizedStatus;
 
     const patch = {
       status: nextStatus,
@@ -6774,14 +6807,49 @@ export default function App() {
     const updatedDrivers = drivers.map((d) => d.id === driverId ? { ...d, retired: false } : d);
     patchActiveSeason({ drivers: updatedDrivers });
   };
-  const addDriver = () => {
+  const addDriver = async () => {
     const trimmedName = newDriverName.trim(), trimmedTeam = newDriverTeam.trim(), trimmedManufacturer = newDriverManufacturer.trim(), driverNumber = String(newDriverNumber).trim();
     if (!trimmedName || !trimmedTeam || !trimmedManufacturer || !driverNumber) { alert("Please enter driver name, number, manufacturer, and team."); return; }
     if (drivers.some((d) => d.name.toLowerCase() === trimmedName.toLowerCase())) { alert("A driver with that name already exists."); return; }
     if (drivers.some((d) => String(d.number) === driverNumber)) { alert("A driver with that number already exists."); return; }
-    const rosterDriver = { id: Date.now(), number: Number(driverNumber), name: trimmedName, manufacturer: trimmedManufacturer, manufacturerLogo: manufacturerLogos[trimmedManufacturer] || null, team: trimmedTeam, startingPoints: 0, manualWins: 0 };
-    const newRoster = [...drivers.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer, manufacturerLogo: d.manufacturerLogo || null, team: d.team, startingPoints: 0, manualWins: 0 })), rosterDriver];
+
+    const rosterDriver = {
+      id: Date.now(),
+      number: Number(driverNumber),
+      name: trimmedName,
+      manufacturer: trimmedManufacturer,
+      manufacturerLogo: manufacturerLogos[trimmedManufacturer] || null,
+      team: trimmedTeam,
+      startingPoints: 0,
+      manualWins: 0,
+    };
+
+    const newRoster = [
+      ...drivers.map((d) => ({
+        id: d.id,
+        number: d.number,
+        name: d.name,
+        manufacturer: d.manufacturer,
+        manufacturerLogo: d.manufacturerLogo || null,
+        team: d.team,
+        startingPoints: 0,
+        manualWins: 0,
+      })),
+      rosterDriver,
+    ];
+
     patchActiveSeason({ drivers: rebuildDriversFromHistory(raceHistory, newRoster) });
+
+    // Driver Management should create the driver's access code immediately.
+    // Without this, the driver appears on the roster but has no Driver HQ / contract password.
+    try {
+      await generateDriverAccessCode(rosterDriver);
+      await loadDriverAccessCodes();
+    } catch (error) {
+      console.error("Driver was added, but access code generation failed:", error);
+      alert("Driver was added, but the access code did not generate. Check driver_access_codes policies/columns.");
+    }
+
     setNewDriverName(""); setNewDriverNumber(""); setNewDriverManufacturer(""); setNewDriverTeam("");
   };
   const openEditDriver = (driver) => { setEditingDriverId(driver.id); setEditDriverForm({ name: driver.name, number: driver.number, manufacturer: driver.manufacturer || "", team: driver.team }); };
@@ -6905,7 +6973,7 @@ export default function App() {
 
     return (ownerDriverAssignments || []).find((assignment) => {
       const status = String(assignment?.status || "").toLowerCase();
-      if (!["driver_accepted", "completed"].includes(status)) return false;
+      if (!["approved", "approved_pending_driver", "driver_accepted", "completed"].includes(status)) return false;
       if (String(assignment?.series || "cup").toLowerCase() !== "cup") return false;
 
       const assignmentRace = String(assignment?.race_name || assignment?.race_id || "").trim().toLowerCase();
