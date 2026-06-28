@@ -59,6 +59,28 @@ function normalizeDevelopmentStatus(row) {
 }
 
 
+
+function getOwnerAssignmentStatusMeta(status) {
+  const value = String(status || "pending").toLowerCase();
+  if (value === "approved_pending_driver") return { label: "Approved - Waiting on Driver", color: "#facc15", border: "#854d0e", background: "#2a2107" };
+  if (value === "driver_accepted") return { label: "Driver Accepted", color: "#4ade80", border: "#166534", background: "#102a16" };
+  if (value === "driver_declined") return { label: "Driver Declined", color: "#f87171", border: "#7f1d1d", background: "#2a1010" };
+  if (value === "approved") return { label: "Approved", color: "#4ade80", border: "#166534", background: "#102a16" };
+  if (value === "denied" || value === "rejected") return { label: "Denied", color: "#f87171", border: "#7f1d1d", background: "#2a1010" };
+  if (value === "completed") return { label: "Completed", color: "#93c5fd", border: "#1d4ed8", background: "#0f1f3d" };
+  if (value === "cancelled") return { label: "Cancelled", color: "#cbd5e1", border: "#475569", background: "#111827" };
+  return { label: "Pending Admin", color: "#f59e0b", border: "#92400e", background: "#291b08" };
+}
+
+function getOwnerAssignmentTypeLabel(value) {
+  const key = String(value || "substitute").toLowerCase();
+  if (key === "development_call_up") return "Development Call-Up";
+  if (key === "emergency_replacement") return "Emergency Replacement";
+  if (key === "one_off_start") return "One-Off Start";
+  if (key === "start_park") return "Start & Park";
+  return "Substitute";
+}
+
 function getEasternNowParts(date = new Date()) {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: "America/New_York",
@@ -579,6 +601,18 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
   const [taskError, setTaskError] = useState("");
   const [newTaskForm, setNewTaskForm] = useState({ title: "", description: "", reward: "", reward_value: 0, task_type: "Performance" });
   const [driverTasks, setDriverTasks] = useState([]);
+
+  const [ownerDriverAssignments, setOwnerDriverAssignments] = useState([]);
+  const [ownerDriverAssignmentMessage, setOwnerDriverAssignmentMessage] = useState("");
+  const [ownerDriverAssignmentError, setOwnerDriverAssignmentError] = useState("");
+  const [ownerDriverAssignmentLoading, setOwnerDriverAssignmentLoading] = useState(false);
+  const [ownerDriverAssignmentForm, setOwnerDriverAssignmentForm] = useState({
+    race_name: "",
+    original_driver_id: "",
+    assigned_driver_id: "",
+    assignment_type: "substitute",
+    owner_note: "",
+  });
   const [driverTaskMessage, setDriverTaskMessage] = useState("");
   const [driverTaskError, setDriverTaskError] = useState("");
   const [newDriverTaskForm, setNewDriverTaskForm] = useState({ driver_number: "", title: "", description: "", reward: "", due_race: "" });
@@ -849,6 +883,34 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
       .filter((driver) => !driver.retired)
       .sort((a, b) => Number(a.number || 9999) - Number(b.number || 9999));
   }, [drivers]);
+
+
+  const teamOwnerDriverAssignments = useMemo(() => {
+    const teamKeys = [safeSelectedTeam, ownerTeamName, getTeamFullName(safeSelectedTeam)]
+      .filter(Boolean)
+      .map((item) => String(item).trim().toLowerCase());
+    return (ownerDriverAssignments || [])
+      .filter((row) => teamKeys.includes(String(row.team_key || "").trim().toLowerCase()) || teamKeys.includes(String(row.team_name || "").trim().toLowerCase()))
+      .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+  }, [ownerDriverAssignments, safeSelectedTeam, ownerTeamName]);
+
+  const pendingOwnerDriverAssignmentCount = teamOwnerDriverAssignments.filter((row) => String(row.status || "pending").toLowerCase() === "pending").length;
+  const waitingOwnerDriverAssignmentCount = teamOwnerDriverAssignments.filter((row) => String(row.status || "").toLowerCase() === "approved_pending_driver").length;
+  const acceptedOwnerDriverAssignmentCount = teamOwnerDriverAssignments.filter((row) => ["driver_accepted", "approved", "completed"].includes(String(row.status || "").toLowerCase())).length;
+
+  const ownerAssignmentRaceOptions = DEFAULT_START_PARK_RACES;
+
+  const selectedOwnerAssignmentOriginalDriver = useMemo(() => {
+    return selected.drivers.find((driver) => String(driver.id || driver.number) === String(ownerDriverAssignmentForm.original_driver_id)) || selected.drivers[0] || null;
+  }, [selected.drivers, ownerDriverAssignmentForm.original_driver_id]);
+
+  const ownerAssignmentSubstituteOptions = useMemo(() => {
+    const originalKey = String(selectedOwnerAssignmentOriginalDriver?.id || selectedOwnerAssignmentOriginalDriver?.number || "");
+    return (drivers || [])
+      .filter((driver) => !driver.retired)
+      .filter((driver) => String(driver.id || driver.number) !== originalKey)
+      .sort((a, b) => Number(a.number || 9999) - Number(b.number || 9999));
+  }, [drivers, selectedOwnerAssignmentOriginalDriver]);
 
   const developmentStartCounts = useMemo(() => {
     const counts = {};
@@ -2800,6 +2862,129 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
     await loadDriverTasks();
   }
 
+
+
+  async function loadOwnerDriverAssignments() {
+    if (!safeSelectedTeam) return;
+    setOwnerDriverAssignmentLoading(true);
+    setOwnerDriverAssignmentError("");
+
+    const { data, error: ownerAssignmentLoadError } = await supabase
+      .from("owner_driver_assignments")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(200);
+
+    if (ownerAssignmentLoadError) {
+      console.error("Could not load owner driver assignments:", ownerAssignmentLoadError);
+      setOwnerDriverAssignments([]);
+      setOwnerDriverAssignmentError("Could not load substitute requests. Check owner_driver_assignments select policy.");
+      setOwnerDriverAssignmentLoading(false);
+      return;
+    }
+
+    setOwnerDriverAssignments(data || []);
+    setOwnerDriverAssignmentLoading(false);
+  }
+
+  function updateOwnerDriverAssignmentForm(field, value) {
+    setOwnerDriverAssignmentForm((current) => ({ ...current, [field]: value }));
+  }
+
+  async function submitOwnerDriverAssignment(event) {
+    event.preventDefault();
+    setOwnerDriverAssignmentMessage("");
+    setOwnerDriverAssignmentError("");
+
+    if (!isAuthorized) {
+      setOwnerDriverAssignmentError("Owner access required before submitting a substitute request.");
+      return;
+    }
+
+    const originalDriver = selected.drivers.find((driver) => String(driver.id || driver.number) === String(ownerDriverAssignmentForm.original_driver_id)) || selectedOwnerAssignmentOriginalDriver;
+    const assignedDriver = (drivers || []).find((driver) => String(driver.id || driver.number) === String(ownerDriverAssignmentForm.assigned_driver_id));
+
+    if (!String(ownerDriverAssignmentForm.race_name || "").trim()) {
+      setOwnerDriverAssignmentError("Select the race for this assignment.");
+      return;
+    }
+
+    if (!originalDriver) {
+      setOwnerDriverAssignmentError("Select the original team driver/car being replaced.");
+      return;
+    }
+
+    if (!assignedDriver) {
+      setOwnerDriverAssignmentError("Select the substitute driver.");
+      return;
+    }
+
+    if (String(originalDriver.id || originalDriver.number) === String(assignedDriver.id || assignedDriver.number)) {
+      setOwnerDriverAssignmentError("The substitute driver must be different from the original driver.");
+      return;
+    }
+
+    const payload = {
+      series: "cup",
+      race_id: String(ownerDriverAssignmentForm.race_name || "").trim(),
+      race_name: String(ownerDriverAssignmentForm.race_name || "").trim(),
+      team_key: safeSelectedTeam,
+      team_name: ownerTeamName,
+      owner_name: ownerNames[safeSelectedTeam] || ownerTeamName,
+      car_number: String(originalDriver.number || ""),
+      original_driver_id: originalDriver.id ? String(originalDriver.id) : null,
+      original_driver_name: originalDriver.name || "",
+      original_driver_number: String(originalDriver.number || ""),
+      assigned_driver_id: assignedDriver.id ? String(assignedDriver.id) : null,
+      assigned_driver_name: assignedDriver.name || "",
+      assigned_driver_number: String(assignedDriver.number || ""),
+      assignment_type: String(ownerDriverAssignmentForm.assignment_type || "substitute"),
+      driver_points_awarded: false,
+      original_driver_points_awarded: false,
+      team_points_awarded: true,
+      manufacturer_points_awarded: true,
+      status: "pending",
+      requested_by: ownerNames[safeSelectedTeam] || ownerTeamName,
+      requested_by_role: "owner",
+      owner_note: String(ownerDriverAssignmentForm.owner_note || "").trim() || null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error: insertAssignmentError } = await supabase.from("owner_driver_assignments").insert([payload]);
+
+    if (insertAssignmentError) {
+      console.error("Could not submit substitute request:", insertAssignmentError);
+      setOwnerDriverAssignmentError("Could not submit substitute request. Check owner_driver_assignments insert policy/columns.");
+      return;
+    }
+
+    setOwnerDriverAssignmentForm({ race_name: "", original_driver_id: "", assigned_driver_id: "", assignment_type: "substitute", owner_note: "" });
+    setOwnerDriverAssignmentMessage("Substitute request sent to Race Operations for approval.");
+    await loadOwnerDriverAssignments();
+  }
+
+  async function cancelOwnerDriverAssignment(assignmentId) {
+    if (!assignmentId) return;
+    if (!window.confirm("Cancel this driver assignment request?")) return;
+    setOwnerDriverAssignmentMessage("");
+    setOwnerDriverAssignmentError("");
+
+    const { error: cancelAssignmentError } = await supabase
+      .from("owner_driver_assignments")
+      .update({ status: "cancelled", updated_at: new Date().toISOString() })
+      .eq("id", assignmentId);
+
+    if (cancelAssignmentError) {
+      console.error("Could not cancel driver assignment:", cancelAssignmentError);
+      setOwnerDriverAssignmentError("Could not cancel assignment. Check owner_driver_assignments update policy.");
+      return;
+    }
+
+    setOwnerDriverAssignmentMessage("Driver assignment request cancelled.");
+    await loadOwnerDriverAssignments();
+  }
+
   async function updateDriverTaskStatus(taskId, status) {
     setDriverTaskMessage("");
     setDriverTaskError("");
@@ -3014,6 +3199,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
     loadDriverFeedback();
     loadOwnerTasks();
     loadDriverTasks();
+    loadOwnerDriverAssignments();
     loadTeamRivalries();
     loadNumberPool();
     loadTeamTransferLogs();
@@ -3482,79 +3668,183 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
               <div style={sectionCardStyle}>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start", marginBottom: 16 }}>
                   <div>
-                    <h2 style={{ margin: 0 }}>🎯 Driver Assignments</h2>
-                    <div style={{ opacity: 0.68, fontSize: 13, marginTop: 6 }}>Send weekly tasks directly to your drivers. They appear on each driver profile under Assignments.</div>
+                    <h2 style={{ margin: 0 }}>🏁 Driver Assignment Center</h2>
+                    <div style={{ opacity: 0.68, fontSize: 13, marginTop: 6 }}>
+                      Submit substitute, emergency replacement, one-off start, development call-up, or start-and-park assignments for Race Operations approval.
+                    </div>
                   </div>
-                  <button onClick={loadDriverTasks} style={secondaryButtonStyle}>Refresh Assignments</button>
+                  <button type="button" onClick={loadOwnerDriverAssignments} style={secondaryButtonStyle}>Refresh Requests</button>
                 </div>
 
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 18 }}>
-                  <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14 }}><div style={{ opacity: 0.65, fontSize: 12 }}>Open Assignments</div><div style={{ fontSize: 28, fontWeight: 900 }}>{openDriverTaskCount}</div></div>
-                  <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14 }}><div style={{ opacity: 0.65, fontSize: 12 }}>Completed</div><div style={{ fontSize: 28, fontWeight: 900 }}>{completedDriverTaskCount}</div></div>
+                  <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14 }}><div style={{ opacity: 0.65, fontSize: 12 }}>Pending Admin</div><div style={{ fontSize: 28, fontWeight: 900 }}>{pendingOwnerDriverAssignmentCount}</div></div>
+                  <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14 }}><div style={{ opacity: 0.65, fontSize: 12 }}>Waiting on Driver</div><div style={{ fontSize: 28, fontWeight: 900 }}>{waitingOwnerDriverAssignmentCount}</div></div>
+                  <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14 }}><div style={{ opacity: 0.65, fontSize: 12 }}>Accepted / Active</div><div style={{ fontSize: 28, fontWeight: 900 }}>{acceptedOwnerDriverAssignmentCount}</div></div>
                 </div>
 
-                <form onSubmit={addDriverTask} style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 16, marginBottom: 18 }}>
+                <form onSubmit={submitOwnerDriverAssignment} style={{ background: "#0f1319", border: "1px solid #d4af37", borderRadius: 14, padding: 16, marginBottom: 18 }}>
+                  <h3 style={{ marginTop: 0 }}>Submit Assignment Request</h3>
+                  <div style={{ opacity: 0.68, fontSize: 13, marginBottom: 12 }}>
+                    After admin approval, the assigned driver will receive this request in Driver HQ to accept or decline.
+                  </div>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 12 }}>
                     <div>
-                      <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>DRIVER</div>
-                      <select value={newDriverTaskForm.driver_number} onChange={(event) => setNewDriverTaskForm((current) => ({ ...current, driver_number: event.target.value }))} style={inputStyle}>
-                        <option value="">Select driver...</option>
-                        {selected.drivers.map((driver) => (
-                          <option key={`${driver.number}-${driver.name}`} value={driver.number}>#{driver.number} {driver.name}</option>
+                      <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>RACE</div>
+                      <select value={ownerDriverAssignmentForm.race_name} onChange={(event) => updateOwnerDriverAssignmentForm("race_name", event.target.value)} style={inputStyle}>
+                        <option value="">Select race...</option>
+                        {ownerAssignmentRaceOptions.map((race) => (
+                          <option key={race.name} value={race.name}>{race.name}{race.date ? ` • ${race.date}` : ""}</option>
                         ))}
                       </select>
                     </div>
                     <div>
-                      <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>ASSIGNMENT TITLE</div>
-                      <input value={newDriverTaskForm.title} onChange={(event) => setNewDriverTaskForm((current) => ({ ...current, title: event.target.value }))} placeholder="Finish inside the Top 10" style={inputStyle} />
+                      <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>ORIGINAL TEAM DRIVER / CAR</div>
+                      <select value={ownerDriverAssignmentForm.original_driver_id} onChange={(event) => updateOwnerDriverAssignmentForm("original_driver_id", event.target.value)} style={inputStyle}>
+                        <option value="">Select original driver...</option>
+                        {selected.drivers.map((driver) => (
+                          <option key={`${driver.id || driver.number}-original`} value={driver.id || driver.number}>#{driver.number} {driver.name}</option>
+                        ))}
+                      </select>
                     </div>
                     <div>
-                      <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>DUE RACE</div>
-                      <input value={newDriverTaskForm.due_race} onChange={(event) => setNewDriverTaskForm((current) => ({ ...current, due_race: event.target.value }))} placeholder="Daytona (Night)" style={inputStyle} />
+                      <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>ASSIGNED / SUBSTITUTE DRIVER</div>
+                      <select value={ownerDriverAssignmentForm.assigned_driver_id} onChange={(event) => updateOwnerDriverAssignmentForm("assigned_driver_id", event.target.value)} style={inputStyle}>
+                        <option value="">Select substitute...</option>
+                        {ownerAssignmentSubstituteOptions.map((driver) => (
+                          <option key={`${driver.id || driver.number}-assigned`} value={driver.id || driver.number}>#{driver.number} {driver.name} {driver.team ? `• ${getTeamFullName(driver.team)}` : ""}</option>
+                        ))}
+                      </select>
                     </div>
                     <div>
-                      <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>REWARD</div>
-                      <input value={newDriverTaskForm.reward} onChange={(event) => setNewDriverTaskForm((current) => ({ ...current, reward: event.target.value }))} placeholder="+$25,000 bonus / +5 morale" style={inputStyle} />
+                      <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>ASSIGNMENT TYPE</div>
+                      <select value={ownerDriverAssignmentForm.assignment_type} onChange={(event) => updateOwnerDriverAssignmentForm("assignment_type", event.target.value)} style={inputStyle}>
+                        <option value="substitute">Substitute</option>
+                        <option value="development_call_up">Development Call-Up</option>
+                        <option value="emergency_replacement">Emergency Replacement</option>
+                        <option value="one_off_start">One-Off Start</option>
+                        <option value="start_park">Start & Park</option>
+                      </select>
                     </div>
                   </div>
                   <div style={{ marginTop: 12 }}>
-                    <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>DESCRIPTION</div>
-                    <textarea value={newDriverTaskForm.description} onChange={(event) => setNewDriverTaskForm((current) => ({ ...current, description: event.target.value }))} placeholder="Explain what this driver needs to accomplish." style={{ ...inputStyle, minHeight: 80, resize: "vertical" }} />
+                    <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>OWNER NOTE / REASON</div>
+                    <textarea value={ownerDriverAssignmentForm.owner_note} onChange={(event) => updateOwnerDriverAssignmentForm("owner_note", event.target.value)} placeholder="Explain why this assignment is needed." style={{ ...inputStyle, minHeight: 80, resize: "vertical" }} />
                   </div>
-                  <button type="submit" style={{ ...primaryButtonStyle, marginTop: 12 }}>Send Driver Assignment</button>
-                  {driverTaskMessage && <div style={{ marginTop: 12, color: "#4ade80", fontWeight: 800 }}>{driverTaskMessage}</div>}
-                  {driverTaskError && <div style={{ marginTop: 12, color: "#f87171", fontWeight: 800 }}>{driverTaskError}</div>}
+                  <button type="submit" style={{ ...primaryButtonStyle, marginTop: 12 }}>Submit to Race Operations</button>
+                  {ownerDriverAssignmentMessage && <div style={{ marginTop: 12, color: "#4ade80", fontWeight: 800 }}>{ownerDriverAssignmentMessage}</div>}
+                  {ownerDriverAssignmentError && <div style={{ marginTop: 12, color: "#f87171", fontWeight: 800 }}>{ownerDriverAssignmentError}</div>}
                 </form>
 
-                {driverTasks.length === 0 ? (
-                  <div style={{ opacity: 0.72 }}>No driver assignments created yet.</div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
+                  <h3 style={{ margin: 0 }}>Assignment Requests</h3>
+                  {ownerDriverAssignmentLoading && <div style={{ opacity: 0.7, fontSize: 13, fontWeight: 800 }}>Loading...</div>}
+                </div>
+
+                {teamOwnerDriverAssignments.length === 0 ? (
+                  <div style={{ opacity: 0.72 }}>No substitute or driver assignment requests submitted yet.</div>
                 ) : (
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 12 }}>
-                    {driverTasks.map((task) => {
-                      const status = String(task.status || "Assigned");
-                      const completed = status === "Completed";
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 12 }}>
+                    {teamOwnerDriverAssignments.map((assignment) => {
+                      const statusMeta = getOwnerAssignmentStatusMeta(assignment.status);
+                      const canCancel = ["pending", "approved_pending_driver"].includes(String(assignment.status || "pending").toLowerCase());
                       return (
-                        <div key={task.id} style={{ background: completed ? "#102a16" : "#0f1319", border: `1px solid ${completed ? "#22c55e" : "#2c3440"}`, borderRadius: 14, padding: 16 }}>
+                        <div key={assignment.id || `${assignment.race_name}-${assignment.original_driver_number}-${assignment.assigned_driver_number}`} style={{ background: statusMeta.background, border: `1px solid ${statusMeta.border}`, borderRadius: 14, padding: 16 }}>
                           <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
                             <div>
-                              <div style={{ fontSize: 11, fontWeight: 900, opacity: 0.65, textTransform: "uppercase" }}>#{task.driver_number} {task.driver_name} • {status}</div>
-                              <div style={{ fontSize: 18, fontWeight: 900, marginTop: 4 }}>{completed ? "✅ " : "🎯 "}{task.title}</div>
+                              <div style={{ fontSize: 11, fontWeight: 900, opacity: 0.7, textTransform: "uppercase" }}>{getOwnerAssignmentTypeLabel(assignment.assignment_type)} • {assignment.race_name || assignment.race_id || "Race"}</div>
+                              <div style={{ fontSize: 18, fontWeight: 900, marginTop: 4 }}>#{assignment.original_driver_number || assignment.car_number} → #{assignment.assigned_driver_number}</div>
                             </div>
-                            <button onClick={() => updateDriverTaskStatus(task.id, completed ? "Assigned" : "Completed")} style={completed ? secondaryButtonStyle : primaryButtonStyle}>{completed ? "Reopen" : "Complete"}</button>
+                            <div style={{ color: statusMeta.color, fontWeight: 900, fontSize: 12, textAlign: "right" }}>{statusMeta.label}</div>
                           </div>
-                          {task.description && <div style={{ opacity: 0.75, fontSize: 13, lineHeight: 1.5, marginTop: 10 }}>{task.description}</div>}
-                          <div style={{ marginTop: 12, display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                            <div>
-                              {task.due_race && <div style={{ fontSize: 12, opacity: 0.65 }}>Due: {task.due_race}</div>}
-                              <div style={{ fontSize: 13, fontWeight: 800, color: "#d4af37" }}>Reward: {task.reward || "—"}</div>
+                          <div style={{ marginTop: 12, opacity: 0.84, lineHeight: 1.55 }}>
+                            <div><strong>Original:</strong> #{assignment.original_driver_number || assignment.car_number} {assignment.original_driver_name || ""}</div>
+                            <div><strong>Assigned:</strong> #{assignment.assigned_driver_number || ""} {assignment.assigned_driver_name || ""}</div>
+                            {assignment.driver_response && <div><strong>Driver Response:</strong> {String(assignment.driver_response).toUpperCase()}</div>}
+                            {assignment.owner_note && <div><strong>Note:</strong> {assignment.owner_note}</div>}
+                          </div>
+                          {canCancel && (
+                            <div style={{ marginTop: 12 }}>
+                              <button type="button" onClick={() => cancelOwnerDriverAssignment(assignment.id)} style={{ ...dangerButtonStyle, padding: "7px 10px", fontSize: 12 }}>Cancel Request</button>
                             </div>
-                            <button onClick={() => deleteDriverTask(task.id)} style={{ ...dangerButtonStyle, padding: "7px 10px", fontSize: 12 }}>Delete</button>
-                          </div>
+                          )}
                         </div>
                       );
                     })}
                   </div>
                 )}
+
+                <div style={{ marginTop: 22, paddingTop: 18, borderTop: "1px solid #2c3440" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
+                    <div>
+                      <h3 style={{ margin: 0 }}>Weekly Driver Tasks</h3>
+                      <div style={{ opacity: 0.62, fontSize: 13, marginTop: 4 }}>This keeps the old weekly task tool separate from race substitution requests.</div>
+                    </div>
+                    <button onClick={loadDriverTasks} style={secondaryButtonStyle}>Refresh Tasks</button>
+                  </div>
+
+                  <form onSubmit={addDriverTask} style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 16, marginBottom: 18 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 12 }}>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>DRIVER</div>
+                        <select value={newDriverTaskForm.driver_number} onChange={(event) => setNewDriverTaskForm((current) => ({ ...current, driver_number: event.target.value }))} style={inputStyle}>
+                          <option value="">Select driver...</option>
+                          {selected.drivers.map((driver) => (
+                            <option key={`${driver.number}-${driver.name}`} value={driver.number}>#{driver.number} {driver.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>TASK TITLE</div>
+                        <input value={newDriverTaskForm.title} onChange={(event) => setNewDriverTaskForm((current) => ({ ...current, title: event.target.value }))} placeholder="Finish inside the Top 10" style={inputStyle} />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>DUE RACE</div>
+                        <input value={newDriverTaskForm.due_race} onChange={(event) => setNewDriverTaskForm((current) => ({ ...current, due_race: event.target.value }))} placeholder="Daytona (Night)" style={inputStyle} />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>REWARD</div>
+                        <input value={newDriverTaskForm.reward} onChange={(event) => setNewDriverTaskForm((current) => ({ ...current, reward: event.target.value }))} placeholder="+$25,000 bonus / +5 morale" style={inputStyle} />
+                      </div>
+                    </div>
+                    <div style={{ marginTop: 12 }}>
+                      <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>DESCRIPTION</div>
+                      <textarea value={newDriverTaskForm.description} onChange={(event) => setNewDriverTaskForm((current) => ({ ...current, description: event.target.value }))} placeholder="Explain what this driver needs to accomplish." style={{ ...inputStyle, minHeight: 80, resize: "vertical" }} />
+                    </div>
+                    <button type="submit" style={{ ...primaryButtonStyle, marginTop: 12 }}>Send Weekly Task</button>
+                    {driverTaskMessage && <div style={{ marginTop: 12, color: "#4ade80", fontWeight: 800 }}>{driverTaskMessage}</div>}
+                    {driverTaskError && <div style={{ marginTop: 12, color: "#f87171", fontWeight: 800 }}>{driverTaskError}</div>}
+                  </form>
+
+                  {driverTasks.length === 0 ? (
+                    <div style={{ opacity: 0.72 }}>No weekly driver tasks created yet.</div>
+                  ) : (
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 12 }}>
+                      {driverTasks.map((task) => {
+                        const status = String(task.status || "Assigned");
+                        const completed = status === "Completed";
+                        return (
+                          <div key={task.id} style={{ background: completed ? "#102a16" : "#0f1319", border: `1px solid ${completed ? "#22c55e" : "#2c3440"}`, borderRadius: 14, padding: 16 }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
+                              <div>
+                                <div style={{ fontSize: 11, fontWeight: 900, opacity: 0.65, textTransform: "uppercase" }}>#{task.driver_number} {task.driver_name} • {status}</div>
+                                <div style={{ fontSize: 18, fontWeight: 900, marginTop: 4 }}>{completed ? "✅ " : "🎯 "}{task.title}</div>
+                              </div>
+                              <button onClick={() => updateDriverTaskStatus(task.id, completed ? "Assigned" : "Completed")} style={completed ? secondaryButtonStyle : primaryButtonStyle}>{completed ? "Reopen" : "Complete"}</button>
+                            </div>
+                            {task.description && <div style={{ opacity: 0.75, fontSize: 13, lineHeight: 1.5, marginTop: 10 }}>{task.description}</div>}
+                            <div style={{ marginTop: 12, display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                              <div>
+                                {task.due_race && <div style={{ fontSize: 12, opacity: 0.65 }}>Due: {task.due_race}</div>}
+                                <div style={{ fontSize: 13, fontWeight: 800, color: "#d4af37" }}>Reward: {task.reward || "—"}</div>
+                              </div>
+                              <button onClick={() => deleteDriverTask(task.id)} style={{ ...dangerButtonStyle, padding: "7px 10px", fontSize: 12 }}>Delete</button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
