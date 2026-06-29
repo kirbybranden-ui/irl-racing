@@ -5613,6 +5613,10 @@ export default function App() {
   const [activeSeasonId, setActiveSeasonId] = useState("");
   const [currentSeries, setCurrentSeries] = useState("cup");
   const [tracks, setTracks] = useState(defaultRaces);
+  const [arcaSeasons, setArcaSeasons] = useState([]);
+const [arcaRaces, setArcaRaces] = useState([]);
+const [arcaDrivers, setArcaDrivers] = useState([]);
+const [arcaSelectedRace, setArcaSelectedRace] = useState(null);
   const backupFileInputRef = useRef(null);
   const [isHydrated, setIsHydrated] = useState(false);
   const loadedStateSignatureRef = useRef("");
@@ -5699,6 +5703,8 @@ export default function App() {
   const path = rawPath.toLowerCase();
   const isMobileViewport = useMobileViewport(768);
   const forceDesktop = typeof document !== "undefined" && document.cookie.includes("bcl-force-desktop=1");
+  const currentPathname = typeof window !== "undefined" ? window.location.pathname : "";
+const isArcaSeries = currentPathname.startsWith("/series/arca/");
 
   useEffect(() => {
     if (typeof document === "undefined") return undefined;
@@ -5735,6 +5741,19 @@ export default function App() {
       if (cleanupButton) cleanupButton.remove();
     };
   }, [isMobileViewport, forceDesktop]);
+
+  useEffect(() => {
+  const loadData = async () => {
+    const data = await loadArcaSeasonData();
+    setArcaSeasons(data.seasons);
+    setArcaRaces(data.races);
+    setArcaDrivers(data.drivers);
+  };
+  
+  if (isArcaSeries) {
+    loadData();
+  }
+}, [isArcaSeries]);
 
   // ─── Computed values (must be before all hooks) ───────────────────────────
   const activeSeason = seasons.find((s) => s.id === activeSeasonId) || seasons[0] || null;
