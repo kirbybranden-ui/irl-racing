@@ -39,6 +39,7 @@ import { trackOverviewData } from "./data/trackOverview";
 import SeriesPortal from "./pages/series/SeriesPortal";
 import SeriesLandingPage from "./pages/series/SeriesLandingPage";
 import SeriesJoinPage from "./pages/series/SeriesJoinPage";
+import { defaultArcaDrivers } from "./data/arca/drivers";
 import { SERIES } from "./config/series";
 import {
   loadArcaSeasonData,
@@ -5615,7 +5616,7 @@ if (MAINTENANCE_MODE && !maintenanceBypass) {
   const [tracks, setTracks] = useState(defaultRaces);
   const [arcaSeasons, setArcaSeasons] = useState([]);
 const [arcaRaces, setArcaRaces] = useState([]);
-const [arcaDrivers, setArcaDrivers] = useState([]);
+const [arcaDrivers, setArcaDrivers] = useState(defaultArcaDrivers);
 const [arcaSelectedRace, setArcaSelectedRace] = useState(null);
   const backupFileInputRef = useRef(null);
   const [isHydrated, setIsHydrated] = useState(false);
