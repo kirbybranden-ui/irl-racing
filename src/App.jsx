@@ -5597,10 +5597,10 @@ function AppleSeriesPortalLanding() {
 
 export default function App() {
   const params = new URLSearchParams(window.location.search);
-  const maintenanceBypass = params.get("access") === ADMIN_BYPASS_KEY;
+const maintenanceBypass = params.get("access") === ADMIN_BYPASS_KEY || sessionStorage.getItem("bcl-maintenance-bypass") === "true";
 
 if (MAINTENANCE_MODE && !maintenanceBypass) {
-  return <AdminLoginPage />;
+  return <MaintenancePage />;
 }
 
   useEffect(() => {
