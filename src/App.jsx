@@ -4,6 +4,7 @@ import ncsLogo from "./assets/series/NCS.png";
 import nxsLogo from "./assets/series/NXS.png";
 import ctsLogo from "./assets/series/CTS.png";
 import amsLogo from "./assets/series/AMS.png";
+import { SERIES } from "./config/series";
 import FilesPage from "./FilesPage";
 import SubmitAppealPage from "./SubmitAppealPage";
 import AppealsPage from "./AppealsPage";
@@ -5604,6 +5605,7 @@ export default function App() {
   const [openAppealCount, setOpenAppealCount] = useState(0);
   const [openStoryCount, setOpenStoryCount] = useState(0);
   const [activeSeasonId, setActiveSeasonId] = useState("");
+  const [currentSeries, setCurrentSeries] = useState("cup");
   const [tracks, setTracks] = useState(defaultRaces);
   const backupFileInputRef = useRef(null);
   const [isHydrated, setIsHydrated] = useState(false);
