@@ -39,6 +39,7 @@ import { trackOverviewData } from "./data/trackOverview";
 import SeriesPortal from "./pages/series/SeriesPortal";
 import SeriesLandingPage from "./pages/series/SeriesLandingPage";
 import SeriesJoinPage from "./pages/series/SeriesJoinPage";
+import { SERIES } from "./config/series";
 import {
 
   teamLogos,
