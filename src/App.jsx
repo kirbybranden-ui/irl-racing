@@ -4,7 +4,6 @@ import ncsLogo from "./assets/series/NCS.png";
 import nxsLogo from "./assets/series/NXS.png";
 import ctsLogo from "./assets/series/CTS.png";
 import amsLogo from "./assets/series/AMS.png";
-import { SERIES } from "./config/series";
 import FilesPage from "./FilesPage";
 import SubmitAppealPage from "./SubmitAppealPage";
 import AppealsPage from "./AppealsPage";
