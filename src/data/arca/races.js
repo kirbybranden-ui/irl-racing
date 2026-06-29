@@ -1,9 +1,105 @@
 /**
  * ARCA Menards Series - Race Schedule
- * Define ARCA races here as they're scheduled.
  */
 
 export const defaultArcaRaces = [
-  // Placeholder - races will be added as season is scheduled
-  // Structure should match: { id, name, track, date, stages, series: "ARCA" }
+  {
+    id: "arca-race-1",
+    name: "Daytona",
+    track: "Daytona",
+    date: "2024-07-03",
+    stages: 3,
+    series: "ARCA",
+    results: [],
+  },
+  {
+    id: "arca-race-2",
+    name: "Rockingham",
+    track: "Rockingham",
+    date: "2024-07-10",
+    stages: 3,
+    series: "ARCA",
+    results: [],
+  },
+  {
+    id: "arca-race-3",
+    name: "Lucas Oil Raceway",
+    track: "Lucas Oil Raceway",
+    date: "2024-07-17",
+    stages: 3,
+    series: "ARCA",
+    results: [],
+  },
+  {
+    id: "arca-race-4",
+    name: "Kansas",
+    track: "Kansas",
+    date: "2024-07-24",
+    stages: 3,
+    series: "ARCA",
+    results: [],
+  },
+  {
+    id: "arca-race-5",
+    name: "Dover",
+    track: "Dover",
+    date: "2024-07-31",
+    stages: 3,
+    series: "ARCA",
+    results: [],
+  },
+  {
+    id: "arca-race-6",
+    name: "Martinsville",
+    track: "Martinsville",
+    date: "2024-08-07",
+    stages: 3,
+    series: "ARCA",
+    results: [],
+  },
+  {
+    id: "arca-race-7",
+    name: "Portland",
+    track: "Portland",
+    date: "2024-08-14",
+    stages: 3,
+    series: "ARCA",
+    results: [],
+  },
+  {
+    id: "arca-race-8",
+    name: "Phoenix",
+    track: "Phoenix",
+    date: "2024-08-21",
+    stages: 3,
+    series: "ARCA",
+    results: [],
+  },
+  {
+    id: "arca-race-9",
+    name: "Iowa",
+    track: "Iowa",
+    date: "2024-08-28",
+    stages: 3,
+    series: "ARCA",
+    results: [],
+  },
+  {
+    id: "arca-race-10",
+    name: "North Wilkesboro",
+    track: "North Wilkesboro",
+    date: "2024-09-04",
+    stages: 3,
+    series: "ARCA",
+    results: [],
+  },
+  {
+    id: "arca-race-11",
+    name: "Michigan",
+    track: "Michigan",
+    date: "2024-09-11",
+    stages: 3,
+    series: "ARCA",
+    results: [],
+  },
 ];
