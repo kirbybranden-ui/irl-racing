@@ -8272,7 +8272,18 @@ const isArcaSeries = currentPathname.startsWith("/series/arca/");
   }
   if (path === "/standings") return withLeagueStatusWidget(<StandingsPage drivers={visibleDrivers} teams={teamStandings} manufacturerStandings={manufacturerStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} ownerDriverAssignments={ownerDriverAssignments} />);
   if (path === "/overlay/ticker" || viewMode === "overlay-ticker") return <TickerOverlay drivers={visibleDrivers} teams={teamStandings} raceHistory={raceHistory} preview={viewMode === "overlay-ticker"} seasonName={activeSeason?.name || ""} />;
-  if (path !== "/admin") {
+  // ARCA Series
+if (currentPathname === "/series/arca") {
+  return (
+    <SeriesLandingPage 
+      seriesId="arca" 
+      drivers={arcaDrivers}
+      driverAccessCodes={driverAccessCodes}
+    />
+  );
+}
+
+if (path !== "/admin") {
     return <StandingsPage drivers={visibleDrivers} teams={teamStandings} manufacturerStandings={manufacturerStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} ownerDriverAssignments={ownerDriverAssignments} />;
   }
   return (
