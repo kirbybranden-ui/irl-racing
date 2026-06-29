@@ -5742,20 +5742,22 @@ const isArcaSeries = currentPathname.startsWith("/series/arca/");
       if (cleanupButton) cleanupButton.remove();
     };
   }, [isMobileViewport, forceDesktop]);
-/*
+
 useEffect(() => {
   const loadData = async () => {
     const data = await loadArcaSeasonData();
     setArcaSeasons(data.seasons);
     setArcaRaces(data.races);
-    setArcaDrivers(data.drivers);
+    // Add series field to drivers if it's missing
+    const driversWithSeries = (data.drivers || []).map(d => ({ ...d, series: "arca" }));
+    setArcaDrivers(driversWithSeries);
   };
   
   if (isArcaSeries) {
     loadData();
   }
 }, [isArcaSeries]);
-*/
+  
   const activeSeason = seasons.find((s) => s.id === activeSeasonId) || seasons[0] || null;
   const withLeagueStatusWidget = (page) => (<> {page} <LeagueStatusWidget tracks={tracks} seasonName={activeSeason?.name || ""} /> </>);
   const drivers = ensureSubOnlyDrivers(realignLeagueDrivers(activeSeason?.drivers || []));
