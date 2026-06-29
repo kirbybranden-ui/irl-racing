@@ -5742,8 +5742,8 @@ const isArcaSeries = currentPathname.startsWith("/series/arca/");
       if (cleanupButton) cleanupButton.remove();
     };
   }, [isMobileViewport, forceDesktop]);
-
-  useEffect(() => {
+/*
+useEffect(() => {
   const loadData = async () => {
     const data = await loadArcaSeasonData();
     setArcaSeasons(data.seasons);
@@ -5755,8 +5755,7 @@ const isArcaSeries = currentPathname.startsWith("/series/arca/");
     loadData();
   }
 }, [isArcaSeries]);
-
-  // ─── Computed values (must be before all hooks) ───────────────────────────
+*/
   const activeSeason = seasons.find((s) => s.id === activeSeasonId) || seasons[0] || null;
   const withLeagueStatusWidget = (page) => (<> {page} <LeagueStatusWidget tracks={tracks} seasonName={activeSeason?.name || ""} /> </>);
   const drivers = ensureSubOnlyDrivers(realignLeagueDrivers(activeSeason?.drivers || []));
