@@ -5599,9 +5599,9 @@ export default function App() {
   const params = new URLSearchParams(window.location.search);
   const maintenanceBypass = params.get("access") === ADMIN_BYPASS_KEY;
 
-  if (MAINTENANCE_MODE && !maintenanceBypass) {
-    return <MaintenancePage />;
-  }
+if (MAINTENANCE_MODE && !maintenanceBypass) {
+  return <AdminLoginPage />;
+}
 
   useEffect(() => {
     // syncCruiserNumberAndNumberOwnership();
