@@ -72,6 +72,26 @@ export default function MaintenancePage() {
         >
           "The Next Generation of Sim Racing Starts Here."
         </p>
+
+        <button
+          onClick={() => {
+            sessionStorage.setItem("bcl-maintenance-bypass", "true");
+            window.location.reload();
+          }}
+          style={{
+            marginTop: 40,
+            padding: "14px 28px",
+            background: "#d4af37",
+            color: "#111",
+            fontWeight: 900,
+            border: "none",
+            borderRadius: 8,
+            cursor: "pointer",
+            fontSize: 16,
+          }}
+        >
+          Enter as Admin
+        </button>
       </div>
     </div>
   );
