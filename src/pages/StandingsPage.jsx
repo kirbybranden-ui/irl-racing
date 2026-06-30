@@ -630,7 +630,6 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
   const [arcaStandings, setArcaStandings] = useState([]);
   const [arcaTeamStandings, setArcaTeamStandings] = useState([]);
   const [arcaLoading, setArcaLoading] = useState(false);
-  const [arcaRaceHistory, setArcaRaceHistory] = useState([]);
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
@@ -734,38 +733,6 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
 
     loadArcaStandings();
   }, []);
-
-  // Load ARCA Race History for last winner
-  useEffect(() => {
-    async function loadArcaRaceHistory() {
-      try {
-        // Get latest ARCA race
-        const { data: races } = await supabase
-          .from("arca_races")
-          .select("id, race_name, race_date")
-          .order("race_date", { ascending: false })
-          .limit(1);
-
-        if (races && races.length > 0) {
-          const latestRace = races[0];
-          // Get results for this race
-          const { data: results } = await supabase
-            .from("arca_results")
-            .select("*")
-            .eq("race_id", latestRace.id)
-            .order("finish_position", { ascending: true });
-
-          setArcaRaceHistory([{ ...latestRace, results: results || [] }]);
-        }
-      } catch (err) {
-        console.error("Error loading ARCA race history:", err);
-      }
-    }
-
-    if (seriesId === "arca") {
-      loadArcaRaceHistory();
-    }
-  }, [seriesId]);
 
   const activeDrivers = useMemo(() => {
     return dedupeDriversByNumber(drivers || [])
