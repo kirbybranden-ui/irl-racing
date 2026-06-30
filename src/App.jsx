@@ -8507,5 +8507,13 @@ if (path !== "/admin") {
       watchDriverId={watchDriverId}
       watchReason={watchReason}
       watchSaving={watchSaving}
+      arcaRaces={arcaRaces}
+  setArcaRaces={setArcaRaces}
+  arcaDrivers={arcaDrivers}
+  setArcaDrivers={setArcaDrivers}
+  arcaSeasons={arcaSeasons}
+  setArcaSeasons={setArcaSeasons}
+  arcaSelectedRace={arcaSelectedRace}
+  setArcaSelectedRace={setArcaSelectedRace}
     />
   );}
