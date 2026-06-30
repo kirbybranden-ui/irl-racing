@@ -7655,10 +7655,14 @@ export default function App() {
     return (
       <StandingsPage
         seriesId={seriesId}
-        drivers={seriesId === "arca" ? [] : visibleDrivers}
+        drivers={seriesId === "arca" ? (activeSeason?.arcaDrivers || []) : visibleDrivers}
         teams={seriesId === "arca" ? [] : teamStandings}
-        raceHistory={seriesId === "arca" ? [] : raceHistory}
+        tracks={seriesId === "arca" ? arcaTracks : tracks}
+        raceHistory={seriesId === "arca" ? (activeSeason?.arcaRaceHistory || []) : raceHistory}
         driverAccessCodes={driverAccessCodes}
+        arcaDrivers={activeSeason?.arcaDrivers}
+        arcaRaceHistory={activeSeason?.arcaRaceHistory}
+        supabase={supabase}
       />
     );
   }
