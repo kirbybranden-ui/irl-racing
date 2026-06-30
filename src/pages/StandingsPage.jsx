@@ -630,6 +630,7 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
   const [arcaStandings, setArcaStandings] = useState([]);
   const [arcaTeamStandings, setArcaTeamStandings] = useState([]);
   const [arcaLoading, setArcaLoading] = useState(false);
+  const [arcaRaceHistory, setArcaRaceHistory] = useState([]);
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
@@ -733,6 +734,38 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
     loadArcaStandings();
   }, []);
 
+  // Load ARCA Race History for last winner
+  useEffect(() => {
+    async function loadArcaRaceHistory() {
+      try {
+        // Get latest ARCA race
+        const { data: races } = await supabase
+          .from("arca_races")
+          .select("id, race_name, race_date")
+          .order("race_date", { ascending: false })
+          .limit(1);
+
+        if (races && races.length > 0) {
+          const latestRace = races[0];
+          // Get results for this race
+          const { data: results } = await supabase
+            .from("arca_results")
+            .select("*")
+            .eq("race_id", latestRace.id)
+            .order("finish_position", { ascending: true });
+
+          setArcaRaceHistory([{ ...latestRace, results: results || [] }]);
+        }
+      } catch (err) {
+        console.error("Error loading ARCA race history:", err);
+      }
+    }
+
+    if (seriesId === "arca") {
+      loadArcaRaceHistory();
+    }
+  }, [seriesId]);
+
   const activeDrivers = useMemo(() => {
     return dedupeDriversByNumber(drivers || [])
       .filter((driver) => !isInactivePlaceholderDriver(driver))
@@ -750,6 +783,10 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
   const completedRaceCount = (raceHistory || []).length;
   const latestRace = (raceHistory || [])[Math.max(0, (raceHistory || []).length - 1)] || null;
   const latestWinner = latestRace?.results?.find((result) => Number(result.finishPos || result.finish || result.position) === 1 || result.isWin) || null;
+
+  // ARCA last winner
+  const arcaLatestRace = (arcaRaceHistory || [])[0] || null;
+  const arcaLatestWinner = arcaLatestRace?.results?.find((result) => Number(result.finish_position || result.finishPos || result.position) === 1) || null;
 
   const teamRows = useMemo(() => {
     const sourceTeams = Array.isArray(teams) ? teams : [];
@@ -1442,7 +1479,7 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
           <StatCard icon="🏆" label="Active Season" value={seasonName || "Season"} detail={`${completedRaceCount} races entered`} accent="#ff9f0a" tint="rgba(255,159,10,0.16)" />
           <StatCard icon="👑" label="Points Leader" value={leader ? `#${leader.number} ${leader.name}` : "—"} detail={leader ? `${leader.points} points` : "No leader yet"} onClick={() => leader && handleDriverClick(leader.number)} accent="#5856d6" tint="rgba(88,86,214,0.14)" />
           <StatCard icon="👥" label="Active Drivers" value={sorted.length} detail={`${teams.length} teams`} accent="#34c759" tint="rgba(52,199,89,0.14)" />
-          <StatCard icon="🍾" label="Latest Winner" value={latestWinner ? `#${latestWinner.number || latestWinner.driverNumber || ""} ${latestWinner.name || latestWinner.driverName || "Winner"}` : "—"} detail={latestRace?.raceName || "No race posted"} accent="#ff3b30" tint="rgba(255,59,48,0.12)" />
+          <StatCard icon="🍾" label="Latest Winner" value={seriesId === "arca" ? (arcaLatestWinner ? `#${arcaLatestWinner.driver_number || arcaLatestWinner.driverNumber || ""} ${arcaLatestWinner.driver_name || arcaLatestWinner.name || arcaLatestWinner.driverName || "Winner"}` : "—") : (latestWinner ? `#${latestWinner.number || latestWinner.driverNumber || ""} ${latestWinner.name || latestWinner.driverName || "Winner"}` : "—")} detail={seriesId === "arca" ? (arcaLatestRace?.race_name || "No race posted") : (latestRace?.raceName || "No race posted")} accent="#ff3b30" tint="rgba(255,59,48,0.12)" />
         </div>
 
         <PaintSchemeWinnerStandingsCard tracks={tracks} drivers={drivers} />
