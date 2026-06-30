@@ -40,7 +40,7 @@ import SeriesPortal from "./pages/series/SeriesPortal";
 import SeriesLandingPage from "./pages/series/SeriesLandingPage";
 import SeriesJoinPage from "./pages/series/SeriesJoinPage";
 import { defaultArcaDrivers } from "./data/arca/drivers";
-import { saveArcaRaceResults, rebuildArcaStandings } from "./lib/arcaRaceResultsFunctions";
+import { rebuildArcaStandings } from "./lib/arcaRaceResultsFunctions";
 import { SERIES } from "./config/series";
 import {
   loadArcaSeasonData,
