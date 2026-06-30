@@ -7460,39 +7460,14 @@ export default function App() {
   if (!isHydrated) return <div style={appShellStyle}><div style={pageContainerStyle}><div style={sectionCardStyle}>Loading league data...</div></div></div>;
 
   // Development series pages. These do not remove any existing Cup routes.
-if (path.startsWith("/series/")) {
+  if (path.startsWith("/series/")) {
     const seriesId = decodeURIComponent(rawPath.split("/")[2] || "cup").toLowerCase();
-    
     return (
       <StandingsPage
         seriesId={seriesId}
         drivers={seriesId === "arca" ? [] : visibleDrivers}
         teams={seriesId === "arca" ? [] : teamStandings}
         raceHistory={seriesId === "arca" ? [] : raceHistory}
-        driverAccessCodes={driverAccessCodes}
-      />
-    );
-  }
-    
-    return (
-      <StandingsPage
-        seriesId="cup"
-        drivers={visibleDrivers}
-        teams={teamStandings}
-        raceHistory={raceHistory}
-        driverAccessCodes={driverAccessCodes}
-      />
-    );
-  }
-
-  if (path.startsWith("/series/")) {
-    const seriesId = decodeURIComponent(rawPath.split("/")[2] || "cup").toLowerCase();
-    return (
-      <SeriesLandingPage
-        seriesId={seriesId}
-        drivers={visibleDrivers}
-        teams={teamStandings}
-        raceHistory={raceHistory}
         driverAccessCodes={driverAccessCodes}
       />
     );
