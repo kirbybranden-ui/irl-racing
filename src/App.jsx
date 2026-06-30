@@ -7134,6 +7134,8 @@ export default function App() {
     });
   };
   // ===== END ARCA FUNCTIONS =====
+
+  const handleEditRace = (race) => {
     const np = {}, ns1 = {}, ns2 = {}, ns3 = {}, nd = {}, spm = {}, no = {}, nf = {}, nr = {}, pm = {}, notes = {};
     race.results.forEach((r) => {
       np[r.driverId] = r.finishPos || ""; ns1[r.driverId] = r.stage1Pos || ""; ns2[r.driverId] = r.stage2Pos || ""; ns3[r.driverId] = r.stage3Pos || "";
