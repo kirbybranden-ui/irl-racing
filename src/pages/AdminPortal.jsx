@@ -219,7 +219,9 @@ export default function AdminPortal({
   arcaSeasons,
   setArcaSeasons,
   arcaSelectedRace,
-  setArcaSelectedRace
+  setArcaSelectedRace,
+    arcaTracks,
+  setArcaTracks,
 }) {
   const goAdmin = () => {
     if (window.location.pathname !== "/admin") {
