@@ -618,8 +618,8 @@ function downloadCsv(filename, rows = []) {
   URL.revokeObjectURL(url);
 }
 
-export default function StandingsPage({ drivers = [], teams = [], manufacturerStandings = [], seasonName = "", tracks = [], raceHistory = [] }) {
-  const [standingsTab, setStandingsTab] = useState("drivers");
+export default function StandingsPage({ seriesId = "cup", drivers = [], teams = [], manufacturerStandings = [], seasonName = "", tracks = [], raceHistory = [] }) {
+  const [standingsTab, setStandingsTab] = useState(seriesId === "arca" ? "arca-drivers" : "drivers");
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [selectedTrackInfo, setSelectedTrackInfo] = useState(null);
   const [publicMenuOpen, setPublicMenuOpen] = useState(false);
@@ -1508,14 +1508,16 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
         )}
 
         <div style={{ ...glassCard, padding: 10, marginBottom: 18, display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {[
+          {(seriesId === "arca" ? [
+            { key: "arca-drivers", label: "Driver Standings", icon: "🏎️" },
+            { key: "arca-teams", label: "Teams", icon: "🏎️" },
+            { key: "points", label: "Points System", icon: "📊" },
+          ] : [
             { key: "drivers", label: "Driver Standings", icon: "👤" },
             { key: "teams", label: "Teams", icon: "🏢" },
             { key: "manufacturers", label: "Manufacturers", icon: "🏭" },
-            { key: "arca-drivers", label: "ARCA Drivers", icon: "🏎️" },
-            { key: "arca-teams", label: "ARCA Teams", icon: "🏎️" },
             { key: "points", label: "Points System", icon: "📊" },
-          ].map((tab) => (
+          ]).map((tab) => (
             <button
               key={tab.key}
               type="button"
