@@ -1482,7 +1482,7 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
         </div>
 
         <PaintSchemeWinnerStandingsCard tracks={tracks} drivers={drivers} />
-        <PreviousRaceWinnerStandingsCard />
+        {seriesId !== "arca" && <PreviousRaceWinnerStandingsCard />}
 
         <button
           type="button"
