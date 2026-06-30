@@ -1651,9 +1651,26 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
                 </div>
               ) : (
                 arcaStandings.map((driver, index) => (
-                  <div key={driver.id} style={{ background: "rgba(255,255,255,0.82)", border: "1px solid rgba(15,23,42,0.08)", borderRadius: 16, padding: 14, display: "grid", gridTemplateColumns: isMobile ? "auto 1fr auto" : "auto 1fr auto auto auto auto auto", gap: 12, alignItems: "center" }}>
+                  <button 
+                    key={driver.id} 
+                    onClick={() => window.location.pathname = `/series/arca/driver/${driver.number}`}
+                    style={{ 
+                      background: "rgba(255,255,255,0.82)", 
+                      border: "1px solid rgba(15,23,42,0.08)", 
+                      borderRadius: 16, 
+                      padding: 14, 
+                      display: "grid", 
+                      gridTemplateColumns: isMobile ? "auto 1fr auto" : "auto 1fr auto auto auto auto auto", 
+                      gap: 12, 
+                      alignItems: "center",
+                      cursor: "pointer",
+                      transition: "all 200ms ease",
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.boxShadow = "0 10px 25px rgba(0,99,65,0.15)"}
+                    onMouseLeave={(e) => e.currentTarget.style.boxShadow = "none"}
+                  >
                     <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#006341", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 1000 }}>{index + 1}</div>
-                    <div>
+                    <div style={{ textAlign: "left" }}>
                       <div style={{ fontWeight: 950 }}>{driver.name}</div>
                       <div style={{ fontSize: 12, color: "#6b7280" }}>#{driver.number} • {driver.team}</div>
                     </div>
@@ -1681,7 +1698,7 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
                         </div>
                       </>
                     )}
-                  </div>
+                  </button>
                 ))
               )}
             </div>
