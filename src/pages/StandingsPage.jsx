@@ -619,7 +619,7 @@ function downloadCsv(filename, rows = []) {
   URL.revokeObjectURL(url);
 }
 
-export default function StandingsPage({ seriesId = "cup", drivers = [], teams = [], manufacturerStandings = [], seasonName = "", tracks = [], raceHistory = [] }) {
+export default function StandingsPage({ seriesId = "cup", drivers = [], teams = [], manufacturerStandings = [], seasonName = "", tracks = [], raceHistory = [], arcaDrivers = [], arcaRaceHistory = [], driverAccessCodes = [], supabase = null }) {
   const [standingsTab, setStandingsTab] = useState(seriesId === "arca" ? "arca-drivers" : "drivers");
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [selectedTrackInfo, setSelectedTrackInfo] = useState(null);
@@ -786,8 +786,8 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
   const latestWinner = latestRace?.results?.find((result) => Number(result.finishPos || result.finish || result.position) === 1 || result.isWin) || null;
 
   // ARCA last winner - ONLY from ARCA race history
-  const arcaLatestRace = (arcaRaceHistory || [])[0] || null;
-  const arcaLatestWinner = arcaLatestRace && arcaLatestRace.results ? arcaLatestRace.results.find((result) => Number(result.finish_position) === 1) : null;
+  const arcaLatestRace = (arcaRaceHistory || [])[Math.max(0, (arcaRaceHistory || []).length - 1)] || null;
+  const arcaLatestWinner = arcaLatestRace && arcaLatestRace.results ? arcaLatestRace.results.find((result) => Number(result.finishPos) === 1) : null;
 
   const teamRows = useMemo(() => {
     const sourceTeams = Array.isArray(teams) ? teams : [];
