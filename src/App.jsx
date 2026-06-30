@@ -5618,6 +5618,7 @@ if (MAINTENANCE_MODE && !maintenanceBypass) {
 const [arcaRaces, setArcaRaces] = useState([]);
 const [arcaDrivers, setArcaDrivers] = useState(defaultArcaDrivers);
 const [arcaSelectedRace, setArcaSelectedRace] = useState(null);
+  const [arcaTracks, setArcaTracks] = useState([]);
   const backupFileInputRef = useRef(null);
   const [isHydrated, setIsHydrated] = useState(false);
   const loadedStateSignatureRef = useRef("");
@@ -8524,6 +8525,8 @@ if (path !== "/admin") {
   setArcaDrivers={setArcaDrivers}
   arcaSeasons={arcaSeasons}
   setArcaSeasons={setArcaSeasons}
+       arcaTracks={arcaTracks}
+  setArcaTracks={setArcaTracks}
   arcaSelectedRace={arcaSelectedRace}
   setArcaSelectedRace={setArcaSelectedRace}
       handleSaveArcaResults={handleSaveArcaResults}
