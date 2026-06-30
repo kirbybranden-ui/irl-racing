@@ -211,17 +211,7 @@ export default function AdminPortal({
   watchDisplayOrder,
   watchDriverId,
   watchReason,
-  watchSaving,
-  arcaRaces,
-  setArcaRaces,
-  arcaDrivers,
-  setArcaDrivers,
-  arcaSeasons,
-  setArcaSeasons,
-  arcaSelectedRace,
-  setArcaSelectedRace,
-    arcaTracks,
-  setArcaTracks,
+  watchSaving
 }) {
   const goAdmin = () => {
     if (window.location.pathname !== "/admin") {
@@ -254,31 +244,8 @@ export default function AdminPortal({
   const [raceOperationsOpen, setRaceOperationsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [raceOperationsTab, setRaceOperationsTab] = useState("overview");
-  const [arcaOperationsTab, setArcaOperationsTab] = useState(null);
-  const [editingArcaRaceId, setEditingArcaRaceId] = useState(null);
-  const [arcaRaceResults, setArcaRaceResults] = useState({});
-  const [arcaEditingTrackId, setArcaEditingTrackId] = useState(null);
-  const [arcaTrackForm, setArcaTrackForm] = useState({});
-  const [ownerDriverAssignments, setOwnerDriverAssignments] = useState([]);
-  const [ownerDriverAssignmentsLoading, setOwnerDriverAssignmentsLoading] = useState(false);
-  const [ownerDriverAssignmentStatus, setOwnerDriverAssignmentStatus] = useState("");
-  const [ownerDriverAssignmentError, setOwnerDriverAssignmentError] = useState("");
-  const [ownerDriverAssignmentForm, setOwnerDriverAssignmentForm] = useState({
-    series: "cup",
-    raceId: "",
-    raceName: "",
-    teamKey: "",
-    ownerName: "",
-    carNumber: "",
-    originalDriverId: "",
-    originalDriverName: "",
-    originalDriverNumber: "",
-    assignedDriverId: "",
-    assignedDriverName: "",
-    assignedDriverNumber: "",
-    assignmentType: "substitute",
-    ownerNote: "",
-  });
+  const [arcaOperationsOpen, setArcaOperationsOpen] = useState(false);
+  const [arcaOperationsTab, setArcaOperationsTab] = useState("overview");
   const [hrLocalRefresh, setHrLocalRefresh] = useState(0);
   const [financeAction, setFinanceAction] = useState("overview");
   const [financeActionStatus, setFinanceActionStatus] = useState("");
@@ -292,7 +259,6 @@ export default function AdminPortal({
   const [showAccessCodePassword, setShowAccessCodePassword] = useState(false);
   const [financeForm, setFinanceForm] = useState({ driverId: "", team: "", amount: "", reason: "", note: "" });
   const [adminViewportWidth, setAdminViewportWidth] = useState(() => (typeof window !== "undefined" ? window.innerWidth : 1200));
-  const [financeComplianceRace, setFinanceComplianceRace] = useState(() => selectedRace || paintPayoutRace || "");
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
@@ -304,21 +270,6 @@ export default function AdminPortal({
 
   const isAdminMobile = adminViewportWidth < 760;
   const adminUnreadCount = adminUnreadMessages.length;
-
-  const financeComplianceRaceOptions = Array.from(
-    new Set([
-      selectedRace,
-      paintPayoutRace,
-      ...(tracks || []).map((track) => track?.name || track?.race_name || track?.title).filter(Boolean),
-      ...(raceHistory || []).map((race) => race?.raceName || race?.race_name || race?.track || race?.name).filter(Boolean),
-    ].filter(Boolean).map((race) => String(race)))
-  );
-
-  useEffect(() => {
-    if (!financeComplianceRace && (selectedRace || paintPayoutRace)) {
-      setFinanceComplianceRace(selectedRace || paintPayoutRace || "");
-    }
-  }, [financeComplianceRace, selectedRace, paintPayoutRace]);
 
   const accessDrivers = (visibleDrivers || drivers || []).filter((driver) => driver?.number && !isInactivePlaceholderDriver?.(driver));
   const selectedAccessDriver = accessDrivers.find((driver) => String(driver.number) === String(selectedAccessDriverNumber)) || accessDrivers[0] || null;
@@ -502,49 +453,13 @@ export default function AdminPortal({
   function openRaceOperations() {
     setRaceOperationsOpen(true);
     setAdminMenuOpen(false);
-    loadOwnerDriverAssignments?.();
   }
 
   function openArcaOperations(tab = "overview") {
+    setArcaOperationsOpen(true);
     setArcaOperationsTab(tab);
+    setAdminMenuOpen(false);
   }
-
-  const saveArcaTrack = async () => {
-    if (!arcaTrackForm.name || !arcaTrackForm.location) {
-      alert("Track name and location required.");
-      return;
-    }
-
-    try {
-      if (arcaEditingTrackId === "new") {
-        const newTrack = {
-          id: `arca-track-${Date.now()}`,
-          ...arcaTrackForm,
-          active: true,
-        };
-        setArcaTracks([...arcaTracks, newTrack]);
-      } else {
-        setArcaTracks(
-          arcaTracks.map((t) =>
-            t.id === arcaEditingTrackId ? { ...t, ...arcaTrackForm } : t
-          )
-        );
-      }
-      setArcaEditingTrackId(null);
-      setArcaTrackForm({});
-    } catch (err) {
-      alert("Error saving track: " + err.message);
-    }
-  };
-
-  const deleteArcaTrack = async (trackId) => {
-    if (!confirm("Delete this track?")) return;
-    try {
-      setArcaTracks(arcaTracks.filter((t) => t.id !== trackId));
-    } catch (err) {
-      alert("Error deleting track: " + err.message);
-    }
-  };
 
   function openPublicRelations(tab = "overview") {
     setPublicRelationsOpen(true);
@@ -555,184 +470,6 @@ export default function AdminPortal({
   function openSettings() {
     setSettingsOpen(true);
     setAdminMenuOpen(false);
-  }
-
-  const assignmentDrivers = (drivers || visibleDrivers || [])
-    .filter((driver) => driver?.id && !isInactivePlaceholderDriver?.(driver))
-    .filter((driver) => driver?.number || String(driver?.driver_type || driver?.status || "").toLowerCase().includes("substitute"))
-    .sort((a, b) => Number(a.number || 9999) - Number(b.number || 9999));
-  const originalAssignmentDrivers = assignmentDrivers.filter((driver) => driver?.number);
-
-  const assignmentTracks = (tracks || []).filter((track) => track?.name);
-
-  function updateOwnerDriverAssignmentForm(key, value) {
-    setOwnerDriverAssignmentForm((current) => ({ ...current, [key]: value }));
-  }
-
-  function chooseOwnerAssignmentRace(value) {
-    const track = assignmentTracks.find((item) => String(item.name) === String(value) || String(item.id || item.name) === String(value));
-    setOwnerDriverAssignmentForm((current) => ({
-      ...current,
-      raceId: track?.id ? String(track.id) : String(track?.name || value || ""),
-      raceName: track?.name || value || "",
-    }));
-  }
-
-  function chooseOwnerAssignmentOriginalDriver(driverId) {
-    const driver = assignmentDrivers.find((item) => String(item.id) === String(driverId));
-    if (!driver) {
-      setOwnerDriverAssignmentForm((current) => ({ ...current, originalDriverId: driverId }));
-      return;
-    }
-    const ownerRecord = (ownerAssignments || []).find((item) => String(item.team) === String(driver.team));
-    setOwnerDriverAssignmentForm((current) => ({
-      ...current,
-      originalDriverId: String(driver.id),
-      originalDriverName: driver.name || "",
-      originalDriverNumber: String(driver.number || ""),
-      carNumber: String(driver.number || ""),
-      teamKey: driver.team || current.teamKey || "",
-      ownerName: ownerRecord?.owner_driver_name || current.ownerName || "",
-    }));
-  }
-
-  function chooseOwnerAssignmentAssignedDriver(driverId) {
-    const driver = assignmentDrivers.find((item) => String(item.id) === String(driverId));
-    if (!driver) {
-      setOwnerDriverAssignmentForm((current) => ({ ...current, assignedDriverId: driverId }));
-      return;
-    }
-    setOwnerDriverAssignmentForm((current) => ({
-      ...current,
-      assignedDriverId: String(driver.id),
-      assignedDriverName: driver.name || "",
-      assignedDriverNumber: String(driver.number || ""),
-    }));
-  }
-
-  async function loadOwnerDriverAssignments() {
-    if (!supabase) return;
-    setOwnerDriverAssignmentsLoading(true);
-    setOwnerDriverAssignmentError("");
-    const { data, error } = await supabase
-      .from("owner_driver_assignments")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(100);
-    if (error) {
-      console.error("Could not load owner driver assignments:", error);
-      setOwnerDriverAssignments([]);
-      setOwnerDriverAssignmentsLoading(false);
-      setOwnerDriverAssignmentError("Could not load driver assignments. Check owner_driver_assignments table/RLS.");
-      return;
-    }
-    setOwnerDriverAssignments(data || []);
-    setOwnerDriverAssignmentsLoading(false);
-  }
-
-  async function saveOwnerDriverAssignment(event) {
-    event?.preventDefault?.();
-    setOwnerDriverAssignmentStatus("");
-    setOwnerDriverAssignmentError("");
-    const form = ownerDriverAssignmentForm;
-    if (!form.raceName || !form.teamKey || !form.carNumber || !form.originalDriverName || !form.assignedDriverName) {
-      setOwnerDriverAssignmentError("Select a race, original car/driver, team, and substitute driver before saving.");
-      return;
-    }
-    if (String(form.originalDriverId) === String(form.assignedDriverId)) {
-      setOwnerDriverAssignmentError("The substitute driver must be different from the original driver.");
-      return;
-    }
-    const payload = {
-      series: form.series || "cup",
-      season_id: activeSeasonId || activeSeason?.id || null,
-      race_id: form.raceId || form.raceName,
-      race_name: form.raceName,
-      team_key: form.teamKey,
-      team_name: getTeamFullName?.(form.teamKey) || form.teamKey,
-      owner_name: form.ownerName || null,
-      car_number: String(form.carNumber || form.originalDriverNumber || ""),
-      original_driver_id: form.originalDriverId ? String(form.originalDriverId) : null,
-      original_driver_name: form.originalDriverName || null,
-      original_driver_number: form.originalDriverNumber || form.carNumber || null,
-      assigned_driver_id: form.assignedDriverId ? String(form.assignedDriverId) : null,
-      assigned_driver_name: form.assignedDriverName,
-      assigned_driver_number: form.assignedDriverNumber || null,
-      assignment_type: form.assignmentType || "substitute",
-      driver_points_awarded: false,
-      original_driver_points_awarded: false,
-      team_points_awarded: true,
-      manufacturer_points_awarded: true,
-      status: "pending",
-      requested_by: form.ownerName || "Admin",
-      requested_by_role: "owner",
-      owner_note: form.ownerNote || null,
-    };
-    const { error } = await supabase.from("owner_driver_assignments").insert([payload]);
-    if (error) {
-      console.error("Could not save owner driver assignment:", error);
-      setOwnerDriverAssignmentError("Could not save assignment. Check owner_driver_assignments insert policy/columns.");
-      return;
-    }
-    setOwnerDriverAssignmentStatus("Driver assignment request saved. Admin approval finalizes it immediately.");
-    setOwnerDriverAssignmentForm({
-      series: "cup",
-      raceId: "",
-      raceName: "",
-      teamKey: "",
-      ownerName: "",
-      carNumber: "",
-      originalDriverId: "",
-      originalDriverName: "",
-      originalDriverNumber: "",
-      assignedDriverId: "",
-      assignedDriverName: "",
-      assignedDriverNumber: "",
-      assignmentType: "substitute",
-      ownerNote: "",
-    });
-    await loadOwnerDriverAssignments();
-  }
-
-  async function updateOwnerDriverAssignmentStatus(id, status) {
-    if (!id || !supabase) return;
-    setOwnerDriverAssignmentStatus("");
-    setOwnerDriverAssignmentError("");
-    const normalizedStatus = String(status || "").toLowerCase();
-    const nextStatus = normalizedStatus === "approved" ? "approved" : normalizedStatus;
-    const patch = {
-      status: nextStatus,
-      reviewed_by: "Admin",
-      reviewed_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    const { error } = await supabase
-      .from("owner_driver_assignments")
-      .update(patch)
-      .eq("id", id);
-    if (error) {
-      console.error("Could not update assignment status:", error);
-      setOwnerDriverAssignmentError("Could not update assignment status. Check update policy.");
-      return;
-    }
-    setOwnerDriverAssignmentStatus(nextStatus === "approved" ? "Assignment approved and finalized." : `Assignment marked ${nextStatus}.`);
-    await loadOwnerDriverAssignments();
-  }
-
-  async function deleteOwnerDriverAssignment(id) {
-    if (!id || !supabase) return;
-    if (!window.confirm("Delete this owner driver assignment request?")) return;
-    const { error } = await supabase
-      .from("owner_driver_assignments")
-      .delete()
-      .eq("id", id);
-    if (error) {
-      console.error("Could not delete assignment:", error);
-      setOwnerDriverAssignmentError("Could not delete assignment. Check delete policy.");
-      return;
-    }
-    setOwnerDriverAssignmentStatus("Assignment deleted.");
-    await loadOwnerDriverAssignments();
   }
 
   function updateFinanceForm(key, value) {
@@ -839,6 +576,7 @@ export default function AdminPortal({
     { label: "Admin Home", action: goAdmin, primary: true },
     { label: "Human Resources", action: () => openHrDepartment("overview"), primary: true },
     { label: "Race Operations", action: openRaceOperations, primary: true },
+    { label: "ARCA Series", action: () => openArcaOperations("overview"), primary: true },
     { label: "Finance Department", action: () => openFinanceDepartment("overview"), primary: true },
     { label: "Public Relations", action: () => openPublicRelations("overview"), primary: true },
     { label: "Settings", action: openSettings, primary: true },
@@ -900,15 +638,6 @@ export default function AdminPortal({
       text: "Season Manager, backups, exports, imports, and restore controls.",
       action: openSettings,
       gradient: "linear-gradient(135deg, #af52de 0%, #ff2d55 52%, #5856d6 100%)",
-    },
-    {
-      title: "ARCA Series",
-      icon: "🏎️",
-      value: arcaRaces?.length > 0 ? `${arcaRaces.length} races` : "Ready",
-      meta: arcaSelectedRace ? `Active: ${arcaSelectedRace.name}` : "No active race",
-      text: "Manage ARCA races, results, drivers, and standings.",
-      action: () => openArcaOperations("overview"),
-      gradient: "linear-gradient(135deg, #00b894 0%, #00d2d3 45%, #0984e3 100%)",
     },
   ];
 
@@ -1493,11 +1222,6 @@ export default function AdminPortal({
 
 
   return (
-    <>
-<style>{`input, textarea, select { color:#111827 !important; background:#ffffff !important; }
-input::placeholder, textarea::placeholder { color:#6b7280 !important; opacity:1; }
-option { color:#111827 !important; background:#ffffff !important; }`}</style>
-
     <div style={applePageStyle}>
       {adminMenuOpen && (
         <>
@@ -2025,7 +1749,6 @@ option { color:#111827 !important; background:#ffffff !important; }`}</style>
                 {[
                   ["tracks", "Track Management", "🏁", `${(tracks || []).length} Tracks`, "Schedule + stages", "Update schedule tracks and stage counts.", "linear-gradient(135deg, #34c759 0%, #30d158 45%, #0a7f3f 100%)"],
                   ["input", "Race Input", "🏎️", selectedRace ? "Active" : "Ready", selectedRace || "Select a race", "Enter finishes, stages, penalties, DNFs, and fastest lap.", "linear-gradient(135deg, #007aff 0%, #5ac8fa 45%, #5856d6 100%)"],
-                  ["assignments", "Driver Assignments", "🔁", `${(ownerDriverAssignments || []).filter((item) => item.status === "pending").length} Pending`, "Owner center", "Approve substitutes and one-off drivers without awarding driver points.", "linear-gradient(135deg, #0a84ff 0%, #34c759 52%, #30d158 100%)"],
                   ["history", "Previous Race Results", "📚", `${raceHistory.length} Races`, "Season archive", "Open the race archive and download single races or the season.", "linear-gradient(135deg, #ff9500 0%, #ffcc00 48%, #ff3b30 100%)"],
                   ["drafts", "Saved Drafts", "📄", `${(raceDrafts || []).length} Draft${(raceDrafts || []).length === 1 ? "" : "s"}`, "Private race control", "Resume, post, or delete admin-only race drafts.", "linear-gradient(135deg, #af52de 0%, #ff2d55 52%, #5856d6 100%)"],
                   ["offenses", "Offense Log", "⚠️", `${offenseLog.length} Open`, "Season discipline", "Review season offense penalties.", "linear-gradient(135deg, #ff3b30 0%, #ff2d55 50%, #8e8e93 100%)"],
@@ -2086,162 +1809,6 @@ option { color:#111827 !important; background:#ffffff !important; }`}</style>
                     <h3 style={{ margin: 0, fontSize: 24, letterSpacing: -0.5 }}>League Vote Manager</h3>
                     <p style={{ margin: "8px 0 16px", color: "#6b7280", fontWeight: 800, lineHeight: 1.45 }}>Voting stays under race control so paint schemes, league votes, and race-week polls do not clutter the admin menu.</p>
                     <button type="button" onClick={() => (window.location.pathname = "/admin/votes")} style={{ ...adminPrimaryButtonStyle, borderRadius: 18 }}>Open Voting Manager</button>
-                  </div>
-                </div>
-              )}
-
-              {raceOperationsTab === "assignments" && (
-                <div style={{ ...adminReadableCardStyle, padding: isAdminMobile ? 18 : 26, borderRadius: 34, background: "linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.92))", boxShadow: "0 22px 60px rgba(15,23,42,0.12)", border: "1px solid rgba(255,255,255,0.75)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap", marginBottom: 18 }}>
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.6, textTransform: "uppercase", color: "#0a84ff" }}>Race Operations</div>
-                      <h2 style={{ margin: "3px 0 6px", fontSize: isAdminMobile ? 30 : 38, letterSpacing: -1.35 }}>Owner Driver Assignment Center</h2>
-                      <div style={{ color: "#6b7280", fontWeight: 750, maxWidth: 820, lineHeight: 1.45 }}>
-                        Owners can place a substitute, development call-up, emergency replacement, or one-off driver in an existing Cup car. The car earns team/manufacturer points, but the substitute and original driver receive no driver points.
-                      </div>
-                    </div>
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
-                      <span style={{ display: "inline-flex", alignItems: "center", padding: "10px 14px", borderRadius: 999, background: "rgba(10,132,255,0.10)", color: "#1d4ed8", fontWeight: 1000, fontSize: 13 }}>{(ownerDriverAssignments || []).length} Total</span>
-                      <span style={{ display: "inline-flex", alignItems: "center", padding: "10px 14px", borderRadius: 999, background: "rgba(52,199,89,0.12)", color: "#047857", fontWeight: 1000, fontSize: 13 }}>{(ownerDriverAssignments || []).filter((item) => item.status === "approved").length} Approved</span>
-                    </div>
-                  </div>
-
-                  <form onSubmit={saveOwnerDriverAssignment} style={{ borderRadius: 30, padding: isAdminMobile ? 16 : 20, background: "linear-gradient(135deg, rgba(10,132,255,0.10), rgba(255,255,255,0.94))", border: "1px solid rgba(10,132,255,0.18)", boxShadow: "0 14px 35px rgba(15,23,42,0.08)", marginBottom: 18 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
-                      <div>
-                        <h3 style={{ margin: 0, fontSize: 24, letterSpacing: -0.5 }}>Create Assignment</h3>
-                        <p style={{ margin: "6px 0 0", color: "#6b7280", fontWeight: 800 }}>Use this before race night or during Race Input for approved substitute appearances.</p>
-                      </div>
-                      <button type="button" onClick={loadOwnerDriverAssignments} style={{ ...adminSecondaryButtonStyle, borderRadius: 18 }}>Refresh</button>
-                    </div>
-
-                    <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(3, minmax(0, 1fr))", gap: 12 }}>
-                      <label style={{ display: "grid", gap: 7, fontSize: 12, color: "#6b7280", fontWeight: 900 }}>Series
-                        <select value={ownerDriverAssignmentForm.series} onChange={(e) => updateOwnerDriverAssignmentForm("series", e.target.value)} style={adminInputStyle}>
-                          <option value="cup">Cup</option>
-                          <option value="xfinity">Xfinity</option>
-                          <option value="truck">Truck</option>
-                          <option value="arca">ARCA</option>
-                        </select>
-                      </label>
-                      <label style={{ display: "grid", gap: 7, fontSize: 12, color: "#6b7280", fontWeight: 900 }}>Race
-                        <select value={ownerDriverAssignmentForm.raceName} onChange={(e) => chooseOwnerAssignmentRace(e.target.value)} style={adminInputStyle}>
-                          <option value="">Select race</option>
-                          {assignmentTracks.map((track) => <option key={track.id || track.name} value={track.name}>{track.name}{track.date ? ` • ${track.date}` : ""}</option>)}
-                        </select>
-                      </label>
-                      <label style={{ display: "grid", gap: 7, fontSize: 12, color: "#6b7280", fontWeight: 900 }}>Assignment Type
-                        <select value={ownerDriverAssignmentForm.assignmentType} onChange={(e) => updateOwnerDriverAssignmentForm("assignmentType", e.target.value)} style={adminInputStyle}>
-                          <option value="substitute">Substitute Driver</option>
-                          <option value="development_callup">Development Call-Up</option>
-                          <option value="emergency_replacement">Emergency Replacement</option>
-                          <option value="one_off">One-Off Start</option>
-                          <option value="start_and_park">Start & Park</option>
-                        </select>
-                      </label>
-                      <label style={{ display: "grid", gap: 7, fontSize: 12, color: "#6b7280", fontWeight: 900 }}>Original Cup Car
-                        <select value={ownerDriverAssignmentForm.originalDriverId} onChange={(e) => chooseOwnerAssignmentOriginalDriver(e.target.value)} style={adminInputStyle}>
-                          <option value="">Select roster car/driver</option>
-                          {originalAssignmentDrivers.map((driver) => <option key={driver.id} value={driver.id}>#{driver.number} {driver.name} • {getTeamFullName?.(driver.team) || driver.team}</option>)}
-                        </select>
-                      </label>
-                      <label style={{ display: "grid", gap: 7, fontSize: 12, color: "#6b7280", fontWeight: 900 }}>Substitute / Assigned Driver
-                        <select value={ownerDriverAssignmentForm.assignedDriverId} onChange={(e) => chooseOwnerAssignmentAssignedDriver(e.target.value)} style={adminInputStyle}>
-                          <option value="">Select assigned driver</option>
-                          {assignmentDrivers.map((driver) => <option key={driver.id} value={driver.id}>{driver.number ? `#${driver.number} ` : ""}{driver.name}{driver.number ? "" : " • Sub Only"}</option>)}
-                        </select>
-                      </label>
-                      <label style={{ display: "grid", gap: 7, fontSize: 12, color: "#6b7280", fontWeight: 900 }}>Team
-                        <select value={ownerDriverAssignmentForm.teamKey} onChange={(e) => updateOwnerDriverAssignmentForm("teamKey", e.target.value)} style={adminInputStyle}>
-                          <option value="">Select team</option>
-                          {(ownerPortalTeams || []).map((team) => <option key={team} value={team}>{getTeamFullName?.(team) || team}</option>)}
-                        </select>
-                      </label>
-                      <label style={{ display: "grid", gap: 7, fontSize: 12, color: "#6b7280", fontWeight: 900 }}>Car Number
-                        <input value={ownerDriverAssignmentForm.carNumber} onChange={(e) => updateOwnerDriverAssignmentForm("carNumber", e.target.value)} style={adminInputStyle} placeholder="18" />
-                      </label>
-                      <label style={{ display: "grid", gap: 7, fontSize: 12, color: "#6b7280", fontWeight: 900 }}>Owner Name
-                        <input value={ownerDriverAssignmentForm.ownerName} onChange={(e) => updateOwnerDriverAssignmentForm("ownerName", e.target.value)} style={adminInputStyle} placeholder="Team owner" />
-                      </label>
-                      <label style={{ display: "grid", gap: 7, fontSize: 12, color: "#6b7280", fontWeight: 900, gridColumn: isAdminMobile ? "auto" : "span 3" }}>Owner / Admin Note
-                        <textarea value={ownerDriverAssignmentForm.ownerNote} onChange={(e) => updateOwnerDriverAssignmentForm("ownerNote", e.target.value)} style={{ ...adminInputStyle, minHeight: 86, resize: "vertical" }} placeholder="Example: Owner-approved substitute for Las Vegas. Team receives car finish points; drivers receive no points." />
-                      </label>
-                    </div>
-
-                    <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(4, minmax(0, 1fr))", gap: 10, marginTop: 14 }}>
-                      {[
-                        ["Driver Points", "0", "Substitute receives no driver points"],
-                        ["Original Driver", "0", "Original roster driver receives no points"],
-                        ["Team Points", "Yes", "Owner/team receives finish points"],
-                        ["Manufacturer", "Yes", "Manufacturer receives points if applicable"],
-                      ].map(([label, value, help]) => (
-                        <div key={label} style={{ borderRadius: 18, padding: 13, background: "rgba(255,255,255,0.78)", border: "1px solid rgba(229,231,235,0.9)" }}>
-                          <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 1000, textTransform: "uppercase", letterSpacing: 0.6 }}>{label}</div>
-                          <div style={{ fontSize: 22, fontWeight: 1000, color: value === "Yes" ? "#047857" : "#dc2626", marginTop: 4 }}>{value}</div>
-                          <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 750, marginTop: 4, lineHeight: 1.35 }}>{help}</div>
-                        </div>
-                      ))}
-                    </div>
-
-                    {ownerDriverAssignmentStatus && <div style={{ marginTop: 12, color: "#047857", background: "#ecfdf5", border: "1px solid #a7f3d0", borderRadius: 16, padding: 12, fontWeight: 900 }}>{ownerDriverAssignmentStatus}</div>}
-                    {ownerDriverAssignmentError && <div style={{ marginTop: 12, color: "#b91c1c", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 16, padding: 12, fontWeight: 900 }}>{ownerDriverAssignmentError}</div>}
-
-                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 16 }}>
-                      <button type="submit" style={{ ...adminPrimaryButtonStyle, borderRadius: 18 }}>Submit Assignment Request</button>
-                      <button type="button" onClick={() => setOwnerDriverAssignmentForm({ series: "cup", raceId: "", raceName: "", teamKey: "", ownerName: "", carNumber: "", originalDriverId: "", originalDriverName: "", originalDriverNumber: "", assignedDriverId: "", assignedDriverName: "", assignedDriverNumber: "", assignmentType: "substitute", ownerNote: "" })} style={{ ...adminSecondaryButtonStyle, borderRadius: 18 }}>Clear</button>
-                    </div>
-                  </form>
-
-                  <div style={{ display: "grid", gap: 14 }}>
-                    {ownerDriverAssignmentsLoading ? (
-                      <div style={{ borderRadius: 24, padding: 20, background: "rgba(255,255,255,0.82)", border: "1px solid rgba(229,231,235,0.9)", color: "#6b7280", fontWeight: 900 }}>Loading assignments...</div>
-                    ) : (ownerDriverAssignments || []).length === 0 ? (
-                      <div style={{ borderRadius: 24, padding: 20, background: "rgba(255,255,255,0.82)", border: "1px solid rgba(229,231,235,0.9)", color: "#6b7280", fontWeight: 900 }}>No owner driver assignments yet.</div>
-                    ) : (ownerDriverAssignments || []).map((assignment) => {
-                      const assignmentStatus = String(assignment.status || "pending").toLowerCase();
-                      const statusColor = ["approved", "approved_pending_driver", "driver_accepted", "completed"].includes(assignmentStatus) ? "#047857" : ["denied", "driver_declined", "cancelled"].includes(assignmentStatus) ? "#b91c1c" : "#92400e";
-                      const statusLabel = ["approved", "approved_pending_driver", "driver_accepted"].includes(assignmentStatus) ? "Approved / Final" : assignmentStatus === "driver_declined" ? "Driver Declined" : assignmentStatus === "completed" ? "Completed" : assignmentStatus === "denied" ? "Denied" : "Pending Admin";
-                      return (
-                        <div key={assignment.id} style={{ borderRadius: 28, padding: isAdminMobile ? 16 : 18, background: "rgba(255,255,255,0.88)", border: "1px solid rgba(229,231,235,0.92)", boxShadow: "0 12px 28px rgba(15,23,42,0.08)" }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
-                            <div style={{ display: "flex", gap: 14, alignItems: "center", minWidth: 0 }}>
-                              <div style={{ width: 58, height: 58, borderRadius: 22, background: "linear-gradient(135deg, #0a84ff, #34c759)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 1000, fontSize: 22, boxShadow: "0 12px 24px rgba(10,132,255,0.22)", flexShrink: 0 }}>#{assignment.car_number}</div>
-                              <div style={{ minWidth: 0 }}>
-                                <div style={{ fontSize: 20, fontWeight: 1000, color: "#111827", letterSpacing: -0.4 }}>{assignment.race_name || "Race TBD"}</div>
-                                <div style={{ color: "#4b5563", fontWeight: 850, marginTop: 3 }}>
-                                  {assignment.assigned_driver_name} driving for {assignment.original_driver_name || `#${assignment.car_number}`}
-                                </div>
-                                <div style={{ color: "#6b7280", fontWeight: 750, marginTop: 3 }}>{assignment.team_name || getTeamFullName?.(assignment.team_key) || assignment.team_key} • {String(assignment.assignment_type || "substitute").replaceAll("_", " ")}</div>
-                              </div>
-                            </div>
-                            <span style={{ padding: "9px 12px", borderRadius: 999, background: `${statusColor}18`, color: statusColor, fontWeight: 1000, textTransform: "uppercase", fontSize: 12, letterSpacing: 0.7 }}>{statusLabel}</span>
-                          </div>
-
-                          <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(4, minmax(0, 1fr))", gap: 10, marginTop: 14 }}>
-                            {[
-                              ["Driver Points", assignment.driver_points_awarded ? "Yes" : "0"],
-                              ["Original Driver", assignment.original_driver_points_awarded ? "Yes" : "0"],
-                              ["Team Points", assignment.team_points_awarded ? "Yes" : "No"],
-                              ["Manufacturer", assignment.manufacturer_points_awarded ? "Yes" : "No"],
-                            ].map(([label, value]) => (
-                              <div key={label} style={{ borderRadius: 16, padding: "10px 12px", background: "rgba(248,250,252,0.9)", border: "1px solid rgba(229,231,235,0.9)" }}>
-                                <div style={{ fontSize: 10, color: "#6b7280", fontWeight: 1000, textTransform: "uppercase" }}>{label}</div>
-                                <div style={{ fontSize: 16, fontWeight: 1000, color: value === "Yes" ? "#047857" : "#dc2626", marginTop: 3 }}>{value}</div>
-                              </div>
-                            ))}
-                          </div>
-
-                          {assignment.owner_note && <div style={{ marginTop: 12, borderRadius: 16, padding: 12, background: "rgba(10,132,255,0.08)", color: "#374151", fontWeight: 750, lineHeight: 1.45 }}>{assignment.owner_note}</div>}
-
-                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
-                            {!["approved", "approved_pending_driver", "driver_accepted", "completed"].includes(String(assignment.status || "").toLowerCase()) && <button type="button" onClick={() => updateOwnerDriverAssignmentStatus(assignment.id, "approved")} style={{ ...adminPrimaryButtonStyle, borderRadius: 16, padding: "9px 13px" }}>Approve / Finalize</button>}
-                            {assignment.status !== "denied" && <button type="button" onClick={() => updateOwnerDriverAssignmentStatus(assignment.id, "denied")} style={{ ...adminDangerButtonStyle, borderRadius: 16, padding: "9px 13px" }}>Deny</button>}
-                            {assignment.status !== "completed" && <button type="button" onClick={() => updateOwnerDriverAssignmentStatus(assignment.id, "completed")} style={{ ...adminSecondaryButtonStyle, borderRadius: 16, padding: "9px 13px" }}>Mark Completed</button>}
-                            <button type="button" onClick={() => deleteOwnerDriverAssignment(assignment.id)} style={{ ...adminSecondaryButtonStyle, borderRadius: 16, padding: "9px 13px" }}>Delete</button>
-                          </div>
-                        </div>
-                      );
-                    })}
                   </div>
                 </div>
               )}
@@ -3330,34 +2897,9 @@ option { color:#111827 !important; background:#ffffff !important; }`}</style>
                   <h3 style={{ margin: "3px 0 0", fontSize: 25, letterSpacing: -0.5 }}>Owner / Team Money Checklist</h3>
                   <p style={{ margin: "6px 0 0", color: "#4b5563", fontWeight: 700 }}>All payment compliance now lives inside the Finance Department instead of the admin home screen.</p>
                 </div>
-                <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", justifyContent: "flex-end" }}>
-                  <label style={{ minWidth: 240, fontWeight: 1000, color: "#111827" }}>
-                    Compliance Race
-                    <select
-                      value={financeComplianceRace}
-                      onChange={(event) => setFinanceComplianceRace(event.target.value)}
-                      style={{ ...adminInputStyle, marginTop: 6 }}
-                    >
-                      <option value="">Select race</option>
-                      {financeComplianceRaceOptions.map((race) => (
-                        <option key={race} value={race}>{race}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <button type="button" onClick={loadFinanceDepartment} style={{ ...adminSecondaryButtonStyle, alignSelf: "flex-end" }}>Refresh Finance</button>
-                </div>
+                <button type="button" onClick={loadFinanceDepartment} style={adminSecondaryButtonStyle}>Refresh Finance</button>
               </div>
-              <PaymentCompliancePanel
-                key={financeComplianceRace || "all-races"}
-                mode="admin"
-                selectedRace={financeComplianceRace}
-                raceName={financeComplianceRace}
-                complianceRace={financeComplianceRace}
-                paymentRace={financeComplianceRace}
-                activeRace={financeComplianceRace}
-                onRaceChange={setFinanceComplianceRace}
-                setRaceName={setFinanceComplianceRace}
-              />
+              <PaymentCompliancePanel mode="admin" />
             </div>
           )}
 
@@ -3608,313 +3150,67 @@ option { color:#111827 !important; background:#ffffff !important; }`}</style>
         )}
 
         {/* ARCA SERIES OPERATIONS */}
-        {arcaOperationsTab && (
-          <div style={{ ...appShellStyle, minHeight: "100vh" }}>
-            <div style={{ maxWidth: 1400, margin: "0 auto", padding: 24 }}>
-              {/* Header */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 32 }}>
-                <h1 style={{ fontSize: 48, fontWeight: 1000, margin: 0 }}>🏎️ ARCA Series</h1>
-                <button type="button" onClick={() => setArcaOperationsTab(null)} style={{ ...dangerButtonStyle, padding: "10px 16px" }}>
+        {arcaOperationsOpen && (
+          <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", background: "linear-gradient(135deg, rgba(0,100,65,0.02), rgba(0,210,211,0.02))", zIndex: 1000, overflowY: "auto", paddingBottom: 40 }}>
+            <div style={{ maxWidth: isAdminMobile ? "100%" : 1400, margin: "0 auto", padding: isAdminMobile ? 12 : 24 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+                <h1 style={{ margin: 0, fontSize: isAdminMobile ? 32 : 42, fontWeight: 900, color: "#006341" }}>ARCA Series</h1>
+                <button
+                  onClick={() => setArcaOperationsOpen(false)}
+                  style={{ padding: "8px 16px", background: "#ef4444", color: "white", border: "none", borderRadius: 8, fontWeight: 900, cursor: "pointer" }}
+                >
                   Close
                 </button>
               </div>
 
-              {/* Tab Navigation */}
               <div style={{ display: "flex", gap: 12, marginBottom: 24, flexWrap: "wrap" }}>
-                {[
-                  ["overview", "📊 Overview"],
-                  ["races", "🏁 Races"],
-                  ["standings", "📈 Standings"],
-                  ["drivers", "👥 Drivers"],
-                  ["tracks", "🏁 Tracks"],
-                ].map(([key, label]) => (
+                {["overview", "races", "drivers", "tracks"].map((tab) => (
                   <button
-                    key={key}
-                    type="button"
-                    onClick={() => setArcaOperationsTab(key)}
+                    key={tab}
+                    onClick={() => setArcaOperationsTab(tab)}
                     style={{
-                      padding: "12px 18px",
-                      borderRadius: 12,
-                      border: arcaOperationsTab === key ? "2px solid #00d2d3" : "1px solid rgba(255,255,255,0.2)",
-                      background: arcaOperationsTab === key ? "rgba(0,210,211,0.2)" : "rgba(255,255,255,0.05)",
-                      color: "white",
+                      padding: "10px 18px",
+                      background: arcaOperationsTab === tab ? "#006341" : "rgba(0,99,65,0.1)",
+                      color: arcaOperationsTab === tab ? "white" : "#006341",
+                      border: "none",
+                      borderRadius: 8,
                       fontWeight: 900,
                       cursor: "pointer",
+                      textTransform: "capitalize",
                     }}
                   >
-                    {label}
+                    {tab.charAt(0).toUpperCase() + tab.slice(1)}
                   </button>
                 ))}
               </div>
 
-              {/* OVERVIEW TAB */}
               {arcaOperationsTab === "overview" && (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 18 }}>
-                  <div style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(0,210,211,0.3)", borderRadius: 16, padding: 20 }}>
-                    <div style={{ fontSize: 14, opacity: 0.7, marginBottom: 8 }}>Total Races</div>
-                    <div style={{ fontSize: 36, fontWeight: 1000 }}>{arcaRaces?.length || 0}</div>
-                  </div>
-                  <div style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(0,210,211,0.3)", borderRadius: 16, padding: 20 }}>
-                    <div style={{ fontSize: 14, opacity: 0.7, marginBottom: 8 }}>Total Drivers</div>
-                    <div style={{ fontSize: 36, fontWeight: 1000 }}>{arcaDrivers?.length || 0}</div>
-                  </div>
-                  <div style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(0,210,211,0.3)", borderRadius: 16, padding: 20 }}>
-                    <div style={{ fontSize: 14, opacity: 0.7, marginBottom: 8 }}>Active Season</div>
-                    <div style={{ fontSize: 18, fontWeight: 1000 }}>{arcaSeasons?.find((s) => s.active)?.name || "None"}</div>
-                  </div>
+                <div style={{ background: "rgba(255,255,255,0.95)", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 12, padding: 24 }}>
+                  <h2 style={{ margin: 0, marginBottom: 12 }}>ARCA Series Overview</h2>
+                  <p style={{ color: "#6b7280" }}>Manage ARCA series data including races, drivers, and tracks.</p>
                 </div>
               )}
 
-              {/* RACES TAB */}
               {arcaOperationsTab === "races" && (
-                <div>
-                  <h2 style={{ marginTop: 0, marginBottom: 16 }}>Manage ARCA Races</h2>
-                  <div style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 16, padding: 20, overflowX: "auto" }}>
-                    {arcaRaces && arcaRaces.length > 0 ? (
-                      <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                        <thead>
-                          <tr style={{ borderBottom: "2px solid rgba(255,255,255,0.2)" }}>
-                            <th style={{ textAlign: "left", padding: 12, fontWeight: 900 }}>Race</th>
-                            <th style={{ textAlign: "left", padding: 12, fontWeight: 900 }}>Track</th>
-                            <th style={{ textAlign: "left", padding: 12, fontWeight: 900 }}>Date</th>
-                            <th style={{ textAlign: "center", padding: 12, fontWeight: 900 }}>Results</th>
-                            <th style={{ textAlign: "center", padding: 12, fontWeight: 900 }}>Action</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {arcaRaces.map((race) => (
-                            <tr key={race.id} style={{ borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
-                              <td style={{ padding: 12 }}>{race.name}</td>
-                              <td style={{ padding: 12 }}>{race.track}</td>
-                              <td style={{ padding: 12, opacity: 0.8 }}>{race.date || "TBD"}</td>
-                              <td style={{ padding: 12, textAlign: "center" }}>{(race.results || []).length > 0 ? "✓" : "—"}</td>
-                              <td style={{ padding: 12, textAlign: "center" }}>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setArcaSelectedRace(race);
-                                    setArcaOperationsTab("races");
-                                  }}
-                                  style={{ ...primaryButtonStyle, padding: "8px 12px", fontSize: 12 }}
-                                >
-                                  Enter Results
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    ) : (
-                      <div style={{ padding: 40, textAlign: "center", opacity: 0.6 }}>No races scheduled.</div>
-                    )}
-                  </div>
+                <div style={{ background: "rgba(255,255,255,0.95)", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 12, padding: 24 }}>
+                  <h2 style={{ margin: 0, marginBottom: 12 }}>ARCA Races</h2>
+                  <p style={{ color: "#6b7280" }}>Manage ARCA race schedule and results.</p>
                 </div>
               )}
 
-              {/* STANDINGS TAB */}
-              {arcaOperationsTab === "standings" && (
-                <div>
-                  <h2 style={{ marginTop: 0, marginBottom: 16 }}>ARCA Driver Standings</h2>
-                  <div style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 16, padding: 20, overflowX: "auto" }}>
-                    {arcaDrivers && arcaDrivers.length > 0 ? (
-                      <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                        <thead>
-                          <tr style={{ borderBottom: "2px solid rgba(255,255,255,0.2)" }}>
-                            <th style={{ textAlign: "left", padding: 12, fontWeight: 900 }}>Pos</th>
-                            <th style={{ textAlign: "left", padding: 12, fontWeight: 900 }}>#</th>
-                            <th style={{ textAlign: "left", padding: 12, fontWeight: 900 }}>Driver</th>
-                            <th style={{ textAlign: "left", padding: 12, fontWeight: 900 }}>Team</th>
-                            <th style={{ textAlign: "center", padding: 12, fontWeight: 900 }}>Points</th>
-                            <th style={{ textAlign: "center", padding: 12, fontWeight: 900 }}>Wins</th>
-                            <th style={{ textAlign: "center", padding: 12, fontWeight: 900 }}>Top 5</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {arcaDrivers
-                            .sort((a, b) => (b.points || 0) - (a.points || 0))
-                            .map((driver, idx) => (
-                              <tr key={driver.id} style={{ borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
-                                <td style={{ padding: 12, fontWeight: 900 }}>{idx + 1}</td>
-                                <td style={{ padding: 12 }}>#{driver.number}</td>
-                                <td style={{ padding: 12 }}>{driver.name}</td>
-                                <td style={{ padding: 12, opacity: 0.8 }}>{driver.team || "—"}</td>
-                                <td style={{ padding: 12, textAlign: "center", fontWeight: 900 }}>{driver.points || 0}</td>
-                                <td style={{ padding: 12, textAlign: "center" }}>{driver.wins || 0}</td>
-                                <td style={{ padding: 12, textAlign: "center" }}>{driver.top5 || 0}</td>
-                              </tr>
-                            ))}
-                        </tbody>
-                      </table>
-                    ) : (
-                      <div style={{ padding: 40, textAlign: "center", opacity: 0.6 }}>No drivers loaded.</div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* DRIVERS TAB */}
               {arcaOperationsTab === "drivers" && (
-                <div>
-                  <h2 style={{ marginTop: 0, marginBottom: 16 }}>ARCA Driver Roster</h2>
-                  <div style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 16, padding: 20, overflowX: "auto" }}>
-                    {arcaDrivers && arcaDrivers.length > 0 ? (
-                      <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                        <thead>
-                          <tr style={{ borderBottom: "2px solid rgba(255,255,255,0.2)" }}>
-                            <th style={{ textAlign: "left", padding: 12, fontWeight: 900 }}>#</th>
-                            <th style={{ textAlign: "left", padding: 12, fontWeight: 900 }}>Driver</th>
-                            <th style={{ textAlign: "left", padding: 12, fontWeight: 900 }}>Team</th>
-                            <th style={{ textAlign: "left", padding: 12, fontWeight: 900 }}>Manufacturer</th>
-                            <th style={{ textAlign: "center", padding: 12, fontWeight: 900 }}>Status</th>
-                            <th style={{ textAlign: "center", padding: 12, fontWeight: 900 }}>Cup Driver</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {arcaDrivers.map((driver) => (
-                            <tr key={driver.id} style={{ borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
-                              <td style={{ padding: 12, fontWeight: 900 }}>#{driver.number}</td>
-                              <td style={{ padding: 12 }}>{driver.name}</td>
-                              <td style={{ padding: 12 }}>{driver.team || "—"}</td>
-                              <td style={{ padding: 12 }}>{driver.manufacturer || "—"}</td>
-                              <td style={{ padding: 12, textAlign: "center", opacity: 0.8 }}>{driver.status}</td>
-                              <td style={{ padding: 12, textAlign: "center" }}>{driver.isCupDriver ? "✓" : "—"}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    ) : (
-                      <div style={{ padding: 40, textAlign: "center", opacity: 0.6 }}>No drivers loaded.</div>
-                    )}
-                  </div>
+                <div style={{ background: "rgba(255,255,255,0.95)", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 12, padding: 24 }}>
+                  <h2 style={{ margin: 0, marginBottom: 12 }}>ARCA Drivers</h2>
+                  <p style={{ color: "#6b7280" }}>Manage ARCA driver roster and profiles.</p>
                 </div>
               )}
-            </div>
-          </div>
-        )}
 
-        {/* ARCA TRACKS TAB */}
-        {arcaOperationsTab === "tracks" && (
-          <div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-              <h2 style={{ margin: 0 }}>ARCA Tracks</h2>
-              <button
-                type="button"
-                onClick={() => setArcaEditingTrackId("new")}
-                style={{ ...primaryButtonStyle, padding: "10px 16px" }}
-              >
-                + Add Track
-              </button>
-            </div>
-
-            {arcaEditingTrackId === "new" && (
-              <div style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 16, padding: 20, marginBottom: 20 }}>
-                <h3 style={{ marginTop: 0 }}>Add New Track</h3>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
-                  <input
-                    type="text"
-                    placeholder="Track name"
-                    value={arcaTrackForm.name || ""}
-                    onChange={(e) => setArcaTrackForm({ ...arcaTrackForm, name: e.target.value })}
-                    style={{ ...inputStyle }}
-                  />
-                  <input
-                    type="text"
-                    placeholder="Location"
-                    value={arcaTrackForm.location || ""}
-                    onChange={(e) => setArcaTrackForm({ ...arcaTrackForm, location: e.target.value })}
-                    style={{ ...inputStyle }}
-                  />
-                  <select
-                    value={arcaTrackForm.type || "oval"}
-                    onChange={(e) => setArcaTrackForm({ ...arcaTrackForm, type: e.target.value })}
-                    style={{ ...inputStyle }}
-                  >
-                    <option value="superspeedway">Superspeedway</option>
-                    <option value="oval">Oval</option>
-                    <option value="short-track">Short Track</option>
-                    <option value="road-course">Road Course</option>
-                  </select>
-                  <input
-                    type="number"
-                    placeholder="Banking (degrees)"
-                    value={arcaTrackForm.bankingDegrees || ""}
-                    onChange={(e) => setArcaTrackForm({ ...arcaTrackForm, bankingDegrees: parseFloat(e.target.value) })}
-                    style={{ ...inputStyle }}
-                  />
-                  <input
-                    type="number"
-                    placeholder="Length (miles)"
-                    step="0.001"
-                    value={arcaTrackForm.lengthMiles || ""}
-                    onChange={(e) => setArcaTrackForm({ ...arcaTrackForm, lengthMiles: parseFloat(e.target.value) })}
-                    style={{ ...inputStyle }}
-                  />
+              {arcaOperationsTab === "tracks" && (
+                <div style={{ background: "rgba(255,255,255,0.95)", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 12, padding: 24 }}>
+                  <h2 style={{ margin: 0, marginBottom: 12 }}>ARCA Tracks</h2>
+                  <p style={{ color: "#6b7280" }}>Manage ARCA track information and specifications.</p>
                 </div>
-                <div style={{ display: "flex", gap: 12, marginTop: 16 }}>
-                  <button
-                    type="button"
-                    onClick={saveArcaTrack}
-                    style={{ ...primaryButtonStyle, padding: "10px 16px" }}
-                  >
-                    Save Track
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setArcaEditingTrackId(null);
-                      setArcaTrackForm({});
-                    }}
-                    style={{ ...dangerButtonStyle, padding: "10px 16px" }}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            )}
-
-            <div style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 16, padding: 20, overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr style={{ borderBottom: "2px solid rgba(255,255,255,0.2)" }}>
-                    <th style={{ textAlign: "left", padding: 12, fontWeight: 900 }}>Track</th>
-                    <th style={{ textAlign: "left", padding: 12, fontWeight: 900 }}>Location</th>
-                    <th style={{ textAlign: "left", padding: 12, fontWeight: 900 }}>Type</th>
-                    <th style={{ textAlign: "center", padding: 12, fontWeight: 900 }}>Banking</th>
-                    <th style={{ textAlign: "center", padding: 12, fontWeight: 900 }}>Length</th>
-                    <th style={{ textAlign: "center", padding: 12, fontWeight: 900 }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(arcaTracks || []).map((track) => (
-                    <tr key={track.id} style={{ borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
-                      <td style={{ padding: 12, fontWeight: 900 }}>{track.name}</td>
-                      <td style={{ padding: 12 }}>{track.location}</td>
-                      <td style={{ padding: 12, opacity: 0.8, textTransform: "capitalize" }}>{track.type}</td>
-                      <td style={{ padding: 12, textAlign: "center", opacity: 0.8 }}>{track.bankingDegrees}°</td>
-                      <td style={{ padding: 12, textAlign: "center", opacity: 0.8 }}>{track.lengthMiles}mi</td>
-                      <td style={{ padding: 12, textAlign: "center", display: "flex", gap: 8, justifyContent: "center" }}>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setArcaEditingTrackId(track.id);
-                            setArcaTrackForm(track);
-                          }}
-                          style={{ ...secondaryButtonStyle, padding: "6px 10px", fontSize: 12 }}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => deleteArcaTrack(track.id)}
-                          style={{ ...dangerButtonStyle, padding: "6px 10px", fontSize: 12 }}
-                        >
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              )}
             </div>
           </div>
         )}
@@ -3935,7 +3231,6 @@ option { color:#111827 !important; background:#ffffff !important; }`}</style>
         {/* Race Operations moved out of Admin Home. Use the Race Operations menu item. */}
       </div>
     </div>
-    </>
   );
 
 }
