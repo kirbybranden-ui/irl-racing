@@ -556,7 +556,11 @@ function PreviousRaceWinnerStandingsCard({ seriesId = "cup", raceHistory = [] })
 
 function csvEscape(value) {
   const text = String(value ?? "");
-  if (/[",\n\r]/.test(text)) return `"${text.replace(/"/g, '""')}"`;
+  const needsQuoting = text.includes('"') || text.includes(",") || text.includes("\n") || text.includes("\r");
+  if (needsQuoting) {
+    const escaped = text.split('"').join('""');
+    return '"' + escaped + '"';
+  }
   return text;
 }
 
@@ -599,7 +603,7 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
   const isTablet = viewportWidth >= 760 && viewportWidth < 1040;
 
   const handleDriverClick = (number) => {
-    window.location.pathname = `/driver/${number}`;
+    window.location.pathname = "/driver/" + number;
   };
 
   useEffect(() => {
