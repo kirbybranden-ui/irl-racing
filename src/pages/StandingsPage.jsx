@@ -1353,15 +1353,17 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
                 🏠
               </button>
 
-              <button
-                type="button"
-                aria-label="Open messages"
-                onClick={() => (window.location.pathname = "/message-center")}
-                style={publicMessageIconButtonStyle}
-                title="Messages"
-              >
-                💬
-              </button>
+              {seriesId !== "arca" && (
+                <button
+                  type="button"
+                  aria-label="Open messages"
+                  onClick={() => (window.location.pathname = "/message-center")}
+                  style={publicMessageIconButtonStyle}
+                  title="Messages"
+                >
+                  💬
+                </button>
+              )}
 
               <button
                 type="button"
