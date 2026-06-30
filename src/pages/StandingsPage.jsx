@@ -736,6 +736,27 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
     } else {
       // For ARCA, use the drivers prop we received from App.jsx
       setArcaStandings(drivers || []);
+      
+      // Calculate team standings from drivers
+      const teamMap = {};
+      (drivers || []).forEach((driver) => {
+        if (!teamMap[driver.team]) {
+          teamMap[driver.team] = {
+            team: driver.team,
+            points: 0,
+            wins: 0,
+            top5: 0,
+            drivers: [],
+          };
+        }
+        teamMap[driver.team].points += driver.points || 0;
+        teamMap[driver.team].wins += driver.wins || 0;
+        teamMap[driver.team].top5 += driver.top5 || 0;
+        teamMap[driver.team].drivers.push(driver);
+      });
+      
+      const teams = Object.values(teamMap).sort((a, b) => b.points - a.points);
+      setArcaTeamStandings(teams);
     }
   }, [seriesId, drivers]);
 
