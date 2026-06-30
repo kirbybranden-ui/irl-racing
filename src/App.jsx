@@ -11,7 +11,6 @@ import DriverProfilePage from "./DriverProfilePage";
 import TeamDetailPage from "./TeamDetailPage";
 import ManufacturerDetailPage from "./ManufacturerDetailPage";
 import WelcomePage from "./WelcomePage";
-import MaintenancePage from "./pages/MaintenancePage";
 import { supabase } from "./lib/supabase";
 import CarGalleryPage from "./CarGalleryPage";
 import PaintSchemeVotePage from "./PaintSchemeVotePage";
@@ -34,23 +33,15 @@ import DevelopmentRequestsPage from "./pages/DevelopmentRequestsPage";
 import LeagueChatPage from "./LeagueChatPage";
 import OwnersPage from "./OwnersPage.jsx";
 import { defaultDrivers } from "./data/drivers";
+import { defaultRaces } from "./data/races";
 import { defaultArcaRaces } from "./data/arca/races";
 import { defaultArcaTracks } from "./data/arca/tracks";
+import { defaultArcaDrivers } from "./data/arca/drivers";
 import { trackOverviewData } from "./data/trackOverview";
 import SeriesPortal from "./pages/series/SeriesPortal";
 import SeriesLandingPage from "./pages/series/SeriesLandingPage";
 import SeriesJoinPage from "./pages/series/SeriesJoinPage";
-import { defaultArcaDrivers } from "./data/arca/drivers";
-import { SERIES } from "./config/series";
 import {
-  loadArcaSeasonData,
-  saveArcaDrivers,
-  saveArcaRace,
-  saveArcaRaceResults,
-  createArcaSeason,
-} from "./lib/arcaState";
-import {
-
   teamLogos,
   manufacturerLogos,
   teamBudgets,
@@ -141,42 +132,6 @@ import {
   raceEntryTdStyle,
   statBoxStyle,
 } from "./styles/sharedStyles";
-
-const MAINTENANCE_MODE = true;
-const ADMIN_BYPASS_KEY = "bowhunter6758";
-
-const SUB_ONLY_DRIVERS = [
-  {
-    id: "sub-red-45-neck",
-    number: "",
-    name: "Red-45-Neck",
-    team: "",
-    manufacturer: "",
-    driver_type: "substitute",
-    status: "substitute_only",
-    retired: false,
-    points: 0,
-    wins: 0,
-    top3: 0,
-    top5: 0,
-    dnfs: 0,
-  },
-];
-
-function ensureSubOnlyDrivers(roster = []) {
-  const next = Array.isArray(roster) ? [...roster] : [];
-  SUB_ONLY_DRIVERS.forEach((subDriver) => {
-    const exists = next.some((driver) => String(driver?.id || "") === subDriver.id || String(driver?.name || "").toLowerCase() === subDriver.name.toLowerCase());
-    if (!exists) next.push(subDriver);
-  });
-  return next;
-}
-
-function isSubOnlyDriver(driver) {
-  const type = String(driver?.driver_type || driver?.driverType || driver?.status || "").toLowerCase();
-  return type.includes("substitute") || type.includes("sub_only") || type.includes("sub-only");
-}
-
 function AdminLoginPage() {
   const ADMIN_ACCESS_CODE = "BCLADMINPASSWORD2026";
   const [code, setCode] = useState("");
@@ -2447,42 +2402,9 @@ function getWednesdayBeforeRaceDate(dateKey) {
   return date.toISOString().slice(0, 10);
 }
 
-function getPreviousScheduledRaceForPayment(selectedRace = null, tracks = []) {
-  if (!selectedRace) return null;
-  const selectedName = normalizeTrackName(selectedRace?.name || selectedRace?.raceName || "");
-  const selectedDate = String(selectedRace?.date || "").slice(0, 10);
-  const sorted = [...(tracks || [])]
-    .filter((track) => track?.name)
-    .sort((a, b) => new Date(`${String(a.date || "9999-12-31").slice(0, 10)}T12:00:00Z`) - new Date(`${String(b.date || "9999-12-31").slice(0, 10)}T12:00:00Z`));
-  const selectedIndex = sorted.findIndex((track) => {
-    const nameMatch = selectedName && normalizeTrackName(track?.name) === selectedName;
-    const dateMatch = selectedDate && String(track?.date || "").slice(0, 10) === selectedDate;
-    return nameMatch || dateMatch;
-  });
-  if (selectedIndex > 0) return sorted[selectedIndex - 1];
-  return null;
-}
-
 function getRecordRaceName(row = {}) {
   row = row || {};
-  return String(
-    row.race_name ||
-    row.raceName ||
-    row.race_id ||
-    row.raceId ||
-    row.race_week ||
-    row.raceWeek ||
-    row.selected_race ||
-    row.selectedRace ||
-    row.track_name ||
-    row.trackName ||
-    row.track ||
-    row.race ||
-    row.event_name ||
-    row.eventName ||
-    row.event ||
-    ""
-  ).trim();
+  return String(row.race_name || row.raceName || row.track_name || row.track || row.race || row.event_name || row.event || "").trim();
 }
 
 function getRecordDriverNumber(row = {}) {
@@ -2532,122 +2454,30 @@ function recordMatchesDriver(row = {}, driver = {}) {
   );
 }
 
-function compactTrackName(value = "") {
-  return normalizeTrackName(value).replace(/[^a-z0-9]/g, "");
-}
-
-function trackNamesMatch(a = "", b = "") {
-  const left = normalizeTrackName(a);
-  const right = normalizeTrackName(b);
-  if (!left || !right) return false;
-  if (left === right) return true;
-  const compactLeft = compactTrackName(left);
-  const compactRight = compactTrackName(right);
-  if (!compactLeft || !compactRight) return false;
-  return compactLeft.includes(compactRight) || compactRight.includes(compactLeft);
-}
-
 function recordMatchesRace(row = {}, raceName = "") {
-  const rowRace = getRecordRaceName(row);
-  const wanted = String(raceName || "").trim();
+  const rowRace = getRecordRaceName(row).toLowerCase();
+  const wanted = String(raceName || "").trim().toLowerCase();
   if (!wanted) return true;
-  if (!rowRace) return false;
-  return trackNamesMatch(rowRace, wanted);
-}
-
-function recordHasRace(row = {}) {
-  return Boolean(getRecordRaceName(row));
-}
-
-function timestampInRange(value, startIso = "", endIso = "") {
-  if (!value) return false;
-  const time = new Date(value).getTime();
-  if (Number.isNaN(time)) return false;
-  const start = startIso ? new Date(startIso).getTime() : Number.NEGATIVE_INFINITY;
-  const end = endIso ? new Date(endIso).getTime() : Number.POSITIVE_INFINITY;
-  return time >= start && time <= end;
+  if (!rowRace) return true;
+  return rowRace === wanted;
 }
 
 function getTeamPaymentOverride(overrides = [], teamKey = "", periodKey = "") {
   return (overrides || []).find((item) => String(item.team_key || item.team || "") === String(teamKey) && String(item.period_key || item.periodKey || "") === String(periodKey));
 }
 
-function getPaintVoteUploadId(vote = {}) {
-  return String(vote.upload_id || vote.voted_upload_id || vote.paint_scheme_id || vote.car_upload_id || "").trim();
-}
-
-function getPaintSchemeWinnerRows({ carUploads = [], votes = [], drivers = [], raceName = "", paintWindowStartIso = "", paintDeadlineIso = "" }) {
-  const wantedRace = normalizeTrackName(raceName || "");
-  const voteCounts = new Map();
-  (Array.isArray(votes) ? votes : []).forEach((vote) => {
-    if (wantedRace && normalizeTrackName(getRecordRaceName(vote)) && normalizeTrackName(getRecordRaceName(vote)) !== wantedRace) return;
-    const key = getPaintVoteUploadId(vote);
-    if (!key) return;
-    voteCounts.set(key, (voteCounts.get(key) || 0) + 1);
-  });
-
-  const raceUploads = (Array.isArray(carUploads) ? carUploads : [])
-    .filter((upload) => isPaintImageUploadForStandings(upload) || upload?.image_url || upload?.file_url || upload?.url)
-    .filter((upload) => {
-      if (!wantedRace) return true;
-      const uploadRace = getPaintUploadRaceForStandings(upload) || getRecordRaceName(upload);
-      if (uploadRace) return trackNamesMatch(uploadRace, raceName);
-      return timestampInRange(getPaymentTimestamp(upload), paintWindowStartIso, paintDeadlineIso);
-    })
-    .map((upload) => {
-      const matchedDriver = (drivers || []).find((driver) => recordMatchesDriver(upload, driver));
-      return {
-        ...upload,
-        matchedDriver,
-        winningTeamKey: matchedDriver?.team || upload.team || upload.team_key || upload.team_abbr || "",
-        winningDriverName: matchedDriver?.name || upload.driver_name || upload.uploader_name || upload.name || "Unknown Driver",
-        winningDriverNumber: matchedDriver?.number || upload.driver_number || upload.car_number || upload.number || "",
-        voteCount: voteCounts.get(String(upload.id)) || Number(upload.voteCount || upload.votes || 0) || 0,
-      };
-    })
-    .filter((upload) => Number(upload.voteCount || 0) > 0)
-    .sort((a, b) => {
-      const voteDiff = Number(b.voteCount || 0) - Number(a.voteCount || 0);
-      if (voteDiff !== 0) return voteDiff;
-      return new Date(getPaymentTimestamp(b) || 0) - new Date(getPaymentTimestamp(a) || 0);
-    });
-
-  if (!raceUploads.length) return [];
-  const topVotes = Number(raceUploads[0].voteCount || 0);
-  return raceUploads.filter((upload) => Number(upload.voteCount || 0) === topVotes);
-}
-
-function getOwnerEngagementBonusPoints(participatingDrivers = 0, totalDrivers = 0) {
-  if (!totalDrivers) return 0;
-  const percent = participatingDrivers / totalDrivers;
-  if (percent >= 1) return 9;
-  if (percent >= 0.75) return 6;
-  if (percent >= 0.5) return 4;
-  if (percent >= 0.25) return 2;
-  return 0;
-}
-
-function buildPaymentComplianceRows({ teams = [], drivers = [], interviews = [], carUploads = [], paintVotes = [], overrides = [], previousRace = null, upcomingRace = null }) {
+function buildPaymentComplianceRows({ teams = [], drivers = [], interviews = [], carUploads = [], overrides = [], previousRace = null, upcomingRace = null }) {
   interviews = (Array.isArray(interviews) ? interviews : []).filter((row) => row && typeof row === "object");
   carUploads = (Array.isArray(carUploads) ? carUploads : []).filter((row) => row && typeof row === "object");
-  paintVotes = (Array.isArray(paintVotes) ? paintVotes : []).filter((row) => row && typeof row === "object");
   overrides = (Array.isArray(overrides) ? overrides : []).filter((row) => row && typeof row === "object");
-  const upcomingRaceDate = String(upcomingRace?.date || "").slice(0, 10);
-  const upcomingRaceName = upcomingRace?.name || upcomingRace?.raceName || "";
-  const previousRaceDate = String(previousRace?.date || "").slice(0, 10);
-  const previousRaceName = previousRace?.name || previousRace?.raceName || "";
-  const paymentPeriodKey = `${upcomingRaceName || "no-race"}`;
-
-  // Owner Engagement Program deadlines for the selected upcoming race week.
-  // Paint schemes and previous-race post interviews are due Wednesday at 11:59 PM ET.
-  // Upcoming-race pre interviews are due before 9:00 PM ET on race night.
-  const wednesdayDeadlineDate = upcomingRaceDate ? getWednesdayBeforeRaceDate(upcomingRaceDate) : "";
-  const paintDeadlineIso = wednesdayDeadlineDate ? makeEasternIso(wednesdayDeadlineDate, "23:59") : "";
-  const postDeadlineIso = paintDeadlineIso;
-  const preDeadlineIso = upcomingRaceDate ? makeEasternIso(upcomingRaceDate, "21:00") : "";
-  const paintWindowStartDate = previousRaceDate || (wednesdayDeadlineDate ? addDaysToDateKey(wednesdayDeadlineDate, -7) : "");
-  const paintWindowStartIso = paintWindowStartDate ? makeEasternIso(paintWindowStartDate, "21:00") : "";
-  const paintWinnerRows = getPaintSchemeWinnerRows({ carUploads, votes: paintVotes, drivers, raceName: upcomingRaceName, paintWindowStartIso, paintDeadlineIso });
+  const previousRaceDate = previousRace?.date || "";
+  const upcomingRaceDate = upcomingRace?.date || "";
+  const previousRaceName = previousRace?.name || "";
+  const upcomingRaceName = upcomingRace?.name || "";
+  const paymentPeriodKey = `${previousRaceName || "no-previous"}__${upcomingRaceName || "no-upcoming"}`;
+  const paintDeadlineIso = upcomingRaceDate ? makeEasternIso(getWednesdayBeforeRaceDate(upcomingRaceDate), "23:59") : "";
+  const postDeadlineIso = previousRaceDate ? makeEasternIso(addDaysToDateKey(previousRaceDate, 4), "23:59") : "";
+  const preDeadlineIso = upcomingRaceDate ? makeEasternIso(String(upcomingRaceDate).slice(0, 10), "20:30") : "";
 
   const eligibleTeams = (teams || [])
     .filter((team) => team?.team && team.team !== "Independent" && team.team !== "IND")
@@ -2660,12 +2490,7 @@ function buildPaymentComplianceRows({ teams = [], drivers = [], interviews = [],
 
     const driverChecks = teamDrivers.map((driver) => {
       const paintRecord = (carUploads || [])
-        .filter((row) => {
-          if (!recordMatchesDriver(row, driver)) return false;
-          if (recordMatchesRace(row, upcomingRaceName)) return true;
-          if (!recordHasRace(row)) return timestampInRange(getPaymentTimestamp(row), paintWindowStartIso, paintDeadlineIso);
-          return false;
-        })
+        .filter((row) => recordMatchesDriver(row, driver) && recordMatchesRace(row, upcomingRaceName))
         .sort((a, b) => new Date(getPaymentTimestamp(b) || 0) - new Date(getPaymentTimestamp(a) || 0))[0] || null;
       const postRecord = (interviews || [])
         .filter((row) => getInterviewKind(row) === "post" && interviewLooksAnswered(row) && recordMatchesDriver(row, driver) && recordMatchesRace(row, previousRaceName))
@@ -2689,37 +2514,15 @@ function buildPaymentComplianceRows({ teams = [], drivers = [], interviews = [],
       };
     });
 
-    const participatingDriverCount = driverChecks.filter((check) => check.paintMet && check.postMet && check.preMet).length;
-    const participationBonusPoints = getOwnerEngagementBonusPoints(participatingDriverCount, teamDrivers.length);
-    const baseMet = teamDrivers.length > 0 && participationBonusPoints > 0;
-    const teamPaintWinnerRows = paintWinnerRows.filter((winner) => String(winner.winningTeamKey || "") === String(team.team));
+    const baseMet = teamDrivers.length > 0 && driverChecks.every((check) => check.paintMet && check.postMet && check.preMet);
     const override = getTeamPaymentOverride(overrides, team.team, paymentPeriodKey);
     const overrideStatus = override?.override_status || override?.status || "";
-    const manualPaintWinnerBonus = override?.manual_paint_winner === true || override?.manualPaintWinner === true || override?.paint_winner_override === true || Number(override?.paint_winner_bonus_points || 0) > 0;
-    const manualPaintWinnerRows = manualPaintWinnerBonus && teamPaintWinnerRows.length === 0 ? [{
-      id: `manual-paint-${team.team}-${paymentPeriodKey}`,
-      winningTeamKey: team.team,
-      winningDriverName: override?.paint_winner_driver_name || override?.winning_driver_name || "Manual Paint Winner",
-      winningDriverNumber: override?.paint_winner_driver_number || override?.winning_driver_number || "",
-      voteCount: override?.paint_winner_vote_count || "Manual",
-      manual: true,
-    }] : [];
-    const finalPaintWinnerRows = [...teamPaintWinnerRows, ...manualPaintWinnerRows];
-    const paintWinnerBonusPoints = finalPaintWinnerRows.length > 0 ? 5 : 0;
-    const totalOwnerEngagementPoints = participationBonusPoints + paintWinnerBonusPoints;
-    const finalEligible = overrideStatus === "approved" ? true : overrideStatus === "denied" ? false : (participationBonusPoints > 0 || paintWinnerBonusPoints > 0);
+    const finalEligible = overrideStatus === "approved" ? true : overrideStatus === "denied" ? false : baseMet;
 
     return {
       teamKey: team.team,
       teamName: getTeamFullName(team.team),
       driverCount: teamDrivers.length,
-      participatingDriverCount,
-      participationBonusPoints,
-      paintWinnerBonusPoints,
-      totalOwnerEngagementPoints,
-      paintWinnerRows: finalPaintWinnerRows,
-      detectedPaintWinnerRows: teamPaintWinnerRows,
-      manualPaintWinnerBonus,
       driverChecks,
       previousRaceName,
       upcomingRaceName,
@@ -2727,7 +2530,6 @@ function buildPaymentComplianceRows({ teams = [], drivers = [], interviews = [],
       paintDeadlineIso,
       postDeadlineIso,
       preDeadlineIso,
-      paintWindowStartIso,
       baseMet,
       finalEligible,
       override,
@@ -3911,16 +3713,13 @@ function MobileLeagueApp({
           tracks={tracks}
           paymentCompliance={paymentCompliance}
           onApplyTeamTransaction={onApplyTeamTransaction}
-          supabase={supabase}
-          ownerDriverAssignments={ownerDriverAssignments}
-          loadOwnerDriverAssignments={loadOwnerDriverAssignments}
         />
       </>
     ));
   }
 
   if (["/team-hq", "/hq", "/teamhq"].includes(path)) {
-    return frame("Team HQ", "more", <OwnerHQPage drivers={drivers} teams={teams} seasonName={seasonName} tracks={tracks} go={go} supabase={supabase} ownerDriverAssignments={ownerDriverAssignments} loadOwnerDriverAssignments={loadOwnerDriverAssignments} />);
+    return frame("Team HQ", "more", <OwnerHQPage drivers={drivers} teams={teams} seasonName={seasonName} tracks={tracks} go={go} supabase={supabase} />);
   }
 
   if (path.startsWith("/team/")) {
@@ -4070,7 +3869,7 @@ function MobileLeagueApp({
     );
   }
 
-  return dataFrame("Budweiser Cup", "standings", <StandingsPage drivers={drivers} teams={teams} manufacturerStandings={manufacturerStandings} seasonName={seasonName} tracks={tracks} raceHistory={raceHistory} ownerDriverAssignments={ownerDriverAssignments} />);
+  return dataFrame("Budweiser Cup", "standings", <StandingsPage drivers={drivers} teams={teams} manufacturerStandings={manufacturerStandings} seasonName={seasonName} tracks={tracks} raceHistory={raceHistory} />);
 }
 
 
@@ -5031,7 +4830,7 @@ function MobileDriverProfilePolished({ driver, driverNumber, raceHistory = [], t
         </div>
         <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", paddingBottom: 4 }}>
           <div style={{ minWidth: 360 }}>
-            <DriverProfilePage seasons={seasons} activeSeason={activeSeason} tracks={tracks} ownerDriverAssignments={ownerDriverAssignments} loadOwnerDriverAssignments={loadOwnerDriverAssignments} />
+            <DriverProfilePage seasons={seasons} activeSeason={activeSeason} tracks={tracks} />
           </div>
         </div>
       </MobileCard>
@@ -5598,13 +5397,6 @@ function AppleSeriesPortalLanding() {
 }
 
 export default function App() {
-  const params = new URLSearchParams(window.location.search);
-const maintenanceBypass = params.get("access") === ADMIN_BYPASS_KEY || sessionStorage.getItem("bcl-maintenance-bypass") === "true";
-
-if (MAINTENANCE_MODE && !maintenanceBypass) {
-  return <MaintenancePage />;
-}
-
   useEffect(() => {
     // syncCruiserNumberAndNumberOwnership();
   }, []);
@@ -5613,13 +5405,12 @@ if (MAINTENANCE_MODE && !maintenanceBypass) {
   const [openAppealCount, setOpenAppealCount] = useState(0);
   const [openStoryCount, setOpenStoryCount] = useState(0);
   const [activeSeasonId, setActiveSeasonId] = useState("");
-  const [currentSeries, setCurrentSeries] = useState("cup");
-  const [tracks, setTracks] = useState(defaultTracks);
+  const [tracks, setTracks] = useState(defaultRaces);
   const [arcaSeasons, setArcaSeasons] = useState([]);
-const [arcaRaces, setArcaRaces] = useState(defaultArcaRaces);
-const [arcaDrivers, setArcaDrivers] = useState(defaultArcaDrivers);
-const [arcaSelectedRace, setArcaSelectedRace] = useState(null);
-const [arcaTracks, setArcaTracks] = useState(defaultArcaTracks);
+  const [arcaRaces, setArcaRaces] = useState(defaultArcaRaces);
+  const [arcaTracks, setArcaTracks] = useState(defaultArcaTracks);
+  const [arcaDrivers, setArcaDrivers] = useState(defaultArcaDrivers);
+  const [arcaSelectedRace, setArcaSelectedRace] = useState(null);
   const backupFileInputRef = useRef(null);
   const [isHydrated, setIsHydrated] = useState(false);
   const loadedStateSignatureRef = useRef("");
@@ -5641,9 +5432,6 @@ const [arcaTracks, setArcaTracks] = useState(defaultArcaTracks);
   const [featuredVideo, setFeaturedVideo] = useState(null);
   const [manualWatchPicks, setManualWatchPicks] = useState([]);
   const [ownerAssignments, setOwnerAssignments] = useState([]);
-  const [ownerDriverAssignments, setOwnerDriverAssignments] = useState([]);
-  const [ownerDriverAssignmentsLoading, setOwnerDriverAssignmentsLoading] = useState(false);
-  const [ownerDriverAssignmentError, setOwnerDriverAssignmentError] = useState("");
   const [selectedOwnerTeam, setSelectedOwnerTeam] = useState("");
   const [selectedOwnerDriverNumber, setSelectedOwnerDriverNumber] = useState("");
   const [ownerAssignmentMessage, setOwnerAssignmentMessage] = useState("");
@@ -5678,7 +5466,6 @@ const [arcaTracks, setArcaTracks] = useState(defaultArcaTracks);
   const [paymentComplianceRows, setPaymentComplianceRows] = useState([]);
   const [paymentComplianceInterviews, setPaymentComplianceInterviews] = useState([]);
   const [paymentComplianceUploads, setPaymentComplianceUploads] = useState([]);
-  const [paymentCompliancePaintVotes, setPaymentCompliancePaintVotes] = useState([]);
   const [paymentComplianceOverrides, setPaymentComplianceOverrides] = useState(() => {
     try { return JSON.parse(localStorage.getItem(PAYMENT_COMPLIANCE_OVERRIDE_KEY) || "[]"); }
     catch { return []; }
@@ -5686,9 +5473,6 @@ const [arcaTracks, setArcaTracks] = useState(defaultArcaTracks);
   const [paymentComplianceLoading, setPaymentComplianceLoading] = useState(false);
   const [paymentComplianceStatus, setPaymentComplianceStatus] = useState("");
   const [paymentComplianceError, setPaymentComplianceError] = useState("");
-  const [paymentComplianceRaceName, setPaymentComplianceRaceName] = useState("");
-  const [paymentComplianceOpenDrivers, setPaymentComplianceOpenDrivers] = useState({});
-  const [manualPaintWinnerSelections, setManualPaintWinnerSelections] = useState({});
   const [ownerAccessCodes, setOwnerAccessCodes] = useState(() => {
     try {
       const saved = localStorage.getItem("ownerPortalAccessCodes");
@@ -5706,8 +5490,6 @@ const [arcaTracks, setArcaTracks] = useState(defaultArcaTracks);
   const path = rawPath.toLowerCase();
   const isMobileViewport = useMobileViewport(768);
   const forceDesktop = typeof document !== "undefined" && document.cookie.includes("bcl-force-desktop=1");
-  const currentPathname = typeof window !== "undefined" ? window.location.pathname : "";
-const isArcaSeries = currentPathname.startsWith("/series/arca/");
 
   useEffect(() => {
     if (typeof document === "undefined") return undefined;
@@ -5745,25 +5527,11 @@ const isArcaSeries = currentPathname.startsWith("/series/arca/");
     };
   }, [isMobileViewport, forceDesktop]);
 
-useEffect(() => {
-  const loadData = async () => {
-    const data = await loadArcaSeasonData();
-    setArcaSeasons(data.seasons);
-    setArcaRaces(data.races);
-    // Add series field to drivers if it's missing
-    const driversWithSeries = (data.drivers || []).map(d => ({ ...d, series: "arca" }));
-    setArcaDrivers(driversWithSeries);
-  };
-  
-  if (isArcaSeries) {
-    loadData();
-  }
-}, [isArcaSeries]);
-  
+  // ─── Computed values (must be before all hooks) ───────────────────────────
   const activeSeason = seasons.find((s) => s.id === activeSeasonId) || seasons[0] || null;
   const withLeagueStatusWidget = (page) => (<> {page} <LeagueStatusWidget tracks={tracks} seasonName={activeSeason?.name || ""} /> </>);
-  const drivers = ensureSubOnlyDrivers(realignLeagueDrivers(activeSeason?.drivers || []));
-  const visibleDrivers = drivers.filter((d) => !isInactivePlaceholderDriver(d) && !isSubOnlyDriver(d));
+  const drivers = realignLeagueDrivers(activeSeason?.drivers || []);
+  const visibleDrivers = drivers.filter((d) => !isInactivePlaceholderDriver(d));
   const activeDrivers = visibleDrivers.filter((d) => !d.retired);
   const ownerPortalTeams = useMemo(() => {
     const fixedTeams = ["B2J", "19XI", "BXM", "MER", "NLM", "BWR", "MMS"];
@@ -6572,171 +6340,47 @@ useEffect(() => {
     replaceActiveSeason({ ...activeSeason, drivers: resetDrivers, raceHistory: [], selectedRace: "", positions: {}, stage1: {}, stage2: {}, stage3: {}, dnfMap: {}, startParkMap: {}, offenseMap: {}, fastestLapMap: {} });
     resetEditorStates();
   };
-  const baseTeamStandings = useMemo(() => {
+  const teamStandings = useMemo(() => {
     const teams = {};
     for (const d of visibleDrivers) {
-      if (!teams[d.team]) teams[d.team] = { team: d.team, points: 0, wins: 0, top3: 0, top5: 0, drivers: 0, budget: getTeamBudget(d.team), substitutePoints: 0 };
+      if (!teams[d.team]) teams[d.team] = { team: d.team, points: 0, wins: 0, top3: 0, top5: 0, drivers: 0, budget: getTeamBudget(d.team) };
       teams[d.team].budget = getTeamBudget(d.team);
       teams[d.team].points += d.points || 0; teams[d.team].wins += d.wins || 0;
       teams[d.team].top3 += d.top3 || 0; teams[d.team].top5 += d.top5 || 0; teams[d.team].drivers += 1;
     }
-
-    (raceHistory || []).forEach((race) => {
-      (race.results || []).forEach((result) => {
-        if (!result?.isSubstituteStart || result.teamPointsAwarded === false) return;
-        const teamKey = result.ownerTeam || result.team;
-        if (!teamKey) return;
-        if (!teams[teamKey]) teams[teamKey] = { team: teamKey, points: 0, wins: 0, top3: 0, top5: 0, drivers: 0, budget: getTeamBudget(teamKey), substitutePoints: 0 };
-        const points = Number(result.ownerTeamPoints ?? result.rawRacePoints ?? 0) || 0;
-        teams[teamKey].points += points;
-        teams[teamKey].substitutePoints += points;
-        if (result.isWin) teams[teamKey].wins += 1;
-        if (result.isTop3) teams[teamKey].top3 += 1;
-        if (result.isTop5) teams[teamKey].top5 += 1;
-      });
-    });
-
     return Object.values(teams).sort((a, b) => b.points - a.points || b.wins - a.wins || b.top3 - a.top3 || a.team.localeCompare(b.team));
-  }, [visibleDrivers, raceHistory]);
+  }, [visibleDrivers]);
   const manufacturerStandings = useMemo(() => {
     const mfrs = {};
     for (const d of visibleDrivers) {
       const mfr = d.manufacturer || "Unknown";
-      if (!mfrs[mfr]) mfrs[mfr] = { manufacturer: mfr, points: 0, wins: 0, top3: 0, top5: 0, drivers: 0, substitutePoints: 0 };
+      if (!mfrs[mfr]) mfrs[mfr] = { manufacturer: mfr, points: 0, wins: 0, top3: 0, top5: 0, drivers: 0 };
       mfrs[mfr].points += d.points || 0; mfrs[mfr].wins += d.wins || 0;
       mfrs[mfr].top3 += d.top3 || 0; mfrs[mfr].top5 += d.top5 || 0; mfrs[mfr].drivers += 1;
     }
-
-    (raceHistory || []).forEach((race) => {
-      (race.results || []).forEach((result) => {
-        if (!result?.isSubstituteStart || result.manufacturerPointsAwarded === false) return;
-        const mfr = result.manufacturer || "Unknown";
-        if (!mfrs[mfr]) mfrs[mfr] = { manufacturer: mfr, points: 0, wins: 0, top3: 0, top5: 0, drivers: 0, substitutePoints: 0 };
-        const points = Number(result.ownerManufacturerPoints ?? result.rawRacePoints ?? 0) || 0;
-        mfrs[mfr].points += points;
-        mfrs[mfr].substitutePoints += points;
-        if (result.isWin) mfrs[mfr].wins += 1;
-        if (result.isTop3) mfrs[mfr].top3 += 1;
-        if (result.isTop5) mfrs[mfr].top5 += 1;
-      });
-    });
-
     return Object.values(mfrs).sort((a, b) => b.points - a.points || b.wins - a.wins || b.top3 - a.top3 || a.manufacturer.localeCompare(b.manufacturer));
-  }, [visibleDrivers, raceHistory]);
+  }, [visibleDrivers]);
   const sortedDrivers = [...visibleDrivers].sort((a, b) => b.points - a.points || b.wins - a.wins || b.top3 - a.top3 || a.name.localeCompare(b.name));
   const currentLeader = sortedDrivers[0] || null;
   const latestRace = raceHistory.length > 0 ? raceHistory[raceHistory.length - 1] : null;
   const latestWinner = latestRace?.results?.find((r) => r.finishPos === 1) || null;
 
+  const previousRaceForPayment = useMemo(() => {
+    const lastPostedRace = raceHistory.length > 0 ? raceHistory[raceHistory.length - 1] : null;
+    if (!lastPostedRace) return null;
+    const track = tracks.find((item) => item.name === lastPostedRace.raceName) || {};
+    return { name: lastPostedRace.raceName, date: track.date || lastPostedRace.raceDate || lastPostedRace.date || lastPostedRace.postedAt || lastPostedRace.savedAt || "" };
+  }, [raceHistory, tracks]);
   const upcomingRaceForPayment = useMemo(() => getUpcomingRaceByDate(tracks) || tracks[0] || null, [tracks]);
-  const selectedRaceForPayment = useMemo(() => {
-    const wanted = paymentComplianceRaceName || selectedRace || upcomingRaceForPayment?.name || "";
-    const track = (tracks || []).find((item) => normalizeTrackName(item?.name) === normalizeTrackName(wanted));
-    if (track) return track;
-    return upcomingRaceForPayment || tracks[0] || null;
-  }, [paymentComplianceRaceName, selectedRace, upcomingRaceForPayment, tracks]);
-  const previousRaceForPayment = useMemo(() => getPreviousScheduledRaceForPayment(selectedRaceForPayment, tracks || []), [selectedRaceForPayment, tracks]);
   const paymentComplianceSummary = useMemo(() => buildPaymentComplianceRows({
-    teams: baseTeamStandings,
+    teams: teamStandings,
     drivers: visibleDrivers,
     interviews: paymentComplianceInterviews,
     carUploads: paymentComplianceUploads,
-    paintVotes: paymentCompliancePaintVotes,
     overrides: paymentComplianceOverrides,
     previousRace: previousRaceForPayment,
-    upcomingRace: selectedRaceForPayment,
-  }), [baseTeamStandings, visibleDrivers, paymentComplianceInterviews, paymentComplianceUploads, paymentCompliancePaintVotes, paymentComplianceOverrides, selectedRaceForPayment, previousRaceForPayment]);
-  const teamStandings = useMemo(() => {
-    const ownerPointRows = paymentComplianceSummary || [];
-    const byTeam = new Map(ownerPointRows.map((row) => [String(row.teamKey), row]));
-
-    return (baseTeamStandings || [])
-      .map((team) => {
-        const engagementRow = byTeam.get(String(team.team));
-        const ownerEngagementPoints = Number(engagementRow?.totalOwnerEngagementPoints || 0);
-        return {
-          ...team,
-          racePoints: Number(team.points || 0),
-          ownerEngagementPoints,
-          points: Number(team.points || 0) + ownerEngagementPoints,
-        };
-      })
-      .sort((a, b) => b.points - a.points || b.wins - a.wins || b.top3 - a.top3 || a.team.localeCompare(b.team));
-  }, [baseTeamStandings, paymentComplianceSummary]);
-
-  const loadOwnerDriverAssignments = async () => {
-    if (!supabase) return [];
-    setOwnerDriverAssignmentsLoading(true);
-    setOwnerDriverAssignmentError("");
-
-    const { data, error } = await supabase
-      .from("owner_driver_assignments")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    setOwnerDriverAssignmentsLoading(false);
-
-    if (error) {
-      console.error("Failed to load owner driver assignments:", error);
-      setOwnerDriverAssignments([]);
-      setOwnerDriverAssignmentError("Could not load owner driver assignments. Check the owner_driver_assignments table/RLS.");
-      return [];
-    }
-
-    setOwnerDriverAssignments(data || []);
-    return data || [];
-  };
-
-  const updateOwnerDriverAssignmentStatus = async (assignmentId, status, extraFields = {}) => {
-    if (!assignmentId || !supabase) return { ok: false, error: "Missing assignment or Supabase client." };
-
-    const normalizedStatus = String(status || "").toLowerCase();
-    const nextStatus = normalizedStatus === "approved" ? "approved" : normalizedStatus;
-
-    const patch = {
-      status: nextStatus,
-      reviewed_by: extraFields.reviewed_by || "Admin",
-      reviewed_at: extraFields.reviewed_at || new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      ...extraFields,
-    };
-
-    const { error } = await supabase
-      .from("owner_driver_assignments")
-      .update(patch)
-      .eq("id", assignmentId);
-
-    if (error) {
-      console.error("Failed to update owner driver assignment:", error);
-      setOwnerDriverAssignmentError("Could not update owner driver assignment. Check update policy/RLS.");
-      return { ok: false, error };
-    }
-
-    await loadOwnerDriverAssignments();
-    return { ok: true };
-  };
-
-  const deleteOwnerDriverAssignment = async (assignmentId) => {
-    if (!assignmentId || !supabase) return { ok: false, error: "Missing assignment or Supabase client." };
-    const { error } = await supabase
-      .from("owner_driver_assignments")
-      .delete()
-      .eq("id", assignmentId);
-
-    if (error) {
-      console.error("Failed to delete owner driver assignment:", error);
-      setOwnerDriverAssignmentError("Could not delete owner driver assignment. Check delete policy/RLS.");
-      return { ok: false, error };
-    }
-
-    await loadOwnerDriverAssignments();
-    return { ok: true };
-  };
-
-  useEffect(() => {
-    loadOwnerDriverAssignments();
-  }, [supabase]);
-
+    upcomingRace: upcomingRaceForPayment,
+  }), [teamStandings, visibleDrivers, paymentComplianceInterviews, paymentComplianceUploads, paymentComplianceOverrides, previousRaceForPayment, upcomingRaceForPayment]);
   const saveOwnerAccessCodes = (nextCodes) => {
     setOwnerAccessCodes(nextCodes);
     localStorage.setItem("ownerPortalAccessCodes", JSON.stringify(nextCodes));
@@ -7028,49 +6672,14 @@ useEffect(() => {
     const updatedDrivers = drivers.map((d) => d.id === driverId ? { ...d, retired: false } : d);
     patchActiveSeason({ drivers: updatedDrivers });
   };
-  const addDriver = async () => {
+  const addDriver = () => {
     const trimmedName = newDriverName.trim(), trimmedTeam = newDriverTeam.trim(), trimmedManufacturer = newDriverManufacturer.trim(), driverNumber = String(newDriverNumber).trim();
     if (!trimmedName || !trimmedTeam || !trimmedManufacturer || !driverNumber) { alert("Please enter driver name, number, manufacturer, and team."); return; }
     if (drivers.some((d) => d.name.toLowerCase() === trimmedName.toLowerCase())) { alert("A driver with that name already exists."); return; }
     if (drivers.some((d) => String(d.number) === driverNumber)) { alert("A driver with that number already exists."); return; }
-
-    const rosterDriver = {
-      id: Date.now(),
-      number: Number(driverNumber),
-      name: trimmedName,
-      manufacturer: trimmedManufacturer,
-      manufacturerLogo: manufacturerLogos[trimmedManufacturer] || null,
-      team: trimmedTeam,
-      startingPoints: 0,
-      manualWins: 0,
-    };
-
-    const newRoster = [
-      ...drivers.map((d) => ({
-        id: d.id,
-        number: d.number,
-        name: d.name,
-        manufacturer: d.manufacturer,
-        manufacturerLogo: d.manufacturerLogo || null,
-        team: d.team,
-        startingPoints: 0,
-        manualWins: 0,
-      })),
-      rosterDriver,
-    ];
-
+    const rosterDriver = { id: Date.now(), number: Number(driverNumber), name: trimmedName, manufacturer: trimmedManufacturer, manufacturerLogo: manufacturerLogos[trimmedManufacturer] || null, team: trimmedTeam, startingPoints: 0, manualWins: 0 };
+    const newRoster = [...drivers.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer, manufacturerLogo: d.manufacturerLogo || null, team: d.team, startingPoints: 0, manualWins: 0 })), rosterDriver];
     patchActiveSeason({ drivers: rebuildDriversFromHistory(raceHistory, newRoster) });
-
-    // Driver Management should create the driver's access code immediately.
-    // Without this, the driver appears on the roster but has no Driver HQ / contract password.
-    try {
-      await generateDriverAccessCode(rosterDriver);
-      await loadDriverAccessCodes();
-    } catch (error) {
-      console.error("Driver was added, but access code generation failed:", error);
-      alert("Driver was added, but the access code did not generate. Check driver_access_codes policies/columns.");
-    }
-
     setNewDriverName(""); setNewDriverNumber(""); setNewDriverManufacturer(""); setNewDriverTeam("");
   };
   const openEditDriver = (driver) => { setEditingDriverId(driver.id); setEditDriverForm({ name: driver.name, number: driver.number, manufacturer: driver.manufacturer || "", team: driver.team }); };
@@ -7188,26 +6797,6 @@ useEffect(() => {
     drivers.forEach((d) => { counts[d.id] = countPriorOffenses(raceHistory, d.id, editingRaceName); });
     return counts;
   }, [raceHistory, drivers, editingRaceName]);
-  const getApprovedOwnerDriverAssignmentForRaceEntry = (driver, raceName) => {
-    const cleanRaceName = String(raceName || "").trim().toLowerCase();
-    if (!driver || !cleanRaceName) return null;
-
-    return (ownerDriverAssignments || []).find((assignment) => {
-      const status = String(assignment?.status || "").toLowerCase();
-      if (!["approved", "approved_pending_driver", "driver_accepted", "completed"].includes(status)) return false;
-      if (String(assignment?.series || "cup").toLowerCase() !== "cup") return false;
-
-      const assignmentRace = String(assignment?.race_name || assignment?.race_id || "").trim().toLowerCase();
-      if (assignmentRace && assignmentRace !== cleanRaceName) return false;
-
-      const originalDriverMatch = assignment?.original_driver_id && String(assignment.original_driver_id) === String(driver.id);
-      const originalNumberMatch = assignment?.original_driver_number && String(assignment.original_driver_number) === String(driver.number);
-      const carNumberMatch = assignment?.car_number && String(assignment.car_number) === String(driver.number);
-
-      return originalDriverMatch || originalNumberMatch || carNumberMatch;
-    }) || null;
-  };
-
   const buildRaceResultsFromCurrentInputs = () => {
     return drivers.map((driver) => {
       const finishPos = positions[driver.id];
@@ -7225,76 +6814,15 @@ useEffect(() => {
       const offenseNumber = offense ? priorOffenses + 1 : 0;
       const offensePenalty = offense ? getOffensePenaltyPoints(offenseNumber) : 0;
       const penaltyPoints = offensePenalty + manualPenaltyPoints;
-      const rawRacePoints = finishPoints + stage1Points + stage2Points + stage3Points + fastestLapPoints - penaltyPoints;
-      const approvedAssignment = getApprovedOwnerDriverAssignmentForRaceEntry(driver, selectedRace);
-      const isSubstituteStart = Boolean(approvedAssignment);
-      const assignedDriverName = approvedAssignment?.assigned_driver_name || driver.name;
-      const assignedDriverNumber = approvedAssignment?.assigned_driver_number || driver.number;
-      const assignedDriverId = approvedAssignment?.assigned_driver_id || null;
-      const originalDriverName = approvedAssignment?.original_driver_name || driver.name;
-      const originalDriverNumber = approvedAssignment?.original_driver_number || driver.number;
-      const ownerTeamKey = approvedAssignment?.team_key || driver.team;
-      const ownerTeamName = approvedAssignment?.team_name || getTeamFullName(ownerTeamKey);
-      const driverPointsAwarded = isSubstituteStart ? Boolean(approvedAssignment?.driver_points_awarded) : true;
-      const originalDriverPointsAwarded = isSubstituteStart ? Boolean(approvedAssignment?.original_driver_points_awarded) : true;
-      const teamPointsAwarded = isSubstituteStart ? approvedAssignment?.team_points_awarded !== false : true;
-      const manufacturerPointsAwarded = isSubstituteStart ? approvedAssignment?.manufacturer_points_awarded !== false : true;
-      const totalRacePoints = isSubstituteStart && !driverPointsAwarded && !originalDriverPointsAwarded ? 0 : rawRacePoints;
-      const ownerTeamPoints = isSubstituteStart && teamPointsAwarded ? rawRacePoints : 0;
-      const ownerManufacturerPoints = isSubstituteStart && manufacturerPointsAwarded ? rawRacePoints : 0;
-      const subNote = isSubstituteStart
-        ? `SUBSTITUTE: ${assignedDriverName}${assignedDriverNumber ? ` (#${assignedDriverNumber})` : ""} driving the #${driver.number} for ${originalDriverName}. Driver points are not awarded; team/manufacturer points count for ${ownerTeamName}.`
-        : "";
-
+      const totalRacePoints = finishPoints + stage1Points + stage2Points + stage3Points + fastestLapPoints - penaltyPoints;
       return {
-        driverId: driver.id,
-        name: isSubstituteStart ? assignedDriverName : driver.name,
-        number: driver.number,
-        team: ownerTeamKey,
-        manufacturer: driver.manufacturer || "",
-        finishPos: finishPos || null,
-        stage1Pos: stage1Pos || null,
-        stage2Pos: stage2Pos || null,
-        stage3Pos: stageCount === 3 ? stage3Pos || null : null,
-        finishPoints,
-        stage1Points,
-        stage2Points,
-        stage3Points,
-        fastestLap,
-        fastestLapPoints,
-        offense,
-        offenseNumber,
-        offensePenalty,
-        manualPenaltyPoints,
-        penaltyPoints,
-        rawRacePoints,
-        totalRacePoints,
-        isWin: finishPos === 1,
-        isTop3: finishPos >= 1 && finishPos <= 3,
-        isTop5: finishPos >= 1 && finishPos <= 5,
-        dnf,
-        startPark,
-        dnfReason: dnf ? (dnfReasons[driver.id] || "Unknown") : null,
-        notes: [resultNotesMap[driver.id] || "", subNote].filter(Boolean).join("\n"),
-        ownerDriverAssignmentId: approvedAssignment?.id || null,
-        isSubstituteStart,
-        assignmentType: approvedAssignment?.assignment_type || null,
-        assignedDriverId,
-        assignedDriverName: isSubstituteStart ? assignedDriverName : null,
-        assignedDriverNumber: isSubstituteStart ? assignedDriverNumber : null,
-        originalDriverId: isSubstituteStart ? (approvedAssignment?.original_driver_id || driver.id) : null,
-        originalDriverName: isSubstituteStart ? originalDriverName : null,
-        originalDriverNumber: isSubstituteStart ? originalDriverNumber : null,
-        substituteForName: isSubstituteStart ? originalDriverName : null,
-        substituteForNumber: isSubstituteStart ? originalDriverNumber : null,
-        driverPointsAwarded,
-        originalDriverPointsAwarded,
-        teamPointsAwarded,
-        manufacturerPointsAwarded,
-        ownerTeam: ownerTeamKey,
-        ownerTeamName,
-        ownerTeamPoints,
-        ownerManufacturerPoints,
+        driverId: driver.id, name: driver.name, number: driver.number, team: driver.team, manufacturer: driver.manufacturer || "",
+        finishPos: finishPos || null, stage1Pos: stage1Pos || null, stage2Pos: stage2Pos || null, stage3Pos: stageCount === 3 ? stage3Pos || null : null,
+        finishPoints, stage1Points, stage2Points, stage3Points, fastestLap, fastestLapPoints,
+        offense, offenseNumber, offensePenalty, manualPenaltyPoints, penaltyPoints, totalRacePoints,
+        isWin: finishPos === 1, isTop3: finishPos >= 1 && finishPos <= 3, isTop5: finishPos >= 1 && finishPos <= 5,
+        dnf, startPark, dnfReason: dnf ? (dnfReasons[driver.id] || "Unknown") : null,
+        notes: resultNotesMap[driver.id] || "",
       };
     }).sort((a, b) => { if (a.finishPos === null) return 1; if (b.finishPos === null) return -1; return a.finishPos - b.finishPos; });
   };
@@ -7348,18 +6876,7 @@ useEffect(() => {
     setTimeout(() => submitResults(draft), 0);
   };
 
-  const handleSaveArcaResults = async ({ race_id, results }) => {
-  try {
-    await saveArcaRaceResults(race_id, results);
-    const data = await loadArcaSeasonData();
-    setArcaRaces(data.races);
-    setArcaDrivers(data.drivers);
-  } catch (err) {
-    console.error("Error saving ARCA results:", err);
-    throw err;
-  }
-};
-   const submitResults = async (draftOverride = null) => {
+  const submitResults = async (draftOverride = null) => {
     if (!activeSeason) return;
     const raceToPost = draftOverride || buildRaceFromCurrentInputs();
     if (!raceToPost.raceName.trim()) { alert("Please select a race."); return; }
@@ -7415,26 +6932,6 @@ useEffect(() => {
       race: updatedRace,
       tracks,
     });
-
-    const assignmentResultRows = (updatedRace.results || []).filter((result) => result.ownerDriverAssignmentId);
-    if (assignmentResultRows.length && supabase) {
-      await Promise.all(assignmentResultRows.map((result) =>
-        supabase
-          .from("owner_driver_assignments")
-          .update({
-            status: "completed",
-            finish_position: result.finishPos || null,
-            race_points: Number(result.finishPoints || 0),
-            stage_points: Number(result.stage1Points || 0) + Number(result.stage2Points || 0) + Number(result.stage3Points || 0),
-            penalty_points: Number(result.penaltyPoints || 0),
-            total_team_points: Number(result.ownerTeamPoints || 0),
-            total_manufacturer_points: Number(result.ownerManufacturerPoints || 0),
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", result.ownerDriverAssignmentId)
-      ));
-      await loadOwnerDriverAssignments();
-    }
 
     if (!backupResult.ok && !ledgerResult.ok) {
       alert("Race points posted locally and a JSON backup downloaded, but Supabase backup AND race_results ledger failed. Check race_data_backups and race_results tables/RLS.");
@@ -7502,7 +6999,6 @@ useEffect(() => {
       "driver_tasks",
       "paint_scheme_votes",
       "start_park_requests",
-      "owner_driver_assignments",
       "streams",
       "ticker_messages",
       "app_update_banners",
@@ -7531,7 +7027,6 @@ useEffect(() => {
         raceHistory,
         selectedRace,
         ownerAssignments,
-        ownerDriverAssignments,
       },
       supabaseTables: {},
     };
@@ -7584,16 +7079,15 @@ useEffect(() => {
 
     // Do not order in Supabase here because some league tables use submitted_at instead of created_at.
     // We pull rows first, then sort in the browser using every supported timestamp field.
-    const [{ data: interviewsData, error: interviewsError }, { data: uploadData, error: uploadError }, { data: voteData, error: voteError }, { data: overrideData, error: overrideError }] = await Promise.all([
+    const [{ data: interviewsData, error: interviewsError }, { data: uploadData, error: uploadError }, { data: overrideData, error: overrideError }] = await Promise.all([
       supabase.from("interviews").select("*"),
       supabase.from("car_uploads").select("*"),
-      supabase.from("paint_scheme_votes").select("*"),
       supabase.from("team_payment_overrides").select("*"),
     ]);
 
-    if (interviewsError || uploadError || voteError) {
-      console.error("Could not load payment compliance data:", interviewsError || uploadError || voteError);
-      setPaymentComplianceError("Could not load interviews, paint uploads, or paint votes. Check interviews/car_uploads/paint_scheme_votes select policies.");
+    if (interviewsError || uploadError) {
+      console.error("Could not load payment compliance data:", interviewsError || uploadError);
+      setPaymentComplianceError("Could not load interviews or paint uploads. Check interviews/car_uploads select policies.");
     }
 
     if (overrideError) {
@@ -7609,7 +7103,6 @@ useEffect(() => {
 
     setPaymentComplianceInterviews(sortNewest(interviewsData));
     setPaymentComplianceUploads(sortNewest(uploadData));
-    setPaymentCompliancePaintVotes(sortNewest(voteData));
     setPaymentComplianceLoading(false);
     setPaymentComplianceStatus("Payment compliance tracker refreshed.");
   }
@@ -7655,77 +7148,7 @@ useEffect(() => {
     setPaymentComplianceStatus(`Payment override saved for ${row.teamName}.`);
   }
 
-  async function saveManualPaintWinnerOverride(row, shouldAward) {
-    if (!row?.teamKey) return;
-    const existing = (paymentComplianceOverrides || []).find((item) =>
-      String(item.team_key || item.team) === String(row.teamKey) && String(item.period_key || item.periodKey) === String(row.paymentPeriodKey)
-    ) || {};
-
-    const selectedDriverId = manualPaintWinnerSelections?.[`${row.teamKey}__${row.paymentPeriodKey}`] || existing.paint_winner_driver_id || "";
-    const selectedDriver = (row.driverChecks || []).map((check) => check.driver).find((driver) => String(driver.id) === String(selectedDriverId));
-
-    if (shouldAward && !selectedDriver) {
-      setPaymentComplianceError(`Choose the paint scheme winning driver for ${row.teamName} before awarding +5.`);
-      return;
-    }
-
-    const payload = {
-      ...existing,
-      team_key: row.teamKey,
-      team_name: row.teamName,
-      period_key: row.paymentPeriodKey,
-      previous_race: row.previousRaceName || null,
-      upcoming_race: row.upcomingRaceName || null,
-      override_status: existing.override_status || existing.status || "",
-      manual_paint_winner: Boolean(shouldAward),
-      paint_winner_override: Boolean(shouldAward),
-      paint_winner_bonus_points: shouldAward ? 5 : 0,
-      paint_winner_driver_id: shouldAward ? String(selectedDriver.id) : null,
-      paint_winner_driver_number: shouldAward ? String(selectedDriver.number || "") : null,
-      paint_winner_driver_name: shouldAward ? String(selectedDriver.name || "Manual Paint Winner") : null,
-      paint_winner_override_reason: shouldAward ? "Admin manually awarded weekly paint scheme winner bonus" : "Admin cleared weekly paint scheme winner bonus",
-      updated_at: new Date().toISOString(),
-    };
-
-    const keepPayload = payload.override_status || payload.manual_paint_winner || Number(payload.paint_winner_bonus_points || 0) > 0;
-    const nextLocal = [payload, ...(paymentComplianceOverrides || []).filter((item) => !(String(item.team_key || item.team) === String(row.teamKey) && String(item.period_key || item.periodKey) === String(row.paymentPeriodKey)))].filter((item) => item.override_status || item.manual_paint_winner || Number(item.paint_winner_bonus_points || 0) > 0);
-    setPaymentComplianceOverrides(nextLocal);
-    localStorage.setItem(PAYMENT_COMPLIANCE_OVERRIDE_KEY, JSON.stringify(nextLocal));
-
-    if (!keepPayload) {
-      const { error } = await supabase
-        .from("team_payment_overrides")
-        .delete()
-        .eq("team_key", row.teamKey)
-        .eq("period_key", row.paymentPeriodKey);
-      if (error) console.warn("Could not clear manual paint winner from Supabase; local value was cleared.", error);
-      setPaymentComplianceStatus(`Manual paint winner bonus cleared for ${row.teamName}. Team standings points updated locally.`);
-      return;
-    }
-
-    const { error } = await supabase
-      .from("team_payment_overrides")
-      .upsert(payload, { onConflict: "team_key,period_key" });
-
-    if (error) {
-      console.warn("Could not save manual paint winner to Supabase; saved locally in this browser.", error);
-      setPaymentComplianceStatus(`Manual paint winner saved locally for ${row.teamName}. Team standings points updated locally. Add/check the manual paint columns on team_payment_overrides to sync it.`);
-      return;
-    }
-
-    setPaymentComplianceStatus(shouldAward ? `Manual paint winner +5 saved for ${row.teamName}. Team standings points updated.` : `Manual paint winner bonus cleared for ${row.teamName}. Team standings points updated.`);
-  }
-
-  function PaymentCompliancePanel({ mode = "admin", selectedRace: selectedRaceProp = "", raceName = "", complianceRace = "", paymentRace = "", activeRace = "", onRaceChange }) {
-    const externallySelectedRace = selectedRaceProp || raceName || complianceRace || paymentRace || activeRace || "";
-
-    useEffect(() => {
-      if (externallySelectedRace && normalizeTrackName(externallySelectedRace) !== normalizeTrackName(paymentComplianceRaceName)) {
-        setPaymentComplianceRaceName(externallySelectedRace);
-      }
-    }, [externallySelectedRace]);
-
-    const currentComplianceRaceName = paymentComplianceRaceName || externallySelectedRace || selectedRaceForPayment?.name || "";
+  function PaymentCompliancePanel({ mode = "admin" }) {
     const rows = paymentComplianceSummary || [];
     const allMet = rows.length > 0 && rows.every((row) => row.finalEligible);
     const isAdminMode = mode === "admin";
@@ -7781,30 +7204,15 @@ useEffect(() => {
       </div>
     );
 
-    const checkLine = (label, met, timestamp, deadlineIso = "") => {
-      const hasTimestamp = Boolean(timestamp);
-      const isLate = hasTimestamp && deadlineIso && new Date(timestamp).getTime() > new Date(deadlineIso).getTime();
-      const statusText = met ? "MET" : hasTimestamp && isLate ? "LATE" : "MISSING";
-      return (
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", padding: "7px 0", borderTop: "1px solid rgba(0,0,0,0.06)" }}>
-          <div style={{ color: "#6e6e73", fontSize: 12, fontWeight: 900 }}>{label}</div>
-          <div style={{ textAlign: "right" }}>
-            <div style={{ color: met ? "#0f6b2f" : "#b42318", fontSize: 12, fontWeight: 1000 }}>{statusText}</div>
-            <div style={{ color: "#6e6e73", fontSize: 11, fontWeight: 750 }}>
-              {formatPaymentTimestamp(timestamp)}
-              {isLate ? ` · Due ${formatPaymentTimestamp(deadlineIso)}` : ""}
-            </div>
-          </div>
+    const checkLine = (label, met, timestamp) => (
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", padding: "7px 0", borderTop: "1px solid rgba(0,0,0,0.06)" }}>
+        <div style={{ color: "#6e6e73", fontSize: 12, fontWeight: 900 }}>{label}</div>
+        <div style={{ textAlign: "right" }}>
+          <div style={{ color: met ? "#0f6b2f" : "#b42318", fontSize: 12, fontWeight: 1000 }}>{met ? "MET" : "MISSED"}</div>
+          <div style={{ color: "#6e6e73", fontSize: 11, fontWeight: 750 }}>{formatPaymentTimestamp(timestamp)}</div>
         </div>
-      );
-    };
-
-    const toggleComplianceDriverOpen = (key, open) => {
-      setPaymentComplianceOpenDrivers((current) => ({
-        ...current,
-        [key]: open,
-      }));
-    };
+      </div>
+    );
 
     return (
       <div style={applePanelStyle}>
@@ -7813,53 +7221,31 @@ useEffect(() => {
             <div style={{ fontSize: 12, fontWeight: 1000, color: "#6e6e73", letterSpacing: 1.4, textTransform: "uppercase" }}>Finance Department</div>
             <h2 style={{ margin: "4px 0 0", fontSize: 30, letterSpacing: -1.1, color: "#1d1d1f" }}>Team Payment Compliance</h2>
             <p style={{ margin: "8px 0 0", color: "#6e6e73", lineHeight: 1.5, fontWeight: 750, maxWidth: 820 }}>
-              Owner Engagement Program compliance cards. Select the upcoming track, then the app checks paint scheme uploads for that track, post-race interviews from the previous race, and pre-race interviews for the selected track. Paint schemes and previous-race post interviews are due Wednesday at 11:59 PM ET. Pre-race interviews are due before 9:00 PM ET on race night. A driver only counts when all required items are completed on time. Paint Scheme Vote winner adds +5 owner points.
+              Apple Wallet-style compliance cards for team payouts. Paint schemes and previous-race post interviews are due Wednesday at 11:59 PM ET. Upcoming-race pre interviews are due Saturday at 8:30 PM ET.
             </p>
           </div>
-          <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
-            <label style={{ minWidth: 240, color: "#1d1d1f", fontSize: 12, fontWeight: 1000, letterSpacing: 0.8, textTransform: "uppercase" }}>
-              Track
-              <select
-                value={currentComplianceRaceName}
-                onChange={(event) => {
-                  setPaymentComplianceRaceName(event.target.value);
-                  if (typeof onRaceChange === "function") onRaceChange(event.target.value);
-                }}
-                style={{ display: "block", width: "100%", marginTop: 6, background: "#ffffff", color: "#111827", border: "1px solid #9ca3af", borderRadius: 12, padding: "11px 12px", fontSize: 15, fontWeight: 800 }}
-              >
-                <option value="">Select track</option>
-                {(tracks || []).filter((track) => track?.name).map((track) => (
-                  <option key={track.name} value={track.name}>{track.name}</option>
-                ))}
-              </select>
-            </label>
-            <button type="button" onClick={loadPaymentComplianceData} style={{
-              border: 0,
-              borderRadius: 999,
-              padding: "12px 16px",
-              background: "#007aff",
-              color: "white",
-              fontWeight: 1000,
-              boxShadow: "0 10px 22px rgba(0,122,255,0.24)",
-              cursor: "pointer",
-            }} disabled={paymentComplianceLoading}>
-              {paymentComplianceLoading ? "Refreshing..." : "Refresh"}
-            </button>
-          </div>
+          <button type="button" onClick={loadPaymentComplianceData} style={{
+            border: 0,
+            borderRadius: 999,
+            padding: "12px 16px",
+            background: "#007aff",
+            color: "white",
+            fontWeight: 1000,
+            boxShadow: "0 10px 22px rgba(0,122,255,0.24)",
+            cursor: "pointer",
+          }} disabled={paymentComplianceLoading}>
+            {paymentComplianceLoading ? "Refreshing..." : "Refresh"}
+          </button>
         </div>
 
         <div style={{ marginTop: 18, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 12 }}>
           <div style={appleMetricStyle}>
-            <div style={{ color: "#6e6e73", fontSize: 12, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 0.9 }}>Selected Track</div>
-            <div style={{ marginTop: 7, fontSize: 19, fontWeight: 1000, color: "#1d1d1f" }}>{selectedRaceForPayment?.name || "—"}</div>
-          </div>
-          <div style={appleMetricStyle}>
-            <div style={{ color: "#6e6e73", fontSize: 12, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 0.9 }}>Race Date</div>
-            <div style={{ marginTop: 7, fontSize: 19, fontWeight: 1000, color: "#1d1d1f" }}>{selectedRaceForPayment?.date || "—"}</div>
-          </div>
-          <div style={appleMetricStyle}>
             <div style={{ color: "#6e6e73", fontSize: 12, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 0.9 }}>Previous Race</div>
             <div style={{ marginTop: 7, fontSize: 19, fontWeight: 1000, color: "#1d1d1f" }}>{previousRaceForPayment?.name || "—"}</div>
+          </div>
+          <div style={appleMetricStyle}>
+            <div style={{ color: "#6e6e73", fontSize: 12, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 0.9 }}>Upcoming Race</div>
+            <div style={{ marginTop: 7, fontSize: 19, fontWeight: 1000, color: "#1d1d1f" }}>{upcomingRaceForPayment?.name || "—"}</div>
           </div>
           <div style={appleMetricStyle}>
             <div style={{ color: "#6e6e73", fontSize: 12, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 0.9 }}>Qualified Teams</div>
@@ -7906,8 +7292,7 @@ useEffect(() => {
                   </div>
                   <div style={{ textAlign: "right" }}>
                     <div style={{ fontSize: 12, fontWeight: 1000, opacity: 0.8 }}>Final Status</div>
-                    <div style={{ marginTop: 5, fontSize: 14, fontWeight: 1000 }}>{row.finalEligible ? "ELIGIBLE" : "NOT ELIGIBLE"}</div>
-                    <div style={{ marginTop: 3, fontSize: 12, fontWeight: 1000, opacity: 0.88 }}>{row.totalOwnerEngagementPoints || 0} owner pts</div>
+                    <div style={{ marginTop: 5, fontSize: 14, fontWeight: 1000 }}>{row.finalEligible ? "QUALIFIED" : "NOT QUALIFIED"}</div>
                   </div>
                 </div>
                 {row.overrideStatus && (
@@ -7919,95 +7304,41 @@ useEffect(() => {
 
               <div style={{ padding: 16 }}>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
-                  {applePill(row.finalEligible, row.finalEligible ? "Eligible" : "Payment Hold")}
-                  {applePill(row.participatingDriverCount > 0, `${row.participatingDriverCount || 0}/${row.driverCount || 0} Drivers`)}
-                  {applePill(row.paintWinnerBonusPoints > 0, row.paintWinnerBonusPoints > 0 ? `Paint Winner +${row.paintWinnerBonusPoints}` : "Paint Winner")}
-                  {applePill(row.totalOwnerEngagementPoints > 0, `${row.totalOwnerEngagementPoints || 0} Owner Pts`)}
+                  {applePill(row.finalEligible, row.finalEligible ? "Pay Approved" : "Payment Hold")}
+                  {applePill(row.driverChecks?.every((check) => check.paintMet), "Paint")}
+                  {applePill(row.driverChecks?.every((check) => check.postMet), "Post")}
+                  {applePill(row.driverChecks?.every((check) => check.preMet), "Pre")}
                 </div>
 
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 13 }}>
-                  {deadlineChip("Paint/Post Due", row.paintDeadlineIso)}
+                  {deadlineChip("Paint Due", row.paintDeadlineIso)}
+                  {deadlineChip("Post Due", row.postDeadlineIso)}
                   {deadlineChip("Pre Due", row.preDeadlineIso)}
-                  {deadlineChip("Participation", `${row.participatingDriverCount || 0}/${row.driverCount || 0} drivers`)}
-                  {deadlineChip("Owner Points", `${row.totalOwnerEngagementPoints || 0} pts`)}
                 </div>
 
-                {row.paintWinnerRows?.length > 0 && (
-                  <div style={{ background: "#fff8e1", border: "1px solid rgba(245,158,11,0.28)", borderRadius: 18, padding: 12, marginBottom: 13, color: "#92400e", fontWeight: 900 }}>
-                    🏆 Paint Scheme Vote Winner: {row.paintWinnerRows.map((winner) => `#${winner.winningDriverNumber || ""} ${winner.winningDriverName || "Winner"}`.trim()).join(" + ")} · +5 owner points
-                  </div>
-                )}
-
                 <div style={{ display: "grid", gap: 10 }}>
-                  {(row.driverChecks || []).map((check) => {
-                    const driverKey = `${row.teamKey}__${row.paymentPeriodKey}__${check.driver.id || check.driver.number || check.driver.name}`;
-                    const driverEligible = check.paintMet && check.postMet && check.preMet;
-                    const isOpen = Boolean(paymentComplianceOpenDrivers[driverKey]);
-                    return (
-                      <div
-                        key={driverKey}
-                        style={{
-                          background: "#f5f5f7",
-                          border: "1px solid rgba(0,0,0,0.06)",
-                          borderRadius: 18,
-                          padding: "10px 12px",
-                        }}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => toggleComplianceDriverOpen(driverKey, !isOpen)}
-                          style={{
-                            width: "100%",
-                            border: 0,
-                            background: "transparent",
-                            cursor: "pointer",
-                            padding: 0,
-                            fontWeight: 1000,
-                            color: "#1d1d1f",
-                            display: "flex",
-                            justifyContent: "space-between",
-                            gap: 10,
-                            alignItems: "center",
-                            textAlign: "left",
-                          }}
-                        >
-                          <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-                            <span style={{ color: "#6e6e73", fontSize: 13 }}>{isOpen ? "▾" : "▸"}</span>
-                            <span>#{check.driver.number} {check.driver.name}</span>
-                          </span>
-                          <span style={{ fontSize: 11, fontWeight: 1000, color: driverEligible ? "#0f6b2f" : "#b42318", background: driverEligible ? "#dcfce7" : "#fee2e2", borderRadius: 999, padding: "5px 8px" }}>
-                            {driverEligible ? "ELIGIBLE" : "NOT ELIGIBLE"}
-                          </span>
-                        </button>
-                        {isOpen && (
-                          <div style={{ marginTop: 8 }}>
-                            {checkLine("Paint Scheme", check.paintMet, check.paintAt, row.paintDeadlineIso)}
-                            {checkLine("Post Interview", check.postMet, check.postAt, row.postDeadlineIso)}
-                            {checkLine("Pre Interview", check.preMet, check.preAt, row.preDeadlineIso)}
-                          </div>
-                        )}
+                  {(row.driverChecks || []).map((check) => (
+                    <details key={check.driver.id} style={{
+                      background: "#f5f5f7",
+                      border: "1px solid rgba(0,0,0,0.06)",
+                      borderRadius: 18,
+                      padding: "10px 12px",
+                    }}>
+                      <summary style={{ cursor: "pointer", fontWeight: 1000, color: "#1d1d1f" }}>#{check.driver.number} {check.driver.name}</summary>
+                      <div style={{ marginTop: 8 }}>
+                        {checkLine("Paint Scheme", check.paintMet, check.paintAt)}
+                        {checkLine("Post Interview", check.postMet, check.postAt)}
+                        {checkLine("Pre Interview", check.preMet, check.preAt)}
                       </div>
-                    );
-                  })}
+                    </details>
+                  ))}
                 </div>
 
                 {isAdminMode && (
                   <div style={{ display: "flex", gap: 9, flexWrap: "wrap", marginTop: 14 }}>
                     <button type="button" onClick={() => savePaymentComplianceOverride(row, "approved")} style={{ border: 0, borderRadius: 999, padding: "10px 13px", background: "#34c759", color: "white", fontWeight: 1000, cursor: "pointer" }}>Approve Pay</button>
                     <button type="button" onClick={() => savePaymentComplianceOverride(row, "denied")} style={{ border: 0, borderRadius: 999, padding: "10px 13px", background: "#ff3b30", color: "white", fontWeight: 1000, cursor: "pointer" }}>Deny Pay</button>
-                    <select
-                      value={manualPaintWinnerSelections?.[`${row.teamKey}__${row.paymentPeriodKey}`] || row.override?.paint_winner_driver_id || ""}
-                      onChange={(event) => setManualPaintWinnerSelections((current) => ({ ...current, [`${row.teamKey}__${row.paymentPeriodKey}`]: event.target.value }))}
-                      style={{ border: "1px solid rgba(0,0,0,0.12)", borderRadius: 999, padding: "10px 13px", background: "white", color: "#1d1d1f", fontWeight: 900, cursor: "pointer", minWidth: 220 }}
-                    >
-                      <option value="">Select paint winner</option>
-                      {(row.driverChecks || []).map((check) => (
-                        <option key={check.driver.id} value={check.driver.id}>#{check.driver.number} {check.driver.name}</option>
-                      ))}
-                    </select>
-                    <button type="button" onClick={() => saveManualPaintWinnerOverride(row, true)} style={{ border: 0, borderRadius: 999, padding: "10px 13px", background: "#ffcc00", color: "#1d1d1f", fontWeight: 1000, cursor: "pointer" }}>Award Paint +5</button>
-                    <button type="button" onClick={() => saveManualPaintWinnerOverride(row, false)} style={{ border: "1px solid rgba(255,149,0,0.35)", borderRadius: 999, padding: "10px 13px", background: "#fff8e1", color: "#92400e", fontWeight: 1000, cursor: "pointer" }}>Clear Paint +5</button>
-                    <button type="button" onClick={() => savePaymentComplianceOverride(row, "")} style={{ border: "1px solid rgba(0,0,0,0.10)", borderRadius: 999, padding: "10px 13px", background: "white", color: "#1d1d1f", fontWeight: 1000, cursor: "pointer" }}>Clear Pay</button>
+                    <button type="button" onClick={() => savePaymentComplianceOverride(row, "")} style={{ border: "1px solid rgba(0,0,0,0.10)", borderRadius: 999, padding: "10px 13px", background: "white", color: "#1d1d1f", fontWeight: 1000, cursor: "pointer" }}>Clear</button>
                   </div>
                 )}
               </div>
@@ -8067,9 +7398,6 @@ useEffect(() => {
         activeSeasonId={activeSeasonId}
         paymentCompliance={paymentComplianceSummary}
         onApplyTeamTransaction={applyOwnerPortalTeamTransaction}
-        supabase={supabase}
-        ownerDriverAssignments={ownerDriverAssignments}
-        loadOwnerDriverAssignments={loadOwnerDriverAssignments}
       />
     );
   }
@@ -8235,7 +7563,7 @@ useEffect(() => {
           </div>
         </div>
         <DriverVoteReminderStrip driverNumber={decodeURIComponent(rawPath.replace(/^\/driver\//i, "").split("/")[0])} />
-        <DriverProfilePage seasons={seasons} activeSeason={activeSeason} tracks={tracks} ownerDriverAssignments={ownerDriverAssignments} loadOwnerDriverAssignments={loadOwnerDriverAssignments} />
+        <DriverProfilePage seasons={seasons} activeSeason={activeSeason} tracks={tracks} />
       </>
     );
   }
@@ -8250,9 +7578,6 @@ useEffect(() => {
         tracks={tracks}
         paymentCompliance={paymentComplianceSummary}
         onApplyTeamTransaction={applyOwnerPortalTeamTransaction}
-        supabase={supabase}
-        ownerDriverAssignments={ownerDriverAssignments}
-        loadOwnerDriverAssignments={loadOwnerDriverAssignments}
       />
       <div style={{ ...appShellStyle, padding: "0 20px 20px" }}>
         <div style={{ maxWidth: 1400, margin: "0 auto" }}>
@@ -8285,21 +7610,10 @@ useEffect(() => {
       <InSeasonTournamentPage drivers={visibleDrivers} raceHistory={raceHistory} />
     );
   }
-  if (path === "/standings") return withLeagueStatusWidget(<StandingsPage drivers={visibleDrivers} teams={teamStandings} manufacturerStandings={manufacturerStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} ownerDriverAssignments={ownerDriverAssignments} />);
+  if (path === "/standings") return withLeagueStatusWidget(<StandingsPage drivers={visibleDrivers} teams={teamStandings} manufacturerStandings={manufacturerStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} />);
   if (path === "/overlay/ticker" || viewMode === "overlay-ticker") return <TickerOverlay drivers={visibleDrivers} teams={teamStandings} raceHistory={raceHistory} preview={viewMode === "overlay-ticker"} seasonName={activeSeason?.name || ""} />;
-  // ARCA Series
-if (currentPathname === "/series/arca") {
-  return (
-    <SeriesLandingPage 
-      seriesId="arca" 
-      drivers={arcaDrivers}
-      driverAccessCodes={driverAccessCodes}
-    />
-  );
-}
-
-if (path !== "/admin") {
-    return <StandingsPage drivers={visibleDrivers} teams={teamStandings} manufacturerStandings={manufacturerStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} ownerDriverAssignments={ownerDriverAssignments} />;
+  if (path !== "/admin") {
+    return <StandingsPage drivers={visibleDrivers} teams={teamStandings} manufacturerStandings={manufacturerStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} />;
   }
   return (
     <AdminPortal
@@ -8404,12 +7718,6 @@ if (path !== "/admin") {
       ownerAssignmentError={ownerAssignmentError}
       ownerAssignmentMessage={ownerAssignmentMessage}
       ownerAssignments={ownerAssignments}
-      ownerDriverAssignments={ownerDriverAssignments}
-      ownerDriverAssignmentsLoading={ownerDriverAssignmentsLoading}
-      ownerDriverAssignmentError={ownerDriverAssignmentError}
-      loadOwnerDriverAssignments={loadOwnerDriverAssignments}
-      updateOwnerDriverAssignmentStatus={updateOwnerDriverAssignmentStatus}
-      deleteOwnerDriverAssignment={deleteOwnerDriverAssignment}
       ownerPortalTeams={ownerPortalTeams}
       pageContainerStyle={pageContainerStyle}
       paintPayoutError={paintPayoutError}
@@ -8520,16 +7828,15 @@ if (path !== "/admin") {
       watchDriverId={watchDriverId}
       watchReason={watchReason}
       watchSaving={watchSaving}
+      arcaSeasons={arcaSeasons}
+      setArcaSeasons={setArcaSeasons}
       arcaRaces={arcaRaces}
-  setArcaRaces={setArcaRaces}
-  arcaDrivers={arcaDrivers}
-  setArcaDrivers={setArcaDrivers}
-  arcaSeasons={arcaSeasons}
-  setArcaSeasons={setArcaSeasons}
-  arcaTracks={arcaTracks}
-  setArcaTracks={setArcaTracks}
-  arcaSelectedRace={arcaSelectedRace}
-  setArcaSelectedRace={setArcaSelectedRace}
-  handleSaveArcaResults={handleSaveArcaResults}
+      setArcaRaces={setArcaRaces}
+      arcaTracks={arcaTracks}
+      setArcaTracks={setArcaTracks}
+      arcaDrivers={arcaDrivers}
+      setArcaDrivers={setArcaDrivers}
+      arcaSelectedRace={arcaSelectedRace}
+      setArcaSelectedRace={setArcaSelectedRace}
     />
   );}
