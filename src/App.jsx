@@ -5089,12 +5089,12 @@ function AppleSeriesPortalLanding() {
       id: "arca",
       title: "ARCA Series",
       eyebrow: "Entry Division",
-      route: "/series/arca",
+      route: "/series/arca/standings",
       image: amsLogo,
       accent: "#ff3b30",
       gradient: "linear-gradient(135deg, rgba(255,59,48,0.92), rgba(255,149,0,0.46), rgba(0,0,0,0.82))",
-      status: "Series Portal",
-      meta: "Numbers • Drivers • Development",
+      status: "Standings",
+      meta: "Drivers • Teams • Results",
     },
   ];
 
