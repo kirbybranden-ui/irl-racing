@@ -3151,64 +3151,100 @@ export default function AdminPortal({
 
         {/* ARCA SERIES OPERATIONS */}
         {arcaOperationsOpen && (
-          <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", background: "linear-gradient(135deg, rgba(0,100,65,0.02), rgba(0,210,211,0.02))", zIndex: 1000, overflowY: "auto", paddingBottom: 40 }}>
-            <div style={{ maxWidth: isAdminMobile ? "100%" : 1400, margin: "0 auto", padding: isAdminMobile ? 12 : 24 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-                <h1 style={{ margin: 0, fontSize: isAdminMobile ? 32 : 42, fontWeight: 900, color: "#006341" }}>ARCA Series</h1>
-                <button
-                  onClick={() => setArcaOperationsOpen(false)}
-                  style={{ padding: "8px 16px", background: "#ef4444", color: "white", border: "none", borderRadius: 8, fontWeight: 900, cursor: "pointer" }}
-                >
-                  Close
-                </button>
+          <div style={{ position: "fixed", inset: 0, zIndex: 9000, background: "rgba(245,245,247,0.94)", backdropFilter: "blur(24px)", overflowY: "auto", padding: "28px 18px" }}>
+            <div style={{ maxWidth: 1240, margin: "0 auto", background: "#f5f5f7", border: "1px solid rgba(17,24,39,0.10)", borderRadius: 34, boxShadow: "0 30px 90px rgba(15,23,42,0.22)", padding: 22 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, flexWrap: "wrap", marginBottom: 18 }}>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.8, textTransform: "uppercase", color: "#6b7280" }}>Admin Menu</div>
+                  <h1 style={{ margin: "2px 0 0", fontSize: isAdminMobile ? 34 : 42, letterSpacing: -1.6 }}>ARCA Series</h1>
+                  <p style={{ margin: "6px 0 0", color: "#4b5563", fontWeight: 750 }}>Manage ARCA race schedule, drivers, tracks, and results.</p>
+                </div>
+                <button type="button" onClick={() => setArcaOperationsOpen(false)} style={{ border: 0, borderRadius: 999, background: "#ffffff", color: "#111827", width: 46, height: 46, fontSize: 23, fontWeight: 1000, cursor: "pointer", boxShadow: "0 8px 20px rgba(15,23,42,0.12)" }}>×</button>
               </div>
 
-              <div style={{ display: "flex", gap: 12, marginBottom: 24, flexWrap: "wrap" }}>
-                {["overview", "races", "drivers", "tracks"].map((tab) => (
+              <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(3, minmax(180px, 1fr))", gap: 14, marginBottom: 18 }}>
+                {[
+                  ["races", "Race Schedule", "🏁", `${(arcaRaces || []).length} Races`, "Season calendar", "Manage ARCA race schedule and enter results.", "linear-gradient(135deg, #006341 0%, #00b386 45%, #00e5a0 100%)"],
+                  ["drivers", "Driver Roster", "👥", `${(arcaDrivers || []).length} Drivers`, "Team lineup", "Update driver roster and profiles.", "linear-gradient(135deg, #007aff 0%, #5ac8fa 45%, #5856d6 100%)"],
+                  ["tracks", "Track List", "🏎️", `${(arcaTracks || []).length} Tracks`, "Venue info", "Manage track information and specifications.", "linear-gradient(135deg, #ff9500 0%, #ffcc00 48%, #ff3b30 100%)"],
+                ].map(([key, label, icon, value, meta, description, gradient]) => (
                   <button
-                    key={tab}
-                    onClick={() => setArcaOperationsTab(tab)}
+                    key={key}
+                    type="button"
+                    onClick={() => setArcaOperationsTab(key)}
                     style={{
-                      padding: "10px 18px",
-                      background: arcaOperationsTab === tab ? "#006341" : "rgba(0,99,65,0.1)",
-                      color: arcaOperationsTab === tab ? "white" : "#006341",
-                      border: "none",
-                      borderRadius: 8,
-                      fontWeight: 900,
+                      padding: 18,
+                      minHeight: 156,
+                      textAlign: "left",
                       cursor: "pointer",
-                      textTransform: "capitalize",
+                      borderRadius: 30,
+                      border: arcaOperationsTab === key ? "2px solid rgba(255,255,255,0.95)" : "1px solid rgba(255,255,255,0.38)",
+                      background: gradient,
+                      color: "#ffffff",
+                      boxShadow: arcaOperationsTab === key ? "0 22px 46px rgba(15,23,42,0.28)" : "0 16px 34px rgba(15,23,42,0.18)",
+                      transform: arcaOperationsTab === key ? "translateY(-2px)" : "translateY(0)",
+                      transition: "transform 160ms ease, box-shadow 160ms ease, border 160ms ease",
+                      overflow: "hidden",
+                      position: "relative",
                     }}
                   >
-                    {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                    <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at top right, rgba(255,255,255,0.38), transparent 36%)", pointerEvents: "none" }} />
+                    <div style={{ position: "relative", zIndex: 1, minHeight: 118, display: "flex", flexDirection: "column" }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                        <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.2, textTransform: "uppercase", color: "rgba(255,255,255,0.82)" }}>{label}</div>
+                        <div style={{ width: 36, height: 36, borderRadius: 14, background: "rgba(255,255,255,0.18)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, boxShadow: "inset 0 1px 0 rgba(255,255,255,0.28)" }}>{icon}</div>
+                      </div>
+                      <div style={{ fontSize: 30, fontWeight: 1000, letterSpacing: -1, marginTop: 12, color: "#ffffff" }}>{value}</div>
+                      <div style={{ marginTop: 2, color: "rgba(255,255,255,0.76)", fontSize: 12, fontWeight: 1000 }}>{meta}</div>
+                      <div style={{ marginTop: "auto", paddingTop: 10, color: "rgba(255,255,255,0.88)", fontSize: 13, fontWeight: 800, lineHeight: 1.35 }}>{description}</div>
+                    </div>
                   </button>
                 ))}
               </div>
 
               {arcaOperationsTab === "overview" && (
-                <div style={{ background: "rgba(255,255,255,0.95)", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 12, padding: 24 }}>
-                  <h2 style={{ margin: 0, marginBottom: 12 }}>ARCA Series Overview</h2>
-                  <p style={{ color: "#6b7280" }}>Manage ARCA series data including races, drivers, and tracks.</p>
+                <div style={{ padding: isAdminMobile ? 18 : 26, borderRadius: 34, background: "linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.92))", boxShadow: "0 22px 60px rgba(15,23,42,0.12)", border: "1px solid rgba(255,255,255,0.75)" }}>
+                  <h2 style={{ marginTop: 0 }}>ARCA Series Hub</h2>
+                  <div style={{ opacity: 0.78 }}>Choose a tile above to manage ARCA race schedule, drivers, and tracks.</div>
                 </div>
               )}
 
               {arcaOperationsTab === "races" && (
-                <div style={{ background: "rgba(255,255,255,0.95)", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 12, padding: 24 }}>
-                  <h2 style={{ margin: 0, marginBottom: 12 }}>ARCA Races</h2>
-                  <p style={{ color: "#6b7280" }}>Manage ARCA race schedule and results.</p>
+                <div style={{ padding: isAdminMobile ? 18 : 26, borderRadius: 34, background: "linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.92))", boxShadow: "0 22px 60px rgba(15,23,42,0.12)", border: "1px solid rgba(255,255,255,0.75)" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap" }}>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.6, textTransform: "uppercase", color: "#006341" }}>ARCA Series</div>
+                      <h2 style={{ margin: "3px 0 6px", fontSize: isAdminMobile ? 30 : 38, letterSpacing: -1.35 }}>Race Schedule</h2>
+                      <div style={{ color: "#6b7280", fontWeight: 750, maxWidth: 720 }}>Manage ARCA race dates, locations, and schedule.</div>
+                    </div>
+                    <div style={{ width: 58, height: 58, borderRadius: 20, background: "linear-gradient(135deg, #006341, #00e5a0)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, boxShadow: "0 14px 28px rgba(0,99,65,0.24)" }}>🏁</div>
+                  </div>
                 </div>
               )}
 
               {arcaOperationsTab === "drivers" && (
-                <div style={{ background: "rgba(255,255,255,0.95)", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 12, padding: 24 }}>
-                  <h2 style={{ margin: 0, marginBottom: 12 }}>ARCA Drivers</h2>
-                  <p style={{ color: "#6b7280" }}>Manage ARCA driver roster and profiles.</p>
+                <div style={{ padding: isAdminMobile ? 18 : 26, borderRadius: 34, background: "linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.92))", boxShadow: "0 22px 60px rgba(15,23,42,0.12)", border: "1px solid rgba(255,255,255,0.75)" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap" }}>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.6, textTransform: "uppercase", color: "#007aff" }}>ARCA Series</div>
+                      <h2 style={{ margin: "3px 0 6px", fontSize: isAdminMobile ? 30 : 38, letterSpacing: -1.35 }}>Driver Roster</h2>
+                      <div style={{ color: "#6b7280", fontWeight: 750, maxWidth: 720 }}>Manage ARCA driver roster, numbers, and assignments.</div>
+                    </div>
+                    <div style={{ width: 58, height: 58, borderRadius: 20, background: "linear-gradient(135deg, #007aff, #5ac8fa)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, boxShadow: "0 14px 28px rgba(0,122,255,0.24)" }}>👥</div>
+                  </div>
                 </div>
               )}
 
               {arcaOperationsTab === "tracks" && (
-                <div style={{ background: "rgba(255,255,255,0.95)", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 12, padding: 24 }}>
-                  <h2 style={{ margin: 0, marginBottom: 12 }}>ARCA Tracks</h2>
-                  <p style={{ color: "#6b7280" }}>Manage ARCA track information and specifications.</p>
+                <div style={{ padding: isAdminMobile ? 18 : 26, borderRadius: 34, background: "linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.92))", boxShadow: "0 22px 60px rgba(15,23,42,0.12)", border: "1px solid rgba(255,255,255,0.75)" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap" }}>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.6, textTransform: "uppercase", color: "#ff9500" }}>ARCA Series</div>
+                      <h2 style={{ margin: "3px 0 6px", fontSize: isAdminMobile ? 30 : 38, letterSpacing: -1.35 }}>Track List</h2>
+                      <div style={{ color: "#6b7280", fontWeight: 750, maxWidth: 720 }}>Manage ARCA track information, banking, and specifications.</div>
+                    </div>
+                    <div style={{ width: 58, height: 58, borderRadius: 20, background: "linear-gradient(135deg, #ff9500, #ffcc00)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, boxShadow: "0 14px 28px rgba(255,149,0,0.24)" }}>🏎️</div>
+                  </div>
                 </div>
               )}
             </div>
