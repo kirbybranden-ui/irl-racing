@@ -556,7 +556,11 @@ function PreviousRaceWinnerStandingsCard({ seriesId = "cup", raceHistory = [] })
 
 function csvEscape(value) {
   const text = String(value ?? "");
-  if (/[",\n\r]/.test(text)) return `"${text.replace(/"/g, '""')}"`;
+  const needsQuote = /[",\n\r]/.test(text);
+  if (needsQuote) {
+    const escaped = text.replace(/"/g, '""');
+    return '"' + escaped + '"';
+  }
   return text;
 }
 
