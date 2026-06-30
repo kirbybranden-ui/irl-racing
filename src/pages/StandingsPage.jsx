@@ -784,9 +784,9 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
   const latestRace = (raceHistory || [])[Math.max(0, (raceHistory || []).length - 1)] || null;
   const latestWinner = latestRace?.results?.find((result) => Number(result.finishPos || result.finish || result.position) === 1 || result.isWin) || null;
 
-  // ARCA last winner
+  // ARCA last winner - ONLY from ARCA race history
   const arcaLatestRace = (arcaRaceHistory || [])[0] || null;
-  const arcaLatestWinner = arcaLatestRace?.results?.find((result) => Number(result.finish_position || result.finishPos || result.position) === 1) || null;
+  const arcaLatestWinner = arcaLatestRace && arcaLatestRace.results ? arcaLatestRace.results.find((result) => Number(result.finish_position) === 1) : null;
 
   const teamRows = useMemo(() => {
     const sourceTeams = Array.isArray(teams) ? teams : [];
@@ -1479,7 +1479,11 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
           <StatCard icon="🏆" label="Active Season" value={seasonName || "Season"} detail={`${completedRaceCount} races entered`} accent="#ff9f0a" tint="rgba(255,159,10,0.16)" />
           <StatCard icon="👑" label="Points Leader" value={leader ? `#${leader.number} ${leader.name}` : "—"} detail={leader ? `${leader.points} points` : "No leader yet"} onClick={() => leader && handleDriverClick(leader.number)} accent="#5856d6" tint="rgba(88,86,214,0.14)" />
           <StatCard icon="👥" label="Active Drivers" value={sorted.length} detail={`${teams.length} teams`} accent="#34c759" tint="rgba(52,199,89,0.14)" />
-          <StatCard icon="🍾" label="Latest Winner" value={seriesId === "arca" ? (arcaLatestWinner ? `#${arcaLatestWinner.driver_number || arcaLatestWinner.driverNumber || ""} ${arcaLatestWinner.driver_name || arcaLatestWinner.name || arcaLatestWinner.driverName || "Winner"}` : "—") : (latestWinner ? `#${latestWinner.number || latestWinner.driverNumber || ""} ${latestWinner.name || latestWinner.driverName || "Winner"}` : "—")} detail={seriesId === "arca" ? (arcaLatestRace?.race_name || "No race posted") : (latestRace?.raceName || "No race posted")} accent="#ff3b30" tint="rgba(255,59,48,0.12)" />
+          {seriesId === "arca" ? (
+            <StatCard icon="🍾" label="Latest Winner" value={arcaLatestWinner ? `#${arcaLatestWinner.driver_number || ""} ${arcaLatestWinner.driver_name || "Winner"}` : "—"} detail={arcaLatestRace?.race_name || "—"} accent="#ff3b30" tint="rgba(255,59,48,0.12)" />
+          ) : (
+            <StatCard icon="🍾" label="Latest Winner" value={latestWinner ? `#${latestWinner.number || latestWinner.driverNumber || ""} ${latestWinner.name || latestWinner.driverName || "Winner"}` : "—"} detail={latestRace?.raceName || "No race posted"} accent="#ff3b30" tint="rgba(255,59,48,0.12)" />
+          )}
         </div>
 
         <PaintSchemeWinnerStandingsCard tracks={tracks} drivers={drivers} />
