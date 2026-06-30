@@ -1007,7 +1007,6 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
     { label: "Active Contracts", subtitle: "Current agreements", icon: "📄", route: "/contracts" },
     { label: "Add Story", subtitle: "Submit content", icon: "✍️", route: "/submit-story" },
     { label: "Notifications", subtitle: "Public alerts", icon: "🔔", route: "/notifications" },
-    { label: "Message Center", subtitle: "League inbox", icon: "📩", route: "/message-center" },
     { label: "League Chat", subtitle: "Community room", icon: "💬", route: "/chat" },
     { label: "Admin Portal", subtitle: "League control", icon: "🔐", route: "/admin" },
   ];
