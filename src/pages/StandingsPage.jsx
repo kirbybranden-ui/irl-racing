@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import logo from "../assets/logo1.png";
 import ncsLogo from "../assets/series/NCS.png";
-import arcaLogo from "../assets/series/ARCA.png";
+import arcaLogo from "../assets/series/AMS.png";
 import {
   supabase } from "../lib/supabase"; import { teamLogos,
   manufacturerLogos,
