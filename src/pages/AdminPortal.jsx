@@ -55,9 +55,11 @@ export default function AdminPortal({
   getStagePoints,
   getTeamFullName,
   handleDeleteRace,
+  handleDeleteArcaRace,
   handleDnfChange,
   handleDownloadLeagueBackup,
   handleEditRace,
+  handleEditArcaRace,
   handleFastestLapChange,
   handleImportBackup,
   handleManualPenaltyChange,
@@ -3449,6 +3451,77 @@ export default function AdminPortal({
                         >
                           Cancel
                         </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Posted ARCA Race Results */}
+                  {activeSeason?.arcaRaceHistory && activeSeason.arcaRaceHistory.length > 0 && (
+                    <div style={{ marginTop: 32, paddingTop: 24, borderTop: "2px solid rgba(0,99,65,0.15)" }}>
+                      <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.6, textTransform: "uppercase", color: "#006341", marginBottom: 12 }}>Posted Results</div>
+                      <div style={{ display: "grid", gap: 2 }}>
+                        {activeSeason.arcaRaceHistory.map((race, raceIndex) => {
+                          const results = race.results || [];
+                          const winner = results.find((r) => Number(r.finishPos) === 1) || results[0];
+                          const dnfCount = results.filter((r) => r.dnf).length;
+                          return (
+                            <details key={race.raceName || raceIndex} style={{ borderTop: "1px solid rgba(229,231,235,0.75)", background: "rgba(255,255,255,0.72)" }}>
+                              <summary style={{ listStyle: "none", cursor: "pointer", display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "1.2fr 0.7fr 0.7fr 0.9fr", gap: 10, alignItems: "center", padding: "14px 16px" }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+                                  <div style={{ width: 42, height: 42, borderRadius: 16, background: "linear-gradient(135deg, #006341, #00e5a0)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 1000, boxShadow: "0 10px 20px rgba(0,99,65,0.24)" }}>{raceIndex + 1}</div>
+                                  <div style={{ minWidth: 0 }}>
+                                    <div style={{ fontWeight: 1000, color: "#111827", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{race.raceName}</div>
+                                    {isAdminMobile && <div style={{ marginTop: 5, color: "#6b7280", fontSize: 12, fontWeight: 800 }}>{winner ? `Winner #${winner.number} ${winner.name}` : "No winner listed"} • {results.length} entries</div>}
+                                  </div>
+                                </div>
+
+                                <div style={{ display: isAdminMobile ? "none" : "block", color: "#111827", fontWeight: 900, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{winner ? `#${winner.number} ${winner.name}` : "—"}</div>
+
+                                <div style={{ display: isAdminMobile ? "none" : "block" }}>
+                                  <span style={{ display: "inline-flex", alignItems: "center", padding: "8px 11px", borderRadius: 999, background: "rgba(0,99,65,0.10)", color: "#006341", fontWeight: 1000, fontSize: 12 }}>{results.length} Drivers</span>
+                                </div>
+
+                                <div style={{ display: "flex", justifyContent: isAdminMobile ? "flex-start" : "flex-end", gap: 8, flexWrap: "wrap", marginTop: isAdminMobile ? 12 : 0 }}>
+                                  <button type="button" onClick={(e) => { e.preventDefault(); handleEditArcaRace(race); }} style={{ ...adminSecondaryButtonStyle, borderRadius: 16, padding: "9px 12px" }}>Edit</button>
+                                  <button type="button" onClick={(e) => { e.preventDefault(); handleDeleteArcaRace(race.raceName); }} style={{ ...adminDangerButtonStyle, borderRadius: 16, padding: "9px 12px" }}>Remove</button>
+                                </div>
+                              </summary>
+
+                              <div style={{ padding: "0 16px 16px" }}>
+                                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+                                  <span style={{ display: "inline-flex", alignItems: "center", padding: "8px 11px", borderRadius: 999, background: dnfCount ? "rgba(255,59,48,0.12)" : "rgba(142,142,147,0.12)", color: dnfCount ? "#b42318" : "#6b7280", fontWeight: 1000, fontSize: 12 }}>{dnfCount} DNF</span>
+                                </div>
+
+                                <div style={{ overflowX: "auto", borderRadius: 12, border: "1px solid rgba(229,231,235,0.92)", background: "rgba(248,250,252,0.88)" }}>
+                                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                                    <thead>
+                                      <tr style={{ background: "rgba(248,250,252,0.88)" }}>
+                                        <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: 900, color: "#111827", borderBottom: "1px solid rgba(229,231,235,0.92)" }}>Finish</th>
+                                        <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: 900, color: "#111827", borderBottom: "1px solid rgba(229,231,235,0.92)" }}>#</th>
+                                        <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: 900, color: "#111827", borderBottom: "1px solid rgba(229,231,235,0.92)" }}>Driver</th>
+                                        <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: 900, color: "#111827", borderBottom: "1px solid rgba(229,231,235,0.92)" }}>Team</th>
+                                        <th style={{ padding: "10px 12px", textAlign: "center", fontWeight: 900, color: "#111827", borderBottom: "1px solid rgba(229,231,235,0.92)" }}>Pts</th>
+                                        <th style={{ padding: "10px 12px", textAlign: "center", fontWeight: 900, color: "#111827", borderBottom: "1px solid rgba(229,231,235,0.92)" }}>FL</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {results.map((r, idx) => (
+                                        <tr key={`${race.raceName}-${r.driverId}-${idx}`} style={{ borderBottom: "1px solid rgba(229,231,235,0.5)", background: idx % 2 === 0 ? "rgba(255,255,255,0.6)" : "rgba(248,250,252,0.6)" }}>
+                                          <td style={{ padding: "10px 12px" }}>{r.dnf ? "DNF" : r.finishPos || "—"}</td>
+                                          <td style={{ padding: "10px 12px", fontWeight: 900 }}>{r.number}</td>
+                                          <td style={{ padding: "10px 12px", fontWeight: 800 }}>{r.name}</td>
+                                          <td style={{ padding: "10px 12px", color: "#6b7280" }}>{r.team}</td>
+                                          <td style={{ padding: "10px 12px", textAlign: "center", fontWeight: 900 }}>{r.finishPoints || 0}</td>
+                                          <td style={{ padding: "10px 12px", textAlign: "center", color: r.fastestLap ? "#d4af37" : "#6b7280", fontWeight: 900 }}>{r.fastestLap ? "✓" : "—"}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            </details>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
