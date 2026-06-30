@@ -6948,7 +6948,192 @@ export default function App() {
 
     setEditingRaceName(null);
   };
-  const handleEditRace = (race) => {
+
+  // ===== ARCA SERIES RESULTS FUNCTIONS (Mirror of Cup) =====
+
+  const buildArcaRaceFromCurrentInputs = () => ({
+    raceName: activeSeason?.arcaSelectedRace || "",
+    stageCount: 0,
+    results: buildArcaRaceResultsFromCurrentInputs(),
+    savedAt: new Date().toISOString(),
+  });
+
+  const buildArcaRaceResultsFromCurrentInputs = () => {
+    return (arcaDrivers || [])
+      .filter(d => !isInactivePlaceholderDriver(d))
+      .map((driver) => {
+        const pos = activeSeason?.arcaPositions?.[driver.id];
+        if (!pos) return null;
+        
+        const finishPos = Number(pos);
+        const basePoints = pointsTable[finishPos] || 0;
+        const fastestLap = activeSeason?.arcaFastestLapMap?.[driver.id] ? 1 : 0;
+        const penaltyPts = Number(activeSeason?.arcaPenaltyMap?.[driver.id] || 0);
+        const isDnf = activeSeason?.arcaDnfMap?.[driver.id] || false;
+        
+        return {
+          driverId: driver.id,
+          number: driver.number,
+          name: driver.name,
+          team: driver.team,
+          manufacturer: driver.manufacturer,
+          finishPos: !isDnf ? finishPos : null,
+          finishPoints: !isDnf ? basePoints : 0,
+          fastestLap,
+          dnf: isDnf,
+          dnfReason: activeSeason?.arcaDnfReasons?.[driver.id] || "",
+          offense: activeSeason?.arcaOffenseMap?.[driver.id] || false,
+          offenseNumber: 0,
+          penaltyPoints: penaltyPts,
+          totalRacePoints: (!isDnf ? basePoints : 0) + fastestLap - penaltyPts,
+        };
+      })
+      .filter(Boolean);
+  };
+
+  const saveArcaResultsDraft = () => {
+    if (!activeSeason) return;
+    if (!activeSeason.arcaSelectedRace?.trim()) { 
+      alert("Please select an ARCA race before saving a draft."); 
+      return; 
+    }
+    const draft = {
+      ...buildArcaRaceFromCurrentInputs(),
+      id: `arca-draft-${activeSeason.arcaSelectedRace.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-${Date.now()}`,
+      status: "Draft",
+      draftSavedAt: new Date().toISOString(),
+      posted: false,
+    };
+    const nextDrafts = [draft, ...(activeSeason?.arcaRaceDrafts || []).filter((item) => item.raceName !== activeSeason.arcaSelectedRace)];
+    patchActiveSeason({ arcaRaceDrafts: nextDrafts });
+    alert("ARCA results draft saved. Standings were not updated.");
+  };
+
+  const submitArcaResults = async (draftOverride = null) => {
+    if (!activeSeason) return;
+    
+    const raceToPost = draftOverride || buildArcaRaceFromCurrentInputs();
+    if (!raceToPost.raceName?.trim()) { 
+      alert("Please select an ARCA race."); 
+      return; 
+    }
+    
+    if ((activeSeason?.arcaRaceHistory || []).some(r => r.raceName === raceToPost.raceName)) {
+      alert("That ARCA race has already been entered.");
+      return;
+    }
+    
+    const updatedRace = {
+      ...raceToPost,
+      status: "Posted",
+      postedAt: new Date().toISOString(),
+      savedAt: new Date().toISOString(),
+    };
+    
+    const newArcaHistory = [...(activeSeason?.arcaRaceHistory || []), updatedRace];
+    const updatedArcaDrivers = rebuildArcaDriversFromHistory(newArcaHistory, arcaDrivers || []);
+    
+    const updatedSeason = {
+      ...activeSeason,
+      arcaRaceHistory: newArcaHistory,
+      arcaDrivers: updatedArcaDrivers,
+      arcaRaceDrafts: (activeSeason?.arcaRaceDrafts || []).filter(draft => draft.raceName !== updatedRace.raceName),
+      arcaSelectedRace: "",
+      arcaPositions: {},
+      arcaDnfMap: {},
+      arcaFastestLapMap: {},
+      arcaPenaltyMap: {},
+      arcaDnfReasons: {},
+      arcaOffenseMap: {},
+      arcaResultNotesMap: {},
+    };
+
+    replaceActiveSeason(updatedSeason);
+
+    const ledgerResult = await saveArcaRaceResultsLedger({
+      season: updatedSeason,
+      race: updatedRace,
+      tracks: arcaTracks || [],
+    });
+
+    if (!ledgerResult.ok) {
+      alert("ARCA race results posted locally but Supabase sync failed. Check arca_results table/RLS.");
+    } else {
+      alert("ARCA race results posted to standings.");
+    }
+  };
+
+  const rebuildArcaDriversFromHistory = (arcaRaceHistory = [], roster = []) => {
+    const stats = new Map();
+    
+    (roster || []).forEach(driver => {
+      stats.set(driver.id, {
+        id: driver.id,
+        number: driver.number,
+        name: driver.name,
+        team: driver.team,
+        manufacturer: driver.manufacturer,
+        points: 0,
+        wins: 0,
+        top5: 0,
+        top10: 0,
+        dnfs: 0,
+        starts: 0,
+      });
+    });
+    
+    (arcaRaceHistory || []).forEach(race => {
+      (race.results || []).forEach(result => {
+        const stat = stats.get(result.driverId);
+        if (stat) {
+          stat.points += result.totalRacePoints || 0;
+          stat.starts++;
+          if (result.finishPos === 1) stat.wins++;
+          if (result.finishPos && result.finishPos <= 5) stat.top5++;
+          if (result.finishPos && result.finishPos <= 10) stat.top10++;
+          if (result.dnf) stat.dnfs++;
+        }
+      });
+    });
+    
+    return Array.from(stats.values()).sort((a, b) => b.points - a.points);
+  };
+
+  const handleEditArcaRace = (race) => {
+    const np = {}, nd = {}, nf = {}, nr = {}, pm = {}, no = {}, notes = {};
+    (race.results || []).forEach((r) => {
+      np[r.driverId] = r.finishPos || "";
+      nd[r.driverId] = !!r.dnf;
+      if (r.fastestLap) nf[r.driverId] = true;
+      if (r.dnfReason) nr[r.driverId] = r.dnfReason;
+      if (r.penaltyPoints) pm[r.driverId] = r.penaltyPoints;
+      if (r.offense) no[r.driverId] = true;
+      if (r.notes) notes[r.driverId] = r.notes;
+    });
+    patchActiveSeason({ 
+      arcaSelectedRace: race.raceName, 
+      arcaPositions: np, 
+      arcaDnfMap: nd, 
+      arcaFastestLapMap: nf, 
+      arcaDnfReasons: nr, 
+      arcaPenaltyMap: pm, 
+      arcaOffenseMap: no, 
+      arcaResultNotesMap: notes 
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleDeleteArcaRace = (raceName) => {
+    if (!activeSeason || !window.confirm(`Delete ${raceName}? This will recalculate ARCA standings.`)) return;
+    const newArcaHistory = (activeSeason?.arcaRaceHistory || []).filter((r) => r.raceName !== raceName);
+    const updatedArcaDrivers = rebuildArcaDriversFromHistory(newArcaHistory, arcaDrivers || []);
+    replaceActiveSeason({ 
+      ...activeSeason, 
+      arcaRaceHistory: newArcaHistory, 
+      arcaDrivers: updatedArcaDrivers 
+    });
+  };
+  // ===== END ARCA FUNCTIONS =====
     const np = {}, ns1 = {}, ns2 = {}, ns3 = {}, nd = {}, spm = {}, no = {}, nf = {}, nr = {}, pm = {}, notes = {};
     race.results.forEach((r) => {
       np[r.driverId] = r.finishPos || ""; ns1[r.driverId] = r.stage1Pos || ""; ns2[r.driverId] = r.stage2Pos || ""; ns3[r.driverId] = r.stage3Pos || "";
