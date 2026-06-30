@@ -5614,7 +5614,7 @@ if (MAINTENANCE_MODE && !maintenanceBypass) {
   const [openStoryCount, setOpenStoryCount] = useState(0);
   const [activeSeasonId, setActiveSeasonId] = useState("");
   const [currentSeries, setCurrentSeries] = useState("cup");
-  const [tracks, setTracks] = useState(defaultRaces);
+  const [tracks, setTracks] = useState(defaultTracks);
   const [arcaSeasons, setArcaSeasons] = useState([]);
 const [arcaRaces, setArcaRaces] = useState(defaultArcaRaces);
 const [arcaDrivers, setArcaDrivers] = useState(defaultArcaDrivers);
