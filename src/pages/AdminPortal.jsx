@@ -3176,7 +3176,7 @@ export default function AdminPortal({
                 {[
                   ["races", "Race Schedule", "🏁", `${(arcaRaces || []).length} Races`, "Season calendar", "Manage ARCA race schedule and enter results.", "linear-gradient(135deg, #006341 0%, #00b386 45%, #00e5a0 100%)"],
                   ["drivers", "Driver Roster", "👥", `${(arcaDrivers || []).length} Drivers`, "Team lineup", "Update driver roster and profiles.", "linear-gradient(135deg, #007aff 0%, #5ac8fa 45%, #5856d6 100%)"],
-                  ["tracks", "Track List", "🏎️", `${(arcaTracks || []).length} Tracks`, "Venue info", "Manage track information and specifications.", "linear-gradient(135deg, #ff9500 0%, #ffcc00 48%, #ff3b30 100%)"],
+                  ["results", "Results Archive", "📚", "Season races", "Download history", "View and download race results and standings.", "linear-gradient(135deg, #ff9500 0%, #ffcc00 48%, #ff3b30 100%)"],
                 ].map(([key, label, icon, value, meta, description, gradient]) => (
                   <button
                     key={key}
@@ -3312,7 +3312,7 @@ export default function AdminPortal({
                               border: "1px solid rgba(0,0,0,0.08)", 
                               borderRadius: 10,
                               display: "grid",
-                              gridTemplateColumns: isAdminMobile ? "50px 1fr" : "50px 1fr 100px 100px",
+                              gridTemplateColumns: isAdminMobile ? "50px 1fr" : "50px 1fr 100px 100px 60px",
                               gap: 12,
                               alignItems: "center"
                             }}
@@ -3360,6 +3360,15 @@ export default function AdminPortal({
                                   <option value="running">Running</option>
                                   <option value="dnf">DNF</option>
                                 </select>
+                                <input 
+                                  type="checkbox" 
+                                  title="Fastest Lap"
+                                  style={{ 
+                                    width: 18,
+                                    height: 18,
+                                    cursor: "pointer"
+                                  }}
+                                />
                               </>
                             )}
                           </div>
@@ -3397,6 +3406,101 @@ export default function AdminPortal({
                       <div style={{ color: "#6b7280", fontWeight: 750, maxWidth: 720 }}>Manage ARCA track information, banking, and specifications.</div>
                     </div>
                     <div style={{ width: 58, height: 58, borderRadius: 20, background: "linear-gradient(135deg, #ff9500, #ffcc00)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, boxShadow: "0 14px 28px rgba(255,149,0,0.24)" }}>🏎️</div>
+                  </div>
+                </div>
+              )}
+
+              {arcaOperationsTab === "results" && (
+                <div style={{ padding: isAdminMobile ? 18 : 26, borderRadius: 34, background: "linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.92))", boxShadow: "0 22px 60px rgba(15,23,42,0.12)", border: "1px solid rgba(255,255,255,0.75)" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap", marginBottom: 20 }}>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.6, textTransform: "uppercase", color: "#ff9500" }}>ARCA Series</div>
+                      <h2 style={{ margin: "3px 0 6px", fontSize: isAdminMobile ? 30 : 38, letterSpacing: -1.35 }}>Results Archive</h2>
+                      <div style={{ color: "#6b7280", fontWeight: 750, maxWidth: 720 }}>View completed races and download results as CSV.</div>
+                    </div>
+                    <div style={{ width: 58, height: 58, borderRadius: 20, background: "linear-gradient(135deg, #ff9500, #ff3b30)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, boxShadow: "0 14px 28px rgba(255,59,48,0.24)" }}>📚</div>
+                  </div>
+
+                  <div style={{ marginBottom: 16, display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(2, 1fr)", gap: 10 }}>
+                    <button 
+                      style={{ 
+                        padding: "12px 16px", 
+                        background: "#ff9500", 
+                        color: "white", 
+                        border: "none", 
+                        borderRadius: 8, 
+                        fontWeight: 900,
+                        cursor: "pointer"
+                      }}
+                      onClick={() => alert("Download Full Season CSV - Feature coming soon")}
+                    >
+                      Download Full Season
+                    </button>
+                    <button 
+                      style={{ 
+                        padding: "12px 16px", 
+                        background: "rgba(255,149,0,0.1)", 
+                        color: "#ff9500", 
+                        border: "1px solid rgba(255,149,0,0.3)", 
+                        borderRadius: 8, 
+                        fontWeight: 900,
+                        cursor: "pointer"
+                      }}
+                      onClick={() => alert("Download Standings - Feature coming soon")}
+                    >
+                      Download Standings
+                    </button>
+                  </div>
+
+                  <div style={{ display: "grid", gap: 10 }}>
+                    <div style={{ padding: 16, background: "rgba(255,255,255,0.8)", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 10 }}>
+                      <div style={{ fontWeight: 900, color: "#111827", marginBottom: 8 }}>Race Results by Event</div>
+                      {(arcaRaces || []).length === 0 ? (
+                        <div style={{ color: "#6b7280", fontSize: 13 }}>No races completed yet</div>
+                      ) : (
+                        <div style={{ display: "grid", gap: 8 }}>
+                          {(arcaRaces || []).map((race) => (
+                            <div 
+                              key={race.id}
+                              style={{ 
+                                display: "flex", 
+                                justifyContent: "space-between", 
+                                alignItems: "center",
+                                padding: 10,
+                                background: "rgba(255,255,255,0.6)",
+                                borderRadius: 8,
+                                border: "1px solid rgba(0,0,0,0.05)"
+                              }}
+                            >
+                              <div>
+                                <div style={{ fontWeight: 900, color: "#111827" }}>{race.name}</div>
+                                <div style={{ fontSize: 12, color: "#6b7280" }}>{race.date}</div>
+                              </div>
+                              <button 
+                                style={{ 
+                                  padding: "6px 12px", 
+                                  background: "#ff9500", 
+                                  color: "white", 
+                                  border: "none", 
+                                  borderRadius: 6, 
+                                  fontWeight: 700,
+                                  fontSize: 12,
+                                  cursor: "pointer"
+                                }}
+                                onClick={() => alert(`Download ${race.name} - Feature coming soon`)}
+                              >
+                                Download
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div style={{ marginTop: 20, padding: 16, background: "rgba(0,122,255,0.06)", borderRadius: 10, border: "1px solid rgba(0,122,255,0.2)" }}>
+                    <div style={{ fontWeight: 900, color: "#007aff", fontSize: 13 }}>ℹ️ Coming Soon</div>
+                    <div style={{ color: "#6b7280", fontSize: 13, marginTop: 6 }}>Full CSV export functionality with results, standings, and statistics.</div>
                   </div>
                 </div>
               )}
