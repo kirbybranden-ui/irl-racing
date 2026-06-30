@@ -3291,9 +3291,23 @@ export default function AdminPortal({
                             fontWeight: 900,
                             cursor: "pointer"
                           }}
-                          onClick={() => alert("Save Results - Feature coming soon")}
+                          onClick={() => submitArcaResults()}
                         >
-                          Save Results
+                          Post Results
+                        </button>
+                        <button 
+                          style={{ 
+                            padding: "10px 16px", 
+                            background: "rgba(0,153,102,0.15)", 
+                            color: "#006341", 
+                            border: "1px solid rgba(0,99,65,0.3)", 
+                            borderRadius: 8, 
+                            fontWeight: 900,
+                            cursor: "pointer"
+                          }}
+                          onClick={() => saveArcaResultsDraft()}
+                        >
+                          Save Draft
                         </button>
                         <button 
                           style={{ 
@@ -3351,6 +3365,8 @@ export default function AdminPortal({
                                   min="1" 
                                   max="40" 
                                   placeholder="Finish pos." 
+                                  value={activeSeason?.arcaPositions?.[driver.id] || ""}
+                                  onChange={(e) => patchActiveSeason({ arcaPositions: { ...activeSeason?.arcaPositions, [driver.id]: e.target.value } })}
                                   style={{ 
                                     padding: "8px 10px", 
                                     borderRadius: 8, 
@@ -3359,6 +3375,8 @@ export default function AdminPortal({
                                   }}
                                 />
                                 <select 
+                                  value={activeSeason?.arcaDnfMap?.[driver.id] ? "dnf" : "running"}
+                                  onChange={(e) => patchActiveSeason({ arcaDnfMap: { ...activeSeason?.arcaDnfMap, [driver.id]: e.target.value === "dnf" } })}
                                   style={{ 
                                     padding: "8px 10px", 
                                     borderRadius: 8, 
@@ -3370,7 +3388,9 @@ export default function AdminPortal({
                                   <option value="dnf">DNF</option>
                                 </select>
                                 <input 
-                                  type="checkbox" 
+                                  type="checkbox"
+                                  checked={activeSeason?.arcaFastestLapMap?.[driver.id] || false}
+                                  onChange={(e) => patchActiveSeason({ arcaFastestLapMap: { ...activeSeason?.arcaFastestLapMap, [driver.id]: e.target.checked } })}
                                   title="Fastest Lap"
                                   style={{ 
                                     width: 18,
@@ -3384,9 +3404,49 @@ export default function AdminPortal({
                         ))}
                       </div>
 
-                      <div style={{ marginTop: 20, padding: 16, background: "rgba(0,122,255,0.06)", borderRadius: 10, border: "1px solid rgba(0,122,255,0.2)" }}>
-                        <div style={{ fontWeight: 900, color: "#007aff", fontSize: 13 }}>ℹ️ Coming Soon</div>
-                        <div style={{ color: "#6b7280", fontSize: 13, marginTop: 6 }}>Full driver input, DNF tracking, penalties, and fastest lap will be added in the next update.</div>
+                      <div style={{ marginTop: 20, display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(auto-fit, minmax(150px, 1fr))", gap: 10 }}>
+                        <button 
+                          style={{ 
+                            padding: "10px 16px", 
+                            background: "#006341", 
+                            color: "white", 
+                            border: "none", 
+                            borderRadius: 8, 
+                            fontWeight: 900,
+                            cursor: "pointer"
+                          }}
+                          onClick={() => submitArcaResults()}
+                        >
+                          Post Results
+                        </button>
+                        <button 
+                          style={{ 
+                            padding: "10px 16px", 
+                            background: "rgba(0,153,102,0.15)", 
+                            color: "#006341", 
+                            border: "1px solid rgba(0,99,65,0.3)", 
+                            borderRadius: 8, 
+                            fontWeight: 900,
+                            cursor: "pointer"
+                          }}
+                          onClick={() => saveArcaResultsDraft()}
+                        >
+                          Save Draft
+                        </button>
+                        <button 
+                          style={{ 
+                            padding: "10px 16px", 
+                            background: "rgba(0,99,65,0.1)", 
+                            color: "#006341", 
+                            border: "1px solid rgba(0,99,65,0.3)", 
+                            borderRadius: 8, 
+                            fontWeight: 900,
+                            cursor: "pointer"
+                          }}
+                          onClick={() => setArcaSelectedRace(null)}
+                        >
+                          Cancel
+                        </button>
                       </div>
                     </div>
                   )}
