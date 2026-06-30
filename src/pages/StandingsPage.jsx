@@ -652,13 +652,14 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
       const { data } = await supabase
         .from("featured_video")
         .select("*")
+        .eq("series", seriesId)
         .order("uploaded_at", { ascending: false })
         .limit(1)
         .maybeSingle();
       setFeaturedVideo(data || null);
     }
     loadFeaturedVideo();
-  }, []);
+  }, [seriesId]);
 
   useEffect(() => {
     let isMounted = true;
