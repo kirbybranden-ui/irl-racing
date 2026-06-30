@@ -7345,7 +7345,18 @@ useEffect(() => {
     loadResultsDraft(draft);
     setTimeout(() => submitResults(draft), 0);
   };
-  
+
+  const handleSaveArcaResults = async ({ race_id, results }) => {
+  try {
+    await saveArcaRaceResults(race_id, results);
+    const data = await loadArcaSeasonData();
+    setArcaRaces(data.races);
+    setArcaDrivers(data.drivers);
+  } catch (err) {
+    console.error("Error saving ARCA results:", err);
+    throw err;
+  }
+};
    const submitResults = async (draftOverride = null) => {
     if (!activeSeason) return;
     const raceToPost = draftOverride || buildRaceFromCurrentInputs();
