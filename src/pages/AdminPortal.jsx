@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import ArcaRaceResultsForm from "../components/ArcaRaceResultsForm";
 
 export default function AdminPortal({
   AdminLeagueMessageComposer,
@@ -66,7 +65,6 @@ export default function AdminPortal({
   handlePositionChange,
   handleRestoreLeagueBackup,
   handleResultNoteChange,
-  handleSaveArcaResults,
   handleStage1Change,
   handleStage2Change,
   handleStage3Change,
@@ -257,6 +255,9 @@ export default function AdminPortal({
   const [arcaOperationsTab, setArcaOperationsTab] = useState(null);
   const [editingArcaRaceId, setEditingArcaRaceId] = useState(null);
   const [arcaRaceResults, setArcaRaceResults] = useState({});
+  const [arcaTracks, setArcaTracks] = useState([]);
+  const [arcaEditingTrackId, setArcaEditingTrackId] = useState(null);
+  const [arcaTrackForm, setArcaTrackForm] = useState({});
   const [ownerDriverAssignments, setOwnerDriverAssignments] = useState([]);
   const [ownerDriverAssignmentsLoading, setOwnerDriverAssignmentsLoading] = useState(false);
   const [ownerDriverAssignmentStatus, setOwnerDriverAssignmentStatus] = useState("");
@@ -506,6 +507,43 @@ export default function AdminPortal({
   function openArcaOperations(tab = "overview") {
     setArcaOperationsTab(tab);
   }
+
+  const saveArcaTrack = async () => {
+    if (!arcaTrackForm.name || !arcaTrackForm.location) {
+      alert("Track name and location required.");
+      return;
+    }
+
+    try {
+      if (arcaEditingTrackId === "new") {
+        const newTrack = {
+          id: `arca-track-${Date.now()}`,
+          ...arcaTrackForm,
+          active: true,
+        };
+        setArcaTracks([...arcaTracks, newTrack]);
+      } else {
+        setArcaTracks(
+          arcaTracks.map((t) =>
+            t.id === arcaEditingTrackId ? { ...t, ...arcaTrackForm } : t
+          )
+        );
+      }
+      setArcaEditingTrackId(null);
+      setArcaTrackForm({});
+    } catch (err) {
+      alert("Error saving track: " + err.message);
+    }
+  };
+
+  const deleteArcaTrack = async (trackId) => {
+    if (!confirm("Delete this track?")) return;
+    try {
+      setArcaTracks(arcaTracks.filter((t) => t.id !== trackId));
+    } catch (err) {
+      alert("Error deleting track: " + err.message);
+    }
+  };
 
   function openPublicRelations(tab = "overview") {
     setPublicRelationsOpen(true);
@@ -3587,6 +3625,7 @@ option { color:#111827 !important; background:#ffffff !important; }`}</style>
                   ["races", "🏁 Races"],
                   ["standings", "📈 Standings"],
                   ["drivers", "👥 Drivers"],
+                  ["tracks", "🏁 Tracks"],
                 ].map(([key, label]) => (
                   <button
                     key={key}
@@ -3628,69 +3667,46 @@ option { color:#111827 !important; background:#ffffff !important; }`}</style>
               {/* RACES TAB */}
               {arcaOperationsTab === "races" && (
                 <div>
-                  {!arcaSelectedRace ? (
-                    <>
-                      <h2 style={{ marginTop: 0, marginBottom: 16 }}>Manage ARCA Races</h2>
-                      <div style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 16, padding: 20, overflowX: "auto" }}>
-                        {arcaRaces && arcaRaces.length > 0 ? (
-                          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                            <thead>
-                              <tr style={{ borderBottom: "2px solid rgba(255,255,255,0.2)" }}>
-                                <th style={{ textAlign: "left", padding: 12, fontWeight: 900 }}>Race</th>
-                                <th style={{ textAlign: "left", padding: 12, fontWeight: 900 }}>Track</th>
-                                <th style={{ textAlign: "left", padding: 12, fontWeight: 900 }}>Date</th>
-                                <th style={{ textAlign: "center", padding: 12, fontWeight: 900 }}>Results</th>
-                                <th style={{ textAlign: "center", padding: 12, fontWeight: 900 }}>Action</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {arcaRaces.map((race) => (
-                                <tr key={race.id} style={{ borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
-                                  <td style={{ padding: 12 }}>{race.name}</td>
-                                  <td style={{ padding: 12 }}>{race.track}</td>
-                                  <td style={{ padding: 12, opacity: 0.8 }}>{race.date || "TBD"}</td>
-                                  <td style={{ padding: 12, textAlign: "center" }}>{(race.results || []).length > 0 ? "✓" : "—"}</td>
-                                  <td style={{ padding: 12, textAlign: "center" }}>
-                                    <button
-                                      type="button"
-                                      onClick={() => setArcaSelectedRace(race)}
-                                      style={{ ...primaryButtonStyle, padding: "8px 12px", fontSize: 12 }}
-                                    >
-                                      Enter Results
-                                    </button>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        ) : (
-                          <div style={{ padding: 40, textAlign: "center", opacity: 0.6 }}>No races scheduled.</div>
-                        )}
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div style={{ marginBottom: 20 }}>
-                        <button
-                          type="button"
-                          onClick={() => setArcaSelectedRace(null)}
-                          style={{ ...dangerButtonStyle, padding: "10px 16px" }}
-                        >
-                          ← Back to Races
-                        </button>
-                      </div>
-                      <ArcaRaceResultsForm
-                        race={arcaSelectedRace}
-                        drivers={arcaDrivers}
-                        dnfReasons={dnfReasons}
-                        onSave={handleSaveArcaResults}
-                        onCancel={() => setArcaSelectedRace(null)}
-                        primaryButtonStyle={primaryButtonStyle}
-                        dangerButtonStyle={dangerButtonStyle}
-                        inputStyle={inputStyle}
-                      />
-                    </>
-                  )}
+                  <h2 style={{ marginTop: 0, marginBottom: 16 }}>Manage ARCA Races</h2>
+                  <div style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 16, padding: 20, overflowX: "auto" }}>
+                    {arcaRaces && arcaRaces.length > 0 ? (
+                      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                        <thead>
+                          <tr style={{ borderBottom: "2px solid rgba(255,255,255,0.2)" }}>
+                            <th style={{ textAlign: "left", padding: 12, fontWeight: 900 }}>Race</th>
+                            <th style={{ textAlign: "left", padding: 12, fontWeight: 900 }}>Track</th>
+                            <th style={{ textAlign: "left", padding: 12, fontWeight: 900 }}>Date</th>
+                            <th style={{ textAlign: "center", padding: 12, fontWeight: 900 }}>Results</th>
+                            <th style={{ textAlign: "center", padding: 12, fontWeight: 900 }}>Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {arcaRaces.map((race) => (
+                            <tr key={race.id} style={{ borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
+                              <td style={{ padding: 12 }}>{race.name}</td>
+                              <td style={{ padding: 12 }}>{race.track}</td>
+                              <td style={{ padding: 12, opacity: 0.8 }}>{race.date || "TBD"}</td>
+                              <td style={{ padding: 12, textAlign: "center" }}>{(race.results || []).length > 0 ? "✓" : "—"}</td>
+                              <td style={{ padding: 12, textAlign: "center" }}>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setArcaSelectedRace(race);
+                                    setArcaOperationsTab("races");
+                                  }}
+                                  style={{ ...primaryButtonStyle, padding: "8px 12px", fontSize: 12 }}
+                                >
+                                  Enter Results
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    ) : (
+                      <div style={{ padding: 40, textAlign: "center", opacity: 0.6 }}>No races scheduled.</div>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -3771,6 +3787,133 @@ option { color:#111827 !important; background:#ffffff !important; }`}</style>
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* ARCA TRACKS TAB */}
+        {arcaOperationsTab === "tracks" && (
+          <div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+              <h2 style={{ margin: 0 }}>ARCA Tracks</h2>
+              <button
+                type="button"
+                onClick={() => setArcaEditingTrackId("new")}
+                style={{ ...primaryButtonStyle, padding: "10px 16px" }}
+              >
+                + Add Track
+              </button>
+            </div>
+
+            {arcaEditingTrackId === "new" && (
+              <div style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 16, padding: 20, marginBottom: 20 }}>
+                <h3 style={{ marginTop: 0 }}>Add New Track</h3>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
+                  <input
+                    type="text"
+                    placeholder="Track name"
+                    value={arcaTrackForm.name || ""}
+                    onChange={(e) => setArcaTrackForm({ ...arcaTrackForm, name: e.target.value })}
+                    style={{ ...inputStyle }}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Location"
+                    value={arcaTrackForm.location || ""}
+                    onChange={(e) => setArcaTrackForm({ ...arcaTrackForm, location: e.target.value })}
+                    style={{ ...inputStyle }}
+                  />
+                  <select
+                    value={arcaTrackForm.type || "oval"}
+                    onChange={(e) => setArcaTrackForm({ ...arcaTrackForm, type: e.target.value })}
+                    style={{ ...inputStyle }}
+                  >
+                    <option value="superspeedway">Superspeedway</option>
+                    <option value="oval">Oval</option>
+                    <option value="short-track">Short Track</option>
+                    <option value="road-course">Road Course</option>
+                  </select>
+                  <input
+                    type="number"
+                    placeholder="Banking (degrees)"
+                    value={arcaTrackForm.bankingDegrees || ""}
+                    onChange={(e) => setArcaTrackForm({ ...arcaTrackForm, bankingDegrees: parseFloat(e.target.value) })}
+                    style={{ ...inputStyle }}
+                  />
+                  <input
+                    type="number"
+                    placeholder="Length (miles)"
+                    step="0.001"
+                    value={arcaTrackForm.lengthMiles || ""}
+                    onChange={(e) => setArcaTrackForm({ ...arcaTrackForm, lengthMiles: parseFloat(e.target.value) })}
+                    style={{ ...inputStyle }}
+                  />
+                </div>
+                <div style={{ display: "flex", gap: 12, marginTop: 16 }}>
+                  <button
+                    type="button"
+                    onClick={saveArcaTrack}
+                    style={{ ...primaryButtonStyle, padding: "10px 16px" }}
+                  >
+                    Save Track
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setArcaEditingTrackId(null);
+                      setArcaTrackForm({});
+                    }}
+                    style={{ ...dangerButtonStyle, padding: "10px 16px" }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 16, padding: 20, overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr style={{ borderBottom: "2px solid rgba(255,255,255,0.2)" }}>
+                    <th style={{ textAlign: "left", padding: 12, fontWeight: 900 }}>Track</th>
+                    <th style={{ textAlign: "left", padding: 12, fontWeight: 900 }}>Location</th>
+                    <th style={{ textAlign: "left", padding: 12, fontWeight: 900 }}>Type</th>
+                    <th style={{ textAlign: "center", padding: 12, fontWeight: 900 }}>Banking</th>
+                    <th style={{ textAlign: "center", padding: 12, fontWeight: 900 }}>Length</th>
+                    <th style={{ textAlign: "center", padding: 12, fontWeight: 900 }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(arcaTracks || []).map((track) => (
+                    <tr key={track.id} style={{ borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
+                      <td style={{ padding: 12, fontWeight: 900 }}>{track.name}</td>
+                      <td style={{ padding: 12 }}>{track.location}</td>
+                      <td style={{ padding: 12, opacity: 0.8, textTransform: "capitalize" }}>{track.type}</td>
+                      <td style={{ padding: 12, textAlign: "center", opacity: 0.8 }}>{track.bankingDegrees}°</td>
+                      <td style={{ padding: 12, textAlign: "center", opacity: 0.8 }}>{track.lengthMiles}mi</td>
+                      <td style={{ padding: 12, textAlign: "center", display: "flex", gap: 8, justifyContent: "center" }}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setArcaEditingTrackId(track.id);
+                            setArcaTrackForm(track);
+                          }}
+                          style={{ ...secondaryButtonStyle, padding: "6px 10px", fontSize: 12 }}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => deleteArcaTrack(track.id)}
+                          style={{ ...dangerButtonStyle, padding: "6px 10px", fontSize: 12 }}
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         )}
