@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import ArcaRaceResultsForm from "../components/ArcaRaceResultsForm";
 
 export default function AdminPortal({
   AdminLeagueMessageComposer,
@@ -65,6 +66,7 @@ export default function AdminPortal({
   handlePositionChange,
   handleRestoreLeagueBackup,
   handleResultNoteChange,
+  handleSaveArcaResults,
   handleStage1Change,
   handleStage2Change,
   handleStage3Change,
@@ -3626,46 +3628,69 @@ option { color:#111827 !important; background:#ffffff !important; }`}</style>
               {/* RACES TAB */}
               {arcaOperationsTab === "races" && (
                 <div>
-                  <h2 style={{ marginTop: 0, marginBottom: 16 }}>Manage ARCA Races</h2>
-                  <div style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 16, padding: 20, overflowX: "auto" }}>
-                    {arcaRaces && arcaRaces.length > 0 ? (
-                      <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                        <thead>
-                          <tr style={{ borderBottom: "2px solid rgba(255,255,255,0.2)" }}>
-                            <th style={{ textAlign: "left", padding: 12, fontWeight: 900 }}>Race</th>
-                            <th style={{ textAlign: "left", padding: 12, fontWeight: 900 }}>Track</th>
-                            <th style={{ textAlign: "left", padding: 12, fontWeight: 900 }}>Date</th>
-                            <th style={{ textAlign: "center", padding: 12, fontWeight: 900 }}>Results</th>
-                            <th style={{ textAlign: "center", padding: 12, fontWeight: 900 }}>Action</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {arcaRaces.map((race) => (
-                            <tr key={race.id} style={{ borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
-                              <td style={{ padding: 12 }}>{race.name}</td>
-                              <td style={{ padding: 12 }}>{race.track}</td>
-                              <td style={{ padding: 12, opacity: 0.8 }}>{race.date || "TBD"}</td>
-                              <td style={{ padding: 12, textAlign: "center" }}>{(race.results || []).length > 0 ? "✓" : "—"}</td>
-                              <td style={{ padding: 12, textAlign: "center" }}>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setArcaSelectedRace(race);
-                                    setArcaOperationsTab("races");
-                                  }}
-                                  style={{ ...primaryButtonStyle, padding: "8px 12px", fontSize: 12 }}
-                                >
-                                  Enter Results
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    ) : (
-                      <div style={{ padding: 40, textAlign: "center", opacity: 0.6 }}>No races scheduled.</div>
-                    )}
-                  </div>
+                  {!arcaSelectedRace ? (
+                    <>
+                      <h2 style={{ marginTop: 0, marginBottom: 16 }}>Manage ARCA Races</h2>
+                      <div style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 16, padding: 20, overflowX: "auto" }}>
+                        {arcaRaces && arcaRaces.length > 0 ? (
+                          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                            <thead>
+                              <tr style={{ borderBottom: "2px solid rgba(255,255,255,0.2)" }}>
+                                <th style={{ textAlign: "left", padding: 12, fontWeight: 900 }}>Race</th>
+                                <th style={{ textAlign: "left", padding: 12, fontWeight: 900 }}>Track</th>
+                                <th style={{ textAlign: "left", padding: 12, fontWeight: 900 }}>Date</th>
+                                <th style={{ textAlign: "center", padding: 12, fontWeight: 900 }}>Results</th>
+                                <th style={{ textAlign: "center", padding: 12, fontWeight: 900 }}>Action</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {arcaRaces.map((race) => (
+                                <tr key={race.id} style={{ borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
+                                  <td style={{ padding: 12 }}>{race.name}</td>
+                                  <td style={{ padding: 12 }}>{race.track}</td>
+                                  <td style={{ padding: 12, opacity: 0.8 }}>{race.date || "TBD"}</td>
+                                  <td style={{ padding: 12, textAlign: "center" }}>{(race.results || []).length > 0 ? "✓" : "—"}</td>
+                                  <td style={{ padding: 12, textAlign: "center" }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => setArcaSelectedRace(race)}
+                                      style={{ ...primaryButtonStyle, padding: "8px 12px", fontSize: 12 }}
+                                    >
+                                      Enter Results
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        ) : (
+                          <div style={{ padding: 40, textAlign: "center", opacity: 0.6 }}>No races scheduled.</div>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div style={{ marginBottom: 20 }}>
+                        <button
+                          type="button"
+                          onClick={() => setArcaSelectedRace(null)}
+                          style={{ ...dangerButtonStyle, padding: "10px 16px" }}
+                        >
+                          ← Back to Races
+                        </button>
+                      </div>
+                      <ArcaRaceResultsForm
+                        race={arcaSelectedRace}
+                        drivers={arcaDrivers}
+                        dnfReasons={dnfReasons}
+                        onSave={handleSaveArcaResults}
+                        onCancel={() => setArcaSelectedRace(null)}
+                        primaryButtonStyle={primaryButtonStyle}
+                        dangerButtonStyle={dangerButtonStyle}
+                        inputStyle={inputStyle}
+                      />
+                    </>
+                  )}
                 </div>
               )}
 
