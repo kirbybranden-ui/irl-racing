@@ -257,7 +257,6 @@ export default function AdminPortal({
   const [arcaOperationsTab, setArcaOperationsTab] = useState(null);
   const [editingArcaRaceId, setEditingArcaRaceId] = useState(null);
   const [arcaRaceResults, setArcaRaceResults] = useState({});
-  const [arcaTracks, setArcaTracks] = useState([]);
   const [arcaEditingTrackId, setArcaEditingTrackId] = useState(null);
   const [arcaTrackForm, setArcaTrackForm] = useState({});
   const [ownerDriverAssignments, setOwnerDriverAssignments] = useState([]);
