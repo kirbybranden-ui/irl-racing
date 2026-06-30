@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import logo from "../assets/logo1.png";
 import ncsLogo from "../assets/series/NCS.png";
+import arcaLogo from "../assets/series/ARCA.png";
 import {
   supabase } from "../lib/supabase"; import { teamLogos,
   manufacturerLogos,
@@ -141,11 +142,7 @@ function renderManufacturerLogo(manufacturer, size = 72) {
           boxShadow: "0 18px 38px rgba(15,23,42,0.10)",
         }}
       >
-        <img
-          src={logoSrc}
-          alt={`${name} logo`}
-          style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }}
-        />
+        <img src={logoSrc} alt={`${name} logo`} style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }} />
       </div>
     );
   }
@@ -398,156 +395,115 @@ function PaintSchemeWinnerStandingsCard({ tracks = [], drivers = [] }) {
         supabase.from("paint_scheme_votes").select("*").order("created_at", { ascending: false }),
       ]);
 
+      if (!isMounted) return;
+
       if (uploadError || voteError) {
-        console.error("Could not load upcoming paint scheme winner:", uploadError || voteError);
-        if (isMounted) {
-          setWinners([]);
-          setRaceName("");
-          setLoading(false);
-        }
-        return;
-      }
-
-      const raceUploads = (uploadData || [])
-        .filter((upload) => isPaintImageUploadForStandings(upload))
-        .filter((upload) => normalizeTrackName(getPaintUploadRaceForStandings(upload)) === normalizeTrackName(spotlightRaceName));
-
-      if (raceUploads.length === 0) {
-        if (isMounted) {
-          setWinners([]);
-          setRaceName(spotlightRaceName);
-          setLoading(false);
-        }
-        return;
-      }
-
-      const counts = new Map();
-      (voteData || []).forEach((vote) => {
-        const key = String(vote.upload_id || vote.voted_upload_id || vote.paint_scheme_id || vote.car_upload_id || "");
-        counts.set(key, (counts.get(key) || 0) + 1);
-      });
-
-      const sorted = [...raceUploads].sort((a, b) => {
-        const voteDiff = (counts.get(String(b.id)) || 0) - (counts.get(String(a.id)) || 0);
-        if (voteDiff !== 0) return voteDiff;
-        return new Date(b.uploaded_at || 0) - new Date(a.uploaded_at || 0);
-      });
-
-      const topVoteCount = counts.get(String(sorted[0]?.id)) || 0;
-
-      if (topVoteCount <= 0) {
-        if (isMounted) {
-          setWinners([]);
-          setRaceName(spotlightRaceName);
-          setLoading(false);
-        }
-        return;
-      }
-
-      const winningUploads = sorted.filter((upload) => (counts.get(String(upload.id)) || 0) === topVoteCount);
-      const enrichedWinners = winningUploads.map((winningUpload) => {
-        const driver = (drivers || []).find((item) => String(item.id) === String(winningUpload.driver_id));
-        return {
-          ...winningUpload,
-          voteCount: counts.get(String(winningUpload.id)) || 0,
-          driverLabel: driver ? `#${driver.number} ${driver.name}` : winningUpload.driver_name || winningUpload.uploader_name || "Unknown Driver",
-          teamLabel: driver?.team || winningUpload.team || winningUpload.team_key || "—",
-          imageUrl: winningUpload.image_url || winningUpload.file_url || "",
-        };
-      });
-
-      if (isMounted) {
-        setWinners(enrichedWinners);
-        setRaceName(spotlightRaceName);
         setLoading(false);
+        return;
       }
+
+      const uploadsForRace = (uploadData || []).filter((upload) => {
+        const raceUploadId = getPaintUploadRaceForStandings(upload);
+        return raceUploadId && raceUploadId.toLowerCase().includes(spotlightRaceName.toLowerCase());
+      });
+
+      if (!uploadsForRace.length) {
+        setLoading(false);
+        setWinners([]);
+        setRaceName(spotlightRaceName);
+        return;
+      }
+
+      const imageUploads = uploadsForRace.filter(isPaintImageUploadForStandings);
+
+      const winnerIds = new Set();
+      const voteMap = {};
+      (voteData || []).forEach((vote) => {
+        const uploadIdStr = String(vote.upload_id || vote.uploadId || "");
+        voteMap[uploadIdStr] = (voteMap[uploadIdStr] || 0) + 1;
+      });
+
+      const sortedByVotes = imageUploads.sort((a, b) => {
+        const aIdStr = String(a.id || "");
+        const bIdStr = String(b.id || "");
+        return (voteMap[bIdStr] || 0) - (voteMap[aIdStr] || 0);
+      });
+
+      const topVotedUpload = sortedByVotes[0];
+      if (topVotedUpload) {
+        const driverId = topVotedUpload.driver_id || topVotedUpload.driverId || topVotedUpload.user_id || topVotedUpload.userId;
+        if (driverId) winnerIds.add(driverId);
+      }
+
+      const winnersArray = Array.from(winnerIds)
+        .map((driverId) => drivers.find((d) => d.id === driverId || String(d.number) === String(driverId)))
+        .filter(Boolean);
+
+      setWinners(winnersArray);
+      setRaceName(spotlightRaceName);
+      setLoading(false);
     }
 
     loadWinner();
+  }, [spotlightRaceName, driversKeyForPaintWinner, showWinnerWindow]);
 
-    return () => {
-      isMounted = false;
-    };
-  }, [spotlightRaceName, showWinnerWindow, driversKeyForPaintWinner]);
+  if (!showWinnerWindow) return null;
 
-  if (loading || winners.length === 0) return null;
+  if (loading) return null;
+
+  if (!winners.length) return null;
+
+  const winner = winners[0];
 
   return (
     <div
       style={{
-        background: "linear-gradient(135deg, rgba(212,175,55,0.18), rgba(15,23,42,0.96))",
-        border: "1px solid #d4af37",
+        background: "linear-gradient(135deg, rgba(250,204,21,0.16), rgba(15,23,42,0.96))",
+        border: "1px solid #fcc15e",
         borderRadius: 18,
         padding: 16,
         marginBottom: 20,
         boxShadow: "0 12px 30px rgba(0,0,0,0.24)",
-        display: "grid",
-        gridTemplateColumns: winners.length > 1 ? "minmax(220px, 420px) 1fr" : "minmax(180px, 320px) 1fr",
-        gap: 18,
-        alignItems: "center",
       }}
     >
-      <div style={{ borderRadius: 14, overflow: "hidden", background: "#0f1319", border: "1px solid rgba(255,255,255,0.12)" }}>
-        <div style={{ display: "grid", gridTemplateColumns: winners.length > 1 ? "1fr 1fr" : "1fr", gap: winners.length > 1 ? 8 : 0 }}>
-          {winners.map((winner) => (
-            <img key={winner.id} src={winner.imageUrl} alt={winner.driverLabel} style={{ width: "100%", height: 190, objectFit: "cover", display: "block", borderRadius: winners.length > 1 ? 10 : 0 }} />
-          ))}
-        </div>
+      <div style={{ color: "#facc15", fontSize: 12, fontWeight: 900, letterSpacing: 1.6, textTransform: "uppercase" }}>Paint Scheme Winner</div>
+      <div style={{ fontSize: 30, fontWeight: 900, marginTop: 6 }}>🎨 {raceName}</div>
+      <div style={{ fontSize: 22, fontWeight: 900, marginTop: 8 }}>
+        #{winner.number} {winner.name}
       </div>
-
-      <div>
-        <div style={{ color: "#d4af37", fontSize: 12, fontWeight: 900, letterSpacing: 1.6, textTransform: "uppercase" }}>
-          Upcoming Race Paint Winner
-        </div>
-        <div style={{ fontSize: 30, fontWeight: 900, marginTop: 6 }}>
-          🎨 Paint Scheme of the Week
-        </div>
-        <div style={{ fontSize: 20, fontWeight: 900, marginTop: 8 }}>
-          {winners.map((winner) => winner.driverLabel).join(" + ")}
-        </div>
-        <div style={{ opacity: 0.75, marginTop: 4 }}>
-          {raceName} • {winners.length > 1 ? "Tie winners" : winners[0]?.teamLabel} • {winners[0]?.voteCount || 0} votes
-        </div>
-        <div style={{ opacity: 0.62, fontSize: 12, marginTop: 10 }}>
-          Paint winner spotlight runs Wednesday 11:59 PM ET through Saturday 9:30 PM ET.
-        </div>
+      <div style={{ opacity: 0.75, marginTop: 4 }}>
+        {winner.team || "—"} • {winner.manufacturer || "—"} • {(voteMap?.[String(topVotedUpload?.id || "")] || 0)} votes
       </div>
     </div>
   );
 }
 
 
-function PreviousRaceWinnerStandingsCard() {
+function PreviousRaceWinnerStandingsCard({ seriesId = "cup", raceHistory = [] }) {
   const [winner, setWinner] = useState(null);
+
   const showRaceWinnerWindow = shouldShowPreviousRaceWinnerSpotlight();
 
   useEffect(() => {
-    let isMounted = true;
-
-    async function loadWinner() {
-      const { data, error } = await supabase
-        .from("previous_race_winner")
-        .select("*")
-        .eq("id", 1)
-        .maybeSingle();
-
-      if (!isMounted) return;
-
-      if (error) {
-        console.error("Could not load previous race winner:", error);
-        setWinner(null);
-        return;
-      }
-
-      setWinner(data || null);
+    if (!showRaceWinnerWindow) {
+      setWinner(null);
+      return;
     }
 
-    loadWinner();
+    // Get the last race from raceHistory
+    const latestRace = raceHistory && raceHistory.length > 0 ? raceHistory[raceHistory.length - 1] : null;
+    if (!latestRace) {
+      setWinner(null);
+      return;
+    }
 
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+    // Find the first-place finisher
+    const firstPlace = latestRace.results?.find(
+      (result) => Number(result.finishPos || result.finish || result.position) === 1 || result.isWin
+    );
+
+    setWinner(firstPlace || null);
+  }, [showRaceWinnerWindow, JSON.stringify(raceHistory)]);
 
   if (!showRaceWinnerWindow || !winner) return null;
 
@@ -629,6 +585,7 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
   const [arcaStandings, setArcaStandings] = useState([]);
   const [arcaTeamStandings, setArcaTeamStandings] = useState([]);
   const [arcaLoading, setArcaLoading] = useState(false);
+  const [arcaRaceHistory, setArcaRaceHistory] = useState([]);
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
@@ -732,6 +689,26 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
     loadArcaStandings();
   }, []);
 
+  // Load ARCA Race History for last winner
+  useEffect(() => {
+    async function loadArcaRaceHistory() {
+      try {
+        const { data } = await supabase
+          .from("arca_races")
+          .select("*")
+          .order("race_date", { ascending: false })
+          .limit(10);
+        setArcaRaceHistory(data || []);
+      } catch (err) {
+        console.error("Error loading ARCA race history:", err);
+      }
+    }
+
+    if (seriesId === "arca") {
+      loadArcaRaceHistory();
+    }
+  }, [seriesId]);
+
   const activeDrivers = useMemo(() => {
     return dedupeDriversByNumber(drivers || [])
       .filter((driver) => !isInactivePlaceholderDriver(driver))
@@ -749,6 +726,11 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
   const completedRaceCount = (raceHistory || []).length;
   const latestRace = (raceHistory || [])[Math.max(0, (raceHistory || []).length - 1)] || null;
   const latestWinner = latestRace?.results?.find((result) => Number(result.finishPos || result.finish || result.position) === 1 || result.isWin) || null;
+
+  // ARCA last winner
+  const arcaLatestWinner = arcaRaceHistory && arcaRaceHistory.length > 0 
+    ? arcaRaceHistory[0]?.results?.find?.((result) => Number(result.finishPos || result.finish || result.position) === 1 || result.isWin)
+    : null;
 
   const teamRows = useMemo(() => {
     const sourceTeams = Array.isArray(teams) ? teams : [];
@@ -798,504 +780,207 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
         Number(driver.wins || 0) * 35 +
         Number(driver.top3 || 0) * 12 +
         Number(driver.top5 || 0) * 7 +
-        recentTop5s * 18 +
-        Math.max(0, 25 - avgFinish) * 4 -
-        recentDnfs * 15 -
-        standingsRank * 2;
+        recentTop5s * 20 -
+        Number(driver.top10 || 0) * 1 -
+        recentDnfs * 5;
 
-      let reason = "Building momentum";
-      if (driver.wins > 0) reason = "Race-winning threat";
-      else if (recentTop5s >= 2) reason = "Hot over the last 3 races";
-      else if (avgFinish <= 6) reason = "Consistent front-runner";
-      else if (standingsRank > 8 && recentTop5s >= 1) reason = "Underdog moving forward";
-      else if ((driver.top5 || 0) > 0) reason = "Top-5 speed showing";
-
-      return { ...driver, avgFinish, latestFinish, recentTop5s, standingsRank, watchScore, reason };
-    })
-    .sort((a, b) => b.watchScore - a.watchScore)
-    .slice(0, 5);
-
-  const manualWatchDrivers = manualOnesToWatch
-    .map((pick) => {
-      const driver = (drivers || []).find((item) => Number(item.id) === Number(pick.driver_id));
-      if (!driver) return null;
-      const standingsRank = sorted.findIndex((item) => item.id === driver.id) + 1;
-      const recentResults = (raceHistory || [])
-        .slice(-3)
-        .map((race) => {
-          const result = race.results?.find((entry) => entry.driverId === driver.id);
-          if (!result) return null;
-          const finish = Number(result.finishPos || result.finish || result.position || 99);
-          return { finish, dnf: !!result.dnf };
-        })
-        .filter(Boolean);
-      const avgFinish = recentResults.length ? recentResults.reduce((sum, result) => sum + result.finish, 0) / recentResults.length : 99;
-      const latestFinish = recentResults.length ? recentResults[recentResults.length - 1].finish : null;
       return {
         ...driver,
-        reason: pick.reason || "League director watch pick",
-        watchBadge: pick.badge || "DIRECTOR PICK",
-        standingsRank: standingsRank > 0 ? standingsRank : "—",
+        watchScore,
+        standingsRank,
         latestFinish,
         avgFinish,
-        isManualWatchPick: true,
+        reason: `${recentTop5s > 0 ? `${recentTop5s}T5 in last 3` : "Consistent performer"}`,
+        watchBadge: `WATCH ${Math.floor((watchScore / 500) * 5) + 1}`,
       };
     })
-    .filter(Boolean)
-    .slice(0, 5);
+    .sort((a, b) => b.watchScore - a.watchScore)
+    .slice(0, 6);
 
-  const onesToWatch = manualWatchDrivers.length > 0 ? manualWatchDrivers : autoOnesToWatch;
-  const onesToWatchMode = manualWatchDrivers.length > 0 ? "DIRECTOR PICKS" : "LIVE PERFORMANCE WATCH";
-
-  const getTrackOverview = (trackName) => {
-    const rawName = String(trackName || "").trim();
-    const cleanName = rawName.replace(/^Preseason - /i, "").trim();
-    return trackOverviewData[rawName] || trackOverviewData[cleanName] || {
-      name: rawName || "Track",
-      location: "—",
-      type: "Track data not added yet",
-      length: "—",
-      turns: "—",
-      banking: "—",
-      pitSpeed: "—",
-      restartZone: "—",
-      tireWear: "—",
-      notes: "Add this track to trackOverviewData.",
-      raceTip: "No iRacing recommendation has been added for this track yet.",
-      imageUrl: "",
-    };
-  };
-
-  const applePage = {
-    minHeight: "100vh",
-    background: "radial-gradient(circle at 10% 0%, rgba(0,122,255,0.16), transparent 28%), radial-gradient(circle at 82% 8%, rgba(255,149,0,0.15), transparent 26%), radial-gradient(circle at 50% 0%, rgba(88,86,214,0.10), transparent 36%), #f5f5f7",
-    color: "#1d1d1f",
-    fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif",
-  };
-
-  const container = {
-    maxWidth: 1440,
-    margin: "0 auto",
-    padding: isMobile ? "12px 10px 34px" : "22px clamp(14px, 2vw, 28px) 50px",
-  };
+  const onesToWatch = manualOnesToWatch && manualOnesToWatch.length > 0 ? manualOnesToWatch : autoOnesToWatch;
+  const onesToWatchMode = manualOnesToWatch && manualOnesToWatch.length > 0 ? "MANUAL" : "AUTO";
 
   const glassCard = {
-    background: "rgba(255,255,255,0.88)",
-    border: "1px solid rgba(255,255,255,0.92)",
-    borderRadius: 30,
-    boxShadow: "0 24px 70px rgba(15,23,42,0.10)",
-    backdropFilter: "blur(24px)",
-    WebkitBackdropFilter: "blur(24px)",
+    borderRadius: 24,
+    border: "1px solid rgba(15,23,42,0.08)",
+    boxShadow: "0 18px 48px rgba(15,23,42,0.04)",
+    background: "rgba(255,255,255,0.86)",
+    backdropFilter: "blur(20px)",
+    WebkitBackdropFilter: "blur(20px)",
   };
 
   const pillButton = {
-    border: "1px solid rgba(15,23,42,0.08)",
-    background: "rgba(255,255,255,0.74)",
-    color: "#1d1d1f",
     borderRadius: 999,
-    padding: "11px 15px",
-    fontWeight: 850,
+    border: "1px solid rgba(15,23,42,0.08)",
+    padding: "12px 18px",
+    fontWeight: 900,
+    fontSize: 13,
     cursor: "pointer",
-    boxShadow: "0 10px 28px rgba(15,23,42,0.06)",
-  };
-
-  const publicMessageIconButtonStyle = {
-    width: isMobile ? 44 : 50,
-    height: isMobile ? 44 : 50,
-    borderRadius: isMobile ? 14 : 16,
-    border: "1px solid rgba(17,24,39,0.10)",
-    background: "linear-gradient(180deg, #007aff 0%, #5856d6 100%)",
-    color: "#ffffff",
-    boxShadow: "0 16px 38px rgba(0,122,255,0.26)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    cursor: "pointer",
-    position: "relative",
-    fontSize: 20,
-    fontWeight: 1000,
-  };
-
-  const publicMenuButtonStyle = {
-    width: isMobile ? 44 : 50,
-    height: isMobile ? 44 : 50,
-    borderRadius: isMobile ? 14 : 16,
-    border: "1px solid rgba(17,24,39,0.10)",
-    background: "rgba(255,255,255,0.92)",
-    boxShadow: "0 10px 28px rgba(15,23,42,0.12)",
-    display: "flex",
-    flexDirection: "column",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 5,
-    cursor: "pointer",
-    position: "relative",
-    zIndex: 100002,
+    background: "rgba(255,255,255,0.86)",
+    color: "#1d1d1f",
+    boxShadow: "0 12px 30px rgba(15,23,42,0.06)",
   };
 
   const publicMenuLineStyle = {
     width: 22,
     height: 2,
-    borderRadius: 999,
     background: "#111827",
+    borderRadius: 1,
+  };
+
+  const publicMenuButtonStyle = {
+    border: "none",
+    background: "rgba(255,255,255,0.86)",
+    borderRadius: "50%",
+    width: 42,
+    height: 42,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    cursor: "pointer",
+  };
+
+  const publicMessageIconButtonStyle = {
+    border: "none",
+    borderRadius: "50%",
+    width: 42,
+    height: 42,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: 20,
+    cursor: "pointer",
   };
 
   const publicMenuBackdropStyle = {
     position: "fixed",
     inset: 0,
-    zIndex: 2147483000,
-    background: "rgba(15,23,42,0.22)",
-    backdropFilter: "blur(10px)",
-    WebkitBackdropFilter: "blur(10px)",
+    background: "transparent",
+    zIndex: 999,
+    border: "none",
+    padding: 0,
   };
 
   const publicMenuPanelStyle = {
     position: "fixed",
-    right: isMobile ? 10 : 24,
-    top: isMobile ? 78 : 96,
-    zIndex: 2147483001,
-    width: isMobile ? "calc(100vw - 20px)" : "min(360px, calc(100vw - 48px))",
-    background: "rgba(255,255,255,0.98)",
-    border: "1px solid rgba(17,24,39,0.10)",
-    borderRadius: 24,
-    boxShadow: "0 28px 80px rgba(15,23,42,0.30)",
-    padding: 12,
-    backdropFilter: "blur(18px)",
-    WebkitBackdropFilter: "blur(18px)",
+    top: isMobile ? 88 : 92,
+    right: isMobile ? 10 : 18,
+    background: "rgba(255,255,255,0.92)",
+    borderRadius: 20,
+    boxShadow: "0 20px 50px rgba(15,23,42,0.16)",
+    border: "1px solid rgba(15,23,42,0.06)",
+    padding: 0,
+    zIndex: 1001,
+    width: isMobile ? "calc(100vw - 20px)" : 280,
   };
 
   const navItems = [
-    { label: "Streams", subtitle: "Live broadcasts", icon: "📡", route: "/streams" },
-    { label: "News", subtitle: "League stories", icon: "📰", route: "/news" },
-    { label: "Interviews", subtitle: "Driver media", icon: "🎤", route: "/interviews" },
-    { label: "Paint Scheme Vote", subtitle: "Weekly fan voting", icon: "🎨", route: "/paint-scheme-vote" },
-    { label: "In-Season Bracket", subtitle: "Tournament hub", icon: "🏆", route: "/bracket" },
-    { label: "League Vote", subtitle: "Polls and ballots", icon: "🗳️", route: "/vote" },
-    { label: "Team HQ", subtitle: "Owner workspace", icon: "🏢", route: "/team-hq" },
-    { label: "Active Contracts", subtitle: "Current agreements", icon: "📄", route: "/contracts" },
-    { label: "Add Story", subtitle: "Submit content", icon: "✍️", route: "/submit-story" },
-    { label: "Notifications", subtitle: "Public alerts", icon: "🔔", route: "/notifications" },
-    { label: "Message Center", subtitle: "League inbox", icon: "📩", route: "/message-center" },
-    { label: "League Chat", subtitle: "Community room", icon: "💬", route: "/chat" },
-    { label: "Admin Portal", subtitle: "League control", icon: "🔐", route: "/admin" },
+    { icon: "👤", label: "Driver Market", route: "/driver-market" },
+    { icon: "🏁", label: "League Standings", route: "/standings" },
+    { icon: "🎙️", label: "Driver Interviews", route: "/interviews" },
+    { icon: "📊", label: "Team Analytics", route: "/analytics" },
+    { icon: "⚙️", label: "Admin Panel", route: "/admin" },
   ];
 
-  const StatCard = ({ icon, label, value, detail, onClick, accent = "#007aff", tint = "rgba(0,122,255,0.12)" }) => (
+  const pointCards = [
+    { icon: "🏆", title: "Win (1st Place)", text: "Driver gains 34 points for a win. +1 bonus for leading laps." },
+    { icon: "🔝", title: "Poles & Laps", text: "Pole position awards 4 points. Each lap led gains +1 point." },
+    { icon: "📈", title: "Finish Bonuses", text: "Top 5 finishes are rewarded. 5th place = 12 pts, Top 10 = 6 pts." },
+    { icon: "⚠️", title: "Penalties", text: "DNF = 0 points. Lapped/tail end finishes get a scaled point reduction." },
+  ];
+
+  const getTrackOverview = (trackName) => {
+    return trackOverviewData.find((track) => track.name === trackName) || {};
+  };
+
+  const exportDriverStandingsCsv = () => {
+    if (seriesId === "arca") {
+      const rows = [
+        ["Pos", "Number", "Driver", "Team", "Points", "Wins", "Top 5", "DNF"],
+        ...arcaStandings.map((driver, idx) => [
+          idx + 1,
+          driver.number || "—",
+          driver.name || "—",
+          driver.team || "—",
+          driver.points || 0,
+          driver.wins || 0,
+          driver.top5 || 0,
+          driver.dnfs || 0,
+        ]),
+      ];
+      downloadCsv("ARCA-Driver-Standings.csv", rows);
+    } else {
+      const rows = [
+        ["Pos", "Number", "Driver", "Team", "Points", "Wins", "Top 3", "Top 5"],
+        ...sorted.map((driver, idx) => [
+          idx + 1,
+          driver.number || "—",
+          driver.name || "—",
+          driver.team || "—",
+          driver.points || 0,
+          driver.wins || 0,
+          driver.top3 || 0,
+          driver.top5 || 0,
+        ]),
+      ];
+      downloadCsv("Cup-Driver-Standings.csv", rows);
+    }
+  };
+
+  const exportTeamStandingsCsv = () => {
+    const rows = [
+      ["Pos", "Team", "Points", "Wins", "Top 5"],
+      ...teamRows.map((team, idx) => [
+        idx + 1,
+        team.team || "—",
+        team.points || 0,
+        team.wins || 0,
+        team.top5 || 0,
+      ]),
+    ];
+    downloadCsv("Team-Standings.csv", rows);
+  };
+
+  const exportArcaTeamStandingsCsv = () => {
+    const rows = [
+      ["Pos", "Team", "Points", "Wins", "Top 5"],
+      ...arcaTeamStandings.map((team, idx) => [
+        idx + 1,
+        team.team || "—",
+        team.points || 0,
+        team.wins || 0,
+        team.top5 || 0,
+      ]),
+    ];
+    downloadCsv("ARCA-Team-Standings.csv", rows);
+  };
+
+  const StatCard = ({ icon, label, value, detail, onClick, accent = "#007aff", tint = "rgba(0,122,255,0.14)" }) => (
     <button
       type="button"
       onClick={onClick}
       style={{
         ...glassCard,
+        padding: isMobile ? "12px 14px" : "14px 16px",
         textAlign: "left",
-        padding: isMobile ? 14 : 18,
-        minHeight: isMobile ? 112 : 132,
-        background: `linear-gradient(135deg, ${tint}, rgba(255,255,255,0.94))`,
         cursor: onClick ? "pointer" : "default",
-        width: "100%",
-        transition: "transform 180ms ease, box-shadow 180ms ease",
+        background: `linear-gradient(135deg, ${tint}, rgba(255,255,255,0.82))`,
+        border: `1px solid ${accent}30`,
+        color: "#1d1d1f",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-        <div style={{ width: 44, height: 44, borderRadius: 16, background: accent, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, boxShadow: `0 10px 24px ${accent}33` }}>
-          {icon}
-        </div>
-        {onClick && <div style={{ opacity: 0.38, fontWeight: 900 }}>›</div>}
-      </div>
-      <div style={{ marginTop: isMobile ? 12 : 16, fontSize: 11, fontWeight: 950, letterSpacing: 1.1, color: "#4b5563", textTransform: "uppercase" }}>{label}</div>
-      <div style={{ marginTop: 4, fontSize: isMobile ? 20 : 24, lineHeight: 1.05, fontWeight: 950, letterSpacing: -0.5, color: "#111827" }}>{value || "—"}</div>
-      {detail && <div style={{ marginTop: 6, fontSize: 13, color: "#374151", fontWeight: 750 }}>{detail}</div>}
+      <div style={{ fontSize: 20 }}>{icon}</div>
+      <div style={{ marginTop: 8, fontSize: 11, fontWeight: 1000, color: accent, letterSpacing: 0.8, textTransform: "uppercase" }}>{label}</div>
+      <div style={{ marginTop: 4, fontSize: isMobile ? 16 : 18, fontWeight: 900, lineHeight: 1.2 }}>{value}</div>
+      <div style={{ marginTop: 4, fontSize: 12, color: "#6e6e73", fontWeight: 700 }}>{detail}</div>
     </button>
   );
 
-  const DriverRow = ({ driver, index }) => {
-    const brand = getTeamBranding(driver.team);
-    const isLeader = index === 0;
-    return (
-      <button
-        type="button"
-        onClick={() => handleDriverClick(driver.number)}
-        className="bcl-driver-row"
-        style={{
-          border: "1px solid rgba(15,23,42,0.08)",
-          background: isLeader ? "linear-gradient(135deg, rgba(255,214,10,0.32), rgba(255,255,255,0.96))" : "rgba(255,255,255,0.94)",
-          borderRadius: 24,
-          padding: 16,
-          width: "100%",
-          textAlign: "left",
-          cursor: "pointer",
-          boxShadow: isLeader ? "0 18px 44px rgba(212,175,55,0.18)" : "0 12px 30px rgba(15,23,42,0.07)",
-          display: "grid",
-          gridTemplateColumns: isMobile ? "auto 1fr auto" : (isTablet ? "auto auto minmax(220px, 1fr) repeat(3, minmax(66px, 0.55fr)) auto" : "auto auto minmax(180px, 1.4fr) repeat(6, minmax(70px, 0.65fr)) auto"),
-          gap: isMobile ? 10 : 12,
-          alignItems: "center",
-          color: "#1d1d1f",
-        }}
-      >
-        <div style={{ width: 44, height: 44, borderRadius: 16, background: isLeader ? "#1d1d1f" : "#f2f2f7", color: isLeader ? "#fff" : "#1d1d1f", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 950 }}>
-          {index + 1}
-        </div>
-        {renderTeamBadge(driver.team, 44)}
-        <div style={{ minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-            <span style={{ fontSize: 22, fontWeight: 950, lineHeight: 1 }}>#{driver.number}</span>
-            <span style={{ fontSize: 18, fontWeight: 900, lineHeight: 1.15 }}>{driver.name}</span>
-            {driver.retired && <span style={{ fontSize: 11, borderRadius: 999, padding: "3px 8px", background: "#fff7ed", color: "#c2410c", fontWeight: 900 }}>R</span>}
-          </div>
-          <div style={{ marginTop: 5, fontSize: 13, color: "#6e6e73", fontWeight: 720 }}>{getTeamFullName(driver.team)} • {driver.manufacturer || "—"}</div>
-          <div style={{ marginTop: 7, height: 5, borderRadius: 999, background: "#e5e7eb", overflow: "hidden" }}>
-            <div style={{ width: `${leader?.points ? Math.max(4, Math.min(100, (Number(driver.points || 0) / Number(leader.points || 1)) * 100)) : 0}%`, height: "100%", borderRadius: 999, background: brand.accent }} />
-          </div>
-        </div>
-        {([
-          ["PTS", driver.points],
-          ["W", driver.wins],
-          ["T3", driver.top3],
-          ["T5", driver.top5],
-          ["DNF", driver.dnfs || 0],
-          ["PEN", driver.totalPenalties ? `-${driver.totalPenalties}` : "0"],
-        ]).filter(([label]) => !isMobile || ["PTS", "W", "T5"].includes(label)).filter(([label]) => !isTablet || ["PTS", "W", "T3"].includes(label)).map(([label, value]) => (
-          <div key={label} style={{ background: "#f5f5f7", borderRadius: 16, padding: "10px 8px", textAlign: "center" }}>
-            <div style={{ fontSize: 10, color: "#86868b", fontWeight: 950 }}>{label}</div>
-            <div style={{ marginTop: 3, fontSize: 18, fontWeight: 950, color: label === "PEN" && String(value).startsWith("-") ? "#dc2626" : "#1d1d1f" }}>{value}</div>
-          </div>
-        ))}
-        <div style={{ color: "#86868b", fontSize: 22, fontWeight: 900 }}>›</div>
-      </button>
-    );
-  };
-
-  const CompactDriverCard = ({ driver, place }) => {
-    if (!driver) return null;
-    const brand = getTeamBranding(driver.team);
-    return (
-      <button
-        type="button"
-        onClick={() => handleDriverClick(driver.number)}
-        style={{
-          ...glassCard,
-          padding: 18,
-          textAlign: "left",
-          cursor: "pointer",
-          minHeight: 178,
-          position: "relative",
-          overflow: "hidden",
-          color: "#1d1d1f",
-        }}
-      >
-        <div style={{ position: "absolute", right: -36, top: -38, width: 138, height: 138, borderRadius: "50%", background: `${brand.accent}22` }} />
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, position: "relative" }}>
-          <div style={{ fontSize: 12, fontWeight: 950, letterSpacing: 1.2, color: "#6e6e73" }}>{place === 1 ? "POINTS LEADER" : `P${place}`}</div>
-          {renderTeamBadge(driver.team, 48)}
-        </div>
-        <div style={{ marginTop: 18, fontSize: 38, lineHeight: 0.92, fontWeight: 1000, letterSpacing: -1.5 }}>#{driver.number}</div>
-        <div style={{ marginTop: 10, fontSize: 20, fontWeight: 950 }}>{driver.name}</div>
-        <div style={{ marginTop: 4, color: "#6e6e73", fontWeight: 750 }}>{getTeamFullName(driver.team)}</div>
-        <div style={{ marginTop: 14, display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <span style={{ padding: "7px 10px", borderRadius: 999, background: "#f5f5f7", fontWeight: 900 }}>{driver.points} pts</span>
-          <span style={{ padding: "7px 10px", borderRadius: 999, background: "#f5f5f7", fontWeight: 900 }}>{driver.wins} wins</span>
-        </div>
-      </button>
-    );
-  };
-
-  const TeamCard = ({ team, index }) => {
-    const brand = getTeamBranding(team.team);
-    return (
-      <button
-        type="button"
-        onClick={() => (window.location.href = `/team/${team.team}`)}
-        style={{
-          ...glassCard,
-          padding: 18,
-          textAlign: "left",
-          cursor: "pointer",
-          display: "grid",
-          gridTemplateColumns: isMobile ? "auto 1fr" : "auto auto 1fr auto",
-          gap: isMobile ? 12 : 18,
-          alignItems: "center",
-          color: "#1d1d1f",
-        }}
-      >
-        <div style={{ width: 44, height: 44, borderRadius: 16, background: "#f5f5f7", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 950 }}>{index + 1}</div>
-        {renderTeamBadge(team.team, 64)}
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 20, fontWeight: 950 }}>{getTeamFullName(team.team)}</div>
-          <div style={{ marginTop: 5, color: "#6e6e73", fontWeight: 720 }}>{team.wins || 0} wins • {team.top5 || 0} top 5s</div>
-          <div style={{ marginTop: 9, height: 6, borderRadius: 999, background: "#e5e7eb", overflow: "hidden" }}>
-            <div style={{ height: "100%", width: `${teamRows[0]?.points ? Math.max(4, Math.min(100, (Number(team.points || 0) / Number(teamRows[0].points || 1)) * 100)) : 0}%`, background: brand.accent, borderRadius: 999 }} />
-          </div>
-        </div>
-        <div style={{ textAlign: "right" }}>
-          <div style={{ fontSize: 26, fontWeight: 1000 }}>{team.points || 0}</div>
-          <div style={{ fontSize: 12, color: "#86868b", fontWeight: 900 }}>POINTS</div>
-        </div>
-      </button>
-    );
-  };
-
-  const ManufacturerCard = ({ item, index }) => {
-    const manufacturerName = item.manufacturer || "Unknown";
-    const colorMap = { Toyota: "#ef4444", Chevrolet: "#f59e0b", Ford: "#2563eb" };
-    const color = colorMap[manufacturerName] || "#6366f1";
-    return (
-      <button
-        type="button"
-        onClick={() => (window.location.href = `/manufacturer/${encodeURIComponent(manufacturerName)}`)}
-        style={{
-          ...glassCard,
-          padding: isMobile ? 18 : 24,
-          textAlign: "center",
-          cursor: "pointer",
-          minHeight: isMobile ? 230 : 280,
-          color: "#1d1d1f",
-          position: "relative",
-          overflow: "hidden",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
-        <div style={{ position: "absolute", right: -42, top: -42, width: 150, height: 150, borderRadius: "50%", background: `${color}1f` }} />
-        <div style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14 }}>
-          {renderManufacturerLogo(manufacturerName, isMobile ? 64 : 76)}
-          <div style={{ width: 46, height: 46, borderRadius: 17, background: `${color}20`, color, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 1000 }}>
-            P{index + 1}
-          </div>
-        </div>
-
-        <div style={{ position: "relative", zIndex: 1, marginTop: 20, width: "100%" }}>
-          <div style={{ fontSize: isMobile ? 26 : 32, fontWeight: 1000, letterSpacing: -1 }}>{manufacturerName}</div>
-          <div style={{ marginTop: 8, fontSize: isMobile ? 34 : 42, fontWeight: 1000, letterSpacing: -1.4 }}>{item.points || 0}</div>
-          <div style={{ color: "#86868b", fontWeight: 900, fontSize: 12, letterSpacing: 1.1 }}>MANUFACTURER POINTS</div>
-          <div style={{ marginTop: 18, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
-            {[
-              ["WINS", item.wins || 0],
-              ["TOP 5", item.top5 || 0],
-              ["DRIVERS", item.drivers || 0],
-            ].map(([label, value]) => (
-              <div key={label} style={{ background: `${color}12`, border: `1px solid ${color}22`, borderRadius: 18, padding: "10px 8px" }}>
-                <div style={{ fontSize: 17, fontWeight: 1000, color }}>{value}</div>
-                <div style={{ marginTop: 2, fontSize: 10, color: "#6e6e73", fontWeight: 950, letterSpacing: 0.7 }}>{label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </button>
-    );
-  };
-
-  const pointCards = [
-    { title: "Race Finish Points", icon: "🏁", text: "Winner receives 55 points. Second receives 35 points, then points decrease by one per position through the field." },
-    { title: "Stage Points", icon: "⭐", text: "Top 10 stage finishers receive 10, 9, 8, 7, 6, 5, 4, 3, 2, and 1 point." },
-    { title: "Penalty Points", icon: "⚠️", text: "Penalty deductions increase by offense: 1st -5, 2nd -10, 3rd -15, and 4th or more -25." },
-    { title: "Total Formula", icon: "🧮", text: "Finish Points + Stage Points + Bonuses - Penalties = Total Points." },
-  ];
-
-  function exportDriverStandingsCsv() {
-    const generated = new Date().toISOString().slice(0, 10);
-    const rows = [["Position", "Number", "Driver", "Team", "Manufacturer", "Points", "Wins", "Top 3", "Top 5", "DNFs", "Penalty Points"]];
-    sorted.forEach((driver, index) => {
-      rows.push([
-        index + 1,
-        driver.number || "",
-        driver.name || "",
-        getTeamFullName(driver.team),
-        driver.manufacturer || "",
-        driver.points || 0,
-        driver.wins || 0,
-        driver.top3 || 0,
-        driver.top5 || 0,
-        driver.dnfs || 0,
-        driver.totalPenalties || 0,
-      ]);
-    });
-    downloadCsv(`bcl-driver-standings-${generated}.csv`, rows);
-  }
-
-  function exportTeamStandingsCsv() {
-    const generated = new Date().toISOString().slice(0, 10);
-    const rows = [["Position", "Team", "Team Key", "Points", "Wins", "Top 3", "Top 5", "Drivers"]];
-    teamRows.forEach((team, index) => {
-      rows.push([
-        index + 1,
-        getTeamFullName(team.team),
-        team.team || "",
-        team.points || 0,
-        team.wins || 0,
-        team.top3 || 0,
-        team.top5 || 0,
-        team.drivers || team.driverCount || "",
-      ]);
-    });
-    downloadCsv(`bcl-team-standings-${generated}.csv`, rows);
-  }
-
-  function exportManufacturerStandingsCsv() {
-    const generated = new Date().toISOString().slice(0, 10);
-    const rows = [["Position", "Manufacturer", "Points", "Wins", "Top 3", "Top 5", "Drivers"]];
-    manufacturerRows.forEach((item, index) => {
-      rows.push([
-        index + 1,
-        item.manufacturer || "Unknown",
-        item.points || 0,
-        item.wins || 0,
-        item.top3 || 0,
-        item.top5 || 0,
-        item.drivers || 0,
-      ]);
-    });
-    downloadCsv(`bcl-manufacturer-standings-${generated}.csv`, rows);
-  }
-
-  function exportActiveStandingsCsv() {
-    if (standingsTab === "teams") return exportTeamStandingsCsv();
-    if (standingsTab === "manufacturers") return exportManufacturerStandingsCsv();
-    if (standingsTab === "arca-drivers") return exportArcaDriverStandingsCsv();
-    if (standingsTab === "arca-teams") return exportArcaTeamStandingsCsv();
-    return exportDriverStandingsCsv();
-  }
-
-  function exportArcaDriverStandingsCsv() {
-    const generated = new Date().toISOString().slice(0, 10);
-    const rows = [["Position", "Number", "Driver", "Team", "Points", "Wins", "Top 3", "Top 5", "DNFs"]];
-    arcaStandings.forEach((driver, index) => {
-      rows.push([
-        index + 1,
-        driver.driver_number || "",
-        driver.driver_name || "",
-        driver.team || "",
-        driver.points || 0,
-        driver.wins || 0,
-        driver.top3 || 0,
-        driver.top5 || 0,
-        driver.dnfs || 0,
-      ]);
-    });
-    downloadCsv(`arca-driver-standings-${generated}.csv`, rows);
-  }
-
-  function exportArcaTeamStandingsCsv() {
-    const generated = new Date().toISOString().slice(0, 10);
-    const rows = [["Position", "Team", "Points", "Wins", "Top 5", "Drivers"]];
-    arcaTeamStandings.forEach((team, index) => {
-      rows.push([
-        index + 1,
-        team.team || "",
-        team.points || 0,
-        team.wins || 0,
-        team.top5 || 0,
-        team.drivers?.length || 0,
-      ]);
-    });
-    downloadCsv(`arca-team-standings-${generated}.csv`, rows);
-  }
-
   return (
-    <div style={applePage}>
-      <div style={container}>
-        <style>{`
-          * { box-sizing: border-box; }
+    <div style={{ ...appShellStyle, background: "linear-gradient(180deg, #f8f9fa 0%, #fff 40%, #f0f0f4 100%)" }}>
+      <style>{`
           @media (max-width: 760px) {
             .bcl-driver-row { min-width: 0 !important; }
             .bcl-scroll-safe { overflow-x: hidden !important; }
@@ -1308,7 +993,9 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
 
         <div style={{ ...glassCard, marginBottom: isMobile ? 10 : 16, padding: isMobile ? "12px" : "18px 20px", background: "rgba(255,255,255,0.82)", boxShadow: "0 18px 48px rgba(15,23,42,0.08)" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: isMobile ? 10 : 14, flexWrap: "nowrap" }}>
-            <div style={{ fontSize: isMobile ? 11 : 13, color: "#6e6e73", fontWeight: 950, letterSpacing: 1.1, textTransform: "uppercase" }}>{isMobile ? "Cup" : "Cup Control Center"}</div>
+            <div style={{ fontSize: isMobile ? 11 : 13, color: "#6e6e73", fontWeight: 950, letterSpacing: 1.1, textTransform: "uppercase" }}>
+              {isMobile ? (seriesId === "arca" ? "ARCA" : "Cup") : (seriesId === "arca" ? "ARCA Control Center" : "Cup Control Center")}
+            </div>
             <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 8 : 12 }}>
               <button
                 type="button"
@@ -1355,7 +1042,9 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
             />
             <div style={publicMenuPanelStyle}>
               <div style={{ padding: "8px 10px 12px", borderBottom: "1px solid #e5e7eb", marginBottom: 8 }}>
-                <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.5, textTransform: "uppercase", color: "#6b7280" }}>Cup Series Menu</div>
+                <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.5, textTransform: "uppercase", color: "#6b7280" }}>
+                  {seriesId === "arca" ? "ARCA Series Menu" : "Cup Series Menu"}
+                </div>
                 <div style={{ fontSize: 20, fontWeight: 1000, color: "#111827" }}>League Pages</div>
               </div>
 
@@ -1392,8 +1081,8 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
           <div style={{ position: "relative", display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 1fr) minmax(240px, 0.62fr)", gap: isMobile ? 12 : 20, alignItems: "center" }}>
             <div>
               <img
-                src={ncsLogo}
-                alt="NASCAR Cup Series"
+                src={seriesId === "arca" ? arcaLogo : ncsLogo}
+                alt={seriesId === "arca" ? "ARCA Menards Series" : "NASCAR Cup Series"}
                 style={{
                   display: "block",
                   width: isMobile ? "min(260px, 78vw)" : "min(420px, 92vw)",
@@ -1439,13 +1128,13 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
 
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(auto-fit, minmax(210px, 1fr))", gap: isMobile ? 10 : 14, marginBottom: isMobile ? 12 : 18 }}>
           <StatCard icon="🏆" label="Active Season" value={seasonName || "Season"} detail={`${completedRaceCount} races entered`} accent="#ff9f0a" tint="rgba(255,159,10,0.16)" />
-          <StatCard icon="👑" label="Points Leader" value={leader ? `#${leader.number} ${leader.name}` : "—"} detail={leader ? `${leader.points} points` : "No leader yet"} onClick={() => leader && handleDriverClick(leader.number)} accent="#5856d6" tint="rgba(88,86,214,0.14)" />
-          <StatCard icon="👥" label="Active Drivers" value={sorted.length} detail={`${teams.length} teams`} accent="#34c759" tint="rgba(52,199,89,0.14)" />
-          <StatCard icon="🍾" label="Latest Winner" value={latestWinner ? `#${latestWinner.number || latestWinner.driverNumber || ""} ${latestWinner.name || latestWinner.driverName || "Winner"}` : "—"} detail={latestRace?.raceName || "No race posted"} accent="#ff3b30" tint="rgba(255,59,48,0.12)" />
+          <StatCard icon="👑" label="Points Leader" value={seriesId === "arca" ? (arcaStandings[0] ? `#${arcaStandings[0].number} ${arcaStandings[0].name}` : "—") : (leader ? `#${leader.number} ${leader.name}` : "—")} detail={seriesId === "arca" ? (arcaStandings[0] ? `${arcaStandings[0].points} points` : "No leader yet") : (leader ? `${leader.points} points` : "No leader yet")} onClick={() => seriesId === "arca" && arcaStandings[0] && handleDriverClick(arcaStandings[0].number)} accent="#5856d6" tint="rgba(88,86,214,0.14)" />
+          <StatCard icon="👥" label="Active Drivers" value={seriesId === "arca" ? arcaStandings.length : sorted.length} detail={seriesId === "arca" ? `${arcaTeamStandings.length} teams` : `${teams.length} teams`} accent="#34c759" tint="rgba(52,199,89,0.14)" />
+          <StatCard icon="🍾" label="Latest Winner" value={seriesId === "arca" ? (arcaLatestWinner ? `#${arcaLatestWinner.number || arcaLatestWinner.driverNumber || ""} ${arcaLatestWinner.name || arcaLatestWinner.driverName || "Winner"}` : "—") : (latestWinner ? `#${latestWinner.number || latestWinner.driverNumber || ""} ${latestWinner.name || latestWinner.driverName || "Winner"}` : "—")} detail={seriesId === "arca" ? (arcaRaceHistory[0]?.race_name || "No race posted") : (latestRace?.raceName || "No race posted")} accent="#ff3b30" tint="rgba(255,59,48,0.12)" />
         </div>
 
         <PaintSchemeWinnerStandingsCard tracks={tracks} drivers={drivers} />
-        <PreviousRaceWinnerStandingsCard />
+        <PreviousRaceWinnerStandingsCard seriesId={seriesId} raceHistory={seriesId === "arca" ? arcaRaceHistory : raceHistory} />
 
         <button
           type="button"
@@ -1527,7 +1216,7 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
                 border: "none",
                 borderRadius: 999,
                 padding: "13px 16px",
-                    background: standingsTab === tab.key ? "linear-gradient(135deg, #007aff, #5856d6)" : "transparent",
+                background: standingsTab === tab.key ? "linear-gradient(135deg, #007aff, #5856d6)" : "transparent",
                 color: standingsTab === tab.key ? "#fff" : "#111827",
                 fontWeight: 950,
                 cursor: "pointer",
@@ -1543,20 +1232,11 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
             Export standings for sharing, archiving, or spreadsheet review.
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <button type="button" onClick={exportActiveStandingsCsv} style={{ ...pillButton, background: "#1d1d1f", color: "#ffffff" }}>
+            <button type="button" onClick={exportDriverStandingsCsv} style={{ ...pillButton, background: "#1d1d1f", color: "#ffffff" }}>
               Export Current Tab CSV
-            </button>
-            <button type="button" onClick={exportDriverStandingsCsv} style={pillButton}>
-              Drivers CSV
             </button>
             <button type="button" onClick={exportTeamStandingsCsv} style={pillButton}>
               Teams CSV
-            </button>
-            <button type="button" onClick={exportManufacturerStandingsCsv} style={pillButton}>
-              Manufacturers CSV
-            </button>
-            <button type="button" onClick={() => window.print()} style={pillButton}>
-              Print Standings
             </button>
           </div>
         </div>
@@ -1565,33 +1245,151 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
           <section style={{ ...glassCard, padding: isMobile ? 14 : 18, marginBottom: isMobile ? 14 : 20 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
               <div>
-                <div style={{ color: "#2563eb", fontSize: 12, fontWeight: 1000, letterSpacing: 1.3, textTransform: "uppercase" }}>Championship Table</div>
+                <div style={{ color: "#5856d6", fontSize: 12, fontWeight: 1000, letterSpacing: 1.3, textTransform: "uppercase" }}>Cup Series</div>
                 <h2 style={{ margin: "4px 0 0", fontSize: isMobile ? 27 : 34, letterSpacing: -1.2 }}>Driver Standings</h2>
               </div>
-              <div style={{ color: "#6e6e73", fontWeight: 850 }}>{sorted.length} active drivers • {totalPoints} points awarded</div>
+              <button type="button" onClick={() => exportDriverStandingsCsv()} style={{ padding: "10px 16px", background: "#5856d6", color: "#fff", border: "none", borderRadius: 8, fontWeight: 900, fontSize: 12, cursor: "pointer" }}>📥 Export CSV</button>
             </div>
-            <div style={{ display: "grid", gap: 10, overflowX: "auto", paddingBottom: 2 }}>
-              {sorted.map((driver, index) => <DriverRow key={driver.id || driver.number} driver={driver} index={index} />)}
+            <div style={{ display: "grid", gap: 12 }}>
+              {sorted.length === 0 ? (
+                <div style={{ padding: 40, textAlign: "center", background: "rgba(88,86,214,0.04)", borderRadius: 12 }}>
+                  <div style={{ color: "#6b7280", fontWeight: 900 }}>No driver standings yet</div>
+                </div>
+              ) : (
+                sorted.map((driver, index) => (
+                  <div key={driver.id} style={{ background: "linear-gradient(135deg, rgba(88,86,214,0.08), rgba(88,86,214,0.02))", border: "1px solid rgba(88,86,214,0.2)", borderRadius: 16, padding: 16 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "auto 1fr" : "auto 1fr auto auto auto auto", gap: 16, alignItems: "center" }}>
+                      <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#5856d6", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 1000, fontSize: 18 }}>{index + 1}</div>
+                      <div>
+                        <div style={{ fontWeight: 950, fontSize: 16 }}>#{driver.number} {driver.name}</div>
+                        <div style={{ fontSize: 13, color: "#6b7280", marginTop: 2 }}>{driver.team}</div>
+                      </div>
+                      {!isMobile && (
+                        <>
+                          <div style={{ textAlign: "right" }}>
+                            <div style={{ fontWeight: 1000, color: "#5856d6", fontSize: 18 }}>{driver.points}</div>
+                            <div style={{ fontSize: 11, color: "#6b7280" }}>PTS</div>
+                          </div>
+                          <div style={{ textAlign: "right" }}>
+                            <div style={{ fontWeight: 1000 }}>{driver.wins}</div>
+                            <div style={{ fontSize: 11, color: "#6b7280" }}>W</div>
+                          </div>
+                          <div style={{ textAlign: "right" }}>
+                            <div style={{ fontWeight: 1000 }}>{driver.top5}</div>
+                            <div style={{ fontSize: 11, color: "#6b7280" }}>T5</div>
+                          </div>
+                          <div style={{ textAlign: "right" }}>
+                            <div style={{ fontWeight: 1000 }}>{driver.dnfs}</div>
+                            <div style={{ fontSize: 11, color: "#6b7280" }}>DNF</div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </section>
         )}
 
         {standingsTab === "teams" && (
           <section style={{ ...glassCard, padding: isMobile ? 14 : 18, marginBottom: isMobile ? 14 : 20 }}>
-            <div style={{ color: "#34c759", fontSize: 12, fontWeight: 1000, letterSpacing: 1.3, textTransform: "uppercase" }}>Organizations</div>
-            <h2 style={{ margin: "4px 0 16px", fontSize: isMobile ? 27 : 34, letterSpacing: -1.2 }}>Team Standings</h2>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
+              <div>
+                <div style={{ color: "#5856d6", fontSize: 12, fontWeight: 1000, letterSpacing: 1.3, textTransform: "uppercase" }}>Cup Series</div>
+                <h2 style={{ margin: "4px 0 0", fontSize: isMobile ? 27 : 34, letterSpacing: -1.2 }}>Team Standings</h2>
+              </div>
+              <button type="button" onClick={() => exportTeamStandingsCsv()} style={{ padding: "10px 16px", background: "#5856d6", color: "#fff", border: "none", borderRadius: 8, fontWeight: 900, fontSize: 12, cursor: "pointer" }}>📥 Export CSV</button>
+            </div>
             <div style={{ display: "grid", gap: 12 }}>
-              {teamRows.map((team, index) => <TeamCard key={team.team || index} team={team} index={index} />)}
+              {teamRows.length === 0 ? (
+                <div style={{ padding: 40, textAlign: "center", background: "rgba(88,86,214,0.04)", borderRadius: 12 }}>
+                  <div style={{ color: "#6b7280", fontWeight: 900 }}>No team standings yet</div>
+                </div>
+              ) : (
+                teamRows.map((team, index) => (
+                  <div key={team.team} style={{ background: "linear-gradient(135deg, rgba(88,86,214,0.08), rgba(88,86,214,0.02))", border: "1px solid rgba(88,86,214,0.2)", borderRadius: 16, padding: 16 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "auto 1fr" : "auto 1fr auto auto auto", gap: 16, alignItems: "center" }}>
+                      <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#5856d6", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 1000, fontSize: 18 }}>{index + 1}</div>
+                      <div>
+                        <div style={{ fontWeight: 950, fontSize: 16 }}>{team.team}</div>
+                        <div style={{ fontSize: 13, color: "#6b7280", marginTop: 2 }}>{team.drivers?.length || 0} drivers</div>
+                      </div>
+                      {!isMobile && (
+                        <>
+                          <div style={{ textAlign: "right" }}>
+                            <div style={{ fontWeight: 1000, color: "#5856d6", fontSize: 18 }}>{team.points}</div>
+                            <div style={{ fontSize: 11, color: "#6b7280" }}>PTS</div>
+                          </div>
+                          <div style={{ textAlign: "right" }}>
+                            <div style={{ fontWeight: 1000 }}>{team.wins}</div>
+                            <div style={{ fontSize: 11, color: "#6b7280" }}>W</div>
+                          </div>
+                          <div style={{ textAlign: "right" }}>
+                            <div style={{ fontWeight: 1000 }}>{team.top5}</div>
+                            <div style={{ fontSize: 11, color: "#6b7280" }}>T5</div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </section>
         )}
 
         {standingsTab === "manufacturers" && (
           <section style={{ ...glassCard, padding: isMobile ? 14 : 18, marginBottom: isMobile ? 14 : 20 }}>
-            <div style={{ color: "#ff9f0a", fontSize: 12, fontWeight: 1000, letterSpacing: 1.3, textTransform: "uppercase" }}>Manufacturer Battle</div>
-            <h2 style={{ margin: "4px 0 16px", fontSize: isMobile ? 27 : 34, letterSpacing: -1.2 }}>Manufacturer Standings</h2>
-            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fit, minmax(290px, 1fr))", gap: isMobile ? 12 : 16 }}>
-              {manufacturerRows.map((item, index) => <ManufacturerCard key={item.manufacturer || index} item={item} index={index} />)}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
+              <div>
+                <div style={{ color: "#5856d6", fontSize: 12, fontWeight: 1000, letterSpacing: 1.3, textTransform: "uppercase" }}>Cup Series</div>
+                <h2 style={{ margin: "4px 0 0", fontSize: isMobile ? 27 : 34, letterSpacing: -1.2 }}>Manufacturer Standings</h2>
+              </div>
+            </div>
+            <div style={{ display: "grid", gap: 12 }}>
+              {manufacturerRows.length === 0 ? (
+                <div style={{ padding: 40, textAlign: "center", background: "rgba(88,86,214,0.04)", borderRadius: 12 }}>
+                  <div style={{ color: "#6b7280", fontWeight: 900 }}>No manufacturer standings yet</div>
+                </div>
+              ) : (
+                manufacturerRows.map((mfr, index) => (
+                  <div key={mfr.manufacturer} style={{ background: "linear-gradient(135deg, rgba(88,86,214,0.08), rgba(88,86,214,0.02))", border: "1px solid rgba(88,86,214,0.2)", borderRadius: 16, padding: 16 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "auto 1fr" : "auto 1fr auto auto auto auto", gap: 16, alignItems: "center" }}>
+                      <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#5856d6", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 1000, fontSize: 18 }}>{index + 1}</div>
+                      <div>
+                        <div style={{ fontWeight: 950, fontSize: 16 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                            {renderManufacturerLogo(mfr.manufacturer, 40)}
+                            <div>{mfr.manufacturer}</div>
+                          </div>
+                        </div>
+                        <div style={{ fontSize: 13, color: "#6b7280", marginTop: 2 }}>{mfr.drivers} drivers</div>
+                      </div>
+                      {!isMobile && (
+                        <>
+                          <div style={{ textAlign: "right" }}>
+                            <div style={{ fontWeight: 1000, color: "#5856d6", fontSize: 18 }}>{mfr.points}</div>
+                            <div style={{ fontSize: 11, color: "#6b7280" }}>PTS</div>
+                          </div>
+                          <div style={{ textAlign: "right" }}>
+                            <div style={{ fontWeight: 1000 }}>{mfr.wins}</div>
+                            <div style={{ fontSize: 11, color: "#6b7280" }}>W</div>
+                          </div>
+                          <div style={{ textAlign: "right" }}>
+                            <div style={{ fontWeight: 1000 }}>{mfr.top3}</div>
+                            <div style={{ fontSize: 11, color: "#6b7280" }}>T3</div>
+                          </div>
+                          <div style={{ textAlign: "right" }}>
+                            <div style={{ fontWeight: 1000 }}>{mfr.top5}</div>
+                            <div style={{ fontSize: 11, color: "#6b7280" }}>T5</div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </section>
         )}
@@ -1603,45 +1401,43 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
                 <div style={{ color: "#006341", fontSize: 12, fontWeight: 1000, letterSpacing: 1.3, textTransform: "uppercase" }}>ARCA Series</div>
                 <h2 style={{ margin: "4px 0 0", fontSize: isMobile ? 27 : 34, letterSpacing: -1.2 }}>Driver Standings</h2>
               </div>
-              <button type="button" onClick={() => exportArcaDriverStandingsCsv()} style={{ padding: "10px 16px", background: "#006341", color: "#fff", border: "none", borderRadius: 8, fontWeight: 900, fontSize: 12, cursor: "pointer" }}>📥 Export CSV</button>
+              <button type="button" onClick={() => exportDriverStandingsCsv()} style={{ padding: "10px 16px", background: "#006341", color: "#fff", border: "none", borderRadius: 8, fontWeight: 900, fontSize: 12, cursor: "pointer" }}>📥 Export CSV</button>
             </div>
-            <div style={{ display: "grid", gap: 10 }}>
+            <div style={{ display: "grid", gap: 12 }}>
               {arcaStandings.length === 0 ? (
                 <div style={{ padding: 40, textAlign: "center", background: "rgba(0,99,65,0.04)", borderRadius: 12 }}>
-                  <div style={{ color: "#6b7280", fontWeight: 900 }}>No ARCA standings yet</div>
+                  <div style={{ color: "#6b7280", fontWeight: 900 }}>No ARCA driver standings yet</div>
                 </div>
               ) : (
                 arcaStandings.map((driver, index) => (
-                  <div key={driver.id} style={{ background: "rgba(255,255,255,0.82)", border: "1px solid rgba(15,23,42,0.08)", borderRadius: 16, padding: 14, display: "grid", gridTemplateColumns: isMobile ? "auto 1fr auto" : "auto 1fr auto auto auto auto auto", gap: 12, alignItems: "center" }}>
-                    <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#006341", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 1000 }}>{index + 1}</div>
-                    <div>
-                      <div style={{ fontWeight: 950 }}>{driver.driver_name}</div>
-                      <div style={{ fontSize: 12, color: "#6b7280" }}>#{driver.driver_number} • {driver.team}</div>
+                  <div key={driver.id} style={{ background: "linear-gradient(135deg, rgba(0,99,65,0.08), rgba(0,99,65,0.02))", border: "1px solid rgba(0,99,65,0.2)", borderRadius: 16, padding: 16 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "auto 1fr" : "auto 1fr auto auto auto auto", gap: 16, alignItems: "center" }}>
+                      <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#006341", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 1000, fontSize: 18 }}>{index + 1}</div>
+                      <div>
+                        <div style={{ fontWeight: 950, fontSize: 16 }}>#{driver.number} {driver.name}</div>
+                        <div style={{ fontSize: 13, color: "#6b7280", marginTop: 2 }}>{driver.team}</div>
+                      </div>
+                      {!isMobile && (
+                        <>
+                          <div style={{ textAlign: "right" }}>
+                            <div style={{ fontWeight: 1000, color: "#006341", fontSize: 18 }}>{driver.points}</div>
+                            <div style={{ fontSize: 11, color: "#6b7280" }}>PTS</div>
+                          </div>
+                          <div style={{ textAlign: "right" }}>
+                            <div style={{ fontWeight: 1000 }}>{driver.wins}</div>
+                            <div style={{ fontSize: 11, color: "#6b7280" }}>W</div>
+                          </div>
+                          <div style={{ textAlign: "right" }}>
+                            <div style={{ fontWeight: 1000 }}>{driver.top5}</div>
+                            <div style={{ fontSize: 11, color: "#6b7280" }}>T5</div>
+                          </div>
+                          <div style={{ textAlign: "right" }}>
+                            <div style={{ fontWeight: 1000 }}>{driver.dnfs}</div>
+                            <div style={{ fontSize: 11, color: "#6b7280" }}>DNF</div>
+                          </div>
+                        </>
+                      )}
                     </div>
-                    {!isMobile && (
-                      <>
-                        <div style={{ textAlign: "right" }}>
-                          <div style={{ fontWeight: 1000, color: "#006341", fontSize: 18 }}>{driver.points || 0}</div>
-                          <div style={{ fontSize: 11, color: "#6b7280" }}>PTS</div>
-                        </div>
-                        <div style={{ textAlign: "right" }}>
-                          <div style={{ fontWeight: 1000 }}>{driver.wins || 0}</div>
-                          <div style={{ fontSize: 11, color: "#6b7280" }}>W</div>
-                        </div>
-                        <div style={{ textAlign: "right" }}>
-                          <div style={{ fontWeight: 1000 }}>{driver.top3 || 0}</div>
-                          <div style={{ fontSize: 11, color: "#6b7280" }}>T3</div>
-                        </div>
-                        <div style={{ textAlign: "right" }}>
-                          <div style={{ fontWeight: 1000 }}>{driver.top5 || 0}</div>
-                          <div style={{ fontSize: 11, color: "#6b7280" }}>T5</div>
-                        </div>
-                        <div style={{ textAlign: "right" }}>
-                          <div style={{ fontWeight: 1000 }}>{driver.dnfs || 0}</div>
-                          <div style={{ fontSize: 11, color: "#6b7280" }}>DNF</div>
-                        </div>
-                      </>
-                    )}
                   </div>
                 ))
               )}
@@ -1717,7 +1513,9 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
             <div style={{ ...glassCard, background: "rgba(255,255,255,0.92)", padding: isMobile ? 14 : 22, maxWidth: 640, width: "100%", maxHeight: isMobile ? "92vh" : "84vh", overflowY: "auto" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 18 }}>
                 <div>
-                  <div style={{ color: "#86868b", fontSize: 12, fontWeight: 1000, letterSpacing: 1.3, textTransform: "uppercase" }}>Cup Series</div>
+                  <div style={{ color: "#86868b", fontSize: 12, fontWeight: 1000, letterSpacing: 1.3, textTransform: "uppercase" }}>
+                    {seriesId === "arca" ? "ARCA Series" : "Cup Series"}
+                  </div>
                   <div style={{ fontSize: 30, fontWeight: 1000, letterSpacing: -1 }}>Race Schedule</div>
                 </div>
                 <button type="button" onClick={() => setScheduleOpen(false)} style={{ border: "none", background: "#f2f2f7", color: "#1d1d1f", width: 42, height: 42, borderRadius: 999, fontSize: 24, cursor: "pointer" }}>×</button>
