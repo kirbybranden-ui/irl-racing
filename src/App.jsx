@@ -7463,17 +7463,16 @@ export default function App() {
 if (path.startsWith("/series/")) {
     const seriesId = decodeURIComponent(rawPath.split("/")[2] || "cup").toLowerCase();
     
-    if (seriesId === "arca") {
-      return (
-        <StandingsPage
-          seriesId="arca"
-          drivers={arcaStandings}
-          teams={arcaTeamStandings}
-          raceHistory={arcaRaces}
-          driverAccessCodes={driverAccessCodes}
-        />
-      );
-    }
+    return (
+      <StandingsPage
+        seriesId={seriesId}
+        drivers={seriesId === "arca" ? [] : visibleDrivers}
+        teams={seriesId === "arca" ? [] : teamStandings}
+        raceHistory={seriesId === "arca" ? [] : raceHistory}
+        driverAccessCodes={driverAccessCodes}
+      />
+    );
+  }
     
     return (
       <StandingsPage
