@@ -1538,9 +1538,6 @@ function AdminLeagueMessageComposer({ drivers = [], teams = [] }) {
     recipient_manufacturer: "Toyota",
     subject: "",
     message: "",
-      arcaTracks={arcaTracks}
-  setArcaTracks={setArcaTracks}
-/>
   });
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
@@ -8528,10 +8525,10 @@ if (path !== "/admin") {
   setArcaDrivers={setArcaDrivers}
   arcaSeasons={arcaSeasons}
   setArcaSeasons={setArcaSeasons}
-       arcaTracks={arcaTracks}
+  arcaTracks={arcaTracks}
   setArcaTracks={setArcaTracks}
   arcaSelectedRace={arcaSelectedRace}
   setArcaSelectedRace={setArcaSelectedRace}
-      handleSaveArcaResults={handleSaveArcaResults}
+  handleSaveArcaResults={handleSaveArcaResults}
     />
   );}
