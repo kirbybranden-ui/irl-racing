@@ -184,6 +184,8 @@ export default function AdminPortal({
   startParkRequestsLoading,
   statBoxStyle,
   submitResults,
+  submitArcaResults,
+  saveArcaResultsDraft,
   supabase,
   switchSeason,
   tableStyle,
