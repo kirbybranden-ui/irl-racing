@@ -8,6 +8,7 @@ import FilesPage from "./FilesPage";
 import SubmitAppealPage from "./SubmitAppealPage";
 import AppealsPage from "./AppealsPage";
 import DriverProfilePage from "./DriverProfilePage";
+import ArcaDriverProfile from "./pages/ArcaDriverProfile";
 import TeamDetailPage from "./TeamDetailPage";
 import ManufacturerDetailPage from "./ManufacturerDetailPage";
 import WelcomePage from "./WelcomePage";
@@ -7650,6 +7651,21 @@ export default function App() {
   if (!isHydrated) return <div style={appShellStyle}><div style={pageContainerStyle}><div style={sectionCardStyle}>Loading league data...</div></div></div>;
 
   // Development series pages. These do not remove any existing Cup routes.
+  // ARCA driver profiles
+  if (path.startsWith("/series/arca/driver/")) {
+    const driverNumber = decodeURIComponent(rawPath.replace(/^\/series\/arca\/driver\//i, "").split("/")[0]);
+    return (
+      <ArcaDriverProfile
+        driverNumber={driverNumber}
+        arcaDrivers={activeSeason?.arcaDrivers || arcaDrivers}
+        arcaRaceHistory={activeSeason?.arcaRaceHistory || []}
+        arcaTracks={arcaTracks}
+        activeSeason={activeSeason}
+        onBack={() => window.location.pathname = "/series/arca/standings"}
+      />
+    );
+  }
+
   if (path.startsWith("/series/")) {
     const seriesId = decodeURIComponent(rawPath.split("/")[2] || "cup").toLowerCase();
     return (
