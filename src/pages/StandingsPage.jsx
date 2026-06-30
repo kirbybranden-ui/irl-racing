@@ -95,7 +95,9 @@ function getPaintUploadRaceForStandings(upload) {
 function isPaintImageUploadForStandings(upload) {
   const url = upload?.image_url || upload?.file_url || "";
   const fileType = String(upload?.file_type || "").toLowerCase();
-  return fileType.startsWith("image/") || url.match(/\.(jpg|jpeg|png|gif|webp)(\?|$)/i);
+  const imageExtensions = ["jpg", "jpeg", "png", "gif", "webp"];
+  const hasImageExt = imageExtensions.some(ext => url.toLowerCase().includes("." + ext));
+  return fileType.startsWith("image/") || hasImageExt;
 }
 
 
@@ -556,9 +558,9 @@ function PreviousRaceWinnerStandingsCard({ seriesId = "cup", raceHistory = [] })
 
 function csvEscape(value) {
   const text = String(value ?? "");
-  const needsQuote = /[",\n\r]/.test(text);
+  const needsQuote = text.includes('"') || text.includes(',') || text.includes('\n') || text.includes('\r');
   if (needsQuote) {
-    const escaped = text.replace(/"/g, '""');
+    const escaped = text.split('"').join('""');
     return '"' + escaped + '"';
   }
   return text;
