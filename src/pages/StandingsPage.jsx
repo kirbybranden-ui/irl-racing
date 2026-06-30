@@ -1118,7 +1118,7 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
               {featuredVideo.video_url.includes("youtube.com") || featuredVideo.video_url.includes("youtu.be") ? (
                 <iframe src={featuredVideo.video_url.replace("watch?v=", "embed/").replace("youtu.be/", "www.youtube.com/embed/")} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: "none" }} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
               ) : featuredVideo.video_url.includes("twitch.tv") ? (
-                <iframe src={`https://player.twitch.tv/?video=${featuredVideo.video_url.split("/").pop()}&parent=${window.location.hostname}`} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: "none" }} allowFullScreen />
+                <iframe src={(() => { const parts = featuredVideo.video_url.split(String.fromCharCode(47)); return `https://player.twitch.tv/?video=${parts[parts.length - 1]}&parent=${window.location.hostname}`; })()} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: "none" }} allowFullScreen />
               ) : (
                 <video controls crossOrigin="anonymous" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain" }} src={featuredVideo.video_url} />
               )}
