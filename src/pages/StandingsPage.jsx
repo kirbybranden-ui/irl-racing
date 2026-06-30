@@ -626,6 +626,9 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
   const [featuredVideo, setFeaturedVideo] = useState(null);
   const [manualOnesToWatch, setManualOnesToWatch] = useState([]);
   const [viewportWidth, setViewportWidth] = useState(() => (typeof window !== "undefined" ? window.innerWidth : 1200));
+  const [arcaStandings, setArcaStandings] = useState([]);
+  const [arcaTeamStandings, setArcaTeamStandings] = useState([]);
+  const [arcaLoading, setArcaLoading] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
@@ -673,6 +676,60 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
       isMounted = false;
       clearInterval(interval);
     };
+  }, []);
+
+  // Load ARCA Standings
+  useEffect(() => {
+    async function loadArcaStandings() {
+      try {
+        setArcaLoading(true);
+        const { data: activeSeasonData } = await supabase
+          .from("arca_seasons")
+          .select("id")
+          .eq("active", true)
+          .single();
+
+        if (!activeSeasonData) {
+          setArcaLoading(false);
+          return;
+        }
+
+        const { data: standings } = await supabase
+          .from("arca_standings")
+          .select("*")
+          .eq("season_id", activeSeasonData.id)
+          .order("points", { ascending: false });
+
+        setArcaStandings(standings || []);
+
+        // Calculate team standings
+        const teamMap = {};
+        (standings || []).forEach((driver) => {
+          if (!teamMap[driver.team]) {
+            teamMap[driver.team] = {
+              team: driver.team,
+              points: 0,
+              wins: 0,
+              top5: 0,
+              drivers: [],
+            };
+          }
+          teamMap[driver.team].points += driver.points || 0;
+          teamMap[driver.team].wins += driver.wins || 0;
+          teamMap[driver.team].top5 += driver.top5 || 0;
+          teamMap[driver.team].drivers.push(driver);
+        });
+
+        const teams = Object.values(teamMap).sort((a, b) => b.points - a.points);
+        setArcaTeamStandings(teams);
+      } catch (err) {
+        console.error("Error loading ARCA standings:", err);
+      } finally {
+        setArcaLoading(false);
+      }
+    }
+
+    loadArcaStandings();
   }, []);
 
   const activeDrivers = useMemo(() => {
@@ -1194,7 +1251,44 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
   function exportActiveStandingsCsv() {
     if (standingsTab === "teams") return exportTeamStandingsCsv();
     if (standingsTab === "manufacturers") return exportManufacturerStandingsCsv();
+    if (standingsTab === "arca-drivers") return exportArcaDriverStandingsCsv();
+    if (standingsTab === "arca-teams") return exportArcaTeamStandingsCsv();
     return exportDriverStandingsCsv();
+  }
+
+  function exportArcaDriverStandingsCsv() {
+    const generated = new Date().toISOString().slice(0, 10);
+    const rows = [["Position", "Number", "Driver", "Team", "Points", "Wins", "Top 3", "Top 5", "DNFs"]];
+    arcaStandings.forEach((driver, index) => {
+      rows.push([
+        index + 1,
+        driver.driver_number || "",
+        driver.driver_name || "",
+        driver.team || "",
+        driver.points || 0,
+        driver.wins || 0,
+        driver.top3 || 0,
+        driver.top5 || 0,
+        driver.dnfs || 0,
+      ]);
+    });
+    downloadCsv(`arca-driver-standings-${generated}.csv`, rows);
+  }
+
+  function exportArcaTeamStandingsCsv() {
+    const generated = new Date().toISOString().slice(0, 10);
+    const rows = [["Position", "Team", "Points", "Wins", "Top 5", "Drivers"]];
+    arcaTeamStandings.forEach((team, index) => {
+      rows.push([
+        index + 1,
+        team.team || "",
+        team.points || 0,
+        team.wins || 0,
+        team.top5 || 0,
+        team.drivers?.length || 0,
+      ]);
+    });
+    downloadCsv(`arca-team-standings-${generated}.csv`, rows);
   }
 
   return (
@@ -1418,6 +1512,8 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
             { key: "drivers", label: "Driver Standings", icon: "👤" },
             { key: "teams", label: "Teams", icon: "🏢" },
             { key: "manufacturers", label: "Manufacturers", icon: "🏭" },
+            { key: "arca-drivers", label: "ARCA Drivers", icon: "🏎️" },
+            { key: "arca-teams", label: "ARCA Teams", icon: "🏎️" },
             { key: "points", label: "Points System", icon: "📊" },
           ].map((tab) => (
             <button
@@ -1494,6 +1590,106 @@ export default function StandingsPage({ drivers = [], teams = [], manufacturerSt
             <h2 style={{ margin: "4px 0 16px", fontSize: isMobile ? 27 : 34, letterSpacing: -1.2 }}>Manufacturer Standings</h2>
             <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fit, minmax(290px, 1fr))", gap: isMobile ? 12 : 16 }}>
               {manufacturerRows.map((item, index) => <ManufacturerCard key={item.manufacturer || index} item={item} index={index} />)}
+            </div>
+          </section>
+        )}
+
+        {standingsTab === "arca-drivers" && (
+          <section style={{ ...glassCard, padding: isMobile ? 14 : 18, marginBottom: isMobile ? 14 : 20 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
+              <div>
+                <div style={{ color: "#006341", fontSize: 12, fontWeight: 1000, letterSpacing: 1.3, textTransform: "uppercase" }}>ARCA Series</div>
+                <h2 style={{ margin: "4px 0 0", fontSize: isMobile ? 27 : 34, letterSpacing: -1.2 }}>Driver Standings</h2>
+              </div>
+              <button type="button" onClick={() => exportArcaDriverStandingsCsv()} style={{ padding: "10px 16px", background: "#006341", color: "#fff", border: "none", borderRadius: 8, fontWeight: 900, fontSize: 12, cursor: "pointer" }}>📥 Export CSV</button>
+            </div>
+            <div style={{ display: "grid", gap: 10 }}>
+              {arcaStandings.length === 0 ? (
+                <div style={{ padding: 40, textAlign: "center", background: "rgba(0,99,65,0.04)", borderRadius: 12 }}>
+                  <div style={{ color: "#6b7280", fontWeight: 900 }}>No ARCA standings yet</div>
+                </div>
+              ) : (
+                arcaStandings.map((driver, index) => (
+                  <div key={driver.id} style={{ background: "rgba(255,255,255,0.82)", border: "1px solid rgba(15,23,42,0.08)", borderRadius: 16, padding: 14, display: "grid", gridTemplateColumns: isMobile ? "auto 1fr auto" : "auto 1fr auto auto auto auto auto", gap: 12, alignItems: "center" }}>
+                    <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#006341", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 1000 }}>{index + 1}</div>
+                    <div>
+                      <div style={{ fontWeight: 950 }}>{driver.driver_name}</div>
+                      <div style={{ fontSize: 12, color: "#6b7280" }}>#{driver.driver_number} • {driver.team}</div>
+                    </div>
+                    {!isMobile && (
+                      <>
+                        <div style={{ textAlign: "right" }}>
+                          <div style={{ fontWeight: 1000, color: "#006341", fontSize: 18 }}>{driver.points || 0}</div>
+                          <div style={{ fontSize: 11, color: "#6b7280" }}>PTS</div>
+                        </div>
+                        <div style={{ textAlign: "right" }}>
+                          <div style={{ fontWeight: 1000 }}>{driver.wins || 0}</div>
+                          <div style={{ fontSize: 11, color: "#6b7280" }}>W</div>
+                        </div>
+                        <div style={{ textAlign: "right" }}>
+                          <div style={{ fontWeight: 1000 }}>{driver.top3 || 0}</div>
+                          <div style={{ fontSize: 11, color: "#6b7280" }}>T3</div>
+                        </div>
+                        <div style={{ textAlign: "right" }}>
+                          <div style={{ fontWeight: 1000 }}>{driver.top5 || 0}</div>
+                          <div style={{ fontSize: 11, color: "#6b7280" }}>T5</div>
+                        </div>
+                        <div style={{ textAlign: "right" }}>
+                          <div style={{ fontWeight: 1000 }}>{driver.dnfs || 0}</div>
+                          <div style={{ fontSize: 11, color: "#6b7280" }}>DNF</div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </section>
+        )}
+
+        {standingsTab === "arca-teams" && (
+          <section style={{ ...glassCard, padding: isMobile ? 14 : 18, marginBottom: isMobile ? 14 : 20 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
+              <div>
+                <div style={{ color: "#006341", fontSize: 12, fontWeight: 1000, letterSpacing: 1.3, textTransform: "uppercase" }}>ARCA Series</div>
+                <h2 style={{ margin: "4px 0 0", fontSize: isMobile ? 27 : 34, letterSpacing: -1.2 }}>Team Standings</h2>
+              </div>
+              <button type="button" onClick={() => exportArcaTeamStandingsCsv()} style={{ padding: "10px 16px", background: "#006341", color: "#fff", border: "none", borderRadius: 8, fontWeight: 900, fontSize: 12, cursor: "pointer" }}>📥 Export CSV</button>
+            </div>
+            <div style={{ display: "grid", gap: 12 }}>
+              {arcaTeamStandings.length === 0 ? (
+                <div style={{ padding: 40, textAlign: "center", background: "rgba(0,99,65,0.04)", borderRadius: 12 }}>
+                  <div style={{ color: "#6b7280", fontWeight: 900 }}>No ARCA team standings yet</div>
+                </div>
+              ) : (
+                arcaTeamStandings.map((team, index) => (
+                  <div key={team.team} style={{ background: "linear-gradient(135deg, rgba(0,99,65,0.08), rgba(0,99,65,0.02))", border: "1px solid rgba(0,99,65,0.2)", borderRadius: 16, padding: 16 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "auto 1fr" : "auto 1fr auto auto auto", gap: 16, alignItems: "center" }}>
+                      <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#006341", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 1000, fontSize: 18 }}>{index + 1}</div>
+                      <div>
+                        <div style={{ fontWeight: 950, fontSize: 16 }}>{team.team}</div>
+                        <div style={{ fontSize: 13, color: "#6b7280", marginTop: 2 }}>{team.drivers.length} drivers</div>
+                      </div>
+                      {!isMobile && (
+                        <>
+                          <div style={{ textAlign: "right" }}>
+                            <div style={{ fontWeight: 1000, color: "#006341", fontSize: 18 }}>{team.points}</div>
+                            <div style={{ fontSize: 11, color: "#6b7280" }}>PTS</div>
+                          </div>
+                          <div style={{ textAlign: "right" }}>
+                            <div style={{ fontWeight: 1000 }}>{team.wins}</div>
+                            <div style={{ fontSize: 11, color: "#6b7280" }}>W</div>
+                          </div>
+                          <div style={{ textAlign: "right" }}>
+                            <div style={{ fontWeight: 1000 }}>{team.top5}</div>
+                            <div style={{ fontSize: 11, color: "#6b7280" }}>T5</div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </section>
         )}
