@@ -6952,7 +6952,7 @@ export default function App() {
   // ===== ARCA SERIES RESULTS FUNCTIONS (Mirror of Cup) =====
 
   const buildArcaRaceFromCurrentInputs = () => ({
-    raceName: activeSeason?.arcaSelectedRace || "",
+    raceName: activeSeason?.arcaSelectedRace?.name || "",
     stageCount: 0,
     results: buildArcaRaceResultsFromCurrentInputs(),
     savedAt: new Date().toISOString(),
@@ -7038,7 +7038,7 @@ export default function App() {
       arcaRaceHistory: newArcaHistory,
       arcaDrivers: updatedArcaDrivers,
       arcaRaceDrafts: (activeSeason?.arcaRaceDrafts || []).filter(draft => draft.raceName !== updatedRace.raceName),
-      arcaSelectedRace: "",
+      arcaSelectedRace: null,
       arcaPositions: {},
       arcaDnfMap: {},
       arcaFastestLapMap: {},
@@ -7850,9 +7850,11 @@ export default function App() {
       getStagePoints={getStagePoints}
       getTeamFullName={getTeamFullName}
       handleDeleteRace={handleDeleteRace}
+      handleDeleteArcaRace={handleDeleteArcaRace}
       handleDnfChange={handleDnfChange}
       handleDownloadLeagueBackup={handleDownloadLeagueBackup}
       handleEditRace={handleEditRace}
+      handleEditArcaRace={handleEditArcaRace}
       handleFastestLapChange={handleFastestLapChange}
       handleImportBackup={handleImportBackup}
       handleManualPenaltyChange={handleManualPenaltyChange}
@@ -7932,6 +7934,7 @@ export default function App() {
       saveDriverEdit={saveDriverEdit}
       saveOwnerAssignment={saveOwnerAssignment}
       saveResultsDraft={saveResultsDraft}
+      saveArcaResultsDraft={saveArcaResultsDraft}
       saveTickerMessage={saveTickerMessage}
       seasonOffenseCounts={seasonOffenseCounts}
       seasons={seasons}
@@ -7979,6 +7982,7 @@ export default function App() {
       startParkRequestsLoading={startParkRequestsLoading}
       statBoxStyle={statBoxStyle}
       submitResults={submitResults}
+      submitArcaResults={submitArcaResults}
       supabase={supabase}
       switchSeason={switchSeason}
       tableStyle={tableStyle}
@@ -8015,7 +8019,7 @@ export default function App() {
       setArcaTracks={setArcaTracks}
       arcaDrivers={arcaDrivers}
       setArcaDrivers={setArcaDrivers}
-      arcaSelectedRace={arcaSelectedRace}
-      setArcaSelectedRace={setArcaSelectedRace}
+      arcaSelectedRace={activeSeason?.arcaSelectedRace}
+      setArcaSelectedRace={(race) => patchActiveSeason({ arcaSelectedRace: race || null })}
     />
   );}
