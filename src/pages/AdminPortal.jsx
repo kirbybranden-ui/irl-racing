@@ -211,7 +211,15 @@ export default function AdminPortal({
   watchDisplayOrder,
   watchDriverId,
   watchReason,
-  watchSaving
+  watchSaving,
+  arcaRaces,
+  arcaTracks,
+  arcaDrivers,
+  arcaSeasons,
+  setArcaRaces,
+  setArcaTracks,
+  setArcaDrivers,
+  setArcaSeasons,
 }) {
   const goAdmin = () => {
     if (window.location.pathname !== "/admin") {
