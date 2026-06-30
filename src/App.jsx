@@ -40,6 +40,7 @@ import SeriesPortal from "./pages/series/SeriesPortal";
 import SeriesLandingPage from "./pages/series/SeriesLandingPage";
 import SeriesJoinPage from "./pages/series/SeriesJoinPage";
 import { defaultArcaDrivers } from "./data/arca/drivers";
+import { saveArcaRaceResults, rebuildArcaStandings } from "./lib/arcaRaceResultsFunctions";
 import { SERIES } from "./config/series";
 import {
   loadArcaSeasonData,
@@ -7345,6 +7346,21 @@ useEffect(() => {
     loadResultsDraft(draft);
     setTimeout(() => submitResults(draft), 0);
   };
+  
+  const handleSaveArcaResults = async ({ race_id, results }) => {
+  try {
+    await saveArcaRaceResults(supabase, { race_id, results });
+    // Reload ARCA data
+    const data = await loadArcaSeasonData();
+    setArcaRaces(data.races);
+    setArcaDrivers(data.drivers);
+    // Recalculate standings
+    await rebuildArcaStandings(supabase, arcaSeasons.find(s => s.active)?.id);
+  } catch (err) {
+    console.error("Error saving ARCA results:", err);
+    throw err;
+  }
+};
 
   const submitResults = async (draftOverride = null) => {
     if (!activeSeason) return;
@@ -8515,5 +8531,6 @@ if (path !== "/admin") {
   setArcaSeasons={setArcaSeasons}
   arcaSelectedRace={arcaSelectedRace}
   setArcaSelectedRace={setArcaSelectedRace}
+      handleSaveArcaResults={handleSaveArcaResults}
     />
   );}
