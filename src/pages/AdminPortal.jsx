@@ -3219,14 +3219,157 @@ export default function AdminPortal({
 
               {arcaOperationsTab === "races" && (
                 <div style={{ padding: isAdminMobile ? 18 : 26, borderRadius: 34, background: "linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.92))", boxShadow: "0 22px 60px rgba(15,23,42,0.12)", border: "1px solid rgba(255,255,255,0.75)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap", marginBottom: 20 }}>
                     <div>
                       <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.6, textTransform: "uppercase", color: "#006341" }}>ARCA Series</div>
                       <h2 style={{ margin: "3px 0 6px", fontSize: isAdminMobile ? 30 : 38, letterSpacing: -1.35 }}>Race Schedule</h2>
-                      <div style={{ color: "#6b7280", fontWeight: 750, maxWidth: 720 }}>Manage ARCA race dates, locations, and schedule.</div>
+                      <div style={{ color: "#6b7280", fontWeight: 750, maxWidth: 720 }}>Enter race results including finish positions, DNFs, penalties, and fastest lap.</div>
                     </div>
                     <div style={{ width: 58, height: 58, borderRadius: 20, background: "linear-gradient(135deg, #006341, #00e5a0)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, boxShadow: "0 14px 28px rgba(0,99,65,0.24)" }}>🏁</div>
                   </div>
+
+                  <div style={{ marginBottom: 20 }}>
+                    <label style={{ display: "block", fontWeight: 900, marginBottom: 8, color: "#111827" }}>Select Race</label>
+                    <select 
+                      style={{ 
+                        width: "100%", 
+                        padding: "12px 14px", 
+                        borderRadius: 12, 
+                        border: "1px solid rgba(0,0,0,0.1)", 
+                        fontSize: 14,
+                        fontWeight: 700,
+                        background: "rgba(255,255,255,0.9)",
+                        cursor: "pointer"
+                      }}
+                      value={arcaSelectedRace?.id || ""}
+                      onChange={(e) => {
+                        const race = arcaRaces?.find(r => r.id === e.target.value);
+                        setArcaSelectedRace(race || null);
+                      }}
+                    >
+                      <option value="">-- Select a race --</option>
+                      {(arcaRaces || []).map((race) => (
+                        <option key={race.id} value={race.id}>
+                          {race.name} - {race.date}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {!arcaSelectedRace ? (
+                    <div style={{ padding: 40, textAlign: "center", background: "rgba(0,99,65,0.04)", borderRadius: 12, border: "1px dashed rgba(0,99,65,0.2)" }}>
+                      <div style={{ fontSize: 28, marginBottom: 10 }}>📋</div>
+                      <div style={{ fontWeight: 900, color: "#111827", marginBottom: 6 }}>Select a race above</div>
+                      <div style={{ color: "#6b7280", fontSize: 14 }}>Choose a race to enter results</div>
+                    </div>
+                  ) : (
+                    <div>
+                      <div style={{ marginBottom: 16, padding: 14, background: "rgba(0,99,65,0.08)", borderRadius: 12, border: "1px solid rgba(0,99,65,0.16)" }}>
+                        <div style={{ fontWeight: 900, color: "#006341" }}>{arcaSelectedRace.name}</div>
+                        <div style={{ color: "#6b7280", fontSize: 13, marginTop: 4 }}>Date: {arcaSelectedRace.date}</div>
+                      </div>
+
+                      <div style={{ marginBottom: 16, display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(auto-fit, minmax(150px, 1fr))", gap: 10 }}>
+                        <button 
+                          style={{ 
+                            padding: "10px 16px", 
+                            background: "#006341", 
+                            color: "white", 
+                            border: "none", 
+                            borderRadius: 8, 
+                            fontWeight: 900,
+                            cursor: "pointer"
+                          }}
+                          onClick={() => alert("Save Results - Feature coming soon")}
+                        >
+                          Save Results
+                        </button>
+                        <button 
+                          style={{ 
+                            padding: "10px 16px", 
+                            background: "rgba(0,99,65,0.1)", 
+                            color: "#006341", 
+                            border: "1px solid rgba(0,99,65,0.3)", 
+                            borderRadius: 8, 
+                            fontWeight: 900,
+                            cursor: "pointer"
+                          }}
+                          onClick={() => setArcaSelectedRace(null)}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+
+                      <div style={{ display: "grid", gap: 10 }}>
+                        {(arcaDrivers || []).map((driver, idx) => (
+                          <div 
+                            key={driver.id || idx}
+                            style={{ 
+                              padding: 14, 
+                              background: "rgba(255,255,255,0.8)", 
+                              border: "1px solid rgba(0,0,0,0.08)", 
+                              borderRadius: 10,
+                              display: "grid",
+                              gridTemplateColumns: isAdminMobile ? "50px 1fr" : "50px 1fr 100px 100px",
+                              gap: 12,
+                              alignItems: "center"
+                            }}
+                          >
+                            <div style={{ 
+                              width: 44, 
+                              height: 44, 
+                              borderRadius: "50%", 
+                              background: "linear-gradient(145deg, #006341, #003d26)", 
+                              display: "flex", 
+                              alignItems: "center", 
+                              justifyContent: "center", 
+                              fontWeight: 1000, 
+                              fontSize: 14, 
+                              color: "#fff"
+                            }}>
+                              #{driver.number}
+                            </div>
+                            <div>
+                              <div style={{ fontWeight: 900, color: "#111827" }}>{driver.name}</div>
+                              <div style={{ fontSize: 12, color: "#6b7280" }}>{driver.team}</div>
+                            </div>
+                            {!isAdminMobile && (
+                              <>
+                                <input 
+                                  type="number" 
+                                  min="1" 
+                                  max="40" 
+                                  placeholder="Finish pos." 
+                                  style={{ 
+                                    padding: "8px 10px", 
+                                    borderRadius: 8, 
+                                    border: "1px solid rgba(0,0,0,0.1)",
+                                    fontSize: 14
+                                  }}
+                                />
+                                <select 
+                                  style={{ 
+                                    padding: "8px 10px", 
+                                    borderRadius: 8, 
+                                    border: "1px solid rgba(0,0,0,0.1)",
+                                    fontSize: 14
+                                  }}
+                                >
+                                  <option value="running">Running</option>
+                                  <option value="dnf">DNF</option>
+                                </select>
+                              </>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+
+                      <div style={{ marginTop: 20, padding: 16, background: "rgba(0,122,255,0.06)", borderRadius: 10, border: "1px solid rgba(0,122,255,0.2)" }}>
+                        <div style={{ fontWeight: 900, color: "#007aff", fontSize: 13 }}>ℹ️ Coming Soon</div>
+                        <div style={{ color: "#6b7280", fontSize: 13, marginTop: 6 }}>Full driver input, DNF tracking, penalties, and fastest lap will be added in the next update.</div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
