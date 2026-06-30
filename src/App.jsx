@@ -7474,7 +7474,7 @@ export default function App() {
   if (path.startsWith("/series/")) {
     const seriesId = decodeURIComponent(rawPath.split("/")[2] || "cup").toLowerCase();
     return (
-      <Standingspage
+      <StandingsPage
         seriesId={seriesId}
         drivers={visibleDrivers}
         teams={teamStandings}
