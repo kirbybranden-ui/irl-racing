@@ -251,3 +251,92 @@ export async function syncAllRaceResultsLedger({ seasons = [], tracks = [] }) {
     return { ok: false, error };
   }
 }
+
+// ARCA SERIES FUNCTIONS (Mirror of Cup)
+
+export function makeArcaRaceResultsLedgerRows({ season, race, tracks = [] }) {
+  if (!season || !race || !Array.isArray(race.results)) return [];
+
+  const raceDate =
+    (tracks || []).find((track) => track?.name === race.raceName)?.date || null;
+
+  const rosterById = new Map(
+    (season.drivers || []).map((driver) => [String(driver.id), driver])
+  );
+
+  return race.results.map((result) => {
+    const rosterDriver = rosterById.get(String(result.driverId)) || {};
+
+    return {
+      season_id: String(season.id || ""),
+      season_name: season.name || "Season",
+      race_name: race.raceName || "",
+      race_date: raceDate,
+      driver_id: String(result.driverId || rosterDriver.id || ""),
+      driver_number: String(result.number || rosterDriver.number || ""),
+      driver_name: result.name || rosterDriver.name || "",
+      team: result.team || rosterDriver.team || "",
+      manufacturer: result.manufacturer || rosterDriver.manufacturer || "",
+      finish_pos: result.finishPos ?? null,
+      finish_points: Number(result.finishPoints || 0),
+      fastest_lap: Boolean(result.fastestLap),
+      dnf: Boolean(result.dnf),
+      dnf_reason: result.dnfReason || null,
+      offense: Boolean(result.offense),
+      offense_number: Number(result.offenseNumber || 0),
+      penalty_points: Number(result.penaltyPoints || 0),
+      total_race_points: Number(result.totalRacePoints || 0),
+      updated_at: new Date().toISOString(),
+    };
+  });
+}
+
+export async function saveArcaRaceResultsLedger({ season, race, tracks = [] }) {
+  const rows = makeArcaRaceResultsLedgerRows({ season, race, tracks });
+
+  if (!rows.length) {
+    return { ok: true, skipped: true };
+  }
+
+  try {
+    const { error: deleteError } = await supabase
+      .from("arca_results")
+      .delete()
+      .eq("season_id", String(season.id || ""))
+      .eq("race_name", race.raceName || "");
+
+    if (deleteError) {
+      console.error("Could not clear old arca_results rows:", deleteError);
+      return { ok: false, error: deleteError };
+    }
+
+    const { error: insertError } = await supabase.from("arca_results").insert(rows);
+
+    if (insertError) {
+      console.error("Could not save arca_results ledger:", insertError);
+      return { ok: false, error: insertError };
+    }
+
+    return { ok: true };
+  } catch (error) {
+    console.error("arca_results ledger save crashed:", error);
+    return { ok: false, error };
+  }
+}
+
+export async function syncAllArcaRaceResultsLedger({ seasons = [], tracks = [] }) {
+  try {
+    for (const season of seasons || []) {
+      for (const race of season?.arcaRaceHistory || []) {
+        const result = await saveArcaRaceResultsLedger({ season, race, tracks });
+
+        if (!result.ok) return result;
+      }
+    }
+
+    return { ok: true };
+  } catch (error) {
+    console.error("Full arca_results sync crashed:", error);
+    return { ok: false, error };
+  }
+}
