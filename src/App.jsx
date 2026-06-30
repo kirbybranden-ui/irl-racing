@@ -38,7 +38,7 @@ import { defaultArcaRaces } from "./data/arca/races";
 import { defaultArcaTracks } from "./data/arca/tracks";
 import { defaultArcaDrivers } from "./data/arca/drivers";
 import { trackOverviewData } from "./data/trackOverview";
-import SeriesPortal from "./pages/SeriesPortal";
+import SeriesPortal from "./pages/series/SeriesPortal";
 import SeriesLandingPage from "./pages/series/SeriesLandingPage";
 import SeriesJoinPage from "./pages/series/SeriesJoinPage";
 import {
