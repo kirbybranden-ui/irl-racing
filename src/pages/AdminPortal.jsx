@@ -1571,7 +1571,7 @@ export default function AdminPortal({
                     <div style={{ background: "#f5f5f7", border: "1px solid #e5e7eb", borderRadius: 28, padding: 18, marginBottom: 18, boxShadow: "0 18px 45px rgba(15, 23, 42, 0.08)" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
                         <div>
-                          <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.3, textTransform: "uppercase", color: "#6b7280" }}>Currently Featured</div>
+                          <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.3, textTransform: "uppercase", color: "#6b7280" }}>Currently Featured {featuredVideo.series === "arca" ? "— ARCA" : "— Cup"}</div>
                           <div style={{ fontSize: 22, fontWeight: 1000, letterSpacing: -0.5 }}>{featuredVideo.title || "Untitled Media"}</div>
                           {featuredVideo.description && <div style={{ color: "#6b7280", fontWeight: 700, marginTop: 3 }}>{featuredVideo.description}</div>}
                         </div>
@@ -1592,6 +1592,13 @@ export default function AdminPortal({
                     <div>
                       <div style={{ marginBottom: 6, fontWeight: 900 }}>Description</div>
                       <input style={{ ...adminInputStyle, marginTop: 6 }} value={videoDescription} onChange={e => setVideoDescription(e.target.value)} placeholder="e.g. Race recap, promo, photo, or playoff preview" />
+                    </div>
+                    <div>
+                      <div style={{ marginBottom: 6, fontWeight: 900 }}>Series</div>
+                      <select style={{ ...adminInputStyle, marginTop: 6 }} value={videoSeries} onChange={e => setVideoSeries(e.target.value)}>
+                        <option value="cup">NASCAR Cup Series</option>
+                        <option value="arca">ARCA Menards Series</option>
+                      </select>
                     </div>
                   </div>
                   <input
@@ -1624,12 +1631,14 @@ export default function AdminPortal({
                           file_path: filePath,
                           title: videoTitle.trim() || (isImage ? "Featured Photo" : "Featured Video"),
                           description: videoDescription.trim() || null,
+                          series: videoSeries,
                           uploaded_at: new Date().toISOString(),
                         }).select().single();
                         if (dbError) throw dbError;
                         setFeaturedVideo(saved);
                         setVideoTitle("");
                         setVideoDescription("");
+                        setVideoSeries("cup");
                         alert(`✅ ${isImage ? "Photo" : "Video"} posted to Featured Media.`);
                       } catch (err) {
                         console.error("Featured media upload error:", err);
