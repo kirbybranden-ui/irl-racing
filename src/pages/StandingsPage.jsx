@@ -1012,6 +1012,8 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
     { label: "Admin Portal", subtitle: "League control", icon: "🔐", route: "/admin" },
   ];
 
+  const filteredNavItems = seriesId === "arca" ? navItems.filter(item => item.route === "/admin") : navItems;
+
   const StatCard = ({ icon, label, value, detail, onClick, accent = "#007aff", tint = "rgba(0,122,255,0.12)" }) => (
     <button
       type="button"
@@ -1387,12 +1389,12 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
             />
             <div style={publicMenuPanelStyle}>
               <div style={{ padding: "8px 10px 12px", borderBottom: "1px solid #e5e7eb", marginBottom: 8 }}>
-                <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.5, textTransform: "uppercase", color: "#6b7280" }}>Cup Series Menu</div>
+                <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.5, textTransform: "uppercase", color: "#6b7280" }}>{seriesId === "arca" ? "ARCA Series" : "Cup Series"} Menu</div>
                 <div style={{ fontSize: 20, fontWeight: 1000, color: "#111827" }}>League Pages</div>
               </div>
 
               <div style={{ display: "grid", gap: 6 }}>
-                {navItems.map((item) => (
+                {filteredNavItems.map((item) => (
                   <button
                     key={item.label}
                     type="button"
