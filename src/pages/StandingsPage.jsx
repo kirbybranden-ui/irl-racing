@@ -731,8 +731,13 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
       }
     }
 
-    loadArcaStandings();
-  }, []);
+    if (seriesId !== "arca") {
+      loadArcaStandings();
+    } else {
+      // For ARCA, use the drivers prop we received from App.jsx
+      setArcaStandings(drivers || []);
+    }
+  }, [seriesId, drivers]);
 
   const activeDrivers = useMemo(() => {
     return dedupeDriversByNumber(drivers || [])
@@ -1625,8 +1630,8 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
                   <div key={driver.id} style={{ background: "rgba(255,255,255,0.82)", border: "1px solid rgba(15,23,42,0.08)", borderRadius: 16, padding: 14, display: "grid", gridTemplateColumns: isMobile ? "auto 1fr auto" : "auto 1fr auto auto auto auto auto", gap: 12, alignItems: "center" }}>
                     <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#006341", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 1000 }}>{index + 1}</div>
                     <div>
-                      <div style={{ fontWeight: 950 }}>{driver.driver_name}</div>
-                      <div style={{ fontSize: 12, color: "#6b7280" }}>#{driver.driver_number} • {driver.team}</div>
+                      <div style={{ fontWeight: 950 }}>{driver.name}</div>
+                      <div style={{ fontSize: 12, color: "#6b7280" }}>#{driver.number} • {driver.team}</div>
                     </div>
                     {!isMobile && (
                       <>
@@ -1639,12 +1644,12 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
                           <div style={{ fontSize: 11, color: "#6b7280" }}>W</div>
                         </div>
                         <div style={{ textAlign: "right" }}>
-                          <div style={{ fontWeight: 1000 }}>{driver.top3 || 0}</div>
-                          <div style={{ fontSize: 11, color: "#6b7280" }}>T3</div>
-                        </div>
-                        <div style={{ textAlign: "right" }}>
                           <div style={{ fontWeight: 1000 }}>{driver.top5 || 0}</div>
                           <div style={{ fontSize: 11, color: "#6b7280" }}>T5</div>
+                        </div>
+                        <div style={{ textAlign: "right" }}>
+                          <div style={{ fontWeight: 1000 }}>{driver.top10 || 0}</div>
+                          <div style={{ fontSize: 11, color: "#6b7280" }}>T10</div>
                         </div>
                         <div style={{ textAlign: "right" }}>
                           <div style={{ fontWeight: 1000 }}>{driver.dnfs || 0}</div>
