@@ -7655,7 +7655,7 @@ export default function App() {
     return (
       <StandingsPage
         seriesId={seriesId}
-        drivers={seriesId === "arca" ? (activeSeason?.arcaDrivers && activeSeason.arcaDrivers.length > 0 ? activeSeason.arcaDrivers : rebuildArcaDriversFromHistory(activeSeason?.arcaRaceHistory || [], activeSeason?.arcaRoster || [])) : visibleDrivers}
+        drivers={seriesId === "arca" ? (activeSeason?.arcaDrivers && activeSeason.arcaDrivers.length > 0 ? activeSeason.arcaDrivers : rebuildArcaDriversFromHistory(activeSeason?.arcaRaceHistory || [], arcaDrivers || [])) : visibleDrivers}
         teams={seriesId === "arca" ? [] : teamStandings}
         tracks={seriesId === "arca" ? arcaTracks : tracks}
         raceHistory={seriesId === "arca" ? (activeSeason?.arcaRaceHistory || []) : raceHistory}
