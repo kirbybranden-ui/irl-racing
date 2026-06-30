@@ -98,6 +98,9 @@ import {
   makeRaceResultsLedgerRows,
   saveRaceResultsLedger,
   syncAllRaceResultsLedger,
+  makeArcaRaceResultsLedgerRows,
+  saveArcaRaceResultsLedger,
+  syncAllArcaRaceResultsLedger,
 } from "./utils/backupHelpers";
 import { money } from "./utils/formatters";
 import {
