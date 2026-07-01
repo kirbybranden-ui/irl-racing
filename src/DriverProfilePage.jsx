@@ -2800,12 +2800,14 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
     );
   }
 
+  const standingsRoute = isArcaDriver ? "/series/arca/standings" : "/standings";
+
   if (!selectedSeason) {
     return (
       <div style={appShellStyle}>
         <div style={pageContainerStyle}>
           <div style={sectionCardStyle}>
-            <button onClick={() => window.location.pathname = "/standings"} style={secondaryButtonStyle}>← Back to Standings</button>
+            <button onClick={() => window.location.pathname = standingsRoute} style={secondaryButtonStyle}>← Back to Standings</button>
             <div style={{ marginTop: 16, marginBottom: 16, fontWeight: 700 }}>No season data loaded.</div>
             <div style={{ opacity: 0.75 }}>Try refreshing the page or returning to standings.</div>
           </div>
@@ -2820,7 +2822,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
       <div style={appShellStyle}>
         <div style={pageContainerStyle}>
           <div style={sectionCardStyle}>
-            <button onClick={() => window.location.pathname = "/standings"} style={secondaryButtonStyle}>← Back to Standings</button>
+            <button onClick={() => window.location.pathname = standingsRoute} style={secondaryButtonStyle}>← Back to Standings</button>
             <div style={{ marginTop: 16, marginBottom: 16, fontWeight: 700 }}>Driver #{driverNumber} not found in {selectedSeason?.name}</div>
             <div style={{ opacity: 0.75 }}>Check the standings page to select a valid driver.</div>
           </div>
@@ -3254,7 +3256,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
           <div style={{ position: "absolute", inset: 0, background: `linear-gradient(90deg, transparent 0%, ${teamTheme.glow} 100%)`, opacity: 0.45, pointerEvents: "none" }} />
           <div style={{ position: "relative", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 24, flexWrap: "wrap" }}>
             <div>
-              <button onClick={() => window.location.pathname = "/standings"} style={{ ...secondaryButtonStyle, marginBottom: 12 }}>← Back to Standings</button>
+              <button onClick={() => window.location.pathname = standingsRoute} style={{ ...secondaryButtonStyle, marginBottom: 12 }}>← Back to Standings</button>
               <div>
                 <div style={{ fontSize: 28, fontWeight: 900 }}>{driver.name}</div>
                 <div style={{ fontSize: 16, opacity: 0.8, marginTop: 4 }}>#{driver.number}</div>
@@ -3789,7 +3791,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
             <button style={secondaryButtonStyle} onClick={() => window.location.pathname = `/driver/${driver.number}/assignments`}>Assignments</button>
             <button style={secondaryButtonStyle} onClick={() => window.location.pathname = `/driver/${driver.number}/messages`}>Messages</button>
             <button style={secondaryButtonStyle} onClick={() => window.location.pathname = "/streams"}>Race Broadcasts</button>
-            <button style={secondaryButtonStyle} onClick={() => window.location.pathname = "/standings"}>League Standings</button>
+            <button style={secondaryButtonStyle} onClick={() => window.location.pathname = standingsRoute}>League Standings</button>
           </div>
         </div>
 
