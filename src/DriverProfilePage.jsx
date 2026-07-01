@@ -3372,6 +3372,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
 
         {passwordManagerCard}
 
+        {!isArcaDriver && (
         <div style={sectionCardStyle}>
           <h2 style={{ marginTop: 0, marginBottom: 14 }}>Developmental Rides</h2>
           <div style={{ fontSize: 13, opacity: 0.72, marginBottom: 14 }}>
@@ -3474,6 +3475,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
             </div>
           )}
         </div>
+        )}
 
         <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 20 }}>
           {[
