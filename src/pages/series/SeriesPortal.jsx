@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ReportIssueModal } from "../components/ReportIssueModal";
+import { ReportIssueModal } from "../../components/ReportIssueModal";
 
 const SERIES = [
   { id: "cup", name: "Cup Series", sub: "Main Budweiser Cup League" },
