@@ -305,22 +305,26 @@ export default function InterviewsPage({ drivers = [], arcaDrivers = [], tracks 
   const [interviewBonus, setInterviewBonus] = useState(INTERVIEW_DEFAULT_BONUS);
   const [processingInterviewId, setProcessingInterviewId] = useState(null);
 
-  // Auto-detect next upcoming race
+  // Auto-detect next upcoming race based on selected series
   const nextRace = useMemo(() => {
     const today = new Date(); today.setHours(0, 0, 0, 0);
-    return [...tracks]
+    const tracksToUse = interviewSeries === "arca" ? arcaTracks : tracks;
+    return [...tracksToUse]
       .filter(t => t.date)
       .map(t => ({ ...t, dateObj: new Date(t.date + "T12:00:00") }))
       .sort((a, b) => a.dateObj - b.dateObj)
       .find(t => { const d = new Date(t.dateObj); d.setHours(0, 0, 0, 0); return d >= today; });
-  }, [tracks]);
+  }, [tracks, arcaTracks, interviewSeries]);
 
   useEffect(() => {
-    if (nextRace && !selectedRace) setSelectedRace(nextRace.name);
-  }, [nextRace]);
+    setSelectedDriverId(""); // Reset driver when series changes
+    setSelectedRace(""); // Reset race when series changes
+  }, [interviewSeries]);
 
   useEffect(() => {
     loadInterviews();
+    setSelectedDriverId(""); // Reset driver when series changes
+    setSelectedRace(""); // Reset race when series changes
   }, [filterSeries]);
 
   // Render preview into the modal canvas when an interview is being previewed
