@@ -1381,12 +1381,13 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
   }, [driver?.name, isDriverAuthorized]);
 
   useEffect(() => {
-    if (!driver?.id) return;
+    if (!driver?.id || isArcaDriver) return;
     async function loadInterviews() {
       const { data } = await supabase
         .from("interviews")
         .select("*")
         .eq("driver_id", driver.id)
+        .eq("series", "cup")
         .order("generated_at", { ascending: false });
       setInterviews(data || []);
     }
@@ -1394,7 +1395,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
     loadInterviews();
     const interval = setInterval(loadInterviews, 30000);
     return () => clearInterval(interval);
-  }, [driver?.id]);
+  }, [driver?.id, isArcaDriver]);
 
   // Load ARCA interviews if this is an ARCA driver
   useEffect(() => {
