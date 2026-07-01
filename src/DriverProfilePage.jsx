@@ -541,7 +541,7 @@ function InterviewAnswerCard({ interview, onAnswered, accent = "#d4af37" }) {
   );
 }
 
-function AppealModal({ isOpen, onClose, selectedSeason, driverNumber, arcaDrivers, drivers }) {
+function AppealModal({ isOpen, onClose, selectedSeason, driverNumber, arcaDrivers, allDrivers }) {
   const [requester, setRequester] = useState("");
   const [track, setTrack] = useState("");
   const [description, setDescription] = useState("");
@@ -552,7 +552,7 @@ function AppealModal({ isOpen, onClose, selectedSeason, driverNumber, arcaDriver
   const widgetRef = useRef(null);
 
   // Check if driver runs in both series
-  const inCup = (drivers || []).some(d => String(d.number) === String(driverNumber));
+  const inCup = (allDrivers || []).some(d => String(d.number) === String(driverNumber));
   const inArca = (arcaDrivers || []).some(d => String(d.number) === String(driverNumber));
   const runsInBothSeries = inCup && inArca;
 
@@ -562,6 +562,8 @@ function AppealModal({ isOpen, onClose, selectedSeason, driverNumber, arcaDriver
       setSeries("arca");
     }
   }, [inCup, inArca]);
+
+  const trackOptions = ["Bristol (Night)", "Charlotte", "Daytona (Night)", "Homestead", "Indianapolis", "Iowa", "Kansas", "Michigan", "Nashville", "New Hampshire", "North Wilksboro", "Phoenix", "Pocono", "Preseason - Dover", "Preseason - Michigan", "Preseason - EchoPark Speedway", "Richmond", "Talladega", "Texas", "Las Vegas"];
 
   const drivers = selectedSeason?.drivers
     ? normalizeDriverProfileRoster(selectedSeason.drivers).sort((a, b) => Number(a.number) - Number(b.number))
@@ -657,7 +659,7 @@ function AppealModal({ isOpen, onClose, selectedSeason, driverNumber, arcaDriver
           <label style={{ display: "block", marginBottom: 6, fontWeight: 700 }}>Requester Driver *</label>
           <select style={inputStyle} value={requester} onChange={(e) => setRequester(e.target.value)}>
             <option value="">-- Select Driver --</option>
-            {drivers.map((d) => <option key={d.id} value={`${d.number} - ${d.name}`}>#{d.number} {d.name}</option>)}
+            {allDrivers.map((d) => <option key={d.id} value={`${d.number} - ${d.name}`}>#{d.number} {d.name}</option>)}
           </select>
         </div>
 
