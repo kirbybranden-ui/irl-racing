@@ -8,7 +8,6 @@ import FilesPage from "./FilesPage";
 import SubmitAppealPage from "./SubmitAppealPage";
 import AppealsPage from "./AppealsPage";
 import DriverProfilePage from "./DriverProfilePage";
-import ArcaDriverProfile from "./pages/ArcaDriverProfile";
 import TeamDetailPage from "./TeamDetailPage";
 import ManufacturerDetailPage from "./ManufacturerDetailPage";
 import WelcomePage from "./WelcomePage";
@@ -4834,7 +4833,7 @@ function MobileDriverProfilePolished({ driver, driverNumber, raceHistory = [], t
         </div>
         <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", paddingBottom: 4 }}>
           <div style={{ minWidth: 360 }}>
-            <DriverProfilePage seasons={seasons} activeSeason={activeSeason} tracks={tracks} />
+            <DriverProfilePage seasons={seasons} activeSeason={activeSeason} tracks={tracks} arcaDrivers={activeSeason?.arcaDrivers || arcaDrivers} arcaTracks={arcaTracks} />
           </div>
         </div>
       </MobileCard>
@@ -7655,18 +7654,17 @@ export default function App() {
   if (path === "/series/arca/interviews") {
     return <PublicInterviewsPage seriesId="arca" />;
   }
-  // ARCA driver profiles
+  // ARCA driver profiles - uses combined DriverProfilePage
   if (path.startsWith("/series/arca/driver/")) {
-    const driverNumber = decodeURIComponent(rawPath.replace(/^\/series\/arca\/driver\//i, "").split("/")[0]);
     return (
-      <ArcaDriverProfile
-        driverNumber={driverNumber}
-        arcaDrivers={activeSeason?.arcaDrivers || arcaDrivers}
-        arcaRaceHistory={activeSeason?.arcaRaceHistory || []}
-        arcaTracks={arcaTracks}
-        activeSeason={activeSeason}
-        onBack={() => window.location.pathname = "/series/arca/standings"}
-      />
+      <>
+        <div style={{ minHeight: 0, background: "#0c0f14", padding: "20px 20px 0" }}>
+          <div style={{ maxWidth: 1400, margin: "0 auto" }}>
+            <AppUpdateBanner page="driver" />
+          </div>
+        </div>
+        <DriverProfilePage seasons={seasons} activeSeason={activeSeason} tracks={tracks} arcaDrivers={activeSeason?.arcaDrivers || arcaDrivers} arcaTracks={arcaTracks} />
+      </>
     );
   }
 
@@ -7766,7 +7764,7 @@ export default function App() {
           </div>
         </div>
         <DriverVoteReminderStrip driverNumber={decodeURIComponent(rawPath.replace(/^\/driver\//i, "").split("/")[0])} />
-        <DriverProfilePage seasons={seasons} activeSeason={activeSeason} tracks={tracks} />
+        <DriverProfilePage seasons={seasons} activeSeason={activeSeason} tracks={tracks} arcaDrivers={activeSeason?.arcaDrivers || arcaDrivers} arcaTracks={arcaTracks} />
       </>
     );
   }
