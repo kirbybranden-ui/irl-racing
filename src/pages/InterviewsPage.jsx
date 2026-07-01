@@ -734,6 +734,8 @@ export default function InterviewsPage({ drivers = [], arcaDrivers = [], tracks 
             </div>
           </div>
 
+          {/* Additional Settings */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 20 }}>
             <div>
               <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Submission Deadline</div>
               <input type="datetime-local" value={deadlineAt} onChange={(e) => setDeadlineAt(e.target.value)} style={inputStyle} />
