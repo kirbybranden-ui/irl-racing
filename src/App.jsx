@@ -15,7 +15,7 @@ import WelcomePage from "./WelcomePage";
 import { supabase } from "./lib/supabase";
 import CarGalleryPage from "./CarGalleryPage";
 import PaintSchemeVotePage from "./PaintSchemeVotePage";
-import InterviewsPage from "./InterviewsPage";
+import InterviewsPage from "./pages/InterviewsPage";
 import PublicInterviewsPage from "./InterviewsPage_public_interview_center";
 import NewsPage from "./NewsPage";
 import NotificationsPage from "./NotificationsPage";
