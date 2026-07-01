@@ -16,7 +16,7 @@ import { supabase } from "./lib/supabase";
 import CarGalleryPage from "./CarGalleryPage";
 import PaintSchemeVotePage from "./PaintSchemeVotePage";
 import InterviewsPage from "./pages/InterviewsPage";
-import PublicInterviewsPage from "./InterviewsPage_public_interview_center";
+import PublicInterviewsPage from "./pages/PublicInterviewsPage";
 import NewsPage from "./NewsPage";
 import NotificationsPage from "./NotificationsPage";
 import StreamPage from "./pages/StreamPage";
@@ -7629,7 +7629,7 @@ export default function App() {
   if (path === "/vote" || path === "/league-vote" || path === "/voting") return <LeagueVotingPage drivers={visibleDrivers} />;
   if (path === "/notifications") return withLeagueStatusWidget(<NotificationsPage />);
   if ((!isMobileViewport || forceDesktop) && path === "/discord") return <DiscordPage />;
-  if ((!isMobileViewport || forceDesktop) && path === "/interviews") return <PublicInterviewsPage />;
+  if ((!isMobileViewport || forceDesktop) && path === "/interviews") return <PublicInterviewsPage seriesId="cup" />;
   if ((!isMobileViewport || forceDesktop) && path === "/driver-feedback") {
     return (
       <div style={appShellStyle}>
@@ -7651,6 +7651,10 @@ export default function App() {
   if (!isHydrated) return <div style={appShellStyle}><div style={pageContainerStyle}><div style={sectionCardStyle}>Loading league data...</div></div></div>;
 
   // Development series pages. These do not remove any existing Cup routes.
+  // ARCA interviews
+  if (path === "/series/arca/interviews") {
+    return <PublicInterviewsPage seriesId="arca" />;
+  }
   // ARCA driver profiles
   if (path.startsWith("/series/arca/driver/")) {
     const driverNumber = decodeURIComponent(rawPath.replace(/^\/series\/arca\/driver\//i, "").split("/")[0]);
