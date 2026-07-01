@@ -123,6 +123,12 @@ function AppealCard({ appeal, onSave }) {
       {/* Details */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 14 }}>
         <div>
+          <div style={labelStyle}>Series</div>
+          <div style={valueStyle}>
+            {appeal.series === "arca" ? "🏎️ ARCA Series" : "🏁 Cup Series"}
+          </div>
+        </div>
+        <div>
           <div style={labelStyle}>Track</div>
           <div style={valueStyle}>{appeal.track}</div>
         </div>
