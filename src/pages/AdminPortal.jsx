@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { IssuesRollup } from "../components/IssuesRollup";
+// import { IssuesRollup } from "../components/IssuesRollup"; // TODO: Uncomment once IssuesRollup.jsx is in repo
 
 export default function AdminPortal({
   AdminLeagueMessageComposer,
@@ -2695,7 +2695,9 @@ export default function AdminPortal({
                   <h2 style={{ margin: "3px 0 0", fontSize: 26, letterSpacing: -0.6 }}>Driver Issues Tracker</h2>
                   <p style={{ color: "#4b5563", fontWeight: 750 }}>Review and resolve driver-reported bugs, feature requests, and feedback.</p>
                   <div style={{ marginTop: 16 }}>
-                    <IssuesRollup />
+                    {/* <IssuesRollup /> */}
+                    {/* TODO: Uncomment once IssuesRollup.jsx is in repo */}
+                    <p style={{ color: "#6b7280", fontStyle: "italic" }}>Issues widget will appear once IssuesRollup.jsx is added to the repo.</p>
                   </div>
                 </div>
               )}
