@@ -7692,7 +7692,7 @@ export default function App() {
       />
     );
   }
-  if (path === "/admin/interviews") return <InterviewsPage drivers={drivers} tracks={tracks} seasons={seasons} activeSeasonId={activeSeasonId} />;
+  if (path === "/admin/interviews") return <InterviewsPage drivers={drivers} arcaDrivers={activeSeason?.arcaDrivers || arcaDrivers} tracks={tracks} arcaTracks={arcaTracks} seasons={seasons} activeSeasonId={activeSeasonId} />;
   if (path === "/admin/votes") return <AdminVotingPage drivers={visibleDrivers} />;
   // Team detail page
   if (path.startsWith("/team/")) {
