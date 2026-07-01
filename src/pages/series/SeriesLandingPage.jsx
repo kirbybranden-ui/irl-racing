@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { ReportIssueModal } from "../components/ReportIssueModal";
+import { ReportIssueModal } from "../../components/ReportIssueModal";
 
 const SERIES_NAMES = {
   cup: "Cup Series",
