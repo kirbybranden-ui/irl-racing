@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useState } from "react";
+import { ReportIssueModal } from "../components/ReportIssueModal";
 
 const SERIES = [
   { id: "cup", name: "Cup Series", sub: "Main Budweiser Cup League" },
@@ -24,6 +25,7 @@ const cardStyle = {
 };
 
 export default function SeriesPortal() {
+  const [isReportingIssue, setIsReportingIssue] = useState(false);
   const go = (to) => { window.location.href = to; };
 
   return (
@@ -73,8 +75,19 @@ export default function SeriesPortal() {
           <button type="button" onClick={() => go("/admin")} style={{ padding: "12px 16px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.16)", background: "#7f1d1d", color: "white", fontWeight: 900 }}>
             Admin Portal
           </button>
+          <button type="button" onClick={() => setIsReportingIssue(true)} style={{ padding: "12px 16px", borderRadius: 12, border: "1px solid #ef4444", background: "#050505", color: "#fca5a5", fontWeight: 900 }}>
+            🐛 Report Issue
+          </button>
         </div>
       </div>
+
+      <ReportIssueModal
+        isOpen={isReportingIssue}
+        onClose={() => setIsReportingIssue(false)}
+        driverNumber=""
+        driverName="Guest User"
+        series="cup"
+      />
     </div>
   );
 }
