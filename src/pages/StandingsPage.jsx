@@ -1012,7 +1012,7 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
     { label: "Admin Portal", subtitle: "League control", icon: "🔐", route: "/admin" },
   ];
 
-  const filteredNavItems = seriesId === "arca" ? navItems.filter(item => item.route === "/admin") : navItems;
+  const filteredNavItems = seriesId === "arca" ? navItems.filter(item => item.route === "/admin" || item.label === "Interviews") : navItems;
 
   const StatCard = ({ icon, label, value, detail, onClick, accent = "#007aff", tint = "rgba(0,122,255,0.12)" }) => (
     <button
