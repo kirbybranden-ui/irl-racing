@@ -541,14 +541,27 @@ function InterviewAnswerCard({ interview, onAnswered, accent = "#d4af37" }) {
   );
 }
 
-function AppealModal({ isOpen, onClose, selectedSeason }) {
+function AppealModal({ isOpen, onClose, selectedSeason, driverNumber, arcaDrivers, drivers }) {
   const [requester, setRequester] = useState("");
   const [track, setTrack] = useState("");
   const [description, setDescription] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
+  const [series, setSeries] = useState("cup");
   const [submitting, setSubmitting] = useState(false);
   const [cloudinaryReady, setCloudinaryReady] = useState(false);
   const widgetRef = useRef(null);
+
+  // Check if driver runs in both series
+  const inCup = (drivers || []).some(d => String(d.number) === String(driverNumber));
+  const inArca = (arcaDrivers || []).some(d => String(d.number) === String(driverNumber));
+  const runsInBothSeries = inCup && inArca;
+
+  // If only in ARCA, force series to ARCA
+  useEffect(() => {
+    if (!inCup && inArca) {
+      setSeries("arca");
+    }
+  }, [inCup, inArca]);
 
   const drivers = selectedSeason?.drivers
     ? normalizeDriverProfileRoster(selectedSeason.drivers).sort((a, b) => Number(a.number) - Number(b.number))
@@ -569,6 +582,7 @@ function AppealModal({ isOpen, onClose, selectedSeason }) {
         description: description.trim(),
         evidence_url: videoUrl || null,
         status: "Open",
+        series: series,
         created_at: new Date().toISOString(),
       });
 
@@ -578,6 +592,7 @@ function AppealModal({ isOpen, onClose, selectedSeason }) {
       setTrack("");
       setDescription("");
       setVideoUrl("");
+      setSeries("cup");
       onClose();
     } catch (err) {
       console.error("Appeal submission error:", err);
@@ -653,6 +668,46 @@ function AppealModal({ isOpen, onClose, selectedSeason }) {
             {trackOptions.map((t) => <option key={t} value={t}>{t}</option>)}
           </select>
         </div>
+
+        {runsInBothSeries && (
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: "block", marginBottom: 6, fontWeight: 700 }}>Series *</label>
+            <div style={{ display: "flex", gap: 12 }}>
+              <button
+                type="button"
+                onClick={() => setSeries("cup")}
+                style={{
+                  flex: 1,
+                  padding: "10px 12px",
+                  borderRadius: 10,
+                  border: series === "cup" ? "2px solid #d4af37" : "1px solid #313947",
+                  background: series === "cup" ? "rgba(212,175,55,0.15)" : "#0f1319",
+                  color: "white",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                🏁 Cup Series
+              </button>
+              <button
+                type="button"
+                onClick={() => setSeries("arca")}
+                style={{
+                  flex: 1,
+                  padding: "10px 12px",
+                  borderRadius: 10,
+                  border: series === "arca" ? "2px solid #00e5a0" : "1px solid #313947",
+                  background: series === "arca" ? "rgba(0,229,160,0.15)" : "#0f1319",
+                  color: "white",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                🏎️ ARCA Series
+              </button>
+            </div>
+          </div>
+        )}
 
         <div style={{ marginBottom: 16 }}>
           <label style={{ display: "block", marginBottom: 6, fontWeight: 700 }}>Description *</label>
@@ -2744,7 +2799,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
           )}
         </div>
 
-        <AppealModal isOpen={isAppealModalOpen} onClose={() => setIsAppealModalOpen(false)} selectedSeason={selectedSeason} />
+        <AppealModal isOpen={isAppealModalOpen} onClose={() => setIsAppealModalOpen(false)} selectedSeason={selectedSeason} driverNumber={driverNumber} arcaDrivers={arcaDrivers} drivers={sanitizedDrivers} />
       </div>
     );
   }
@@ -3794,7 +3849,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
         )}
       </div>
 
-      <AppealModal isOpen={isAppealModalOpen} onClose={() => setIsAppealModalOpen(false)} selectedSeason={selectedSeason} />
+      <AppealModal isOpen={isAppealModalOpen} onClose={() => setIsAppealModalOpen(false)} selectedSeason={selectedSeason} driverNumber={driverNumber} arcaDrivers={arcaDrivers} drivers={sanitizedDrivers} />
     </div>
   );
 }
