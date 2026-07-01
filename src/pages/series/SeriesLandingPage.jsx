@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-// import { ReportIssueModal } from "../components/ReportIssueModal"; // TODO: Uncomment once ReportIssueModal.jsx is in repo
+import { ReportIssueModal } from "../components/ReportIssueModal";
 
 const SERIES_NAMES = {
   cup: "Cup Series",
@@ -81,7 +81,7 @@ export default function SeriesLandingPage({ seriesId = "cup", drivers = [], driv
   const [password, setPassword] = useState("");
   const [loginMode, setLoginMode] = useState("driver");
   const [error, setError] = useState("");
-  // const [isReportingIssue, setIsReportingIssue] = useState(false); // TODO: Uncomment once ReportIssueModal.jsx is in repo
+  const [isReportingIssue, setIsReportingIssue] = useState(false);
 
   const seriesName = SERIES_NAMES[seriesId] || "Series";
   const currentPath = typeof window !== "undefined" ? window.location.pathname : "";
@@ -271,23 +271,21 @@ export default function SeriesLandingPage({ seriesId = "cup", drivers = [], driv
               <button type="button" onClick={handleGuestView} style={{ padding: "12px 16px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.24)", background: "#050505", color: "white", fontWeight: 1000 }}>
                 View as Guest
               </button>
-              {/* <button type="button" onClick={() => setIsReportingIssue(true)} style={{ padding: "12px 16px", borderRadius: 10, border: "1px solid #ef4444", background: "#050505", color: "#fca5a5", fontWeight: 1000 }}>
+              <button type="button" onClick={() => setIsReportingIssue(true)} style={{ padding: "12px 16px", borderRadius: 10, border: "1px solid #ef4444", background: "#050505", color: "#fca5a5", fontWeight: 1000 }}>
                 🐛 Report Issue
-              </button> */}
-              {/* TODO: Uncomment once ReportIssueModal.jsx is in repo */}
+              </button>
             </div>
           </form>
         </div>
       </div>
       
-      {/* <ReportIssueModal
+      <ReportIssueModal
         isOpen={isReportingIssue}
         onClose={() => setIsReportingIssue(false)}
         driverNumber=""
         driverName="Guest User"
         series={seriesId}
-      /> */}
-      {/* TODO: Uncomment once ReportIssueModal.jsx is in repo */}
+      />
     </div>
   );
 }
