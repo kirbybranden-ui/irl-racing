@@ -30,7 +30,7 @@ import LeagueMessageCenter from "./pages/LeagueMessageCenter";
 import InSeasonTournamentPage from "./pages/InSeasonTournamentPage";
 import DriverMarketPage from "./pages/DriverMarketPage";
 import DevelopmentRequestsPage from "./pages/DevelopmentRequestsPage";
-// import IssuesPage from "./pages/IssuesPage"; // TODO: Uncomment once IssuesPage.jsx is in repo
+import IssuesPage from "./pages/IssuesPage";
 import LeagueChatPage from "./LeagueChatPage";
 import OwnersPage from "./OwnersPage.jsx";
 import { defaultDrivers } from "./data/drivers";
@@ -3578,7 +3578,7 @@ function MobileLeagueApp({
   if (path === "/submit-appeal") return dataFrame("Submit Appeal", "more", isGuestSession ? <MobileGuestLockedCard title="Appeals Require Driver Login" go={go} /> : <SubmitAppealPage />);
   if (path === "/submit-story") return dataFrame("Submit Story", "more", isGuestSession ? <MobileGuestLockedCard title="Story Submissions Require Driver Login" go={go} /> : <SubmitStoryPage />);
   if (path === "/appeals") return dataFrame("Appeals", "more", <AppealsPage />);
-  // if (path === "/issues") return dataFrame("Issues & Feedback", "more", <IssuesPage isAdmin={false} />); // TODO: Uncomment once IssuesPage.jsx is in repo
+  if (path === "/issues") return dataFrame("Issues & Feedback", "more", <IssuesPage isAdmin={false} />);
   if (path === "/news") return frame("News", "news", <MobileNewsFeed go={go} desktopArchive={<NewsPage />} />);
   if (path === "/paint-scheme-vote") return frame("Paint Scheme Votes", "votes", <MobilePaintSchemeVotesHub drivers={drivers} tracks={tracks} go={go} session={mobileSession} />);
   if (path === "/vote" || path === "/league-vote" || path === "/voting") return dataFrame("League Vote", "more", isGuestSession ? <MobileGuestLockedCard title="League Voting Requires Driver Login" go={go} /> : <LeagueVotingPage drivers={drivers} />);
@@ -7600,8 +7600,8 @@ export default function App() {
   if (path === "/submit-appeal") return <SubmitAppealPage />;
   if (path === "/submit-story") return <SubmitStoryPage />;
   if (path === "/appeals") return <AppealsPage />;
-  // if (path === "/issues") return <IssuesPage isAdmin={false} />; // TODO: Uncomment once IssuesPage.jsx is in repo
-  // if (path === "/admin/issues") return <IssuesPage isAdmin={true} />; // TODO: Uncomment once IssuesPage.jsx is in repo
+  if (path === "/issues") return <IssuesPage isAdmin={false} />;
+  if (path === "/admin/issues") return <IssuesPage isAdmin={true} />;
   if (path === "/admin/stories" || path === "/stories") return <StoriesAdminPage />;
   if (path === "/admin/live-control") {
   return <LiveControlPanel />;
