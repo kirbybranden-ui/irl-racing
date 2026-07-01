@@ -2344,7 +2344,7 @@ export default function AdminPortal({
                       ["Active Drivers", visibleDrivers?.length || drivers?.length || 0],
                       ["Team Owners", ownerPortalTeams?.length || 0],
                       ["Open Appeals", openAppealCount || 0],
-                      ["Pending Issues", 0], // Will be updated dynamically
+                      ["Pending Issues", 0],
                       ["Contracts", financeContracts?.length || 0],
                       ["Start & Park", (startParkRequests || []).filter((request) => String(request.status || "pending").toLowerCase() === "pending").length],
                       ["Join Requests", pendingHrRequestCount],
