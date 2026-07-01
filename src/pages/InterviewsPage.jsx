@@ -683,9 +683,20 @@ export default function InterviewsPage({ drivers = [], arcaDrivers = [], tracks 
             Type up to 3 questions. They appear on the driver's profile page where the driver types their answers and submits back here.
           </div>
 
+          {/* Step 1: Series Selection */}
+          <div style={{ marginBottom: 24, paddingBottom: 24, borderBottom: "2px solid #2c3440" }}>
+            <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 10, color: "#d4af37", letterSpacing: 1.2, textTransform: "uppercase" }}>Step 1: Select Series</div>
+            <div style={{ display: "flex", gap: 12 }}>
+              <button onClick={() => setInterviewSeries("cup")} style={{ ...(interviewSeries === "cup" ? { ...blueButtonStyle, flex: 1, fontSize: 14, padding: "12px 16px" } : { ...secondaryButtonStyle, flex: 1, fontSize: 14, padding: "12px 16px" }) }}>🏁 Cup Series</button>
+              <button onClick={() => setInterviewSeries("arca")} style={{ ...(interviewSeries === "arca" ? { ...greenButtonStyle, flex: 1, fontSize: 14, padding: "12px 16px" } : { ...secondaryButtonStyle, flex: 1, fontSize: 14, padding: "12px 16px" }) }}>🏎️ ARCA Series</button>
+            </div>
+          </div>
+
+          {/* Step 2-4: Driver, Race, Type */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 20 }}>
+            {/* Step 2: Driver Selection */}
             <div>
-              <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Driver</div>
+              <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6, color: "#d4af37" }}>Step 2: Driver</div>
               <select style={selectStyle} value={selectedDriverId} onChange={e => setSelectedDriverId(e.target.value)}>
                 <option value="">Select driver...</option>
                 {[...(interviewSeries === "arca" ? arcaDrivers : drivers)].filter(d => !d.retired).sort((a, b) => a.number - b.number).map(d => (
@@ -693,9 +704,11 @@ export default function InterviewsPage({ drivers = [], arcaDrivers = [], tracks 
                 ))}
               </select>
             </div>
+
+            {/* Step 3: Race Selection */}
             <div>
-              <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>
-                Race {nextRace && <span style={{ color: "#d4af37", fontWeight: 400 }}>— next: {nextRace.name}</span>}
+              <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6, color: "#d4af37" }}>
+                Step 3: Race {nextRace && <span style={{ color: "#d4af37", fontWeight: 400 }}>→ {nextRace.name}</span>}
               </div>
               <select style={selectStyle} value={selectedRace} onChange={e => setSelectedRace(e.target.value)}>
                 <option value="">Select race...</option>
@@ -710,20 +723,17 @@ export default function InterviewsPage({ drivers = [], arcaDrivers = [], tracks 
                 ))}
               </select>
             </div>
+
+            {/* Step 4: Interview Type */}
             <div>
-              <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Type</div>
+              <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6, color: "#d4af37" }}>Step 4: Type</div>
               <div style={{ display: "flex", gap: 8 }}>
                 <button onClick={() => setInterviewType("pre")} style={{ ...(interviewType === "pre" ? blueButtonStyle : secondaryButtonStyle), flex: 1, fontSize: 13 }}>🎤 Pre</button>
                 <button onClick={() => setInterviewType("post")} style={{ ...(interviewType === "post" ? greenButtonStyle : secondaryButtonStyle), flex: 1, fontSize: 13 }}>🏆 Post</button>
               </div>
             </div>
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Series</div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button onClick={() => setInterviewSeries("cup")} style={{ ...(interviewSeries === "cup" ? blueButtonStyle : secondaryButtonStyle), flex: 1, fontSize: 13 }}>Cup Series</button>
-                <button onClick={() => setInterviewSeries("arca")} style={{ ...(interviewSeries === "arca" ? greenButtonStyle : secondaryButtonStyle), flex: 1, fontSize: 13 }}>ARCA Series</button>
-              </div>
-            </div>
+          </div>
+
             <div>
               <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Submission Deadline</div>
               <input type="datetime-local" value={deadlineAt} onChange={(e) => setDeadlineAt(e.target.value)} style={inputStyle} />
