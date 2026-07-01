@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { IssuesRollup } from "../components/IssuesRollup";
 
 export default function AdminPortal({
   AdminLeagueMessageComposer,
@@ -2328,6 +2329,7 @@ export default function AdminPortal({
                   ["owners", "Owner Assignments"],
                   ["access", "Access Codes"],
                   ["appeals", "Appeals"],
+                  ["issues", "Issues & Feedback"],
                   ["contracts", "Contracts"],
                   ["startpark", "Start & Park"],
                 ].map(([key, label]) => (
@@ -2342,6 +2344,7 @@ export default function AdminPortal({
                       ["Active Drivers", visibleDrivers?.length || drivers?.length || 0],
                       ["Team Owners", ownerPortalTeams?.length || 0],
                       ["Open Appeals", openAppealCount || 0],
+                      ["Pending Issues", 0], // Will be updated dynamically
                       ["Contracts", financeContracts?.length || 0],
                       ["Start & Park", (startParkRequests || []).filter((request) => String(request.status || "pending").toLowerCase() === "pending").length],
                       ["Join Requests", pendingHrRequestCount],
@@ -2359,6 +2362,7 @@ export default function AdminPortal({
                       ["🏢", "Team Owner Assignments", "Manage owner access and team-owner responsibility.", "owners"],
                       ["🔐", "Access & Security", "Driver passwords, owner codes, account access, and security controls.", "access"],
                       ["⚖️", "Appeals", "Review open appeals and move them through the board workflow.", "appeals"],
+                      ["🐛", "Issues & Feedback", "Track driver-submitted issues and solutions from creation to completion.", "issues"],
                       ["📑", "Contracts", "View driver contracts, statuses, salary records, and team obligations.", "contracts"],
                       ["🟨", "Start & Park", "Approve, decline, and apply Start & Park requests from drivers and owners.", "startpark"],
                       ["➕", "Add / Approve Drivers", "Add new drivers and approve pending signup requests directly inside HR.", "drivers"],
@@ -2681,6 +2685,17 @@ export default function AdminPortal({
                   <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", marginTop: 16 }}>
                     <div style={{ padding: "14px 18px", borderRadius: 20, background: "#ffffff", border: "1px solid #e5e7eb", fontWeight: 1000 }}>{openAppealCount || 0} open appeals</div>
                     <button type="button" onClick={() => (window.location.pathname = "/appeals")} style={adminPrimaryButtonStyle}>Open Appeals</button>
+                  </div>
+                </div>
+              )}
+
+              {hrTab === "issues" && (
+                <div style={walletLightCardStyle}>
+                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Issues & Feedback</div>
+                  <h2 style={{ margin: "3px 0 0", fontSize: 26, letterSpacing: -0.6 }}>Driver Issues Tracker</h2>
+                  <p style={{ color: "#4b5563", fontWeight: 750 }}>Review and resolve driver-reported bugs, feature requests, and feedback.</p>
+                  <div style={{ marginTop: 16 }}>
+                    <IssuesRollup />
                   </div>
                 </div>
               )}
