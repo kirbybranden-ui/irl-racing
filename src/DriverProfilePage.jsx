@@ -563,13 +563,6 @@ function AppealModal({ isOpen, onClose, selectedSeason, driverNumber, arcaDriver
     }
   }, [inCup, inArca]);
 
-  const trackOptions = ["Bristol (Night)", "Charlotte", "Daytona (Night)", "Homestead", "Indianapolis", "Iowa", "Kansas", "Michigan", "Nashville", "New Hampshire", "North Wilksboro", "Phoenix", "Pocono", "Preseason - Dover", "Preseason - Michigan", "Preseason - EchoPark Speedway", "Richmond", "Talladega", "Texas", "Las Vegas"];
-
-  const drivers = selectedSeason?.drivers
-    ? normalizeDriverProfileRoster(selectedSeason.drivers).sort((a, b) => Number(a.number) - Number(b.number))
-    : [];
-  const trackOptions = ["Bristol (Night)", "Charlotte", "Daytona (Night)", "Homestead", "Indianapolis", "Iowa", "Kansas", "Michigan", "Nashville", "New Hampshire", "North Wilksboro", "Phoenix", "Pocono", "Preseason - Dover", "Preseason - Michigan", "Preseason - EchoPark Speedway", "Richmond", "Talladega", "Texas", "Las Vegas"];
-
   async function handleSubmit() {
     if (!requester.trim() || !track.trim() || !description.trim()) {
       alert("Please fill in all required fields.");
