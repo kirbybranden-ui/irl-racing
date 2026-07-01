@@ -687,9 +687,26 @@ function AppealModal({ isOpen, onClose, selectedSeason }) {
 
 export default function DriverProfilePage({ seasons, activeSeason, tracks = [], ownerDriverAssignments = [], loadOwnerDriverAssignments, arcaDrivers = [], arcaTracks = [] }) {
   const pathParts = window.location.pathname.split("/");
-  const requestedDriverNumber = pathParts[2];
+  
+  // Parse driver number from either /driver/:number or /series/arca/driver/:number
+  let requestedDriverNumber;
+  let subPage;
+  
+  if (pathParts.includes("arca")) {
+    // ARCA route: /series/arca/driver/88 or /series/arca/driver/88/subpage
+    requestedDriverNumber = pathParts[4];
+    subPage = pathParts[5];
+  } else {
+    // Cup route: /driver/88 or /driver/88/subpage
+    requestedDriverNumber = pathParts[2];
+    subPage = pathParts[3];
+  }
+  
   const driverNumber = String(requestedDriverNumber) === "46" ? "39" : requestedDriverNumber;
-  const subPage = pathParts[3];
+
+  // Check ARCA first, then Cup
+  const arcaDriver = arcaDrivers.find((d) => String(d.number) === String(driverNumber));
+  const isArcaDriver = !!arcaDriver;
 
   const allSeasons = Array.isArray(seasons) ? seasons : [];
   const selectedSeason = activeSeason && activeSeason.id
@@ -699,9 +716,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
   const sanitizedDrivers = normalizeDriverProfileRoster(selectedSeason?.drivers || []);
   const normalizedRaceHistory = normalizeDriverProfileRaceHistory(selectedSeason?.raceHistory || []);
 
-  const driver = sanitizedDrivers.find((d) => d && String(d.number) === String(driverNumber)) || null;
-  const arcaDriver = arcaDrivers.find((d) => String(d.number) === String(driverNumber));
-  const isArcaDriver = !!arcaDriver && !driver;
+  const driver = !isArcaDriver ? sanitizedDrivers.find((d) => d && String(d.number) === String(driverNumber)) || null : null;
   
   const teamTheme = getTeamTheme(driver?.team || arcaDriver?.team);
   const themedPrimaryButtonStyle = { ...primaryButtonStyle, background: teamTheme.accent };
@@ -1335,10 +1350,10 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
         .eq("answered", true)
         .order("generated_at", { ascending: false });
       setArcaInterviews(data || []);
+      setArcaInterviewsLoading(false);
     }
 
     loadArcaInterviews();
-    setArcaInterviewsLoading(false);
   }, [isArcaDriver, driverNumber]);
 
   useEffect(() => {
