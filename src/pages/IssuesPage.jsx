@@ -1,167 +1,292 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { supabase } from "./lib/supabase";
 
+const cardStyle = {
+  border: "1px solid #2c3440",
+  borderRadius: 14,
+  padding: 20,
+  marginBottom: 16,
+  background: "#171b22",
+  boxShadow: "0 4px 16px rgba(0,0,0,0.2)",
+};
+
+const labelStyle = { fontSize: 12, opacity: 0.6, fontWeight: 700, textTransform: "uppercase", marginBottom: 2 };
+const valueStyle = { fontSize: 15, marginBottom: 12 };
 const inputStyle = { width: "100%", background: "#0f1319", color: "white", border: "1px solid #313947", borderRadius: 10, padding: "10px 12px", boxSizing: "border-box", resize: "vertical" };
+const selectStyle = { background: "#0f1319", color: "white", border: "1px solid #313947", borderRadius: 10, padding: "10px 12px", minWidth: 160 };
 const buttonStyle = { background: "#d4af37", color: "#111", border: "none", borderRadius: 10, padding: "10px 18px", fontWeight: 700, cursor: "pointer", fontSize: 14 };
 const secondaryButtonStyle = { background: "#1e2530", color: "white", border: "1px solid #313947", borderRadius: 10, padding: "10px 16px", fontWeight: 700, cursor: "pointer" };
 
-export function ReportIssueModal({ isOpen, onClose, driverNumber, driverName, series = "cup" }) {
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [screenshotUrl, setScreenshotUrl] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [cloudinaryReady, setCloudinaryReady] = useState(false);
-  const widgetRef = useRef(null);
+const statusColors = {
+  Submitted: { bg: "#1a2030", border: "#3b4f6e", badge: "#3b82f6", label: "📋 Submitted" },
+  Reviewed: { bg: "#1a2820", border: "#3b6b4f", badge: "#8b5cf6", label: "👀 Reviewed" },
+  Actioned: { bg: "#2a2010", border: "#6b5020", badge: "#f59e0b", label: "⚙️ Actioned" },
+  Complete: { bg: "#142a14", border: "#2d642d", badge: "#22c55e", label: "✅ Complete" },
+  "Needs Work": { bg: "#2a1010", border: "#6b2020", badge: "#ef4444", label: "❌ Needs Work" },
+};
 
-  // Load Cloudinary widget
-  useEffect(() => {
-    if (window.cloudinary) {
-      setCloudinaryReady(true);
-      return;
-    }
-    const existing = document.getElementById("cloudinary-widget-script-issues");
-    if (existing) return;
-    const script = document.createElement("script");
-    script.id = "cloudinary-widget-script-issues";
-    script.src = "https://widget.cloudinary.com/v2.0/global/all.js";
-    script.async = true;
-    script.onload = () => setCloudinaryReady(true);
-    script.onerror = () => console.error("Cloudinary widget failed to load");
-    document.body.appendChild(script);
-  }, []);
+export default function IssuesPage({ isAdmin = false, driverNumber = null, seriesId = "cup" }) {
+  const [issues, setIssues] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState("All");
+  const [seriesFilter, setSeriesFilter] = useState(seriesId);
 
-  // Initialize Cloudinary widget
-  useEffect(() => {
-    if (!cloudinaryReady || !window.cloudinary) return;
-    widgetRef.current = window.cloudinary.createUploadWidget(
-      {
-        cloudName: "dpu05oykz",
-        uploadPreset: "irl_racing",
-        maxFileSize: 104857600,
-        clientAllowedFormats: ["jpg", "jpeg", "png", "gif", "webp"],
-      },
-      (error, result) => {
-        if (error) {
-          console.error("Upload error:", error);
-          alert("Upload failed: " + (error.message || "Unknown error"));
-          return;
-        }
-        if (result?.event === "success") {
-          setScreenshotUrl(result.info.secure_url);
-          alert("✅ Screenshot uploaded successfully!");
-        }
-      }
-    );
-  }, [cloudinaryReady]);
+  async function loadIssues() {
+    setLoading(true);
+    let query = supabase.from("issues").select("*").order("created_at", { ascending: false });
 
-  async function handleSubmit(e) {
-    e.preventDefault();
-    
-    if (!title.trim() || !description.trim()) {
-      alert("Please fill in title and description.");
-      return;
+    if (statusFilter !== "All") {
+      query = query.eq("status", statusFilter);
     }
 
-    setSubmitting(true);
-    try {
-      const { error } = await supabase.from("issues").insert({
-        driver_number: String(driverNumber),
-        driver_name: driverName,
-        series: series,
-        title: title.trim(),
-        description: description.trim(),
-        screenshot_url: screenshotUrl || null,
-        status: "Submitted",
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      });
-
-      if (error) throw error;
-      alert("✅ Issue submitted successfully! Thank you for your feedback.");
-      setTitle("");
-      setDescription("");
-      setScreenshotUrl("");
-      onClose();
-    } catch (err) {
-      console.error("Issue submission error:", err);
-      alert(`Failed to submit issue: ${err?.message || "Unknown error"}`);
-    } finally {
-      setSubmitting(false);
+    const { data, error } = await query;
+    if (error) {
+      console.error("Error loading issues:", error);
+      setIssues([]);
+    } else {
+      setIssues(data || []);
     }
+    setLoading(false);
   }
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    loadIssues();
+  }, [statusFilter]);
+
+  async function updateIssueStatus(id, newStatus) {
+    const { error } = await supabase
+      .from("issues")
+      .update({ status: newStatus, updated_at: new Date().toISOString() })
+      .eq("id", id);
+
+    if (error) {
+      alert("Failed to update issue");
+      return;
+    }
+    loadIssues();
+  }
+
+  async function addAdminNotes(id, notes) {
+    const { error } = await supabase
+      .from("issues")
+      .update({ admin_notes: notes, updated_at: new Date().toISOString() })
+      .eq("id", id);
+
+    if (error) {
+      alert("Failed to save notes");
+      return;
+    }
+    loadIssues();
+  }
+
+  const stats = {
+    submitted: issues.filter(i => i.status === "Submitted").length,
+    reviewed: issues.filter(i => i.status === "Reviewed").length,
+    actioned: issues.filter(i => i.status === "Actioned").length,
+    complete: issues.filter(i => i.status === "Complete").length,
+    needsWork: issues.filter(i => i.status === "Needs Work").length,
+  };
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 }}>
-      <div style={{ background: "#171b22", border: "1px solid #2c3440", borderRadius: 16, padding: 28, maxWidth: 520, width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.4)", maxHeight: "90vh", overflowY: "auto" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-          <h2 style={{ margin: 0, fontSize: 24, fontWeight: 800 }}>🐛 Report an Issue</h2>
-          <button onClick={onClose} style={{ background: "none", border: "none", color: "white", fontSize: 24, cursor: "pointer", padding: 0 }}>×</button>
+    <div style={{ minHeight: "100vh", background: "#0c0f14", color: "white", fontFamily: "Arial, sans-serif", padding: 24 }}>
+      <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+        {/* Header */}
+        <div style={{ marginBottom: 28 }}>
+          <h1 style={{ margin: 0, fontSize: 32, fontWeight: 900 }}>🐛 Issues & Feedback</h1>
+          <p style={{ opacity: 0.7, fontSize: 14, marginTop: 8 }}>
+            Report bugs, suggest features, and track resolution status
+          </p>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          {/* Driver Info (read-only) */}
-          <div style={{ marginBottom: 16, background: "rgba(255,255,255,0.05)", borderRadius: 10, padding: 12 }}>
-            <div style={{ fontSize: 12, opacity: 0.6, fontWeight: 700, marginBottom: 6 }}>SUBMITTING AS</div>
-            <div style={{ fontSize: 14, fontWeight: 700 }}>#{driverNumber} {driverName}</div>
-            <div style={{ fontSize: 12, opacity: 0.6, marginTop: 4 }}>{series === "arca" ? "🏎️ ARCA Series" : "🏁 Cup Series"}</div>
-          </div>
+        {/* Stats Cards */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, marginBottom: 28 }}>
+          {[
+            { label: "Submitted", value: stats.submitted, color: "#3b82f6" },
+            { label: "Reviewed", value: stats.reviewed, color: "#8b5cf6" },
+            { label: "Actioned", value: stats.actioned, color: "#f59e0b" },
+            { label: "Needs Work", value: stats.needsWork, color: "#ef4444" },
+            { label: "Complete", value: stats.complete, color: "#22c55e" },
+          ].map(stat => (
+            <div key={stat.label} style={{ background: "#171b22", border: "1px solid #2c3440", borderRadius: 12, padding: 16, textAlign: "center" }}>
+              <div style={{ fontSize: 28, fontWeight: 900, color: stat.color, marginBottom: 4 }}>{stat.value}</div>
+              <div style={{ fontSize: 12, opacity: 0.6, textTransform: "uppercase" }}>{stat.label}</div>
+            </div>
+          ))}
+        </div>
 
-          {/* Title */}
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: "block", marginBottom: 6, fontWeight: 700 }}>Issue Title *</label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g., Login button not working, Paint scheme voting broken..."
-              style={inputStyle}
-              maxLength={100}
+        {/* Filters */}
+        <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
+          <div>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Status</label>
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={selectStyle}>
+              <option value="All">All Statuses</option>
+              <option value="Submitted">📋 Submitted</option>
+              <option value="Reviewed">👀 Reviewed</option>
+              <option value="Actioned">⚙️ Actioned</option>
+              <option value="Needs Work">❌ Needs Work</option>
+              <option value="Complete">✅ Complete</option>
+            </select>
+          </div>
+          {isAdmin && (
+            <div>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Series</label>
+              <select value={seriesFilter} onChange={(e) => setSeriesFilter(e.target.value)} style={selectStyle}>
+                <option value="">All Series</option>
+                <option value="cup">🏁 Cup</option>
+                <option value="arca">🏎️ ARCA</option>
+              </select>
+            </div>
+          )}
+        </div>
+
+        {/* Issues List */}
+        {loading ? (
+          <p style={{ opacity: 0.7 }}>Loading issues...</p>
+        ) : issues.length === 0 ? (
+          <div style={{ ...cardStyle, textAlign: "center", opacity: 0.7 }}>
+            <p>No issues found. Great work! 🎉</p>
+          </div>
+        ) : (
+          issues.map((issue) => (
+            <IssueCard
+              key={issue.id}
+              issue={issue}
+              isAdmin={isAdmin}
+              driverNumber={driverNumber}
+              onStatusChange={updateIssueStatus}
+              onNotesChange={addAdminNotes}
             />
-            <div style={{ fontSize: 11, opacity: 0.5, marginTop: 4 }}>{title.length}/100 characters</div>
-          </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
 
-          {/* Description */}
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: "block", marginBottom: 6, fontWeight: 700 }}>Description *</label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Describe the issue in detail. What were you trying to do? What happened instead?"
-              style={{ ...inputStyle, minHeight: 120 }}
-            />
-          </div>
+function IssueCard({ issue, isAdmin, driverNumber, onStatusChange, onNotesChange }) {
+  const [notes, setNotes] = useState(issue.admin_notes || "");
+  const [editingNotes, setEditingNotes] = useState(false);
+  const colors = statusColors[issue.status] || statusColors.Submitted;
+  const isReporter = driverNumber && String(driverNumber) === String(issue.driver_number);
 
-          {/* Screenshot Upload */}
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: "block", marginBottom: 6, fontWeight: 700 }}>Screenshot (Optional)</label>
-            <button
-              type="button"
-              onClick={() => {
-                if (!cloudinaryReady || !widgetRef.current) {
-                  alert("Upload widget is loading. Try again in a moment.");
-                  return;
-                }
-                widgetRef.current.open();
-              }}
-              style={{ ...secondaryButtonStyle, width: "100%", opacity: cloudinaryReady ? 1 : 0.6 }}
-              disabled={!cloudinaryReady}
-            >
-              {screenshotUrl ? "✅ Screenshot uploaded" : cloudinaryReady ? "📸 Upload Screenshot" : "⏳ Loading uploader..."}
-            </button>
-          </div>
+  const handleSaveNotes = () => {
+    onNotesChange(issue.id, notes);
+    setEditingNotes(false);
+  };
 
-          {/* Buttons */}
-          <div style={{ display: "flex", gap: 12, marginTop: 20 }}>
-            <button type="submit" style={buttonStyle} disabled={submitting}>
-              {submitting ? "Submitting..." : "📤 Submit Issue"}
-            </button>
-            <button type="button" onClick={onClose} style={secondaryButtonStyle} disabled={submitting}>
-              Cancel
-            </button>
+  const canMarkComplete = isAdmin || (isReporter && issue.status === "Actioned");
+  const canMarkNeedsWork = isReporter && issue.status === "Complete";
+
+  return (
+    <div style={{ ...cardStyle, background: colors.bg, borderColor: colors.border }}>
+      {/* Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, marginBottom: 16, flexWrap: "wrap" }}>
+        <div>
+          <div style={{ fontSize: 18, fontWeight: 900, marginBottom: 4 }}>{issue.title}</div>
+          <div style={{ fontSize: 13, opacity: 0.7, display: "flex", gap: 16, flexWrap: "wrap" }}>
+            <span>#{issue.driver_number} {issue.driver_name}</span>
+            <span>{issue.series === "arca" ? "🏎️ ARCA" : "🏁 Cup"}</span>
+            <span>{new Date(issue.created_at).toLocaleDateString()}</span>
           </div>
-        </form>
+        </div>
+        <div style={{ background: colors.badge, color: "white", borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 800, whiteSpace: "nowrap" }}>
+          {colors.label}
+        </div>
+      </div>
+
+      {/* Description */}
+      <div style={{ marginBottom: 14 }}>
+        <div style={labelStyle}>Description</div>
+        <div style={{ fontSize: 14, lineHeight: 1.6, background: "rgba(0,0,0,0.2)", borderRadius: 8, padding: 12 }}>
+          {issue.description}
+        </div>
+      </div>
+
+      {/* Screenshot */}
+      {issue.screenshot_url && (
+        <div style={{ marginBottom: 14 }}>
+          <div style={labelStyle}>Screenshot</div>
+          <img src={issue.screenshot_url} alt="Issue screenshot" style={{ maxWidth: "100%", maxHeight: 400, borderRadius: 8, marginTop: 6 }} />
+        </div>
+      )}
+
+      {/* Admin Notes */}
+      {isAdmin && (
+        <div style={{ marginBottom: 14, background: "rgba(0,0,0,0.2)", borderRadius: 8, padding: 12 }}>
+          <div style={labelStyle}>Admin Notes</div>
+          {editingNotes ? (
+            <>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Add notes here..."
+                rows={3}
+                style={{ ...inputStyle, marginBottom: 8 }}
+              />
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={handleSaveNotes} style={buttonStyle}>Save Notes</button>
+                <button onClick={() => setEditingNotes(false)} style={secondaryButtonStyle}>Cancel</button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div style={{ fontSize: 14, lineHeight: 1.5, marginBottom: 8 }}>
+                {notes || <span style={{ opacity: 0.5 }}>No notes yet</span>}
+              </div>
+              <button onClick={() => setEditingNotes(true)} style={secondaryButtonStyle} style={{ fontSize: 12, padding: "6px 10px" }}>
+                Edit Notes
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Controls */}
+      <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 14, marginTop: 4 }}>
+        <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+          {isAdmin ? (
+            <>
+              <select
+                value={issue.status}
+                onChange={(e) => onStatusChange(issue.id, e.target.value)}
+                style={selectStyle}
+              >
+                <option value="Submitted">📋 Submitted</option>
+                <option value="Reviewed">👀 Reviewed</option>
+                <option value="Actioned">⚙️ Actioned</option>
+                <option value="Needs Work">❌ Needs Work</option>
+                <option value="Complete">✅ Complete</option>
+              </select>
+            </>
+          ) : (
+            <>
+              {canMarkComplete && (
+                <button
+                  onClick={() => onStatusChange(issue.id, "Complete")}
+                  style={{ ...buttonStyle, background: "#22c55e" }}
+                >
+                  ✅ Mark Complete
+                </button>
+              )}
+              {canMarkNeedsWork && (
+                <button
+                  onClick={() => onStatusChange(issue.id, "Needs Work")}
+                  style={{ ...buttonStyle, background: "#ef4444" }}
+                >
+                  ❌ Solution Didn't Work
+                </button>
+              )}
+              {!canMarkComplete && !canMarkNeedsWork && (
+                <div style={{ fontSize: 13, opacity: 0.7 }}>
+                  {issue.status === "Submitted" && "⏳ Awaiting review..."}
+                  {issue.status === "Reviewed" && "👀 Admin is reviewing..."}
+                  {issue.status === "Actioned" && "⚙️ Issue has been actioned. Check the admin notes!"}
+                  {issue.status === "Needs Work" && "🔄 Admin will look at this again..."}
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
