@@ -630,6 +630,7 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
   const [arcaStandings, setArcaStandings] = useState([]);
   const [arcaTeamStandings, setArcaTeamStandings] = useState([]);
   const [arcaLoading, setArcaLoading] = useState(false);
+  const [showInterviewsOverlay, setShowInterviewsOverlay] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
@@ -999,7 +1000,7 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
   const navItems = [
     { label: "Streams", subtitle: "Live broadcasts", icon: "📡", route: "/streams" },
     { label: "News", subtitle: "League stories", icon: "📰", route: "/news" },
-    { label: "Interviews", subtitle: "Driver media", icon: "🎤", route: "/interviews" },
+    { label: "Interviews", subtitle: "Driver media", icon: "🎤", route: seriesId === "arca" ? "/series/arca/interviews" : "/interviews" },
     { label: "Paint Scheme Vote", subtitle: "Weekly fan voting", icon: "🎨", route: "/paint-scheme-vote" },
     { label: "In-Season Bracket", subtitle: "Tournament hub", icon: "🏆", route: "/bracket" },
     { label: "League Vote", subtitle: "Polls and ballots", icon: "🗳️", route: "/vote" },
@@ -1401,7 +1402,11 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
                     type="button"
                     onClick={() => {
                       setPublicMenuOpen(false);
-                      window.location.pathname = item.route;
+                      if (item.label === "Interviews") {
+                        setShowInterviewsOverlay(true);
+                      } else {
+                        window.location.pathname = item.route;
+                      }
                     }}
                     style={{
                       border: 0,
@@ -1791,6 +1796,46 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
                     </button>
                   );
                 })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showInterviewsOverlay && (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.38)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1100, padding: isMobile ? 10 : 20 }}>
+            <div style={{ background: "#0c0f14", color: "white", padding: isMobile ? 20 : 24, maxWidth: 1200, width: "100%", maxHeight: isMobile ? "92vh" : "88vh", overflowY: "auto", borderRadius: 16, border: "1px solid #2c3440" }}>
+              {/* Header */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: 28, fontWeight: 900 }}>🎤 Driver Interviews</h2>
+                  <p style={{ opacity: 0.65, marginTop: 6, fontSize: 14 }}>Answered pre-race and post-race interviews</p>
+                </div>
+                <button type="button" onClick={() => setShowInterviewsOverlay(false)} style={{ border: "none", background: "none", color: "white", fontSize: 32, cursor: "pointer", fontWeight: 300 }}>×</button>
+              </div>
+
+              {/* Search and Filters */}
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 20 }}>
+                <input
+                  type="text"
+                  placeholder="Search driver, number, question, or answer..."
+                  style={{ flex: "1 1 280px", background: "#0f1319", color: "white", border: "1px solid #313947", borderRadius: 10, padding: "10px 12px", minWidth: 0 }}
+                  onChange={(e) => {/* Would connect to filter state */}}
+                />
+                <select style={{ background: "#0f1319", color: "white", border: "1px solid #313947", borderRadius: 10, padding: "10px 12px" }}>
+                  <option>All Races</option>
+                </select>
+                <select style={{ background: "#0f1319", color: "white", border: "1px solid #313947", borderRadius: 10, padding: "10px 12px" }}>
+                  <option>All Interviews</option>
+                  <option>Pre-Race</option>
+                  <option>Post-Race</option>
+                </select>
+              </div>
+
+              {/* Interviews List */}
+              <div style={{ display: "grid", gap: 16 }}>
+                <div style={{ background: "#171b22", border: "1px solid #2c3440", borderRadius: 12, padding: 16 }}>
+                  <p style={{ opacity: 0.65, textAlign: "center" }}>No interviews posted yet</p>
+                </div>
               </div>
             </div>
           </div>
