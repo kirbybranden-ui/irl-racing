@@ -9,6 +9,7 @@ import teamLogoBWR from "./assets/teams/BWR.png";
 import teamLogoBXM from "./assets/teams/BXM.png";
 import { supabase } from "./lib/supabase";
 import { uploadCarFile, getCarUploads, deleteCarUpload } from "./lib/carUploads";
+import { ReportIssueModal } from "./components/ReportIssueModal";
 
 const teamLogos = {
   "B2J MOTORSPORTS": teamLogoB2J,
@@ -781,6 +782,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
   const themedPrimaryButtonStyle = { ...primaryButtonStyle, background: teamTheme.accent };
 
   const [isAppealModalOpen, setIsAppealModalOpen] = useState(false);
+  const [isReportingIssue, setIsReportingIssue] = useState(false);
   const [myAppeals, setMyAppeals] = useState([]);
   const [carUploads, setCarUploads] = useState([]);
   const [carUploading, setCarUploading] = useState(false);
@@ -2755,6 +2757,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
 
           <div style={{ marginBottom: 20 }}>
             <button onClick={() => setIsAppealModalOpen(true)} style={themedPrimaryButtonStyle}>📋 File New Appeal</button>
+            <button onClick={() => setIsReportingIssue(true)} style={{ ...themedPrimaryButtonStyle, marginLeft: 12 }}>🐛 Report Issue</button>
           </div>
 
           {myAppeals.length === 0 ? (
@@ -2796,6 +2799,13 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
         </div>
 
         <AppealModal isOpen={isAppealModalOpen} onClose={() => setIsAppealModalOpen(false)} selectedSeason={selectedSeason} driverNumber={driverNumber} arcaDrivers={arcaDrivers} drivers={sanitizedDrivers} />
+        <ReportIssueModal
+          isOpen={isReportingIssue}
+          onClose={() => setIsReportingIssue(false)}
+          driverNumber={driverNumber}
+          driverName={driver?.name || ""}
+          series={isArcaDriver ? "arca" : "cup"}
+        />
       </div>
     );
   }
