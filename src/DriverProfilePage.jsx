@@ -716,7 +716,16 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
   const sanitizedDrivers = normalizeDriverProfileRoster(selectedSeason?.drivers || []);
   const normalizedRaceHistory = normalizeDriverProfileRaceHistory(selectedSeason?.raceHistory || []);
 
-  const driver = !isArcaDriver ? sanitizedDrivers.find((d) => d && String(d.number) === String(driverNumber)) || null : null;
+  let driver = !isArcaDriver ? sanitizedDrivers.find((d) => d && String(d.number) === String(driverNumber)) || null : null;
+  
+  // For ARCA drivers, use arcaDriver as the main driver object for the profile
+  if (isArcaDriver && arcaDriver && !driver) {
+    driver = {
+      ...arcaDriver,
+      id: arcaDriver.number,
+      isArcaDriver: true,
+    };
+  }
   
   const teamTheme = getTeamTheme(driver?.team || arcaDriver?.team);
   const themedPrimaryButtonStyle = { ...primaryButtonStyle, background: teamTheme.accent };
@@ -2755,64 +2764,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
   }
 
   // ARCA driver profile view
-  if (isArcaDriver && arcaDriver) {
-    return (
-      <div style={{ background: "linear-gradient(135deg, #006341 0%, #00e5a0 100%)", minHeight: "100vh", paddingBottom: 40 }}>
-        {/* Header */}
-        <div style={{ color: "#fff", padding: 24 }}>
-          <button onClick={() => window.location.pathname = "/series/arca/standings"} style={{ background: "rgba(255,255,255,0.2)", color: "#fff", border: "none", borderRadius: 8, padding: "10px 16px", fontWeight: 900, cursor: "pointer", marginBottom: 16 }}>← Back to Standings</button>
-          <h1 style={{ fontSize: 36, fontWeight: 900, margin: "0 0 8px 0" }}>#{arcaDriver.number} {arcaDriver.name}</h1>
-          <p style={{ opacity: 0.9, fontSize: 16, margin: 0 }}>{arcaDriver.team || "Independent"} • {arcaDriver.manufacturer || ""}</p>
-        </div>
-
-        <div style={{ maxWidth: 1000, margin: "0 auto", padding: 24 }}>
-          {/* Interviews Section */}
-          {arcaInterviews.length > 0 && (
-            <div style={{ background: "#0c0f14", border: "1px solid #2c3440", borderRadius: 16, padding: 20, marginBottom: 20 }}>
-              <h2 style={{ fontSize: 20, fontWeight: 900, color: "white", marginTop: 0, marginBottom: 16 }}>🎤 Interviews</h2>
-              <div style={{ display: "grid", gap: 12 }}>
-                {arcaInterviews.map((interview) => {
-                  const answeredPairs = Array.isArray(interview.questions_and_answers) 
-                    ? interview.questions_and_answers.filter(qa => qa && qa.question && qa.answer)
-                    : [];
-
-                  return (
-                    <div key={interview.id} style={{ background: "#171b22", border: "1px solid #2c3440", borderRadius: 12, padding: 16 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
-                        <div>
-                          <div style={{ fontSize: 14, fontWeight: 900, color: "#d4af37" }}>
-                            {interview.type === "pre" ? "🎤 Pre-Race" : "🏆 Post-Race"} · {interview.race_name}
-                          </div>
-                          <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4, opacity: 0.65 }}>
-                            {new Date(interview.generated_at).toLocaleDateString()}
-                          </div>
-                        </div>
-                        <div style={{ background: "#00e5a0", color: "#006341", borderRadius: 6, padding: "4px 10px", fontSize: 11, fontWeight: 900 }}>
-                          Answered
-                        </div>
-                      </div>
-                      <div style={{ display: "grid", gap: 10 }}>
-                        {answeredPairs.map((pair, idx) => (
-                          <div key={idx} style={{ background: "#0f1319", borderRadius: 8, padding: 12, borderLeft: "3px solid #00e5a0" }}>
-                            <div style={{ fontSize: 12, fontWeight: 900, color: "#d4af37", marginBottom: 6 }}>Q: {pair.question}</div>
-                            <div style={{ fontSize: 13, color: "#f3f4f6", lineHeight: 1.5 }}>A: {pair.answer}</div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-          {arcaInterviewsLoading && <div style={{ color: "white", textAlign: "center", padding: 20 }}>Loading interviews...</div>}
-          {!arcaInterviewsLoading && arcaInterviews.length === 0 && <div style={{ background: "#171b22", border: "1px solid #2c3440", borderRadius: 12, padding: 20, color: "white", textAlign: "center", opacity: 0.65 }}>No interviews posted yet</div>}
-        </div>
-      </div>
-    );
-  }
-
-  if (!driver) {
+  if (!driver && !isArcaDriver) {
     return (
       <div style={appShellStyle}>
         <div style={pageContainerStyle}>
