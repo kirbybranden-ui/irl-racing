@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo, useRef } from "react";
-import { supabase } from "./lib/supabase";
+import { supabase } from "../lib/supabase";
 
 const appShellStyle = { minHeight: "100vh", background: "#0c0f14", color: "white", fontFamily: "Arial, sans-serif" };
 const pageContainerStyle = { maxWidth: 1000, margin: "0 auto", padding: 24 };
@@ -275,7 +275,7 @@ function safeFileName(s) {
   return String(s).replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "").toLowerCase();
 }
 
-export default function InterviewsPage({ drivers = [], tracks = [], seasons = [], activeSeasonId = "" }) {
+export default function InterviewsPage({ drivers = [], arcaDrivers = [], tracks = [], arcaTracks = [], seasons = [], activeSeasonId = "" }) {
   const [interviews, setInterviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -289,6 +289,7 @@ export default function InterviewsPage({ drivers = [], tracks = [], seasons = []
   const [filterRace, setFilterRace] = useState("");
   const [filterType, setFilterType] = useState("");
   const [filterAnswered, setFilterAnswered] = useState("");
+  const [filterSeries, setFilterSeries] = useState("cup");
 
   // Bulk export
   const [bulkRace, setBulkRace] = useState("");
@@ -298,6 +299,7 @@ export default function InterviewsPage({ drivers = [], tracks = [], seasons = []
   const [selectedDriverId, setSelectedDriverId] = useState("");
   const [selectedRace, setSelectedRace] = useState("");
   const [interviewType, setInterviewType] = useState("pre");
+  const [interviewSeries, setInterviewSeries] = useState("cup");
   const [questions, setQuestions] = useState(emptyQuestions());
   const [deadlineAt, setDeadlineAt] = useState("");
   const [interviewBonus, setInterviewBonus] = useState(INTERVIEW_DEFAULT_BONUS);
@@ -319,7 +321,7 @@ export default function InterviewsPage({ drivers = [], tracks = [], seasons = []
 
   useEffect(() => {
     loadInterviews();
-  }, []);
+  }, [filterSeries]);
 
   // Render preview into the modal canvas when an interview is being previewed
   useEffect(() => {
@@ -335,7 +337,10 @@ export default function InterviewsPage({ drivers = [], tracks = [], seasons = []
 
   async function loadInterviews() {
     const { data, error } = await supabase
-      .from("interviews").select("*").order("generated_at", { ascending: false });
+      .from("interviews")
+      .select("*")
+      .eq("series", filterSeries)
+      .order("generated_at", { ascending: false });
     if (!error) setInterviews((data || []).filter((interview) => !isRemovedLeagueInterview(interview)));
     setLoading(false);
   }
@@ -375,6 +380,7 @@ export default function InterviewsPage({ drivers = [], tracks = [], seasons = []
       driver_number: driver.number,
       race_name: selectedRace,
       type: interviewType,
+      series: interviewSeries,
       questions_and_answers: qa,
       answered: false,
       generated_at: new Date().toISOString(),
@@ -678,7 +684,7 @@ export default function InterviewsPage({ drivers = [], tracks = [], seasons = []
               <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Driver</div>
               <select style={selectStyle} value={selectedDriverId} onChange={e => setSelectedDriverId(e.target.value)}>
                 <option value="">Select driver...</option>
-                {[...drivers].filter(d => !d.retired).sort((a, b) => a.number - b.number).map(d => (
+                {[...(interviewSeries === "arca" ? arcaDrivers : drivers)].filter(d => !d.retired).sort((a, b) => a.number - b.number).map(d => (
                   <option key={d.id} value={d.id}>#{d.number} {d.name}</option>
                 ))}
               </select>
@@ -689,7 +695,7 @@ export default function InterviewsPage({ drivers = [], tracks = [], seasons = []
               </div>
               <select style={selectStyle} value={selectedRace} onChange={e => setSelectedRace(e.target.value)}>
                 <option value="">Select race...</option>
-                {[...tracks].sort((a, b) => {
+                {[...(interviewSeries === "arca" ? arcaTracks : tracks)].sort((a, b) => {
                   if (a.date && b.date) return new Date(a.date) - new Date(b.date);
                   return a.name.localeCompare(b.name);
                 }).map(t => (
@@ -705,6 +711,13 @@ export default function InterviewsPage({ drivers = [], tracks = [], seasons = []
               <div style={{ display: "flex", gap: 8 }}>
                 <button onClick={() => setInterviewType("pre")} style={{ ...(interviewType === "pre" ? blueButtonStyle : secondaryButtonStyle), flex: 1, fontSize: 13 }}>🎤 Pre</button>
                 <button onClick={() => setInterviewType("post")} style={{ ...(interviewType === "post" ? greenButtonStyle : secondaryButtonStyle), flex: 1, fontSize: 13 }}>🏆 Post</button>
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Series</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={() => setInterviewSeries("cup")} style={{ ...(interviewSeries === "cup" ? blueButtonStyle : secondaryButtonStyle), flex: 1, fontSize: 13 }}>Cup Series</button>
+                <button onClick={() => setInterviewSeries("arca")} style={{ ...(interviewSeries === "arca" ? greenButtonStyle : secondaryButtonStyle), flex: 1, fontSize: 13 }}>ARCA Series</button>
               </div>
             </div>
             <div>
@@ -820,6 +833,13 @@ export default function InterviewsPage({ drivers = [], tracks = [], seasons = []
                 <option value="pending">Pending</option>
                 <option value="paid">Paid</option>
                 <option value="unpaid">Unpaid Submitted</option>
+              </select>
+            </div>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Series</div>
+              <select style={selectStyle} value={filterSeries} onChange={e => setFilterSeries(e.target.value)}>
+                <option value="cup">Cup Series</option>
+                <option value="arca">ARCA Series</option>
               </select>
             </div>
             <div style={{ display: "flex", alignItems: "flex-end" }}>
