@@ -81,6 +81,21 @@ export default function IssuesRollupPage() {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined" || issues.length === 0) return;
+    const params = new URLSearchParams(window.location.search);
+    const openChatId = params.get("openChat");
+    if (!openChatId) return;
+    const match = issues.find((i) => String(i.id) === String(openChatId));
+    if (match) {
+      setChatIssue(match);
+      // Clean the query param out of the URL so refreshing doesn't reopen it.
+      params.delete("openChat");
+      const cleanedSearch = params.toString();
+      window.history.replaceState({}, "", window.location.pathname + (cleanedSearch ? `?${cleanedSearch}` : ""));
+    }
+  }, [issues]);
+
   function closeReportModal() {
     setIsReportingIssue(false);
     loadIssues(false);
