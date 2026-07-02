@@ -113,26 +113,30 @@ export default function IssuesRollupPage() {
             </div>
           </div>
 
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
             <button
               type="button"
+              aria-label="Go to league landing page"
               onClick={() => (window.location.pathname = "/")}
+              title="Home"
               style={{
-                border: "1px solid rgba(0,0,0,0.08)",
-                borderRadius: 999,
-                padding: "14px 20px",
-                background: "rgba(255,255,255,0.72)",
-                backdropFilter: "blur(16px)",
-                WebkitBackdropFilter: "blur(16px)",
-                color: "#1d1d1f",
-                fontWeight: 1000,
+                width: 50,
+                height: 50,
+                borderRadius: 16,
+                border: "1px solid rgba(17,24,39,0.10)",
+                background: "linear-gradient(180deg, #ffd60a 0%, #ff9f0a 100%)",
+                color: "#ffffff",
+                boxShadow: "0 16px 38px rgba(255,159,10,0.30)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
                 cursor: "pointer",
-                fontSize: 14,
-                boxShadow: "0 14px 32px rgba(0,0,0,0.08)",
-                whiteSpace: "nowrap",
+                fontSize: 20,
+                fontWeight: 1000,
+                flexShrink: 0,
               }}
             >
-              🏠 Home
+              🏠
             </button>
 
             <button
