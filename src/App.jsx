@@ -42,6 +42,7 @@ import { trackOverviewData } from "./data/trackOverview";
 import SeriesPortal from "./pages/series/SeriesPortal";
 import SeriesLandingPage from "./pages/series/SeriesLandingPage";
 import SeriesJoinPage from "./pages/series/SeriesJoinPage";
+import { ReportIssueModal } from "./components/ReportIssueModal";
 import {
   teamLogos,
   manufacturerLogos,
@@ -5055,6 +5056,7 @@ function LeagueStatusWidget({ tracks = [], seasonName = "", mobile = false }) {
 
 function AppleSeriesPortalLanding() {
   const [showV3Details, setShowV3Details] = useState(false);
+  const [isReportingIssue, setIsReportingIssue] = useState(false);
 
   const seriesCards = [
     {
@@ -5148,24 +5150,44 @@ function AppleSeriesPortalLanding() {
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={() => (window.location.pathname = "/admin-login")}
-            style={{
-              border: "1px solid rgba(0,0,0,0.08)",
-              borderRadius: 999,
-              padding: "12px 16px",
-              background: "rgba(255,255,255,0.72)",
-              backdropFilter: "blur(16px)",
-              WebkitBackdropFilter: "blur(16px)",
-              color: "#1d1d1f",
-              fontWeight: 900,
-              cursor: "pointer",
-              boxShadow: "0 14px 32px rgba(0,0,0,0.08)",
-            }}
-          >
-            Admin Portal
-          </button>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <button
+              type="button"
+              onClick={() => setIsReportingIssue(true)}
+              style={{
+                border: "1px solid rgba(255,59,48,0.22)",
+                borderRadius: 999,
+                padding: "12px 16px",
+                background: "rgba(255,59,48,0.10)",
+                backdropFilter: "blur(16px)",
+                WebkitBackdropFilter: "blur(16px)",
+                color: "#c62d24",
+                fontWeight: 900,
+                cursor: "pointer",
+                boxShadow: "0 14px 32px rgba(0,0,0,0.06)",
+              }}
+            >
+              🐛 Report Issue
+            </button>
+            <button
+              type="button"
+              onClick={() => (window.location.pathname = "/admin-login")}
+              style={{
+                border: "1px solid rgba(0,0,0,0.08)",
+                borderRadius: 999,
+                padding: "12px 16px",
+                background: "rgba(255,255,255,0.72)",
+                backdropFilter: "blur(16px)",
+                WebkitBackdropFilter: "blur(16px)",
+                color: "#1d1d1f",
+                fontWeight: 900,
+                cursor: "pointer",
+                boxShadow: "0 14px 32px rgba(0,0,0,0.08)",
+              }}
+            >
+              Admin Portal
+            </button>
+          </div>
         </header>
 
         <section style={{
@@ -5397,6 +5419,14 @@ function AppleSeriesPortalLanding() {
           </div>
         </div>
       </div>
+
+      <ReportIssueModal
+        isOpen={isReportingIssue}
+        onClose={() => setIsReportingIssue(false)}
+        driverNumber=""
+        driverName="Guest User"
+        series="cup"
+      />
     </div>
   );
 }
