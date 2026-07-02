@@ -1394,11 +1394,12 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
   useEffect(() => {
     if (!driver?.id) return;
     async function fetchCarUploads() {
-      const data = await getCarUploads(driver.id);
+      const uploadSeries = isCupDriverProfile ? "cup" : "arca";
+      const data = await getCarUploads(driver.id, null, uploadSeries);
       setCarUploads(data || []);
     }
     fetchCarUploads();
-  }, [driver?.id]);
+  }, [driver?.id, isCupDriverProfile]);
 
   useEffect(() => {
     let isMounted = true;
@@ -2237,9 +2238,10 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
     }
 
     setCarUploading(true);
-    const result = await uploadCarFile(driver.id, driver.name, selectedRaceForUpload, file);
+    const uploadSeries = isCupDriverProfile ? "cup" : "arca";
+    const result = await uploadCarFile(driver.id, driver.name, selectedRaceForUpload, file, uploadSeries);
     if (result.success) {
-      const updated = await getCarUploads(driver.id);
+      const updated = await getCarUploads(driver.id, null, uploadSeries);
       setCarUploads(updated || []);
       alert("✅ Car photo uploaded! It will appear in the admin gallery.");
     } else {
@@ -3286,7 +3288,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
                 <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Race Week</div>
                 <select style={inputStyle} value={selectedRaceForUpload} onChange={(e) => setSelectedRaceForUpload(e.target.value)}>
                   <option value="">Select a race...</option>
-                  {(tracks || []).map((t) => <option key={t.name || t.raceName || t} value={t.name || t.raceName || t}>{t.name || t.raceName || t}</option>)}
+                  {(isCupDriverProfile ? tracks : arcaTracks || []).map((t) => <option key={t.name || t.raceName || t} value={t.name || t.raceName || t}>{t.name || t.raceName || t}</option>)}
                 </select>
               </div>
               <div>
