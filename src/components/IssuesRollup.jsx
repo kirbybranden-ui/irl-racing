@@ -2,11 +2,11 @@ import React, { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 
 const statusColors = {
-  Submitted: { bg: "#1a2030", border: "#3b4f6e", badge: "#3b82f6", label: "📋 Submitted" },
-  Reviewed: { bg: "#1a2820", border: "#3b6b4f", badge: "#8b5cf6", label: "👀 Reviewed" },
-  Actioned: { bg: "#2a2010", border: "#6b5020", badge: "#f59e0b", label: "⚙️ Actioned" },
-  Complete: { bg: "#142a14", border: "#2d642d", badge: "#22c55e", label: "✅ Complete" },
-  "Needs Work": { bg: "#2a1010", border: "#6b2020", badge: "#ef4444", label: "❌ Needs Work" },
+  Submitted: { soft: "rgba(0,122,255,0.12)", text: "#0057d9", ring: "rgba(0,122,255,0.18)", label: "📋 Submitted" },
+  Reviewed: { soft: "rgba(175,82,222,0.12)", text: "#7d1fb0", ring: "rgba(175,82,222,0.18)", label: "👀 Reviewed" },
+  Actioned: { soft: "rgba(255,149,0,0.14)", text: "#9a5a00", ring: "rgba(255,149,0,0.20)", label: "⚙️ Actioned" },
+  Complete: { soft: "rgba(52,199,89,0.14)", text: "#147d35", ring: "rgba(52,199,89,0.20)", label: "✅ Complete" },
+  "Needs Work": { soft: "rgba(255,59,48,0.12)", text: "#c62d24", ring: "rgba(255,59,48,0.18)", label: "❌ Needs Work" },
 };
 
 export function IssuesRollup() {
@@ -57,25 +57,51 @@ export function IssuesRollup() {
   if (loading || totalPending === 0) return null;
 
   return (
-    <div style={{ marginBottom: 24 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, flexWrap: "wrap", gap: 12 }}>
-        <div>
-          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 900 }}>🐛 Pending Issues</h3>
-          <div style={{ fontSize: 12, opacity: 0.6, marginTop: 4 }}>
-            {submitCount} submitted • {reviewCount} reviewing • {needsWorkCount} needs work
+    <div style={{
+      marginBottom: 24,
+      borderRadius: 28,
+      padding: 18,
+      background: "linear-gradient(180deg, rgba(255,255,255,0.90), rgba(255,255,255,0.62))",
+      border: "1px solid rgba(255,255,255,0.78)",
+      boxShadow: "0 20px 55px rgba(15,23,42,0.10)",
+      backdropFilter: "blur(20px)",
+      WebkitBackdropFilter: "blur(20px)",
+    }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, flexWrap: "wrap", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{
+            width: 40,
+            height: 40,
+            borderRadius: 14,
+            background: "linear-gradient(135deg, #ff6482 0%, #ff3b30 60%, #b91c1c 100%)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 18,
+            boxShadow: "0 12px 26px rgba(255,59,48,0.26)",
+            flexShrink: 0,
+          }}>
+            🐛
+          </div>
+          <div>
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 1000, letterSpacing: "-0.02em", color: "#1d1d1f" }}>Pending Issues</h3>
+            <div style={{ fontSize: 12, opacity: 0.6, marginTop: 2, fontWeight: 800, color: "#1d1d1f" }}>
+              {submitCount} submitted • {reviewCount} reviewing • {needsWorkCount} needs work
+            </div>
           </div>
         </div>
         <button
           onClick={() => window.location.pathname = "/admin/issues"}
           style={{
-            background: "#d4af37",
-            color: "#111",
+            background: "#007aff",
+            color: "#ffffff",
             border: "none",
-            borderRadius: 10,
-            padding: "8px 16px",
-            fontWeight: 700,
+            borderRadius: 999,
+            padding: "10px 18px",
+            fontWeight: 900,
             cursor: "pointer",
-            fontSize: 12,
+            fontSize: 12.5,
+            boxShadow: "0 12px 26px rgba(0,122,255,0.26)",
           }}
         >
           View All Issues
@@ -89,31 +115,43 @@ export function IssuesRollup() {
             <div
               key={issue.id}
               style={{
-                background: colors.bg,
-                border: `1px solid ${colors.border}`,
-                borderRadius: 12,
+                background: "rgba(255,255,255,0.72)",
+                border: `1px solid ${colors.ring}`,
+                borderRadius: 20,
                 padding: 14,
+                boxShadow: "0 10px 24px rgba(15,23,42,0.05)",
               }}
             >
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 10, flexWrap: "wrap" }}>
                 <div style={{ flex: 1, minWidth: 200 }}>
-                  <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 2 }}>{issue.title}</div>
-                  <div style={{ fontSize: 11, opacity: 0.7 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 1000, marginBottom: 3, color: "#1d1d1f" }}>{issue.title}</div>
+                  <div style={{ fontSize: 11.5, opacity: 0.62, fontWeight: 800, color: "#1d1d1f" }}>
                     #{issue.driver_number} {issue.driver_name} • {issue.series === "arca" ? "🏎️ ARCA" : "🏁 Cup"}
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                  <span style={{
+                    background: colors.soft,
+                    color: colors.text,
+                    borderRadius: 999,
+                    padding: "5px 11px",
+                    fontSize: 11,
+                    fontWeight: 1000,
+                    whiteSpace: "nowrap",
+                  }}>
+                    {colors.label}
+                  </span>
                   <select
                     value={issue.status}
                     onChange={(e) => updateIssueStatus(issue.id, e.target.value)}
                     style={{
-                      background: "#0f1319",
-                      color: "white",
-                      border: "1px solid #313947",
-                      borderRadius: 8,
-                      padding: "6px 10px",
+                      background: "rgba(255,255,255,0.85)",
+                      color: "#1d1d1f",
+                      border: "1px solid rgba(0,0,0,0.08)",
+                      borderRadius: 999,
+                      padding: "6px 12px",
                       fontSize: 11,
-                      fontWeight: 700,
+                      fontWeight: 900,
                     }}
                   >
                     <option value="Submitted">📋 Submitted</option>
@@ -128,9 +166,9 @@ export function IssuesRollup() {
                       target="_blank"
                       rel="noopener noreferrer"
                       style={{
-                        color: "#d4af37",
+                        color: "#0057d9",
                         fontSize: 11,
-                        fontWeight: 700,
+                        fontWeight: 900,
                         textDecoration: "none",
                       }}
                     >
@@ -140,12 +178,12 @@ export function IssuesRollup() {
                 </div>
               </div>
               {issue.description && (
-                <div style={{ fontSize: 12, opacity: 0.8, background: "rgba(0,0,0,0.2)", borderRadius: 6, padding: 8, marginBottom: 8 }}>
+                <div style={{ fontSize: 12, opacity: 0.75, color: "#1d1d1f", background: "rgba(0,0,0,0.035)", border: "1px solid rgba(0,0,0,0.05)", borderRadius: 12, padding: 10, marginBottom: 8 }}>
                   {issue.description.substring(0, 150)}{issue.description.length > 150 ? "..." : ""}
                 </div>
               )}
               {issue.admin_notes && (
-                <div style={{ fontSize: 11, opacity: 0.7, color: "#d4af37", fontStyle: "italic" }}>
+                <div style={{ fontSize: 11, opacity: 0.75, color: "#9a5a00", fontStyle: "italic", fontWeight: 700 }}>
                   Admin: {issue.admin_notes.substring(0, 80)}{issue.admin_notes.length > 80 ? "..." : ""}
                 </div>
               )}
@@ -155,8 +193,8 @@ export function IssuesRollup() {
       </div>
 
       {issues.length > 5 && (
-        <div style={{ textAlign: "center", marginTop: 12, opacity: 0.6, fontSize: 12 }}>
-          +{issues.length - 5} more issues • <span style={{ cursor: "pointer", textDecoration: "underline", color: "#d4af37" }} onClick={() => window.location.pathname = "/admin/issues"}>View all</span>
+        <div style={{ textAlign: "center", marginTop: 14, opacity: 0.65, fontSize: 12, fontWeight: 800, color: "#1d1d1f" }}>
+          +{issues.length - 5} more issues • <span style={{ cursor: "pointer", textDecoration: "underline", color: "#007aff" }} onClick={() => window.location.pathname = "/admin/issues"}>View all</span>
         </div>
       )}
     </div>
