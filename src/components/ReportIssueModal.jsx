@@ -5,13 +5,25 @@ const inputStyle = { width: "100%", background: "#0f1319", color: "white", borde
 const buttonStyle = { background: "#d4af37", color: "#111", border: "none", borderRadius: 10, padding: "10px 18px", fontWeight: 700, cursor: "pointer", fontSize: 14 };
 const secondaryButtonStyle = { background: "#1e2530", color: "white", border: "1px solid #313947", borderRadius: 10, padding: "10px 16px", fontWeight: 700, cursor: "pointer" };
 
-export function ReportIssueModal({ isOpen, onClose, driverNumber, driverName, series = "cup" }) {
+export function ReportIssueModal({ isOpen, onClose, driverNumber, driverName, series = "cup", drivers = [] }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [screenshotUrl, setScreenshotUrl] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [cloudinaryReady, setCloudinaryReady] = useState(false);
+  const [selectedDriverKey, setSelectedDriverKey] = useState("");
   const widgetRef = useRef(null);
+
+  const driversBySeries = drivers.reduce((groups, driver) => {
+    const label = driver.seriesLabel || "Other";
+    if (!groups[label]) groups[label] = [];
+    groups[label].push(driver);
+    return groups;
+  }, {});
+
+  const selectedDriver = drivers.find((d) => d.key === selectedDriverKey) || null;
+  const effectiveDriverNumber = selectedDriver ? selectedDriver.number : driverNumber;
+  const effectiveDriverName = selectedDriver ? selectedDriver.name : driverName;
 
   // Load Cloudinary widget
   useEffect(() => {
@@ -65,8 +77,8 @@ export function ReportIssueModal({ isOpen, onClose, driverNumber, driverName, se
     setSubmitting(true);
     try {
       const { error } = await supabase.from("issues").insert({
-        driver_number: String(driverNumber),
-        driver_name: driverName,
+        driver_number: String(effectiveDriverNumber || ""),
+        driver_name: effectiveDriverName,
         series: series,
         title: title.trim(),
         description: description.trim(),
@@ -81,6 +93,7 @@ export function ReportIssueModal({ isOpen, onClose, driverNumber, driverName, se
       setTitle("");
       setDescription("");
       setScreenshotUrl("");
+      setSelectedDriverKey("");
       onClose();
     } catch (err) {
       console.error("Issue submission error:", err);
@@ -101,11 +114,38 @@ export function ReportIssueModal({ isOpen, onClose, driverNumber, driverName, se
         </div>
 
         <form onSubmit={handleSubmit}>
-          {/* Driver Info (read-only) */}
+          {/* Driver Info */}
           <div style={{ marginBottom: 16, background: "rgba(255,255,255,0.05)", borderRadius: 10, padding: 12 }}>
             <div style={{ fontSize: 12, opacity: 0.6, fontWeight: 700, marginBottom: 6 }}>SUBMITTING AS</div>
-            <div style={{ fontSize: 14, fontWeight: 700 }}>#{driverNumber} {driverName}</div>
-            <div style={{ fontSize: 12, opacity: 0.6, marginTop: 4 }}>{series === "arca" ? "🏎️ ARCA Series" : "🏁 Cup Series"}</div>
+
+            {drivers.length > 0 ? (
+              <>
+                <select
+                  value={selectedDriverKey}
+                  onChange={(e) => setSelectedDriverKey(e.target.value)}
+                  style={{ ...inputStyle, marginBottom: selectedDriver ? 0 : undefined }}
+                >
+                  <option value="">Guest / Prefer not to say</option>
+                  {Object.entries(driversBySeries).map(([seriesLabel, list]) => (
+                    <optgroup key={seriesLabel} label={seriesLabel}>
+                      {list.map((driver) => (
+                        <option key={driver.key} value={driver.key}>
+                          #{driver.number} {driver.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+                {!selectedDriver && (
+                  <div style={{ fontSize: 12, opacity: 0.6, marginTop: 8 }}>
+                    #{driverNumber} {driverName}
+                  </div>
+                )}
+              </>
+            ) : (
+              <div style={{ fontSize: 14, fontWeight: 700 }}>#{driverNumber} {driverName}</div>
+            )}
+            <div style={{ fontSize: 12, opacity: 0.6, marginTop: 8 }}>{series === "arca" ? "🏎️ ARCA Series" : "🏁 Cup Series"}</div>
           </div>
 
           {/* Title */}
