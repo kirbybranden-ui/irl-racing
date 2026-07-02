@@ -976,8 +976,9 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
   const driverTodoItems = useMemo(() => {
     const items = [];
     const now = new Date();
+    const myInterviews = isArcaDriver ? arcaInterviews : interviews;
 
-    (interviews || []).forEach((interview) => {
+    (myInterviews || []).forEach((interview) => {
       const answered = Boolean(interview?.answered);
       const status = String(interview?.status || "").toLowerCase();
       const deadline = getInterviewDeadline(interview);
@@ -1088,7 +1089,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
     });
 
     return items.sort((a, b) => a.priority - b.priority);
-  }, [interviews, driverAssignments, contractOffers, unreadMessages, issueChatTodos, startParkRequests, teamInterestHistory, myAppeals, driverNumber]);
+  }, [interviews, arcaInterviews, isArcaDriver, driverAssignments, contractOffers, unreadMessages, issueChatTodos, startParkRequests, teamInterestHistory, myAppeals, driverNumber]);
 
   const driverTodoCount = driverTodoItems.length;
 
@@ -1245,7 +1246,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
     const top10s = raceBreakdown.filter((race) => Number(race.finishPos || 999) <= 10).length;
     const completedAssignments = driverAssignments.filter((task) => String(task.status || "") === "Completed").length;
     const rejectedAssignments = driverAssignments.filter((task) => String(task.status || "") === "Rejected").length;
-    const answeredInterviews = interviews.filter((interview) => interview.answered).length;
+    const answeredInterviews = (isArcaDriver ? arcaInterviews : interviews).filter((interview) => interview.answered).length;
     const pendingContractOffers = contractOffers.filter((offer) => String(offer.status || "") === "Pending").length;
     const acceptedContractBonus = activeContract ? 8 : 0;
 
@@ -1293,7 +1294,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
         activeContract ? "Active contract on file" : "No active contract loaded",
       ],
     };
-  }, [raceBreakdown, driverAssignments, interviews, contractOffers, activeContract, calculatedStats]);
+  }, [raceBreakdown, driverAssignments, interviews, arcaInterviews, isArcaDriver, contractOffers, activeContract, calculatedStats]);
 
 
   const careerStats = useMemo(() => {
@@ -1476,13 +1477,14 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
         .select("*")
         .eq("driver_number", String(driverNumber))
         .eq("series", "arca")
-        .eq("answered", true)
         .order("generated_at", { ascending: false });
       setArcaInterviews(data || []);
       setArcaInterviewsLoading(false);
     }
 
     loadArcaInterviews();
+    const interval = setInterval(loadArcaInterviews, 30000);
+    return () => clearInterval(interval);
   }, [isArcaDriver, driverNumber]);
 
   useEffect(() => {
@@ -3233,6 +3235,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
   }
 
   if (subPage === "interviews") {
+    const activeInterviews = isArcaDriver ? arcaInterviews : interviews;
     return (
       <div style={{ ...appShellStyle, background: `radial-gradient(circle at top, ${teamTheme.glow} 0%, #0c0f14 34%, #080a0e 100%)` }}>
         <div style={pageContainerStyle}>
@@ -3240,23 +3243,31 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
             <button onClick={() => window.location.pathname = `/driver/${driverNumber}`} style={secondaryButtonStyle}>← Back to Profile</button>
             <div>
               <div style={{ fontSize: 22, fontWeight: 900 }}>#{driver.number} {driver.name} — Interview Center</div>
-              <div style={{ fontSize: 13, opacity: 0.6, marginTop: 2 }}>{interviews.length} interview{interviews.length !== 1 ? "s" : ""} assigned</div>
+              <div style={{ fontSize: 13, opacity: 0.6, marginTop: 2 }}>{activeInterviews.length} interview{activeInterviews.length !== 1 ? "s" : ""} assigned</div>
             </div>
           </div>
 
           <div style={{ ...sectionCardStyle, borderColor: teamTheme.accent }}>
             <h2 style={{ marginTop: 0, marginBottom: 4 }}>🎙️ Interview Center</h2>
             <div style={{ fontSize: 13, opacity: 0.65, marginBottom: 16 }}>Answer assigned league interviews here. Your responses go to league admin.</div>
-            {interviews.length === 0 ? (
+            {arcaInterviewsLoading && isArcaDriver ? (
+              <div style={{ opacity: 0.7 }}>Loading interviews...</div>
+            ) : activeInterviews.length === 0 ? (
               <div style={{ opacity: 0.7 }}>No interviews assigned right now.</div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-                {interviews.map((interview) => (
+                {activeInterviews.map((interview) => (
                   <InterviewAnswerCard
                     key={interview.id}
                     interview={interview}
                     accent={teamTheme.accent}
-                    onAnswered={(updated) => setInterviews((prev) => prev.map((i) => (i.id === updated.id ? updated : i)))}
+                    onAnswered={(updated) => {
+                      if (isArcaDriver) {
+                        setArcaInterviews((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
+                      } else {
+                        setInterviews((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
+                      }
+                    }}
                   />
                 ))}
               </div>
