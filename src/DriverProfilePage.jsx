@@ -979,6 +979,17 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
       });
     }
 
+    (issueChatTodos || []).forEach((item) => {
+      items.push({
+        id: `issue-chat-${item.issueId}`,
+        icon: "💬",
+        title: "New Reply on Your Issue Report",
+        detail: `${item.title} — Admin replied`,
+        href: `/issues?openChat=${item.issueId}`,
+        priority: 5,
+      });
+    });
+
     (startParkRequests || []).forEach((request) => {
       const status = String(request?.status || "pending").toLowerCase();
       if (["pending", "approved", "rejected"].includes(status)) {
@@ -1022,7 +1033,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
     });
 
     return items.sort((a, b) => a.priority - b.priority);
-  }, [interviews, driverAssignments, contractOffers, unreadMessages, startParkRequests, teamInterestHistory, myAppeals, driverNumber]);
+  }, [interviews, driverAssignments, contractOffers, unreadMessages, issueChatTodos, startParkRequests, teamInterestHistory, myAppeals, driverNumber]);
 
   const driverTodoCount = driverTodoItems.length;
 
@@ -1515,6 +1526,61 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
 
     loadUnreadMessages();
     const interval = setInterval(loadUnreadMessages, 30000);
+    return () => clearInterval(interval);
+  }, [driver?.number]);
+
+  const [issueChatTodos, setIssueChatTodos] = useState([]);
+
+  useEffect(() => {
+    if (!driver?.number) {
+      setIssueChatTodos([]);
+      return;
+    }
+
+    async function loadIssueChatTodos() {
+      const { data: myIssues, error: issuesError } = await supabase
+        .from("issues")
+        .select("id, title")
+        .eq("driver_number", String(driver.number));
+
+      if (issuesError || !myIssues || myIssues.length === 0) {
+        setIssueChatTodos([]);
+        return;
+      }
+
+      const issueIds = myIssues.map((i) => i.id);
+      const { data: comments, error: commentsError } = await supabase
+        .from("issue_comments")
+        .select("issue_id, created_at")
+        .eq("is_admin", true)
+        .in("issue_id", issueIds)
+        .order("created_at", { ascending: false });
+
+      if (commentsError) {
+        console.error("Failed to load issue chat replies:", commentsError);
+        setIssueChatTodos([]);
+        return;
+      }
+
+      const latestByIssue = {};
+      (comments || []).forEach((c) => {
+        if (!latestByIssue[c.issue_id]) latestByIssue[c.issue_id] = c.created_at;
+      });
+
+      const items = [];
+      Object.entries(latestByIssue).forEach(([issueId, lastAdminReplyAt]) => {
+        const seenAt = typeof window !== "undefined" ? localStorage.getItem(`bcl-issue-chat-seen-${issueId}`) : null;
+        if (!seenAt || new Date(lastAdminReplyAt).getTime() > new Date(seenAt).getTime()) {
+          const issue = myIssues.find((i) => String(i.id) === String(issueId));
+          items.push({ issueId, title: issue?.title || "Issue Report" });
+        }
+      });
+
+      setIssueChatTodos(items);
+    }
+
+    loadIssueChatTodos();
+    const interval = setInterval(loadIssueChatTodos, 30000);
     return () => clearInterval(interval);
   }, [driver?.number]);
 
