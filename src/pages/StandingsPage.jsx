@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
+import { getLeagueSession, loginToLeague, logoutOfLeague } from "../lib/leagueAuth";
 import logo from "../assets/logo1.png";
 import ncsLogo from "../assets/series/NCS.png";
 import arcaLogo from "../assets/series/AMS.png";
@@ -631,6 +633,8 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
   const [arcaTeamStandings, setArcaTeamStandings] = useState([]);
   const [arcaLoading, setArcaLoading] = useState(false);
   const [showInterviewsOverlay, setShowInterviewsOverlay] = useState(false);
+  const [leagueSession, setLeagueSession] = useState(() => getLeagueSession());
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
@@ -642,6 +646,11 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
 
   const isMobile = viewportWidth < 760;
   const isTablet = viewportWidth >= 760 && viewportWidth < 1040;
+
+  function handleLeagueLogout() {
+    logoutOfLeague();
+    setLeagueSession(null);
+  }
 
   const handleDriverClick = (number) => {
     window.location.pathname = `/driver/${number}`;
@@ -1049,9 +1058,7 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
     const brand = getTeamBranding(driver.team);
     const isLeader = index === 0;
     return (
-      <button
-        type="button"
-        onClick={() => handleDriverClick(driver.number)}
+      <div
         className="bcl-driver-row"
         style={{
           border: "1px solid rgba(15,23,42,0.08)",
@@ -1060,7 +1067,6 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
           padding: 16,
           width: "100%",
           textAlign: "left",
-          cursor: "pointer",
           boxShadow: isLeader ? "0 18px 44px rgba(212,175,55,0.18)" : "0 12px 30px rgba(15,23,42,0.07)",
           display: "grid",
           gridTemplateColumns: isMobile ? "auto 1fr auto" : (isTablet ? "auto auto minmax(220px, 1fr) repeat(3, minmax(66px, 0.55fr)) auto" : "auto auto minmax(180px, 1.4fr) repeat(6, minmax(70px, 0.65fr)) auto"),
@@ -1097,8 +1103,7 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
             <div style={{ marginTop: 3, fontSize: 18, fontWeight: 950, color: label === "PEN" && String(value).startsWith("-") ? "#dc2626" : "#1d1d1f" }}>{value}</div>
           </div>
         ))}
-        <div style={{ color: "#86868b", fontSize: 22, fontWeight: 900 }}>›</div>
-      </button>
+      </div>
     );
   };
 
@@ -1108,9 +1113,7 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
     const brand = getTeamBranding(driver.team);
     const isLeader = index === 0;
     return (
-      <button
-        type="button"
-        onClick={() => (window.location.pathname = `/series/arca/driver/${driver.number}`)}
+      <div
         className="bcl-driver-row"
         style={{
           border: "1px solid rgba(15,23,42,0.08)",
@@ -1119,7 +1122,6 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
           padding: 16,
           width: "100%",
           textAlign: "left",
-          cursor: "pointer",
           boxShadow: isLeader ? "0 18px 44px rgba(212,175,55,0.18)" : "0 12px 30px rgba(15,23,42,0.07)",
           display: "grid",
           gridTemplateColumns: isMobile ? "auto 1fr auto" : (isTablet ? "auto auto minmax(220px, 1fr) repeat(3, minmax(66px, 0.55fr)) auto" : "auto auto minmax(180px, 1.4fr) repeat(5, minmax(70px, 0.65fr)) auto"),
@@ -1155,8 +1157,7 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
             <div style={{ marginTop: 3, fontSize: 18, fontWeight: 950, color: "#1d1d1f" }}>{value}</div>
           </div>
         ))}
-        <div style={{ color: "#86868b", fontSize: 22, fontWeight: 900 }}>›</div>
-      </button>
+      </div>
     );
   };
 
@@ -1164,14 +1165,11 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
     if (!driver) return null;
     const brand = getTeamBranding(driver.team);
     return (
-      <button
-        type="button"
-        onClick={() => handleDriverClick(driver.number)}
+      <div
         style={{
           ...glassCard,
           padding: 18,
           textAlign: "left",
-          cursor: "pointer",
           minHeight: 178,
           position: "relative",
           overflow: "hidden",
@@ -1190,21 +1188,18 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
           <span style={{ padding: "7px 10px", borderRadius: 999, background: "#f5f5f7", fontWeight: 900 }}>{driver.points} pts</span>
           <span style={{ padding: "7px 10px", borderRadius: 999, background: "#f5f5f7", fontWeight: 900 }}>{driver.wins} wins</span>
         </div>
-      </button>
+      </div>
     );
   };
 
   const TeamCard = ({ team, index }) => {
     const brand = getTeamBranding(team.team);
     return (
-      <button
-        type="button"
-        onClick={() => (window.location.href = `/team/${team.team}`)}
+      <div
         style={{
           ...glassCard,
           padding: 18,
           textAlign: "left",
-          cursor: "pointer",
           display: "grid",
           gridTemplateColumns: isMobile ? "auto 1fr" : "auto auto 1fr auto",
           gap: isMobile ? 12 : 18,
@@ -1225,7 +1220,7 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
           <div style={{ fontSize: 26, fontWeight: 1000 }}>{team.points || 0}</div>
           <div style={{ fontSize: 12, color: "#86868b", fontWeight: 900 }}>POINTS</div>
         </div>
-      </button>
+      </div>
     );
   };
 
@@ -1234,14 +1229,11 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
     const colorMap = { Toyota: "#ef4444", Chevrolet: "#f59e0b", Ford: "#2563eb" };
     const color = colorMap[manufacturerName] || "#6366f1";
     return (
-      <button
-        type="button"
-        onClick={() => (window.location.href = `/manufacturer/${encodeURIComponent(manufacturerName)}`)}
+      <div
         style={{
           ...glassCard,
           padding: isMobile ? 18 : 24,
           textAlign: "center",
-          cursor: "pointer",
           minHeight: isMobile ? 230 : 280,
           color: "#1d1d1f",
           position: "relative",
@@ -1277,7 +1269,7 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
             ))}
           </div>
         </div>
-      </button>
+      </div>
     );
   };
 
@@ -1416,6 +1408,39 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
                 🏠
               </button>
 
+              {leagueSession ? (
+                <>
+                  <button
+                    type="button"
+                    aria-label="Go to my profile"
+                    onClick={() => (window.location.pathname = `/driver/${leagueSession.driverNumber}`)}
+                    style={{ ...publicMessageIconButtonStyle, background: "linear-gradient(180deg, #34c759 0%, #248a3d 100%)", boxShadow: "0 16px 38px rgba(52,199,89,0.30)", width: isMobile ? 44 : "auto", paddingLeft: isMobile ? 0 : 16, paddingRight: isMobile ? 0 : 16 }}
+                    title={`Signed in as #${leagueSession.driverNumber} ${leagueSession.driverName}`}
+                  >
+                    {isMobile ? "👤" : `👤 #${leagueSession.driverNumber} ${leagueSession.driverName}`}
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Log out"
+                    onClick={handleLeagueLogout}
+                    style={{ ...publicMessageIconButtonStyle, background: "rgba(0,0,0,0.06)", color: "#1d1d1f", boxShadow: "none" }}
+                    title="Log out"
+                  >
+                    🚪
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  aria-label="Log in"
+                  onClick={() => setShowLoginModal(true)}
+                  style={{ ...publicMessageIconButtonStyle, background: "linear-gradient(180deg, #007aff 0%, #5856d6 100%)", boxShadow: "0 16px 38px rgba(0,122,255,0.30)", width: isMobile ? 44 : "auto", paddingLeft: isMobile ? 0 : 16, paddingRight: isMobile ? 0 : 16 }}
+                  title="Log in"
+                >
+                  {isMobile ? "🔑" : "🔑 Log In"}
+                </button>
+              )}
+
               {seriesId !== "arca" && (
                 <button
                   type="button"
@@ -1541,7 +1566,7 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
 
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(auto-fit, minmax(210px, 1fr))", gap: isMobile ? 10 : 14, marginBottom: isMobile ? 12 : 18 }}>
           <StatCard icon="🏆" label="Active Season" value={seasonName || "Season"} detail={`${completedRaceCount} races entered`} accent="#ff9f0a" tint="rgba(255,159,10,0.16)" />
-          <StatCard icon="👑" label="Points Leader" value={leader ? `#${leader.number} ${leader.name}` : "—"} detail={leader ? `${leader.points} points` : "No leader yet"} onClick={() => leader && handleDriverClick(leader.number)} accent="#5856d6" tint="rgba(88,86,214,0.14)" />
+          <StatCard icon="👑" label="Points Leader" value={leader ? `#${leader.number} ${leader.name}` : "—"} detail={leader ? `${leader.points} points` : "No leader yet"} accent="#5856d6" tint="rgba(88,86,214,0.14)" />
           <StatCard icon="👥" label="Active Drivers" value={sorted.length} detail={`${teams.length} teams`} accent="#34c759" tint="rgba(52,199,89,0.14)" />
           {seriesId !== "arca" && (
             <StatCard icon="🍾" label="Latest Winner" value={latestWinner ? `#${latestWinner.number || latestWinner.driverNumber || ""} ${latestWinner.name || latestWinner.driverName || "Winner"}` : "—"} detail={latestRace?.raceName || "No race posted"} accent="#ff3b30" tint="rgba(255,59,48,0.12)" />
@@ -1583,7 +1608,7 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
               {onesToWatch.map((driver, index) => {
                 const brand = getTeamBranding(driver.team);
                 return (
-                  <button key={driver.id} type="button" onClick={() => handleDriverClick(driver.number)} style={{ border: "1px solid rgba(15,23,42,0.08)", background: index === 0 ? `linear-gradient(135deg, ${brand.accent}22, rgba(255,255,255,0.92))` : "rgba(255,255,255,0.82)", borderRadius: 24, padding: 16, textAlign: "left", cursor: "pointer", color: "#1d1d1f", boxShadow: "0 12px 30px rgba(15,23,42,0.06)" }}>
+                  <div key={driver.id} style={{ border: "1px solid rgba(15,23,42,0.08)", background: index === 0 ? `linear-gradient(135deg, ${brand.accent}22, rgba(255,255,255,0.92))` : "rgba(255,255,255,0.82)", borderRadius: 24, padding: 16, textAlign: "left", color: "#1d1d1f", boxShadow: "0 12px 30px rgba(15,23,42,0.06)" }}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
                       <div style={{ fontSize: 11, fontWeight: 1000, color: "#86868b", letterSpacing: 1 }}>{driver.watchBadge || `WATCH ${index + 1}`}</div>
                       {renderTeamBadge(driver.team, 42)}
@@ -1604,7 +1629,7 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
                         </div>
                       ))}
                     </div>
-                  </button>
+                  </div>
                 );
               })}
             </div>
@@ -1891,7 +1916,173 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
             </div>
           </div>
         )}
+
+        {showLoginModal && (
+          <LeagueLoginModal
+            drivers={drivers}
+            arcaDrivers={arcaDrivers}
+            teams={teams}
+            driverAccessCodes={driverAccessCodes}
+            onClose={() => setShowLoginModal(false)}
+            onSuccess={(session) => {
+              setLeagueSession(session);
+              setShowLoginModal(false);
+            }}
+          />
+        )}
       </div>
     </div>
+  );
+}
+
+function LeagueLoginModal({ drivers, arcaDrivers, teams, driverAccessCodes, onClose, onSuccess }) {
+  const [driverNumber, setDriverNumber] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    setError("");
+    if (!driverNumber.trim() || !password.trim()) {
+      setError("Enter your driver number and password.");
+      return;
+    }
+
+    setSubmitting(true);
+    const result = loginToLeague({
+      driverNumber: driverNumber.trim(),
+      password,
+      driverAccessCodes,
+      drivers,
+      arcaDrivers,
+      teams,
+    });
+    setSubmitting(false);
+
+    if (!result.success) {
+      setError(result.error || "Invalid driver number or password.");
+      return;
+    }
+
+    onSuccess(result.session);
+  }
+
+  return createPortal(
+    <div style={{
+      position: "fixed",
+      inset: 0,
+      background: "rgba(29,29,31,0.42)",
+      backdropFilter: "blur(6px)",
+      WebkitBackdropFilter: "blur(6px)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: 1200,
+      padding: 20,
+      fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif",
+    }}>
+      <div style={{
+        background: "linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.94))",
+        border: "1px solid rgba(255,255,255,0.8)",
+        borderRadius: 30,
+        padding: "clamp(22px, 4vw, 32px)",
+        maxWidth: 420,
+        width: "100%",
+        boxShadow: "0 30px 90px rgba(0,0,0,0.28)",
+        color: "#1d1d1f",
+      }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{
+              width: 44,
+              height: 44,
+              borderRadius: 16,
+              background: "linear-gradient(180deg, #007aff 0%, #5856d6 100%)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 20,
+              boxShadow: "0 12px 26px rgba(0,122,255,0.26)",
+            }}>
+              🔑
+            </div>
+            <h2 style={{ margin: 0, fontSize: 21, fontWeight: 1000, letterSpacing: "-0.03em" }}>League Log In</h2>
+          </div>
+          <button
+            onClick={onClose}
+            style={{ background: "rgba(0,0,0,0.05)", border: "none", borderRadius: 999, width: 32, height: 32, color: "#1d1d1f", fontSize: 18, cursor: "pointer" }}
+          >
+            ×
+          </button>
+        </div>
+
+        <p style={{ margin: "0 0 18px", fontSize: 13, color: "#6e6e73", fontWeight: 700, lineHeight: 1.5 }}>
+          One login gets you into your driver profile, and your team page if you're an owner. Works across every series.
+        </p>
+
+        <form onSubmit={handleSubmit}>
+          <label style={{ display: "block", marginBottom: 6, fontWeight: 900, fontSize: 13 }}>Driver Number</label>
+          <input
+            type="text"
+            value={driverNumber}
+            onChange={(e) => setDriverNumber(e.target.value)}
+            placeholder="e.g. 42"
+            style={{
+              width: "100%",
+              padding: "11px 13px",
+              borderRadius: 14,
+              border: "1px solid rgba(0,0,0,0.08)",
+              background: "rgba(255,255,255,0.7)",
+              fontSize: 14,
+              boxSizing: "border-box",
+              marginBottom: 14,
+            }}
+          />
+
+          <label style={{ display: "block", marginBottom: 6, fontWeight: 900, fontSize: 13 }}>Password</label>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Driver password"
+            style={{
+              width: "100%",
+              padding: "11px 13px",
+              borderRadius: 14,
+              border: "1px solid rgba(0,0,0,0.08)",
+              background: "rgba(255,255,255,0.7)",
+              fontSize: 14,
+              boxSizing: "border-box",
+              marginBottom: 6,
+            }}
+          />
+
+          {error && <div style={{ color: "#c62d24", fontWeight: 800, fontSize: 12.5, marginBottom: 10 }}>{error}</div>}
+
+          <button
+            type="submit"
+            disabled={submitting}
+            style={{
+              width: "100%",
+              marginTop: 12,
+              border: 0,
+              borderRadius: 999,
+              padding: "13px 18px",
+              background: "linear-gradient(135deg, #007aff 0%, #5856d6 100%)",
+              color: "#ffffff",
+              fontWeight: 1000,
+              fontSize: 14,
+              cursor: submitting ? "default" : "pointer",
+              opacity: submitting ? 0.7 : 1,
+              boxShadow: "0 14px 32px rgba(0,122,255,0.26)",
+            }}
+          >
+            {submitting ? "Logging in..." : "Log In"}
+          </button>
+        </form>
+      </div>
+    </div>,
+    document.body
   );
 }
