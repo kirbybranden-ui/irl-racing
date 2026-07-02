@@ -365,7 +365,7 @@ export default function InterviewsPage({ drivers = [], arcaDrivers = [], tracks 
     if (!driver) { setSaveStatus("⚠️ Driver not found."); return; }
 
     const exists = interviews.some(
-      i => String(i.driver_id) === String(driver.id) && i.race_name === selectedRace && i.type === interviewType
+      i => String(i.driver_number) === String(driver.number) && i.race_name === selectedRace && i.type === interviewType
     );
     if (exists) {
       setSaveStatus(`⚠️ A ${interviewType}-race interview for ${driver.name} at ${selectedRace} already exists. Delete it first to replace.`);
@@ -378,8 +378,15 @@ export default function InterviewsPage({ drivers = [], arcaDrivers = [], tracks 
     // Save with questions only — answers are empty, driver fills them in
     const qa = filled.map(q => ({ question: q, answer: "" }));
 
+    // The interviews table's driver_id column is a bigint. Cup drivers come from a
+    // Supabase table with real numeric IDs, but ARCA drivers currently use string
+    // IDs (e.g. "arca-drv-87"), which Postgres will reject. Only pass driver_id
+    // through when it's actually numeric — driver_number is always reliable and
+    // is what the rest of the app (DriverProfilePage, payments, etc.) matches on.
+    const numericDriverId = /^\d+$/.test(String(driver.id)) ? driver.id : null;
+
     const { data: saved, error } = await supabase.from("interviews").insert({
-      driver_id: driver.id,
+      driver_id: numericDriverId,
       driver_name: driver.name,
       driver_number: driver.number,
       race_name: selectedRace,
