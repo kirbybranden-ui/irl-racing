@@ -153,33 +153,59 @@ export function IssueChatPanel({ issue, isAdmin = false, authorName = "Guest", a
               No messages yet. Say hello 👋
             </div>
           ) : (
-            messages.map((msg) => {
-              const mine = msg.is_admin === isAdmin;
-              return (
-                <div key={msg.id} style={{ display: "flex", justifyContent: mine ? "flex-end" : "flex-start" }}>
-                  <div style={{ maxWidth: "78%" }}>
-                    <div style={{ fontSize: 10.5, opacity: 0.55, fontWeight: 800, marginBottom: 3, textAlign: mine ? "right" : "left" }}>
-                      {msg.is_admin ? `🛠️ Admin${msg.author_name && msg.author_name !== "Admin" ? ` — ${msg.author_name}` : ""}` : msg.author_name}
+            (() => {
+              // Group consecutive messages from the same sender, iMessage-style
+              const groups = [];
+              messages.forEach((msg) => {
+                const last = groups[groups.length - 1];
+                const sameSender = last && last.is_admin === msg.is_admin && last.author_name === msg.author_name;
+                if (sameSender) {
+                  last.items.push(msg);
+                } else {
+                  groups.push({ is_admin: msg.is_admin, author_name: msg.author_name, items: [msg] });
+                }
+              });
+
+              return groups.map((group, gi) => {
+                const mine = group.is_admin === isAdmin;
+                const lastMsg = group.items[group.items.length - 1];
+                return (
+                  <div key={gi} style={{ display: "flex", flexDirection: "column", alignItems: mine ? "flex-end" : "flex-start" }}>
+                    <div style={{ fontSize: 10.5, opacity: 0.55, fontWeight: 800, marginBottom: 4 }}>
+                      {group.is_admin ? `🛠️ Admin${group.author_name && group.author_name !== "Admin" ? ` — ${group.author_name}` : ""}` : group.author_name}
                     </div>
-                    <div style={{
-                      background: mine ? "linear-gradient(135deg, #007aff 0%, #5856d6 100%)" : "rgba(255,255,255,0.9)",
-                      color: mine ? "#ffffff" : "#1d1d1f",
-                      border: mine ? "none" : "1px solid rgba(0,0,0,0.06)",
-                      borderRadius: 16,
-                      borderBottomRightRadius: mine ? 4 : 16,
-                      borderBottomLeftRadius: mine ? 16 : 4,
-                      padding: "9px 13px",
-                      fontSize: 13.5,
-                      lineHeight: 1.45,
-                      boxShadow: mine ? "0 8px 20px rgba(0,122,255,0.20)" : "0 4px 12px rgba(15,23,42,0.05)",
-                      wordBreak: "break-word",
-                    }}>
-                      {msg.message}
+                    {group.items.map((msg, idx) => {
+                      const isLast = idx === group.items.length - 1;
+                      return (
+                        <div
+                          key={msg.id}
+                          style={{
+                            maxWidth: "78%",
+                            marginTop: idx === 0 ? 0 : 3,
+                            background: mine ? "linear-gradient(135deg, #007aff 0%, #5856d6 100%)" : "rgba(255,255,255,0.9)",
+                            color: mine ? "#ffffff" : "#1d1d1f",
+                            border: mine ? "none" : "1px solid rgba(0,0,0,0.06)",
+                            borderRadius: 16,
+                            borderBottomRightRadius: mine && isLast ? 4 : 16,
+                            borderBottomLeftRadius: !mine && isLast ? 4 : 16,
+                            padding: "9px 13px",
+                            fontSize: 13.5,
+                            lineHeight: 1.45,
+                            boxShadow: mine ? "0 8px 20px rgba(0,122,255,0.20)" : "0 4px 12px rgba(15,23,42,0.05)",
+                            wordBreak: "break-word",
+                          }}
+                        >
+                          {msg.message}
+                        </div>
+                      );
+                    })}
+                    <div style={{ fontSize: 10, opacity: 0.42, fontWeight: 700, marginTop: 4 }}>
+                      {new Date(lastMsg.created_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
                     </div>
                   </div>
-                </div>
-              );
-            })
+                );
+              });
+            })()
           )}
         </div>
 
