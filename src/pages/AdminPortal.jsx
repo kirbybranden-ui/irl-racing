@@ -1704,6 +1704,7 @@ export default function AdminPortal({
                   <p style={{ color: "#4b5563", fontWeight: 750 }}>Manage the league car gallery from Public Relations. Public viewers can still see media on the public pages, but the board controls the gallery here.</p>
                   <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 14 }}>
                     <button type="button" onClick={() => (window.location.pathname = "/admin/car-gallery")} style={adminPrimaryButtonStyle}>Open Car Gallery</button>
+                    <button type="button" onClick={() => (window.location.pathname = "/admin/arca-car-gallery")} style={{ ...adminPrimaryButtonStyle, background: "#006341" }}>Open ARCA Car Gallery</button>
                     <button type="button" onClick={() => setPublicRelationsTab("media")} style={adminSecondaryButtonStyle}>Featured Media</button>
                   </div>
                 </div>
