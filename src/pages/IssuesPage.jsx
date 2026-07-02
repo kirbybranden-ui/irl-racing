@@ -84,6 +84,16 @@ const statusColors = {
   "Needs Work": { soft: "rgba(255,59,48,0.12)", text: "#c62d24", ring: "rgba(255,59,48,0.18)", label: "❌ Needs Work" },
 };
 
+function getAdminChatName() {
+  if (typeof window === "undefined") return "Admin";
+  const stored = sessionStorage.getItem("bcl-admin-chat-name");
+  if (stored) return stored;
+  const entered = window.prompt('Enter your name for chat (shown as "Admin — Name"). Leave blank to just show "Admin".', "");
+  const name = (entered || "").trim();
+  sessionStorage.setItem("bcl-admin-chat-name", name || "Admin");
+  return name || "Admin";
+}
+
 export default function IssuesPage({ isAdmin = false, driverNumber = null, seriesId = "cup" }) {
   const [issues, setIssues] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -266,6 +276,7 @@ function IssueCard({ issue, isAdmin, driverNumber, onStatusChange, onNotesChange
   const [notes, setNotes] = useState(issue.admin_notes || "");
   const [editingNotes, setEditingNotes] = useState(false);
   const [showChat, setShowChat] = useState(false);
+  const [chatAuthorName, setChatAuthorName] = useState(isAdmin ? "Admin" : (driverNumber ? `Driver #${driverNumber}` : "Guest"));
   const colors = statusColors[issue.status] || statusColors.Submitted;
   const isReporter = driverNumber && String(driverNumber) === String(issue.driver_number);
 
@@ -365,7 +376,10 @@ function IssueCard({ issue, isAdmin, driverNumber, onStatusChange, onNotesChange
         <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
           <button
             type="button"
-            onClick={() => setShowChat(true)}
+            onClick={() => {
+              if (isAdmin) setChatAuthorName(getAdminChatName());
+              setShowChat(true);
+            }}
             style={{
               border: 0,
               borderRadius: 999,
@@ -427,7 +441,7 @@ function IssueCard({ issue, isAdmin, driverNumber, onStatusChange, onNotesChange
         <IssueChatPanel
           issue={issue}
           isAdmin={isAdmin}
-          authorName={isAdmin ? "Admin" : (driverNumber ? `Driver #${driverNumber}` : "Guest")}
+          authorName={chatAuthorName}
           authorNumber={driverNumber || ""}
           onClose={() => setShowChat(false)}
         />
