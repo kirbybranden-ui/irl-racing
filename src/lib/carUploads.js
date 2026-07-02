@@ -28,7 +28,7 @@ export function getNextRace(tracks) {
   return null;
 }
  
-export async function uploadCarFile(driverId, driverName, raceId, file) {
+export async function uploadCarFile(driverId, driverName, raceId, file, series = "cup") {
   try {
     const fileExt = file.name.split('.').pop();
     const fileName = `${driverId}-${raceId}-${Date.now()}.${fileExt}`;
@@ -55,6 +55,7 @@ export async function uploadCarFile(driverId, driverName, raceId, file) {
         driver_number: null,
         race_id: raceId,
         race_week: raceId,
+        series: series || "cup",
         file_name: file.name,
         file_path: filePath,
         file_url: publicUrl,
@@ -74,12 +75,13 @@ export async function uploadCarFile(driverId, driverName, raceId, file) {
   }
 }
  
-export async function getCarUploads(driverId = null, raceId = null) {
+export async function getCarUploads(driverId = null, raceId = null, series = null) {
   try {
     let query = supabase.from("car_uploads").select("*");
  
     if (driverId) query = query.eq("driver_id", driverId);
     if (raceId) query = query.eq("race_id", raceId);
+    if (series) query = query.eq("series", series);
  
     const { data, error } = await query.order("uploaded_at", {
       ascending: false,
@@ -121,6 +123,7 @@ export async function getAllCarUploads(filters = {}) {
  
     if (filters.driverId) query = query.eq("driver_id", filters.driverId);
     if (filters.raceId) query = query.eq("race_id", filters.raceId);
+    if (filters.series) query = query.eq("series", filters.series);
  
     const { data, error } = await query.order("uploaded_at", {
       ascending: false,
