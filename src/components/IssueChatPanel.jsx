@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { supabase } from "../lib/supabase";
 
 const pageFont = "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif";
@@ -72,7 +73,7 @@ export function IssueChatPanel({ issue, isAdmin = false, authorName = "Guest", a
     setSending(false);
   }
 
-  return (
+  return createPortal(
     <div style={{
       position: "fixed",
       inset: 0,
@@ -313,6 +314,7 @@ export function IssueChatPanel({ issue, isAdmin = false, authorName = "Guest", a
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
