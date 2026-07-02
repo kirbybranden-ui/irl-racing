@@ -1,28 +1,86 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 
-const cardStyle = {
-  border: "1px solid #2c3440",
-  borderRadius: 14,
-  padding: 20,
-  marginBottom: 16,
-  background: "#171b22",
-  boxShadow: "0 4px 16px rgba(0,0,0,0.2)",
+const pageFont = "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif";
+
+const pageStyle = {
+  minHeight: "100vh",
+  background: "radial-gradient(circle at top left, rgba(255,255,255,0.95), rgba(245,245,247,0.94) 36%, rgba(229,229,234,0.98) 100%)",
+  color: "#1d1d1f",
+  fontFamily: pageFont,
+  padding: "clamp(18px, 4vw, 42px)",
+  boxSizing: "border-box",
 };
 
-const labelStyle = { fontSize: 12, opacity: 0.6, fontWeight: 700, textTransform: "uppercase", marginBottom: 2 };
-const valueStyle = { fontSize: 15, marginBottom: 12 };
-const inputStyle = { width: "100%", background: "#0f1319", color: "white", border: "1px solid #313947", borderRadius: 10, padding: "10px 12px", boxSizing: "border-box", resize: "vertical" };
-const selectStyle = { background: "#0f1319", color: "white", border: "1px solid #313947", borderRadius: 10, padding: "10px 12px", minWidth: 160 };
-const buttonStyle = { background: "#d4af37", color: "#111", border: "none", borderRadius: 10, padding: "10px 18px", fontWeight: 700, cursor: "pointer", fontSize: 14 };
-const secondaryButtonStyle = { background: "#1e2530", color: "white", border: "1px solid #313947", borderRadius: 10, padding: "10px 16px", fontWeight: 700, cursor: "pointer" };
+const wrapStyle = { maxWidth: 1180, margin: "0 auto" };
+
+const glassCardStyle = {
+  borderRadius: 28,
+  padding: "clamp(16px, 3vw, 24px)",
+  background: "linear-gradient(180deg, rgba(255,255,255,0.86), rgba(255,255,255,0.58))",
+  border: "1px solid rgba(255,255,255,0.78)",
+  boxShadow: "0 24px 70px rgba(0,0,0,0.10)",
+  backdropFilter: "blur(22px)",
+  WebkitBackdropFilter: "blur(22px)",
+};
+
+const labelStyle = { fontSize: 11, opacity: 0.55, fontWeight: 1000, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 };
+
+const inputStyle = {
+  width: "100%",
+  background: "rgba(255,255,255,0.7)",
+  color: "#1d1d1f",
+  border: "1px solid rgba(0,0,0,0.08)",
+  borderRadius: 14,
+  padding: "10px 12px",
+  boxSizing: "border-box",
+  resize: "vertical",
+  fontFamily: pageFont,
+  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.6)",
+};
+
+const selectStyle = {
+  background: "rgba(255,255,255,0.8)",
+  color: "#1d1d1f",
+  border: "1px solid rgba(0,0,0,0.08)",
+  borderRadius: 999,
+  padding: "10px 16px",
+  minWidth: 160,
+  fontWeight: 800,
+  fontFamily: pageFont,
+  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.7)",
+};
+
+const pillButtonStyle = {
+  border: 0,
+  borderRadius: 999,
+  padding: "10px 18px",
+  fontWeight: 900,
+  cursor: "pointer",
+  fontSize: 14,
+  fontFamily: pageFont,
+  background: "#007aff",
+  color: "#ffffff",
+  boxShadow: "0 12px 28px rgba(0,122,255,0.24)",
+};
+
+const secondaryPillButtonStyle = {
+  border: "1px solid rgba(0,0,0,0.10)",
+  borderRadius: 999,
+  padding: "9px 16px",
+  fontWeight: 900,
+  cursor: "pointer",
+  fontFamily: pageFont,
+  background: "rgba(255,255,255,0.7)",
+  color: "#1d1d1f",
+};
 
 const statusColors = {
-  Submitted: { bg: "#1a2030", border: "#3b4f6e", badge: "#3b82f6", label: "📋 Submitted" },
-  Reviewed: { bg: "#1a2820", border: "#3b6b4f", badge: "#8b5cf6", label: "👀 Reviewed" },
-  Actioned: { bg: "#2a2010", border: "#6b5020", badge: "#f59e0b", label: "⚙️ Actioned" },
-  Complete: { bg: "#142a14", border: "#2d642d", badge: "#22c55e", label: "✅ Complete" },
-  "Needs Work": { bg: "#2a1010", border: "#6b2020", badge: "#ef4444", label: "❌ Needs Work" },
+  Submitted: { soft: "rgba(0,122,255,0.12)", text: "#0057d9", ring: "rgba(0,122,255,0.18)", label: "📋 Submitted" },
+  Reviewed: { soft: "rgba(175,82,222,0.12)", text: "#7d1fb0", ring: "rgba(175,82,222,0.18)", label: "👀 Reviewed" },
+  Actioned: { soft: "rgba(255,149,0,0.14)", text: "#9a5a00", ring: "rgba(255,149,0,0.20)", label: "⚙️ Actioned" },
+  Complete: { soft: "rgba(52,199,89,0.14)", text: "#147d35", ring: "rgba(52,199,89,0.20)", label: "✅ Complete" },
+  "Needs Work": { soft: "rgba(255,59,48,0.12)", text: "#c62d24", ring: "rgba(255,59,48,0.18)", label: "❌ Needs Work" },
 };
 
 export default function IssuesPage({ isAdmin = false, driverNumber = null, seriesId = "cup" }) {
@@ -87,37 +145,74 @@ export default function IssuesPage({ isAdmin = false, driverNumber = null, serie
     needsWork: issues.filter(i => i.status === "Needs Work").length,
   };
 
+  const visibleIssues = seriesFilter
+    ? issues.filter((issue) => (issue.series || "cup") === seriesFilter)
+    : issues;
+
   return (
-    <div style={{ minHeight: "100vh", background: "#0c0f14", color: "white", fontFamily: "Arial, sans-serif", padding: 24 }}>
-      <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+    <div style={pageStyle}>
+      <div style={wrapStyle}>
         {/* Header */}
-        <div style={{ marginBottom: 28 }}>
-          <h1 style={{ margin: 0, fontSize: 32, fontWeight: 900 }}>🐛 Issues & Feedback</h1>
-          <p style={{ opacity: 0.7, fontSize: 14, marginTop: 8 }}>
-            Report bugs, suggest features, and track resolution status
-          </p>
+        <div style={{ ...glassCardStyle, marginBottom: 22, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 18, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            <div style={{
+              width: 58,
+              height: 58,
+              borderRadius: 20,
+              background: "linear-gradient(135deg, #ff6482 0%, #ff3b30 60%, #b91c1c 100%)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 26,
+              boxShadow: "0 16px 34px rgba(255,59,48,0.28)",
+            }}>
+              🐛
+            </div>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(29,29,31,0.55)" }}>
+                Budweiser Motorsports
+              </div>
+              <h1 style={{ margin: "2px 0 0", fontSize: "clamp(24px, 3.4vw, 34px)", letterSpacing: "-0.04em" }}>Issues &amp; Feedback</h1>
+              <p style={{ margin: "4px 0 0", opacity: 0.6, fontSize: 13.5, fontWeight: 700 }}>
+                Report bugs, suggest features, and track resolution status.
+              </p>
+            </div>
+          </div>
         </div>
 
-        {/* Stats Cards */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, marginBottom: 28 }}>
+        {/* Stats */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 14, marginBottom: 22 }}>
           {[
-            { label: "Submitted", value: stats.submitted, color: "#3b82f6" },
-            { label: "Reviewed", value: stats.reviewed, color: "#8b5cf6" },
-            { label: "Actioned", value: stats.actioned, color: "#f59e0b" },
-            { label: "Needs Work", value: stats.needsWork, color: "#ef4444" },
-            { label: "Complete", value: stats.complete, color: "#22c55e" },
-          ].map(stat => (
-            <div key={stat.label} style={{ background: "#171b22", border: "1px solid #2c3440", borderRadius: 12, padding: 16, textAlign: "center" }}>
-              <div style={{ fontSize: 28, fontWeight: 900, color: stat.color, marginBottom: 4 }}>{stat.value}</div>
-              <div style={{ fontSize: 12, opacity: 0.6, textTransform: "uppercase" }}>{stat.label}</div>
+            { label: "Submitted", value: stats.submitted, color: "#007aff", icon: "📋" },
+            { label: "Reviewed", value: stats.reviewed, color: "#af52de", icon: "👀" },
+            { label: "Actioned", value: stats.actioned, color: "#ff9500", icon: "⚙️" },
+            { label: "Needs Work", value: stats.needsWork, color: "#ff3b30", icon: "❌" },
+            { label: "Complete", value: stats.complete, color: "#34c759", icon: "✅" },
+          ].map((stat) => (
+            <div key={stat.label} style={{
+              borderRadius: 24,
+              padding: 16,
+              background: "rgba(255,255,255,0.76)",
+              border: "1px solid rgba(229,231,235,0.9)",
+              boxShadow: "0 14px 32px rgba(15,23,42,0.06)",
+              backdropFilter: "blur(14px)",
+              WebkitBackdropFilter: "blur(14px)",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                <span style={{ width: 30, height: 30, borderRadius: 11, background: `${stat.color}1e`, color: stat.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>
+                  {stat.icon}
+                </span>
+              </div>
+              <div style={{ fontSize: 28, fontWeight: 1000, color: "#1d1d1f", letterSpacing: "-0.03em" }}>{stat.value}</div>
+              <div style={{ fontSize: 11, opacity: 0.55, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.06em", marginTop: 2 }}>{stat.label}</div>
             </div>
           ))}
         </div>
 
         {/* Filters */}
-        <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
+        <div style={{ ...glassCardStyle, marginBottom: 22, padding: "14px 18px", display: "flex", gap: 16, flexWrap: "wrap", alignItems: "flex-end" }}>
           <div>
-            <label style={{ display: "block", fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Status</label>
+            <div style={labelStyle}>Status</div>
             <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={selectStyle}>
               <option value="All">All Statuses</option>
               <option value="Submitted">📋 Submitted</option>
@@ -129,7 +224,7 @@ export default function IssuesPage({ isAdmin = false, driverNumber = null, serie
           </div>
           {isAdmin && (
             <div>
-              <label style={{ display: "block", fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Series</label>
+              <div style={labelStyle}>Series</div>
               <select value={seriesFilter} onChange={(e) => setSeriesFilter(e.target.value)} style={selectStyle}>
                 <option value="">All Series</option>
                 <option value="cup">🏁 Cup</option>
@@ -141,22 +236,25 @@ export default function IssuesPage({ isAdmin = false, driverNumber = null, serie
 
         {/* Issues List */}
         {loading ? (
-          <p style={{ opacity: 0.7 }}>Loading issues...</p>
-        ) : issues.length === 0 ? (
-          <div style={{ ...cardStyle, textAlign: "center", opacity: 0.7 }}>
-            <p>No issues found. Great work! 🎉</p>
+          <div style={{ ...glassCardStyle, textAlign: "center", opacity: 0.7, fontWeight: 800 }}>Loading issues…</div>
+        ) : visibleIssues.length === 0 ? (
+          <div style={{ ...glassCardStyle, textAlign: "center" }}>
+            <div style={{ fontSize: 34, marginBottom: 8 }}>🎉</div>
+            <p style={{ margin: 0, fontWeight: 800, opacity: 0.7 }}>No issues found. Great work!</p>
           </div>
         ) : (
-          issues.map((issue) => (
-            <IssueCard
-              key={issue.id}
-              issue={issue}
-              isAdmin={isAdmin}
-              driverNumber={driverNumber}
-              onStatusChange={updateIssueStatus}
-              onNotesChange={addAdminNotes}
-            />
-          ))
+          <div style={{ display: "grid", gap: 16 }}>
+            {visibleIssues.map((issue) => (
+              <IssueCard
+                key={issue.id}
+                issue={issue}
+                isAdmin={isAdmin}
+                driverNumber={driverNumber}
+                onStatusChange={updateIssueStatus}
+                onNotesChange={addAdminNotes}
+              />
+            ))}
+          </div>
         )}
       </div>
     </div>
@@ -178,18 +276,34 @@ function IssueCard({ issue, isAdmin, driverNumber, onStatusChange, onNotesChange
   const canMarkNeedsWork = isReporter && issue.status === "Complete";
 
   return (
-    <div style={{ ...cardStyle, background: colors.bg, borderColor: colors.border }}>
+    <div style={{
+      borderRadius: 28,
+      padding: "clamp(16px, 3vw, 22px)",
+      background: "linear-gradient(180deg, rgba(255,255,255,0.90), rgba(255,255,255,0.62))",
+      border: `1px solid ${colors.ring}`,
+      boxShadow: "0 20px 55px rgba(15,23,42,0.10)",
+      backdropFilter: "blur(20px)",
+      WebkitBackdropFilter: "blur(20px)",
+    }}>
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, marginBottom: 16, flexWrap: "wrap" }}>
         <div>
-          <div style={{ fontSize: 18, fontWeight: 900, marginBottom: 4 }}>{issue.title}</div>
-          <div style={{ fontSize: 13, opacity: 0.7, display: "flex", gap: 16, flexWrap: "wrap" }}>
+          <div style={{ fontSize: 18, fontWeight: 1000, marginBottom: 6, letterSpacing: "-0.02em" }}>{issue.title}</div>
+          <div style={{ fontSize: 12.5, opacity: 0.6, display: "flex", gap: 14, flexWrap: "wrap", fontWeight: 800 }}>
             <span>#{issue.driver_number} {issue.driver_name}</span>
             <span>{issue.series === "arca" ? "🏎️ ARCA" : "🏁 Cup"}</span>
             <span>{new Date(issue.created_at).toLocaleDateString()}</span>
           </div>
         </div>
-        <div style={{ background: colors.badge, color: "white", borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 800, whiteSpace: "nowrap" }}>
+        <div style={{
+          background: colors.soft,
+          color: colors.text,
+          borderRadius: 999,
+          padding: "7px 14px",
+          fontSize: 12,
+          fontWeight: 1000,
+          whiteSpace: "nowrap",
+        }}>
           {colors.label}
         </div>
       </div>
@@ -197,7 +311,7 @@ function IssueCard({ issue, isAdmin, driverNumber, onStatusChange, onNotesChange
       {/* Description */}
       <div style={{ marginBottom: 14 }}>
         <div style={labelStyle}>Description</div>
-        <div style={{ fontSize: 14, lineHeight: 1.6, background: "rgba(0,0,0,0.2)", borderRadius: 8, padding: 12 }}>
+        <div style={{ fontSize: 14, lineHeight: 1.6, background: "rgba(0,0,0,0.035)", border: "1px solid rgba(0,0,0,0.05)", borderRadius: 16, padding: 14, color: "#1d1d1f" }}>
           {issue.description}
         </div>
       </div>
@@ -206,13 +320,13 @@ function IssueCard({ issue, isAdmin, driverNumber, onStatusChange, onNotesChange
       {issue.screenshot_url && (
         <div style={{ marginBottom: 14 }}>
           <div style={labelStyle}>Screenshot</div>
-          <img src={issue.screenshot_url} alt="Issue screenshot" style={{ maxWidth: "100%", maxHeight: 400, borderRadius: 8, marginTop: 6 }} />
+          <img src={issue.screenshot_url} alt="Issue screenshot" style={{ maxWidth: "100%", maxHeight: 400, borderRadius: 16, marginTop: 6, border: "1px solid rgba(0,0,0,0.06)" }} />
         </div>
       )}
 
       {/* Admin Notes */}
       {isAdmin && (
-        <div style={{ marginBottom: 14, background: "rgba(0,0,0,0.2)", borderRadius: 8, padding: 12 }}>
+        <div style={{ marginBottom: 14, background: "rgba(0,0,0,0.035)", border: "1px solid rgba(0,0,0,0.05)", borderRadius: 16, padding: 14 }}>
           <div style={labelStyle}>Admin Notes</div>
           {editingNotes ? (
             <>
@@ -221,19 +335,22 @@ function IssueCard({ issue, isAdmin, driverNumber, onStatusChange, onNotesChange
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Add notes here..."
                 rows={3}
-                style={{ ...inputStyle, marginBottom: 8 }}
+                style={{ ...inputStyle, marginBottom: 10 }}
               />
-              <div style={{ display: "flex", gap: 8 }}>
-                <button onClick={handleSaveNotes} style={buttonStyle}>Save Notes</button>
-                <button onClick={() => setEditingNotes(false)} style={secondaryButtonStyle}>Cancel</button>
+              <div style={{ display: "flex", gap: 10 }}>
+                <button onClick={handleSaveNotes} style={pillButtonStyle}>Save Notes</button>
+                <button onClick={() => setEditingNotes(false)} style={secondaryPillButtonStyle}>Cancel</button>
               </div>
             </>
           ) : (
             <>
-              <div style={{ fontSize: 14, lineHeight: 1.5, marginBottom: 8 }}>
+              <div style={{ fontSize: 14, lineHeight: 1.5, marginBottom: 10 }}>
                 {notes || <span style={{ opacity: 0.5 }}>No notes yet</span>}
               </div>
-              <button onClick={() => setEditingNotes(true)} style={secondaryButtonStyle} style={{ fontSize: 12, padding: "6px 10px" }}>
+              <button
+                onClick={() => setEditingNotes(true)}
+                style={{ ...secondaryPillButtonStyle, fontSize: 12, padding: "7px 14px" }}
+              >
                 Edit Notes
               </button>
             </>
@@ -242,28 +359,26 @@ function IssueCard({ issue, isAdmin, driverNumber, onStatusChange, onNotesChange
       )}
 
       {/* Controls */}
-      <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 14, marginTop: 4 }}>
+      <div style={{ borderTop: "1px solid rgba(0,0,0,0.06)", paddingTop: 14, marginTop: 4 }}>
         <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
           {isAdmin ? (
-            <>
-              <select
-                value={issue.status}
-                onChange={(e) => onStatusChange(issue.id, e.target.value)}
-                style={selectStyle}
-              >
-                <option value="Submitted">📋 Submitted</option>
-                <option value="Reviewed">👀 Reviewed</option>
-                <option value="Actioned">⚙️ Actioned</option>
-                <option value="Needs Work">❌ Needs Work</option>
-                <option value="Complete">✅ Complete</option>
-              </select>
-            </>
+            <select
+              value={issue.status}
+              onChange={(e) => onStatusChange(issue.id, e.target.value)}
+              style={selectStyle}
+            >
+              <option value="Submitted">📋 Submitted</option>
+              <option value="Reviewed">👀 Reviewed</option>
+              <option value="Actioned">⚙️ Actioned</option>
+              <option value="Needs Work">❌ Needs Work</option>
+              <option value="Complete">✅ Complete</option>
+            </select>
           ) : (
             <>
               {canMarkComplete && (
                 <button
                   onClick={() => onStatusChange(issue.id, "Complete")}
-                  style={{ ...buttonStyle, background: "#22c55e" }}
+                  style={{ ...pillButtonStyle, background: "#34c759", boxShadow: "0 12px 28px rgba(52,199,89,0.28)" }}
                 >
                   ✅ Mark Complete
                 </button>
@@ -271,13 +386,13 @@ function IssueCard({ issue, isAdmin, driverNumber, onStatusChange, onNotesChange
               {canMarkNeedsWork && (
                 <button
                   onClick={() => onStatusChange(issue.id, "Needs Work")}
-                  style={{ ...buttonStyle, background: "#ef4444" }}
+                  style={{ ...pillButtonStyle, background: "#ff3b30", boxShadow: "0 12px 28px rgba(255,59,48,0.28)" }}
                 >
                   ❌ Solution Didn't Work
                 </button>
               )}
               {!canMarkComplete && !canMarkNeedsWork && (
-                <div style={{ fontSize: 13, opacity: 0.7 }}>
+                <div style={{ fontSize: 13, opacity: 0.65, fontWeight: 800 }}>
                   {issue.status === "Submitted" && "⏳ Awaiting review..."}
                   {issue.status === "Reviewed" && "👀 Admin is reviewing..."}
                   {issue.status === "Actioned" && "⚙️ Issue has been actioned. Check the admin notes!"}
