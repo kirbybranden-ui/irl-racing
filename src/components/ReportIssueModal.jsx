@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { supabase } from "../lib/supabase";
 
 const pageFont = "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif";
@@ -141,7 +142,7 @@ export function ReportIssueModal({ isOpen, onClose, driverNumber, driverName, se
 
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div style={{
       position: "fixed",
       inset: 0,
@@ -296,6 +297,7 @@ export function ReportIssueModal({ isOpen, onClose, driverNumber, driverName, se
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
