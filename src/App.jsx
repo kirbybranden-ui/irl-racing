@@ -31,6 +31,7 @@ import InSeasonTournamentPage from "./pages/InSeasonTournamentPage";
 import DriverMarketPage from "./pages/DriverMarketPage";
 import DevelopmentRequestsPage from "./pages/DevelopmentRequestsPage";
 import IssuesPage from "./pages/IssuesPage";
+import IssuesRollupPage from "./pages/IssuesRollupPage";
 import LeagueChatPage from "./LeagueChatPage";
 import OwnersPage from "./OwnersPage.jsx";
 import { defaultDrivers } from "./data/drivers";
@@ -3579,7 +3580,7 @@ function MobileLeagueApp({
   if (path === "/submit-appeal") return dataFrame("Submit Appeal", "more", isGuestSession ? <MobileGuestLockedCard title="Appeals Require Driver Login" go={go} /> : <SubmitAppealPage />);
   if (path === "/submit-story") return dataFrame("Submit Story", "more", isGuestSession ? <MobileGuestLockedCard title="Story Submissions Require Driver Login" go={go} /> : <SubmitStoryPage />);
   if (path === "/appeals") return dataFrame("Appeals", "more", <AppealsPage />);
-  if (path === "/issues") return dataFrame("Issues & Feedback", "more", <IssuesPage isAdmin={false} />);
+  if (path === "/issues") return dataFrame("Issues & Feedback", "more", <IssuesRollupPage />);
   if (path === "/news") return frame("News", "news", <MobileNewsFeed go={go} desktopArchive={<NewsPage />} />);
   if (path === "/paint-scheme-vote") return frame("Paint Scheme Votes", "votes", <MobilePaintSchemeVotesHub drivers={drivers} tracks={tracks} go={go} session={mobileSession} />);
   if (path === "/vote" || path === "/league-vote" || path === "/voting") return dataFrame("League Vote", "more", isGuestSession ? <MobileGuestLockedCard title="League Voting Requires Driver Login" go={go} /> : <LeagueVotingPage drivers={drivers} />);
@@ -5168,7 +5169,7 @@ function AppleSeriesPortalLanding() {
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             <button
               type="button"
-              onClick={() => setIsReportingIssue(true)}
+              onClick={() => (window.location.pathname = "/issues")}
               style={{
                 border: "1px solid rgba(255,59,48,0.22)",
                 borderRadius: 999,
@@ -7646,7 +7647,7 @@ export default function App() {
   if (path === "/submit-appeal") return <SubmitAppealPage />;
   if (path === "/submit-story") return <SubmitStoryPage />;
   if (path === "/appeals") return <AppealsPage />;
-  if (path === "/issues") return <IssuesPage isAdmin={false} />;
+  if (path === "/issues") return <IssuesRollupPage />;
   if (path === "/admin/issues") return <IssuesPage isAdmin={true} />;
   if (path === "/admin/stories" || path === "/stories") return <StoriesAdminPage />;
   if (path === "/admin/live-control") {
