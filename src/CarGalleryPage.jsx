@@ -10,7 +10,7 @@ const secondaryButtonStyle = { background: "#2a3140", color: "white", border: "1
 const dangerButtonStyle = { background: "#b42318", color: "white", border: "none", borderRadius: 10, padding: "10px 16px", fontWeight: 700, cursor: "pointer" };
 const inputStyle = { width: "100%", background: "#0f1319", color: "white", border: "1px solid #313947", borderRadius: 10, padding: "10px 12px", boxSizing: "border-box" };
 
-export default function CarGalleryPage({ drivers = [], tracks = [] }) {
+export default function CarGalleryPage({ drivers = [], tracks = [], seriesId = "cup" }) {
   const [uploads, setUploads] = useState([]);
   const [filteredUploads, setFilteredUploads] = useState([]);
   const [selectedDriver, setSelectedDriver] = useState("");
@@ -22,7 +22,7 @@ export default function CarGalleryPage({ drivers = [], tracks = [] }) {
 
   useEffect(() => {
     loadUploads();
-  }, []);
+  }, [seriesId]);
 
   const loadUploads = async () => {
     try {
@@ -31,6 +31,7 @@ export default function CarGalleryPage({ drivers = [], tracks = [] }) {
       const { data, error } = await supabase
         .from("car_uploads")
         .select("*")
+        .eq("series", seriesId)
         .order("uploaded_at", { ascending: false });
 
       console.log("CarGallery fetch — data:", data, "error:", error);
@@ -188,8 +189,8 @@ export default function CarGalleryPage({ drivers = [], tracks = [] }) {
           <button onClick={() => window.history.back()} style={{ ...secondaryButtonStyle, marginBottom: 12 }}>
             ← Back to Admin
           </button>
-          <h1 style={{ marginTop: 0, marginBottom: 8 }}>Car Photo Gallery</h1>
-          <p style={{ opacity: 0.75, marginTop: 4 }}>View and manage car uploads from drivers for each race week.</p>
+          <h1 style={{ marginTop: 0, marginBottom: 8 }}>{seriesId === "arca" ? "🏎️ ARCA Car Photo Gallery" : "🏁 Car Photo Gallery"}</h1>
+          <p style={{ opacity: 0.75, marginTop: 4 }}>View and manage {seriesId === "arca" ? "ARCA" : "Cup"} car uploads from drivers for each race week.</p>
         </div>
 
         <div style={sectionCardStyle}>
