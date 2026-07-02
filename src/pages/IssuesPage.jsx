@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
+import { IssueChatPanel } from "../components/IssueChatPanel";
 
 const pageFont = "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif";
 
@@ -264,6 +265,7 @@ export default function IssuesPage({ isAdmin = false, driverNumber = null, serie
 function IssueCard({ issue, isAdmin, driverNumber, onStatusChange, onNotesChange }) {
   const [notes, setNotes] = useState(issue.admin_notes || "");
   const [editingNotes, setEditingNotes] = useState(false);
+  const [showChat, setShowChat] = useState(false);
   const colors = statusColors[issue.status] || statusColors.Submitted;
   const isReporter = driverNumber && String(driverNumber) === String(issue.driver_number);
 
@@ -361,6 +363,23 @@ function IssueCard({ issue, isAdmin, driverNumber, onStatusChange, onNotesChange
       {/* Controls */}
       <div style={{ borderTop: "1px solid rgba(0,0,0,0.06)", paddingTop: 14, marginTop: 4 }}>
         <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+          <button
+            type="button"
+            onClick={() => setShowChat(true)}
+            style={{
+              border: 0,
+              borderRadius: 999,
+              padding: "9px 16px",
+              background: "linear-gradient(135deg, #007aff 0%, #5856d6 100%)",
+              color: "#ffffff",
+              fontWeight: 900,
+              cursor: "pointer",
+              fontSize: 13,
+              boxShadow: "0 10px 22px rgba(0,122,255,0.22)",
+            }}
+          >
+            💬 Chat
+          </button>
           {isAdmin ? (
             <select
               value={issue.status}
@@ -403,6 +422,16 @@ function IssueCard({ issue, isAdmin, driverNumber, onStatusChange, onNotesChange
           )}
         </div>
       </div>
+
+      {showChat && (
+        <IssueChatPanel
+          issue={issue}
+          isAdmin={isAdmin}
+          authorName={isAdmin ? "Admin" : (driverNumber ? `Driver #${driverNumber}` : "Guest")}
+          authorNumber={driverNumber || ""}
+          onClose={() => setShowChat(false)}
+        />
+      )}
     </div>
   );
 }
