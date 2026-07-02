@@ -11,10 +11,9 @@ const statusColors = {
 
 export function IssuesRollup() {
   const [issues, setIssues] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
 
   async function loadIssues() {
-    setLoading(true);
     const { data, error } = await supabase
       .from("issues")
       .select("*")
@@ -27,7 +26,7 @@ export function IssuesRollup() {
     } else {
       setIssues(data || []);
     }
-    setLoading(false);
+    setHasLoadedOnce(true);
   }
 
   useEffect(() => {
@@ -54,7 +53,7 @@ export function IssuesRollup() {
   const needsWorkCount = issues.filter(i => i.status === "Needs Work").length;
   const totalPending = submitCount + reviewCount + needsWorkCount;
 
-  if (loading || totalPending === 0) return null;
+  if (!hasLoadedOnce || totalPending === 0) return null;
 
   return (
     <div style={{
