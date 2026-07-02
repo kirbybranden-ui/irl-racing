@@ -3,12 +3,24 @@ import { supabase } from "../lib/supabase";
 
 const pageFont = "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif";
 
-export function IssueChatPanel({ issue, isAdmin = false, authorName = "Guest", authorNumber = "", onClose }) {
+export function IssueChatPanel({ issue, isAdmin = false, authorName = "Guest", authorNumber = "", drivers = [], onClose }) {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const [selectedDriverKey, setSelectedDriverKey] = useState("");
   const scrollRef = useRef(null);
+
+  const driversBySeries = drivers.reduce((groups, driver) => {
+    const label = driver.seriesLabel || "Other";
+    if (!groups[label]) groups[label] = [];
+    groups[label].push(driver);
+    return groups;
+  }, {});
+
+  const selectedDriver = drivers.find((d) => d.key === selectedDriverKey) || null;
+  const effectiveAuthorName = selectedDriver ? selectedDriver.name : authorName;
+  const effectiveAuthorNumber = selectedDriver ? selectedDriver.number : authorNumber;
 
   async function loadMessages(isInitialLoad = false) {
     if (isInitialLoad) setLoading(true);
@@ -43,8 +55,8 @@ export function IssueChatPanel({ issue, isAdmin = false, authorName = "Guest", a
     setSending(true);
     const { error } = await supabase.from("issue_comments").insert({
       issue_id: issue.id,
-      author_name: authorName || (isAdmin ? "Admin" : "Guest"),
-      author_number: authorNumber || null,
+      author_name: effectiveAuthorName || (isAdmin ? "Admin" : "Guest"),
+      author_number: effectiveAuthorNumber || null,
       is_admin: isAdmin,
       message: draft.trim(),
       created_at: new Date().toISOString(),
@@ -129,6 +141,52 @@ export function IssueChatPanel({ issue, isAdmin = false, authorName = "Guest", a
             ×
           </button>
         </div>
+
+        {!isAdmin && drivers.length > 0 && (
+          <div style={{
+            marginBottom: 12,
+            flexShrink: 0,
+            background: "rgba(0,0,0,0.03)",
+            border: "1px solid rgba(0,0,0,0.05)",
+            borderRadius: 14,
+            padding: "8px 12px",
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            flexWrap: "wrap",
+          }}>
+            <div style={{ fontSize: 10.5, opacity: 0.55, fontWeight: 1000, textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>
+              Chatting as
+            </div>
+            <select
+              value={selectedDriverKey}
+              onChange={(e) => setSelectedDriverKey(e.target.value)}
+              style={{
+                flex: 1,
+                minWidth: 160,
+                background: "rgba(255,255,255,0.8)",
+                color: "#1d1d1f",
+                border: "1px solid rgba(0,0,0,0.08)",
+                borderRadius: 999,
+                padding: "6px 12px",
+                fontSize: 12.5,
+                fontWeight: 800,
+                fontFamily: pageFont,
+              }}
+            >
+              <option value="">Guest / Prefer not to say</option>
+              {Object.entries(driversBySeries).map(([seriesLabel, list]) => (
+                <optgroup key={seriesLabel} label={seriesLabel}>
+                  {list.map((driver) => (
+                    <option key={driver.key} value={driver.key}>
+                      #{driver.number} {driver.name}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* Messages */}
         <div
