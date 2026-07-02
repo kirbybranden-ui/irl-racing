@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { ReportIssueModal } from "../components/ReportIssueModal";
+import { IssueChatPanel } from "../components/IssueChatPanel";
+import { EditIssueModal } from "../components/EditIssueModal";
 import { defaultDrivers } from "../data/drivers";
 import { defaultArcaDrivers } from "../data/arca/drivers";
 
@@ -39,6 +41,9 @@ export default function IssuesRollupPage() {
   const [issues, setIssues] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isReportingIssue, setIsReportingIssue] = useState(false);
+  const [chatIssue, setChatIssue] = useState(null);
+  const [editIssue, setEditIssue] = useState(null);
+  const [chatAsKey, setChatAsKey] = useState("");
 
   const allLeagueDrivers = [
     ...(defaultDrivers || []).map((driver) => ({
@@ -54,6 +59,15 @@ export default function IssuesRollupPage() {
       seriesLabel: "ARCA Series",
     })),
   ];
+
+  const driversBySeries = allLeagueDrivers.reduce((groups, driver) => {
+    const label = driver.seriesLabel || "Other";
+    if (!groups[label]) groups[label] = [];
+    groups[label].push(driver);
+    return groups;
+  }, {});
+
+  const chatAsDriver = allLeagueDrivers.find((d) => d.key === chatAsKey) || null;
 
   async function loadIssues(isInitialLoad = false) {
     if (isInitialLoad) setLoading(true);
@@ -160,6 +174,37 @@ export default function IssuesRollupPage() {
           </div>
         </div>
 
+        {/* Chat identity selector */}
+        <div style={{ ...glassCardStyle, marginBottom: 22, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+          <div style={{ fontSize: 11, opacity: 0.55, fontWeight: 1000, textTransform: "uppercase", letterSpacing: "0.06em" }}>Chatting as</div>
+          <select
+            value={chatAsKey}
+            onChange={(e) => setChatAsKey(e.target.value)}
+            style={{
+              background: "rgba(255,255,255,0.8)",
+              color: "#1d1d1f",
+              border: "1px solid rgba(0,0,0,0.08)",
+              borderRadius: 999,
+              padding: "9px 16px",
+              fontWeight: 800,
+              fontFamily: pageFont,
+              minWidth: 220,
+            }}
+          >
+            <option value="">Guest / Prefer not to say</option>
+            {Object.entries(driversBySeries).map(([seriesLabel, list]) => (
+              <optgroup key={seriesLabel} label={seriesLabel}>
+                {list.map((driver) => (
+                  <option key={driver.key} value={driver.key}>
+                    #{driver.number} {driver.name}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+          <div style={{ fontSize: 12, opacity: 0.55, fontWeight: 700 }}>Used when you chat or edit a report you submitted.</div>
+        </div>
+
         {/* Issues List */}
         {loading ? (
           <div style={{ ...glassCardStyle, textAlign: "center", opacity: 0.7, fontWeight: 800 }}>Loading issues…</div>
@@ -223,10 +268,48 @@ export default function IssuesRollupPage() {
                   )}
 
                   {issue.admin_notes && (
-                    <div style={{ fontSize: 12, color: "#9a5a00", fontStyle: "italic", fontWeight: 700, background: "rgba(255,149,0,0.08)", borderRadius: 12, padding: 10 }}>
+                    <div style={{ fontSize: 12, color: "#9a5a00", fontStyle: "italic", fontWeight: 700, background: "rgba(255,149,0,0.08)", borderRadius: 12, padding: 10, marginBottom: 10 }}>
                       Admin: {issue.admin_notes}
                     </div>
                   )}
+
+                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap", borderTop: "1px solid rgba(0,0,0,0.06)", paddingTop: 12, marginTop: 2 }}>
+                    <button
+                      type="button"
+                      onClick={() => setChatIssue(issue)}
+                      style={{
+                        border: 0,
+                        borderRadius: 999,
+                        padding: "8px 15px",
+                        background: "linear-gradient(135deg, #007aff 0%, #5856d6 100%)",
+                        color: "#ffffff",
+                        fontWeight: 900,
+                        cursor: "pointer",
+                        fontSize: 12.5,
+                        boxShadow: "0 10px 22px rgba(0,122,255,0.22)",
+                      }}
+                    >
+                      💬 Chat
+                    </button>
+                    {issue.status === "Submitted" && (
+                      <button
+                        type="button"
+                        onClick={() => setEditIssue(issue)}
+                        style={{
+                          border: "1px solid rgba(0,0,0,0.10)",
+                          borderRadius: 999,
+                          padding: "8px 15px",
+                          background: "rgba(255,255,255,0.7)",
+                          color: "#1d1d1f",
+                          fontWeight: 900,
+                          cursor: "pointer",
+                          fontSize: 12.5,
+                        }}
+                      >
+                        ✏️ Edit
+                      </button>
+                    )}
+                  </div>
                 </div>
               );
             })}
@@ -242,6 +325,24 @@ export default function IssuesRollupPage() {
         series="cup"
         drivers={allLeagueDrivers}
       />
+
+      {chatIssue && (
+        <IssueChatPanel
+          issue={chatIssue}
+          isAdmin={false}
+          authorName={chatAsDriver ? chatAsDriver.name : "Guest"}
+          authorNumber={chatAsDriver ? chatAsDriver.number : ""}
+          onClose={() => setChatIssue(null)}
+        />
+      )}
+
+      {editIssue && (
+        <EditIssueModal
+          issue={editIssue}
+          onClose={() => setEditIssue(null)}
+          onSaved={() => loadIssues(false)}
+        />
+      )}
     </div>
   );
 }
