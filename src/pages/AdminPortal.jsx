@@ -1335,6 +1335,16 @@ export default function AdminPortal({
 
               <button
                 type="button"
+                aria-label="Exit Admin Portal"
+                onClick={() => (window.location.pathname = "/")}
+                style={{ ...adminMessageIconButtonStyle, background: "linear-gradient(180deg, #ff453a 0%, #b91c1c 100%)", boxShadow: "0 16px 38px rgba(255,69,58,0.30)" }}
+                title="Exit Admin Portal"
+              >
+                🚪
+              </button>
+
+              <button
+                type="button"
                 aria-label="Open admin messages"
                 onClick={openAdminMessages}
                 style={adminMessageIconButtonStyle}
