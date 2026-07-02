@@ -189,6 +189,33 @@ export default function IssuesPage({ isAdmin = false, driverNumber = null, serie
               </p>
             </div>
           </div>
+
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+            <button
+              type="button"
+              aria-label={isAdmin ? "Back to Admin Portal" : "Go to league landing page"}
+              onClick={() => (window.location.pathname = isAdmin ? "/admin" : "/")}
+              title={isAdmin ? "Back to Admin Portal" : "Home"}
+              style={{
+                width: 50,
+                height: 50,
+                borderRadius: 16,
+                border: "1px solid rgba(17,24,39,0.10)",
+                background: "linear-gradient(180deg, #ffd60a 0%, #ff9f0a 100%)",
+                color: "#ffffff",
+                boxShadow: "0 16px 38px rgba(255,159,10,0.30)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                fontSize: 20,
+                fontWeight: 1000,
+                flexShrink: 0,
+              }}
+            >
+              🏠
+            </button>
+          </div>
         </div>
 
         {/* Stats */}
