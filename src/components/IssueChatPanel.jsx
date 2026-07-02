@@ -159,7 +159,7 @@ export function IssueChatPanel({ issue, isAdmin = false, authorName = "Guest", a
                 <div key={msg.id} style={{ display: "flex", justifyContent: mine ? "flex-end" : "flex-start" }}>
                   <div style={{ maxWidth: "78%" }}>
                     <div style={{ fontSize: 10.5, opacity: 0.55, fontWeight: 800, marginBottom: 3, textAlign: mine ? "right" : "left" }}>
-                      {msg.is_admin ? "🛠️ Admin" : msg.author_name}
+                      {msg.is_admin ? `🛠️ Admin${msg.author_name && msg.author_name !== "Admin" ? ` — ${msg.author_name}` : ""}` : msg.author_name}
                     </div>
                     <div style={{
                       background: mine ? "linear-gradient(135deg, #007aff 0%, #5856d6 100%)" : "rgba(255,255,255,0.9)",
