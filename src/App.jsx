@@ -7588,7 +7588,7 @@ export default function App() {
     );
   }
 
-  const adminProtectedPaths = new Set(["/admin", "/appeals", "/admin/stories", "/stories", "/admin/live-control", "/admin/car-gallery", "/admin/interviews", "/admin/votes"]);
+  const adminProtectedPaths = new Set(["/admin", "/appeals", "/admin/stories", "/stories", "/admin/live-control", "/admin/car-gallery", "/admin/arca-car-gallery", "/admin/interviews", "/admin/votes"]);
   const isAdminProtectedPath = adminProtectedPaths.has(path);
   const isAdminAuthenticated = sessionStorage.getItem("bcl-admin-auth") === "true";
   const logoutAdmin = () => {
@@ -7741,6 +7741,17 @@ export default function App() {
       <CarGalleryPage
         drivers={drivers}
         tracks={tracks}
+        seriesId="cup"
+        enableDownload={true}
+      />
+    );
+  }
+  if (path === "/admin/arca-car-gallery") {
+    return (
+      <CarGalleryPage
+        drivers={activeSeason?.arcaDrivers || arcaDrivers}
+        tracks={arcaTracks}
+        seriesId="arca"
         enableDownload={true}
       />
     );
