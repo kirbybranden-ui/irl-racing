@@ -768,6 +768,10 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
   }, [drivers]);
 
   const sorted = activeDrivers;
+
+  const sortedArcaStandings = useMemo(() => {
+    return [...(arcaStandings || [])].sort((a, b) => (b.points || 0) - (a.points || 0) || (b.wins || 0) - (a.wins || 0) || (b.top5 || 0) - (a.top5 || 0));
+  }, [arcaStandings]);
   const [leader, second, third] = sorted;
   const totalPoints = sorted.reduce((sum, driver) => sum + Number(driver.points || 0), 0);
   const totalWins = sorted.reduce((sum, driver) => sum + Number(driver.wins || 0), 0);
@@ -1091,6 +1095,64 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
           <div key={label} style={{ background: "#f5f5f7", borderRadius: 16, padding: "10px 8px", textAlign: "center" }}>
             <div style={{ fontSize: 10, color: "#86868b", fontWeight: 950 }}>{label}</div>
             <div style={{ marginTop: 3, fontSize: 18, fontWeight: 950, color: label === "PEN" && String(value).startsWith("-") ? "#dc2626" : "#1d1d1f" }}>{value}</div>
+          </div>
+        ))}
+        <div style={{ color: "#86868b", fontSize: 22, fontWeight: 900 }}>›</div>
+      </button>
+    );
+  };
+
+  const arcaLeaderPoints = sortedArcaStandings[0]?.points || 0;
+
+  const ArcaDriverRow = ({ driver, index }) => {
+    const brand = getTeamBranding(driver.team);
+    const isLeader = index === 0;
+    return (
+      <button
+        type="button"
+        onClick={() => (window.location.pathname = `/series/arca/driver/${driver.number}`)}
+        className="bcl-driver-row"
+        style={{
+          border: "1px solid rgba(15,23,42,0.08)",
+          background: isLeader ? "linear-gradient(135deg, rgba(255,214,10,0.32), rgba(255,255,255,0.96))" : "rgba(255,255,255,0.94)",
+          borderRadius: 24,
+          padding: 16,
+          width: "100%",
+          textAlign: "left",
+          cursor: "pointer",
+          boxShadow: isLeader ? "0 18px 44px rgba(212,175,55,0.18)" : "0 12px 30px rgba(15,23,42,0.07)",
+          display: "grid",
+          gridTemplateColumns: isMobile ? "auto 1fr auto" : (isTablet ? "auto auto minmax(220px, 1fr) repeat(3, minmax(66px, 0.55fr)) auto" : "auto auto minmax(180px, 1.4fr) repeat(5, minmax(70px, 0.65fr)) auto"),
+          gap: isMobile ? 10 : 12,
+          alignItems: "center",
+          color: "#1d1d1f",
+        }}
+      >
+        <div style={{ width: 44, height: 44, borderRadius: 16, background: isLeader ? "#1d1d1f" : "#f2f2f7", color: isLeader ? "#fff" : "#1d1d1f", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 950 }}>
+          {index + 1}
+        </div>
+        {renderTeamBadge(driver.team, 44)}
+        <div style={{ minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 22, fontWeight: 950, lineHeight: 1 }}>#{driver.number}</span>
+            <span style={{ fontSize: 18, fontWeight: 900, lineHeight: 1.15 }}>{driver.name}</span>
+            {driver.retired && <span style={{ fontSize: 11, borderRadius: 999, padding: "3px 8px", background: "#fff7ed", color: "#c2410c", fontWeight: 900 }}>R</span>}
+          </div>
+          <div style={{ marginTop: 5, fontSize: 13, color: "#6e6e73", fontWeight: 720 }}>{driver.team} • ARCA Menards Series</div>
+          <div style={{ marginTop: 7, height: 5, borderRadius: 999, background: "#e5e7eb", overflow: "hidden" }}>
+            <div style={{ width: `${arcaLeaderPoints ? Math.max(4, Math.min(100, (Number(driver.points || 0) / Number(arcaLeaderPoints || 1)) * 100)) : 0}%`, height: "100%", borderRadius: 999, background: brand.accent }} />
+          </div>
+        </div>
+        {([
+          ["PTS", driver.points || 0],
+          ["W", driver.wins || 0],
+          ["T5", driver.top5 || 0],
+          ["T10", driver.top10 || 0],
+          ["DNF", driver.dnfs || 0],
+        ]).filter(([label]) => !isMobile || ["PTS", "W", "T5"].includes(label)).filter(([label]) => !isTablet || ["PTS", "W", "T5"].includes(label)).map(([label, value]) => (
+          <div key={label} style={{ background: "#f5f5f7", borderRadius: 16, padding: "10px 8px", textAlign: "center" }}>
+            <div style={{ fontSize: 10, color: "#86868b", fontWeight: 950 }}>{label}</div>
+            <div style={{ marginTop: 3, fontSize: 18, fontWeight: 950, color: "#1d1d1f" }}>{value}</div>
           </div>
         ))}
         <div style={{ color: "#86868b", fontSize: 22, fontWeight: 900 }}>›</div>
@@ -1645,64 +1707,15 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
                 <div style={{ color: "#006341", fontSize: 12, fontWeight: 1000, letterSpacing: 1.3, textTransform: "uppercase" }}>ARCA Series</div>
                 <h2 style={{ margin: "4px 0 0", fontSize: isMobile ? 27 : 34, letterSpacing: -1.2 }}>Driver Standings</h2>
               </div>
-              <button type="button" onClick={() => exportArcaDriverStandingsCsv()} style={{ padding: "10px 16px", background: "#006341", color: "#fff", border: "none", borderRadius: 8, fontWeight: 900, fontSize: 12, cursor: "pointer" }}>📥 Export CSV</button>
+              <div style={{ color: "#6e6e73", fontWeight: 850 }}>{sortedArcaStandings.length} active drivers • {sortedArcaStandings.reduce((sum, d) => sum + Number(d.points || 0), 0)} points awarded</div>
             </div>
-            <div style={{ display: "grid", gap: 10 }}>
-              {arcaStandings.length === 0 ? (
+            <div style={{ display: "grid", gap: 10, overflowX: "auto", paddingBottom: 2 }}>
+              {sortedArcaStandings.length === 0 ? (
                 <div style={{ padding: 40, textAlign: "center", background: "rgba(0,99,65,0.04)", borderRadius: 12 }}>
                   <div style={{ color: "#6b7280", fontWeight: 900 }}>No ARCA standings yet</div>
                 </div>
               ) : (
-                arcaStandings.map((driver, index) => (
-                  <button 
-                    key={driver.id} 
-                    onClick={() => window.location.pathname = `/series/arca/driver/${driver.number}`}
-                    style={{ 
-                      background: "rgba(255,255,255,0.82)", 
-                      border: "1px solid rgba(15,23,42,0.08)", 
-                      borderRadius: 16, 
-                      padding: 14, 
-                      display: "grid", 
-                      gridTemplateColumns: isMobile ? "auto 1fr auto" : "auto 1fr auto auto auto auto auto", 
-                      gap: 12, 
-                      alignItems: "center",
-                      cursor: "pointer",
-                      transition: "all 200ms ease",
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.boxShadow = "0 10px 25px rgba(0,99,65,0.15)"}
-                    onMouseLeave={(e) => e.currentTarget.style.boxShadow = "none"}
-                  >
-                    <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#006341", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 1000 }}>{index + 1}</div>
-                    <div style={{ textAlign: "left" }}>
-                      <div style={{ fontWeight: 950 }}>{driver.name}</div>
-                      <div style={{ fontSize: 12, color: "#6b7280" }}>#{driver.number} • {driver.team}</div>
-                    </div>
-                    {!isMobile && (
-                      <>
-                        <div style={{ textAlign: "right" }}>
-                          <div style={{ fontWeight: 1000, color: "#006341", fontSize: 18 }}>{driver.points || 0}</div>
-                          <div style={{ fontSize: 11, color: "#6b7280" }}>PTS</div>
-                        </div>
-                        <div style={{ textAlign: "right" }}>
-                          <div style={{ fontWeight: 1000 }}>{driver.wins || 0}</div>
-                          <div style={{ fontSize: 11, color: "#6b7280" }}>W</div>
-                        </div>
-                        <div style={{ textAlign: "right" }}>
-                          <div style={{ fontWeight: 1000 }}>{driver.top5 || 0}</div>
-                          <div style={{ fontSize: 11, color: "#6b7280" }}>T5</div>
-                        </div>
-                        <div style={{ textAlign: "right" }}>
-                          <div style={{ fontWeight: 1000 }}>{driver.top10 || 0}</div>
-                          <div style={{ fontSize: 11, color: "#6b7280" }}>T10</div>
-                        </div>
-                        <div style={{ textAlign: "right" }}>
-                          <div style={{ fontWeight: 1000 }}>{driver.dnfs || 0}</div>
-                          <div style={{ fontSize: 11, color: "#6b7280" }}>DNF</div>
-                        </div>
-                      </>
-                    )}
-                  </button>
-                ))
+                sortedArcaStandings.map((driver, index) => <ArcaDriverRow key={driver.id || driver.number} driver={driver} index={index} />)
               )}
             </div>
           </section>
