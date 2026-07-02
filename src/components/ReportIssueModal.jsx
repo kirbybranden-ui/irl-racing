@@ -1,9 +1,45 @@
 import React, { useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
 
-const inputStyle = { width: "100%", background: "#0f1319", color: "white", border: "1px solid #313947", borderRadius: 10, padding: "10px 12px", boxSizing: "border-box", resize: "vertical" };
-const buttonStyle = { background: "#d4af37", color: "#111", border: "none", borderRadius: 10, padding: "10px 18px", fontWeight: 700, cursor: "pointer", fontSize: 14 };
-const secondaryButtonStyle = { background: "#1e2530", color: "white", border: "1px solid #313947", borderRadius: 10, padding: "10px 16px", fontWeight: 700, cursor: "pointer" };
+const pageFont = "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif";
+
+const inputStyle = {
+  width: "100%",
+  background: "rgba(255,255,255,0.7)",
+  color: "#1d1d1f",
+  border: "1px solid rgba(0,0,0,0.08)",
+  borderRadius: 14,
+  padding: "11px 13px",
+  boxSizing: "border-box",
+  resize: "vertical",
+  fontFamily: pageFont,
+  fontSize: 14,
+  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.6)",
+};
+
+const primaryButtonStyle = {
+  background: "linear-gradient(135deg, #ff6482 0%, #ff3b30 60%, #b91c1c 100%)",
+  color: "#ffffff",
+  border: "none",
+  borderRadius: 999,
+  padding: "12px 20px",
+  fontWeight: 1000,
+  cursor: "pointer",
+  fontSize: 14,
+  fontFamily: pageFont,
+  boxShadow: "0 14px 32px rgba(255,59,48,0.28)",
+};
+
+const secondaryButtonStyle = {
+  background: "rgba(255,255,255,0.7)",
+  color: "#1d1d1f",
+  border: "1px solid rgba(0,0,0,0.10)",
+  borderRadius: 999,
+  padding: "12px 18px",
+  fontWeight: 900,
+  cursor: "pointer",
+  fontFamily: pageFont,
+};
 
 export function ReportIssueModal({ isOpen, onClose, driverNumber, driverName, series = "cup", drivers = [] }) {
   const [title, setTitle] = useState("");
@@ -68,7 +104,7 @@ export function ReportIssueModal({ isOpen, onClose, driverNumber, driverName, se
 
   async function handleSubmit(e) {
     e.preventDefault();
-    
+
     if (!title.trim() || !description.trim()) {
       alert("Please fill in title and description.");
       return;
@@ -106,24 +142,81 @@ export function ReportIssueModal({ isOpen, onClose, driverNumber, driverName, se
   if (!isOpen) return null;
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 }}>
-      <div style={{ background: "#171b22", border: "1px solid #2c3440", borderRadius: 16, padding: 28, maxWidth: 520, width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.4)", maxHeight: "90vh", overflowY: "auto" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-          <h2 style={{ margin: 0, fontSize: 24, fontWeight: 800 }}>🐛 Report an Issue</h2>
-          <button onClick={onClose} style={{ background: "none", border: "none", color: "white", fontSize: 24, cursor: "pointer", padding: 0 }}>×</button>
+    <div style={{
+      position: "fixed",
+      inset: 0,
+      background: "rgba(29,29,31,0.42)",
+      backdropFilter: "blur(6px)",
+      WebkitBackdropFilter: "blur(6px)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: 1000,
+      padding: 20,
+      fontFamily: pageFont,
+    }}>
+      <div style={{
+        background: "linear-gradient(180deg, rgba(255,255,255,0.94), rgba(248,250,252,0.92))",
+        border: "1px solid rgba(255,255,255,0.8)",
+        borderRadius: 30,
+        padding: "clamp(20px, 4vw, 30px)",
+        maxWidth: 540,
+        width: "100%",
+        boxShadow: "0 30px 90px rgba(0,0,0,0.28)",
+        maxHeight: "90vh",
+        overflowY: "auto",
+        color: "#1d1d1f",
+      }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 22 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <div style={{
+              width: 44,
+              height: 44,
+              borderRadius: 16,
+              background: "linear-gradient(135deg, #ff6482 0%, #ff3b30 60%, #b91c1c 100%)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 20,
+              boxShadow: "0 12px 26px rgba(255,59,48,0.28)",
+              flexShrink: 0,
+            }}>
+              🐛
+            </div>
+            <h2 style={{ margin: 0, fontSize: 22, fontWeight: 1000, letterSpacing: "-0.03em" }}>Report an Issue</h2>
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              background: "rgba(0,0,0,0.05)",
+              border: "none",
+              borderRadius: 999,
+              width: 32,
+              height: 32,
+              color: "#1d1d1f",
+              fontSize: 18,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+            }}
+          >
+            ×
+          </button>
         </div>
 
         <form onSubmit={handleSubmit}>
           {/* Driver Info */}
-          <div style={{ marginBottom: 16, background: "rgba(255,255,255,0.05)", borderRadius: 10, padding: 12 }}>
-            <div style={{ fontSize: 12, opacity: 0.6, fontWeight: 700, marginBottom: 6 }}>SUBMITTING AS</div>
+          <div style={{ marginBottom: 18, background: "rgba(0,0,0,0.03)", border: "1px solid rgba(0,0,0,0.05)", borderRadius: 18, padding: 14 }}>
+            <div style={{ fontSize: 11, opacity: 0.55, fontWeight: 1000, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Submitting As</div>
 
             {drivers.length > 0 ? (
               <>
                 <select
                   value={selectedDriverKey}
                   onChange={(e) => setSelectedDriverKey(e.target.value)}
-                  style={{ ...inputStyle, marginBottom: selectedDriver ? 0 : undefined }}
+                  style={{ ...inputStyle, borderRadius: 999, fontWeight: 800 }}
                 >
                   <option value="">Guest / Prefer not to say</option>
                   {Object.entries(driversBySeries).map(([seriesLabel, list]) => (
@@ -137,20 +230,20 @@ export function ReportIssueModal({ isOpen, onClose, driverNumber, driverName, se
                   ))}
                 </select>
                 {!selectedDriver && (
-                  <div style={{ fontSize: 12, opacity: 0.6, marginTop: 8 }}>
+                  <div style={{ fontSize: 12, opacity: 0.6, marginTop: 8, fontWeight: 700 }}>
                     #{driverNumber} {driverName}
                   </div>
                 )}
               </>
             ) : (
-              <div style={{ fontSize: 14, fontWeight: 700 }}>#{driverNumber} {driverName}</div>
+              <div style={{ fontSize: 14, fontWeight: 900 }}>#{driverNumber} {driverName}</div>
             )}
-            <div style={{ fontSize: 12, opacity: 0.6, marginTop: 8 }}>{series === "arca" ? "🏎️ ARCA Series" : "🏁 Cup Series"}</div>
+            <div style={{ fontSize: 12, opacity: 0.55, marginTop: 8, fontWeight: 800 }}>{series === "arca" ? "🏎️ ARCA Series" : "🏁 Cup Series"}</div>
           </div>
 
           {/* Title */}
           <div style={{ marginBottom: 16 }}>
-            <label style={{ display: "block", marginBottom: 6, fontWeight: 700 }}>Issue Title *</label>
+            <label style={{ display: "block", marginBottom: 7, fontWeight: 900, fontSize: 13 }}>Issue Title *</label>
             <input
               type="text"
               value={title}
@@ -159,12 +252,12 @@ export function ReportIssueModal({ isOpen, onClose, driverNumber, driverName, se
               style={inputStyle}
               maxLength={100}
             />
-            <div style={{ fontSize: 11, opacity: 0.5, marginTop: 4 }}>{title.length}/100 characters</div>
+            <div style={{ fontSize: 11, opacity: 0.5, marginTop: 5, fontWeight: 700 }}>{title.length}/100 characters</div>
           </div>
 
           {/* Description */}
           <div style={{ marginBottom: 16 }}>
-            <label style={{ display: "block", marginBottom: 6, fontWeight: 700 }}>Description *</label>
+            <label style={{ display: "block", marginBottom: 7, fontWeight: 900, fontSize: 13 }}>Description *</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -174,8 +267,8 @@ export function ReportIssueModal({ isOpen, onClose, driverNumber, driverName, se
           </div>
 
           {/* Screenshot Upload */}
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: "block", marginBottom: 6, fontWeight: 700 }}>Screenshot (Optional)</label>
+          <div style={{ marginBottom: 20 }}>
+            <label style={{ display: "block", marginBottom: 7, fontWeight: 900, fontSize: 13 }}>Screenshot (Optional)</label>
             <button
               type="button"
               onClick={() => {
@@ -185,7 +278,7 @@ export function ReportIssueModal({ isOpen, onClose, driverNumber, driverName, se
                 }
                 widgetRef.current.open();
               }}
-              style={{ ...secondaryButtonStyle, width: "100%", opacity: cloudinaryReady ? 1 : 0.6 }}
+              style={{ ...secondaryButtonStyle, width: "100%", opacity: cloudinaryReady ? 1 : 0.55, boxSizing: "border-box" }}
               disabled={!cloudinaryReady}
             >
               {screenshotUrl ? "✅ Screenshot uploaded" : cloudinaryReady ? "📸 Upload Screenshot" : "⏳ Loading uploader..."}
@@ -193,8 +286,8 @@ export function ReportIssueModal({ isOpen, onClose, driverNumber, driverName, se
           </div>
 
           {/* Buttons */}
-          <div style={{ display: "flex", gap: 12, marginTop: 20 }}>
-            <button type="submit" style={buttonStyle} disabled={submitting}>
+          <div style={{ display: "flex", gap: 12 }}>
+            <button type="submit" style={{ ...primaryButtonStyle, opacity: submitting ? 0.7 : 1 }} disabled={submitting}>
               {submitting ? "Submitting..." : "📤 Submit Issue"}
             </button>
             <button type="button" onClick={onClose} style={secondaryButtonStyle} disabled={submitting}>
