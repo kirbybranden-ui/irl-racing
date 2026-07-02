@@ -246,6 +246,7 @@ export default function AdminPortal({
   const [adminMessagesOpen, setAdminMessagesOpen] = useState(false);
   const [adminComposerOpen, setAdminComposerOpen] = useState(false);
   const [adminUnreadMessages, setAdminUnreadMessages] = useState([]);
+  const [openIssueCount, setOpenIssueCount] = useState(0);
   const [adminMessagesLoading, setAdminMessagesLoading] = useState(false);
   const [adminMessagesError, setAdminMessagesError] = useState("");
   const [financeTransactions, setFinanceTransactions] = useState([]);
@@ -404,6 +405,20 @@ export default function AdminPortal({
 
     setAdminUnreadMessages(data || []);
     setAdminMessagesLoading(false);
+  }
+
+  async function loadOpenIssueCount() {
+    if (!supabase) return;
+    const { data, error } = await supabase
+      .from("issues")
+      .select("id")
+      .in("status", ["Submitted", "Reviewed", "Needs Work"]);
+
+    if (error) {
+      console.error("Could not load open issue count:", error);
+      return;
+    }
+    setOpenIssueCount((data || []).length);
   }
 
   async function markAdminMessageRead(messageId) {
@@ -583,7 +598,11 @@ export default function AdminPortal({
   useEffect(() => {
     loadAdminUnreadMessages();
     loadFinanceDepartment();
-    const interval = setInterval(loadAdminUnreadMessages, 60000);
+    loadOpenIssueCount();
+    const interval = setInterval(() => {
+      loadAdminUnreadMessages();
+      loadOpenIssueCount();
+    }, 60000);
     return () => clearInterval(interval);
   }, [supabase]);
 
@@ -594,6 +613,7 @@ export default function AdminPortal({
     { label: "ARCA Series", action: () => openArcaOperations("overview"), primary: true },
     { label: "Finance Department", action: () => openFinanceDepartment("overview"), primary: true },
     { label: "Public Relations", action: () => openPublicRelations("overview"), primary: true },
+    { label: "Issues", action: () => (window.location.pathname = "/admin/issues") },
     { label: "Settings", action: openSettings, primary: true },
     { label: "Streams", action: () => (window.location.pathname = "/streams") },
     { label: "Logout", action: logoutAdmin, danger: true },
@@ -635,6 +655,15 @@ export default function AdminPortal({
       text: "Ticker, winner spotlight, featured media, Ones to Watch, and interviews.",
       action: () => openPublicRelations("overview"),
       gradient: "linear-gradient(135deg, #ff9500 0%, #ffcc00 48%, #ff3b30 100%)",
+    },
+    {
+      title: "Issues",
+      icon: "🐛",
+      value: `${openIssueCount || 0}`,
+      meta: "Needing attention",
+      text: "Driver and owner submitted bug reports and feedback awaiting review.",
+      action: () => (window.location.pathname = "/admin/issues"),
+      gradient: "linear-gradient(135deg, #ff3b30 0%, #ff6482 48%, #b91c1c 100%)",
     },
     {
       title: "Messages",
@@ -1386,6 +1415,7 @@ export default function AdminPortal({
                 ["Appeals", `${openAppealCount || 0} open`, "📣", "#ff9500", () => openHrDepartment("appeals")],
                 ["Messages", `${adminUnreadCount || 0} unread`, "💬", "#007aff", openAdminMessages],
                 ["Public Relations", `${openStoryCount || 0} stories pending`, "📰", "#af52de", () => openPublicRelations("stories")],
+                ["Issues", `${openIssueCount || 0} open`, "🐛", "#ff3b30", () => (window.location.pathname = "/admin/issues")],
               ].map(([label, value, icon, color, action]) => (
                 <button key={label} type="button" onClick={action} style={{ width: "100%", border: "1px solid rgba(229,231,235,0.82)", background: "rgba(255,255,255,0.76)", padding: "10px 12px", borderRadius: 18, marginTop: 8, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, cursor: "pointer", textAlign: "left", boxShadow: "0 8px 18px rgba(15,23,42,0.045)" }}>
                   <span style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
