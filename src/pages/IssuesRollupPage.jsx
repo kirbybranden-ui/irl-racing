@@ -55,8 +55,8 @@ export default function IssuesRollupPage() {
     })),
   ];
 
-  async function loadIssues() {
-    setLoading(true);
+  async function loadIssues(isInitialLoad = false) {
+    if (isInitialLoad) setLoading(true);
     const { data, error } = await supabase
       .from("issues")
       .select("*")
@@ -68,18 +68,18 @@ export default function IssuesRollupPage() {
     } else {
       setIssues(data || []);
     }
-    setLoading(false);
+    if (isInitialLoad) setLoading(false);
   }
 
   useEffect(() => {
-    loadIssues();
-    const interval = setInterval(loadIssues, 15000);
+    loadIssues(true);
+    const interval = setInterval(() => loadIssues(false), 15000);
     return () => clearInterval(interval);
   }, []);
 
   function closeReportModal() {
     setIsReportingIssue(false);
-    loadIssues();
+    loadIssues(false);
   }
 
   return (
