@@ -42,7 +42,18 @@ export function IssueChatPanel({ issue, isAdmin = false, authorName = "Guest", a
   useEffect(() => {
     loadMessages(true);
     const interval = setInterval(() => loadMessages(false), 6000);
-    return () => clearInterval(interval);
+
+    // Mark as seen for the driver-side "new reply" badge on their profile To-Do list.
+    if (!isAdmin && typeof window !== "undefined") {
+      localStorage.setItem(`bcl-issue-chat-seen-${issue.id}`, new Date().toISOString());
+    }
+
+    return () => {
+      clearInterval(interval);
+      if (!isAdmin && typeof window !== "undefined") {
+        localStorage.setItem(`bcl-issue-chat-seen-${issue.id}`, new Date().toISOString());
+      }
+    };
   }, [issue.id]);
 
   useEffect(() => {
