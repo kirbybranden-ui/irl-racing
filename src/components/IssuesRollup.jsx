@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
+import { IssueChatPanel } from "./IssueChatPanel";
 
 const statusColors = {
   Submitted: { soft: "rgba(0,122,255,0.12)", text: "#0057d9", ring: "rgba(0,122,255,0.18)", label: "📋 Submitted" },
@@ -9,9 +10,21 @@ const statusColors = {
   "Needs Work": { soft: "rgba(255,59,48,0.12)", text: "#c62d24", ring: "rgba(255,59,48,0.18)", label: "❌ Needs Work" },
 };
 
+function getAdminChatName() {
+  if (typeof window === "undefined") return "Admin";
+  const stored = sessionStorage.getItem("bcl-admin-chat-name");
+  if (stored) return stored;
+  const entered = window.prompt('Enter your name for chat (shown as "Admin — Name"). Leave blank to just show "Admin".', "");
+  const name = (entered || "").trim();
+  sessionStorage.setItem("bcl-admin-chat-name", name || "Admin");
+  return name || "Admin";
+}
+
 export function IssuesRollup() {
   const [issues, setIssues] = useState([]);
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+  const [chatIssue, setChatIssue] = useState(null);
+  const [chatAuthorName, setChatAuthorName] = useState("Admin");
 
   async function loadIssues() {
     const { data, error } = await supabase
@@ -140,6 +153,26 @@ export function IssuesRollup() {
                   }}>
                     {colors.label}
                   </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setChatAuthorName(getAdminChatName());
+                      setChatIssue(issue);
+                    }}
+                    style={{
+                      border: 0,
+                      borderRadius: 999,
+                      padding: "6px 12px",
+                      background: "linear-gradient(135deg, #007aff 0%, #5856d6 100%)",
+                      color: "#ffffff",
+                      fontWeight: 900,
+                      cursor: "pointer",
+                      fontSize: 11,
+                      boxShadow: "0 8px 18px rgba(0,122,255,0.22)",
+                    }}
+                  >
+                    💬 Chat
+                  </button>
                   <select
                     value={issue.status}
                     onChange={(e) => updateIssueStatus(issue.id, e.target.value)}
@@ -195,6 +228,16 @@ export function IssuesRollup() {
         <div style={{ textAlign: "center", marginTop: 14, opacity: 0.65, fontSize: 12, fontWeight: 800, color: "#1d1d1f" }}>
           +{issues.length - 5} more issues • <span style={{ cursor: "pointer", textDecoration: "underline", color: "#007aff" }} onClick={() => window.location.pathname = "/admin/issues"}>View all</span>
         </div>
+      )}
+
+      {chatIssue && (
+        <IssueChatPanel
+          issue={chatIssue}
+          isAdmin={true}
+          authorName={chatAuthorName}
+          authorNumber=""
+          onClose={() => setChatIssue(null)}
+        />
       )}
     </div>
   );
