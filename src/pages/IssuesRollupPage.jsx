@@ -1,0 +1,220 @@
+import React, { useEffect, useState } from "react";
+import { supabase } from "../lib/supabase";
+import { ReportIssueModal } from "../components/ReportIssueModal";
+import { defaultDrivers } from "../data/drivers";
+import { defaultArcaDrivers } from "../data/arca/drivers";
+
+const pageFont = "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif";
+
+const pageStyle = {
+  minHeight: "100vh",
+  background: "radial-gradient(circle at top left, rgba(255,255,255,0.95), rgba(245,245,247,0.94) 36%, rgba(229,229,234,0.98) 100%)",
+  color: "#1d1d1f",
+  fontFamily: pageFont,
+  padding: "clamp(18px, 4vw, 42px)",
+  boxSizing: "border-box",
+};
+
+const wrapStyle = { maxWidth: 1000, margin: "0 auto" };
+
+const glassCardStyle = {
+  borderRadius: 28,
+  padding: "clamp(16px, 3vw, 24px)",
+  background: "linear-gradient(180deg, rgba(255,255,255,0.86), rgba(255,255,255,0.58))",
+  border: "1px solid rgba(255,255,255,0.78)",
+  boxShadow: "0 24px 70px rgba(0,0,0,0.10)",
+  backdropFilter: "blur(22px)",
+  WebkitBackdropFilter: "blur(22px)",
+};
+
+const statusColors = {
+  Submitted: { soft: "rgba(0,122,255,0.12)", text: "#0057d9", ring: "rgba(0,122,255,0.18)", label: "📋 Submitted" },
+  Reviewed: { soft: "rgba(175,82,222,0.12)", text: "#7d1fb0", ring: "rgba(175,82,222,0.18)", label: "👀 Reviewed" },
+  Actioned: { soft: "rgba(255,149,0,0.14)", text: "#9a5a00", ring: "rgba(255,149,0,0.20)", label: "⚙️ Actioned" },
+  Complete: { soft: "rgba(52,199,89,0.14)", text: "#147d35", ring: "rgba(52,199,89,0.20)", label: "✅ Complete" },
+  "Needs Work": { soft: "rgba(255,59,48,0.12)", text: "#c62d24", ring: "rgba(255,59,48,0.18)", label: "❌ Needs Work" },
+};
+
+export default function IssuesRollupPage() {
+  const [issues, setIssues] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isReportingIssue, setIsReportingIssue] = useState(false);
+
+  const allLeagueDrivers = [
+    ...(defaultDrivers || []).map((driver) => ({
+      key: `cup-${driver.id || driver.number}`,
+      number: driver.number || "",
+      name: driver.name || "Unknown Driver",
+      seriesLabel: "Cup / Xfinity / Truck Rosters",
+    })),
+    ...(defaultArcaDrivers || []).map((driver) => ({
+      key: `arca-${driver.id || driver.number}`,
+      number: driver.number || "",
+      name: driver.name || "Unknown Driver",
+      seriesLabel: "ARCA Series",
+    })),
+  ];
+
+  async function loadIssues() {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("issues")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Error loading issues:", error);
+      setIssues([]);
+    } else {
+      setIssues(data || []);
+    }
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    loadIssues();
+    const interval = setInterval(loadIssues, 15000);
+    return () => clearInterval(interval);
+  }, []);
+
+  function closeReportModal() {
+    setIsReportingIssue(false);
+    loadIssues();
+  }
+
+  return (
+    <div style={pageStyle}>
+      <div style={wrapStyle}>
+        {/* Header */}
+        <div style={{ ...glassCardStyle, marginBottom: 22, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 18, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            <div style={{
+              width: 58,
+              height: 58,
+              borderRadius: 20,
+              background: "linear-gradient(135deg, #ff6482 0%, #ff3b30 60%, #b91c1c 100%)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 26,
+              boxShadow: "0 16px 34px rgba(255,59,48,0.28)",
+              flexShrink: 0,
+            }}>
+              🐛
+            </div>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(29,29,31,0.55)" }}>
+                Budweiser Motorsports
+              </div>
+              <h1 style={{ margin: "2px 0 0", fontSize: "clamp(24px, 3.4vw, 34px)", letterSpacing: "-0.04em" }}>Issues &amp; Feedback</h1>
+              <p style={{ margin: "4px 0 0", opacity: 0.6, fontSize: 13.5, fontWeight: 700 }}>
+                Found a bug or have feedback? Submit it below and track its status here.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setIsReportingIssue(true)}
+            style={{
+              border: 0,
+              borderRadius: 999,
+              padding: "14px 20px",
+              background: "linear-gradient(135deg, #ff6482 0%, #ff3b30 60%, #b91c1c 100%)",
+              color: "#ffffff",
+              fontWeight: 1000,
+              cursor: "pointer",
+              fontSize: 14,
+              boxShadow: "0 16px 34px rgba(255,59,48,0.28)",
+              whiteSpace: "nowrap",
+            }}
+          >
+            🐛 Report an Issue
+          </button>
+        </div>
+
+        {/* Issues List */}
+        {loading ? (
+          <div style={{ ...glassCardStyle, textAlign: "center", opacity: 0.7, fontWeight: 800 }}>Loading issues…</div>
+        ) : issues.length === 0 ? (
+          <div style={{ ...glassCardStyle, textAlign: "center" }}>
+            <div style={{ fontSize: 34, marginBottom: 8 }}>🎉</div>
+            <p style={{ margin: 0, fontWeight: 800, opacity: 0.7 }}>No issues reported. Great work!</p>
+          </div>
+        ) : (
+          <div style={{ display: "grid", gap: 14 }}>
+            {issues.map((issue) => {
+              const colors = statusColors[issue.status] || statusColors.Submitted;
+              return (
+                <div
+                  key={issue.id}
+                  style={{
+                    background: "rgba(255,255,255,0.72)",
+                    border: `1px solid ${colors.ring}`,
+                    borderRadius: 22,
+                    padding: 16,
+                    boxShadow: "0 14px 32px rgba(15,23,42,0.06)",
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, marginBottom: 10, flexWrap: "wrap" }}>
+                    <div style={{ flex: 1, minWidth: 200 }}>
+                      <div style={{ fontSize: 15, fontWeight: 1000, marginBottom: 4, color: "#1d1d1f" }}>{issue.title}</div>
+                      <div style={{ fontSize: 12, opacity: 0.6, fontWeight: 800, display: "flex", gap: 12, flexWrap: "wrap" }}>
+                        <span>#{issue.driver_number} {issue.driver_name}</span>
+                        <span>{issue.series === "arca" ? "🏎️ ARCA" : "🏁 Cup"}</span>
+                        <span>{new Date(issue.created_at).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                    <span style={{
+                      background: colors.soft,
+                      color: colors.text,
+                      borderRadius: 999,
+                      padding: "6px 13px",
+                      fontSize: 11.5,
+                      fontWeight: 1000,
+                      whiteSpace: "nowrap",
+                    }}>
+                      {colors.label}
+                    </span>
+                  </div>
+
+                  {issue.description && (
+                    <div style={{ fontSize: 13.5, lineHeight: 1.55, color: "#1d1d1f", background: "rgba(0,0,0,0.035)", border: "1px solid rgba(0,0,0,0.05)", borderRadius: 14, padding: 12, marginBottom: issue.admin_notes || issue.screenshot_url ? 10 : 0 }}>
+                      {issue.description}
+                    </div>
+                  )}
+
+                  {issue.screenshot_url && (
+                    <a
+                      href={issue.screenshot_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ display: "inline-block", color: "#0057d9", fontSize: 12, fontWeight: 900, textDecoration: "none", marginBottom: issue.admin_notes ? 10 : 0 }}
+                    >
+                      📸 View Screenshot
+                    </a>
+                  )}
+
+                  {issue.admin_notes && (
+                    <div style={{ fontSize: 12, color: "#9a5a00", fontStyle: "italic", fontWeight: 700, background: "rgba(255,149,0,0.08)", borderRadius: 12, padding: 10 }}>
+                      Admin: {issue.admin_notes}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <ReportIssueModal
+        isOpen={isReportingIssue}
+        onClose={closeReportModal}
+        driverNumber=""
+        driverName="Guest User"
+        series="cup"
+        drivers={allLeagueDrivers}
+      />
+    </div>
+  );
+}
