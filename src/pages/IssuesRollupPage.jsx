@@ -113,24 +113,47 @@ export default function IssuesRollupPage() {
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setIsReportingIssue(true)}
-            style={{
-              border: 0,
-              borderRadius: 999,
-              padding: "14px 20px",
-              background: "linear-gradient(135deg, #ff6482 0%, #ff3b30 60%, #b91c1c 100%)",
-              color: "#ffffff",
-              fontWeight: 1000,
-              cursor: "pointer",
-              fontSize: 14,
-              boxShadow: "0 16px 34px rgba(255,59,48,0.28)",
-              whiteSpace: "nowrap",
-            }}
-          >
-            🐛 Report an Issue
-          </button>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <button
+              type="button"
+              onClick={() => (window.location.pathname = "/")}
+              style={{
+                border: "1px solid rgba(0,0,0,0.08)",
+                borderRadius: 999,
+                padding: "14px 20px",
+                background: "rgba(255,255,255,0.72)",
+                backdropFilter: "blur(16px)",
+                WebkitBackdropFilter: "blur(16px)",
+                color: "#1d1d1f",
+                fontWeight: 1000,
+                cursor: "pointer",
+                fontSize: 14,
+                boxShadow: "0 14px 32px rgba(0,0,0,0.08)",
+                whiteSpace: "nowrap",
+              }}
+            >
+              🏠 Home
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsReportingIssue(true)}
+              style={{
+                border: 0,
+                borderRadius: 999,
+                padding: "14px 20px",
+                background: "linear-gradient(135deg, #ff6482 0%, #ff3b30 60%, #b91c1c 100%)",
+                color: "#ffffff",
+                fontWeight: 1000,
+                cursor: "pointer",
+                fontSize: 14,
+                boxShadow: "0 16px 34px rgba(255,59,48,0.28)",
+                whiteSpace: "nowrap",
+              }}
+            >
+              🐛 Report an Issue
+            </button>
+          </div>
         </div>
 
         {/* Issues List */}
