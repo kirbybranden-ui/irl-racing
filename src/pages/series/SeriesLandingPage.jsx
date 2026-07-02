@@ -271,7 +271,7 @@ export default function SeriesLandingPage({ seriesId = "cup", drivers = [], driv
               <button type="button" onClick={handleGuestView} style={{ padding: "12px 16px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.24)", background: "#050505", color: "white", fontWeight: 1000 }}>
                 View as Guest
               </button>
-              <button type="button" onClick={() => setIsReportingIssue(true)} style={{ padding: "12px 16px", borderRadius: 10, border: "1px solid #ef4444", background: "#050505", color: "#fca5a5", fontWeight: 1000 }}>
+              <button type="button" onClick={() => go("/issues")} style={{ padding: "12px 16px", borderRadius: 10, border: "1px solid #ef4444", background: "#050505", color: "#fca5a5", fontWeight: 1000 }}>
                 🐛 Report Issue
               </button>
             </div>
