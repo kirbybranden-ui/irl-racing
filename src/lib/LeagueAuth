@@ -1,0 +1,92 @@
+// Shared league-wide authentication. One login (driver number + password)
+// grants access to a driver's own profile and, if they're recognized as an
+// owner, their team view too. Session persists in localStorage until logout
+// (per the "persist across visits" requirement), unlike the old per-series
+// sessionStorage sessions in SeriesLandingPage.jsx.
+
+const SESSION_KEY = "bcl-league-session";
+const ADMIN_OVERRIDE_CODE = "BCLADMINPASSWORD2026";
+
+export function findDriverByNumber(number, drivers = [], arcaDrivers = []) {
+  const target = String(number || "").trim();
+  if (!target) return null;
+  return (
+    (drivers || []).find((d) => String(d.number) === target) ||
+    (arcaDrivers || []).find((d) => String(d.number) === target) ||
+    null
+  );
+}
+
+export function verifyLeaguePassword({ driverNumber, password, driverAccessCodes = [] }) {
+  const number = String(driverNumber || "").trim();
+  const enteredCode = String(password || "").trim().toUpperCase();
+  if (!number || !enteredCode) return false;
+
+  // Admin override, matching the existing per-series login pattern.
+  if (enteredCode === ADMIN_OVERRIDE_CODE) return true;
+
+  return (driverAccessCodes || []).some((row) => {
+    const rowNumber = String(row.driver_number ?? row.car_number ?? row.number ?? "").trim();
+    const possibleCodes = [row.code, row.access_code, row.password, row.driver_password]
+      .map((value) => String(value ?? "").trim().toUpperCase())
+      .filter(Boolean);
+    return rowNumber === number && possibleCodes.includes(enteredCode) && row.active !== false;
+  });
+}
+
+/**
+ * Determine whether a driver record should also get owner access.
+ * This checks a few common shapes so it works regardless of exactly how
+ * ownership ends up being modeled in the data (driver flag vs. team roster
+ * match) — adjust this once the real team-ownership structure is confirmed.
+ */
+export function resolveOwnerTeams(driver, teams = []) {
+  if (!driver) return [];
+  const driverNumber = String(driver.number || "").trim();
+  const ownedTeams = (teams || []).filter((team) => {
+    const ownerNumber = String(team.owner_number ?? team.ownerNumber ?? team.owner_driver_number ?? "").trim();
+    return ownerNumber && ownerNumber === driverNumber;
+  });
+  if (ownedTeams.length > 0) return ownedTeams.map((t) => t.team || t.id || t.name);
+  if (driver.is_owner || driver.isOwner) return [driver.team].filter(Boolean);
+  return [];
+}
+
+export function loginToLeague({ driverNumber, password, driverAccessCodes, drivers, arcaDrivers, teams }) {
+  const valid = verifyLeaguePassword({ driverNumber, password, driverAccessCodes });
+  if (!valid) return { success: false, error: "Invalid driver number or password." };
+
+  const driver = findDriverByNumber(driverNumber, drivers, arcaDrivers);
+  const ownedTeams = resolveOwnerTeams(driver, teams);
+
+  const session = {
+    driverNumber: String(driverNumber).trim(),
+    driverName: driver?.name || "",
+    team: driver?.team || "",
+    series: driver?.series || "cup",
+    isOwner: ownedTeams.length > 0,
+    ownedTeams,
+    loginAt: new Date().toISOString(),
+  };
+
+  if (typeof window !== "undefined") {
+    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  }
+
+  return { success: true, session };
+}
+
+export function getLeagueSession() {
+  if (typeof window === "undefined") return null;
+  try {
+    return JSON.parse(localStorage.getItem(SESSION_KEY) || "null");
+  } catch {
+    return null;
+  }
+}
+
+export function logoutOfLeague() {
+  if (typeof window !== "undefined") {
+    localStorage.removeItem(SESSION_KEY);
+  }
+}
