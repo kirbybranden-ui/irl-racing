@@ -5058,6 +5058,21 @@ function AppleSeriesPortalLanding() {
   const [showV3Details, setShowV3Details] = useState(false);
   const [isReportingIssue, setIsReportingIssue] = useState(false);
 
+  const allLeagueDrivers = [
+    ...(defaultDrivers || []).map((driver) => ({
+      key: `cup-${driver.id || driver.number}`,
+      number: driver.number || "",
+      name: driver.name || "Unknown Driver",
+      seriesLabel: "Cup / Xfinity / Truck Rosters",
+    })),
+    ...(defaultArcaDrivers || []).map((driver) => ({
+      key: `arca-${driver.id || driver.number}`,
+      number: driver.number || "",
+      name: driver.name || "Unknown Driver",
+      seriesLabel: "ARCA Series",
+    })),
+  ];
+
   const seriesCards = [
     {
       id: "cup",
@@ -5426,6 +5441,7 @@ function AppleSeriesPortalLanding() {
         driverNumber=""
         driverName="Guest User"
         series="cup"
+        drivers={allLeagueDrivers}
       />
     </div>
   );
