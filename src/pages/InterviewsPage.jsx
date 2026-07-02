@@ -361,7 +361,7 @@ export default function InterviewsPage({ drivers = [], arcaDrivers = [], tracks 
     const filled = questions.filter(q => q.trim());
     if (filled.length === 0) { setSaveStatus("⚠️ Please enter at least one question."); return; }
 
-    const driver = drivers.find(d => String(d.id) === String(selectedDriverId));
+    const driver = (interviewSeries === "arca" ? arcaDrivers : drivers).find(d => String(d.id) === String(selectedDriverId));
     if (!driver) { setSaveStatus("⚠️ Driver not found."); return; }
 
     const exists = interviews.some(
@@ -477,7 +477,8 @@ export default function InterviewsPage({ drivers = [], arcaDrivers = [], tracks 
       return;
     }
 
-    const driver = (drivers || []).find((item) => String(item.id) === String(interview.driver_id) || String(item.number) === String(interview.driver_number));
+    const driverPool = interview.series === "arca" ? arcaDrivers : drivers;
+    const driver = (driverPool || []).find((item) => String(item.id) === String(interview.driver_id) || String(item.number) === String(interview.driver_number));
     const team = interview.team || getDriverTeam(driver);
     const amount = Math.max(0, Number(interview.bonus_amount ?? interview.payment_amount ?? INTERVIEW_DEFAULT_BONUS) || 0);
 
