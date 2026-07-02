@@ -33,10 +33,15 @@ export async function uploadCarFile(driverId, driverName, raceId, file, series =
     const fileExt = file.name.split('.').pop();
     const fileName = `${driverId}-${raceId}-${Date.now()}.${fileExt}`;
     const filePath = `car-uploads/${driverId}/${fileName}`;
+
+    // Convert to an ArrayBuffer before upload — passing a raw File object directly
+    // sometimes triggers a "No content provided" StorageApiError from Supabase
+    // Storage depending on browser/fetch behavior. ArrayBuffer avoids that.
+    const fileBuffer = await file.arrayBuffer();
  
     const { data, error } = await supabase.storage
       .from("car-uploads")
-      .upload(filePath, file, { cacheControl: "3600", upsert: false });
+      .upload(filePath, fileBuffer, { cacheControl: "3600", upsert: false, contentType: file.type });
  
     if (error) throw error;
  
