@@ -560,7 +560,7 @@ function InterviewAnswerCard({ interview, onAnswered, accent = "#d4af37" }) {
   );
 }
 
-function AppealModal({ isOpen, onClose, selectedSeason, driverNumber, arcaDrivers, allDrivers }) {
+function AppealModal({ isOpen, onClose, selectedSeason, driverNumber, arcaDrivers, allDrivers, tracks, arcaTracks }) {
   const [requester, setRequester] = useState("");
   const [track, setTrack] = useState("");
   const [description, setDescription] = useState("");
@@ -569,6 +569,13 @@ function AppealModal({ isOpen, onClose, selectedSeason, driverNumber, arcaDriver
   const [submitting, setSubmitting] = useState(false);
   const [cloudinaryReady, setCloudinaryReady] = useState(false);
   const widgetRef = useRef(null);
+
+  const trackOptions = useMemo(() => {
+    const source = series === "arca" ? arcaTracks : tracks;
+    return (Array.isArray(source) ? source : [])
+      .map((t) => t?.name || t?.track || t)
+      .filter(Boolean);
+  }, [series, tracks, arcaTracks]);
 
   // Check if driver runs in both series
   const inCup = (allDrivers || []).some(d => String(d.number) === String(driverNumber));
@@ -3269,7 +3276,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
           )}
         </div>
 
-        <AppealModal isOpen={isAppealModalOpen} onClose={() => setIsAppealModalOpen(false)} selectedSeason={selectedSeason} driverNumber={driverNumber} arcaDrivers={arcaDrivers} allDrivers={sanitizedDrivers} />
+        <AppealModal isOpen={isAppealModalOpen} onClose={() => setIsAppealModalOpen(false)} selectedSeason={selectedSeason} driverNumber={driverNumber} arcaDrivers={arcaDrivers} allDrivers={sanitizedDrivers} tracks={tracks} arcaTracks={arcaTracks} />
         {/* <ReportIssueModal
           isOpen={isReportingIssue}
           onClose={() => setIsReportingIssue(false)}
@@ -4421,7 +4428,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
         )}
       </div>
 
-      <AppealModal isOpen={isAppealModalOpen} onClose={() => setIsAppealModalOpen(false)} selectedSeason={selectedSeason} driverNumber={driverNumber} arcaDrivers={arcaDrivers} allDrivers={sanitizedDrivers} />
+      <AppealModal isOpen={isAppealModalOpen} onClose={() => setIsAppealModalOpen(false)} selectedSeason={selectedSeason} driverNumber={driverNumber} arcaDrivers={arcaDrivers} allDrivers={sanitizedDrivers} tracks={tracks} arcaTracks={arcaTracks} />
     </div>
   );
 }
