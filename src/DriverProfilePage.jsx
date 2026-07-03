@@ -2806,8 +2806,6 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
             {isDriverAuthorized && <button onClick={lockDriverContracts} style={{ ...secondaryButtonStyle, marginLeft: "auto" }}>Lock Driver Access</button>}
           </div>
 
-          {passwordManagerCard}
-
           <form onSubmit={submitTeamInterest} style={{ ...sectionCardStyle, borderColor: teamTheme.accent }}>
             <h2 style={{ marginTop: 0 }}>🤝 Express Interest in a Team</h2>
             <p style={{ opacity: 0.72, lineHeight: 1.5 }}>
@@ -3128,8 +3126,6 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
             {isDriverAuthorized && <button onClick={lockDriverContracts} style={{ ...secondaryButtonStyle, marginLeft: "auto" }}>Lock Driver Access</button>}
           </div>
 
-          {passwordManagerCard}
-
           <form onSubmit={sendDriverMessage} style={{ ...sectionCardStyle, borderColor: teamTheme.accent }}>
             <h2 style={{ marginTop: 0 }}>✉️ Send Direct Message</h2>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, marginBottom: 12 }}>
@@ -3222,8 +3218,6 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
               <div style={{ fontSize: 13, opacity: 0.6, marginTop: 2 }}>{myAppeals.length} appeal{myAppeals.length !== 1 ? "s" : ""} total</div>
             </div>
           </div>
-
-          {passwordManagerCard}
 
           <div style={{ marginBottom: 20 }}>
             <button onClick={() => setIsAppealModalOpen(true)} style={themedPrimaryButtonStyle}>📋 File New Appeal</button>
