@@ -1936,6 +1936,10 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
 }
 
 function LeagueLoginModal({ drivers, arcaDrivers, teams, driverAccessCodes, onClose, onSuccess }) {
+  const pageFont = "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Inter', ui-sans-serif, 'Segoe UI', sans-serif";
+
+  // step: "number" -> "password" -> "biometricOffer"
+  const [step, setStep] = useState("number");
   const [driverNumber, setDriverNumber] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -1944,7 +1948,6 @@ function LeagueLoginModal({ drivers, arcaDrivers, teams, driverAccessCodes, onCl
   const [hasSavedBiometric, setHasSavedBiometric] = useState(false);
   const [biometricBusy, setBiometricBusy] = useState(false);
   const [biometricError, setBiometricError] = useState("");
-  const [offerBiometricSetup, setOfferBiometricSetup] = useState(false);
   const [pendingSession, setPendingSession] = useState(null);
 
   useEffect(() => {
@@ -1952,11 +1955,21 @@ function LeagueLoginModal({ drivers, arcaDrivers, teams, driverAccessCodes, onCl
     setHasSavedBiometric(hasAnyDriverBiometricCredential());
   }, []);
 
-  function handleSubmit(e) {
+  function handleContinue(e) {
     e.preventDefault();
     setError("");
-    if (!driverNumber.trim() || !password.trim()) {
-      setError("Enter your driver number and password.");
+    if (!driverNumber.trim()) {
+      setError("Enter your driver number.");
+      return;
+    }
+    setStep("password");
+  }
+
+  function handleSubmitPassword(e) {
+    e.preventDefault();
+    setError("");
+    if (!password.trim()) {
+      setError("Enter your password.");
       return;
     }
 
@@ -1972,13 +1985,13 @@ function LeagueLoginModal({ drivers, arcaDrivers, teams, driverAccessCodes, onCl
     setSubmitting(false);
 
     if (!result.success) {
-      setError(result.error || "Invalid driver number or password.");
+      setError(result.error || "Incorrect password.");
       return;
     }
 
     if (biometricAvailable && !hasBiometricCredentialForDriver(result.session.driverNumber)) {
       setPendingSession(result.session);
-      setOfferBiometricSetup(true);
+      setStep("biometricOffer");
       return;
     }
 
@@ -2011,205 +2024,247 @@ function LeagueLoginModal({ drivers, arcaDrivers, teams, driverAccessCodes, onCl
       onSuccess(session);
     } catch (err) {
       console.error("Biometric unlock failed:", err);
-      setBiometricError("Face ID / Touch ID didn't match. Use your number and password instead.");
+      setBiometricError("Face ID / Touch ID didn't match. Enter your number and password instead.");
       setBiometricBusy(false);
     }
   }
+
+  function handleBack() {
+    setError("");
+    setPassword("");
+    setStep("number");
+  }
+
+  const appleFieldStyle = {
+    width: "100%",
+    padding: "13px 14px",
+    borderRadius: 10,
+    border: "1px solid #d2d2d7",
+    background: "#ffffff",
+    fontSize: 16,
+    boxSizing: "border-box",
+    fontFamily: pageFont,
+    color: "#1d1d1f",
+    outline: "none",
+  };
+
+  const applePillButton = (enabled) => ({
+    width: "100%",
+    marginTop: 18,
+    border: 0,
+    borderRadius: 10,
+    padding: "13px 18px",
+    background: enabled ? "#1d1d1f" : "#e8e8ed",
+    color: enabled ? "#ffffff" : "#a1a1a6",
+    fontWeight: 590,
+    fontSize: 16,
+    cursor: enabled ? "pointer" : "default",
+    fontFamily: pageFont,
+    transition: "background 150ms ease",
+  });
 
   return createPortal(
     <div style={{
       position: "fixed",
       inset: 0,
-      background: "rgba(29,29,31,0.42)",
-      backdropFilter: "blur(6px)",
-      WebkitBackdropFilter: "blur(6px)",
+      background: "rgba(0,0,0,0.35)",
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
       zIndex: 1200,
       padding: 20,
-      fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif",
+      fontFamily: pageFont,
     }}>
       <div style={{
-        background: "linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.94))",
-        border: "1px solid rgba(255,255,255,0.8)",
-        borderRadius: 30,
-        padding: "clamp(22px, 4vw, 32px)",
-        maxWidth: 420,
+        background: "#ffffff",
+        borderRadius: 18,
+        padding: "40px 36px 32px",
+        maxWidth: 375,
         width: "100%",
-        boxShadow: "0 30px 90px rgba(0,0,0,0.28)",
+        boxShadow: "0 20px 60px rgba(0,0,0,0.30)",
         color: "#1d1d1f",
+        position: "relative",
       }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{
-              width: 44,
-              height: 44,
-              borderRadius: 16,
-              background: offerBiometricSetup ? "linear-gradient(180deg, #34c759 0%, #248a3d 100%)" : "linear-gradient(180deg, #007aff 0%, #5856d6 100%)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 20,
-              boxShadow: offerBiometricSetup ? "0 12px 26px rgba(52,199,89,0.26)" : "0 12px 26px rgba(0,122,255,0.26)",
-            }}>
-              {offerBiometricSetup ? "🔓" : "🔑"}
-            </div>
-            <h2 style={{ margin: 0, fontSize: 21, fontWeight: 1000, letterSpacing: "-0.03em" }}>{offerBiometricSetup ? "Enable Face ID / Touch ID?" : "League Log In"}</h2>
+        <button
+          onClick={onClose}
+          aria-label="Close"
+          style={{
+            position: "absolute",
+            top: 14,
+            right: 14,
+            background: "#f5f5f7",
+            border: "none",
+            borderRadius: 999,
+            width: 28,
+            height: 28,
+            color: "#6e6e73",
+            fontSize: 15,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          ×
+        </button>
+
+        {/* Apple-style centered glyph */}
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
+          <div style={{
+            width: 56,
+            height: 56,
+            borderRadius: "50%",
+            background: "#f5f5f7",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 26,
+            border: "1px solid #e8e8ed",
+          }}>
+            {step === "biometricOffer" ? "🔓" : "🏁"}
           </div>
-          <button
-            onClick={onClose}
-            style={{ background: "rgba(0,0,0,0.05)", border: "none", borderRadius: 999, width: 32, height: 32, color: "#1d1d1f", fontSize: 18, cursor: "pointer" }}
-          >
-            ×
-          </button>
         </div>
 
-        {offerBiometricSetup ? (
-          <div>
-            <p style={{ margin: "0 0 18px", fontSize: 13.5, color: "#6e6e73", fontWeight: 700, lineHeight: 1.5 }}>
-              Skip typing your number and password next time — unlock the league on this device with Face ID, Touch ID, or Windows Hello instead.
-            </p>
-            {biometricError && <div style={{ color: "#c62d24", fontWeight: 800, fontSize: 12.5, marginBottom: 12 }}>{biometricError}</div>}
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <button
-                type="button"
-                onClick={handleEnableBiometric}
-                disabled={biometricBusy}
-                style={{
-                  flex: 1,
-                  border: 0,
-                  borderRadius: 999,
-                  padding: "13px 18px",
-                  background: "linear-gradient(135deg, #34c759 0%, #248a3d 100%)",
-                  color: "#ffffff",
-                  fontWeight: 1000,
-                  fontSize: 14,
-                  cursor: biometricBusy ? "default" : "pointer",
-                  opacity: biometricBusy ? 0.7 : 1,
-                  boxShadow: "0 14px 32px rgba(52,199,89,0.26)",
-                }}
-              >
-                {biometricBusy ? "Setting up..." : "Enable"}
-              </button>
-              <button
-                type="button"
-                onClick={handleSkipBiometric}
-                disabled={biometricBusy}
-                style={{
-                  border: "1px solid rgba(0,0,0,0.10)",
-                  borderRadius: 999,
-                  padding: "13px 18px",
-                  background: "rgba(255,255,255,0.7)",
-                  color: "#1d1d1f",
-                  fontWeight: 900,
-                  fontSize: 14,
-                  cursor: "pointer",
-                }}
-              >
-                Not now
-              </button>
-            </div>
-          </div>
-        ) : (
+        {step === "number" && (
           <>
+            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 600, textAlign: "center", letterSpacing: "-0.01em" }}>
+              Sign In
+            </h1>
+            <p style={{ margin: "6px 0 26px", fontSize: 13.5, color: "#6e6e73", textAlign: "center", lineHeight: 1.5 }}>
+              Sign in with your driver number to access your profile and team.
+            </p>
+
             {biometricAvailable && hasSavedBiometric && (
-              <div style={{ marginBottom: 20 }}>
+              <>
                 <button
                   type="button"
                   onClick={handleBiometricUnlock}
                   disabled={biometricBusy}
                   style={{
                     width: "100%",
-                    border: 0,
-                    borderRadius: 999,
-                    padding: "14px 18px",
-                    background: "linear-gradient(135deg, #34c759 0%, #248a3d 100%)",
-                    color: "#ffffff",
-                    fontWeight: 1000,
+                    border: "1px solid #d2d2d7",
+                    borderRadius: 10,
+                    padding: "12px 16px",
+                    background: "#ffffff",
+                    color: "#1d1d1f",
+                    fontWeight: 590,
                     fontSize: 15,
                     cursor: biometricBusy ? "default" : "pointer",
-                    opacity: biometricBusy ? 0.7 : 1,
-                    boxShadow: "0 16px 34px rgba(52,199,89,0.28)",
+                    fontFamily: pageFont,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 8,
+                    marginBottom: 18,
                   }}
                 >
-                  {biometricBusy ? "Verifying..." : "🔓 Unlock with Face ID / Touch ID"}
+                  <span style={{ fontSize: 17 }}>🔓</span> {biometricBusy ? "Verifying…" : "Sign In with Face ID"}
                 </button>
-                {biometricError && <div style={{ color: "#c62d24", fontWeight: 800, fontSize: 12.5, marginTop: 10 }}>{biometricError}</div>}
-                <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "18px 0" }}>
-                  <div style={{ flex: 1, height: 1, background: "rgba(0,0,0,0.08)" }} />
-                  <div style={{ fontSize: 11, fontWeight: 900, color: "#86868b", letterSpacing: "0.06em" }}>OR</div>
-                  <div style={{ flex: 1, height: 1, background: "rgba(0,0,0,0.08)" }} />
+                {biometricError && <div style={{ color: "#d70015", fontWeight: 500, fontSize: 12.5, marginBottom: 12, textAlign: "center" }}>{biometricError}</div>}
+                <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "0 0 18px" }}>
+                  <div style={{ flex: 1, height: 1, background: "#e8e8ed" }} />
+                  <div style={{ fontSize: 11.5, fontWeight: 590, color: "#a1a1a6" }}>or</div>
+                  <div style={{ flex: 1, height: 1, background: "#e8e8ed" }} />
                 </div>
-              </div>
+              </>
             )}
 
-            {!biometricAvailable || !hasSavedBiometric ? (
-              <p style={{ margin: "0 0 18px", fontSize: 13, color: "#6e6e73", fontWeight: 700, lineHeight: 1.5 }}>
-                One login gets you into your driver profile, and your team page if you're an owner. Works across every series.
-              </p>
-            ) : null}
-
-            <form onSubmit={handleSubmit}>
-              <label style={{ display: "block", marginBottom: 6, fontWeight: 900, fontSize: 13 }}>Driver Number</label>
+            <form onSubmit={handleContinue}>
               <input
                 type="text"
                 value={driverNumber}
                 onChange={(e) => setDriverNumber(e.target.value)}
-                placeholder="e.g. 42"
-                style={{
-                  width: "100%",
-                  padding: "11px 13px",
-                  borderRadius: 14,
-                  border: "1px solid rgba(0,0,0,0.08)",
-                  background: "rgba(255,255,255,0.7)",
-                  fontSize: 14,
-                  boxSizing: "border-box",
-                  marginBottom: 14,
-                }}
+                placeholder="Driver Number"
+                style={appleFieldStyle}
+                autoFocus
               />
+              {error && <div style={{ color: "#d70015", fontWeight: 500, fontSize: 12.5, marginTop: 10 }}>{error}</div>}
+              <button type="submit" style={applePillButton(driverNumber.trim().length > 0)}>
+                Continue
+              </button>
+            </form>
+          </>
+        )}
 
-              <label style={{ display: "block", marginBottom: 6, fontWeight: 900, fontSize: 13 }}>Password</label>
+        {step === "password" && (
+          <>
+            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 600, textAlign: "center", letterSpacing: "-0.01em" }}>
+              Enter Your Password
+            </h1>
+            <button
+              type="button"
+              onClick={handleBack}
+              style={{
+                display: "block",
+                margin: "8px auto 26px",
+                background: "none",
+                border: "none",
+                color: "#0066cc",
+                fontSize: 13.5,
+                fontWeight: 500,
+                cursor: "pointer",
+                fontFamily: pageFont,
+              }}
+            >
+              #{driverNumber.trim()} — Not you?
+            </button>
+
+            <form onSubmit={handleSubmitPassword}>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Driver password"
-                style={{
-                  width: "100%",
-                  padding: "11px 13px",
-                  borderRadius: 14,
-                  border: "1px solid rgba(0,0,0,0.08)",
-                  background: "rgba(255,255,255,0.7)",
-                  fontSize: 14,
-                  boxSizing: "border-box",
-                  marginBottom: 6,
-                }}
+                placeholder="Password"
+                style={appleFieldStyle}
+                autoFocus
               />
-
-              {error && <div style={{ color: "#c62d24", fontWeight: 800, fontSize: 12.5, marginBottom: 10 }}>{error}</div>}
-
-              <button
-                type="submit"
-                disabled={submitting}
-                style={{
-                  width: "100%",
-                  marginTop: 12,
-                  border: 0,
-                  borderRadius: 999,
-                  padding: "13px 18px",
-                  background: "linear-gradient(135deg, #007aff 0%, #5856d6 100%)",
-                  color: "#ffffff",
-                  fontWeight: 1000,
-                  fontSize: 14,
-                  cursor: submitting ? "default" : "pointer",
-                  opacity: submitting ? 0.7 : 1,
-                  boxShadow: "0 14px 32px rgba(0,122,255,0.26)",
-                }}
-              >
-                {submitting ? "Logging in..." : "Log In"}
+              {error && <div style={{ color: "#d70015", fontWeight: 500, fontSize: 12.5, marginTop: 10 }}>{error}</div>}
+              <button type="submit" disabled={submitting} style={applePillButton(password.trim().length > 0 && !submitting)}>
+                {submitting ? "Signing In…" : "Sign In"}
               </button>
             </form>
+          </>
+        )}
+
+        {step === "biometricOffer" && (
+          <>
+            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 600, textAlign: "center", letterSpacing: "-0.01em" }}>
+              Use Face ID to Sign In Faster?
+            </h1>
+            <p style={{ margin: "6px 0 26px", fontSize: 13.5, color: "#6e6e73", textAlign: "center", lineHeight: 1.5 }}>
+              Skip your number and password next time on this device.
+            </p>
+
+            {biometricError && <div style={{ color: "#d70015", fontWeight: 500, fontSize: 12.5, marginBottom: 12, textAlign: "center" }}>{biometricError}</div>}
+
+            <button
+              type="button"
+              onClick={handleEnableBiometric}
+              disabled={biometricBusy}
+              style={applePillButton(!biometricBusy)}
+            >
+              {biometricBusy ? "Setting Up…" : "Enable Face ID"}
+            </button>
+            <button
+              type="button"
+              onClick={handleSkipBiometric}
+              disabled={biometricBusy}
+              style={{
+                width: "100%",
+                marginTop: 10,
+                border: "none",
+                borderRadius: 10,
+                padding: "13px 18px",
+                background: "none",
+                color: "#0066cc",
+                fontWeight: 590,
+                fontSize: 16,
+                cursor: "pointer",
+                fontFamily: pageFont,
+              }}
+            >
+              Not Now
+            </button>
           </>
         )}
       </div>
