@@ -4202,49 +4202,68 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
         )}
 
           <div style={sectionCardStyle}>
-          <h2 style={{ marginTop: 0, marginBottom: 16 }}>Season Overview</h2>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 12, background: `${teamTheme.accent}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>📈</div>
+            <h2 style={{ margin: 0, fontSize: 19, fontWeight: 950 }}>Season Overview</h2>
+          </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12, marginBottom: 16 }}>
-            <div style={{ background: "rgba(0,0,0,0.03)", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}>
-              <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>RANKING</div>
-              <div style={{ fontSize: 28, fontWeight: 800, color: teamTheme.accent }}>P{driverRanking}</div>
+            <div style={{ background: "rgba(0,0,0,0.03)", border: "1px solid rgba(0,0,0,0.06)", borderRadius: 16, padding: 14 }}>
+              <div style={{ fontSize: 11, color: "#6e6e73", fontWeight: 900, marginBottom: 4, letterSpacing: "0.04em" }}>RANKING</div>
+              <div style={{ fontSize: 26, fontWeight: 950, color: teamTheme.accent }}>P{driverRanking}</div>
             </div>
-            <div style={{ background: "rgba(0,0,0,0.03)", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}>
-              <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>PROJECTION</div>
-              <div style={{ fontSize: 22, fontWeight: 800 }}>{pointsProjection} pts</div>
-              <div style={{ fontSize: 10, opacity: 0.6 }}>Full season estimate</div>
+            <div style={{ background: "rgba(0,0,0,0.03)", border: "1px solid rgba(0,0,0,0.06)", borderRadius: 16, padding: 14 }}>
+              <div style={{ fontSize: 11, color: "#6e6e73", fontWeight: 900, marginBottom: 4, letterSpacing: "0.04em" }}>PROJECTION</div>
+              <div style={{ fontSize: 21, fontWeight: 950, color: "#1d1d1f" }}>{pointsProjection} pts</div>
+              <div style={{ fontSize: 10.5, color: "#86868b", fontWeight: 700, marginTop: 2 }}>Full season estimate</div>
             </div>
-            <div style={{ background: "rgba(0,0,0,0.03)", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}>
-              <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>AVG FINISH</div>
-              <div style={{ fontSize: 22, fontWeight: 800 }}>P{consistencyRating.avg}</div>
-              <div style={{ fontSize: 10, opacity: 0.6 }}>Consistency</div>
+            <div style={{ background: "rgba(0,0,0,0.03)", border: "1px solid rgba(0,0,0,0.06)", borderRadius: 16, padding: 14 }}>
+              <div style={{ fontSize: 11, color: "#6e6e73", fontWeight: 900, marginBottom: 4, letterSpacing: "0.04em" }}>AVG FINISH</div>
+              <div style={{ fontSize: 21, fontWeight: 950, color: "#1d1d1f" }}>P{consistencyRating.avg}</div>
+              <div style={{ fontSize: 10.5, color: "#86868b", fontWeight: 700, marginTop: 2 }}>Consistency</div>
             </div>
           </div>
-          {pointsGap.ahead > 0 && <div style={{ background: "#2a3140", borderRadius: 8, padding: 12, marginBottom: 12 }}><div style={{ fontSize: 13, opacity: 0.8 }}>📊 <strong>{pointsGap.ahead} points</strong> behind P{driverRanking - 1}</div></div>}
-          {pointsGap.behind > 0 && <div style={{ background: "#2a3140", borderRadius: 8, padding: 12 }}><div style={{ fontSize: 13, opacity: 0.8 }}>📊 <strong>{pointsGap.behind} point lead</strong> over P{driverRanking + 1}</div></div>}
+          {pointsGap.ahead > 0 && (
+            <div style={{ background: "rgba(0,122,255,0.08)", border: "1px solid rgba(0,122,255,0.22)", borderRadius: 16, padding: 14, display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 18 }}>📊</span>
+              <div style={{ fontSize: 13.5, color: "#0057d9", fontWeight: 700 }}><strong style={{ fontWeight: 950 }}>{pointsGap.ahead} points</strong> behind P{driverRanking - 1}</div>
+            </div>
+          )}
+          {pointsGap.behind > 0 && (
+            <div style={{ background: "rgba(52,199,89,0.08)", border: "1px solid rgba(52,199,89,0.22)", borderRadius: 16, padding: 14, display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 18 }}>📊</span>
+              <div style={{ fontSize: 13.5, color: "#147d35", fontWeight: 700 }}><strong style={{ fontWeight: 950 }}>{pointsGap.behind} point lead</strong> over P{driverRanking + 1}</div>
+            </div>
+          )}
         </div>
 
         <div style={sectionCardStyle}>
-          <h2 style={{ marginTop: 0, marginBottom: 14 }}>🏁 Championship Points Picture</h2>
-          <div style={{ background: championshipPicture.bg, border: `1px solid ${championshipPicture.color}`, borderRadius: 12, padding: 16 }}>
-            <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 6 }}>CURRENT STATUS</div>
-            <div style={{ fontSize: 22, fontWeight: 900, color: championshipPicture.color }}>{championshipPicture.status}</div>
-            <div style={{ fontSize: 13, opacity: 0.8, marginTop: 8 }}>Current standings position: P{championshipPicture.rank}</div>
-            <div style={{ fontSize: 13, opacity: 0.8, marginTop: 4 }}>{championshipPicture.rank === 1 ? "This driver currently controls the top spot in the championship standings." : `${championshipPicture.pointsBehindLeader} points behind the current points leader.`}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 12, background: `${teamTheme.accent}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>🏁</div>
+            <h2 style={{ margin: 0, fontSize: 19, fontWeight: 950 }}>Championship Points Picture</h2>
+          </div>
+          <div style={{ background: championshipPicture.bg, border: `1px solid ${championshipPicture.color}33`, borderRadius: 18, padding: 18 }}>
+            <div style={{ fontSize: 11, color: "#6e6e73", fontWeight: 900, marginBottom: 6, letterSpacing: "0.04em" }}>CURRENT STATUS</div>
+            <div style={{ fontSize: 22, fontWeight: 950, color: championshipPicture.color }}>{championshipPicture.status}</div>
+            <div style={{ fontSize: 13.5, color: "#3a3a3c", fontWeight: 600, marginTop: 8 }}>Current standings position: P{championshipPicture.rank}</div>
+            <div style={{ fontSize: 13.5, color: "#3a3a3c", fontWeight: 600, marginTop: 4 }}>{championshipPicture.rank === 1 ? "This driver currently controls the top spot in the championship standings." : `${championshipPicture.pointsBehindLeader} points behind the current points leader.`}</div>
           </div>
         </div>
 
         <div style={sectionCardStyle}>
-          <h2 style={{ marginTop: 0, marginBottom: 14 }}>Personal Records</h2>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 12, background: `${teamTheme.accent}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>🏆</div>
+            <h2 style={{ margin: 0, fontSize: 19, fontWeight: 950 }}>Personal Records</h2>
+          </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12 }}>
             {[
               ["BEST FINISH", personalRecords.bestFinish],
               ["FASTEST LAPS", personalRecords.fastestLaps],
               ["BEST RACE", personalRecords.highestRacePoints],
             ].map(([label, value]) => (
-              <div key={label} style={{ background: "rgba(0,0,0,0.03)", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}>
-                <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>{label}</div>
-                <div style={{ fontSize: 28, fontWeight: 800, color: teamTheme.accent }}>{value}</div>
-                {label === "BEST RACE" && <div style={{ fontSize: 10, opacity: 0.6 }}>points</div>}
+              <div key={label} style={{ background: "rgba(0,0,0,0.03)", border: "1px solid rgba(0,0,0,0.06)", borderRadius: 16, padding: 14 }}>
+                <div style={{ fontSize: 11, color: "#6e6e73", fontWeight: 900, marginBottom: 4, letterSpacing: "0.04em" }}>{label}</div>
+                <div style={{ fontSize: 26, fontWeight: 950, color: teamTheme.accent }}>{value}</div>
+                {label === "BEST RACE" && <div style={{ fontSize: 10.5, color: "#86868b", fontWeight: 700, marginTop: 2 }}>points</div>}
               </div>
             ))}
           </div>
