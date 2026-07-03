@@ -4080,7 +4080,7 @@ function MobileLeagueApp({
   if (path === "/notifications") return dataFrame("Notifications", "more", <NotificationsPage />);
   if (path === "/interviews") return frame("Interviews", "interviews", <MobileInterviewsHub session={mobileSession} go={go} />);
   if (path === "/contracts") return dataFrame("Contracts", "more", <ContractsPage drivers={drivers} />);
-  if (path === "/driver-market" || path === "/transfer-portal" || path === "/silly-season") return dataFrame("Driver Market", "more", <DriverMarketPage drivers={drivers || []} raceHistory={raceHistory || []} startParkRequests={[]} paintSchemePayouts={[]} />);
+  if (path === "/driver-market" || path === "/transfer-portal" || path === "/silly-season") return dataFrame("Driver Market", "more", <DriverMarketPage drivers={drivers || []} raceHistory={raceHistory || []} startParkRequests={[]} paintSchemePayouts={[]} supabase={supabase} />);
   if (path === "/development-requests" || path === "/developmental-requests" || path === "/dev-requests") return dataFrame("Development Requests", "more", (
     <DevelopmentRequestsPage
       leagueState={{ drivers: drivers || [], teams: teams || [] }}
@@ -6006,6 +6006,7 @@ export default function App() {
   const [videoDescription, setVideoDescription] = useState("");
   const [videoUploading, setVideoUploading] = useState(false);
   const [driverAccessCodes, setDriverAccessCodes] = useState([]);
+  const [driverRecruitingInterest, setDriverRecruitingInterest] = useState([]);
   const [tickerMessages, setTickerMessages] = useState([]);
   const [tickerForm, setTickerForm] = useState({
     message: "",
@@ -6502,6 +6503,7 @@ export default function App() {
   useEffect(() => {
     loadOwnerAccessCodes();
     loadDriverAccessCodes();
+    loadDriverRecruitingInterest();
   }, []);
 
   const loadManualWatchPicks = async () => {
@@ -7028,6 +7030,18 @@ export default function App() {
       return;
     }
     setDriverAccessCodes(data || []);
+  };
+
+  const loadDriverRecruitingInterest = async () => {
+    const { data, error } = await supabase
+      .from("driver_recruiting_interest")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) {
+      console.error("Failed to load driver recruiting interest:", error);
+      return;
+    }
+    setDriverRecruitingInterest(data || []);
   };
 
   const createDriverAccessCode = (driver) => {
@@ -8372,7 +8386,7 @@ export default function App() {
 
   if (path === "/chat") return withLeagueStatusWidget(<LeagueChatPage drivers={visibleDrivers} />);
   if (path === "/message-center") return withLeagueStatusWidget(<LeagueMessageCenter drivers={visibleDrivers} />);
-  if (path === "/driver-market" || path === "/transfer-portal" || path === "/silly-season") return withLeagueStatusWidget(<DriverMarketPage drivers={visibleDrivers || []} raceHistory={raceHistory || []} startParkRequests={startParkRequests || []} paintSchemePayouts={[]} />);
+  if (path === "/driver-market" || path === "/transfer-portal" || path === "/silly-season") return withLeagueStatusWidget(<DriverMarketPage drivers={visibleDrivers || []} raceHistory={raceHistory || []} startParkRequests={startParkRequests || []} paintSchemePayouts={[]} interestRows={driverRecruitingInterest} supabase={supabase} />);
   if (path === "/development-requests" || path === "/developmental-requests" || path === "/dev-requests") return withLeagueStatusWidget(
     <DevelopmentRequestsPage
       leagueState={{ drivers: visibleDrivers || [], teams: teamStandings || [] }}
