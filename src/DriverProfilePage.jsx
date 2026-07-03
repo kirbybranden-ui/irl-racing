@@ -8,6 +8,7 @@ import teamLogo19XI from "./assets/teams/19XI.png";
 import teamLogoBWR from "./assets/teams/BWR.png";
 import teamLogoBXM from "./assets/teams/BXM.png";
 import { supabase } from "./lib/supabase";
+import { getLeagueSession } from "./lib/leagueAuth";
 import { uploadCarFile, getCarUploads, deleteCarUpload } from "./lib/carUploads";
 // import { ReportIssueModal } from "./components/ReportIssueModal"; // TODO: Uncomment once ReportIssueModal.jsx is in repo
 
@@ -804,7 +805,11 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
   const [passwordChangeMessage, setPasswordChangeMessage] = useState("");
   const [passwordChangeError, setPasswordChangeError] = useState("");
   const [driverAccessCodes, setDriverAccessCodes] = useState(loadLocalDriverAccessCodes);
-  const [authorizedDriverNumber, setAuthorizedDriverNumber] = useState(() => localStorage.getItem("driverProfileAuthorizedNumber") || "");
+  const [authorizedDriverNumber, setAuthorizedDriverNumber] = useState(() => {
+    const leagueSession = getLeagueSession();
+    if (leagueSession?.driverNumber) return String(leagueSession.driverNumber);
+    return localStorage.getItem("driverProfileAuthorizedNumber") || "";
+  });
   const [pendingDriverPath, setPendingDriverPath] = useState("");
   const [feedbackForm, setFeedbackForm] = useState({
     team_happiness: 8,
