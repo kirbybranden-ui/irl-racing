@@ -35,10 +35,11 @@ export function verifyLeaguePassword({ driverNumber, password, driverAccessCodes
 }
 
 /**
- * Determine whether a driver record should also get owner access.
- * This checks a few common shapes so it works regardless of exactly how
- * ownership ends up being modeled in the data (driver flag vs. team roster
- * match) — adjust this once the real team-ownership structure is confirmed.
+ * Determine whether a driver record should also get owner access, using a
+ * fallback guess when no Supabase client is available. Prefer
+ * resolveOwnerTeamsFromAssignments() when possible — it checks the real
+ * team_owner_assignments table (the same one OwnersPage.jsx uses), which is
+ * far more accurate than this guess.
  */
 export function resolveOwnerTeams(driver, teams = []) {
   if (!driver) return [];
@@ -52,9 +53,37 @@ export function resolveOwnerTeams(driver, teams = []) {
   return [];
 }
 
-function buildSessionForDriver(driverNumber, drivers, arcaDrivers, teams) {
+/**
+ * The real source of truth for team ownership — the same team_owner_assignments
+ * table OwnersPage.jsx checks (owner_driver_number matched against the driver).
+ */
+export async function resolveOwnerTeamsFromAssignments(driverNumber, supabase) {
+  if (!supabase || !driverNumber) return null;
+  try {
+    const { data, error } = await supabase.from("team_owner_assignments").select("team, owner_driver_number");
+    if (error) {
+      console.error("Could not load team_owner_assignments:", error);
+      return null;
+    }
+    const number = String(driverNumber).trim();
+    const owned = (data || [])
+      .filter((row) => String(row.owner_driver_number || "").trim() === number)
+      .map((row) => row.team)
+      .filter(Boolean);
+    return owned;
+  } catch (err) {
+    console.error("Error resolving owner teams from assignments:", err);
+    return null;
+  }
+}
+
+async function buildSessionForDriver(driverNumber, drivers, arcaDrivers, teams, supabase) {
   const driver = findDriverByNumber(driverNumber, drivers, arcaDrivers);
-  const ownedTeams = resolveOwnerTeams(driver, teams);
+
+  // Prefer the real team_owner_assignments table when a Supabase client is
+  // available; fall back to the guess-based check otherwise.
+  const assignedTeams = await resolveOwnerTeamsFromAssignments(driverNumber, supabase);
+  const ownedTeams = assignedTeams !== null ? assignedTeams : resolveOwnerTeams(driver, teams);
 
   const session = {
     driverNumber: String(driverNumber).trim(),
@@ -73,11 +102,11 @@ function buildSessionForDriver(driverNumber, drivers, arcaDrivers, teams) {
   return session;
 }
 
-export function loginToLeague({ driverNumber, password, driverAccessCodes, drivers, arcaDrivers, teams }) {
+export async function loginToLeague({ driverNumber, password, driverAccessCodes, drivers, arcaDrivers, teams, supabase }) {
   const valid = verifyLeaguePassword({ driverNumber, password, driverAccessCodes });
   if (!valid) return { success: false, error: "Invalid driver number or password." };
 
-  const session = buildSessionForDriver(driverNumber, drivers, arcaDrivers, teams);
+  const session = await buildSessionForDriver(driverNumber, drivers, arcaDrivers, teams, supabase);
   return { success: true, session };
 }
 
@@ -182,7 +211,7 @@ export async function registerDriverBiometric(driverNumber, driverName = "") {
  * the right one, and the returned credential tells us which driver it was —
  * no need to ask "who are you" first.
  */
-export async function loginWithBiometric({ drivers, arcaDrivers, teams }) {
+export async function loginWithBiometric({ drivers, arcaDrivers, teams, supabase }) {
   const registry = getDriverBiometricRegistry();
   if (registry.length === 0) throw new Error("No biometric credentials registered on this device.");
 
@@ -202,7 +231,7 @@ export async function loginWithBiometric({ drivers, arcaDrivers, teams }) {
   const matched = registry.find((entry) => entry.credentialId === usedCredentialId);
   if (!matched) throw new Error("Could not match this credential to a driver.");
 
-  const session = buildSessionForDriver(matched.driverNumber, drivers, arcaDrivers, teams);
+  const session = await buildSessionForDriver(matched.driverNumber, drivers, arcaDrivers, teams, supabase);
   return session;
 }
 
