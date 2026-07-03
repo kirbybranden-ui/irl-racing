@@ -3362,66 +3362,77 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
   }
 
   return (
-    <div style={{ ...appShellStyle, background: `radial-gradient(circle at top, ${teamTheme.glow} 0%, rgba(245,245,247,0.95) 34%, rgba(229,229,234,0.98) 100%)` }}>
+    <div style={appShellStyle}>
       <div style={pageContainerStyle}>
-        <div style={{ ...sectionCardStyle, borderColor: teamTheme.accent, boxShadow: `0 0 38px ${teamTheme.glow}`, background: `linear-gradient(135deg, #171b22 0%, #10141b 56%, ${teamTheme.dark} 100%)`, position: "relative", overflow: "hidden" }}>
-          <div style={{ position: "absolute", inset: 0, background: `linear-gradient(90deg, transparent 0%, ${teamTheme.glow} 100%)`, opacity: 0.45, pointerEvents: "none" }} />
-          <div style={{ position: "relative", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 24, flexWrap: "wrap" }}>
-            <div>
-              <button onClick={() => window.location.pathname = standingsRoute} style={{ ...secondaryButtonStyle, marginBottom: 12 }}>← Back to Standings</button>
-              <div>
-                <div style={{ fontSize: 28, fontWeight: 900 }}>{driver.name}</div>
-                <div style={{ fontSize: 16, opacity: 0.8, marginTop: 4 }}>#{driver.number}</div>
-                <div style={{ fontSize: 15, fontWeight: 900, marginTop: 4, color: teamTheme.accent }}>{getTeamFullName(driver.team)}</div>
-                <div style={{ fontSize: 12, opacity: 0.65, marginTop: 2 }}>{driver.team}</div>
-                <div style={{ marginTop: 12, display: "inline-flex", padding: "6px 12px", borderRadius: 999, background: teamTheme.glow, border: `1px solid ${teamTheme.accent}`, fontSize: 12, fontWeight: 900 }}>{reputation.archetype}</div>
+        <div style={{ ...sectionCardStyle, position: "relative", overflow: "hidden" }}>
+          <div style={{ position: "absolute", top: -60, right: -60, width: 220, height: 220, borderRadius: "50%", background: `${teamTheme.accent}18`, pointerEvents: "none" }} />
+
+          <button onClick={() => window.location.pathname = standingsRoute} style={{ ...secondaryButtonStyle, marginBottom: 18, fontSize: 13, padding: "9px 16px" }}>← Back to Standings</button>
+
+          <div style={{ position: "relative", display: "flex", gap: 22, flexWrap: "wrap", alignItems: "flex-start" }}>
+            <div style={{
+              width: 84,
+              height: 84,
+              borderRadius: 24,
+              background: "rgba(255,255,255,0.9)",
+              border: `1px solid ${teamTheme.accent}33`,
+              boxShadow: `0 16px 34px ${teamTheme.glow}`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+              padding: 10,
+            }}>
+              {teamLogos[driver.team] ? <img src={teamLogos[driver.team]} alt={driver.team} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} /> : <div style={{ fontWeight: 900, fontSize: 13, color: teamTheme.accent, textAlign: "center" }}>{getTeamFullName(driver.team)}</div>}
+            </div>
+
+            <div style={{ flex: "1 1 260px", minWidth: 0 }}>
+              <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: "0.08em", textTransform: "uppercase", color: "rgba(29,29,31,0.5)" }}>
+                #{driver.number} • {getTeamFullName(driver.team)}
+              </div>
+              <div style={{ fontSize: "clamp(28px, 4vw, 38px)", fontWeight: 950, letterSpacing: "-0.03em", lineHeight: 1.05, marginTop: 2 }}>{driver.name}</div>
+
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
+                <span style={{ display: "inline-flex", padding: "7px 14px", borderRadius: 999, background: `${teamTheme.accent}18`, color: teamTheme.accent, fontSize: 12.5, fontWeight: 1000 }}>
+                  {reputation.archetype}
+                </span>
                 {unreadMessages > 0 && (
-                  <div style={{ marginTop: 10, display: "inline-flex", padding: "7px 12px", borderRadius: 999, background: "#ef4444", color: "white", border: "1px solid #fecaca", fontSize: 12, fontWeight: 900 }}>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 999, background: "rgba(255,59,48,0.12)", color: "#c62d24", fontSize: 12.5, fontWeight: 1000 }}>
                     🔔 {unreadMessages} New Message{unreadMessages !== 1 ? "s" : ""}
-                  </div>
+                  </span>
                 )}
               </div>
             </div>
 
-            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", width: 150, height: 150, borderRadius: 12, background: "rgba(15,19,25,0.82)", border: `1px solid ${teamTheme.accent}`, boxShadow: `0 0 24px ${teamTheme.glow}` }}>
-              {teamLogos[driver.team] ? <img src={teamLogos[driver.team]} alt={driver.team} style={{ maxWidth: "90%", maxHeight: "90%", objectFit: "contain" }} /> : <div style={{ fontWeight: 700, fontSize: 13, color: teamTheme.accent, textAlign: "center", padding: 8 }}>{getTeamFullName(driver.team)}</div>}
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 64,
+              height: 64,
+              borderRadius: 18,
+              background: "rgba(255,255,255,0.9)",
+              border: "1px solid rgba(0,0,0,0.06)",
+              flexShrink: 0,
+            }}>
+              {driver.manufacturerLogo ? <img src={driver.manufacturerLogo} alt={driver.manufacturer} style={{ maxWidth: "80%", maxHeight: "80%", objectFit: "contain" }} /> : <div style={{ fontWeight: 900, fontSize: 10, color: "#6e6e73", textAlign: "center" }}>{driver.manufacturer || "—"}</div>}
             </div>
 
-            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", width: 140, height: 140, borderRadius: 12, background: "rgba(15,19,25,0.82)", border: "1px solid #2c3440" }}>
-              {driver.manufacturerLogo ? <img src={driver.manufacturerLogo} alt={driver.manufacturer} style={{ maxWidth: "90%", maxHeight: "90%", objectFit: "contain" }} /> : <div style={{ fontWeight: 700, fontSize: 12, color: teamTheme.accent, textAlign: "center", padding: 8 }}>{driver.manufacturer || "—"}</div>}
-            </div>
-
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 12, opacity: 0.72, marginBottom: 4 }}>SEASON</div>
-              <div style={{ fontSize: 16, fontWeight: 700 }}>{selectedSeason.name}</div>
-              <div style={{ marginTop: 8, color: teamTheme.accent, fontSize: 13, fontWeight: 900 }}>P{driverRanking} • {calculatedStats.points} PTS</div>
-              <button
-                type="button"
-                onClick={() => setShowDriverTodo((current) => !current)}
-                style={{
-                  marginTop: 12,
-                  background: driverTodoCount > 0 ? "#ef4444" : "#222936",
-                  color: "white",
-                  border: `1px solid ${driverTodoCount > 0 ? "#fecaca" : "#3a4453"}`,
-                  borderRadius: 999,
-                  padding: "8px 12px",
-                  fontWeight: 900,
-                  cursor: "pointer",
-                }}
-              >
-                🔔 {driverTodoCount}
-              </button>
+            <div style={{ textAlign: "right", flexShrink: 0 }}>
+              <div style={{ fontSize: 11, fontWeight: 1000, letterSpacing: "0.06em", textTransform: "uppercase", color: "rgba(29,29,31,0.5)" }}>{selectedSeason.name}</div>
+              <div style={{ fontSize: 26, fontWeight: 950, letterSpacing: "-0.02em", marginTop: 2 }}>P{driverRanking}</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: teamTheme.accent }}>{calculatedStats.points} PTS</div>
             </div>
           </div>
         </div>
 
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 20, alignItems: "center" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 20, marginTop: 18, alignItems: "center" }}>
           <button onClick={() => openProtectedDriverSection(`/driver/${driverNumber}/contracts`)} style={themedPrimaryButtonStyle}>📄 Contracts</button>
           <button onClick={() => openProtectedDriverSection(`/driver/${driverNumber}/upload`)} style={secondaryButtonStyle}>📷 Uploads</button>
           <button onClick={() => openProtectedDriverSection(`/driver/${driverNumber}/interviews`)} style={secondaryButtonStyle}>🎙️ Interviews</button>
           <button onClick={() => openProtectedDriverSection(`/driver/${driverNumber}/appeals`)} style={secondaryButtonStyle}>
             📋 Appeals
-            {myAppeals.length > 0 && <span style={{ marginLeft: 8, background: myAppeals.some((a) => a.status !== "Open") ? "#22c55e" : "#3b82f6", color: "white", borderRadius: 99, padding: "2px 8px", fontSize: 11, fontWeight: 800 }}>{myAppeals.length}</span>}
+            {myAppeals.length > 0 && <span style={{ marginLeft: 8, background: myAppeals.some((a) => a.status !== "Open") ? "#34c759" : "#007aff", color: "white", borderRadius: 99, padding: "2px 8px", fontSize: 11, fontWeight: 800 }}>{myAppeals.length}</span>}
           </button>
           <button onClick={() => openProtectedDriverSection(`/driver/${driverNumber}/assignments`)} style={secondaryButtonStyle}>🎯 Assignments</button>
           <button onClick={() => openProtectedDriverSection(`/driver/${driverNumber}/feedback`)} style={secondaryButtonStyle}>😊 Driver Feedback</button>
@@ -3431,39 +3442,50 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
           {authorizedDriverNumber && String(authorizedDriverNumber) !== String(driver.number) && (
             <button onClick={startMessageFromProfile} style={themedPrimaryButtonStyle}>✉️ Message Driver</button>
           )}
-          
+
           <div style={{ position: "relative", marginLeft: "auto" }}>
             <button
               type="button"
               onClick={() => setShowDriverTodo((current) => !current)}
               style={{
-                ...secondaryButtonStyle,
-                display: "inline-flex",
+                width: 46,
+                height: 46,
+                borderRadius: 999,
+                border: `1px solid ${driverTodoCount > 0 ? teamTheme.accent : "rgba(0,0,0,0.10)"}`,
+                background: driverTodoCount > 0 ? `${teamTheme.accent}14` : "rgba(255,255,255,0.72)",
+                boxShadow: driverTodoCount > 0 ? `0 10px 26px ${teamTheme.glow}` : "none",
+                display: "flex",
                 alignItems: "center",
-                gap: 8,
-                borderColor: driverTodoCount > 0 ? teamTheme.accent : "#3d4859",
-                boxShadow: driverTodoCount > 0 ? `0 0 18px ${teamTheme.glow}` : "none",
+                justifyContent: "center",
+                position: "relative",
+                fontSize: 19,
+                cursor: "pointer",
               }}
             >
-              <span style={{ fontSize: 18 }}>🔔</span>
-              <span>To-Do</span>
-              <span
-                style={{
-                  minWidth: 22,
-                  height: 22,
-                  padding: "0 7px",
-                  borderRadius: 999,
-                  background: driverTodoCount > 0 ? "#ef4444" : "#374151",
-                  color: "white",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 12,
-                  fontWeight: 900,
-                }}
-              >
-                {driverTodoCount}
-              </span>
+              🔔
+              {driverTodoCount > 0 && (
+                <span
+                  style={{
+                    position: "absolute",
+                    top: -4,
+                    right: -4,
+                    minWidth: 20,
+                    height: 20,
+                    padding: "0 5px",
+                    borderRadius: 999,
+                    background: "#ff3b30",
+                    color: "white",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 11,
+                    fontWeight: 900,
+                    border: "2px solid #fff",
+                  }}
+                >
+                  {driverTodoCount}
+                </span>
+              )}
             </button>
 
             {showDriverTodo && (
@@ -3471,26 +3493,28 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
                 style={{
                   position: "absolute",
                   right: 0,
-                  top: "calc(100% + 10px)",
+                  top: "calc(100% + 12px)",
                   width: 360,
                   maxWidth: "calc(100vw - 40px)",
-                  background: "#0f1319",
-                  border: `1px solid ${teamTheme.accent}`,
-                  borderRadius: 16,
-                  boxShadow: "0 18px 45px rgba(0,0,0,0.45)",
+                  background: "linear-gradient(180deg, rgba(255,255,255,0.97), rgba(248,250,252,0.95))",
+                  border: "1px solid rgba(255,255,255,0.8)",
+                  borderRadius: 22,
+                  boxShadow: "0 30px 80px rgba(0,0,0,0.20)",
+                  backdropFilter: "blur(20px)",
+                  WebkitBackdropFilter: "blur(20px)",
                   zIndex: 9999,
                   overflow: "hidden",
                 }}
               >
-                <div style={{ padding: 14, borderBottom: "1px solid #2c3440", background: "#111827" }}>
-                  <div style={{ fontSize: 16, fontWeight: 900 }}>🔔 Driver To-Do Center</div>
-                  <div style={{ fontSize: 12, opacity: 0.72, marginTop: 3 }}>
+                <div style={{ padding: 16, borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
+                  <div style={{ fontSize: 15, fontWeight: 1000, color: "#1d1d1f" }}>🔔 Driver To-Do Center</div>
+                  <div style={{ fontSize: 12, color: "#6e6e73", fontWeight: 700, marginTop: 3 }}>
                     Interviews, assignments, messages, contracts, and request updates.
                   </div>
                 </div>
 
                 {driverTodoItems.length === 0 ? (
-                  <div style={{ padding: 24, fontSize: 14, color: "#cbd5e1" }}>
+                  <div style={{ padding: 24, fontSize: 14, color: "#6e6e73", fontWeight: 700, textAlign: "center" }}>
                     ✅ Nothing due right now.
                   </div>
                 ) : (
@@ -3509,17 +3533,18 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
                           gap: 12,
                           textAlign: "left",
                           background: "transparent",
-                          color: "white",
+                          color: "#1d1d1f",
                           border: "none",
-                          borderBottom: "1px solid #202938",
+                          borderBottom: "1px solid rgba(0,0,0,0.05)",
                           padding: 14,
                           cursor: "pointer",
+                          fontFamily: appleFont,
                         }}
                       >
                         <span style={{ fontSize: 22, lineHeight: 1 }}>{item.icon}</span>
                         <span>
                           <span style={{ display: "block", fontSize: 13, fontWeight: 900 }}>{item.title}</span>
-                          <span style={{ display: "block", fontSize: 12, opacity: 0.72, marginTop: 3, lineHeight: 1.35 }}>{item.detail}</span>
+                          <span style={{ display: "block", fontSize: 12, color: "#6e6e73", fontWeight: 700, marginTop: 3, lineHeight: 1.35 }}>{item.detail}</span>
                         </span>
                       </button>
                     ))}
@@ -3529,7 +3554,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
             )}
           </div>
 
-          <div style={{ background: isDriverAuthorized ? "#14532d" : "#1f2937", color: isDriverAuthorized ? "#86efac" : "#d1d5db", border: `1px solid ${isDriverAuthorized ? "#22c55e" : "#374151"}`, borderRadius: 999, padding: "8px 12px", fontSize: 12, fontWeight: 900 }}>
+          <div style={{ background: isDriverAuthorized ? "rgba(52,199,89,0.12)" : "rgba(0,0,0,0.05)", color: isDriverAuthorized ? "#147d35" : "#6e6e73", border: `1px solid ${isDriverAuthorized ? "rgba(52,199,89,0.25)" : "rgba(0,0,0,0.08)"}`, borderRadius: 999, padding: "9px 14px", fontSize: 12, fontWeight: 900 }}>
             {isDriverAuthorized ? "✅ Driver Access Authorized" : "🔒 Driver Access Locked"}
           </div>
           {isDriverAuthorized && <button onClick={lockDriverContracts} style={secondaryButtonStyle}>Lock Driver Access</button>}
