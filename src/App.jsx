@@ -138,55 +138,329 @@ import {
   raceEntryTdStyle,
   statBoxStyle,
 } from "./styles/sharedStyles";
+// --- WebAuthn helpers for biometric admin unlock (Face ID / Touch ID / Windows Hello) ---
+// Note: there's no backend here to verify the signature server-side, so this works as a
+// genuine device-level biometric unlock (a real credential tied to this device + origin,
+// verified by the OS) rather than a full server-verified WebAuthn round trip.
+const ADMIN_BIOMETRIC_CREDENTIAL_KEY = "bcl-admin-biometric-credential-id";
+const ADMIN_BIOMETRIC_DECLINED_KEY = "bcl-admin-biometric-declined";
+
+function bufferToBase64(buffer) {
+  return btoa(String.fromCharCode(...new Uint8Array(buffer)));
+}
+
+function base64ToBuffer(base64) {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes.buffer;
+}
+
+async function isBiometricAvailable() {
+  if (typeof window === "undefined" || !window.PublicKeyCredential) return false;
+  try {
+    return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+  } catch {
+    return false;
+  }
+}
+
+async function registerAdminBiometric() {
+  const challenge = crypto.getRandomValues(new Uint8Array(32));
+  const userId = crypto.getRandomValues(new Uint8Array(16));
+
+  const credential = await navigator.credentials.create({
+    publicKey: {
+      challenge,
+      rp: { name: "Budweiser Motorsports Admin" },
+      user: { id: userId, name: "admin", displayName: "League Admin" },
+      pubKeyCredParams: [{ alg: -7, type: "public-key" }, { alg: -257, type: "public-key" }],
+      authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required" },
+      timeout: 60000,
+    },
+  });
+
+  if (!credential) throw new Error("No credential returned.");
+  localStorage.setItem(ADMIN_BIOMETRIC_CREDENTIAL_KEY, bufferToBase64(credential.rawId));
+  return true;
+}
+
+async function verifyAdminBiometric() {
+  const storedId = localStorage.getItem(ADMIN_BIOMETRIC_CREDENTIAL_KEY);
+  if (!storedId) throw new Error("No biometric credential registered on this device.");
+
+  const challenge = crypto.getRandomValues(new Uint8Array(32));
+  const assertion = await navigator.credentials.get({
+    publicKey: {
+      challenge,
+      allowCredentials: [{ id: base64ToBuffer(storedId), type: "public-key" }],
+      userVerification: "required",
+      timeout: 60000,
+    },
+  });
+
+  if (!assertion) throw new Error("Biometric verification failed.");
+  return true;
+}
+
 function AdminLoginPage() {
   const ADMIN_ACCESS_CODE = "BCLADMINPASSWORD2026";
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [hasBiometricCredential, setHasBiometricCredential] = useState(() => (typeof window !== "undefined" ? !!localStorage.getItem(ADMIN_BIOMETRIC_CREDENTIAL_KEY) : false));
+  const [biometricBusy, setBiometricBusy] = useState(false);
+  const [biometricError, setBiometricError] = useState("");
+  const [offerBiometricSetup, setOfferBiometricSetup] = useState(false);
+
+  useEffect(() => {
+    isBiometricAvailable().then(setBiometricAvailable);
+  }, []);
+
+  function completeLogin() {
+    sessionStorage.setItem("bcl-admin-auth", "true");
+    sessionStorage.setItem("bcl-admin-auth-time", new Date().toISOString());
+    localStorage.removeItem("bcl-admin-auth");
+    localStorage.removeItem("bcl-admin-auth-time");
+    window.location.pathname = "/admin";
+  }
 
   const handleLogin = (event) => {
     event.preventDefault();
     if (code.trim() === ADMIN_ACCESS_CODE) {
-      sessionStorage.setItem("bcl-admin-auth", "true");
-      sessionStorage.setItem("bcl-admin-auth-time", new Date().toISOString());
-      localStorage.removeItem("bcl-admin-auth");
-      localStorage.removeItem("bcl-admin-auth-time");
-      window.location.pathname = "/admin";
+      const alreadyDeclined = localStorage.getItem(ADMIN_BIOMETRIC_DECLINED_KEY);
+      if (biometricAvailable && !hasBiometricCredential && !alreadyDeclined) {
+        setOfferBiometricSetup(true);
+        return;
+      }
+      completeLogin();
       return;
     }
     setError("Invalid admin code.");
   };
 
+  async function handleEnableBiometric() {
+    setBiometricBusy(true);
+    setBiometricError("");
+    try {
+      await registerAdminBiometric();
+      setHasBiometricCredential(true);
+      completeLogin();
+    } catch (err) {
+      console.error("Biometric setup failed:", err);
+      setBiometricError("Could not set up Face ID / Touch ID on this device.");
+      setBiometricBusy(false);
+    }
+  }
+
+  function handleSkipBiometric() {
+    localStorage.setItem(ADMIN_BIOMETRIC_DECLINED_KEY, "true");
+    completeLogin();
+  }
+
+  async function handleBiometricUnlock() {
+    setBiometricBusy(true);
+    setBiometricError("");
+    try {
+      await verifyAdminBiometric();
+      completeLogin();
+    } catch (err) {
+      console.error("Biometric unlock failed:", err);
+      setBiometricError("Face ID / Touch ID didn't match. Use your access code instead.");
+      setBiometricBusy(false);
+    }
+  }
+
+  const pageFont = "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif";
+  const appleInputStyle = {
+    width: "100%",
+    padding: "12px 14px",
+    borderRadius: 14,
+    border: "1px solid rgba(0,0,0,0.08)",
+    background: "rgba(255,255,255,0.72)",
+    fontSize: 15,
+    boxSizing: "border-box",
+    fontFamily: pageFont,
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.6)",
+  };
+
   return (
-    <div style={appShellStyle}>
-      <div style={{ ...pageContainerStyle, maxWidth: 760 }}>
-        <div style={{ ...sectionCardStyle, marginTop: 40, background: "linear-gradient(135deg, #17191f 0%, #101216 100%)" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 22 }}>
-            <img src={logo} alt="League Logo" style={{ height: 62 }} />
-            <div>
-              <div style={{ fontSize: 32, fontWeight: 900 }}>Admin Portal Login</div>
-              <div style={{ opacity: 0.72, marginTop: 4 }}>Budweiser Cup League private dashboard</div>
+    <div style={{
+      minHeight: "100vh",
+      background: "radial-gradient(circle at top left, rgba(255,255,255,0.95), rgba(245,245,247,0.94) 36%, rgba(229,229,234,0.98) 100%)",
+      color: "#1d1d1f",
+      fontFamily: pageFont,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: 20,
+    }}>
+      <div style={{
+        maxWidth: 420,
+        width: "100%",
+        borderRadius: 30,
+        padding: "clamp(26px, 5vw, 36px)",
+        background: "linear-gradient(180deg, rgba(255,255,255,0.90), rgba(255,255,255,0.62))",
+        border: "1px solid rgba(255,255,255,0.78)",
+        boxShadow: "0 30px 90px rgba(0,0,0,0.14)",
+        backdropFilter: "blur(22px)",
+        WebkitBackdropFilter: "blur(22px)",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 22 }}>
+          <img src={logo} alt="League Logo" style={{ height: 48, borderRadius: 14 }} />
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(29,29,31,0.55)" }}>
+              Budweiser Motorsports
+            </div>
+            <div style={{ fontSize: 22, fontWeight: 1000, letterSpacing: "-0.02em" }}>Admin Portal Login</div>
+          </div>
+        </div>
+
+        {offerBiometricSetup ? (
+          <div>
+            <div style={{
+              width: 56,
+              height: 56,
+              borderRadius: 18,
+              background: "linear-gradient(135deg, #34c759 0%, #248a3d 100%)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 26,
+              marginBottom: 16,
+              boxShadow: "0 16px 34px rgba(52,199,89,0.28)",
+            }}>
+              🔓
+            </div>
+            <h3 style={{ margin: "0 0 6px", fontSize: 18, fontWeight: 1000 }}>Enable Face ID / Touch ID?</h3>
+            <p style={{ margin: "0 0 18px", fontSize: 13.5, color: "#6e6e73", fontWeight: 700, lineHeight: 1.5 }}>
+              Skip typing the access code next time — unlock the Admin Portal on this device with Face ID, Touch ID, or Windows Hello instead.
+            </p>
+            {biometricError && <div style={{ color: "#c62d24", fontWeight: 800, fontSize: 12.5, marginBottom: 12 }}>{biometricError}</div>}
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <button
+                type="button"
+                onClick={handleEnableBiometric}
+                disabled={biometricBusy}
+                style={{
+                  flex: 1,
+                  border: 0,
+                  borderRadius: 999,
+                  padding: "13px 18px",
+                  background: "linear-gradient(135deg, #34c759 0%, #248a3d 100%)",
+                  color: "#ffffff",
+                  fontWeight: 1000,
+                  fontSize: 14,
+                  cursor: biometricBusy ? "default" : "pointer",
+                  opacity: biometricBusy ? 0.7 : 1,
+                  boxShadow: "0 14px 32px rgba(52,199,89,0.26)",
+                }}
+              >
+                {biometricBusy ? "Setting up..." : "Enable"}
+              </button>
+              <button
+                type="button"
+                onClick={handleSkipBiometric}
+                disabled={biometricBusy}
+                style={{
+                  border: "1px solid rgba(0,0,0,0.10)",
+                  borderRadius: 999,
+                  padding: "13px 18px",
+                  background: "rgba(255,255,255,0.7)",
+                  color: "#1d1d1f",
+                  fontWeight: 900,
+                  fontSize: 14,
+                  cursor: "pointer",
+                }}
+              >
+                Not now
+              </button>
             </div>
           </div>
+        ) : (
+          <>
+            {biometricAvailable && hasBiometricCredential && (
+              <div style={{ marginBottom: 20 }}>
+                <button
+                  type="button"
+                  onClick={handleBiometricUnlock}
+                  disabled={biometricBusy}
+                  style={{
+                    width: "100%",
+                    border: 0,
+                    borderRadius: 999,
+                    padding: "14px 18px",
+                    background: "linear-gradient(135deg, #34c759 0%, #248a3d 100%)",
+                    color: "#ffffff",
+                    fontWeight: 1000,
+                    fontSize: 15,
+                    cursor: biometricBusy ? "default" : "pointer",
+                    opacity: biometricBusy ? 0.7 : 1,
+                    boxShadow: "0 16px 34px rgba(52,199,89,0.28)",
+                  }}
+                >
+                  {biometricBusy ? "Verifying..." : "🔓 Unlock with Face ID / Touch ID"}
+                </button>
+                {biometricError && <div style={{ color: "#c62d24", fontWeight: 800, fontSize: 12.5, marginTop: 10 }}>{biometricError}</div>}
+                <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "18px 0" }}>
+                  <div style={{ flex: 1, height: 1, background: "rgba(0,0,0,0.08)" }} />
+                  <div style={{ fontSize: 11, fontWeight: 900, color: "#86868b", letterSpacing: "0.06em" }}>OR</div>
+                  <div style={{ flex: 1, height: 1, background: "rgba(0,0,0,0.08)" }} />
+                </div>
+              </div>
+            )}
 
-          <form onSubmit={handleLogin}>
-            <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>
-              ADMIN ACCESS CODE
-            </label>
-            <input
-              type="password"
-              value={code}
-              onChange={(event) => { setCode(event.target.value); setError(""); }}
-              placeholder="Enter admin access code"
-              style={inputStyle}
-              autoFocus
-            />
-            {error && <div style={{ color: "#f87171", marginTop: 10, fontWeight: 800 }}>{error}</div>}
-            <div style={{ display: "flex", gap: 10, marginTop: 18, flexWrap: "wrap" }}>
-              <button type="submit" style={primaryButtonStyle}>Unlock Admin Portal</button>
-              <button type="button" onClick={() => (window.location.pathname = "/standings")} style={secondaryButtonStyle}>Back to Standings</button>
-            </div>
-          </form>
-        </div>
+            <form onSubmit={handleLogin}>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 900, color: "#6e6e73", marginBottom: 8, letterSpacing: "0.04em" }}>
+                ADMIN ACCESS CODE
+              </label>
+              <input
+                type="password"
+                value={code}
+                onChange={(event) => { setCode(event.target.value); setError(""); }}
+                placeholder="Enter admin access code"
+                style={appleInputStyle}
+                autoFocus
+              />
+              {error && <div style={{ color: "#c62d24", marginTop: 10, fontWeight: 800, fontSize: 12.5 }}>{error}</div>}
+              <div style={{ display: "flex", gap: 10, marginTop: 18, flexWrap: "wrap" }}>
+                <button
+                  type="submit"
+                  style={{
+                    flex: 1,
+                    border: 0,
+                    borderRadius: 999,
+                    padding: "13px 18px",
+                    background: "linear-gradient(135deg, #007aff 0%, #5856d6 100%)",
+                    color: "#ffffff",
+                    fontWeight: 1000,
+                    fontSize: 14,
+                    cursor: "pointer",
+                    boxShadow: "0 14px 32px rgba(0,122,255,0.26)",
+                  }}
+                >
+                  Unlock Admin Portal
+                </button>
+                <button
+                  type="button"
+                  onClick={() => (window.location.pathname = "/standings")}
+                  style={{
+                    border: "1px solid rgba(0,0,0,0.10)",
+                    borderRadius: 999,
+                    padding: "13px 18px",
+                    background: "rgba(255,255,255,0.7)",
+                    color: "#1d1d1f",
+                    fontWeight: 900,
+                    fontSize: 14,
+                    cursor: "pointer",
+                  }}
+                >
+                  Back to Standings
+                </button>
+              </div>
+            </form>
+          </>
+        )}
       </div>
     </div>
   );
