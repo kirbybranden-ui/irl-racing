@@ -637,6 +637,20 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
   const [showLoginModal, setShowLoginModal] = useState(false);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("login") === "1") {
+      setShowLoginModal(true);
+    }
+  }, []);
+
+  function getPostLoginRedirect() {
+    if (typeof window === "undefined") return null;
+    const params = new URLSearchParams(window.location.search);
+    return params.get("redirect");
+  }
+
+  useEffect(() => {
     if (typeof window === "undefined") return undefined;
     const handleResize = () => setViewportWidth(window.innerWidth);
     handleResize();
@@ -1927,6 +1941,10 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
             onSuccess={(session) => {
               setLeagueSession(session);
               setShowLoginModal(false);
+              const redirectTo = getPostLoginRedirect();
+              if (redirectTo) {
+                window.location.href = redirectTo;
+              }
             }}
           />
         )}
