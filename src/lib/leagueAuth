@@ -52,10 +52,7 @@ export function resolveOwnerTeams(driver, teams = []) {
   return [];
 }
 
-export function loginToLeague({ driverNumber, password, driverAccessCodes, drivers, arcaDrivers, teams }) {
-  const valid = verifyLeaguePassword({ driverNumber, password, driverAccessCodes });
-  if (!valid) return { success: false, error: "Invalid driver number or password." };
-
+function buildSessionForDriver(driverNumber, drivers, arcaDrivers, teams) {
   const driver = findDriverByNumber(driverNumber, drivers, arcaDrivers);
   const ownedTeams = resolveOwnerTeams(driver, teams);
 
@@ -73,6 +70,14 @@ export function loginToLeague({ driverNumber, password, driverAccessCodes, drive
     localStorage.setItem(SESSION_KEY, JSON.stringify(session));
   }
 
+  return session;
+}
+
+export function loginToLeague({ driverNumber, password, driverAccessCodes, drivers, arcaDrivers, teams }) {
+  const valid = verifyLeaguePassword({ driverNumber, password, driverAccessCodes });
+  if (!valid) return { success: false, error: "Invalid driver number or password." };
+
+  const session = buildSessionForDriver(driverNumber, drivers, arcaDrivers, teams);
   return { success: true, session };
 }
 
@@ -89,4 +94,120 @@ export function logoutOfLeague() {
   if (typeof window !== "undefined") {
     localStorage.removeItem(SESSION_KEY);
   }
+}
+
+// --- Biometric login (Face ID / Touch ID / Windows Hello) ---
+// Unlike the single shared admin login, this device may be used by several
+// different drivers (a shared team computer, a family device, etc.), so
+// credentials are tracked per driver number in a small local registry rather
+// than a single credential. As with the admin login, there's no backend here
+// to verify the signature server-side — this is a genuine OS-verified
+// biometric device unlock tied to this browser + origin, not a full
+// server-verified WebAuthn round trip.
+const DRIVER_BIOMETRIC_REGISTRY_KEY = "bcl-driver-biometric-credentials";
+
+function bufferToBase64(buffer) {
+  return btoa(String.fromCharCode(...new Uint8Array(buffer)));
+}
+
+function base64ToBuffer(base64) {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes.buffer;
+}
+
+export async function isBiometricAvailable() {
+  if (typeof window === "undefined" || !window.PublicKeyCredential) return false;
+  try {
+    return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+  } catch {
+    return false;
+  }
+}
+
+function getDriverBiometricRegistry() {
+  if (typeof window === "undefined") return [];
+  try {
+    return JSON.parse(localStorage.getItem(DRIVER_BIOMETRIC_REGISTRY_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function saveDriverBiometricRegistry(registry) {
+  if (typeof window !== "undefined") {
+    localStorage.setItem(DRIVER_BIOMETRIC_REGISTRY_KEY, JSON.stringify(registry));
+  }
+}
+
+export function hasAnyDriverBiometricCredential() {
+  return getDriverBiometricRegistry().length > 0;
+}
+
+export function hasBiometricCredentialForDriver(driverNumber) {
+  const target = String(driverNumber || "").trim();
+  return getDriverBiometricRegistry().some((entry) => entry.driverNumber === target);
+}
+
+export async function registerDriverBiometric(driverNumber, driverName = "") {
+  const challenge = crypto.getRandomValues(new Uint8Array(32));
+  const userId = crypto.getRandomValues(new Uint8Array(16));
+
+  const credential = await navigator.credentials.create({
+    publicKey: {
+      challenge,
+      rp: { name: "Budweiser Motorsports" },
+      user: { id: userId, name: `driver-${driverNumber}`, displayName: driverName || `Driver #${driverNumber}` },
+      pubKeyCredParams: [{ alg: -7, type: "public-key" }, { alg: -257, type: "public-key" }],
+      authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required" },
+      timeout: 60000,
+    },
+  });
+
+  if (!credential) throw new Error("No credential returned.");
+
+  const registry = getDriverBiometricRegistry();
+  registry.push({
+    credentialId: bufferToBase64(credential.rawId),
+    driverNumber: String(driverNumber).trim(),
+  });
+  saveDriverBiometricRegistry(registry);
+  return true;
+}
+
+/**
+ * Prompts Face ID / Touch ID / Windows Hello with every registered driver
+ * credential on this device offered as an option. The OS handles picking
+ * the right one, and the returned credential tells us which driver it was —
+ * no need to ask "who are you" first.
+ */
+export async function loginWithBiometric({ drivers, arcaDrivers, teams }) {
+  const registry = getDriverBiometricRegistry();
+  if (registry.length === 0) throw new Error("No biometric credentials registered on this device.");
+
+  const challenge = crypto.getRandomValues(new Uint8Array(32));
+  const assertion = await navigator.credentials.get({
+    publicKey: {
+      challenge,
+      allowCredentials: registry.map((entry) => ({ id: base64ToBuffer(entry.credentialId), type: "public-key" })),
+      userVerification: "required",
+      timeout: 60000,
+    },
+  });
+
+  if (!assertion) throw new Error("Biometric verification failed.");
+
+  const usedCredentialId = bufferToBase64(assertion.rawId);
+  const matched = registry.find((entry) => entry.credentialId === usedCredentialId);
+  if (!matched) throw new Error("Could not match this credential to a driver.");
+
+  const session = buildSessionForDriver(matched.driverNumber, drivers, arcaDrivers, teams);
+  return session;
+}
+
+export function removeDriverBiometricCredential(driverNumber) {
+  const target = String(driverNumber || "").trim();
+  const registry = getDriverBiometricRegistry().filter((entry) => entry.driverNumber !== target);
+  saveDriverBiometricRegistry(registry);
 }
