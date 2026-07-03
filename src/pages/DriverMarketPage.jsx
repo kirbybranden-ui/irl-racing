@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { getTeamFullName } from "../data/teams";
 import { money } from "../utils/formatters";
+import { getLeagueSession } from "../lib/leagueAuth";
 
 const appleFont = "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif";
 
@@ -74,7 +75,7 @@ function ratingColor(score) {
   return "#c62d24";
 }
 
-const MARKET_TABS = ["Overview", "Scouting", "Recruiting", "Rumor Mill", "Contracts", "History"];
+const MARKET_TABS = ["Overview", "Transfer Portal", "Scouting", "Recruiting", "Rumor Mill", "Contracts", "History"];
 
 const INTEREST_LEVELS = [
   { key: "watching", label: "Watching", score: 24 },
@@ -398,7 +399,7 @@ function TeamBoardRow({ team, index }) {
   );
 }
 
-function DriverMarketCard({ driver, raceStats, paintStats, interestRows, reSignRows }) {
+function DriverMarketCard({ driver, raceStats, paintStats, interestRows, reSignRows, mode = "scouting", session = null, onExpressInterest }) {
   const [open, setOpen] = useState(false);
   const rating = calculateDriverMarketRating(driver, raceStats, paintStats);
   const board = makeInterestBoard(driver, interestRows, reSignRows);
@@ -406,6 +407,10 @@ function DriverMarketCard({ driver, raceStats, paintStats, interestRows, reSignR
   const heat = heatColor(leader?.score || 0);
   const ratingClr = ratingColor(rating);
   const expiring = isExpiringDriver(driver);
+
+  const myTeam = session?.isOwner ? (session.ownedTeams || [])[0] : null;
+  const alreadyAdded = myTeam ? board.some((row) => !row.incumbent && row.team === myTeam) : false;
+  const actionLabel = mode === "recruiting" ? "Show Interest" : "Add to Recruiting Board";
 
   return (
     <div style={{ ...sectionCardStyle, padding: 0, overflow: "hidden" }}>
@@ -453,9 +458,9 @@ function DriverMarketCard({ driver, raceStats, paintStats, interestRows, reSignR
 
         <div style={{ textAlign: "right", flexShrink: 0 }}>
           <span style={{ display: "inline-block", background: heat.soft, color: heat.text, borderRadius: 999, padding: "5px 12px", fontSize: 12, fontWeight: 900 }}>
-            {leader?.incumbent ? "Re-Sign" : leader?.label || "No Interest"}
+            {leader?.label || "No Interest"}
           </span>
-          <div style={{ fontSize: 11, color: "#6e6e73", fontWeight: 700, marginTop: 4 }}>{leader ? getTeamFullName(leader.team) : "—"}</div>
+          <div style={{ fontSize: 11, color: "#6e6e73", fontWeight: 700, marginTop: 4 }}>{leader ? (leader.incumbent ? "Current team" : getTeamFullName(leader.team)) : "—"}</div>
         </div>
 
         <div style={{ color: "#c7c7cc", fontSize: 20, fontWeight: 900, transform: open ? "rotate(90deg)" : "none", transition: "transform 0.2s", flexShrink: 0 }}>›</div>
@@ -463,6 +468,30 @@ function DriverMarketCard({ driver, raceStats, paintStats, interestRows, reSignR
 
       {open && (
         <div style={{ padding: "0 18px 20px" }}>
+          <div style={{ marginBottom: 16 }}>
+            <button
+              type="button"
+              onClick={() => onExpressInterest?.(driver)}
+              disabled={alreadyAdded}
+              style={{
+                border: 0,
+                borderRadius: 999,
+                padding: "11px 18px",
+                background: alreadyAdded ? "rgba(0,0,0,0.06)" : "linear-gradient(135deg, #007aff 0%, #5856d6 100%)",
+                color: alreadyAdded ? "#6e6e73" : "#ffffff",
+                fontWeight: 900,
+                fontFamily: appleFont,
+                cursor: alreadyAdded ? "default" : "pointer",
+                boxShadow: alreadyAdded ? "none" : "0 12px 28px rgba(0,122,255,0.24)",
+              }}
+            >
+              {alreadyAdded ? "✓ Already on Your Board" : `+ ${actionLabel}`}
+            </button>
+            {!session?.isOwner && (
+              <div style={{ fontSize: 12, color: "#6e6e73", fontWeight: 700, marginTop: 8 }}>Sign in as a team owner to {mode === "recruiting" ? "show interest" : "add drivers to your recruiting board"}.</div>
+            )}
+          </div>
+
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))", gap: 10, marginBottom: 18 }}>
             <StatBox label="Overall" value={`${rating} ${starsFromRating(rating)}`} />
             <StatBox label="Points" value={driver.points || 0} />
@@ -596,10 +625,87 @@ export default function DriverMarketPage({
   paintSchemePayouts = [],
   interestRows = [],
   reSignRows = [],
+  supabase = null,
 }) {
   const [activeTab, setActiveTab] = useState("Overview");
   const [filter, setFilter] = useState("");
   const [showAll, setShowAll] = useState(true);
+  const [session] = useState(() => getLeagueSession());
+  const [localInterestRows, setLocalInterestRows] = useState(interestRows);
+  const [portalEntries, setPortalEntries] = useState([]);
+  const [portalDeadline, setPortalDeadline] = useState(null);
+  const [deadlineInput, setDeadlineInput] = useState("");
+  const isAdmin = typeof window !== "undefined" && sessionStorage.getItem("bcl-admin-auth") === "true";
+
+  React.useEffect(() => {
+    if (!supabase) return;
+    async function loadPortalData() {
+      const { data: entries } = await supabase
+        .from("driver_portal_entries")
+        .select("*")
+        .eq("status", "open")
+        .order("entered_at", { ascending: false });
+      setPortalEntries(entries || []);
+
+      const { data: settings } = await supabase
+        .from("transfer_portal_settings")
+        .select("*")
+        .eq("id", 1)
+        .maybeSingle();
+      if (settings?.signing_deadline) {
+        setPortalDeadline(settings.signing_deadline);
+        setDeadlineInput(new Date(settings.signing_deadline).toISOString().slice(0, 16));
+      }
+    }
+    loadPortalData();
+    const interval = setInterval(loadPortalData, 30000);
+    return () => clearInterval(interval);
+  }, [supabase]);
+
+  async function savePortalDeadline() {
+    if (!supabase || !deadlineInput) return;
+    const iso = new Date(deadlineInput).toISOString();
+    const { error } = await supabase
+      .from("transfer_portal_settings")
+      .update({ signing_deadline: iso, updated_at: new Date().toISOString() })
+      .eq("id", 1);
+    if (error) {
+      console.error("Could not save signing deadline:", error);
+      alert("Failed to save the signing deadline.");
+      return;
+    }
+    setPortalDeadline(iso);
+  }
+
+  async function handleExpressInterest(driver) {
+    if (!session?.isOwner) {
+      const redirect = typeof window !== "undefined" ? window.location.pathname : "/driver-market";
+      window.location.href = `/standings?login=1&redirect=${encodeURIComponent(redirect)}`;
+      return;
+    }
+
+    const myTeam = (session.ownedTeams || [])[0];
+    if (!myTeam || !supabase) return;
+
+    const newRow = {
+      driver_number: String(driver.number),
+      driver_name: driver.name,
+      interested_team: myTeam,
+      owner_name: session.driverName,
+      interest_level: "interested",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error } = await supabase.from("driver_recruiting_interest").insert(newRow);
+    if (error) {
+      console.error("Could not save recruiting interest:", error);
+      alert("Failed to add driver to your recruiting board.");
+      return;
+    }
+
+    setLocalInterestRows((current) => [...current, newRow]);
+  }
 
   const raceStats = useMemo(() => makeRaceStats(raceHistory, drivers, startParkRequests), [raceHistory, drivers, startParkRequests]);
   const paintStats = useMemo(() => makePaintStats(paintSchemePayouts, drivers), [paintSchemePayouts, drivers]);
@@ -703,6 +809,89 @@ export default function DriverMarketPage({
           </div>
         )}
 
+        {activeTab === "Transfer Portal" && (
+          <div style={{ display: "grid", gap: 16 }}>
+            <div style={{ ...sectionCardStyle, background: "linear-gradient(135deg, rgba(88,86,214,0.08), rgba(255,255,255,0.85))" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", alignItems: "center" }}>
+                <div>
+                  <div style={{ color: "#5856d6", fontSize: 12, fontWeight: 950, letterSpacing: "0.06em" }}>SIGNING DEADLINE</div>
+                  <div style={{ fontSize: 22, fontWeight: 950, color: "#1d1d1f", marginTop: 4 }}>
+                    {portalDeadline ? new Date(portalDeadline).toLocaleString(undefined, { dateStyle: "long", timeStyle: "short" }) : "Not set yet"}
+                  </div>
+                  <div style={{ fontSize: 12.5, color: "#6e6e73", fontWeight: 700, marginTop: 4 }}>
+                    Any driver still in the portal after this date automatically stays with their current team.
+                  </div>
+                </div>
+                {isAdmin && (
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                    <input type="datetime-local" value={deadlineInput} onChange={(e) => setDeadlineInput(e.target.value)} style={{ ...inputStyle, width: "auto" }} />
+                    <button type="button" onClick={savePortalDeadline} style={primaryButtonStyle}>Save Deadline</button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div style={sectionCardStyle}>
+              <h2 style={{ marginTop: 0, fontSize: 18, fontWeight: 950 }}>Coming Due</h2>
+              <p style={{ marginTop: 0, color: "#6e6e73", fontSize: 13, fontWeight: 700 }}>Drivers whose contracts are expiring and eligible to enter the portal.</p>
+              {marketDrivers.filter(isExpiringDriver).length === 0 ? (
+                <div style={{ color: "#6e6e73", fontWeight: 700 }}>No drivers currently coming due.</div>
+              ) : (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 10 }}>
+                  {marketDrivers.filter(isExpiringDriver).map((driver) => (
+                    <div key={`due-${driver.number}`} style={{ background: "rgba(255,149,0,0.08)", border: "1px solid rgba(255,149,0,0.25)", borderRadius: 16, padding: 12 }}>
+                      <div style={{ fontWeight: 950, color: "#1d1d1f", fontSize: 15 }}>#{driver.number} {driver.name}</div>
+                      <div style={{ fontSize: 12, color: "#9a5a00", fontWeight: 800, marginTop: 2 }}>{getTeamFullName(driver.team)} • Contract Expiring</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div style={sectionCardStyle}>
+              <h2 style={{ marginTop: 0, fontSize: 18, fontWeight: 950 }}>In the Portal</h2>
+              <p style={{ marginTop: 0, color: "#6e6e73", fontSize: 13, fontWeight: 700 }}>Drivers actively testing the market. Owners can add these drivers to their recruiting board, or sign them directly from Team HQ.</p>
+              {portalEntries.length === 0 ? (
+                <div style={{ color: "#6e6e73", fontWeight: 700 }}>No drivers are currently in the Transfer Portal.</div>
+              ) : (
+                <div style={{ display: "grid", gap: 12 }}>
+                  {portalEntries.map((entry) => {
+                    const interestCount = localInterestRows.filter((row) => String(row.driver_number) === String(entry.driver_number)).length;
+                    const driverRecord = marketDrivers.find((d) => String(d.number) === String(entry.driver_number));
+                    return (
+                      <div key={entry.id} style={{ background: "rgba(0,0,0,0.03)", border: "1px solid rgba(0,0,0,0.06)", borderRadius: 18, padding: 16 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                          <div>
+                            <div style={{ fontSize: 17, fontWeight: 950, color: "#1d1d1f" }}>#{entry.driver_number} {entry.driver_name}</div>
+                            <div style={{ fontSize: 12.5, color: "#6e6e73", fontWeight: 700, marginTop: 2 }}>Currently: {getTeamFullName(entry.current_team)} • Entered {new Date(entry.entered_at).toLocaleDateString()}</div>
+                          </div>
+                          <span style={{ background: "rgba(0,122,255,0.10)", color: "#0057d9", borderRadius: 999, padding: "5px 12px", fontSize: 12, fontWeight: 900, height: "fit-content" }}>
+                            {interestCount} team{interestCount === 1 ? "" : "s"} interested
+                          </span>
+                        </div>
+                        {entry.wishlist && (
+                          <div style={{ marginTop: 10, background: "rgba(0,0,0,0.03)", border: "1px solid rgba(0,0,0,0.05)", borderRadius: 12, padding: 12, fontSize: 13, color: "#3a3a3c", fontWeight: 600, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>
+                            {entry.wishlist}
+                          </div>
+                        )}
+                        {driverRecord && (
+                          <button
+                            type="button"
+                            onClick={() => handleExpressInterest(driverRecord)}
+                            style={{ ...primaryButtonStyle, marginTop: 12 }}
+                          >
+                            + Add to Recruiting Board
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {activeTab === "Scouting" && (
           <div style={{ display: "grid", gap: 16 }}>
             {marketDrivers.map((driver) => {
@@ -713,8 +902,11 @@ export default function DriverMarketPage({
                   driver={driver}
                   raceStats={raceStats.get(number)}
                   paintStats={paintStats.get(number)}
-                  interestRows={interestRows}
+                  interestRows={localInterestRows}
                   reSignRows={reSignRows}
+                  mode="scouting"
+                  session={session}
+                  onExpressInterest={handleExpressInterest}
                 />
               );
             })}
@@ -731,8 +923,11 @@ export default function DriverMarketPage({
                   driver={driver}
                   raceStats={raceStats.get(number)}
                   paintStats={paintStats.get(number)}
-                  interestRows={interestRows}
+                  interestRows={localInterestRows}
                   reSignRows={reSignRows}
+                  mode="recruiting"
+                  session={session}
+                  onExpressInterest={handleExpressInterest}
                 />
               );
             })}
@@ -740,7 +935,7 @@ export default function DriverMarketPage({
         )}
 
         {activeTab === "Rumor Mill" && (
-          <RumorMill marketDrivers={marketDrivers} interestRows={interestRows} reSignRows={reSignRows} raceStats={raceStats} paintStats={paintStats} />
+          <RumorMill marketDrivers={marketDrivers} interestRows={localInterestRows} reSignRows={reSignRows} raceStats={raceStats} paintStats={paintStats} />
         )}
 
         {activeTab === "Contracts" && (
