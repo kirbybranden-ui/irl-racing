@@ -754,6 +754,193 @@ function AppealModal({ isOpen, onClose, selectedSeason, driverNumber, arcaDriver
   );
 }
 
+function DriverTransferPortalPanel({ driver, driverNumber, teamTheme, standingsRoute }) {
+  const [entry, setEntry] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [wishlist, setWishlist] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [message, setMessage] = useState("");
+  const [interestCount, setInterestCount] = useState(0);
+
+  async function loadPortalStatus() {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("driver_portal_entries")
+      .select("*")
+      .eq("driver_number", String(driverNumber))
+      .eq("status", "open")
+      .order("entered_at", { ascending: false })
+      .limit(1);
+
+    if (!error && data && data.length > 0) {
+      setEntry(data[0]);
+      setWishlist(data[0].wishlist || "");
+    } else {
+      setEntry(null);
+    }
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    loadPortalStatus();
+  }, [driverNumber]);
+
+  useEffect(() => {
+    if (!entry) {
+      setInterestCount(0);
+      return;
+    }
+    async function loadInterest() {
+      const { data } = await supabase
+        .from("driver_recruiting_interest")
+        .select("id")
+        .eq("driver_number", String(driverNumber));
+      setInterestCount((data || []).length);
+    }
+    loadInterest();
+  }, [entry, driverNumber]);
+
+  async function handleEnterPortal(e) {
+    e.preventDefault();
+    setSubmitting(true);
+    setMessage("");
+
+    const { data, error } = await supabase
+      .from("driver_portal_entries")
+      .insert({
+        driver_number: String(driverNumber),
+        driver_name: driver.name,
+        current_team: driver.team || "Independent",
+        wishlist: wishlist.trim() || null,
+        status: "open",
+        entered_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
+
+    setSubmitting(false);
+    if (error) {
+      console.error("Could not enter transfer portal:", error);
+      setMessage("Something went wrong — please try again.");
+      return;
+    }
+    setEntry(data);
+    setMessage("You're in the Transfer Portal. Other teams can now see your profile and wish list.");
+  }
+
+  async function handleWithdraw() {
+    if (!entry) return;
+    if (!window.confirm("Withdraw from the Transfer Portal and stay with your current team?")) return;
+
+    setSubmitting(true);
+    const { error } = await supabase
+      .from("driver_portal_entries")
+      .update({ status: "withdrawn", updated_at: new Date().toISOString() })
+      .eq("id", entry.id);
+
+    setSubmitting(false);
+    if (error) {
+      console.error("Could not withdraw from transfer portal:", error);
+      setMessage("Could not withdraw — please try again.");
+      return;
+    }
+    setEntry(null);
+    setMessage("You've withdrawn from the Transfer Portal and remain with your current team.");
+  }
+
+  async function handleUpdateWishlist(e) {
+    e.preventDefault();
+    if (!entry) return;
+    setSubmitting(true);
+    const { error } = await supabase
+      .from("driver_portal_entries")
+      .update({ wishlist: wishlist.trim() || null, updated_at: new Date().toISOString() })
+      .eq("id", entry.id);
+    setSubmitting(false);
+    if (!error) setMessage("Wish list updated.");
+  }
+
+  return (
+    <div style={{ ...appShellStyle, background: `radial-gradient(circle at top, ${teamTheme.glow} 0%, rgba(245,245,247,0.95) 34%, rgba(229,229,234,0.98) 100%)` }}>
+      <div style={pageContainerStyle}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20, flexWrap: "wrap" }}>
+          <button onClick={() => window.location.pathname = `/driver/${driverNumber}`} style={secondaryButtonStyle}>← Back to Profile</button>
+          <div>
+            <div style={{ fontSize: 22, fontWeight: 900 }}>#{driver.number} {driver.name} — Transfer Portal</div>
+            <div style={{ fontSize: 13, color: "#6e6e73", fontWeight: 700, marginTop: 2 }}>
+              Enter the portal to test the market. You stay with {getTeamFullName ? getTeamFullName(driver.team) : driver.team} unless a team signs you before the deadline.
+            </div>
+          </div>
+        </div>
+
+        {loading ? (
+          <div style={sectionCardStyle}>Loading...</div>
+        ) : entry ? (
+          <div style={sectionCardStyle}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 12, background: "rgba(52,199,89,0.14)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17 }}>🔄</div>
+              <div>
+                <h2 style={{ margin: 0, fontSize: 19, fontWeight: 950 }}>You're in the Transfer Portal</h2>
+                <div style={{ fontSize: 12.5, color: "#6e6e73", fontWeight: 700, marginTop: 2 }}>
+                  Entered {new Date(entry.entered_at).toLocaleDateString()} • {interestCount} team{interestCount === 1 ? "" : "s"} watching
+                </div>
+              </div>
+            </div>
+
+            <div style={{ background: "rgba(52,199,89,0.08)", border: "1px solid rgba(52,199,89,0.25)", borderRadius: 16, padding: 14, marginBottom: 16, color: "#147d35", fontWeight: 700, fontSize: 13.5 }}>
+              If no team signs you before the league signing deadline, you automatically stay with {driver.team || "your current team"} — no action needed.
+            </div>
+
+            {message && <div style={{ background: "rgba(0,122,255,0.08)", border: "1px solid rgba(0,122,255,0.22)", borderRadius: 14, padding: 12, marginBottom: 16, color: "#0057d9", fontWeight: 700, fontSize: 13.5 }}>{message}</div>}
+
+            <form onSubmit={handleUpdateWishlist}>
+              <label style={{ display: "block", marginBottom: 8, fontWeight: 900, fontSize: 13 }}>Your Wish List</label>
+              <textarea
+                value={wishlist}
+                onChange={(e) => setWishlist(e.target.value)}
+                placeholder="What are you looking for? Preferred teams, manufacturer, role, anything you want interested owners to see."
+                style={{ ...inputStyle, minHeight: 100, resize: "vertical" }}
+              />
+              <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
+                <button type="submit" disabled={submitting} style={primaryButtonStyle}>Save Wish List</button>
+                <button type="button" onClick={handleWithdraw} disabled={submitting} style={dangerButtonStyle}>Withdraw from Portal</button>
+              </div>
+            </form>
+          </div>
+        ) : (
+          <div style={sectionCardStyle}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 12, background: `${teamTheme.accent}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17 }}>🔄</div>
+              <div>
+                <h2 style={{ margin: 0, fontSize: 19, fontWeight: 950 }}>Enter the Transfer Portal</h2>
+                <div style={{ fontSize: 12.5, color: "#6e6e73", fontWeight: 700, marginTop: 2 }}>
+                  Test the market without leaving your current team. Other owners can see you're available and reach out.
+                </div>
+              </div>
+            </div>
+
+            {message && <div style={{ background: "rgba(0,122,255,0.08)", border: "1px solid rgba(0,122,255,0.22)", borderRadius: 14, padding: 12, marginBottom: 16, color: "#0057d9", fontWeight: 700, fontSize: 13.5 }}>{message}</div>}
+
+            <form onSubmit={handleEnterPortal}>
+              <label style={{ display: "block", marginBottom: 8, fontWeight: 900, fontSize: 13 }}>Wish List (optional)</label>
+              <textarea
+                value={wishlist}
+                onChange={(e) => setWishlist(e.target.value)}
+                placeholder="What are you looking for? Preferred teams, manufacturer, role, anything you want interested owners to see."
+                style={{ ...inputStyle, minHeight: 100, resize: "vertical", marginBottom: 14 }}
+              />
+              <button type="submit" disabled={submitting} style={primaryButtonStyle}>
+                {submitting ? "Entering..." : "🔄 Enter the Transfer Portal"}
+              </button>
+            </form>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function DriverProfilePage({ seasons, activeSeason, tracks = [], ownerDriverAssignments = [], loadOwnerDriverAssignments, arcaDrivers = [], arcaTracks = [] }) {
   const pathParts = window.location.pathname.split("/");
   
@@ -2529,7 +2716,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
     ["future_confidence", "Future Confidence", "Do you believe this team can win?"],
   ];
 
-  const protectedDriverPages = ["contracts", "upload", "interviews", "appeals", "feedback", "assignments", "messages", "team-interest", "start-park", "settings", "development"];
+  const protectedDriverPages = ["contracts", "upload", "interviews", "appeals", "feedback", "assignments", "messages", "team-interest", "start-park", "settings", "development", "portal"];
 
   if (protectedDriverPages.includes(subPage) && !isDriverAuthorized) {
     return (
@@ -2696,6 +2883,10 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
     );
   }
 
+
+  if (subPage === "portal") {
+    return <DriverTransferPortalPanel driver={driver} driverNumber={driverNumber} teamTheme={teamTheme} standingsRoute={standingsRoute} />;
+  }
 
   if (subPage === "development") {
     return (
@@ -3665,6 +3856,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
                     { icon: "😊", label: "Driver Feedback", href: `/driver/${driverNumber}/feedback` },
                     { icon: "🤝", label: "Team Interest", href: `/driver/${driverNumber}/team-interest` },
                     { icon: "🏁", label: "Start & Park", href: `/driver/${driverNumber}/start-park` },
+                    { icon: "🔄", label: "Transfer Portal", href: `/driver/${driverNumber}/portal` },
                     { icon: "⚙️", label: "Settings", href: `/driver/${driverNumber}/settings` },
                   ].map((item) => (
                     <button
