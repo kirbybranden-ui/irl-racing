@@ -671,7 +671,7 @@ function AppealModal({ isOpen, onClose, selectedSeason, driverNumber, arcaDriver
           <label style={{ display: "block", marginBottom: 6, fontWeight: 700 }}>Requester Driver *</label>
           <select style={inputStyle} value={requester} onChange={(e) => setRequester(e.target.value)}>
             <option value="">-- Select Driver --</option>
-            {allDrivers.map((d) => <option key={d.id} value={`${d.number} - ${d.name}`}>#{d.number} {d.name}</option>)}
+            {(allDrivers || []).map((d) => <option key={d.id} value={`${d.number} - ${d.name}`}>#{d.number} {d.name}</option>)}
           </select>
         </div>
 
@@ -3269,7 +3269,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
           )}
         </div>
 
-        <AppealModal isOpen={isAppealModalOpen} onClose={() => setIsAppealModalOpen(false)} selectedSeason={selectedSeason} driverNumber={driverNumber} arcaDrivers={arcaDrivers} drivers={sanitizedDrivers} />
+        <AppealModal isOpen={isAppealModalOpen} onClose={() => setIsAppealModalOpen(false)} selectedSeason={selectedSeason} driverNumber={driverNumber} arcaDrivers={arcaDrivers} allDrivers={sanitizedDrivers} />
         {/* <ReportIssueModal
           isOpen={isReportingIssue}
           onClose={() => setIsReportingIssue(false)}
@@ -4421,7 +4421,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
         )}
       </div>
 
-      <AppealModal isOpen={isAppealModalOpen} onClose={() => setIsAppealModalOpen(false)} selectedSeason={selectedSeason} driverNumber={driverNumber} arcaDrivers={arcaDrivers} drivers={sanitizedDrivers} />
+      <AppealModal isOpen={isAppealModalOpen} onClose={() => setIsAppealModalOpen(false)} selectedSeason={selectedSeason} driverNumber={driverNumber} arcaDrivers={arcaDrivers} allDrivers={sanitizedDrivers} />
     </div>
   );
 }
