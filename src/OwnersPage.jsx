@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { getLeagueSession } from "./lib/leagueAuth";
 import logo from "./assets/logo1.png";
 import teamLogoB2J from "./assets/teams/B2J.png";
 import teamLogoMER from "./assets/teams/ME.png";
@@ -698,6 +699,17 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
   const safeSelectedTeam = availableTeams.includes(selectedTeam) ? selectedTeam : availableTeams[0] || selectedTeam;
   const selected = useMemo(() => buildTeamFinancialRow(safeSelectedTeam, drivers, teams, raceHistory, technicalAlliances, independentDriverPayments), [safeSelectedTeam, drivers, teams, raceHistory, technicalAlliances, independentDriverPayments]);
   const isAuthorized = authorizedTeam === safeSelectedTeam;
+
+  useEffect(() => {
+    if (isAuthorized || !safeSelectedTeam) return;
+    const leagueSession = getLeagueSession();
+    if (!leagueSession?.isOwner) return;
+    const owned = (leagueSession.ownedTeams || []).map((t) => String(t).trim().toLowerCase());
+    if (owned.includes(String(safeSelectedTeam).trim().toLowerCase())) {
+      localStorage.setItem("ownerPortalAuthorizedTeam", safeSelectedTeam);
+      setAuthorizedTeam(safeSelectedTeam);
+    }
+  }, [safeSelectedTeam, isAuthorized]);
 
 
   const availableDriversForOffers = useMemo(() => {
