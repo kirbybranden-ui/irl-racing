@@ -873,6 +873,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
     request_note: "",
   });
   const [showDriverTodo, setShowDriverTodo] = useState(false);
+  const [showDriverMenu, setShowDriverMenu] = useState(false);
 
   const driverAccessKey = driver ? String(driver.number) : String(driverNumber);
   const isDriverAuthorized = authorizedDriverNumber === driverAccessKey;
@@ -2502,7 +2503,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
     ["future_confidence", "Future Confidence", "Do you believe this team can win?"],
   ];
 
-  const protectedDriverPages = ["contracts", "upload", "interviews", "appeals", "feedback", "assignments", "messages", "team-interest", "start-park"];
+  const protectedDriverPages = ["contracts", "upload", "interviews", "appeals", "feedback", "assignments", "messages", "team-interest", "start-park", "settings"];
 
   if (protectedDriverPages.includes(subPage) && !isDriverAuthorized) {
     return (
@@ -2722,6 +2723,37 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
               </table>
             </div>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (subPage === "settings") {
+    return (
+      <div style={{ ...appShellStyle, background: `radial-gradient(circle at top, ${teamTheme.glow} 0%, rgba(245,245,247,0.95) 34%, rgba(229,229,234,0.98) 100%)` }}>
+        <div style={pageContainerStyle}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20, flexWrap: "wrap" }}>
+            <button onClick={() => window.location.pathname = `/driver/${driverNumber}`} style={secondaryButtonStyle}>← Back to Profile</button>
+            <div>
+              <div style={{ fontSize: 22, fontWeight: 900 }}>#{driver.number} {driver.name} — Settings</div>
+              <div style={{ fontSize: 13, color: "#6e6e73", fontWeight: 700, marginTop: 2 }}>Manage your account access and password.</div>
+            </div>
+          </div>
+
+          <div style={sectionCardStyle}>
+            <h2 style={{ marginTop: 0, marginBottom: 14 }}>⚙️ Account</h2>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", marginBottom: 6 }}>
+              <div style={{ background: isDriverAuthorized ? "rgba(52,199,89,0.12)" : "rgba(0,0,0,0.05)", color: isDriverAuthorized ? "#147d35" : "#6e6e73", border: `1px solid ${isDriverAuthorized ? "rgba(52,199,89,0.25)" : "rgba(0,0,0,0.08)"}`, borderRadius: 999, padding: "9px 14px", fontSize: 12, fontWeight: 900 }}>
+                {isDriverAuthorized ? "✅ Driver Access Authorized" : "🔒 Driver Access Locked"}
+              </div>
+              {isDriverAuthorized && <button onClick={lockDriverContracts} style={secondaryButtonStyle}>Lock Driver Access</button>}
+            </div>
+            <div style={{ fontSize: 13, color: "#6e6e73", fontWeight: 700, marginTop: 10 }}>
+              #{driver.number} · {getTeamFullName(driver.team)} · {driver.manufacturer || "—"}
+            </div>
+          </div>
+
+          {passwordManagerCard}
         </div>
       </div>
     );
@@ -3428,20 +3460,93 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
 
         <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 20, marginTop: 18, alignItems: "center" }}>
           <button onClick={() => openProtectedDriverSection(`/driver/${driverNumber}/contracts`)} style={themedPrimaryButtonStyle}>📄 Contracts</button>
-          <button onClick={() => openProtectedDriverSection(`/driver/${driverNumber}/upload`)} style={secondaryButtonStyle}>📷 Uploads</button>
-          <button onClick={() => openProtectedDriverSection(`/driver/${driverNumber}/interviews`)} style={secondaryButtonStyle}>🎙️ Interviews</button>
-          <button onClick={() => openProtectedDriverSection(`/driver/${driverNumber}/appeals`)} style={secondaryButtonStyle}>
-            📋 Appeals
-            {myAppeals.length > 0 && <span style={{ marginLeft: 8, background: myAppeals.some((a) => a.status !== "Open") ? "#34c759" : "#007aff", color: "white", borderRadius: 99, padding: "2px 8px", fontSize: 11, fontWeight: 800 }}>{myAppeals.length}</span>}
-          </button>
-          <button onClick={() => openProtectedDriverSection(`/driver/${driverNumber}/assignments`)} style={secondaryButtonStyle}>🎯 Assignments</button>
-          <button onClick={() => openProtectedDriverSection(`/driver/${driverNumber}/feedback`)} style={secondaryButtonStyle}>😊 Driver Feedback</button>
           <button onClick={() => openProtectedDriverSection(`/driver/${driverNumber}/messages`)} style={unreadMessages > 0 ? themedPrimaryButtonStyle : secondaryButtonStyle}>📩 Messages{unreadMessages > 0 ? ` (${unreadMessages})` : ""}</button>
-          <button onClick={() => openProtectedDriverSection(`/driver/${driverNumber}/team-interest`)} style={secondaryButtonStyle}>🤝 Team Interest</button>
-          <button onClick={() => openProtectedDriverSection(`/driver/${driverNumber}/start-park`)} style={secondaryButtonStyle}>🏁 Start & Park</button>
           {authorizedDriverNumber && String(authorizedDriverNumber) !== String(driver.number) && (
             <button onClick={startMessageFromProfile} style={themedPrimaryButtonStyle}>✉️ Message Driver</button>
           )}
+
+          <div style={{ position: "relative" }}>
+            <button
+              type="button"
+              onClick={() => setShowDriverMenu((current) => !current)}
+              style={{
+                ...secondaryButtonStyle,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              <span style={{ fontSize: 16 }}>☰</span>
+              <span>Menu</span>
+              {myAppeals.length > 0 && (
+                <span style={{ background: myAppeals.some((a) => a.status !== "Open") ? "#34c759" : "#007aff", color: "white", borderRadius: 99, padding: "2px 8px", fontSize: 11, fontWeight: 800 }}>{myAppeals.length}</span>
+              )}
+            </button>
+
+            {showDriverMenu && (
+              <div
+                style={{
+                  position: "absolute",
+                  left: 0,
+                  top: "calc(100% + 12px)",
+                  width: 280,
+                  maxWidth: "calc(100vw - 40px)",
+                  background: "linear-gradient(180deg, rgba(255,255,255,0.97), rgba(248,250,252,0.95))",
+                  border: "1px solid rgba(255,255,255,0.8)",
+                  borderRadius: 22,
+                  boxShadow: "0 30px 80px rgba(0,0,0,0.20)",
+                  backdropFilter: "blur(20px)",
+                  WebkitBackdropFilter: "blur(20px)",
+                  zIndex: 9999,
+                  overflow: "hidden",
+                  padding: 8,
+                }}
+              >
+                {[
+                  { icon: "📄", label: "Contracts", href: `/driver/${driverNumber}/contracts` },
+                  { icon: "📷", label: "Uploads", href: `/driver/${driverNumber}/upload` },
+                  { icon: "🎙️", label: "Interviews", href: `/driver/${driverNumber}/interviews` },
+                  { icon: "📋", label: "Appeals", href: `/driver/${driverNumber}/appeals`, badge: myAppeals.length > 0 ? myAppeals.length : null, badgeColor: myAppeals.some((a) => a.status !== "Open") ? "#34c759" : "#007aff" },
+                  { icon: "🎯", label: "Assignments", href: `/driver/${driverNumber}/assignments` },
+                  { icon: "😊", label: "Driver Feedback", href: `/driver/${driverNumber}/feedback` },
+                  { icon: "🤝", label: "Team Interest", href: `/driver/${driverNumber}/team-interest` },
+                  { icon: "🏁", label: "Start & Park", href: `/driver/${driverNumber}/start-park` },
+                  { icon: "⚙️", label: "Settings", href: `/driver/${driverNumber}/settings` },
+                ].map((item) => (
+                  <button
+                    key={item.label}
+                    type="button"
+                    onClick={() => {
+                      setShowDriverMenu(false);
+                      openProtectedDriverSection(item.href);
+                    }}
+                    style={{
+                      width: "100%",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                      textAlign: "left",
+                      background: "transparent",
+                      color: "#1d1d1f",
+                      border: "none",
+                      borderRadius: 14,
+                      padding: "11px 12px",
+                      cursor: "pointer",
+                      fontFamily: appleFont,
+                      fontSize: 14,
+                      fontWeight: 800,
+                    }}
+                  >
+                    <span style={{ fontSize: 18, width: 22, textAlign: "center" }}>{item.icon}</span>
+                    <span style={{ flex: 1 }}>{item.label}</span>
+                    {item.badge && (
+                      <span style={{ background: item.badgeColor, color: "white", borderRadius: 99, padding: "2px 8px", fontSize: 11, fontWeight: 800 }}>{item.badge}</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
           <div style={{ position: "relative", marginLeft: "auto" }}>
             <button
