@@ -97,11 +97,11 @@ function clampScore(value, min = 0, max = 100) {
 }
 
 function getSatisfactionStatus(score) {
-  if (score >= 90) return { label: "Fully Bought In", color: "#22c55e", bg: "#102a16" };
-  if (score >= 75) return { label: "Happy", color: "#4ade80", bg: "#102a16" };
-  if (score >= 60) return { label: "Stable", color: "#d4af37", bg: "#2a240f" };
-  if (score >= 40) return { label: "Frustrated", color: "#f97316", bg: "#311707" };
-  return { label: "At Risk", color: "#ef4444", bg: "#2a1111" };
+  if (score >= 90) return { label: "Fully Bought In", color: "#147d35", bg: "rgba(52,199,89,0.10)" };
+  if (score >= 75) return { label: "Happy", color: "#248a3d", bg: "rgba(52,199,89,0.08)" };
+  if (score >= 60) return { label: "Stable", color: "#9a5a00", bg: "rgba(255,149,0,0.10)" };
+  if (score >= 40) return { label: "Frustrated", color: "#c2410c", bg: "rgba(255,149,0,0.12)" };
+  return { label: "At Risk", color: "#c62d24", bg: "rgba(255,59,48,0.10)" };
 }
 
 
@@ -148,9 +148,9 @@ function getDevelopmentStatusLabel(value) {
 
 function developmentBadgeStyle(value) {
   const status = String(value || "pending").toLowerCase();
-  if (status === "approved" || status === "completed") return { background: "rgba(34,197,94,0.16)", color: "#86efac", borderColor: "rgba(34,197,94,0.4)" };
-  if (status === "denied" || status === "cancelled") return { background: "rgba(239,68,68,0.16)", color: "#fca5a5", borderColor: "rgba(239,68,68,0.4)" };
-  return { background: "rgba(234,179,8,0.16)", color: "#fde68a", borderColor: "rgba(234,179,8,0.4)" };
+  if (status === "approved" || status === "completed") return { background: "rgba(52,199,89,0.12)", color: "#147d35", borderColor: "rgba(52,199,89,0.30)" };
+  if (status === "denied" || status === "cancelled") return { background: "rgba(255,59,48,0.10)", color: "#c62d24", borderColor: "rgba(255,59,48,0.28)" };
+  return { background: "rgba(255,149,0,0.12)", color: "#9a5a00", borderColor: "rgba(255,149,0,0.30)" };
 }
 
 
@@ -1182,17 +1182,17 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
   }, [selectedSeason, driver]);
 
   const championshipPicture = useMemo(() => {
-    if (!selectedSeason || !driver) return { rank: 0, pointsBehindLeader: 0, status: "No Data", color: teamTheme.accent, bg: teamTheme.dark };
+    if (!selectedSeason || !driver) return { rank: 0, pointsBehindLeader: 0, status: "No Data", color: teamTheme.accent, bg: `${teamTheme.accent}14` };
     const sorted = [...sanitizedDrivers].sort((a, b) => Number(b.points || 0) - Number(a.points || 0));
     const leader = sorted[0];
     const rank = sorted.findIndex((d) => d.id === driver.id) + 1;
     const totalDrivers = sorted.length || 1;
     const pointsBehindLeader = leader ? Math.max(0, Number(leader.points || 0) - Number(driver.points || 0)) : 0;
 
-    if (rank === 1) return { rank, pointsBehindLeader, status: "Points Leader", color: "#22c55e", bg: "#102a16" };
-    if (rank <= Math.ceil(totalDrivers * 0.25)) return { rank, pointsBehindLeader, status: "Championship Contender", color: teamTheme.accent, bg: teamTheme.dark };
-    if (rank <= Math.ceil(totalDrivers * 0.5)) return { rank, pointsBehindLeader, status: "In the Hunt", color: "#d4af37", bg: "#2a240f" };
-    return { rank, pointsBehindLeader, status: "Needs a Points Run", color: "#ef4444", bg: "#2a1111" };
+    if (rank === 1) return { rank, pointsBehindLeader, status: "Points Leader", color: "#147d35", bg: "rgba(52,199,89,0.10)" };
+    if (rank <= Math.ceil(totalDrivers * 0.25)) return { rank, pointsBehindLeader, status: "Championship Contender", color: teamTheme.accent, bg: `${teamTheme.accent}14` };
+    if (rank <= Math.ceil(totalDrivers * 0.5)) return { rank, pointsBehindLeader, status: "In the Hunt", color: "#9a5a00", bg: "rgba(255,149,0,0.10)" };
+    return { rank, pointsBehindLeader, status: "Needs a Points Run", color: "#c62d24", bg: "rgba(255,59,48,0.08)" };
   }, [selectedSeason, driver, teamTheme]);
 
   const pointsGap = useMemo(() => {
@@ -3666,18 +3666,23 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
 
         {!isArcaDriver && (
         <div style={sectionCardStyle}>
-          <h2 style={{ marginTop: 0, marginBottom: 14 }}>Developmental Rides</h2>
-          <div style={{ fontSize: 13, opacity: 0.72, marginBottom: 14 }}>
-            Cup drivers can request Xfinity, Truck, or ARCA starts. Driver points and driver payout are disabled for developmental starts; team/owner credit remains active.
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 12, background: `${teamTheme.accent}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>🏎️</div>
+            <div>
+              <h2 style={{ margin: 0, fontSize: 19, fontWeight: 950 }}>Developmental Rides</h2>
+              <div style={{ fontSize: 12.5, color: "#6e6e73", fontWeight: 700, marginTop: 2 }}>
+                Cup drivers can request Xfinity, Truck, or ARCA starts. Driver points and payout are disabled; team/owner credit remains active.
+              </div>
+            </div>
           </div>
 
           {developmentError && (
-            <div style={{ background: "rgba(239,68,68,0.14)", border: "1px solid rgba(239,68,68,0.4)", borderRadius: 10, padding: 10, marginBottom: 12, color: "#fecaca" }}>
+            <div style={{ background: "rgba(255,59,48,0.10)", border: "1px solid rgba(255,59,48,0.28)", borderRadius: 14, padding: 12, marginBottom: 12, color: "#c62d24", fontWeight: 700, fontSize: 13.5 }}>
               {developmentError}
             </div>
           )}
           {developmentMessage && (
-            <div style={{ background: "rgba(34,197,94,0.14)", border: "1px solid rgba(34,197,94,0.4)", borderRadius: 10, padding: 10, marginBottom: 12, color: "#bbf7d0" }}>
+            <div style={{ background: "rgba(52,199,89,0.10)", border: "1px solid rgba(52,199,89,0.28)", borderRadius: 14, padding: 12, marginBottom: 12, color: "#147d35", fontWeight: 700, fontSize: 13.5 }}>
               {developmentMessage}
             </div>
           )}
@@ -3687,39 +3692,39 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
               const used = developmentStartsBySeries[series.value] || 0;
               const remaining = Math.max(0, 2 - used);
               return (
-                <div key={series.value} style={{ background: "#0f1319", border: `1px solid ${remaining > 0 ? teamTheme.accent : "#f97316"}`, borderRadius: 10, padding: 12 }}>
-                  <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 5 }}>{series.label.toUpperCase()}</div>
-                  <div style={{ fontSize: 26, fontWeight: 900 }}>{used} / 2</div>
-                  <div style={{ fontSize: 11, opacity: 0.65 }}>{remaining > 0 ? `${remaining} start${remaining === 1 ? "" : "s"} remaining` : "Board approval required"}</div>
+                <div key={series.value} style={{ background: "rgba(0,0,0,0.03)", border: `1px solid ${remaining > 0 ? `${teamTheme.accent}44` : "rgba(255,149,0,0.35)"}`, borderRadius: 16, padding: 14 }}>
+                  <div style={{ fontSize: 11, color: "#6e6e73", fontWeight: 900, marginBottom: 6, letterSpacing: "0.04em" }}>{series.label.toUpperCase()}</div>
+                  <div style={{ fontSize: 26, fontWeight: 950, color: "#1d1d1f" }}>{used} / 2</div>
+                  <div style={{ fontSize: 11.5, color: "#6e6e73", fontWeight: 700, marginTop: 2 }}>{remaining > 0 ? `${remaining} start${remaining === 1 ? "" : "s"} remaining` : "Board approval required"}</div>
                 </div>
               );
             })}
           </div>
 
           {isCupDriverProfile && !isDriverAuthorized ? (
-            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 14, marginBottom: 16 }}>
-              <div style={{ fontSize: 15, fontWeight: 900, marginBottom: 6 }}>🔒 Driver Access Required</div>
-              <div style={{ fontSize: 13, opacity: 0.72, lineHeight: 1.5 }}>
+            <div style={{ background: "rgba(0,0,0,0.03)", border: "1px solid rgba(0,0,0,0.06)", borderRadius: 16, padding: 16, marginBottom: 16 }}>
+              <div style={{ fontSize: 15, fontWeight: 950, marginBottom: 6, color: "#1d1d1f" }}>🔒 Driver Access Required</div>
+              <div style={{ fontSize: 13, color: "#6e6e73", fontWeight: 700, lineHeight: 1.5 }}>
                 Approved and owner-assigned developmental rides can be viewed here, but submitting a new ride request requires this driver's private access code. Unlock the profile at the top just like interviews and car uploads.
               </div>
             </div>
           ) : isCupDriverProfile ? (
-            <form onSubmit={submitDevelopmentRequest} style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 14, marginBottom: 16 }}>
+            <form onSubmit={submitDevelopmentRequest} style={{ background: "rgba(0,0,0,0.03)", border: "1px solid rgba(0,0,0,0.06)", borderRadius: 16, padding: 16, marginBottom: 16 }}>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
                 <label>
-                  <div style={{ fontSize: 12, fontWeight: 900, marginBottom: 6 }}>Series</div>
+                  <div style={{ fontSize: 12, fontWeight: 900, marginBottom: 6, color: "#1d1d1f" }}>Series</div>
                   <select value={developmentForm.requested_series} onChange={(event) => updateDevelopmentSeries(event.target.value)} style={inputStyle}>
                     {DEVELOPMENT_SERIES_OPTIONS.map((series) => <option key={series.value} value={series.value}>{series.label}</option>)}
                   </select>
                 </label>
                 <label>
-                  <div style={{ fontSize: 12, fontWeight: 900, marginBottom: 6 }}>Team</div>
+                  <div style={{ fontSize: 12, fontWeight: 900, marginBottom: 6, color: "#1d1d1f" }}>Team</div>
                   <select value={developmentForm.requested_team} onChange={(event) => setDevelopmentForm((current) => ({ ...current, requested_team: event.target.value }))} style={inputStyle}>
                     {(lowerSeriesTeamOptions[developmentForm.requested_series] || []).map((team) => <option key={team} value={team}>{team}</option>)}
                   </select>
                 </label>
                 <label>
-                  <div style={{ fontSize: 12, fontWeight: 900, marginBottom: 6 }}>Race</div>
+                  <div style={{ fontSize: 12, fontWeight: 900, marginBottom: 6, color: "#1d1d1f" }}>Race</div>
                   <select value={developmentForm.race_name} onChange={(event) => setDevelopmentForm((current) => ({ ...current, race_name: event.target.value }))} style={inputStyle}>
                     <option value="">Owner assigns later</option>
                     {developmentRaceOptions.map((race) => <option key={race} value={race}>{race}</option>)}
@@ -3727,7 +3732,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
                 </label>
               </div>
               <label style={{ display: "block", marginTop: 12 }}>
-                <div style={{ fontSize: 12, fontWeight: 900, marginBottom: 6 }}>Note to Owner</div>
+                <div style={{ fontSize: 12, fontWeight: 900, marginBottom: 6, color: "#1d1d1f" }}>Note to Owner</div>
                 <textarea value={developmentForm.request_note} onChange={(event) => setDevelopmentForm((current) => ({ ...current, request_note: event.target.value }))} style={{ ...inputStyle, minHeight: 74, resize: "vertical" }} placeholder="Example: I want to run this one for fun and help the team earn owner money." />
               </label>
               <button type="submit" disabled={developmentSubmitting} style={{ ...themedPrimaryButtonStyle, marginTop: 12 }}>
@@ -3735,12 +3740,12 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
               </button>
             </form>
           ) : (
-            <div style={{ opacity: 0.7, marginBottom: 12 }}>Developmental ride requests are only available for Cup Series drivers.</div>
+            <div style={{ color: "#6e6e73", fontWeight: 700, marginBottom: 12 }}>Developmental ride requests are only available for Cup Series drivers.</div>
           )}
 
-          <h3 style={{ marginTop: 0 }}>My Requests</h3>
+          <h3 style={{ marginTop: 0, color: "#1d1d1f" }}>My Requests</h3>
           {myDevelopmentTransactions.length === 0 ? (
-            <div style={{ opacity: 0.65 }}>No developmental ride requests yet.</div>
+            <div style={{ color: "#6e6e73", fontWeight: 700 }}>No developmental ride requests yet.</div>
           ) : (
             <div style={{ overflowX: "auto" }}>
               <table style={tableStyle}>
@@ -3778,22 +3783,25 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
             { label: "DNFs", value: calculatedStats.dnfs },
             { label: "PENALTIES", value: calculatedStats.totalPenalties ? `-${calculatedStats.totalPenalties}` : "0" },
           ].map((stat) => (
-            <div key={stat.label} style={{ ...statBoxStyle, borderColor: stat.label === "POINTS" ? teamTheme.accent : "#2a3240", boxShadow: stat.label === "POINTS" ? `0 0 18px ${teamTheme.glow}` : "none" }}>
-              <div style={{ fontSize: 11, opacity: 0.75, marginBottom: 6 }}>{stat.label}</div>
-              <div style={{ fontSize: 24, fontWeight: 800, color: stat.label === "POINTS" ? teamTheme.accent : "white" }}>{stat.value}</div>
+            <div key={stat.label} style={{ ...statBoxStyle, border: stat.label === "POINTS" ? `1px solid ${teamTheme.accent}44` : statBoxStyle.border, boxShadow: stat.label === "POINTS" ? `0 14px 30px ${teamTheme.glow}` : statBoxStyle.boxShadow }}>
+              <div style={{ fontSize: 11, color: "#6e6e73", fontWeight: 900, marginBottom: 6, letterSpacing: "0.04em" }}>{stat.label}</div>
+              <div style={{ fontSize: 26, fontWeight: 950, color: stat.label === "POINTS" ? teamTheme.accent : "#1d1d1f" }}>{stat.value}</div>
             </div>
           ))}
         </div>
 
-        <div style={{ ...sectionCardStyle, borderColor: teamTheme.accent }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap", marginBottom: 14 }}>
-            <div>
-              <h2 style={{ margin: 0 }}>🎨 Paint Scheme Profile</h2>
-              <div style={{ fontSize: 13, opacity: 0.68, marginTop: 6 }}>Votes and payouts logged from Paint Scheme of the Week awards.</div>
+        <div style={sectionCardStyle}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap", marginBottom: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 12, background: `${teamTheme.accent}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>🎨</div>
+              <div>
+                <h2 style={{ margin: 0, fontSize: 19, fontWeight: 950 }}>Paint Scheme Profile</h2>
+                <div style={{ fontSize: 12.5, color: "#6e6e73", fontWeight: 700, marginTop: 2 }}>Votes and payouts logged from Paint Scheme of the Week awards.</div>
+              </div>
             </div>
             <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 28, fontWeight: 900, color: teamTheme.accent }}>{money(paintSchemeStats.driverEarnings)}</div>
-              <div style={{ fontSize: 12, opacity: 0.68 }}>Driver paint earnings</div>
+              <div style={{ fontSize: 26, fontWeight: 950, color: teamTheme.accent }}>{money(paintSchemeStats.driverEarnings)}</div>
+              <div style={{ fontSize: 12, color: "#6e6e73", fontWeight: 700 }}>Driver paint earnings</div>
             </div>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(145px, 1fr))", gap: 12 }}>
@@ -3805,45 +3813,51 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
               ["Top 10s", paintSchemeStats.top10s],
               ["Team Earned", money(paintSchemeStats.teamEarnings)],
             ].map(([label, value]) => (
-              <div key={label} style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14 }}>
-                <div style={{ fontSize: 11, opacity: 0.65, fontWeight: 900, marginBottom: 6 }}>{label}</div>
-                <div style={{ fontSize: 20, fontWeight: 900 }}>{value}</div>
+              <div key={label} style={{ background: "rgba(0,0,0,0.03)", border: "1px solid rgba(0,0,0,0.06)", borderRadius: 16, padding: 14 }}>
+                <div style={{ fontSize: 11, color: "#6e6e73", fontWeight: 900, marginBottom: 6 }}>{label}</div>
+                <div style={{ fontSize: 19, fontWeight: 950, color: "#1d1d1f" }}>{value}</div>
               </div>
             ))}
           </div>
-          <div style={{ marginTop: 12, fontSize: 12, opacity: 0.68 }}>Last payout race: {paintSchemeStats.lastAwardedRace}</div>
+          <div style={{ marginTop: 14, fontSize: 12, color: "#6e6e73", fontWeight: 700 }}>Last payout race: {paintSchemeStats.lastAwardedRace}</div>
         </div>
 
-        <div style={{ ...sectionCardStyle, borderColor: driverSatisfaction.color, background: `linear-gradient(135deg, #171b22 0%, ${driverSatisfaction.bg} 100%)` }}>
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "flex-start", flexWrap: "wrap", marginBottom: 14 }}>
-            <div>
-              <h2 style={{ margin: 0 }}>😊 Driver Satisfaction</h2>
-              <div style={{ fontSize: 13, opacity: 0.7, marginTop: 6 }}>Performance, clean races, assignments, interviews, and contract stability all feed this score.</div>
+        <div style={{ ...sectionCardStyle, background: `linear-gradient(135deg, rgba(255,255,255,0.92), ${driverSatisfaction.bg})` }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "flex-start", flexWrap: "wrap", marginBottom: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 12, background: `${driverSatisfaction.color}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>😊</div>
+              <div>
+                <h2 style={{ margin: 0, fontSize: 19, fontWeight: 950 }}>Driver Satisfaction</h2>
+                <div style={{ fontSize: 12.5, color: "#6e6e73", fontWeight: 700, marginTop: 2 }}>Performance, clean races, assignments, interviews, and contract stability all feed this score.</div>
+              </div>
             </div>
             <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 34, fontWeight: 900, color: driverSatisfaction.color }}>{driverSatisfaction.score}/100</div>
-              <div style={{ fontSize: 13, fontWeight: 900 }}>{driverSatisfaction.status}</div>
+              <div style={{ fontSize: 30, fontWeight: 950, color: driverSatisfaction.color }}>{driverSatisfaction.score}/100</div>
+              <div style={{ fontSize: 13, fontWeight: 900, color: driverSatisfaction.color }}>{driverSatisfaction.status}</div>
             </div>
           </div>
 
-          <div style={{ background: "#0f1319", borderRadius: 999, height: 14, overflow: "hidden", border: "1px solid #2c3440", marginBottom: 14 }}>
+          <div style={{ background: "rgba(0,0,0,0.06)", borderRadius: 999, height: 12, overflow: "hidden", marginBottom: 16 }}>
             <div style={{ width: `${driverSatisfaction.score}%`, height: "100%", background: driverSatisfaction.color, transition: "width 0.3s" }} />
           </div>
 
-          <div style={{ fontSize: 14, lineHeight: 1.6, opacity: 0.86, marginBottom: 14 }}>{driverSatisfaction.summary}</div>
+          <div style={{ fontSize: 14, lineHeight: 1.6, color: "#3a3a3c", fontWeight: 600, marginBottom: 14 }}>{driverSatisfaction.summary}</div>
 
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
             {driverSatisfaction.factors.map((factor) => (
-              <span key={factor} style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 999, padding: "6px 10px", fontSize: 12, fontWeight: 800 }}>{factor}</span>
+              <span key={factor} style={{ background: "rgba(0,0,0,0.04)", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 999, padding: "7px 12px", fontSize: 12, fontWeight: 800, color: "#1d1d1f" }}>{factor}</span>
             ))}
           </div>
         </div>
 
-        <div style={{ ...sectionCardStyle, borderColor: teamTheme.accent }}>
-          <h2 style={{ marginTop: 0, marginBottom: 14 }}>🔥 Driver Reputation</h2>
-          <div style={{ marginBottom: 14 }}>
-            <div style={{ fontSize: 12, opacity: 0.65, marginBottom: 4 }}>DRIVER ARCHETYPE</div>
-            <div style={{ fontSize: 24, fontWeight: 900, color: teamTheme.accent }}>{reputation.archetype}</div>
+        <div style={sectionCardStyle}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 12, background: `${teamTheme.accent}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>🔥</div>
+            <h2 style={{ margin: 0, fontSize: 19, fontWeight: 950 }}>Driver Reputation</h2>
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 11, color: "#6e6e73", fontWeight: 900, marginBottom: 4, letterSpacing: "0.04em" }}>DRIVER ARCHETYPE</div>
+            <div style={{ fontSize: 22, fontWeight: 950, color: teamTheme.accent }}>{reputation.archetype}</div>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12 }}>
             {[
@@ -3853,10 +3867,10 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
               ["Momentum", reputation.momentum],
               ["Popularity", reputation.popularity],
             ].map(([label, value]) => (
-              <div key={label} style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}>
-                <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 6 }}>{label.toUpperCase()}</div>
-                <div style={{ fontSize: 24, fontWeight: 900 }}>{value}</div>
-                <div style={{ background: "#202733", borderRadius: 999, height: 8, marginTop: 8, overflow: "hidden" }}>
+              <div key={label} style={{ background: "rgba(0,0,0,0.03)", border: "1px solid rgba(0,0,0,0.06)", borderRadius: 16, padding: 14 }}>
+                <div style={{ fontSize: 11, color: "#6e6e73", fontWeight: 900, marginBottom: 6 }}>{label.toUpperCase()}</div>
+                <div style={{ fontSize: 22, fontWeight: 950, color: "#1d1d1f" }}>{value}</div>
+                <div style={{ background: "rgba(0,0,0,0.06)", borderRadius: 999, height: 7, marginTop: 8, overflow: "hidden" }}>
                   <div style={{ width: `${value}%`, height: "100%", background: teamTheme.accent }} />
                 </div>
               </div>
@@ -3864,38 +3878,38 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
           </div>
         </div>
         {unlockedAchievements.length > 0 && (
-          <div style={{ ...sectionCardStyle, borderColor: teamTheme.accent }}>
-            <h3 style={{ marginTop: 0, marginBottom: 12 }}>Achievements</h3>
+          <div style={sectionCardStyle}>
+            <h3 style={{ marginTop: 0, marginBottom: 14, fontSize: 17, fontWeight: 950 }}>Achievements</h3>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
               {unlockedAchievements.map((a) => (
-                <div key={a.name} style={{ background: "#0f1319", border: `1px solid ${teamTheme.accent}`, borderRadius: 10, padding: 12, textAlign: "center", minWidth: 90 }}>
+                <div key={a.name} style={{ background: `${teamTheme.accent}0f`, border: `1px solid ${teamTheme.accent}33`, borderRadius: 16, padding: 14, textAlign: "center", minWidth: 92 }}>
                   <div style={{ fontSize: 28, marginBottom: 4 }}>{a.badge}</div>
-                  <div style={{ fontSize: 11, fontWeight: 700, opacity: 0.8 }}>{a.name}</div>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: "#1d1d1f" }}>{a.name}</div>
                 </div>
               ))}
             </div>
           </div>
         )}
         {driver.notes && (
-          <div style={{ ...sectionCardStyle, background: "#1a1f27", borderLeft: `4px solid ${teamTheme.accent}` }}>
-            <h3 style={{ marginTop: 0, marginBottom: 8 }}>Admin Notes</h3>
-            <div style={{ fontSize: 14, lineHeight: 1.6, opacity: 0.9 }}>{driver.notes}</div>
+          <div style={{ ...sectionCardStyle, borderLeft: `4px solid ${teamTheme.accent}` }}>
+            <h3 style={{ marginTop: 0, marginBottom: 8, fontSize: 16, fontWeight: 950 }}>Admin Notes</h3>
+            <div style={{ fontSize: 14, lineHeight: 1.6, color: "#3a3a3c", fontWeight: 600 }}>{driver.notes}</div>
           </div>
         )}
 
           <div style={sectionCardStyle}>
           <h2 style={{ marginTop: 0, marginBottom: 16 }}>Season Overview</h2>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12, marginBottom: 16 }}>
-            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}>
+            <div style={{ background: "rgba(0,0,0,0.03)", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}>
               <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>RANKING</div>
               <div style={{ fontSize: 28, fontWeight: 800, color: teamTheme.accent }}>P{driverRanking}</div>
             </div>
-            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}>
+            <div style={{ background: "rgba(0,0,0,0.03)", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}>
               <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>PROJECTION</div>
               <div style={{ fontSize: 22, fontWeight: 800 }}>{pointsProjection} pts</div>
               <div style={{ fontSize: 10, opacity: 0.6 }}>Full season estimate</div>
             </div>
-            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}>
+            <div style={{ background: "rgba(0,0,0,0.03)", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}>
               <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>AVG FINISH</div>
               <div style={{ fontSize: 22, fontWeight: 800 }}>P{consistencyRating.avg}</div>
               <div style={{ fontSize: 10, opacity: 0.6 }}>Consistency</div>
@@ -3923,7 +3937,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
               ["FASTEST LAPS", personalRecords.fastestLaps],
               ["BEST RACE", personalRecords.highestRacePoints],
             ].map(([label, value]) => (
-              <div key={label} style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}>
+              <div key={label} style={{ background: "rgba(0,0,0,0.03)", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}>
                 <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>{label}</div>
                 <div style={{ fontSize: 28, fontWeight: 800, color: teamTheme.accent }}>{value}</div>
                 {label === "BEST RACE" && <div style={{ fontSize: 10, opacity: 0.6 }}>points</div>}
@@ -3935,9 +3949,9 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
         <div style={sectionCardStyle}>
           <h2 style={{ marginTop: 0, marginBottom: 14 }}>Current Streaks</h2>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12 }}>
-            <div style={{ background: streaks.currentWins > 0 ? "#1a3a1a" : "#0f1319", border: `1px solid ${streaks.currentWins > 0 ? "#4ade80" : "#2c3440"}`, borderRadius: 10, padding: 12 }}><div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>WIN STREAK 🏆</div><div style={{ fontSize: 28, fontWeight: 800 }}>{streaks.currentWins}</div><div style={{ fontSize: 10, opacity: 0.6 }}>Best: {streaks.longestWins}</div></div>
-            <div style={{ background: streaks.currentPodiums > 0 ? "#1a3a1a" : "#0f1319", border: `1px solid ${streaks.currentPodiums > 0 ? "#4ade80" : "#2c3440"}`, borderRadius: 10, padding: 12 }}><div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>PODIUM STREAK 🎯</div><div style={{ fontSize: 28, fontWeight: 800 }}>{streaks.currentPodiums}</div><div style={{ fontSize: 10, opacity: 0.6 }}>Best: {streaks.longestPodiums}</div></div>
-            <div style={{ background: streaks.currentDnfs > 0 ? "#3a1a1a" : "#0f1319", border: `1px solid ${streaks.currentDnfs > 0 ? "#f87171" : "#2c3440"}`, borderRadius: 10, padding: 12 }}><div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>DNF STREAK 💥</div><div style={{ fontSize: 28, fontWeight: 800 }}>{streaks.currentDnfs}</div><div style={{ fontSize: 10, opacity: 0.6 }}>Worst: {streaks.longestDnfs}</div></div>
+            <div style={{ background: streaks.currentWins > 0 ? "rgba(52,199,89,0.10)" : "rgba(0,0,0,0.03)", border: `1px solid ${streaks.currentWins > 0 ? "rgba(52,199,89,0.35)" : "rgba(0,0,0,0.08)"}`, borderRadius: 16, padding: 14 }}><div style={{ fontSize: 11, color: "#6e6e73", fontWeight: 900, marginBottom: 4 }}>WIN STREAK 🏆</div><div style={{ fontSize: 26, fontWeight: 950, color: "#1d1d1f" }}>{streaks.currentWins}</div><div style={{ fontSize: 11, color: "#6e6e73", fontWeight: 700 }}>Best: {streaks.longestWins}</div></div>
+            <div style={{ background: streaks.currentPodiums > 0 ? "rgba(52,199,89,0.10)" : "rgba(0,0,0,0.03)", border: `1px solid ${streaks.currentPodiums > 0 ? "rgba(52,199,89,0.35)" : "rgba(0,0,0,0.08)"}`, borderRadius: 16, padding: 14 }}><div style={{ fontSize: 11, color: "#6e6e73", fontWeight: 900, marginBottom: 4 }}>PODIUM STREAK 🎯</div><div style={{ fontSize: 26, fontWeight: 950, color: "#1d1d1f" }}>{streaks.currentPodiums}</div><div style={{ fontSize: 11, color: "#6e6e73", fontWeight: 700 }}>Best: {streaks.longestPodiums}</div></div>
+            <div style={{ background: streaks.currentDnfs > 0 ? "rgba(255,59,48,0.08)" : "rgba(0,0,0,0.03)", border: `1px solid ${streaks.currentDnfs > 0 ? "rgba(255,59,48,0.30)" : "rgba(0,0,0,0.08)"}`, borderRadius: 16, padding: 14 }}><div style={{ fontSize: 11, color: "#6e6e73", fontWeight: 900, marginBottom: 4 }}>DNF STREAK 💥</div><div style={{ fontSize: 26, fontWeight: 950, color: "#1d1d1f" }}>{streaks.currentDnfs}</div><div style={{ fontSize: 11, color: "#6e6e73", fontWeight: 700 }}>Worst: {streaks.longestDnfs}</div></div>
           </div>
         </div>
 
@@ -3950,7 +3964,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
               ["PODIUMS", careerStats.podiums],
               ["RACES", careerStats.races],
             ].map(([label, value]) => (
-              <div key={label} style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}>
+              <div key={label} style={{ background: "rgba(0,0,0,0.03)", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}>
                 <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>{label}</div>
                 <div style={{ fontSize: 28, fontWeight: 800 }}>{value}</div>
               </div>
@@ -3961,8 +3975,8 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
         <div style={sectionCardStyle}>
           <h2 style={{ marginTop: 0, marginBottom: 14 }}>Consistency Analysis</h2>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
-            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}><div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>AVERAGE FINISH</div><div style={{ fontSize: 24, fontWeight: 800 }}>P{consistencyRating.avg}</div></div>
-            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}><div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>BEST - WORST</div><div style={{ fontSize: 18, fontWeight: 800 }}>P{consistencyRating.best} - P{consistencyRating.worst}</div><div style={{ fontSize: 10, opacity: 0.6 }}>Range</div></div>
+            <div style={{ background: "rgba(0,0,0,0.03)", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}><div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>AVERAGE FINISH</div><div style={{ fontSize: 24, fontWeight: 800 }}>P{consistencyRating.avg}</div></div>
+            <div style={{ background: "rgba(0,0,0,0.03)", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}><div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>BEST - WORST</div><div style={{ fontSize: 18, fontWeight: 800 }}>P{consistencyRating.best} - P{consistencyRating.worst}</div><div style={{ fontSize: 10, opacity: 0.6 }}>Range</div></div>
           </div>
         </div>
 
@@ -3970,8 +3984,8 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
           <div style={sectionCardStyle}>
             <h2 style={{ marginTop: 0, marginBottom: 14 }}>Track Performance</h2>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
-              <div style={{ background: "#1a3a1a", border: "1px solid #4ade80", borderRadius: 10, padding: 12 }}><div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4, color: "#4ade80" }}>BEST TRACK 🏁</div><div style={{ fontSize: 16, fontWeight: 800, marginBottom: 4 }}>{trackStats.best[0]}</div><div style={{ fontSize: 12, opacity: 0.8 }}>{trackStats.best[1].points} pts in {trackStats.best[1].races} races</div></div>
-              <div style={{ background: "#3a1a1a", border: "1px solid #f87171", borderRadius: 10, padding: 12 }}><div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4, color: "#f87171" }}>WORST TRACK 🚩</div><div style={{ fontSize: 16, fontWeight: 800, marginBottom: 4 }}>{trackStats.worst[0]}</div><div style={{ fontSize: 12, opacity: 0.8 }}>{trackStats.worst[1].points} pts in {trackStats.worst[1].races} races</div></div>
+              <div style={{ background: "rgba(52,199,89,0.10)", border: "1px solid rgba(52,199,89,0.30)", borderRadius: 16, padding: 14 }}><div style={{ fontSize: 11, fontWeight: 900, marginBottom: 4, color: "#147d35" }}>BEST TRACK 🏁</div><div style={{ fontSize: 16, fontWeight: 900, marginBottom: 4, color: "#1d1d1f" }}>{trackStats.best[0]}</div><div style={{ fontSize: 12, color: "#3a3a3c", fontWeight: 600 }}>{trackStats.best[1].points} pts in {trackStats.best[1].races} races</div></div>
+              <div style={{ background: "rgba(255,59,48,0.08)", border: "1px solid rgba(255,59,48,0.28)", borderRadius: 16, padding: 14 }}><div style={{ fontSize: 11, fontWeight: 900, marginBottom: 4, color: "#c62d24" }}>WORST TRACK 🚩</div><div style={{ fontSize: 16, fontWeight: 900, marginBottom: 4, color: "#1d1d1f" }}>{trackStats.worst[0]}</div><div style={{ fontSize: 12, color: "#3a3a3c", fontWeight: 600 }}>{trackStats.worst[1].points} pts in {trackStats.worst[1].races} races</div></div>
             </div>
           </div>
         )}
@@ -3981,8 +3995,8 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
             <h2 style={{ marginTop: 0, marginBottom: 14 }}>Teammate Comparison</h2>
             <div style={{ fontSize: 13, opacity: 0.7, marginBottom: 10 }}>{getTeamFullName(driver.team)}</div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
-              <div style={{ background: "#0f1319", border: `1px solid ${teamTheme.accent}`, borderRadius: 10, padding: 12 }}><div style={{ fontSize: 13, fontWeight: 800, marginBottom: 8 }}>{driver.name}</div><div style={{ fontSize: 11, opacity: 0.7 }}>Points: {driver.points}</div><div style={{ fontSize: 11, opacity: 0.7 }}>Wins: {calculatedStats.wins}</div><div style={{ fontSize: 11, opacity: 0.7 }}>Podiums: {calculatedStats.top3}</div></div>
-              <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}><div style={{ fontSize: 13, fontWeight: 800, marginBottom: 8 }}>#{teamStats.number} {teamStats.name}</div><div style={{ fontSize: 11, opacity: 0.7 }}>Points: {teamStats.points}</div><div style={{ fontSize: 11, opacity: 0.7 }}>Wins: {teamStats.wins}</div><div style={{ fontSize: 11, opacity: 0.7 }}>Podiums: {teamStats.top3}</div></div>
+              <div style={{ background: "rgba(0,0,0,0.03)", border: `1px solid ${teamTheme.accent}`, borderRadius: 10, padding: 12 }}><div style={{ fontSize: 13, fontWeight: 800, marginBottom: 8 }}>{driver.name}</div><div style={{ fontSize: 11, opacity: 0.7 }}>Points: {driver.points}</div><div style={{ fontSize: 11, opacity: 0.7 }}>Wins: {calculatedStats.wins}</div><div style={{ fontSize: 11, opacity: 0.7 }}>Podiums: {calculatedStats.top3}</div></div>
+              <div style={{ background: "rgba(0,0,0,0.03)", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}><div style={{ fontSize: 13, fontWeight: 800, marginBottom: 8 }}>#{teamStats.number} {teamStats.name}</div><div style={{ fontSize: 11, opacity: 0.7 }}>Points: {teamStats.points}</div><div style={{ fontSize: 11, opacity: 0.7 }}>Wins: {teamStats.wins}</div><div style={{ fontSize: 11, opacity: 0.7 }}>Podiums: {teamStats.top3}</div></div>
             </div>
           </div>
         )}
@@ -3996,7 +4010,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
                 return (
                   <div key={a.name}>
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}><span style={{ fontSize: 13, fontWeight: 700 }}>{a.emoji} {a.name}</span><span style={{ fontSize: 12, opacity: 0.7 }}>{a.current}/{a.target}</span></div>
-                    <div style={{ background: "#0f1319", borderRadius: 8, height: 8, overflow: "hidden" }}><div style={{ background: teamTheme.accent, height: "100%", width: `${progress}%`, transition: "width 0.3s" }} /></div>
+                    <div style={{ background: "rgba(0,0,0,0.03)", borderRadius: 8, height: 8, overflow: "hidden" }}><div style={{ background: teamTheme.accent, height: "100%", width: `${progress}%`, transition: "width 0.3s" }} /></div>
                   </div>
                 );
               })}
@@ -4009,7 +4023,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
             <h2 style={{ marginTop: 0, marginBottom: 14 }}>Recent Form Last 5 Races</h2>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(100px, 1fr))", gap: 10 }}>
               {recentForm.map((r, i) => (
-                <div key={`${r.race}-${i}`} style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 8, padding: 10, textAlign: "center" }}>
+                <div key={`${r.race}-${i}`} style={{ background: "rgba(0,0,0,0.03)", border: "1px solid #2c3440", borderRadius: 8, padding: 10, textAlign: "center" }}>
                   <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>{String(r.race || "Race").split("(")[0].trim().substring(0, 8)}</div>
                   <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 2, color: teamTheme.accent }}>{r.points}</div>
                   <div style={{ fontSize: 10, opacity: 0.6 }}>P{r.finish || "—"}</div>
