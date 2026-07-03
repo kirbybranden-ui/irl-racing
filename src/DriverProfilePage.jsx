@@ -3399,7 +3399,28 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
         <div style={{ ...sectionCardStyle, position: "relative", overflow: "hidden" }}>
           <div style={{ position: "absolute", top: -60, right: -60, width: 220, height: 220, borderRadius: "50%", background: `${teamTheme.accent}18`, pointerEvents: "none" }} />
 
-          <button onClick={() => window.location.pathname = standingsRoute} style={{ ...secondaryButtonStyle, marginBottom: 18, fontSize: 13, padding: "9px 16px" }}>← Back to Standings</button>
+          <button
+            type="button"
+            aria-label="Go to standings home page"
+            onClick={() => window.location.pathname = standingsRoute}
+            title="Home"
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 14,
+              border: "1px solid rgba(17,24,39,0.10)",
+              background: "linear-gradient(180deg, #ffd60a 0%, #ff9f0a 100%)",
+              boxShadow: "0 16px 38px rgba(255,159,10,0.30)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              fontSize: 19,
+              marginBottom: 18,
+            }}
+          >
+            🏠
+          </button>
 
           <div style={{ position: "relative", display: "flex", gap: 22, flexWrap: "wrap", alignItems: "flex-start" }}>
             <div style={{
@@ -3467,18 +3488,30 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
           <div style={{ position: "relative" }}>
             <button
               type="button"
+              aria-label="Open menu"
               onClick={() => setShowDriverMenu((current) => !current)}
+              title="Menu"
               style={{
-                ...secondaryButtonStyle,
-                display: "inline-flex",
+                width: 44,
+                height: 44,
+                borderRadius: 14,
+                border: "1px solid rgba(17,24,39,0.10)",
+                background: "rgba(255,255,255,0.92)",
+                boxShadow: "0 10px 28px rgba(15,23,42,0.12)",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "center",
                 alignItems: "center",
-                gap: 8,
+                gap: 5,
+                cursor: "pointer",
+                position: "relative",
               }}
             >
-              <span style={{ fontSize: 16 }}>☰</span>
-              <span>Menu</span>
+              <span style={{ width: 20, height: 2, borderRadius: 999, background: "#111827" }} />
+              <span style={{ width: 20, height: 2, borderRadius: 999, background: "#111827" }} />
+              <span style={{ width: 20, height: 2, borderRadius: 999, background: "#111827" }} />
               {myAppeals.length > 0 && (
-                <span style={{ background: myAppeals.some((a) => a.status !== "Open") ? "#34c759" : "#007aff", color: "white", borderRadius: 99, padding: "2px 8px", fontSize: 11, fontWeight: 800 }}>{myAppeals.length}</span>
+                <span style={{ position: "absolute", top: -6, right: -6, background: myAppeals.some((a) => a.status !== "Open") ? "#34c759" : "#007aff", color: "white", borderRadius: 99, minWidth: 18, height: 18, padding: "0 4px", fontSize: 10.5, fontWeight: 900, display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #fff" }}>{myAppeals.length}</span>
               )}
             </button>
 
@@ -3657,11 +3690,6 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
               </div>
             )}
           </div>
-
-          <div style={{ background: isDriverAuthorized ? "rgba(52,199,89,0.12)" : "rgba(0,0,0,0.05)", color: isDriverAuthorized ? "#147d35" : "#6e6e73", border: `1px solid ${isDriverAuthorized ? "rgba(52,199,89,0.25)" : "rgba(0,0,0,0.08)"}`, borderRadius: 999, padding: "9px 14px", fontSize: 12, fontWeight: 900 }}>
-            {isDriverAuthorized ? "✅ Driver Access Authorized" : "🔒 Driver Access Locked"}
-          </div>
-          {isDriverAuthorized && <button onClick={lockDriverContracts} style={secondaryButtonStyle}>Lock Driver Access</button>}
         </div>
 
         {!isArcaDriver && (
