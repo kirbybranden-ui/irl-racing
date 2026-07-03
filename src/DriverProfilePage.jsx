@@ -2846,33 +2846,39 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
               <button type="submit" disabled={teamInterestSubmitting} style={{ ...themedPrimaryButtonStyle, opacity: teamInterestSubmitting ? 0.65 : 1 }}>
                 {teamInterestSubmitting ? "Sending..." : "Send Team Interest"}
               </button>
-              <div style={{ fontSize: 12, opacity: 0.65 }}>{teamInterestForm.message.length}/1000 characters</div>
+              <div style={{ fontSize: 12, color: "#6e6e73", fontWeight: 700 }}>{teamInterestForm.message.length}/1000 characters</div>
             </div>
-            {teamInterestNotice && <div style={{ color: "#4ade80", marginTop: 12, fontWeight: 800 }}>{teamInterestNotice}</div>}
-            {teamInterestError && <div style={{ color: "#f87171", marginTop: 12, fontWeight: 800 }}>{teamInterestError}</div>}
+            {teamInterestNotice && <div style={{ background: "rgba(52,199,89,0.10)", border: "1px solid rgba(52,199,89,0.28)", borderRadius: 14, padding: 12, marginTop: 14, color: "#147d35", fontWeight: 700, fontSize: 13.5 }}>{teamInterestNotice}</div>}
+            {teamInterestError && <div style={{ background: "rgba(255,59,48,0.10)", border: "1px solid rgba(255,59,48,0.28)", borderRadius: 14, padding: 12, marginTop: 14, color: "#c62d24", fontWeight: 700, fontSize: 13.5 }}>{teamInterestError}</div>}
           </form>
 
           <div style={sectionCardStyle}>
-            <h2 style={{ marginTop: 0 }}>📋 My Team Interest History</h2>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 12, background: `${teamTheme.accent}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>📋</div>
+              <h2 style={{ margin: 0, fontSize: 19, fontWeight: 950 }}>My Team Interest History</h2>
+            </div>
             {teamInterestHistory.length === 0 ? (
-              <div style={{ opacity: 0.72 }}>No team interest submitted yet.</div>
+              <div style={{ color: "#6e6e73", fontWeight: 700 }}>No team interest submitted yet.</div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                {teamInterestHistory.map((interest) => (
-                  <div key={interest.id || `${interest.interested_team}-${interest.created_at}`} style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-                      <div>
-                        <div style={{ fontSize: 16, fontWeight: 900 }}>{getTeamFullName(interest.interested_team)}</div>
-                        <div style={{ fontSize: 12, opacity: 0.65, marginTop: 3 }}>Level: {interest.interest_level || "Medium"}</div>
+                {teamInterestHistory.map((interest) => {
+                  const isClosed = interest.status === "Closed";
+                  return (
+                    <div key={interest.id || `${interest.interested_team}-${interest.created_at}`} style={{ background: "rgba(0,0,0,0.03)", border: "1px solid rgba(0,0,0,0.06)", borderRadius: 18, padding: 16 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                        <div>
+                          <div style={{ fontSize: 16, fontWeight: 950, color: "#1d1d1f" }}>{getTeamFullName(interest.interested_team)}</div>
+                          <div style={{ fontSize: 12, color: "#6e6e73", fontWeight: 700, marginTop: 3 }}>Level: {interest.interest_level || "Medium"}</div>
+                        </div>
+                        <div style={{ textAlign: "right" }}>
+                          <span style={{ display: "inline-block", background: isClosed ? "rgba(0,0,0,0.06)" : "rgba(52,199,89,0.12)", color: isClosed ? "#6e6e73" : "#147d35", borderRadius: 999, padding: "5px 12px", fontSize: 12, fontWeight: 900 }}>{interest.status || "Open"}</span>
+                          <div style={{ fontSize: 11, color: "#86868b", fontWeight: 700, marginTop: 6 }}>{interest.created_at ? new Date(interest.created_at).toLocaleString() : ""}</div>
+                        </div>
                       </div>
-                      <div style={{ textAlign: "right" }}>
-                        <div style={{ background: interest.status === "Closed" ? "#374151" : "#14532d", color: interest.status === "Closed" ? "#d1d5db" : "#86efac", borderRadius: 999, padding: "5px 10px", fontSize: 12, fontWeight: 900 }}>{interest.status || "Open"}</div>
-                        <div style={{ fontSize: 11, opacity: 0.55, marginTop: 6 }}>{interest.created_at ? new Date(interest.created_at).toLocaleString() : ""}</div>
-                      </div>
+                      {interest.message && <div style={{ marginTop: 10, fontSize: 13.5, lineHeight: 1.55, whiteSpace: "pre-wrap", color: "#3a3a3c", fontWeight: 600 }}>{interest.message}</div>}
                     </div>
-                    {interest.message && <div style={{ marginTop: 10, fontSize: 14, lineHeight: 1.55, whiteSpace: "pre-wrap" }}>{interest.message}</div>}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
