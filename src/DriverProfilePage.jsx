@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import teamLogoB2J from "./assets/teams/B2J.png";
 import teamLogoMER from "./assets/teams/ME.png";
 import teamLogoMMS from "./assets/teams/MMS.png";
@@ -874,6 +875,31 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
   });
   const [showDriverTodo, setShowDriverTodo] = useState(false);
   const [showDriverMenu, setShowDriverMenu] = useState(false);
+  const driverMenuButtonRef = useRef(null);
+  const driverTodoButtonRef = useRef(null);
+  const [driverMenuPosition, setDriverMenuPosition] = useState(null);
+  const [driverTodoPosition, setDriverTodoPosition] = useState(null);
+
+  function toggleDriverMenu() {
+    if (!showDriverMenu && driverMenuButtonRef.current) {
+      const rect = driverMenuButtonRef.current.getBoundingClientRect();
+      setDriverMenuPosition({ top: rect.bottom + 12, right: window.innerWidth - rect.right });
+    }
+    setShowDriverMenu((current) => !current);
+  }
+
+  function toggleDriverTodo() {
+    if (!showDriverTodo && driverTodoButtonRef.current) {
+      const rect = driverTodoButtonRef.current.getBoundingClientRect();
+      setDriverTodoPosition({ top: rect.bottom + 12, right: window.innerWidth - rect.right });
+    }
+    setShowDriverTodo((current) => !current);
+  }
+
+  function scrollToDevelopmentalRides() {
+    setShowDriverMenu(false);
+    document.getElementById("developmental-rides-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 
   const driverAccessKey = driver ? String(driver.number) : String(driverNumber);
   const isDriverAuthorized = authorizedDriverNumber === driverAccessKey;
@@ -3451,9 +3477,10 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
 
             <div style={{ position: "relative" }}>
               <button
+                ref={driverMenuButtonRef}
                 type="button"
                 aria-label="Open menu"
-                onClick={() => setShowDriverMenu((current) => !current)}
+                onClick={toggleDriverMenu}
                 title="Menu"
                 style={{
                   width: 44,
@@ -3479,12 +3506,12 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
                 )}
               </button>
 
-              {showDriverMenu && (
+              {showDriverMenu && driverMenuPosition && createPortal(
                 <div
                   style={{
-                    position: "absolute",
-                    right: 0,
-                    top: "calc(100% + 12px)",
+                    position: "fixed",
+                    top: driverMenuPosition.top,
+                    right: driverMenuPosition.right,
                     width: 280,
                     maxWidth: "calc(100vw - 40px)",
                     background: "linear-gradient(180deg, rgba(255,255,255,0.97), rgba(248,250,252,0.95))",
@@ -3493,13 +3520,14 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
                     boxShadow: "0 30px 80px rgba(0,0,0,0.20)",
                     backdropFilter: "blur(20px)",
                     WebkitBackdropFilter: "blur(20px)",
-                    zIndex: 9999,
+                    zIndex: 99999,
                     overflow: "hidden",
                     padding: 8,
                   }}
                 >
                   {[
                     { icon: "📄", label: "Contracts", href: `/driver/${driverNumber}/contracts` },
+                    ...(isArcaDriver ? [] : [{ icon: "🏎️", label: "Developmental Ride", action: scrollToDevelopmentalRides }]),
                     { icon: "📷", label: "Uploads", href: `/driver/${driverNumber}/upload` },
                     { icon: "🎙️", label: "Interviews", href: `/driver/${driverNumber}/interviews` },
                     { icon: "📋", label: "Appeals", href: `/driver/${driverNumber}/appeals`, badge: myAppeals.length > 0 ? myAppeals.length : null, badgeColor: myAppeals.some((a) => a.status !== "Open") ? "#34c759" : "#007aff" },
@@ -3513,8 +3541,12 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
                       key={item.label}
                       type="button"
                       onClick={() => {
-                        setShowDriverMenu(false);
-                        openProtectedDriverSection(item.href);
+                        if (item.action) {
+                          item.action();
+                        } else {
+                          setShowDriverMenu(false);
+                          openProtectedDriverSection(item.href);
+                        }
                       }}
                       style={{
                         width: "100%",
@@ -3540,14 +3572,16 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
                       )}
                     </button>
                   ))}
-                </div>
+                </div>,
+                document.body
               )}
             </div>
 
             <div style={{ position: "relative" }}>
               <button
+                ref={driverTodoButtonRef}
                 type="button"
-                onClick={() => setShowDriverTodo((current) => !current)}
+                onClick={toggleDriverTodo}
                 title="To-Do"
                 style={{
                   width: 44,
@@ -3590,12 +3624,12 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
                 )}
               </button>
 
-              {showDriverTodo && (
+              {showDriverTodo && driverTodoPosition && createPortal(
                 <div
                   style={{
-                    position: "absolute",
-                    right: 0,
-                    top: "calc(100% + 12px)",
+                    position: "fixed",
+                    top: driverTodoPosition.top,
+                    right: driverTodoPosition.right,
                     width: 360,
                     maxWidth: "calc(100vw - 40px)",
                     background: "linear-gradient(180deg, rgba(255,255,255,0.97), rgba(248,250,252,0.95))",
@@ -3604,7 +3638,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
                     boxShadow: "0 30px 80px rgba(0,0,0,0.20)",
                     backdropFilter: "blur(20px)",
                     WebkitBackdropFilter: "blur(20px)",
-                    zIndex: 9999,
+                    zIndex: 99999,
                     overflow: "hidden",
                   }}
                 >
@@ -3652,7 +3686,8 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
                       ))}
                     </div>
                   )}
-                </div>
+                </div>,
+                document.body
               )}
             </div>
           </div>
@@ -3721,7 +3756,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
         </div>
 
         {!isArcaDriver && (
-        <div style={sectionCardStyle}>
+        <div id="developmental-rides-section" style={sectionCardStyle}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
             <div style={{ width: 36, height: 36, borderRadius: 12, background: `${teamTheme.accent}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>🏎️</div>
             <div>
