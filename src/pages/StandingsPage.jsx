@@ -1937,6 +1937,7 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
             arcaDrivers={arcaDrivers}
             teams={teams}
             driverAccessCodes={driverAccessCodes}
+            supabase={supabase}
             onClose={() => setShowLoginModal(false)}
             onSuccess={(session) => {
               setLeagueSession(session);
@@ -1953,7 +1954,7 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
   );
 }
 
-function LeagueLoginModal({ drivers, arcaDrivers, teams, driverAccessCodes, onClose, onSuccess }) {
+function LeagueLoginModal({ drivers, arcaDrivers, teams, driverAccessCodes, supabase, onClose, onSuccess }) {
   const pageFont = "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Inter', ui-sans-serif, 'Segoe UI', sans-serif";
 
   // step: "number" -> "password" -> "biometricOffer"
@@ -1983,7 +1984,7 @@ function LeagueLoginModal({ drivers, arcaDrivers, teams, driverAccessCodes, onCl
     setStep("password");
   }
 
-  function handleSubmitPassword(e) {
+  async function handleSubmitPassword(e) {
     e.preventDefault();
     setError("");
     if (!password.trim()) {
@@ -1992,13 +1993,14 @@ function LeagueLoginModal({ drivers, arcaDrivers, teams, driverAccessCodes, onCl
     }
 
     setSubmitting(true);
-    const result = loginToLeague({
+    const result = await loginToLeague({
       driverNumber: driverNumber.trim(),
       password,
       driverAccessCodes,
       drivers,
       arcaDrivers,
       teams,
+      supabase,
     });
     setSubmitting(false);
 
@@ -2038,7 +2040,7 @@ function LeagueLoginModal({ drivers, arcaDrivers, teams, driverAccessCodes, onCl
     setBiometricBusy(true);
     setBiometricError("");
     try {
-      const session = await loginWithBiometric({ drivers, arcaDrivers, teams });
+      const session = await loginWithBiometric({ drivers, arcaDrivers, teams, supabase });
       onSuccess(session);
     } catch (err) {
       console.error("Biometric unlock failed:", err);
