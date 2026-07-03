@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import logo from "./assets/logo1.png";
 import ncsLogo from "./assets/series/NCS.png";
 import nxsLogo from "./assets/series/NXS.png";
@@ -3721,6 +3722,137 @@ function MobileAccessGate({ drivers = [], onSession }) {
   );
 }
 
+function MobileLoginModal({ drivers = [], onClose, onSuccess }) {
+  const [driverNumber, setDriverNumber] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const activeDrivers = useMemo(() => {
+    return dedupeDriversByNumber(drivers || [])
+      .filter((driver) => !driver.retired && !isInactivePlaceholderDriver(driver))
+      .sort((a, b) => Number(a.number || 9999) - Number(b.number || 9999));
+  }, [drivers]);
+
+  async function loginDriver(event) {
+    event.preventDefault();
+    setError("");
+    const number = String(driverNumber || "").trim();
+    const code = String(password || "").trim();
+    if (!number || !code) {
+      setError("Select your driver and enter your password.");
+      return;
+    }
+
+    setLoading(true);
+    const { data, error: accessError } = await supabase
+      .from("driver_access_codes")
+      .select("*")
+      .eq("driver_number", number)
+      .limit(10);
+
+    if (accessError) {
+      console.error("Could not verify mobile driver login:", accessError);
+      setLoading(false);
+      setError("Could not verify access. Check driver_access_codes select policy and columns.");
+      return;
+    }
+
+    const enteredCode = code.toUpperCase();
+    const match = (data || []).find((row) => {
+      const rowNumber = String(row.driver_number ?? row.car_number ?? "").trim();
+      const possibleCodes = [row.code, row.access_code, row.password, row.driver_password]
+        .map((value) => String(value ?? "").trim().toUpperCase())
+        .filter(Boolean);
+      return rowNumber === number && possibleCodes.includes(enteredCode) && row.active !== false;
+    });
+
+    const adminMatch = enteredCode === "BCLADMINPASSWORD2026";
+    if (!match && !adminMatch) {
+      setLoading(false);
+      setError("Invalid car number or driver password.");
+      return;
+    }
+
+    const rosterDriver = activeDrivers.find((driver) => String(driver.number) === number) || {};
+    const authRow = match || {};
+    const driverForRoles = {
+      ...authRow,
+      ...rosterDriver,
+      name: rosterDriver.name || authRow.driver_name || authRow.name || `#${number}`,
+      team: rosterDriver.team || authRow.team || "",
+      manufacturer: rosterDriver.manufacturer || authRow.manufacturer || "",
+    };
+    const roleFlags = getBclRoleFlagsForDriver(driverForRoles, Boolean(adminMatch));
+    const session = {
+      mode: "driver",
+      role: roleFlags.role,
+      driverId: rosterDriver.id || authRow.driver_id || authRow.id || null,
+      driverNumber: number,
+      driverName: driverForRoles.name,
+      team: driverForRoles.team,
+      manufacturer: driverForRoles.manufacturer,
+      isAdmin: roleFlags.isAdmin,
+      isOwner: roleFlags.isOwner,
+      isDriver: true,
+    };
+
+    saveBclMobileSession(session);
+    setLoading(false);
+    onSuccess(session);
+  }
+
+  const modalInputStyle = {
+    width: "100%",
+    minHeight: 48,
+    background: "#020617",
+    color: "#fff",
+    border: "1px solid #334155",
+    borderRadius: 14,
+    padding: "12px 13px",
+    fontSize: 15,
+    fontWeight: 900,
+    boxSizing: "border-box",
+  };
+
+  return createPortal(
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1300, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+      <div style={{ width: "100%", maxWidth: 480, background: "#0b0f16", borderTop: "1px solid #263244", borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: "20px 18px 28px", maxHeight: "88vh", overflowY: "auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+          <div>
+            <div style={mobileKickerStyle}>Driver Login</div>
+            <h2 style={{ margin: "4px 0 0", fontSize: 20, color: "#fff" }}>Sign In</h2>
+          </div>
+          <button type="button" onClick={onClose} style={{ background: "#1e2530", border: "1px solid #334155", borderRadius: 999, width: 34, height: 34, color: "#fff", fontSize: 18, cursor: "pointer" }}>×</button>
+        </div>
+
+        <form onSubmit={loginDriver} style={{ display: "grid", gap: 12 }}>
+          <select value={driverNumber} onChange={(event) => setDriverNumber(event.target.value)} style={modalInputStyle}>
+            <option value="">Select Your Driver</option>
+            {activeDrivers.map((driver) => (
+              <option key={driver.id || driver.number} value={String(driver.number)}>
+                #{driver.number} — {driver.name} ({getTeamFullName(driver.team)})
+              </option>
+            ))}
+          </select>
+          <input
+            type="password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            placeholder="Enter driver password"
+            style={modalInputStyle}
+          />
+          {error && <div style={{ color: "#f87171", fontWeight: 900, lineHeight: 1.35 }}>{error}</div>}
+          <button disabled={loading} type="submit" style={{ ...mobileActionStyle, background: "#d4af37", color: "#111", borderColor: "#d4af37" }}>
+            {loading ? "Checking..." : "Log In & Stay Signed In"}
+          </button>
+        </form>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 function MobileGuestLockedCard({ title = "Driver Login Required", go }) {
   return (
     <MobileCard>
@@ -3819,16 +3951,18 @@ function MobileLeagueApp({
   const sortedManufacturers = [...manufacturerStandings].sort((a, b) => (b.points || 0) - (a.points || 0));
   const upcomingRace = getUpcomingRaceByDate(tracks || []);
   const leader = sortedDrivers[0];
-  const [mobileSession, setMobileSession] = useState(() => readBclMobileSession());
+  const [mobileSession, setMobileSession] = useState(() => readBclMobileSession() || { mode: "guest", displayName: "Guest" });
   const isGuestSession = mobileSession?.mode === "guest";
+  const [showMobileLoginModal, setShowMobileLoginModal] = useState(false);
 
   function handleMobileLogout() {
     clearBclMobileSession();
-    setMobileSession(null);
+    setMobileSession({ mode: "guest", displayName: "Guest" });
   }
 
-  if (!mobileSession) {
-    return <MobileAccessGate drivers={drivers} onSession={setMobileSession} />;
+  function handleMobileLoginSuccess(session) {
+    setMobileSession(session);
+    setShowMobileLoginModal(false);
   }
 
   function getTrackOverview(race) {
@@ -3838,7 +3972,7 @@ function MobileLeagueApp({
 
   function frame(title, active, children) {
     return (
-      <MobileLayout title={title} go={go} active={active} session={mobileSession} onLogout={handleMobileLogout}>
+      <MobileLayout title={title} go={go} active={active} session={mobileSession} onLogout={handleMobileLogout} onLoginClick={() => setShowMobileLoginModal(true)} showLoginModal={showMobileLoginModal} onCloseLoginModal={() => setShowMobileLoginModal(false)} onLoginSuccess={handleMobileLoginSuccess} drivers={drivers}>
         {children}
         <LeagueStatusWidget tracks={tracks} seasonName={seasonName} mobile />
       </MobileLayout>
@@ -4081,7 +4215,7 @@ function MobileLeagueApp({
 
   if (path === "/" || path === "/standings") {
     return (
-      <MobileLayout title="Budweiser Cup" go={go} active="home" session={mobileSession} onLogout={handleMobileLogout}>
+      <MobileLayout title="Budweiser Cup" go={go} active="home" session={mobileSession} onLogout={handleMobileLogout} onLoginClick={() => setShowMobileLoginModal(true)} showLoginModal={showMobileLoginModal} onCloseLoginModal={() => setShowMobileLoginModal(false)} onLoginSuccess={handleMobileLoginSuccess} drivers={drivers}>
         <MobileHero
           kicker={seasonName || "Current Season"}
           title="Race Hub"
@@ -4901,7 +5035,7 @@ function MobileRaceResultCard({ race }) {
   );
 }
 
-function MobileLayout({ title, children, go, active, session = null, onLogout = () => {} }) {
+function MobileLayout({ title, children, go, active, session = null, onLogout = () => {}, onLoginClick = () => {}, showLoginModal = false, onCloseLoginModal = () => {}, onLoginSuccess = () => {}, drivers = [] }) {
   function openDesktopVersion() {
     if (typeof document !== "undefined") {
       document.cookie = "bcl-force-desktop=1; path=/; max-age=2592000";
@@ -4922,6 +5056,9 @@ function MobileLayout({ title, children, go, active, session = null, onLogout = 
           )}
         </div>
         <button type="button" onClick={() => go("/message-center")} style={mobileBellStyle} aria-label="League Messages">💬</button>
+        {session?.mode === "guest" && (
+          <button type="button" onClick={onLoginClick} style={{ ...mobileBellStyle, background: "#d4af37", color: "#111" }} aria-label="Log in">🔑</button>
+        )}
       </header>
       <main style={mobileContentStyle}>
         {session && (
@@ -4934,9 +5071,15 @@ function MobileLayout({ title, children, go, active, session = null, onLogout = 
                 {session.mode === "guest" ? "View-only mode" : `#${session.driverNumber} ${session.driverName}`}
               </div>
             </div>
-            <button type="button" onClick={onLogout} style={{ background: "#111827", color: "#fff", border: "1px solid #334155", borderRadius: 12, padding: "8px 10px", fontSize: 12, fontWeight: 900 }}>
-              Log Out
-            </button>
+            {session.mode === "guest" ? (
+              <button type="button" onClick={onLoginClick} style={{ background: "#d4af37", color: "#111", border: "1px solid #d4af37", borderRadius: 12, padding: "8px 14px", fontSize: 12, fontWeight: 900 }}>
+                Log In
+              </button>
+            ) : (
+              <button type="button" onClick={onLogout} style={{ background: "#111827", color: "#fff", border: "1px solid #334155", borderRadius: 12, padding: "8px 10px", fontSize: 12, fontWeight: 900 }}>
+                Log Out
+              </button>
+            )}
           </div>
         )}
         {children}
@@ -4958,6 +5101,13 @@ function MobileLayout({ title, children, go, active, session = null, onLogout = 
         <MobileNavButton active={active === "interviews"} icon="🎤" label="Interviews" onClick={() => go("/interviews")} />
         <MobileNavButton active={active === "more"} icon="☰" label="More" onClick={() => go("/more")} />
       </nav>
+      {showLoginModal && (
+        <MobileLoginModal
+          drivers={drivers}
+          onClose={onCloseLoginModal}
+          onSuccess={onLoginSuccess}
+        />
+      )}
     </div>
   );
 }
