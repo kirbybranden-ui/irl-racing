@@ -629,6 +629,10 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
   const [teamInboxMessages, setTeamInboxMessages] = useState([]);
   const [teamInboxLoading, setTeamInboxLoading] = useState(false);
   const [teamInterestRows, setTeamInterestRows] = useState([]);
+  const [recruitingBoardRows, setRecruitingBoardRows] = useState([]);
+  const [transferPortalEntries, setTransferPortalEntries] = useState([]);
+  const [transferPortalMessage, setTransferPortalMessage] = useState("");
+  const [signingBusyId, setSigningBusyId] = useState("");
   const [teamInterestMessage, setTeamInterestMessage] = useState("");
   const [teamInterestError, setTeamInterestError] = useState("");
   const [numberPool, setNumberPool] = useState([]);
@@ -752,11 +756,18 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
   React.useEffect(() => {
     if (!isAuthorized) {
       setTeamInterestRows([]);
+      setRecruitingBoardRows([]);
       return;
     }
 
     loadTeamInterestRows();
-    const interval = setInterval(loadTeamInterestRows, 30000);
+    loadRecruitingBoard();
+    loadTransferPortalEntries();
+    const interval = setInterval(() => {
+      loadTeamInterestRows();
+      loadRecruitingBoard();
+      loadTransferPortalEntries();
+    }, 30000);
     return () => clearInterval(interval);
   }, [isAuthorized, safeSelectedTeam, ownerTeamName]);
   const pendingOfferCount = contractOffers.filter((offer) => offer.status === "Pending").length;
@@ -1060,6 +1071,8 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
     ["transfers", "Team Transfers"],
     ["numbers", "Number Pool"],
     ["interest", "Team Interest"],
+    ["recruiting", "Recruiting Board"],
+    ["portal", "Transfer Portal"],
     ["development", "Development"],
     ["rivalries", "Rivalries"],
     ["media", "Media"],
@@ -1270,6 +1283,154 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
     }
 
     setTeamInterestRows(data || []);
+  }
+
+  async function loadRecruitingBoard() {
+    if (!safeSelectedTeam) return;
+
+    const teamKeys = Array.from(new Set([safeSelectedTeam, ownerTeamName, getTeamFullName(safeSelectedTeam)]
+      .filter(Boolean)
+      .map((item) => String(item))));
+
+    const { data, error } = await supabase
+      .from("driver_recruiting_interest")
+      .select("*")
+      .in("interested_team", teamKeys)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Could not load recruiting board:", error);
+      setRecruitingBoardRows([]);
+      return;
+    }
+
+    setRecruitingBoardRows(data || []);
+  }
+
+  async function removeFromRecruitingBoard(rowId) {
+    const { error } = await supabase.from("driver_recruiting_interest").delete().eq("id", rowId);
+    if (error) {
+      console.error("Could not remove from recruiting board:", error);
+      alert("Failed to remove driver from recruiting board.");
+      return;
+    }
+    setRecruitingBoardRows((current) => current.filter((row) => row.id !== rowId));
+  }
+
+  async function loadTransferPortalEntries() {
+    const { data, error } = await supabase
+      .from("driver_portal_entries")
+      .select("*")
+      .eq("status", "open")
+      .order("entered_at", { ascending: false });
+
+    if (error) {
+      console.error("Could not load transfer portal entries:", error);
+      setTransferPortalEntries([]);
+      return;
+    }
+    setTransferPortalEntries(data || []);
+  }
+
+  async function signPortalDriver(entry) {
+    setTransferPortalMessage("");
+    const driverContract = (activeContracts || []).find((c) => String(c.driver_number) === String(entry.driver_number));
+    const cost = driverContract ? calculateContractTerminationCost(driverContract) : { remainingSalary: 0, buyout: 0, total: 0 };
+
+    const confirmed = window.confirm(
+      `Sign #${entry.driver_number} ${entry.driver_name} to ${getTeamFullName(safeSelectedTeam)}?\n\n` +
+      (driverContract
+        ? `Buyout owed to ${getTeamFullName(entry.current_team)}: ${money(cost.buyout)}\nThis will be deducted from your team funds and paid directly to their current team.`
+        : `This driver has no active contract on file — signing is free.`)
+    );
+    if (!confirmed) return;
+
+    setSigningBusyId(entry.id);
+
+    if (driverContract && cost.buyout > 0) {
+      const gainingFinance = teamFinance?.id ? teamFinance : await ensureTeamFinanceRow();
+      if (!gainingFinance?.id) {
+        setTransferPortalMessage("Could not load your team's finances. Try again.");
+        setSigningBusyId("");
+        return;
+      }
+
+      const { error: gainErr } = await supabase.from("team_finances").update({
+        balance: Number(gainingFinance.balance || 0) - cost.buyout,
+        buyout_spent: Number(gainingFinance.buyout_spent || 0) + cost.buyout,
+        updated_at: new Date().toISOString(),
+      }).eq("id", gainingFinance.id);
+
+      if (gainErr) {
+        console.error("Could not deduct buyout from gaining team:", gainErr);
+        setTransferPortalMessage("Could not deduct the buyout from your team's funds. Signing cancelled.");
+        setSigningBusyId("");
+        return;
+      }
+
+      const { data: losingFinanceData } = await supabase
+        .from("team_finances")
+        .select("*")
+        .eq("team", entry.current_team)
+        .limit(1);
+      const losingFinance = Array.isArray(losingFinanceData) && losingFinanceData.length ? losingFinanceData[0] : null;
+
+      if (losingFinance?.id) {
+        const { error: loseErr } = await supabase.from("team_finances").update({
+          balance: Number(losingFinance.balance || 0) + cost.buyout,
+          updated_at: new Date().toISOString(),
+        }).eq("id", losingFinance.id);
+        if (loseErr) console.error("Buyout deducted from gaining team, but could not credit the losing team:", loseErr);
+      } else {
+        console.error("Could not find a team_finances row for the losing team:", entry.current_team);
+      }
+
+      const { error: contractErr } = await supabase.from("contract_offers").update({
+        status: "Terminated - Transfer Portal",
+        termination_type: "Transfer Portal Buyout",
+        termination_buyout: cost.buyout,
+        terminated_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }).eq("id", driverContract.id);
+      if (contractErr) console.error("Could not mark old contract terminated:", contractErr);
+    }
+
+    const { error: assignErr } = await supabase.from("driver_team_assignments").upsert({
+      driver_number: String(entry.driver_number),
+      driver_name: entry.driver_name,
+      team: safeSelectedTeam,
+      active: true,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "driver_number" });
+    if (assignErr) console.error("Buyout processed, but driver_team_assignments was not updated:", assignErr);
+
+    const { error: portalErr } = await supabase.from("driver_portal_entries").update({
+      status: "signed",
+      signed_by_team: safeSelectedTeam,
+      signed_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }).eq("id", entry.id);
+    if (portalErr) console.error("Could not close portal entry:", portalErr);
+
+    const { error: msgErr } = await supabase.from("league_messages").insert([{
+      message_type: "contract",
+      sender_type: "owner",
+      sender_name: `${ownerNames[safeSelectedTeam] || ownerTeamName} / ${ownerTeamName}`,
+      recipient_type: "driver",
+      recipient_driver_number: String(entry.driver_number),
+      recipient_team: entry.current_team,
+      subject: "Signed Out of the Transfer Portal",
+      message: `${getTeamFullName(safeSelectedTeam)} has signed you out of the Transfer Portal!${cost.buyout > 0 ? ` A buyout of ${money(cost.buyout)} was paid to ${getTeamFullName(entry.current_team)}.` : ""}`,
+      archived: false,
+      created_at: new Date().toISOString(),
+    }]);
+    if (msgErr) console.error("Could not send signing notice:", msgErr);
+
+    setTransferPortalMessage(`Signed #${entry.driver_number} ${entry.driver_name}.${cost.buyout > 0 ? ` ${money(cost.buyout)} buyout paid to ${getTeamFullName(entry.current_team)}.` : ""}`);
+    setSigningBusyId("");
+    await loadTransferPortalEntries();
+    await loadTeamFinance();
+    await loadActiveContracts();
   }
 
   async function updateTeamInterestStatus(interestId, status) {
@@ -4276,6 +4437,109 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
                             <button type="button" onClick={() => updateTeamInterestStatus(interest.id, "Closed")} style={dangerButtonStyle}>Close</button>
                             <button type="button" onClick={() => { setActiveHqTab("messages"); setTeamMessageForm({ recipient_mode: "driver", driver_number: String(interest.driver_number || ""), subject: `Re: Interest in ${getTeamFullName(safeSelectedTeam)}`, message: "" }); }} style={secondaryButtonStyle}>Message Driver</button>
                             <button type="button" onClick={() => { setActiveHqTab("contracts"); const target = drivers.find((driver) => String(driver.number) === String(interest.driver_number)); if (target) selectContractDriver(target.id); }} style={secondaryButtonStyle}>Start Contract Offer</button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeHqTab === "recruiting" && (
+              <div style={sectionCardStyle}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start", marginBottom: 16 }}>
+                  <div>
+                    <h2 style={{ margin: 0 }}>🎯 Recruiting Board</h2>
+                    <div style={{ opacity: 0.68, fontSize: 13, marginTop: 6 }}>Drivers {getTeamFullName(safeSelectedTeam)} has flagged interest in from the Driver Market.</div>
+                  </div>
+                  <button onClick={loadRecruitingBoard} style={secondaryButtonStyle}>Refresh Board</button>
+                </div>
+
+                {recruitingBoardRows.length === 0 ? (
+                  <div style={{ opacity: 0.72 }}>No drivers added to your recruiting board yet. Browse the Driver Market and tap "Add to Recruiting Board" or "Show Interest" on a driver's profile.</div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    {recruitingBoardRows.map((row) => (
+                      <div key={row.id} style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 16, padding: 16 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                          <div>
+                            <div style={{ fontSize: 18, fontWeight: 900 }}>#{row.driver_number} {row.driver_name}</div>
+                            <div style={{ fontSize: 12, opacity: 0.7, marginTop: 4 }}>Added by {row.owner_name || "Unknown"} · {row.created_at ? new Date(row.created_at).toLocaleDateString() : ""}</div>
+                          </div>
+                          <div style={{ display: "inline-flex", background: "#111827", border: "1px solid #d4af37", color: "#d4af37", borderRadius: 999, padding: "5px 10px", fontSize: 12, fontWeight: 900, height: "fit-content" }}>
+                            {row.interest_level || "interested"}
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
+                          <button type="button" onClick={() => { setActiveHqTab("messages"); setTeamMessageForm({ recipient_mode: "driver", driver_number: String(row.driver_number || ""), subject: `Recruiting interest from ${getTeamFullName(safeSelectedTeam)}`, message: "" }); }} style={secondaryButtonStyle}>Message Driver</button>
+                          <button type="button" onClick={() => { setActiveHqTab("contracts"); const target = drivers.find((driver) => String(driver.number) === String(row.driver_number)); if (target) selectContractDriver(target.id); }} style={secondaryButtonStyle}>Start Contract Offer</button>
+                          <button type="button" onClick={() => removeFromRecruitingBoard(row.id)} style={dangerButtonStyle}>Remove</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeHqTab === "portal" && (
+              <div style={sectionCardStyle}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start", marginBottom: 16 }}>
+                  <div>
+                    <h2 style={{ margin: 0 }}>🔄 Transfer Portal</h2>
+                    <div style={{ opacity: 0.68, fontSize: 13, marginTop: 6 }}>Drivers who have entered the portal and are open to signing elsewhere. Signing a driver under contract requires paying their buyout to their current team.</div>
+                  </div>
+                  <button onClick={loadTransferPortalEntries} style={secondaryButtonStyle}>Refresh Portal</button>
+                </div>
+
+                {transferPortalMessage && <div style={{ marginBottom: 12, color: "#4ade80", fontWeight: 900 }}>{transferPortalMessage}</div>}
+
+                {transferPortalEntries.length === 0 ? (
+                  <div style={{ opacity: 0.72 }}>No drivers are currently in the Transfer Portal.</div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    {transferPortalEntries.map((entry) => {
+                      const driverContract = (activeContracts || []).find((c) => String(c.driver_number) === String(entry.driver_number));
+                      const cost = driverContract ? calculateContractTerminationCost(driverContract) : null;
+                      const isOwnDriver = sameTeamName(entry.current_team, safeSelectedTeam) || sameTeamName(entry.current_team, ownerTeamName);
+                      return (
+                        <div key={entry.id} style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 16, padding: 16 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                            <div>
+                              <div style={{ fontSize: 18, fontWeight: 900 }}>#{entry.driver_number} {entry.driver_name}</div>
+                              <div style={{ fontSize: 12, opacity: 0.7, marginTop: 4 }}>Currently: {getTeamFullName(entry.current_team)} · Entered {entry.entered_at ? new Date(entry.entered_at).toLocaleDateString() : ""}</div>
+                            </div>
+                            <div style={{ textAlign: "right" }}>
+                              {cost ? (
+                                <div style={{ fontSize: 18, fontWeight: 900, color: "#d4af37" }}>{money(cost.buyout)} buyout</div>
+                              ) : (
+                                <div style={{ fontSize: 13, fontWeight: 900, color: "#4ade80" }}>Free agent — no buyout</div>
+                              )}
+                            </div>
+                          </div>
+
+                          {entry.wishlist && (
+                            <div style={{ marginTop: 12, background: "#11161d", border: "1px solid #252c38", borderRadius: 12, padding: 12, whiteSpace: "pre-wrap", lineHeight: 1.55, fontSize: 13.5 }}>
+                              <div style={{ fontSize: 11, opacity: 0.6, fontWeight: 900, marginBottom: 4, textTransform: "uppercase" }}>Wish List</div>
+                              {entry.wishlist}
+                            </div>
+                          )}
+
+                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
+                            {isOwnDriver ? (
+                              <div style={{ fontSize: 12.5, opacity: 0.65, fontWeight: 700 }}>This is your own driver testing the market.</div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => signPortalDriver(entry)}
+                                disabled={signingBusyId === entry.id}
+                                style={primaryButtonStyle}
+                              >
+                                {signingBusyId === entry.id ? "Signing..." : `Sign to ${getTeamFullName(safeSelectedTeam)}`}
+                              </button>
+                            )}
+                            <button type="button" onClick={() => { setActiveHqTab("messages"); setTeamMessageForm({ recipient_mode: "driver", driver_number: String(entry.driver_number || ""), subject: `Interest from ${getTeamFullName(safeSelectedTeam)}`, message: "" }); }} style={secondaryButtonStyle}>Message Driver</button>
                           </div>
                         </div>
                       );
