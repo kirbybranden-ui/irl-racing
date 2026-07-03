@@ -33,6 +33,7 @@ import DriverMarketPage from "./pages/DriverMarketPage";
 import DevelopmentRequestsPage from "./pages/DevelopmentRequestsPage";
 import IssuesPage from "./pages/IssuesPage";
 import IssuesRollupPage from "./pages/IssuesRollupPage";
+import { getLeagueSession } from "./lib/leagueAuth";
 import LeagueChatPage from "./LeagueChatPage";
 import OwnersPage from "./OwnersPage.jsx";
 import { defaultDrivers } from "./data/drivers";
@@ -462,6 +463,90 @@ function AdminLoginPage() {
             </form>
           </>
         )}
+      </div>
+    </div>
+  );
+}
+
+function DriverProfileSignInGate({ driverNumber }) {
+  const pageFont = "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif";
+  return (
+    <div style={{
+      minHeight: "100vh",
+      background: "radial-gradient(circle at top left, rgba(255,255,255,0.95), rgba(245,245,247,0.94) 36%, rgba(229,229,234,0.98) 100%)",
+      color: "#1d1d1f",
+      fontFamily: pageFont,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: 20,
+    }}>
+      <div style={{
+        maxWidth: 400,
+        width: "100%",
+        borderRadius: 30,
+        padding: "clamp(26px, 5vw, 36px)",
+        background: "linear-gradient(180deg, rgba(255,255,255,0.90), rgba(255,255,255,0.62))",
+        border: "1px solid rgba(255,255,255,0.78)",
+        boxShadow: "0 30px 90px rgba(0,0,0,0.14)",
+        backdropFilter: "blur(22px)",
+        WebkitBackdropFilter: "blur(22px)",
+        textAlign: "center",
+      }}>
+        <div style={{
+          width: 56,
+          height: 56,
+          borderRadius: "50%",
+          background: "#f5f5f7",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 26,
+          border: "1px solid #e8e8ed",
+          margin: "0 auto 18px",
+        }}>
+          🔒
+        </div>
+        <h1 style={{ margin: "0 0 8px", fontSize: 22, fontWeight: 1000, letterSpacing: "-0.02em" }}>Sign In Required</h1>
+        <p style={{ margin: "0 0 24px", fontSize: 14, color: "#6e6e73", fontWeight: 700, lineHeight: 1.5 }}>
+          {`Driver profiles are only visible to their owner. Sign in as #${driverNumber} to view this page.`}
+        </p>
+        <button
+          type="button"
+          onClick={() => (window.location.href = `/standings?login=1&redirect=${encodeURIComponent(`/driver/${driverNumber}`)}`)}
+          style={{
+            width: "100%",
+            border: 0,
+            borderRadius: 999,
+            padding: "13px 18px",
+            background: "linear-gradient(135deg, #007aff 0%, #5856d6 100%)",
+            color: "#ffffff",
+            fontWeight: 1000,
+            fontSize: 14,
+            cursor: "pointer",
+            boxShadow: "0 14px 32px rgba(0,122,255,0.26)",
+            marginBottom: 10,
+          }}
+        >
+          Sign In
+        </button>
+        <button
+          type="button"
+          onClick={() => (window.location.href = "/standings")}
+          style={{
+            width: "100%",
+            border: "1px solid rgba(0,0,0,0.10)",
+            borderRadius: 999,
+            padding: "13px 18px",
+            background: "rgba(255,255,255,0.7)",
+            color: "#1d1d1f",
+            fontWeight: 900,
+            fontSize: 14,
+            cursor: "pointer",
+          }}
+        >
+          Back to Standings
+        </button>
       </div>
     </div>
   );
@@ -8242,6 +8327,15 @@ export default function App() {
     );
   }
   if (path.startsWith("/driver/")) {
+    const requestedDriverNumber = decodeURIComponent(rawPath.replace(/^\/driver\//i, "").split("/")[0]);
+    const leagueSession = getLeagueSession();
+    const isAdminViewing = typeof window !== "undefined" && sessionStorage.getItem("bcl-admin-auth") === "true";
+    const isOwnProfile = leagueSession && String(leagueSession.driverNumber) === String(requestedDriverNumber);
+
+    if (!isAdminViewing && !isOwnProfile) {
+      return <DriverProfileSignInGate driverNumber={requestedDriverNumber} />;
+    }
+
     return (
       <>
         <div style={{ minHeight: 0, background: "#0c0f14", padding: "20px 20px 0" }}>
@@ -8249,7 +8343,7 @@ export default function App() {
             <AppUpdateBanner page="driver" />
           </div>
         </div>
-        <DriverVoteReminderStrip driverNumber={decodeURIComponent(rawPath.replace(/^\/driver\//i, "").split("/")[0])} />
+        <DriverVoteReminderStrip driverNumber={requestedDriverNumber} />
         <DriverProfilePage seasons={seasons} activeSeason={activeSeason} tracks={tracks} arcaDrivers={activeSeason?.arcaDrivers || arcaDrivers} arcaTracks={arcaTracks} />
       </>
     );
