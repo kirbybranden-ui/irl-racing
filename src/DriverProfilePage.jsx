@@ -3459,7 +3459,6 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
         </div>
 
         <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 20, marginTop: 18, alignItems: "center" }}>
-          <button onClick={() => openProtectedDriverSection(`/driver/${driverNumber}/contracts`)} style={themedPrimaryButtonStyle}>📄 Contracts</button>
           <button onClick={() => openProtectedDriverSection(`/driver/${driverNumber}/messages`)} style={unreadMessages > 0 ? themedPrimaryButtonStyle : secondaryButtonStyle}>📩 Messages{unreadMessages > 0 ? ` (${unreadMessages})` : ""}</button>
           {authorizedDriverNumber && String(authorizedDriverNumber) !== String(driver.number) && (
             <button onClick={startMessageFromProfile} style={themedPrimaryButtonStyle}>✉️ Message Driver</button>
@@ -3664,8 +3663,6 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
           </div>
           {isDriverAuthorized && <button onClick={lockDriverContracts} style={secondaryButtonStyle}>Lock Driver Access</button>}
         </div>
-
-        {passwordManagerCard}
 
         {!isArcaDriver && (
         <div style={sectionCardStyle}>
@@ -3885,8 +3882,6 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
             <div style={{ fontSize: 14, lineHeight: 1.6, opacity: 0.9 }}>{driver.notes}</div>
           </div>
         )}
-
-        {passwordManagerCard}
 
           <div style={sectionCardStyle}>
           <h2 style={{ marginTop: 0, marginBottom: 16 }}>Season Overview</h2>
