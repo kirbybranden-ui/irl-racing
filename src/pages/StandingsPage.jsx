@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { getLeagueSession, loginToLeague, logoutOfLeague } from "../lib/leagueAuth";
+import { getLeagueSession, loginToLeague, logoutOfLeague, isBiometricAvailable, hasAnyDriverBiometricCredential, hasBiometricCredentialForDriver, registerDriverBiometric, loginWithBiometric } from "../lib/leagueAuth";
 import logo from "../assets/logo1.png";
 import ncsLogo from "../assets/series/NCS.png";
 import arcaLogo from "../assets/series/AMS.png";
@@ -1940,6 +1940,17 @@ function LeagueLoginModal({ drivers, arcaDrivers, teams, driverAccessCodes, onCl
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [hasSavedBiometric, setHasSavedBiometric] = useState(false);
+  const [biometricBusy, setBiometricBusy] = useState(false);
+  const [biometricError, setBiometricError] = useState("");
+  const [offerBiometricSetup, setOfferBiometricSetup] = useState(false);
+  const [pendingSession, setPendingSession] = useState(null);
+
+  useEffect(() => {
+    isBiometricAvailable().then(setBiometricAvailable);
+    setHasSavedBiometric(hasAnyDriverBiometricCredential());
+  }, []);
 
   function handleSubmit(e) {
     e.preventDefault();
@@ -1965,7 +1976,44 @@ function LeagueLoginModal({ drivers, arcaDrivers, teams, driverAccessCodes, onCl
       return;
     }
 
+    if (biometricAvailable && !hasBiometricCredentialForDriver(result.session.driverNumber)) {
+      setPendingSession(result.session);
+      setOfferBiometricSetup(true);
+      return;
+    }
+
     onSuccess(result.session);
+  }
+
+  async function handleEnableBiometric() {
+    if (!pendingSession) return;
+    setBiometricBusy(true);
+    setBiometricError("");
+    try {
+      await registerDriverBiometric(pendingSession.driverNumber, pendingSession.driverName);
+      onSuccess(pendingSession);
+    } catch (err) {
+      console.error("Biometric setup failed:", err);
+      setBiometricError("Could not set up Face ID / Touch ID on this device.");
+      setBiometricBusy(false);
+    }
+  }
+
+  function handleSkipBiometric() {
+    if (pendingSession) onSuccess(pendingSession);
+  }
+
+  async function handleBiometricUnlock() {
+    setBiometricBusy(true);
+    setBiometricError("");
+    try {
+      const session = await loginWithBiometric({ drivers, arcaDrivers, teams });
+      onSuccess(session);
+    } catch (err) {
+      console.error("Biometric unlock failed:", err);
+      setBiometricError("Face ID / Touch ID didn't match. Use your number and password instead.");
+      setBiometricBusy(false);
+    }
   }
 
   return createPortal(
@@ -1998,16 +2046,16 @@ function LeagueLoginModal({ drivers, arcaDrivers, teams, driverAccessCodes, onCl
               width: 44,
               height: 44,
               borderRadius: 16,
-              background: "linear-gradient(180deg, #007aff 0%, #5856d6 100%)",
+              background: offerBiometricSetup ? "linear-gradient(180deg, #34c759 0%, #248a3d 100%)" : "linear-gradient(180deg, #007aff 0%, #5856d6 100%)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               fontSize: 20,
-              boxShadow: "0 12px 26px rgba(0,122,255,0.26)",
+              boxShadow: offerBiometricSetup ? "0 12px 26px rgba(52,199,89,0.26)" : "0 12px 26px rgba(0,122,255,0.26)",
             }}>
-              🔑
+              {offerBiometricSetup ? "🔓" : "🔑"}
             </div>
-            <h2 style={{ margin: 0, fontSize: 21, fontWeight: 1000, letterSpacing: "-0.03em" }}>League Log In</h2>
+            <h2 style={{ margin: 0, fontSize: 21, fontWeight: 1000, letterSpacing: "-0.03em" }}>{offerBiometricSetup ? "Enable Face ID / Touch ID?" : "League Log In"}</h2>
           </div>
           <button
             onClick={onClose}
@@ -2017,70 +2065,153 @@ function LeagueLoginModal({ drivers, arcaDrivers, teams, driverAccessCodes, onCl
           </button>
         </div>
 
-        <p style={{ margin: "0 0 18px", fontSize: 13, color: "#6e6e73", fontWeight: 700, lineHeight: 1.5 }}>
-          One login gets you into your driver profile, and your team page if you're an owner. Works across every series.
-        </p>
+        {offerBiometricSetup ? (
+          <div>
+            <p style={{ margin: "0 0 18px", fontSize: 13.5, color: "#6e6e73", fontWeight: 700, lineHeight: 1.5 }}>
+              Skip typing your number and password next time — unlock the league on this device with Face ID, Touch ID, or Windows Hello instead.
+            </p>
+            {biometricError && <div style={{ color: "#c62d24", fontWeight: 800, fontSize: 12.5, marginBottom: 12 }}>{biometricError}</div>}
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <button
+                type="button"
+                onClick={handleEnableBiometric}
+                disabled={biometricBusy}
+                style={{
+                  flex: 1,
+                  border: 0,
+                  borderRadius: 999,
+                  padding: "13px 18px",
+                  background: "linear-gradient(135deg, #34c759 0%, #248a3d 100%)",
+                  color: "#ffffff",
+                  fontWeight: 1000,
+                  fontSize: 14,
+                  cursor: biometricBusy ? "default" : "pointer",
+                  opacity: biometricBusy ? 0.7 : 1,
+                  boxShadow: "0 14px 32px rgba(52,199,89,0.26)",
+                }}
+              >
+                {biometricBusy ? "Setting up..." : "Enable"}
+              </button>
+              <button
+                type="button"
+                onClick={handleSkipBiometric}
+                disabled={biometricBusy}
+                style={{
+                  border: "1px solid rgba(0,0,0,0.10)",
+                  borderRadius: 999,
+                  padding: "13px 18px",
+                  background: "rgba(255,255,255,0.7)",
+                  color: "#1d1d1f",
+                  fontWeight: 900,
+                  fontSize: 14,
+                  cursor: "pointer",
+                }}
+              >
+                Not now
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            {biometricAvailable && hasSavedBiometric && (
+              <div style={{ marginBottom: 20 }}>
+                <button
+                  type="button"
+                  onClick={handleBiometricUnlock}
+                  disabled={biometricBusy}
+                  style={{
+                    width: "100%",
+                    border: 0,
+                    borderRadius: 999,
+                    padding: "14px 18px",
+                    background: "linear-gradient(135deg, #34c759 0%, #248a3d 100%)",
+                    color: "#ffffff",
+                    fontWeight: 1000,
+                    fontSize: 15,
+                    cursor: biometricBusy ? "default" : "pointer",
+                    opacity: biometricBusy ? 0.7 : 1,
+                    boxShadow: "0 16px 34px rgba(52,199,89,0.28)",
+                  }}
+                >
+                  {biometricBusy ? "Verifying..." : "🔓 Unlock with Face ID / Touch ID"}
+                </button>
+                {biometricError && <div style={{ color: "#c62d24", fontWeight: 800, fontSize: 12.5, marginTop: 10 }}>{biometricError}</div>}
+                <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "18px 0" }}>
+                  <div style={{ flex: 1, height: 1, background: "rgba(0,0,0,0.08)" }} />
+                  <div style={{ fontSize: 11, fontWeight: 900, color: "#86868b", letterSpacing: "0.06em" }}>OR</div>
+                  <div style={{ flex: 1, height: 1, background: "rgba(0,0,0,0.08)" }} />
+                </div>
+              </div>
+            )}
 
-        <form onSubmit={handleSubmit}>
-          <label style={{ display: "block", marginBottom: 6, fontWeight: 900, fontSize: 13 }}>Driver Number</label>
-          <input
-            type="text"
-            value={driverNumber}
-            onChange={(e) => setDriverNumber(e.target.value)}
-            placeholder="e.g. 42"
-            style={{
-              width: "100%",
-              padding: "11px 13px",
-              borderRadius: 14,
-              border: "1px solid rgba(0,0,0,0.08)",
-              background: "rgba(255,255,255,0.7)",
-              fontSize: 14,
-              boxSizing: "border-box",
-              marginBottom: 14,
-            }}
-          />
+            {!biometricAvailable || !hasSavedBiometric ? (
+              <p style={{ margin: "0 0 18px", fontSize: 13, color: "#6e6e73", fontWeight: 700, lineHeight: 1.5 }}>
+                One login gets you into your driver profile, and your team page if you're an owner. Works across every series.
+              </p>
+            ) : null}
 
-          <label style={{ display: "block", marginBottom: 6, fontWeight: 900, fontSize: 13 }}>Password</label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Driver password"
-            style={{
-              width: "100%",
-              padding: "11px 13px",
-              borderRadius: 14,
-              border: "1px solid rgba(0,0,0,0.08)",
-              background: "rgba(255,255,255,0.7)",
-              fontSize: 14,
-              boxSizing: "border-box",
-              marginBottom: 6,
-            }}
-          />
+            <form onSubmit={handleSubmit}>
+              <label style={{ display: "block", marginBottom: 6, fontWeight: 900, fontSize: 13 }}>Driver Number</label>
+              <input
+                type="text"
+                value={driverNumber}
+                onChange={(e) => setDriverNumber(e.target.value)}
+                placeholder="e.g. 42"
+                style={{
+                  width: "100%",
+                  padding: "11px 13px",
+                  borderRadius: 14,
+                  border: "1px solid rgba(0,0,0,0.08)",
+                  background: "rgba(255,255,255,0.7)",
+                  fontSize: 14,
+                  boxSizing: "border-box",
+                  marginBottom: 14,
+                }}
+              />
 
-          {error && <div style={{ color: "#c62d24", fontWeight: 800, fontSize: 12.5, marginBottom: 10 }}>{error}</div>}
+              <label style={{ display: "block", marginBottom: 6, fontWeight: 900, fontSize: 13 }}>Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Driver password"
+                style={{
+                  width: "100%",
+                  padding: "11px 13px",
+                  borderRadius: 14,
+                  border: "1px solid rgba(0,0,0,0.08)",
+                  background: "rgba(255,255,255,0.7)",
+                  fontSize: 14,
+                  boxSizing: "border-box",
+                  marginBottom: 6,
+                }}
+              />
 
-          <button
-            type="submit"
-            disabled={submitting}
-            style={{
-              width: "100%",
-              marginTop: 12,
-              border: 0,
-              borderRadius: 999,
-              padding: "13px 18px",
-              background: "linear-gradient(135deg, #007aff 0%, #5856d6 100%)",
-              color: "#ffffff",
-              fontWeight: 1000,
-              fontSize: 14,
-              cursor: submitting ? "default" : "pointer",
-              opacity: submitting ? 0.7 : 1,
-              boxShadow: "0 14px 32px rgba(0,122,255,0.26)",
-            }}
-          >
-            {submitting ? "Logging in..." : "Log In"}
-          </button>
-        </form>
+              {error && <div style={{ color: "#c62d24", fontWeight: 800, fontSize: 12.5, marginBottom: 10 }}>{error}</div>}
+
+              <button
+                type="submit"
+                disabled={submitting}
+                style={{
+                  width: "100%",
+                  marginTop: 12,
+                  border: 0,
+                  borderRadius: 999,
+                  padding: "13px 18px",
+                  background: "linear-gradient(135deg, #007aff 0%, #5856d6 100%)",
+                  color: "#ffffff",
+                  fontWeight: 1000,
+                  fontSize: 14,
+                  cursor: submitting ? "default" : "pointer",
+                  opacity: submitting ? 0.7 : 1,
+                  boxShadow: "0 14px 32px rgba(0,122,255,0.26)",
+                }}
+              >
+                {submitting ? "Logging in..." : "Log In"}
+              </button>
+            </form>
+          </>
+        )}
       </div>
     </div>,
     document.body
