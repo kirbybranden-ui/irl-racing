@@ -1,14 +1,78 @@
 import React, { useMemo, useState } from "react";
 import { getTeamFullName } from "../data/teams";
 import { money } from "../utils/formatters";
-import {
-  appShellStyle,
-  pageContainerStyle,
-  sectionCardStyle,
-  primaryButtonStyle,
-  secondaryButtonStyle,
-  inputStyle,
-} from "../styles/sharedStyles";
+
+const appleFont = "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif";
+
+const appShellStyle = {
+  minHeight: "100vh",
+  background: "radial-gradient(circle at top left, rgba(255,255,255,0.95), rgba(245,245,247,0.94) 36%, rgba(229,229,234,0.98) 100%)",
+  color: "#1d1d1f",
+  fontFamily: appleFont,
+};
+const pageContainerStyle = { maxWidth: 1000, margin: "0 auto", padding: 20 };
+const sectionCardStyle = {
+  background: "linear-gradient(180deg, rgba(255,255,255,0.88), rgba(255,255,255,0.60))",
+  border: "1px solid rgba(255,255,255,0.78)",
+  borderRadius: 24,
+  padding: 22,
+  marginBottom: 20,
+  boxShadow: "0 20px 55px rgba(15,23,42,0.08)",
+  backdropFilter: "blur(20px)",
+  WebkitBackdropFilter: "blur(20px)",
+};
+const primaryButtonStyle = {
+  background: "linear-gradient(135deg, #007aff 0%, #5856d6 100%)",
+  color: "#ffffff",
+  border: "none",
+  borderRadius: 999,
+  padding: "11px 18px",
+  fontWeight: 900,
+  fontFamily: appleFont,
+  cursor: "pointer",
+  boxShadow: "0 12px 28px rgba(0,122,255,0.24)",
+};
+const secondaryButtonStyle = {
+  background: "rgba(255,255,255,0.72)",
+  color: "#1d1d1f",
+  border: "1px solid rgba(0,0,0,0.10)",
+  borderRadius: 999,
+  padding: "11px 18px",
+  fontWeight: 900,
+  fontFamily: appleFont,
+  cursor: "pointer",
+};
+const inputStyle = {
+  width: "100%",
+  background: "rgba(255,255,255,0.72)",
+  color: "#1d1d1f",
+  border: "1px solid rgba(0,0,0,0.08)",
+  borderRadius: 14,
+  padding: "11px 13px",
+  boxSizing: "border-box",
+  fontFamily: appleFont,
+  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.6)",
+};
+
+// Score-driven "heat" ramp — matches the existing interest-level naming
+// (Watching -> Top Target) with intensity that reads at a glance, the
+// same idea as Apple Stocks' color-coded % change.
+function heatColor(score) {
+  if (score >= 90) return { text: "#c62d24", soft: "rgba(255,59,48,0.12)", ring: "rgba(255,59,48,0.30)" };
+  if (score >= 75) return { text: "#c2410c", soft: "rgba(255,149,0,0.14)", ring: "rgba(255,149,0,0.32)" };
+  if (score >= 55) return { text: "#9a5a00", soft: "rgba(255,214,10,0.16)", ring: "rgba(255,214,10,0.35)" };
+  if (score >= 35) return { text: "#0057d9", soft: "rgba(0,122,255,0.10)", ring: "rgba(0,122,255,0.26)" };
+  return { text: "#6e6e73", soft: "rgba(0,0,0,0.05)", ring: "rgba(0,0,0,0.10)" };
+}
+
+// Performance-rating ramp (green/gold/orange/red), same semantic tiers as
+// before, mapped to Apple's system colors.
+function ratingColor(score) {
+  if (score >= 85) return "#147d35";
+  if (score >= 65) return "#9a5a00";
+  if (score >= 40) return "#c2410c";
+  return "#c62d24";
+}
 
 const MARKET_TABS = ["Overview", "Scouting", "Recruiting", "Rumor Mill", "Contracts", "History"];
 
@@ -297,38 +361,39 @@ function makeTeamGrades(drivers = [], raceStats = new Map(), paintStats = new Ma
 }
 
 function Meter({ score }) {
-  const color = score >= 85 ? "#22c55e" : score >= 65 ? "#d4af37" : score >= 40 ? "#f59e0b" : "#ef4444";
+  const color = ratingColor(score);
   return (
-    <div style={{ height: 12, background: "#07111f", border: "1px solid #263244", borderRadius: 999, overflow: "hidden" }}>
-      <div style={{ height: "100%", width: `${Math.max(0, Math.min(100, score))}%`, background: color }} />
+    <div style={{ height: 8, background: "rgba(0,0,0,0.06)", borderRadius: 999, overflow: "hidden" }}>
+      <div style={{ height: "100%", width: `${Math.max(0, Math.min(100, score))}%`, background: color, borderRadius: 999, transition: "width 0.3s" }} />
     </div>
   );
 }
 
 function StatBox({ label, value }) {
   return (
-    <div style={{ background: "#0d131f", border: "1px solid #263244", borderRadius: 14, padding: 12 }}>
-      <div style={{ color: "#94a3b8", fontSize: 11, fontWeight: 1000, textTransform: "uppercase" }}>{label}</div>
-      <div style={{ marginTop: 4, fontSize: 19, fontWeight: 1000 }}>{value}</div>
+    <div style={{ background: "rgba(0,0,0,0.03)", border: "1px solid rgba(0,0,0,0.06)", borderRadius: 16, padding: 12 }}>
+      <div style={{ color: "#6e6e73", fontSize: 10.5, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.04em" }}>{label}</div>
+      <div style={{ marginTop: 4, fontSize: 18, fontWeight: 950, color: "#1d1d1f" }}>{value}</div>
     </div>
   );
 }
 
 function TeamBoardRow({ team, index }) {
+  const heat = heatColor(team.score);
   return (
-    <div style={{ background: index === 0 ? "linear-gradient(135deg, rgba(34,197,94,0.16), #0f1319)" : "#0f1319", border: index === 0 ? "1px solid rgba(34,197,94,0.55)" : "1px solid #263244", borderRadius: 16, padding: 14 }}>
+    <div style={{ background: index === 0 ? "rgba(52,199,89,0.08)" : "rgba(0,0,0,0.03)", border: index === 0 ? "1px solid rgba(52,199,89,0.30)" : "1px solid rgba(0,0,0,0.06)", borderRadius: 18, padding: 14 }}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
         <div>
-          <div style={{ color: "#d4af37", fontSize: 12, fontWeight: 1000 }}>
+          <div style={{ color: index === 0 ? "#147d35" : "#6e6e73", fontSize: 11, fontWeight: 950, letterSpacing: "0.04em" }}>
             {index === 0 ? "🥇 FRONT RUNNER" : `#${index + 1} ${team.incumbent ? "INCUMBENT" : "CHALLENGER"}`}
           </div>
-          <div style={{ fontSize: 20, fontWeight: 1000 }}>{getTeamFullName(team.team)}</div>
-          <div style={{ color: team.incumbent ? "#d4af37" : "#cbd5e1", fontSize: 13, fontWeight: 900 }}>{team.label}</div>
+          <div style={{ fontSize: 18, fontWeight: 950, color: "#1d1d1f" }}>{getTeamFullName(team.team)}</div>
+          <span style={{ display: "inline-block", marginTop: 4, background: heat.soft, color: heat.text, borderRadius: 999, padding: "3px 10px", fontSize: 11.5, fontWeight: 900 }}>{team.label}</span>
         </div>
-        <div style={{ fontSize: 24, fontWeight: 1000 }}>{team.score}%</div>
+        <div style={{ fontSize: 22, fontWeight: 950, color: heat.text }}>{team.score}%</div>
       </div>
       <div style={{ marginTop: 10 }}><Meter score={team.score} /></div>
-      {team.pitch && <p style={{ color: "#cbd5e1", lineHeight: 1.45, fontSize: 13, marginBottom: 0 }}>{team.pitch}</p>}
+      {team.pitch && <p style={{ color: "#3a3a3c", lineHeight: 1.5, fontSize: 13, fontWeight: 600, marginBottom: 0, marginTop: 8 }}>{team.pitch}</p>}
     </div>
   );
 }
@@ -338,22 +403,67 @@ function DriverMarketCard({ driver, raceStats, paintStats, interestRows, reSignR
   const rating = calculateDriverMarketRating(driver, raceStats, paintStats);
   const board = makeInterestBoard(driver, interestRows, reSignRows);
   const leader = board[0];
+  const heat = heatColor(leader?.score || 0);
+  const ratingClr = ratingColor(rating);
+  const expiring = isExpiringDriver(driver);
 
   return (
-    <div style={{ ...sectionCardStyle, border: "1px solid rgba(212,175,55,0.35)" }}>
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(230px, 320px)", gap: 16 }}>
-        <div>
-          <div style={{ color: "#d4af37", fontSize: 12, fontWeight: 1000, letterSpacing: 1.4 }}>
-            {isExpiringDriver(driver) ? "TRANSFER MARKET ELIGIBLE" : "SCOUTING PROFILE"}
+    <div style={{ ...sectionCardStyle, padding: 0, overflow: "hidden" }}>
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        style={{
+          width: "100%",
+          background: "transparent",
+          border: "none",
+          padding: 18,
+          textAlign: "left",
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          gap: 14,
+          fontFamily: appleFont,
+        }}
+      >
+        <div style={{
+          width: 46,
+          height: 46,
+          borderRadius: 14,
+          background: `${ratingClr}18`,
+          color: ratingClr,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontWeight: 950,
+          fontSize: 16,
+          flexShrink: 0,
+        }}>
+          {rating}
+        </div>
+
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 17, fontWeight: 950, color: "#1d1d1f" }}>#{driver.number} {driver.name}</span>
+            {expiring && <span style={{ background: "rgba(255,149,0,0.14)", color: "#9a5a00", borderRadius: 999, padding: "2px 9px", fontSize: 10.5, fontWeight: 900 }}>EXPIRING</span>}
           </div>
-          <h2 style={{ margin: "7px 0 4px", fontSize: 34, lineHeight: 1 }}>
-            #{driver.number} {driver.name}
-          </h2>
-          <div style={{ color: "#cbd5e1", fontWeight: 900 }}>
+          <div style={{ fontSize: 12.5, color: "#6e6e73", fontWeight: 700, marginTop: 2 }}>
             {getTeamFullName(driver.team)} • {driver.manufacturer || "—"}
           </div>
+        </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 10, marginTop: 16 }}>
+        <div style={{ textAlign: "right", flexShrink: 0 }}>
+          <span style={{ display: "inline-block", background: heat.soft, color: heat.text, borderRadius: 999, padding: "5px 12px", fontSize: 12, fontWeight: 900 }}>
+            {leader?.incumbent ? "Re-Sign" : leader?.label || "No Interest"}
+          </span>
+          <div style={{ fontSize: 11, color: "#6e6e73", fontWeight: 700, marginTop: 4 }}>{leader ? getTeamFullName(leader.team) : "—"}</div>
+        </div>
+
+        <div style={{ color: "#c7c7cc", fontSize: 20, fontWeight: 900, transform: open ? "rotate(90deg)" : "none", transition: "transform 0.2s", flexShrink: 0 }}>›</div>
+      </button>
+
+      {open && (
+        <div style={{ padding: "0 18px 20px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))", gap: 10, marginBottom: 18 }}>
             <StatBox label="Overall" value={`${rating} ${starsFromRating(rating)}`} />
             <StatBox label="Points" value={driver.points || 0} />
             <StatBox label="Wins" value={driver.wins || 0} />
@@ -361,47 +471,33 @@ function DriverMarketCard({ driver, raceStats, paintStats, interestRows, reSignR
             <StatBox label="Missed No Notice" value={raceStats?.missedNoNotice || 0} />
             <StatBox label="Paint Points" value={paintStats?.paintSchemePoints || 0} />
           </div>
-        </div>
 
-        <div style={{ background: "#0f1319", border: "1px solid #263244", borderRadius: 18, padding: 16 }}>
-          <div style={{ color: "#94a3b8", fontSize: 11, fontWeight: 1000, textTransform: "uppercase" }}>Current Leader</div>
-          <div style={{ fontSize: 24, fontWeight: 1000, marginTop: 4 }}>{leader ? getTeamFullName(leader.team) : "No Interest"}</div>
-          <div style={{ color: leader?.incumbent ? "#d4af37" : "#cbd5e1", fontSize: 13, fontWeight: 900, marginTop: 4 }}>
-            {leader?.incumbent ? "Current Team Re-Sign Interest" : leader?.label || "—"}
-          </div>
-          <div style={{ marginTop: 12 }}><Meter score={leader?.score || 0} /></div>
-          <button type="button" onClick={() => setOpen((value) => !value)} style={{ ...primaryButtonStyle, width: "100%", marginTop: 14 }}>
-            {open ? "Hide Board" : "View Board"}
-          </button>
-        </div>
-      </div>
-
-      {open && (
-        <div style={{ marginTop: 18, display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(280px, 430px)", gap: 18 }}>
-          <div>
-            <h3 style={{ marginTop: 0 }}>Top Teams</h3>
-            <div style={{ display: "grid", gap: 12 }}>
-              {board.map((team, index) => <TeamBoardRow key={`${driver.number}-${team.team}-${index}`} team={team} index={index} />)}
+          <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(260px, 400px)", gap: 18 }}>
+            <div>
+              <h3 style={{ marginTop: 0, fontSize: 15, fontWeight: 950 }}>Top Teams</h3>
+              <div style={{ display: "grid", gap: 10 }}>
+                {board.map((team, index) => <TeamBoardRow key={`${driver.number}-${team.team}-${index}`} team={team} index={index} />)}
+              </div>
             </div>
-          </div>
 
-          <div>
-            <h3 style={{ marginTop: 0 }}>Driver Value</h3>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              <StatBox label="Average Finish" value={raceStats?.averageFinish || "—"} />
-              <StatBox label="Top 3" value={driver.top3 || 0} />
-              <StatBox label="Stage Points" value={raceStats?.stagePoints || 0} />
-              <StatBox label="Stage Wins" value={raceStats?.stageWins || 0} />
-              <StatBox label="Races Entered" value={raceStats?.racesEntered || 0} />
-              <StatBox label="Races Missed" value={raceStats?.racesMissed || 0} />
-              <StatBox label="DNFs" value={raceStats?.dnfs || 0} />
-              <StatBox label="Start & Parks" value={raceStats?.startParks || 0} />
-              <StatBox label="Penalties" value={raceStats?.penalties || 0} />
-              <StatBox label="Paint Wins" value={paintStats?.paintSchemeWins || 0} />
-              <StatBox label="Sponsor Happy" value={happinessValue(driver, "sponsor")} />
-              <StatBox label="Team Happy" value={happinessValue(driver, "team")} />
-              <StatBox label="Driver Earned" value={money(paintStats?.driverPaintEarnings || driver.driverEarnings || 0)} />
-              <StatBox label="Team Earned" value={money(paintStats?.teamPaintEarnings || driver.teamEarnings || 0)} />
+            <div>
+              <h3 style={{ marginTop: 0, fontSize: 15, fontWeight: 950 }}>Driver Value</h3>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                <StatBox label="Average Finish" value={raceStats?.averageFinish || "—"} />
+                <StatBox label="Top 3" value={driver.top3 || 0} />
+                <StatBox label="Stage Points" value={raceStats?.stagePoints || 0} />
+                <StatBox label="Stage Wins" value={raceStats?.stageWins || 0} />
+                <StatBox label="Races Entered" value={raceStats?.racesEntered || 0} />
+                <StatBox label="Races Missed" value={raceStats?.racesMissed || 0} />
+                <StatBox label="DNFs" value={raceStats?.dnfs || 0} />
+                <StatBox label="Start & Parks" value={raceStats?.startParks || 0} />
+                <StatBox label="Penalties" value={raceStats?.penalties || 0} />
+                <StatBox label="Paint Wins" value={paintStats?.paintSchemeWins || 0} />
+                <StatBox label="Sponsor Happy" value={happinessValue(driver, "sponsor")} />
+                <StatBox label="Team Happy" value={happinessValue(driver, "team")} />
+                <StatBox label="Driver Earned" value={money(paintStats?.driverPaintEarnings || driver.driverEarnings || 0)} />
+                <StatBox label="Team Earned" value={money(paintStats?.teamPaintEarnings || driver.teamEarnings || 0)} />
+              </div>
             </div>
           </div>
         </div>
@@ -436,13 +532,36 @@ function RumorMill({ marketDrivers = [], interestRows = [], reSignRows = [], rac
   });
 
   return (
-    <div style={{ display: "grid", gap: 12 }}>
+    <div style={{ display: "grid", gap: 10 }}>
       {rumors.map((rumor, index) => (
-        <div key={`${rumor}-${index}`} style={{ ...sectionCardStyle, background: index === 0 ? "linear-gradient(135deg, rgba(212,175,55,0.18), #111827)" : "#111827" }}>
-          <div style={{ color: "#d4af37", fontSize: 12, fontWeight: 1000, letterSpacing: 1.2 }}>
+        <div
+          key={`${rumor}-${index}`}
+          style={{
+            ...sectionCardStyle,
+            marginBottom: 0,
+            padding: 16,
+            display: "flex",
+            gap: 14,
+            alignItems: "flex-start",
+            background: index === 0 ? "linear-gradient(135deg, rgba(255,59,48,0.06), rgba(255,255,255,0.85))" : sectionCardStyle.background,
+            border: index === 0 ? "1px solid rgba(255,59,48,0.22)" : sectionCardStyle.border,
+          }}
+        >
+          <span style={{
+            flexShrink: 0,
+            display: "inline-block",
+            background: index === 0 ? "rgba(255,59,48,0.12)" : "rgba(0,122,255,0.10)",
+            color: index === 0 ? "#c62d24" : "#0057d9",
+            borderRadius: 999,
+            padding: "5px 11px",
+            fontSize: 10.5,
+            fontWeight: 950,
+            letterSpacing: "0.04em",
+            marginTop: 2,
+          }}>
             {index === 0 ? "BREAKING" : "RUMOR MILL"}
-          </div>
-          <div style={{ fontSize: 19, fontWeight: 900, marginTop: 6 }}>{rumor}</div>
+          </span>
+          <div style={{ fontSize: 15, fontWeight: 800, color: "#1d1d1f", lineHeight: 1.4 }}>{rumor}</div>
         </div>
       ))}
     </div>
@@ -451,18 +570,21 @@ function RumorMill({ marketDrivers = [], interestRows = [], reSignRows = [], rac
 
 function TeamGradesPanel({ teamGrades }) {
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: 14 }}>
-      {teamGrades.map((team) => (
-        <div key={team.team} style={sectionCardStyle}>
-          <div style={{ color: "#d4af37", fontSize: 12, fontWeight: 1000 }}>TEAM PRESTIGE</div>
-          <h3 style={{ margin: "6px 0", fontSize: 24 }}>{getTeamFullName(team.team)}</h3>
-          <div style={{ fontSize: 42, fontWeight: 1000 }}>{team.grade}</div>
-          <Meter score={team.score} />
-          <div style={{ marginTop: 10, color: "#cbd5e1", fontSize: 13 }}>
-            {team.wins} wins • {team.points} pts • {team.paintPoints} media pts
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}>
+      {teamGrades.map((team) => {
+        const clr = ratingColor(team.score);
+        return (
+          <div key={team.team} style={sectionCardStyle}>
+            <div style={{ color: "#6e6e73", fontSize: 11, fontWeight: 900, letterSpacing: "0.04em" }}>TEAM PRESTIGE</div>
+            <h3 style={{ margin: "6px 0", fontSize: 20, fontWeight: 950, color: "#1d1d1f" }}>{getTeamFullName(team.team)}</h3>
+            <div style={{ fontSize: 38, fontWeight: 950, color: clr }}>{team.grade}</div>
+            <Meter score={team.score} />
+            <div style={{ marginTop: 10, color: "#6e6e73", fontSize: 12.5, fontWeight: 700 }}>
+              {team.wins} wins • {team.points} pts • {team.paintPoints} media pts
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -509,12 +631,12 @@ export default function DriverMarketPage({
   return (
     <div style={appShellStyle}>
       <div style={pageContainerStyle}>
-        <div style={{ ...sectionCardStyle, background: "linear-gradient(135deg, rgba(212,175,55,0.22), rgba(15,23,42,0.98))", border: "1px solid rgba(212,175,55,0.62)" }}>
+        <div style={sectionCardStyle}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", alignItems: "center" }}>
             <div>
-              <div style={{ color: "#d4af37", fontSize: 13, fontWeight: 1000, letterSpacing: 1.5 }}>2026 SILLY SEASON</div>
-              <h1 style={{ margin: "8px 0", fontSize: 46, lineHeight: 1 }}>Driver Market</h1>
-              <p style={{ margin: 0, color: "#cbd5e1", maxWidth: 850, lineHeight: 1.5 }}>
+              <div style={{ color: "#9a5a00", fontSize: 12, fontWeight: 950, letterSpacing: "0.06em" }}>2026 SILLY SEASON</div>
+              <h1 style={{ margin: "6px 0", fontSize: "clamp(30px, 4vw, 40px)", fontWeight: 950, letterSpacing: "-0.03em", color: "#1d1d1f" }}>Driver Market</h1>
+              <p style={{ margin: 0, color: "#6e6e73", maxWidth: 850, lineHeight: 1.5, fontWeight: 600, fontSize: 14 }}>
                 Scouting, recruiting interest, current-team re-signing status, rumor mill, contract visibility, and signing-day preparation.
               </p>
             </div>
@@ -522,13 +644,25 @@ export default function DriverMarketPage({
           </div>
         </div>
 
-        <div style={{ ...sectionCardStyle, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+        <div style={{ ...sectionCardStyle, padding: 6, display: "flex", gap: 4, flexWrap: "wrap" }}>
           {MARKET_TABS.map((tab) => (
             <button
               key={tab}
               type="button"
               onClick={() => setActiveTab(tab)}
-              style={activeTab === tab ? primaryButtonStyle : secondaryButtonStyle}
+              style={{
+                flex: "1 1 auto",
+                border: 0,
+                borderRadius: 18,
+                padding: "10px 14px",
+                fontWeight: 900,
+                fontSize: 13,
+                fontFamily: appleFont,
+                cursor: "pointer",
+                background: activeTab === tab ? "#ffffff" : "transparent",
+                color: activeTab === tab ? "#1d1d1f" : "#6e6e73",
+                boxShadow: activeTab === tab ? "0 8px 20px rgba(15,23,42,0.10)" : "none",
+              }}
             >
               {tab}
             </button>
@@ -547,17 +681,18 @@ export default function DriverMarketPage({
         {activeTab === "Overview" && (
           <div style={{ display: "grid", gap: 16 }}>
             <div style={sectionCardStyle}>
-              <h2 style={{ marginTop: 0 }}>Top Market Drivers</h2>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+              <h2 style={{ marginTop: 0, fontSize: 18, fontWeight: 950 }}>Top Market Drivers</h2>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 12 }}>
                 {topDrivers.map((driver) => {
                   const number = cleanNumber(driver.number);
                   const rating = calculateDriverMarketRating(driver, raceStats.get(number), paintStats.get(number));
+                  const clr = ratingColor(rating);
                   return (
-                    <div key={`top-${driver.number}`} style={{ background: "#0f1319", border: "1px solid #263244", borderRadius: 16, padding: 14 }}>
-                      <div style={{ color: "#d4af37", fontWeight: 1000 }}>{starsFromRating(rating)}</div>
-                      <h3 style={{ margin: "5px 0" }}>#{driver.number} {driver.name}</h3>
-                      <div style={{ color: "#cbd5e1", fontSize: 13 }}>{getTeamFullName(driver.team)} • {driver.manufacturer || "—"}</div>
-                      <div style={{ marginTop: 10, fontSize: 26, fontWeight: 1000 }}>{rating} OVR</div>
+                    <div key={`top-${driver.number}`} style={{ background: "rgba(0,0,0,0.03)", border: "1px solid rgba(0,0,0,0.06)", borderRadius: 18, padding: 14 }}>
+                      <div style={{ color: clr, fontWeight: 950, fontSize: 13 }}>{starsFromRating(rating)}</div>
+                      <h3 style={{ margin: "6px 0 4px", fontSize: 17, fontWeight: 950, color: "#1d1d1f" }}>#{driver.number} {driver.name}</h3>
+                      <div style={{ color: "#6e6e73", fontSize: 12.5, fontWeight: 700 }}>{getTeamFullName(driver.team)} • {driver.manufacturer || "—"}</div>
+                      <div style={{ marginTop: 10, fontSize: 24, fontWeight: 950, color: clr }}>{rating} OVR</div>
                     </div>
                   );
                 })}
@@ -610,12 +745,12 @@ export default function DriverMarketPage({
 
         {activeTab === "Contracts" && (
           <div style={sectionCardStyle}>
-            <h2 style={{ marginTop: 0 }}>Contract Rules</h2>
-            <p style={{ color: "#cbd5e1", lineHeight: 1.55 }}>
+            <h2 style={{ marginTop: 0, fontSize: 18, fontWeight: 950 }}>Contract Rules</h2>
+            <p style={{ color: "#3a3a3c", lineHeight: 1.6, fontWeight: 600, fontSize: 14 }}>
               Owners may register interest and pitch their team during the season. Official new contracts remain locked until the offseason.
               The current team may mark re-signing interest and may offer an extension before the market opens.
             </p>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
               <StatBox label="Outside Teams" value="Interest Only" />
               <StatBox label="Current Team" value="Can Re-Sign" />
               <StatBox label="Signing Day" value="Locked" />
@@ -626,8 +761,8 @@ export default function DriverMarketPage({
 
         {activeTab === "History" && (
           <div style={sectionCardStyle}>
-            <h2 style={{ marginTop: 0 }}>Driver Market History</h2>
-            <p style={{ color: "#cbd5e1" }}>
+            <h2 style={{ marginTop: 0, fontSize: 18, fontWeight: 950 }}>Driver Market History</h2>
+            <p style={{ color: "#3a3a3c", lineHeight: 1.6, fontWeight: 600, fontSize: 14 }}>
               This area will track signings, previous teams, contract moves, re-signings, and signing day history once the first offseason market opens.
             </p>
           </div>
