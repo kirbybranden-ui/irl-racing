@@ -259,78 +259,94 @@ async function loadRemoteDriverAccessCodes() {
   return nextCodes;
 }
 
+const appleFont = "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif";
+
 const appShellStyle = {
   minHeight: "100vh",
-  background: "#0c0f14",
-  color: "white",
-  fontFamily: "Arial, sans-serif",
+  background: "radial-gradient(circle at top left, rgba(255,255,255,0.95), rgba(245,245,247,0.94) 36%, rgba(229,229,234,0.98) 100%)",
+  color: "#1d1d1f",
+  fontFamily: appleFont,
 };
 const pageContainerStyle = { maxWidth: 1000, margin: "0 auto", padding: 20 };
 const sectionCardStyle = {
-  background: "#171b22",
-  border: "1px solid #2c3440",
-  borderRadius: 16,
-  padding: 20,
+  background: "linear-gradient(180deg, rgba(255,255,255,0.88), rgba(255,255,255,0.60))",
+  border: "1px solid rgba(255,255,255,0.78)",
+  borderRadius: 24,
+  padding: 22,
   marginBottom: 20,
-  boxShadow: "0 8px 24px rgba(0,0,0,0.22)",
+  boxShadow: "0 20px 55px rgba(15,23,42,0.08)",
+  backdropFilter: "blur(20px)",
+  WebkitBackdropFilter: "blur(20px)",
 };
 const primaryButtonStyle = {
-  background: "#d4af37",
-  color: "#111",
+  background: "linear-gradient(135deg, #007aff 0%, #5856d6 100%)",
+  color: "#ffffff",
   border: "none",
-  borderRadius: 10,
-  padding: "10px 16px",
-  fontWeight: 700,
+  borderRadius: 999,
+  padding: "11px 18px",
+  fontWeight: 900,
+  fontFamily: appleFont,
   cursor: "pointer",
+  boxShadow: "0 12px 28px rgba(0,122,255,0.24)",
 };
 const secondaryButtonStyle = {
-  background: "#2a3140",
-  color: "white",
-  border: "1px solid #3d4859",
-  borderRadius: 10,
-  padding: "10px 16px",
-  fontWeight: 700,
+  background: "rgba(255,255,255,0.72)",
+  color: "#1d1d1f",
+  border: "1px solid rgba(0,0,0,0.10)",
+  borderRadius: 999,
+  padding: "11px 18px",
+  fontWeight: 900,
+  fontFamily: appleFont,
   cursor: "pointer",
 };
 const dangerButtonStyle = {
-  background: "#b42318",
-  color: "white",
+  background: "linear-gradient(135deg, #ff6482 0%, #ff3b30 60%, #b91c1c 100%)",
+  color: "#ffffff",
   border: "none",
-  borderRadius: 10,
-  padding: "10px 16px",
-  fontWeight: 700,
+  borderRadius: 999,
+  padding: "11px 18px",
+  fontWeight: 900,
+  fontFamily: appleFont,
   cursor: "pointer",
+  boxShadow: "0 12px 28px rgba(255,59,48,0.24)",
 };
 const inputStyle = {
   width: "100%",
-  background: "#0f1319",
-  color: "white",
-  border: "1px solid #313947",
-  borderRadius: 10,
-  padding: "10px 12px",
+  background: "rgba(255,255,255,0.72)",
+  color: "#1d1d1f",
+  border: "1px solid rgba(0,0,0,0.08)",
+  borderRadius: 14,
+  padding: "11px 13px",
   boxSizing: "border-box",
+  fontFamily: appleFont,
+  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.6)",
 };
 const statBoxStyle = {
-  background: "#11161d",
-  border: "1px solid #2a3240",
-  borderRadius: 14,
+  background: "rgba(255,255,255,0.76)",
+  border: "1px solid rgba(229,231,235,0.9)",
+  borderRadius: 20,
   padding: 16,
   flex: "1 1 160px",
+  boxShadow: "0 12px 28px rgba(15,23,42,0.06)",
 };
 const tableStyle = { width: "100%", borderCollapse: "collapse" };
 const thStyle = {
   textAlign: "left",
   padding: 10,
-  borderBottom: "1px solid #313947",
-  background: "#10141b",
-  fontSize: 13,
-  fontWeight: 700,
+  borderBottom: "1px solid rgba(0,0,0,0.08)",
+  background: "rgba(0,0,0,0.03)",
+  fontSize: 12,
+  fontWeight: 950,
+  color: "#6e6e73",
+  textTransform: "uppercase",
+  letterSpacing: "0.04em",
 };
 const tdStyle = {
   padding: 10,
-  borderBottom: "1px solid #252c38",
+  borderBottom: "1px solid rgba(0,0,0,0.05)",
   verticalAlign: "top",
   fontSize: 14,
+  color: "#1d1d1f",
 };
 
 function scrollToSection(id) {
@@ -2490,7 +2506,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
 
   if (protectedDriverPages.includes(subPage) && !isDriverAuthorized) {
     return (
-      <div style={{ ...appShellStyle, background: `radial-gradient(circle at top, ${teamTheme.glow} 0%, #0c0f14 34%, #080a0e 100%)` }}>
+      <div style={{ ...appShellStyle, background: `radial-gradient(circle at top, ${teamTheme.glow} 0%, rgba(245,245,247,0.95) 34%, rgba(229,229,234,0.98) 100%)` }}>
         <div style={pageContainerStyle}>
           <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20, flexWrap: "wrap" }}>
             <button onClick={() => window.location.pathname = `/driver/${driverNumber}`} style={secondaryButtonStyle}>← Back to Profile</button>
@@ -2656,7 +2672,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
 
   if (subPage === "start-park") {
     return (
-      <div style={{ ...appShellStyle, background: `radial-gradient(circle at top, ${teamTheme.glow} 0%, #0c0f14 34%, #080a0e 100%)` }}>
+      <div style={{ ...appShellStyle, background: `radial-gradient(circle at top, ${teamTheme.glow} 0%, rgba(245,245,247,0.95) 34%, rgba(229,229,234,0.98) 100%)` }}>
         <div style={pageContainerStyle}>
           <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20, flexWrap: "wrap" }}>
             <button onClick={() => window.location.pathname = `/driver/${driverNumber}`} style={secondaryButtonStyle}>← Back to Profile</button>
@@ -2920,7 +2936,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
 
   if (subPage === "assignments") {
     return (
-      <div style={{ ...appShellStyle, background: `radial-gradient(circle at top, ${teamTheme.glow} 0%, #0c0f14 34%, #080a0e 100%)` }}>
+      <div style={{ ...appShellStyle, background: `radial-gradient(circle at top, ${teamTheme.glow} 0%, rgba(245,245,247,0.95) 34%, rgba(229,229,234,0.98) 100%)` }}>
         <div style={pageContainerStyle}>
           <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20, flexWrap: "wrap" }}>
             <button onClick={() => window.location.pathname = `/driver/${driverNumber}`} style={secondaryButtonStyle}>← Back to Profile</button>
@@ -3010,7 +3026,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
 
   if (subPage === "feedback") {
     return (
-      <div style={{ ...appShellStyle, background: `radial-gradient(circle at top, ${teamTheme.glow} 0%, #0c0f14 34%, #080a0e 100%)` }}>
+      <div style={{ ...appShellStyle, background: `radial-gradient(circle at top, ${teamTheme.glow} 0%, rgba(245,245,247,0.95) 34%, rgba(229,229,234,0.98) 100%)` }}>
         <div style={pageContainerStyle}>
           <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20, flexWrap: "wrap" }}>
             <button onClick={() => window.location.pathname = `/driver/${driverNumber}`} style={secondaryButtonStyle}>← Back to Profile</button>
@@ -3074,7 +3090,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
 
   if (subPage === "contracts") {
     return (
-      <div style={{ ...appShellStyle, background: `radial-gradient(circle at top, ${teamTheme.glow} 0%, #0c0f14 34%, #080a0e 100%)` }}>
+      <div style={{ ...appShellStyle, background: `radial-gradient(circle at top, ${teamTheme.glow} 0%, rgba(245,245,247,0.95) 34%, rgba(229,229,234,0.98) 100%)` }}>
         <div style={pageContainerStyle}>
           <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20, flexWrap: "wrap" }}>
             <button onClick={() => window.location.pathname = `/driver/${driverNumber}`} style={secondaryButtonStyle}>← Back to Profile</button>
@@ -3242,7 +3258,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
   if (subPage === "interviews") {
     const activeInterviews = isArcaDriver ? arcaInterviews : interviews;
     return (
-      <div style={{ ...appShellStyle, background: `radial-gradient(circle at top, ${teamTheme.glow} 0%, #0c0f14 34%, #080a0e 100%)` }}>
+      <div style={{ ...appShellStyle, background: `radial-gradient(circle at top, ${teamTheme.glow} 0%, rgba(245,245,247,0.95) 34%, rgba(229,229,234,0.98) 100%)` }}>
         <div style={pageContainerStyle}>
           <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20, flexWrap: "wrap" }}>
             <button onClick={() => window.location.pathname = `/driver/${driverNumber}`} style={secondaryButtonStyle}>← Back to Profile</button>
@@ -3285,7 +3301,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
 
   if (subPage === "upload") {
     return (
-      <div style={{ ...appShellStyle, background: `radial-gradient(circle at top, ${teamTheme.glow} 0%, #0c0f14 34%, #080a0e 100%)` }}>
+      <div style={{ ...appShellStyle, background: `radial-gradient(circle at top, ${teamTheme.glow} 0%, rgba(245,245,247,0.95) 34%, rgba(229,229,234,0.98) 100%)` }}>
         <div style={pageContainerStyle}>
           <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20, flexWrap: "wrap" }}>
             <button onClick={() => window.location.pathname = `/driver/${driverNumber}`} style={secondaryButtonStyle}>← Back to Profile</button>
@@ -3346,7 +3362,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
   }
 
   return (
-    <div style={{ ...appShellStyle, background: `radial-gradient(circle at top, ${teamTheme.glow} 0%, #0c0f14 34%, #080a0e 100%)` }}>
+    <div style={{ ...appShellStyle, background: `radial-gradient(circle at top, ${teamTheme.glow} 0%, rgba(245,245,247,0.95) 34%, rgba(229,229,234,0.98) 100%)` }}>
       <div style={pageContainerStyle}>
         <div style={{ ...sectionCardStyle, borderColor: teamTheme.accent, boxShadow: `0 0 38px ${teamTheme.glow}`, background: `linear-gradient(135deg, #171b22 0%, #10141b 56%, ${teamTheme.dark} 100%)`, position: "relative", overflow: "hidden" }}>
           <div style={{ position: "absolute", inset: 0, background: `linear-gradient(90deg, transparent 0%, ${teamTheme.glow} 100%)`, opacity: 0.45, pointerEvents: "none" }} />
