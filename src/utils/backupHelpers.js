@@ -381,31 +381,56 @@ export async function syncAllArcaRaceResultsLedger({ seasons = [], tracks = [] }
  * this will insert duplicate rows on every re-post instead of updating them.
  */
 export async function saveArcaStandings({ season, arcaDrivers = [] }) {
-  if (!season || !Array.isArray(arcaDrivers) || arcaDrivers.length === 0) {
+  if (!Array.isArray(arcaDrivers) || arcaDrivers.length === 0) {
     return { ok: true, skipped: true };
   }
- 
-  const rows = arcaDrivers.map((driver) => ({
-    season_id: String(season.id || ""),
-    season_name: season.name || "Season",
-    driver_number: String(driver.number || ""),
-    driver_name: driver.name || "",
+
+  // IMPORTANT:
+  // arca_standings.id is a UUID in Supabase.
+  // arca_standings.season_id is also currently a UUID in Supabase.
+  // The app uses local season IDs like "season-1779120609648-pkzdb2",
+  // so we DO NOT send id or season_id to Supabase here.
+  const rows = arcaDrivers.map((driver, index) => ({
+    season_name: season?.name || "Season",
+    driver_number: String(driver.number || driver.driver_number || driver.car_number || ""),
+    car_number: String(driver.number || driver.driver_number || driver.car_number || ""),
+    driver_name: driver.name || driver.driver_name || "",
     team: driver.team || "",
+    manufacturer: driver.manufacturer || "",
     points: Number(driver.points || 0),
     wins: Number(driver.wins || 0),
+    top3: Number(driver.top3 || 0),
     top5: Number(driver.top5 || 0),
     top10: Number(driver.top10 || 0),
     dnfs: Number(driver.dnfs || 0),
     starts: Number(driver.starts || 0),
+    stage_wins: Number(driver.stage_wins || driver.stageWins || 0),
+    playoff_points: Number(driver.playoff_points || driver.playoffPoints || 0),
+    position: Number(driver.position || index + 1),
     updated_at: new Date().toISOString(),
   }));
- 
+
   try {
+    // Replace the current ARCA standings snapshot instead of upserting against
+    // season_id. This avoids UUID errors from local season IDs.
+    const { error: deleteError } = await supabase
+      .from("arca_standings")
+      .delete()
+      .neq("driver_number", "__never_match__");
+
+    if (deleteError) {
+      console.error("Could not clear old arca_standings — message:", deleteError.message);
+      console.error("Could not clear old arca_standings — details:", deleteError.details);
+      console.error("Could not clear old arca_standings — hint:", deleteError.hint);
+      console.error("Could not clear old arca_standings — code:", deleteError.code);
+      return { ok: false, error: deleteError };
+    }
+
     const { data, error } = await supabase
       .from("arca_standings")
-      .upsert(rows, { onConflict: "season_id,driver_number" })
+      .insert(rows)
       .select();
- 
+
     if (error) {
       console.error("Could not save arca_standings — message:", error.message);
       console.error("Could not save arca_standings — details:", error.details);
@@ -413,7 +438,7 @@ export async function saveArcaStandings({ season, arcaDrivers = [] }) {
       console.error("Could not save arca_standings — code:", error.code);
       return { ok: false, error };
     }
- 
+
     return { ok: true, data };
   } catch (error) {
     console.error("arca_standings save crashed:", error);
@@ -421,6 +446,7 @@ export async function saveArcaStandings({ season, arcaDrivers = [] }) {
   }
 }
  
+
 
 
 
