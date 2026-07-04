@@ -5,7 +5,7 @@ import logo from "../assets/logo1.png";
 import ncsLogo from "../assets/series/NCS.png";
 import arcaLogo from "../assets/series/AMS.png";
 import {
-  supabase } from "../lib/supabase"; import { teamLogos,
+  supabase as appSupabase } from "../lib/supabase"; import { teamLogos,
   manufacturerLogos,
   getTeamFullName,
   getTeamBranding } from "../data/teams"; import { trackOverviewData } from "../data/trackOverview"; import { dedupeDriversByNumber,
@@ -621,7 +621,8 @@ function downloadCsv(filename, rows = []) {
   URL.revokeObjectURL(url);
 }
 
-export default function StandingsPage({ seriesId = "cup", drivers = [], teams = [], manufacturerStandings = [], seasonName = "", tracks = [], raceHistory = [], arcaDrivers = [], arcaRaceHistory = [], driverAccessCodes = [], supabase = null }) {
+export default function StandingsPage({ seriesId = "cup", drivers = [], teams = [], manufacturerStandings = [], seasonName = "", tracks = [], raceHistory = [], arcaDrivers = [], arcaRaceHistory = [], driverAccessCodes = [], supabase: providedSupabase = null }) {
+  const supabase = providedSupabase || appSupabase;
   const [standingsTab, setStandingsTab] = useState(seriesId === "arca" ? "arca-drivers" : "drivers");
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [selectedTrackInfo, setSelectedTrackInfo] = useState(null);
@@ -706,83 +707,167 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
 
   // Load ARCA Standings
   useEffect(() => {
-    async function loadArcaStandings() {
-      try {
-        setArcaLoading(true);
-        const { data: activeSeasonData } = await supabase
-          .from("arca_seasons")
-          .select("id")
-          .eq("active", true)
-          .single();
+    let isMounted = true;
 
-        if (!activeSeasonData) {
-          setArcaLoading(false);
-          return;
-        }
-
-        const { data: standings } = await supabase
-          .from("arca_standings")
-          .select("*")
-          .eq("season_id", activeSeasonData.id)
-          .order("points", { ascending: false });
-
-        setArcaStandings(standings || []);
-
-        // Calculate team standings
-        const teamMap = {};
-        (standings || []).forEach((driver) => {
-          if (!teamMap[driver.team]) {
-            teamMap[driver.team] = {
-              team: driver.team,
-              points: 0,
-              wins: 0,
-              top5: 0,
-              drivers: [],
-            };
-          }
-          teamMap[driver.team].points += driver.points || 0;
-          teamMap[driver.team].wins += driver.wins || 0;
-          teamMap[driver.team].top5 += driver.top5 || 0;
-          teamMap[driver.team].drivers.push(driver);
-        });
-
-        const teams = Object.values(teamMap).sort((a, b) => b.points - a.points);
-        setArcaTeamStandings(teams);
-      } catch (err) {
-        console.error("Error loading ARCA standings:", err);
-      } finally {
-        setArcaLoading(false);
-      }
-    }
-
-    if (seriesId !== "arca") {
-      loadArcaStandings();
-    } else {
-      // For ARCA, use the drivers prop we received from App.jsx
-      setArcaStandings(drivers || []);
-      
-      // Calculate team standings from drivers
+    function buildArcaTeamStandings(rows = []) {
       const teamMap = {};
-      (drivers || []).forEach((driver) => {
-        if (!teamMap[driver.team]) {
-          teamMap[driver.team] = {
-            team: driver.team,
+      (rows || []).forEach((driver) => {
+        const teamName = driver?.team || "Independent";
+        if (!teamMap[teamName]) {
+          teamMap[teamName] = {
+            team: teamName,
             points: 0,
             wins: 0,
             top5: 0,
+            top10: 0,
             drivers: [],
           };
         }
-        teamMap[driver.team].points += driver.points || 0;
-        teamMap[driver.team].wins += driver.wins || 0;
-        teamMap[driver.team].top5 += driver.top5 || 0;
-        teamMap[driver.team].drivers.push(driver);
+        teamMap[teamName].points += Number(driver?.points || 0);
+        teamMap[teamName].wins += Number(driver?.wins || 0);
+        teamMap[teamName].top5 += Number(driver?.top5 || 0);
+        teamMap[teamName].top10 += Number(driver?.top10 || 0);
+        teamMap[teamName].drivers.push(driver);
       });
-      
-      const teams = Object.values(teamMap).sort((a, b) => b.points - a.points);
-      setArcaTeamStandings(teams);
+      return Object.values(teamMap).sort((a, b) => b.points - a.points || b.wins - a.wins || b.top5 - a.top5);
     }
-  }, [seriesId, drivers]);
+
+    function rebuildArcaStandingsFromResults(results = []) {
+      const standingsMap = new Map();
+      (results || []).forEach((row) => {
+        const driverName = row?.driver_name || row?.name || "";
+        const driverNumber = row?.driver_number || row?.car_number || row?.number || "";
+        const key = String(driverNumber || driverName || row?.driver_id || "").trim();
+        if (!key) return;
+
+        const finish = Number(row?.finish_position ?? row?.finish_pos ?? row?.finish ?? row?.position ?? 999);
+        const points = Number(row?.total_points ?? row?.points ?? row?.race_points ?? 0);
+        const stageWins = Number(row?.stage_wins ?? row?.stageWins ?? 0);
+        const playoffPoints = Number(row?.playoff_points ?? row?.playoffPoints ?? 0);
+
+        const current = standingsMap.get(key) || {
+          id: key,
+          driver_name: driverName,
+          driver_number: driverNumber,
+          car_number: row?.car_number || driverNumber,
+          team: row?.team || "Independent",
+          manufacturer: row?.manufacturer || "",
+          points: 0,
+          wins: 0,
+          top3: 0,
+          top5: 0,
+          top10: 0,
+          starts: 0,
+          stage_wins: 0,
+          playoff_points: 0,
+          dnfs: 0,
+        };
+
+        current.driver_name = current.driver_name || driverName;
+        current.driver_number = current.driver_number || driverNumber;
+        current.car_number = current.car_number || row?.car_number || driverNumber;
+        current.team = current.team || row?.team || "Independent";
+        current.manufacturer = current.manufacturer || row?.manufacturer || "";
+        current.points += points;
+        current.starts += 1;
+        current.stage_wins += stageWins;
+        current.playoff_points += playoffPoints;
+        if (finish === 1) current.wins += 1;
+        if (finish > 0 && finish <= 3) current.top3 += 1;
+        if (finish > 0 && finish <= 5) current.top5 += 1;
+        if (finish > 0 && finish <= 10) current.top10 += 1;
+        if (/dnf|out|retired/i.test(String(row?.status || ""))) current.dnfs += 1;
+
+        standingsMap.set(key, current);
+      });
+
+      return Array.from(standingsMap.values()).sort(
+        (a, b) => b.points - a.points || b.wins - a.wins || b.top5 - a.top5 || String(a.driver_name).localeCompare(String(b.driver_name))
+      );
+    }
+
+    async function loadArcaStandings() {
+      if (!supabase) {
+        const localRows = arcaDrivers?.length ? arcaDrivers : drivers;
+        if (isMounted) {
+          setArcaStandings(localRows || []);
+          setArcaTeamStandings(buildArcaTeamStandings(localRows || []));
+          setArcaLoading(false);
+        }
+        return;
+      }
+
+      try {
+        setArcaLoading(true);
+
+        const { data: activeSeasonData, error: seasonError } = await supabase
+          .from("arca_seasons")
+          .select("id")
+          .eq("active", true)
+          .maybeSingle();
+
+        if (seasonError) {
+          console.warn("Could not load active ARCA season; loading all ARCA standings instead.", seasonError);
+        }
+
+        let query = supabase
+          .from("arca_standings")
+          .select("*")
+          .order("points", { ascending: false });
+
+        if (activeSeasonData?.id) {
+          query = query.eq("season_id", activeSeasonData.id);
+        }
+
+        let { data: standings, error: standingsError } = await query;
+
+        if (standingsError) {
+          console.error("Error loading ARCA standings:", standingsError);
+          standings = [];
+        }
+
+        // If standings are empty, build a live standings view from posted ARCA results.
+        if (!standings?.length) {
+          let resultsQuery = supabase.from("arca_results").select("*");
+          if (activeSeasonData?.id) {
+            resultsQuery = resultsQuery.eq("season_id", activeSeasonData.id);
+          }
+          const { data: results, error: resultsError } = await resultsQuery;
+          if (resultsError) {
+            console.error("Error loading ARCA results for standings fallback:", resultsError);
+          } else {
+            standings = rebuildArcaStandingsFromResults(results || []);
+          }
+        }
+
+        if (!standings?.length) {
+          standings = arcaDrivers?.length ? arcaDrivers : drivers || [];
+        }
+
+        if (isMounted) {
+          setArcaStandings(standings || []);
+          setArcaTeamStandings(buildArcaTeamStandings(standings || []));
+        }
+      } catch (err) {
+        console.error("Error loading ARCA standings:", err);
+        const fallbackRows = arcaDrivers?.length ? arcaDrivers : drivers || [];
+        if (isMounted) {
+          setArcaStandings(fallbackRows);
+          setArcaTeamStandings(buildArcaTeamStandings(fallbackRows));
+        }
+      } finally {
+        if (isMounted) setArcaLoading(false);
+      }
+    }
+
+    if (seriesId === "arca") {
+      loadArcaStandings();
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [seriesId, supabase, drivers, arcaDrivers]);
 
   const activeDrivers = useMemo(() => {
     return dedupeDriversByNumber(drivers || [])
@@ -1364,8 +1449,8 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
     arcaStandings.forEach((driver, index) => {
       rows.push([
         index + 1,
-        driver.driver_number || "",
-        driver.driver_name || "",
+        driver.driver_number || driver.car_number || driver.number || "",
+        driver.driver_name || driver.name || "",
         driver.team || "",
         driver.points || 0,
         driver.wins || 0,
@@ -1754,7 +1839,7 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
                   <div style={{ color: "#6b7280", fontWeight: 900 }}>No ARCA standings yet</div>
                 </div>
               ) : (
-                sortedArcaStandings.map((driver, index) => <ArcaDriverRow key={driver.id || driver.number} driver={driver} index={index} />)
+                sortedArcaStandings.map((driver, index) => <ArcaDriverRow key={driver.id || driver.driver_number || driver.car_number || driver.number || index} driver={driver} index={index} />)
               )}
             </div>
           </section>
