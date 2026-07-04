@@ -4030,6 +4030,7 @@ function MobileLeagueApp({
   const [mobileSession, setMobileSession] = useState(() => readBclMobileSession() || { mode: "guest", displayName: "Guest" });
   const isGuestSession = mobileSession?.mode === "guest";
   const [showMobileLoginModal, setShowMobileLoginModal] = useState(false);
+  const [mobileStandingsTab, setMobileStandingsTab] = useState("drivers");
 
   function handleMobileLogout() {
     clearBclMobileSession();
@@ -4345,15 +4346,53 @@ function MobileLeagueApp({
         </MobileCard>
         <MobileTimelineSpotlightPanel tracks={tracks} drivers={drivers} go={go} seasonName={seasonName} />
         <MobileLatestNewsPreview go={go} />
-        <MobileSectionTitle>Driver Standings</MobileSectionTitle>
-        {leader && <MobileLeaderCard leader={leader} go={go} />}
-        <MobileStandingsList drivers={sortedDrivers} go={go} />
+        <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "20px 2px 12px" }}>
+          <div style={{ width: 32, height: 32, borderRadius: 11, background: "rgba(0,122,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, flexShrink: 0 }}>🏆</div>
+          <h2 style={{ margin: 0, fontSize: 20, color: "#1d1d1f", fontWeight: 950 }}>Standings</h2>
+        </div>
+        <div style={{ ...mobileCardStyle, padding: 6, display: "flex", gap: 4, marginBottom: 12 }}>
+          {[
+            ["drivers", "Drivers"],
+            ["teams", "Teams"],
+            ["manufacturers", "Manufacturers"],
+          ].map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setMobileStandingsTab(key)}
+              style={{
+                flex: "1 1 auto",
+                border: 0,
+                borderRadius: 15,
+                padding: "9px 8px",
+                fontWeight: 900,
+                fontSize: 12.5,
+                fontFamily: mobileAppFont,
+                cursor: "pointer",
+                background: mobileStandingsTab === key ? "#ffffff" : "transparent",
+                color: mobileStandingsTab === key ? "#1d1d1f" : "#6e6e73",
+                boxShadow: mobileStandingsTab === key ? "0 6px 16px rgba(15,23,42,0.10)" : "none",
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
 
-        <MobileSectionTitle>Team Standings</MobileSectionTitle>
-        {sortedTeams.map((team, index) => <MobileTeamRow key={`${team.team}-${index}`} team={team} index={index} />)}
+        {mobileStandingsTab === "drivers" && (
+          <>
+            {leader && <MobileLeaderCard leader={leader} go={go} />}
+            <MobileStandingsList drivers={sortedDrivers} go={go} />
+          </>
+        )}
 
-        <MobileSectionTitle>Manufacturer Standings</MobileSectionTitle>
-        {sortedManufacturers.map((manufacturer, index) => <MobileManufacturerRow key={`${manufacturer.manufacturer}-${index}`} manufacturer={manufacturer} index={index} />)}
+        {mobileStandingsTab === "teams" && (
+          sortedTeams.map((team, index) => <MobileTeamRow key={`${team.team}-${index}`} team={team} index={index} />)
+        )}
+
+        {mobileStandingsTab === "manufacturers" && (
+          sortedManufacturers.map((manufacturer, index) => <MobileManufacturerRow key={`${manufacturer.manufacturer}-${index}`} manufacturer={manufacturer} index={index} />)
+        )}
 
         {raceHistory?.length > 0 && <MobileSectionTitle>Recent Race Results</MobileSectionTitle>}
         {(raceHistory || []).slice(-3).reverse().map((race) => <MobileRaceResultCard key={race.raceName} race={race} />)}
