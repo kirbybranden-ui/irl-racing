@@ -666,25 +666,94 @@ function AppealModal({ isOpen, onClose, selectedSeason, driverNumber, arcaDriver
 
   if (!isOpen) return null;
 
-  return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 }}>
-      <div style={{ background: "#171b22", border: "1px solid #2c3440", borderRadius: 16, padding: 28, maxWidth: 520, width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.4)", maxHeight: "90vh", overflowY: "auto" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-          <h2 style={{ margin: 0, fontSize: 24, fontWeight: 800 }}>File an Appeal</h2>
-          <button onClick={onClose} style={{ background: "none", border: "none", color: "white", fontSize: 24, cursor: "pointer", padding: 0 }}>×</button>
+  const appealInputStyle = {
+    width: "100%",
+    background: "rgba(255,255,255,0.72)",
+    color: "#1d1d1f",
+    border: "1px solid rgba(0,0,0,0.08)",
+    borderRadius: 14,
+    padding: "11px 13px",
+    boxSizing: "border-box",
+    fontFamily: appleFont,
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.6)",
+  };
+
+  return createPortal(
+    <div style={{
+      position: "fixed",
+      inset: 0,
+      background: "rgba(29,29,31,0.42)",
+      backdropFilter: "blur(6px)",
+      WebkitBackdropFilter: "blur(6px)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: 1000,
+      padding: 20,
+      fontFamily: appleFont,
+    }}>
+      <div style={{
+        background: "linear-gradient(180deg, rgba(255,255,255,0.94), rgba(248,250,252,0.92))",
+        border: "1px solid rgba(255,255,255,0.8)",
+        borderRadius: 30,
+        padding: "clamp(20px, 4vw, 30px)",
+        maxWidth: 540,
+        width: "100%",
+        boxShadow: "0 30px 90px rgba(0,0,0,0.28)",
+        maxHeight: "90vh",
+        overflowY: "auto",
+        color: "#1d1d1f",
+      }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 22 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <div style={{
+              width: 44,
+              height: 44,
+              borderRadius: 16,
+              background: "linear-gradient(135deg, #ff6482 0%, #ff3b30 60%, #b91c1c 100%)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 20,
+              boxShadow: "0 12px 26px rgba(255,59,48,0.28)",
+              flexShrink: 0,
+            }}>
+              📋
+            </div>
+            <h2 style={{ margin: 0, fontSize: 22, fontWeight: 1000, letterSpacing: "-0.03em" }}>File an Appeal</h2>
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              background: "rgba(0,0,0,0.05)",
+              border: "none",
+              borderRadius: 999,
+              width: 32,
+              height: 32,
+              color: "#1d1d1f",
+              fontSize: 18,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+            }}
+          >
+            ×
+          </button>
         </div>
 
         <div style={{ marginBottom: 16 }}>
-          <label style={{ display: "block", marginBottom: 6, fontWeight: 700 }}>Requester Driver *</label>
-          <select style={inputStyle} value={requester} onChange={(e) => setRequester(e.target.value)}>
+          <label style={{ display: "block", marginBottom: 7, fontWeight: 900, fontSize: 13 }}>Requester Driver *</label>
+          <select style={appealInputStyle} value={requester} onChange={(e) => setRequester(e.target.value)}>
             <option value="">-- Select Driver --</option>
             {(allDrivers || []).map((d) => <option key={d.id} value={`${d.number} - ${d.name}`}>#{d.number} {d.name}</option>)}
           </select>
         </div>
 
         <div style={{ marginBottom: 16 }}>
-          <label style={{ display: "block", marginBottom: 6, fontWeight: 700 }}>Track *</label>
-          <select style={inputStyle} value={track} onChange={(e) => setTrack(e.target.value)}>
+          <label style={{ display: "block", marginBottom: 7, fontWeight: 900, fontSize: 13 }}>Track *</label>
+          <select style={appealInputStyle} value={track} onChange={(e) => setTrack(e.target.value)}>
             <option value="">-- Select Track --</option>
             {trackOptions.map((t) => <option key={t} value={t}>{t}</option>)}
           </select>
@@ -692,19 +761,20 @@ function AppealModal({ isOpen, onClose, selectedSeason, driverNumber, arcaDriver
 
         {runsInBothSeries && (
           <div style={{ marginBottom: 16 }}>
-            <label style={{ display: "block", marginBottom: 6, fontWeight: 700 }}>Series *</label>
-            <div style={{ display: "flex", gap: 12 }}>
+            <label style={{ display: "block", marginBottom: 7, fontWeight: 900, fontSize: 13 }}>Series *</label>
+            <div style={{ display: "flex", gap: 10 }}>
               <button
                 type="button"
                 onClick={() => setSeries("cup")}
                 style={{
                   flex: 1,
-                  padding: "10px 12px",
-                  borderRadius: 10,
-                  border: series === "cup" ? "2px solid #d4af37" : "1px solid #313947",
-                  background: series === "cup" ? "rgba(212,175,55,0.15)" : "#0f1319",
-                  color: "white",
-                  fontWeight: 700,
+                  padding: "11px 12px",
+                  borderRadius: 999,
+                  border: series === "cup" ? "1px solid rgba(212,175,55,0.5)" : "1px solid rgba(0,0,0,0.08)",
+                  background: series === "cup" ? "rgba(212,175,55,0.14)" : "rgba(255,255,255,0.7)",
+                  color: series === "cup" ? "#9a5a00" : "#1d1d1f",
+                  fontWeight: 900,
+                  fontFamily: appleFont,
                   cursor: "pointer",
                 }}
               >
@@ -715,12 +785,13 @@ function AppealModal({ isOpen, onClose, selectedSeason, driverNumber, arcaDriver
                 onClick={() => setSeries("arca")}
                 style={{
                   flex: 1,
-                  padding: "10px 12px",
-                  borderRadius: 10,
-                  border: series === "arca" ? "2px solid #00e5a0" : "1px solid #313947",
-                  background: series === "arca" ? "rgba(0,229,160,0.15)" : "#0f1319",
-                  color: "white",
-                  fontWeight: 700,
+                  padding: "11px 12px",
+                  borderRadius: 999,
+                  border: series === "arca" ? "1px solid rgba(52,199,89,0.5)" : "1px solid rgba(0,0,0,0.08)",
+                  background: series === "arca" ? "rgba(52,199,89,0.14)" : "rgba(255,255,255,0.7)",
+                  color: series === "arca" ? "#147d35" : "#1d1d1f",
+                  fontWeight: 900,
+                  fontFamily: appleFont,
                   cursor: "pointer",
                 }}
               >
@@ -731,13 +802,14 @@ function AppealModal({ isOpen, onClose, selectedSeason, driverNumber, arcaDriver
         )}
 
         <div style={{ marginBottom: 16 }}>
-          <label style={{ display: "block", marginBottom: 6, fontWeight: 700 }}>Description *</label>
-          <textarea style={{ ...inputStyle, minHeight: 120, resize: "vertical" }} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Describe what happened and who was involved..." />
+          <label style={{ display: "block", marginBottom: 7, fontWeight: 900, fontSize: 13 }}>Description *</label>
+          <textarea style={{ ...appealInputStyle, minHeight: 120, resize: "vertical" }} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Describe what happened and who was involved..." />
         </div>
 
-        <div style={{ marginBottom: 16 }}>
-          <label style={{ display: "block", marginBottom: 6, fontWeight: 700 }}>Video Evidence optional</label>
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ display: "block", marginBottom: 7, fontWeight: 900, fontSize: 13 }}>Video Evidence (Optional)</label>
           <button
+            type="button"
             onClick={() => {
               if (!cloudinaryReady || !widgetRef.current) {
                 alert("Upload widget is still loading. Try again in a moment.");
@@ -745,19 +817,67 @@ function AppealModal({ isOpen, onClose, selectedSeason, driverNumber, arcaDriver
               }
               widgetRef.current.open();
             }}
-            style={{ ...secondaryButtonStyle, opacity: cloudinaryReady ? 1 : 0.6 }}
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              background: "rgba(255,255,255,0.7)",
+              color: "#1d1d1f",
+              border: "1px solid rgba(0,0,0,0.10)",
+              borderRadius: 999,
+              padding: "12px 18px",
+              fontWeight: 900,
+              fontFamily: appleFont,
+              cursor: "pointer",
+              opacity: cloudinaryReady ? 1 : 0.55,
+            }}
+            disabled={!cloudinaryReady}
           >
             {videoUrl ? "✅ Video uploaded" : cloudinaryReady ? "📹 Upload Video" : "⏳ Loading uploader..."}
           </button>
-          {videoUrl && <div style={{ marginTop: 8, fontSize: 12, opacity: 0.7, wordBreak: "break-all" }}>{videoUrl}</div>}
+          {videoUrl && <div style={{ marginTop: 8, fontSize: 11.5, color: "#6e6e73", fontWeight: 700, wordBreak: "break-all" }}>{videoUrl}</div>}
         </div>
 
-        <div style={{ display: "flex", gap: 10 }}>
-          <button onClick={handleSubmit} style={primaryButtonStyle} disabled={submitting}>{submitting ? "Submitting..." : "Submit Appeal"}</button>
-          <button onClick={onClose} style={secondaryButtonStyle}>Cancel</button>
+        <div style={{ display: "flex", gap: 12 }}>
+          <button
+            onClick={handleSubmit}
+            disabled={submitting}
+            style={{
+              flex: 1,
+              border: 0,
+              borderRadius: 999,
+              padding: "13px 18px",
+              background: "linear-gradient(135deg, #ff6482 0%, #ff3b30 60%, #b91c1c 100%)",
+              color: "#ffffff",
+              fontWeight: 1000,
+              fontSize: 14,
+              cursor: submitting ? "default" : "pointer",
+              opacity: submitting ? 0.7 : 1,
+              boxShadow: "0 14px 32px rgba(255,59,48,0.26)",
+              fontFamily: appleFont,
+            }}
+          >
+            {submitting ? "Submitting..." : "📤 Submit Appeal"}
+          </button>
+          <button
+            onClick={onClose}
+            disabled={submitting}
+            style={{
+              border: "1px solid rgba(0,0,0,0.10)",
+              borderRadius: 999,
+              padding: "13px 18px",
+              background: "rgba(255,255,255,0.7)",
+              color: "#1d1d1f",
+              fontWeight: 900,
+              fontFamily: appleFont,
+              cursor: "pointer",
+            }}
+          >
+            Cancel
+          </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
