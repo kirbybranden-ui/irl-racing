@@ -6,6 +6,10 @@ export default function AdminPortal({
   AdminLeagueMessageDashboard,
   PaymentCompliancePanel,
   PreviousRaceWinnerAdminPanel,
+  teamPrestigeRows,
+  teamPrestigeStatus,
+  teamPrestigeSaving,
+  recalculateTeamPrestige,
   activeDrivers,
   activeHeaderButtonStyle,
   activeSeason,
@@ -2425,6 +2429,53 @@ export default function AdminPortal({
                       <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Driver Assignments</div>
                       <h2 style={{ margin: "3px 0 0", fontSize: 26, letterSpacing: -0.6 }}>Driver Roster</h2>
                       <p style={{ margin: "6px 0 0", color: "#4b5563", fontWeight: 700 }}>Quick view of each driver, team, number, and manufacturer.</p>
+                    </div>
+                  </div>
+
+                  <div style={{ borderRadius: 24, background: "#ffffff", border: "1px solid #e5e7eb", padding: 16, marginBottom: 14 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
+                      <div>
+                        <h3 style={{ margin: "0 0 4px", fontSize: 21, letterSpacing: -0.4 }}>Team Prestige</h3>
+                        <p style={{ margin: 0, color: "#6b7280", fontWeight: 750, fontSize: 13 }}>Ranked within each manufacturer by driver performance (heaviest weight), with interviews and car uploads as tiebreakers.</p>
+                      </div>
+                      <button type="button" onClick={recalculateTeamPrestige} disabled={teamPrestigeSaving} style={{ ...adminPrimaryButtonStyle, opacity: teamPrestigeSaving ? 0.6 : 1 }}>
+                        {teamPrestigeSaving ? "Recalculating..." : "Recalculate & Save"}
+                      </button>
+                    </div>
+                    {teamPrestigeStatus && (
+                      <div style={{ marginBottom: 12, fontSize: 13, fontWeight: 750, color: "#374151" }}>{teamPrestigeStatus}</div>
+                    )}
+                    <div style={{ display: "grid", gap: 10 }}>
+                      {(teamPrestigeRows || []).length === 0 ? (
+                        <div style={{ borderRadius: 20, padding: 16, background: "#f5f5f7", color: "#6b7280", fontWeight: 850 }}>No Cup teams to score yet.</div>
+                      ) : (
+                        (teamPrestigeRows || []).map((row) => {
+                          const tierColors = {
+                            Elite: { bg: "#fff7ed", color: "#c2410c" },
+                            Prestigious: { bg: "#eff6ff", color: "#1d4ed8" },
+                            Good: { bg: "#f0fdf4", color: "#15803d" },
+                            Developing: { bg: "#f5f5f7", color: "#6b7280" },
+                          };
+                          const tierStyle = tierColors[row.tier] || tierColors.Developing;
+                          return (
+                            <div key={row.team} style={{ ...walletTransactionRowStyle, alignItems: isAdminMobile ? "flex-start" : "center", flexDirection: isAdminMobile ? "column" : "row" }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                                <div style={{ fontSize: 11, fontWeight: 1000, letterSpacing: 1, textTransform: "uppercase", borderRadius: 999, padding: "4px 10px", background: tierStyle.bg, color: tierStyle.color }}>{row.tier}</div>
+                                <div>
+                                  <div style={{ fontWeight: 1000 }}>{row.teamName}</div>
+                                  <div style={{ color: "#6b7280", fontWeight: 750, fontSize: 13 }}>{row.manufacturer} · #{row.manufacturerRank} of manufacturer · {row.driverCount} drivers</div>
+                                </div>
+                              </div>
+                              <div style={{ display: "flex", gap: 16, marginLeft: isAdminMobile ? 0 : "auto", fontSize: 13, color: "#374151", fontWeight: 800 }}>
+                                <span>Score: {row.compositeScore}</span>
+                                <span>Perf: {row.performanceScore}</span>
+                                <span>Interviews: {row.interviewScore}</span>
+                                <span>Uploads: {row.uploadScore}</span>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
                     </div>
                   </div>
 
