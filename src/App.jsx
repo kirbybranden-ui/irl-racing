@@ -106,6 +106,7 @@ import {
   makeArcaRaceResultsLedgerRows,
   saveArcaRaceResultsLedger,
   syncAllArcaRaceResultsLedger,
+  saveArcaStandings,
 } from "./utils/backupHelpers";
 import { money } from "./utils/formatters";
 import {
@@ -7767,8 +7768,13 @@ export default function App() {
       tracks: arcaTracks || [],
     });
 
-    if (!ledgerResult.ok) {
-      alert("ARCA race results posted locally but Supabase sync failed. Check arca_results table/RLS.");
+    const standingsResult = await saveArcaStandings({
+      season: updatedSeason,
+      arcaDrivers: updatedArcaDrivers,
+    });
+
+    if (!ledgerResult.ok || !standingsResult.ok) {
+      alert("ARCA race results posted locally but Supabase sync failed. Check arca_results/arca_standings tables and RLS.");
     } else {
       alert("ARCA race results posted to standings.");
     }
