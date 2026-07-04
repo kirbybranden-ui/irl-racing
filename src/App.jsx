@@ -7678,7 +7678,7 @@ export default function App() {
         if (!pos) return null;
         
         const finishPos = Number(pos);
-        const basePoints = pointsTable[finishPos] || 0;
+        const basePoints = (finishPos >= 1 && finishPos <= pointsTable.length) ? pointsTable[finishPos - 1] : 0;
         const fastestLap = activeSeason?.arcaFastestLapMap?.[driver.id] ? 1 : 0;
         const penaltyPts = Number(activeSeason?.arcaPenaltyMap?.[driver.id] || 0);
         const isDnf = activeSeason?.arcaDnfMap?.[driver.id] || false;
@@ -7855,6 +7855,21 @@ export default function App() {
     });
   };
   // ===== END ARCA FUNCTIONS =====
+
+  // Memoized drivers list for the ARCA /series/arca standings page.
+  // Previously this was computed inline at the render call site with
+  // rebuildArcaDriversFromHistory(...), which returns a brand-new array
+  // reference on every single App render. StandingsPage's data-loading
+  // effect depends on the `drivers` prop, so a fresh reference every render
+  // retriggered it constantly, causing the team logos/rows to flicker as it
+  // repeatedly refetched and re-rendered. Memoizing it so it only recomputes
+  // when the actual underlying data changes fixes that.
+  const arcaStandingsPageDrivers = useMemo(() => {
+    if (activeSeason?.arcaDrivers && activeSeason.arcaDrivers.length > 0) {
+      return activeSeason.arcaDrivers;
+    }
+    return rebuildArcaDriversFromHistory(activeSeason?.arcaRaceHistory || [], arcaDrivers || []);
+  }, [activeSeason?.arcaDrivers, activeSeason?.arcaRaceHistory, arcaDrivers]);
 
   const handleEditRace = (race) => {
     const np = {}, ns1 = {}, ns2 = {}, ns3 = {}, nd = {}, spm = {}, no = {}, nf = {}, nr = {}, pm = {}, notes = {};
@@ -8396,7 +8411,7 @@ export default function App() {
     return (
       <StandingsPage
         seriesId={seriesId}
-        drivers={seriesId === "arca" ? (activeSeason?.arcaDrivers && activeSeason.arcaDrivers.length > 0 ? activeSeason.arcaDrivers : rebuildArcaDriversFromHistory(activeSeason?.arcaRaceHistory || [], arcaDrivers || [])) : visibleDrivers}
+        drivers={seriesId === "arca" ? arcaStandingsPageDrivers : visibleDrivers}
         teams={seriesId === "arca" ? [] : teamStandings}
         tracks={seriesId === "arca" ? arcaTracks : tracks}
         raceHistory={seriesId === "arca" ? (activeSeason?.arcaRaceHistory || []) : raceHistory}
