@@ -1,4 +1,20 @@
 import { supabase } from "../lib/supabase";
+
+function normalizeSupabaseDate(value) {
+  if (!value) return null;
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.toISOString().slice(0, 10);
+}
+
+function logSupabaseError(label, error, rows = null) {
+  console.error(`${label} — message:`, error?.message || error);
+  console.error(`${label} — details:`, error?.details ?? null);
+  console.error(`${label} — hint:`, error?.hint ?? null);
+  console.error(`${label} — code:`, error?.code ?? null);
+  if (rows) console.error(`${label} — sample row:`, Array.isArray(rows) ? rows[0] : rows);
+}
 import { getTeamFullName } from "../data/teams";
 
 export function createBackupFilename(prefix = "league-backup", extension = "json") {
@@ -204,7 +220,7 @@ export function makeRaceResultsLedgerRows({ season, race, tracks = [] }) {
       season_id: String(season.id || ""),
       season_name: season.name || "Season",
       race_name: race.raceName || "",
-      race_date: raceDate,
+      race_date: normalizeSupabaseDate(raceDate),
       driver_id: String(result.driverId || rosterDriver.id || ""),
       driver_number: String(result.number || rosterDriver.number || ""),
       driver_name: result.name || rosterDriver.name || "",
@@ -300,7 +316,7 @@ export function makeArcaRaceResultsLedgerRows({ season, race, tracks = [] }) {
       season_id: String(season.id || ""),
       season_name: season.name || "Season",
       race_name: race.raceName || "",
-      race_date: raceDate,
+      race_date: normalizeSupabaseDate(raceDate),
       driver_id: String(result.driverId || rosterDriver.id || ""),
       driver_number: String(result.number || rosterDriver.number || ""),
       driver_name: result.name || rosterDriver.name || "",
@@ -335,15 +351,15 @@ export async function saveArcaRaceResultsLedger({ season, race, tracks = [] }) {
       .eq("race_name", race.raceName || "");
  
     if (deleteError) {
-      console.error("Could not clear old arca_results rows:", deleteError);
-      return { ok: false, error: deleteError };
+      logSupabaseError("Could not clear old arca_results rows", deleteError, rows);
+      return { ok: false, table: "arca_results", error: deleteError };
     }
  
     const { error: insertError } = await supabase.from("arca_results").insert(rows);
  
     if (insertError) {
-      console.error("Could not save arca_results ledger:", insertError);
-      return { ok: false, error: insertError };
+      logSupabaseError("Could not save arca_results ledger", insertError, rows);
+      return { ok: false, table: "arca_results", error: insertError };
     }
  
     return { ok: true };
@@ -419,11 +435,8 @@ export async function saveArcaStandings({ season, arcaDrivers = [] }) {
       .neq("driver_number", "__never_match__");
 
     if (deleteError) {
-      console.error("Could not clear old arca_standings — message:", deleteError.message);
-      console.error("Could not clear old arca_standings — details:", deleteError.details);
-      console.error("Could not clear old arca_standings — hint:", deleteError.hint);
-      console.error("Could not clear old arca_standings — code:", deleteError.code);
-      return { ok: false, error: deleteError };
+      logSupabaseError("Could not clear old arca_standings", deleteError, rows);
+      return { ok: false, table: "arca_standings", error: deleteError };
     }
 
     const { data, error } = await supabase
@@ -432,11 +445,8 @@ export async function saveArcaStandings({ season, arcaDrivers = [] }) {
       .select();
 
     if (error) {
-      console.error("Could not save arca_standings — message:", error.message);
-      console.error("Could not save arca_standings — details:", error.details);
-      console.error("Could not save arca_standings — hint:", error.hint);
-      console.error("Could not save arca_standings — code:", error.code);
-      return { ok: false, error };
+      logSupabaseError("Could not save arca_standings", error, rows);
+      return { ok: false, table: "arca_standings", error };
     }
 
     return { ok: true, data };
@@ -446,7 +456,6 @@ export async function saveArcaStandings({ season, arcaDrivers = [] }) {
   }
 }
  
-
 
 
 
