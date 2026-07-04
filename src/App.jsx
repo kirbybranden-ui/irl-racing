@@ -731,50 +731,40 @@ function LeagueTicker({ page = "standings", fallbackItems = defaultTickerItems }
     .map((item) => `${item.pinned ? "📌 " : ""}${item.category}: ${item.message}`)
     .join("   •   ");
 
+  const displayItems = cleanItems.length ? cleanItems : [];
+
   return (
     <div
       style={{
-        background: "linear-gradient(90deg, #080b10 0%, #111827 50%, #080b10 100%)",
-        border: "1px solid rgba(212,175,55,0.82)",
-        borderRadius: 16,
+        background: "linear-gradient(180deg, rgba(255,255,255,0.90), rgba(255,255,255,0.70))",
+        border: "1px solid rgba(255,255,255,0.8)",
+        borderRadius: 18,
         overflow: "hidden",
         marginBottom: 18,
-        boxShadow: "0 10px 30px rgba(0,0,0,0.35)",
+        boxShadow: "0 14px 34px rgba(15,23,42,0.08)",
+        backdropFilter: "blur(16px)",
+        WebkitBackdropFilter: "blur(16px)",
       }}
     >
-      <div style={{ display: "flex", alignItems: "stretch", minHeight: 46 }}>
+      <div style={{ overflow: "hidden", position: "relative", display: "flex", alignItems: "center", minHeight: 46 }}>
         <div
           style={{
-            background: "linear-gradient(135deg, #d4af37 0%, #f59e0b 100%)",
-            color: "#111",
-            padding: "12px 16px",
-            fontWeight: 1000,
-            letterSpacing: 0.8,
-            fontSize: 13,
-            whiteSpace: "nowrap",
-            display: "flex",
+            display: "inline-flex",
             alignItems: "center",
-            gap: 8,
+            gap: 26,
+            paddingLeft: "100%",
+            whiteSpace: "nowrap",
+            animation: "bcl-ticker-scroll 55s linear infinite",
           }}
         >
-          🏁 LEAGUE TICKER
-        </div>
-        <div style={{ flex: 1, overflow: "hidden", position: "relative", display: "flex", alignItems: "center" }}>
-          <div
-            style={{
-              display: "inline-block",
-              paddingLeft: "100%",
-              whiteSpace: "nowrap",
-              animation: "bcl-ticker-scroll 55s linear infinite",
-              color: "#facc15",
-              fontWeight: 900,
-              fontSize: 14,
-              textShadow: "0 1px 12px rgba(250,204,21,0.25)",
-            }}
-          >
-            {tickerText}
-            {loadError ? "   •   USING FALLBACK TICKER — CHECK SUPABASE TICKER_MESSAGES TABLE" : ""}
-          </div>
+          {displayItems.map((item, i) => (
+            <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 9 }}>
+              {item.pinned && <span>📌</span>}
+              <span style={{ background: "rgba(0,122,255,0.10)", color: "#0057d9", borderRadius: 999, padding: "4px 10px", fontSize: 11, fontWeight: 950, letterSpacing: "0.02em" }}>{item.category}</span>
+              <span style={{ color: "#1d1d1f", fontWeight: 700, fontSize: 14 }}>{item.message}</span>
+            </span>
+          ))}
+          {loadError && <span style={{ color: "#c62d24", fontWeight: 800, fontSize: 12 }}>USING FALLBACK TICKER — CHECK SUPABASE TICKER_MESSAGES TABLE</span>}
         </div>
       </div>
       <style>
@@ -3262,7 +3252,7 @@ function MobilePaintSchemeVotesHub({ drivers = [], tracks = [], go, session = nu
         {session?.mode === "guest" ? (
           <div style={{ marginTop: 10, background: "#07111f", border: "1px solid #263244", borderRadius: 16, padding: 14 }}>
             <div style={{ color: "#fbbf24", fontSize: 11, fontWeight: 1000, textTransform: "uppercase" }}>Guest View Only</div>
-            <div style={{ color: "#aab3c2", fontSize: 13, marginTop: 6, lineHeight: 1.45 }}>You can view paint schemes and results, but you must log in as a driver to cast or change a vote.</div>
+            <div style={{ color: "#6e6e73", fontSize: 13, marginTop: 6, lineHeight: 1.45 }}>You can view paint schemes and results, but you must log in as a driver to cast or change a vote.</div>
             <button type="button" onClick={() => { clearBclMobileSession(); window.location.reload(); }} style={{ ...mobileActionStyle, marginTop: 12, background: "#d4af37", color: "#111", borderColor: "#d4af37" }}>Driver Login</button>
           </div>
         ) : !loggedInDriver ? (
@@ -3290,7 +3280,7 @@ function MobilePaintSchemeVotesHub({ drivers = [], tracks = [], go, session = nu
           <div style={{ marginTop: 10, background: "#07111f", border: "1px solid #263244", borderRadius: 16, padding: 14 }}>
             <div style={{ color: "#4ade80", fontSize: 11, fontWeight: 1000, textTransform: "uppercase" }}>{isPaintVoteAdmin ? "Signed In • Vote QC" : "Signed In"}</div>
             <div style={{ fontSize: 22, fontWeight: 1000, marginTop: 4 }}>#{loggedInDriver.number} {loggedInDriver.name}</div>
-            <div style={{ color: "#aab3c2", fontSize: 13, marginTop: 3 }}>{getTeamFullName(loggedInDriver.team || "Independent")} • {loggedInDriver.manufacturer || ""}</div>
+            <div style={{ color: "#6e6e73", fontSize: 13, marginTop: 3 }}>{getTeamFullName(loggedInDriver.team || "Independent")} • {loggedInDriver.manufacturer || ""}</div>
             <button type="button" onClick={() => { setLoggedInDriver(null); setPassword(""); setMessage("Logged out."); }} style={{ ...mobileActionStyle, marginTop: 12, background: "#111827", color: "#fff", borderColor: "#263244" }}>Log Out</button>
           </div>
         )}
@@ -3316,7 +3306,7 @@ function MobilePaintSchemeVotesHub({ drivers = [], tracks = [], go, session = nu
       {isPaintVoteAdmin && (
         <MobileCard>
           <div style={mobileKickerStyle}>Vote QC</div>
-          <div style={{ color: "#aab3c2", fontSize: 13, lineHeight: 1.4, marginTop: 6 }}>
+          <div style={{ color: "#6e6e73", fontSize: 13, lineHeight: 1.4, marginTop: 6 }}>
             Shows who voted and which paint scheme they picked for the selected track. Self-votes are blocked going forward.
           </div>
           <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
@@ -3327,7 +3317,7 @@ function MobilePaintSchemeVotesHub({ drivers = [], tracks = [], go, session = nu
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
                   <div>
                     <div style={{ color: "#fff", fontWeight: 1000 }}>#{row.voterNumber || "—"} {row.voterName}</div>
-                    <div style={{ color: "#aab3c2", fontSize: 12, marginTop: 3 }}>voted for #{row.selectedNumber || "—"} {row.selectedName}</div>
+                    <div style={{ color: "#6e6e73", fontSize: 12, marginTop: 3 }}>voted for #{row.selectedNumber || "—"} {row.selectedName}</div>
                     {row.team && <div style={{ color: "#64748b", fontSize: 11, marginTop: 3 }}>{row.team}</div>}
                   </div>
                   <div style={{ color: row.selfVote ? "#fca5a5" : "#facc15", fontSize: 11, fontWeight: 1000, textTransform: "uppercase", textAlign: "right" }}>
@@ -3359,7 +3349,7 @@ function MobilePaintSchemeVotesHub({ drivers = [], tracks = [], go, session = nu
                 <div style={{ padding: 14 }}>
                   <div style={{ color: "#d4af37", fontSize: 11, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 1 }}>{entry.trackName}</div>
                   <div style={{ fontSize: 21, fontWeight: 1000, marginTop: 5 }}>{entry.driverLabel}</div>
-                  <div style={{ color: "#aab3c2", fontSize: 12, marginTop: 4 }}>{entry.teamLabel} • {entry.manufacturerLabel || "—"}</div>
+                  <div style={{ color: "#6e6e73", fontSize: 12, marginTop: 4 }}>{entry.teamLabel} • {entry.manufacturerLabel || "—"}</div>
                   <div style={{ color: "#facc15", fontWeight: 1000, marginTop: 8 }}>{entry.voteCount} votes</div>
                   {ownScheme && <div style={{ color: "#f87171", fontSize: 12, fontWeight: 1000, marginTop: 6 }}>Own paint scheme — voting disabled</div>}
                 </div>
@@ -3505,7 +3495,7 @@ function MobileStreamsPage({ drivers = [], teams = [], manufacturerStandings = [
             {watchParty.isLive && <span style={mobileLivePillStyle}>● LIVE</span>}
           </div>
           <h2 style={{ margin: "8px 0 6px", fontSize: 26, lineHeight: 1.02 }}>#{watchParty.driverNumber || "BCL"} {watchParty.driverName}</h2>
-          <p style={{ margin: "0 0 14px", color: "#aab3c2", lineHeight: 1.4 }}>{watchParty.team ? getTeamFullName(watchParty.team) : "Budweiser Cup League"}{watchParty.manufacturer ? ` • ${watchParty.manufacturer}` : ""}</p>
+          <p style={{ margin: "0 0 14px", color: "#6e6e73", lineHeight: 1.4 }}>{watchParty.team ? getTeamFullName(watchParty.team) : "Budweiser Cup League"}{watchParty.manufacturer ? ` • ${watchParty.manufacturer}` : ""}</p>
           <div style={mobileStreamButtonGridStyle}>
             {watchParty.twitchUrl && <button type="button" onClick={() => openStream(watchParty.twitchUrl)} style={mobileTwitchButtonStyle}>Watch Twitch</button>}
             {watchParty.youtubeUrl && <button type="button" onClick={() => openStream(watchParty.youtubeUrl)} style={mobileYoutubeButtonStyle}>Watch YouTube</button>}
@@ -3531,12 +3521,12 @@ function MobileStreamsPage({ drivers = [], teams = [], manufacturerStandings = [
         ))}
       </div>
 
-      {loading && <MobileCard><p style={{ margin: 0, color: "#aab3c2" }}>Loading stream cards...</p></MobileCard>}
+      {loading && <MobileCard><p style={{ margin: 0, color: "#6e6e73" }}>Loading stream cards...</p></MobileCard>}
       {!loading && error && <MobileCard><p style={{ margin: 0, color: "#fca5a5", lineHeight: 1.4 }}>{error}</p></MobileCard>}
       {!loading && !filteredStreams.length && (
         <MobileCard>
           <div style={mobileKickerStyle}>No Streams Found</div>
-          <p style={{ margin: "8px 0 0", color: "#aab3c2", lineHeight: 1.45 }}>No stream links are available for this filter yet. Add Twitch or YouTube links from the full stream manager.</p>
+          <p style={{ margin: "8px 0 0", color: "#6e6e73", lineHeight: 1.45 }}>No stream links are available for this filter yet. Add Twitch or YouTube links from the full stream manager.</p>
         </MobileCard>
       )}
 
@@ -3561,7 +3551,7 @@ function MobileStreamsPage({ drivers = [], teams = [], manufacturerStandings = [
 
       <MobileCard>
         <div style={mobileKickerStyle}>Stream Manager</div>
-        <p style={{ margin: "8px 0 12px", color: "#aab3c2", lineHeight: 1.45 }}>Need to add or edit links? Open the full stream manager in desktop mode.</p>
+        <p style={{ margin: "8px 0 12px", color: "#6e6e73", lineHeight: 1.45 }}>Need to add or edit links? Open the full stream manager in desktop mode.</p>
         <MobileAction label="Open Full Stream Manager" onClick={() => {
           if (typeof document !== "undefined") document.cookie = "bcl-force-desktop=1; path=/; max-age=2592000";
           window.location.href = "/streams";
@@ -3795,7 +3785,7 @@ function MobileAccessGate({ drivers = [], onSession }) {
         <MobileCard>
           <div style={mobileKickerStyle}>Guest Access</div>
           <h2 style={{ margin: "5px 0 8px" }}>View Only</h2>
-          <p style={{ color: "#aab3c2", lineHeight: 1.5, marginTop: 0 }}>
+          <p style={{ color: "#6e6e73", lineHeight: 1.5, marginTop: 0 }}>
             Guests can view standings, news, streams, driver profiles, teams, and race information. Voting, interviews, appeals, messages, and owner tools stay locked.
           </p>
           <button type="button" onClick={continueAsGuest} style={{ ...mobileActionStyle, background: "#111827", color: "#ffffff", borderColor: "#334155" }}>
@@ -3974,7 +3964,7 @@ function MobileInterviewsHub({ session, go }) {
         <h2 style={{ margin: "5px 0 8px" }}>
           {isGuest ? "Public Interviews" : `Logged in as #${driverNumber} ${driverName}`}
         </h2>
-        <p style={{ color: "#aab3c2", lineHeight: 1.5, marginTop: 0 }}>
+        <p style={{ color: "#6e6e73", lineHeight: 1.5, marginTop: 0 }}>
           {isGuest
             ? "Guests can read public interviews, but cannot submit pre-race or post-race interviews."
             : "Open your driver profile to submit pre-race and post-race interviews using the same form and logic as desktop."}
@@ -4004,7 +3994,7 @@ function MobileInterviewsHub({ session, go }) {
 
       <MobileCard>
         <div style={mobileKickerStyle}>Interview Archive</div>
-        <p style={{ color: "#aab3c2", lineHeight: 1.45, margin: "5px 0 12px" }}>
+        <p style={{ color: "#6e6e73", lineHeight: 1.45, margin: "5px 0 12px" }}>
           Latest public interviews are shown below.
         </p>
       </MobileCard>
@@ -4108,7 +4098,7 @@ function MobileLeagueApp({
           <MobileCard>
             <div style={mobileKickerStyle}>Next Race</div>
             <h2 style={{ margin: "5px 0 6px", fontSize: 24 }}>{upcomingRace.name}</h2>
-            <div style={{ color: "#aab3c2", fontSize: 13 }}>
+            <div style={{ color: "#6e6e73", fontSize: 13 }}>
               {upcomingRace.date || "Date TBD"} {upcomingRace.time ? `• ${upcomingRace.time}` : ""}
             </div>
           </MobileCard>
@@ -4143,7 +4133,7 @@ function MobileLeagueApp({
                       Race {index + 1}{isNext ? " • Upcoming" : ""}
                     </div>
                     <div style={{ fontSize: 19, fontWeight: 1000, marginTop: 3 }}>{track.name}</div>
-                    <div style={{ color: "#aab3c2", fontSize: 13, marginTop: 4 }}>
+                    <div style={{ color: "#6e6e73", fontSize: 13, marginTop: 4 }}>
                       {track.date || "Date TBD"} {track.time ? `• ${track.time}` : ""}
                     </div>
                   </div>
@@ -4291,7 +4281,7 @@ function MobileLeagueApp({
     return frame("Driver Feedback", "more", (
       <MobileCard>
         <h2 style={{ marginTop: 0 }}>Driver Feedback Moved</h2>
-        <p style={{ color: "#aab3c2", lineHeight: 1.5 }}>
+        <p style={{ color: "#6e6e73", lineHeight: 1.5 }}>
           Driver feedback now lives inside each protected driver profile so only the driver can submit morale ratings.
         </p>
         <MobileAction label="Back to Standings" onClick={() => go("/standings")} />
@@ -4323,7 +4313,7 @@ function MobileLeagueApp({
           }}
         >
           <MobileUpcomingRaceCard race={upcomingRace} selectedTrack={getTrackOverview(upcomingRace)} go={go} />
-          <div style={{ color: "#d4af37", fontSize: 12, fontWeight: 1000, margin: "-4px 0 12px 4px" }}>
+          <div style={{ color: "#9a5a00", fontSize: 12, fontWeight: 1000, margin: "-4px 0 12px 4px" }}>
             Tap upcoming track to view full season track list →
           </div>
         </button>
@@ -4331,7 +4321,7 @@ function MobileLeagueApp({
         <MobileCard>
           <div style={mobileKickerStyle}>Silly Season</div>
           <h2 style={{ margin: "5px 0 6px", fontSize: 24 }}>🔥 Driver Market</h2>
-          <p style={{ color: "#aab3c2", lineHeight: 1.45, margin: "0 0 12px" }}>
+          <p style={{ color: "#6e6e73", lineHeight: 1.45, margin: "0 0 12px" }}>
             Scout drivers, track re-sign interest, and follow the market before signing day.
           </p>
           <button
@@ -4340,12 +4330,14 @@ function MobileLeagueApp({
             style={{
               width: "100%",
               minHeight: 48,
-              borderRadius: 14,
-              border: "1px solid #d4af37",
-              background: "#d4af37",
-              color: "#111",
+              borderRadius: 999,
+              border: "none",
+              background: "linear-gradient(180deg, #ffd60a 0%, #ff9f0a 100%)",
+              color: "#1d1d1f",
               fontWeight: 1000,
               cursor: "pointer",
+              fontFamily: mobileAppFont,
+              boxShadow: "0 12px 26px rgba(255,159,10,0.24)",
             }}
           >
             Enter Driver Market
@@ -4396,7 +4388,7 @@ function MobileTimelineSpotlightPanel({ tracks = [], drivers = [], go, seasonNam
           <div>
             <div style={mobileKickerStyle}>Paint Winner Window</div>
             <h2 style={{ margin: "4px 0 6px", fontSize: 20 }}>🎨 {upcomingRace?.name || "Upcoming Race"}</h2>
-            <p style={{ margin: 0, color: "#aab3c2", lineHeight: 1.45, fontSize: 13 }}>
+            <p style={{ margin: 0, color: "#6e6e73", lineHeight: 1.45, fontSize: 13 }}>
               Shows the upcoming race paint winner after Wednesday voting closes. If voting ties, all tied winners are shown.
             </p>
           </div>
@@ -4413,7 +4405,7 @@ function MobileTimelineSpotlightPanel({ tracks = [], drivers = [], go, seasonNam
       <MobileCard>
         <div style={mobileKickerStyle}>{seasonName || "Season 1"} • Top 20</div>
         <h2 style={{ margin: "4px 0 6px", fontSize: 20 }}>🏆 Bracket Hub</h2>
-        <p style={{ margin: 0, color: "#aab3c2", lineHeight: 1.45, fontSize: 13 }}>
+        <p style={{ margin: 0, color: "#6e6e73", lineHeight: 1.45, fontSize: 13 }}>
           Mobile now links directly to the in-season bracket. Orly is excluded from the bracket field.
         </p>
         {topSeed && lastSeed && (
@@ -4445,11 +4437,11 @@ function MobileLeaderCard({ leader, go }) {
       <div style={{ minWidth: 0, flex: 1 }}>
         <div style={mobileKickerStyle}>Points Leader</div>
         <strong style={{ display: "block", fontSize: 20, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{leader.name}</strong>
-        <span style={{ color: "#aab3c2", fontSize: 12 }}>{leader.team || "Independent"} • {leader.manufacturer || ""}</span>
+        <span style={{ color: "#6e6e73", fontSize: 12 }}>{leader.team || "Independent"} • {leader.manufacturer || ""}</span>
       </div>
       <div style={{ textAlign: "right" }}>
         <div style={{ fontSize: 26, fontWeight: 1000 }}>{leader.points || 0}</div>
-        <div style={{ color: "#aab3c2", fontSize: 10, fontWeight: 900 }}>PTS</div>
+        <div style={{ color: "#6e6e73", fontSize: 10, fontWeight: 900 }}>PTS</div>
       </div>
     </button>
   );
@@ -4471,7 +4463,7 @@ function MobileUpcomingRaceCard({ race, selectedTrack, go }) {
         <div>
           <div style={mobileKickerStyle}>Upcoming Race</div>
           <h2 style={{ margin: "4px 0 6px", fontSize: 22, lineHeight: 1.08 }}>{trackName}</h2>
-          <p style={{ margin: 0, color: "#aab3c2", fontSize: 13 }}>{dateLabel} • Qualifying 9:15 PM ET • Race 9:30 PM ET</p>
+          <p style={{ margin: 0, color: "#6e6e73", fontSize: 13 }}>{dateLabel} • Qualifying 9:15 PM ET • Race 9:30 PM ET</p>
         </div>
         <div style={{ background: "rgba(212,175,55,0.12)", border: "1px solid rgba(212,175,55,0.35)", color: "#facc15", borderRadius: 14, padding: "8px 10px", fontSize: 12, fontWeight: 1000 }}>🏁</div>
       </div>
@@ -4532,20 +4524,23 @@ function MobileLatestNewsPreview({ go }) {
 
   return (
     <MobileCard>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginBottom: 8 }}>
-        <div>
-          <div style={mobileKickerStyle}>Latest News</div>
-          <h2 style={{ margin: "2px 0 0", fontSize: 20 }}>Top Stories</h2>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginBottom: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ width: 32, height: 32, borderRadius: 11, background: "rgba(255,149,0,0.14)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, flexShrink: 0 }}>📰</div>
+          <div>
+            <div style={mobileKickerStyle}>Latest News</div>
+            <h2 style={{ margin: "2px 0 0", fontSize: 20, color: "#1d1d1f", fontWeight: 950 }}>Top Stories</h2>
+          </div>
         </div>
-        <button type="button" onClick={() => go("/news")} style={{ background: "#111827", color: "#facc15", border: "1px solid rgba(212,175,55,0.35)", borderRadius: 999, padding: "8px 10px", fontSize: 12, fontWeight: 900 }}>View All</button>
+        <button type="button" onClick={() => go("/news")} style={{ background: "rgba(0,122,255,0.10)", color: "#0057d9", border: "1px solid rgba(0,122,255,0.22)", borderRadius: 999, padding: "8px 12px", fontSize: 12, fontWeight: 900, fontFamily: mobileAppFont }}>View All</button>
       </div>
       <div style={{ display: "grid", gap: 10 }}>
         {articles.map((article) => (
-          <button key={article.id} type="button" onClick={() => go("/news")} style={{ background: "#0b111a", color: "white", border: "1px solid #243044", borderRadius: 16, padding: 10, display: "grid", gridTemplateColumns: article.imageUrl ? "74px 1fr" : "1fr", gap: 10, textAlign: "left", cursor: "pointer" }}>
-            {article.imageUrl && <img src={article.imageUrl} alt="" style={{ width: 74, height: 58, objectFit: "cover", borderRadius: 12, border: "1px solid rgba(255,255,255,0.08)" }} />}
+          <button key={article.id} type="button" onClick={() => go("/news")} style={{ background: "rgba(255,255,255,0.9)", color: "#1d1d1f", border: "1px solid rgba(0,0,0,0.06)", borderRadius: 16, padding: 10, display: "grid", gridTemplateColumns: article.imageUrl ? "74px 1fr" : "1fr", gap: 10, textAlign: "left", cursor: "pointer", boxShadow: "0 10px 24px rgba(15,23,42,0.05)", fontFamily: mobileAppFont }}>
+            {article.imageUrl && <img src={article.imageUrl} alt="" style={{ width: 74, height: 58, objectFit: "cover", borderRadius: 12, border: "1px solid rgba(0,0,0,0.06)" }} />}
             <div style={{ minWidth: 0 }}>
-              <div style={{ color: "#d4af37", fontSize: 10, fontWeight: 1000, textTransform: "uppercase", marginBottom: 4 }}>{article.category}</div>
-              <strong style={{ display: "block", fontSize: 14, lineHeight: 1.2 }}>{article.title}</strong>
+              <div style={{ color: "#9a5a00", fontSize: 10, fontWeight: 1000, textTransform: "uppercase", marginBottom: 4 }}>{article.category}</div>
+              <strong style={{ display: "block", fontSize: 14, lineHeight: 1.2, color: "#1d1d1f", fontWeight: 900 }}>{article.title}</strong>
             </div>
           </button>
         ))}
@@ -4586,7 +4581,7 @@ function MobileLiveStreamsBanner({ go }) {
         <div>
           <div style={mobileKickerStyle}>Streams</div>
           <h2 style={{ margin: "2px 0 4px", fontSize: 20 }}>{liveCount ? `${liveCount} Live Now` : "Driver Streams"}</h2>
-          <p style={{ margin: 0, color: "#aab3c2", fontSize: 12 }}>{streams.slice(0, 3).map((stream) => stream.driver_name || stream.channel_name).filter(Boolean).join(" • ")}</p>
+          <p style={{ margin: 0, color: "#6e6e73", fontSize: 12 }}>{streams.slice(0, 3).map((stream) => stream.driver_name || stream.channel_name).filter(Boolean).join(" • ")}</p>
         </div>
         <button type="button" onClick={() => go("/streams")} style={{ background: liveCount ? "#dc2626" : "#111827", color: "white", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 999, padding: "10px 12px", fontWeight: 1000, cursor: "pointer" }}>{liveCount ? "Watch" : "Open"}</button>
       </div>
@@ -4773,12 +4768,12 @@ function MobileWeekendRecap({ raceHistory = [], tracks = [], drivers = [], go })
               <div style={{ width: 58, height: 58, borderRadius: 14, background: "linear-gradient(135deg, #22c55e, #0f172a)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, fontWeight: 1000, border: "1px solid rgba(255,255,255,0.14)" }}>#{winnerNumber}</div>
               <div style={{ minWidth: 0, flex: 1 }}>
                 <strong style={{ display: "block", fontSize: 18, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{winnerName}</strong>
-                <span style={{ display: "block", color: "#aab3c2", fontSize: 12 }}>{winnerTeam} • {winnerManufacturer}</span>
+                <span style={{ display: "block", color: "#6e6e73", fontSize: 12 }}>{winnerTeam} • {winnerManufacturer}</span>
                 <span style={{ display: "block", color: "#86efac", fontSize: 12, fontWeight: 900, marginTop: 4 }}>{winnerPoints} race points</span>
               </div>
             </button>
           ) : (
-            <div style={{ padding: 14, color: "#aab3c2" }}>No completed race winner found yet.</div>
+            <div style={{ padding: 14, color: "#6e6e73" }}>No completed race winner found yet.</div>
           )}
         </article>
       </div>
@@ -5052,7 +5047,7 @@ function MobileNewsFeed({ go, desktopArchive = null }) {
       {error && !loading && <MobileCard><p style={{ margin: 0, color: "#fbbf24", fontWeight: 900 }}>{error}</p></MobileCard>}
 
       {!loading && articles.length > 0 && (
-        <div style={{ margin: "4px 2px 12px", color: "#aab3c2", fontSize: 12, fontWeight: 900, letterSpacing: 0.7, textTransform: "uppercase" }}>
+        <div style={{ margin: "4px 2px 12px", color: "#6e6e73", fontSize: 12, fontWeight: 900, letterSpacing: 0.7, textTransform: "uppercase" }}>
           Showing latest {articles.length} stories
         </div>
       )}
@@ -5108,7 +5103,7 @@ function MobileRaceResultCard({ race }) {
     <MobileCard>
       <div style={mobileKickerStyle}>Race Results</div>
       <h2 style={{ margin: "4px 0 8px" }}>{race.raceName}</h2>
-      {winner && <p style={{ margin: "0 0 10px", color: "#aab3c2" }}>Winner: #{winner.number} {winner.name}</p>}
+      {winner && <p style={{ margin: "0 0 10px", color: "#6e6e73" }}>Winner: #{winner.number} {winner.name}</p>}
       <div style={{ display: "grid", gap: 8 }}>
         {topFive.map((r) => (
           <div key={`${race.raceName}-${r.driverId}`} style={mobileSmallRowStyle}>
@@ -5201,9 +5196,9 @@ function MobileNavButton({ icon, label, onClick, active }) { return <button type
 function MobileHero({ kicker, title, subtitle }) { return <section style={mobileHeroStyle}><div style={mobileKickerStyle}>{kicker}</div><h1 style={{ margin: "4px 0", fontSize: 28, lineHeight: 1.05, color: "#1d1d1f", fontWeight: 950, letterSpacing: "-0.02em" }}>{title}</h1>{subtitle && <p style={{ margin: "8px 0 0", color: "#3a3a3c", lineHeight: 1.4, fontWeight: 600 }}>{subtitle}</p>}</section>; }
 function MobileCard({ children }) { return <section style={mobileCardStyle}>{children}</section>; }
 function MobileAction({ label, onClick, secondary = false }) { return <button type="button" onClick={onClick} style={{ ...mobileActionStyle, background: secondary ? "#111827" : "#d4af37", color: secondary ? "#ffffff" : "#111111", borderColor: secondary ? "#263244" : "#d4af37" }}>{label}</button>; }
-function MobileStatGrid({ items }) { return <div style={mobileStatGridStyle}>{items.map(([label, value]) => <div key={label} style={mobileStatCardStyle}><div style={{ color: "#aab3c2", fontSize: 11, fontWeight: 900, textTransform: "uppercase" }}>{label}</div><strong style={{ fontSize: 20 }}>{value}</strong></div>)}</div>; }
-function MobileStandingsList({ drivers, go }) { return <div>{drivers.map((driver, index) => <button type="button" key={`${driver.number}-${driver.name}`} onClick={() => go(`/driver/${driver.number}`)} style={mobileDriverCardStyle}><div style={mobileRankStyle}>{index + 1}</div><div style={{ minWidth: 0 }}><strong style={{ display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>#{driver.number} {driver.name}</strong><span style={{ color: "#aab3c2", fontSize: 12 }}>{driver.team || "Independent"} • {driver.manufacturer || ""}</span></div><div style={mobilePointsStyle}>{driver.points || 0}<span style={{ display: "block", fontSize: 10, color: "#aab3c2" }}>PTS</span></div></button>)}</div>; }
-function MobileSectionTitle({ children }) { return <h2 style={{ fontSize: 16, margin: "20px 2px 10px", color: "#ffffff" }}>{children}</h2>; }
+function MobileStatGrid({ items }) { return <div style={mobileStatGridStyle}>{items.map(([label, value]) => <div key={label} style={mobileStatCardStyle}><div style={{ color: "#6e6e73", fontSize: 11, fontWeight: 900, textTransform: "uppercase" }}>{label}</div><strong style={{ fontSize: 20 }}>{value}</strong></div>)}</div>; }
+function MobileStandingsList({ drivers, go }) { return <div>{drivers.map((driver, index) => <button type="button" key={`${driver.number}-${driver.name}`} onClick={() => go(`/driver/${driver.number}`)} style={mobileDriverCardStyle}><div style={mobileRankStyle}>{index + 1}</div><div style={{ minWidth: 0 }}><strong style={{ display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>#{driver.number} {driver.name}</strong><span style={{ color: "#6e6e73", fontSize: 12 }}>{driver.team || "Independent"} • {driver.manufacturer || ""}</span></div><div style={mobilePointsStyle}>{driver.points || 0}<span style={{ display: "block", fontSize: 10, color: "#6e6e73" }}>PTS</span></div></button>)}</div>; }
+function MobileSectionTitle({ children }) { return <h2 style={{ fontSize: 16, margin: "20px 2px 10px", color: "#1d1d1f", fontWeight: 950 }}>{children}</h2>; }
 
 
 function MobileDriverProfilePolished({ driver, driverNumber, raceHistory = [], tracks = [], seasons, activeSeason, go }) {
@@ -5304,7 +5299,7 @@ function MobileDriverProfilePolished({ driver, driverNumber, raceHistory = [], t
         {statCards.map((stat) => (
           <div key={stat.label} style={{ background: "#111827", border: "1px solid #263244", borderRadius: 18, padding: 14 }}>
             <div style={{ color: "#d4af37", fontSize: 24, fontWeight: 1000, lineHeight: 1 }}>{stat.value}</div>
-            <div style={{ color: "#aab3c2", fontSize: 11, fontWeight: 900, textTransform: "uppercase", marginTop: 6 }}>{stat.label}</div>
+            <div style={{ color: "#6e6e73", fontSize: 11, fontWeight: 900, textTransform: "uppercase", marginTop: 6 }}>{stat.label}</div>
           </div>
         ))}
       </div>
@@ -5320,7 +5315,7 @@ function MobileDriverProfilePolished({ driver, driverNumber, raceHistory = [], t
       <MobileSectionTitle>Recent Results</MobileSectionTitle>
       {driverResults.length === 0 ? (
         <MobileCard>
-          <div style={{ color: "#aab3c2" }}>No recent results found for this driver yet.</div>
+          <div style={{ color: "#6e6e73" }}>No recent results found for this driver yet.</div>
         </MobileCard>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -5328,7 +5323,7 @@ function MobileDriverProfilePolished({ driver, driverNumber, raceHistory = [], t
             <div key={`${race.raceName}-${result.driverId}-${result.number}`} style={{ background: "#111827", border: "1px solid #263244", borderRadius: 18, padding: 14, display: "grid", gridTemplateColumns: "1fr auto", gap: 10, alignItems: "center" }}>
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontWeight: 1000, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{race.raceName || race.name || "Race"}</div>
-                <div style={{ color: "#aab3c2", fontSize: 12, marginTop: 4 }}>
+                <div style={{ color: "#6e6e73", fontSize: 12, marginTop: 4 }}>
                   {Number(result.totalRacePoints || 0)} pts{result.fastestLap ? " • Fastest Lap" : ""}{result.dnf ? " • DNF" : ""}
                 </div>
               </div>
@@ -5342,7 +5337,7 @@ function MobileDriverProfilePolished({ driver, driverNumber, raceHistory = [], t
 
       <MobileSectionTitle>Driver Portal</MobileSectionTitle>
       <MobileCard>
-        <div style={{ color: "#aab3c2", fontSize: 13, lineHeight: 1.45, marginBottom: 12 }}>
+        <div style={{ color: "#6e6e73", fontSize: 13, lineHeight: 1.45, marginBottom: 12 }}>
           Full profile tools are below. Driver password requirements and existing desktop functionality are unchanged.
         </div>
         <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", paddingBottom: 4 }}>
@@ -5356,7 +5351,7 @@ function MobileDriverProfilePolished({ driver, driverNumber, raceHistory = [], t
 }
 function MobileTeamRow({ team, index }) { return <div style={mobileSmallRowStyle}><strong>{index + 1}. {team.team || team.name}</strong><span>{team.points || 0} pts</span></div>; }
 function MobileManufacturerRow({ manufacturer, index }) { return <div style={mobileSmallRowStyle}><strong>{index + 1}. {manufacturer.manufacturer || manufacturer.name}</strong><span>{manufacturer.points || 0} pts</span></div>; }
-function MobileRaceCard({ race }) { return <MobileCard><div style={mobileKickerStyle}>Next Race</div><h2 style={{ margin: "4px 0" }}>{race.name || race.track || "Race"}</h2><p style={{ color: "#aab3c2", margin: 0 }}>{race.date || "Date TBA"} • Qualifying 9:15 PM • Race 9:30 PM</p></MobileCard>; }
+function MobileRaceCard({ race }) { return <MobileCard><div style={mobileKickerStyle}>Next Race</div><h2 style={{ margin: "4px 0" }}>{race.name || race.track || "Race"}</h2><p style={{ color: "#6e6e73", margin: 0 }}>{race.date || "Date TBA"} • Qualifying 9:15 PM • Race 9:30 PM</p></MobileCard>; }
 
 
 const mobileStreamHeroCardStyle = { background: "linear-gradient(135deg, #111827 0%, #070b10 100%)", border: "1px solid rgba(212,175,55,0.38)", borderRadius: 24, padding: 18, marginBottom: 14, boxShadow: "0 18px 42px rgba(0,0,0,0.36)" };
@@ -5380,29 +5375,29 @@ const mobileFeatureButtonStyle = { width: "100%", background: "linear-gradient(1
 const mobileFeatureIconStyle = { width: 42, height: 42, borderRadius: 14, background: "rgba(212,175,55,0.14)", border: "1px solid rgba(212,175,55,0.24)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 21 };
 const mobileFeatureLabelStyle = { display: "block", fontSize: 15, fontWeight: 1000, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" };
 const mobileFeatureDescStyle = { display: "block", marginTop: 3, color: "#9ca8ba", fontSize: 12, lineHeight: 1.35 };
-const mobileNewsMastheadStyle = { background: "linear-gradient(180deg, #101827 0%, #0b1018 100%)", border: "1px solid rgba(212,175,55,0.32)", borderRadius: 22, padding: "22px 18px", marginBottom: 14, boxShadow: "0 18px 42px rgba(0,0,0,0.32)" };
-const mobileNewsMastheadKickerStyle = { color: "#facc15", fontSize: 11, fontWeight: 1000, letterSpacing: 1.8, textTransform: "uppercase", marginBottom: 8 };
-const mobileNewsMastheadTitleStyle = { margin: 0, fontSize: 32, lineHeight: 0.95, fontWeight: 1000, letterSpacing: -1.2 };
-const mobileNewsMastheadSubStyle = { margin: "10px 0 0", color: "#aab3c2", fontSize: 14, lineHeight: 1.45 };
+const mobileNewsMastheadStyle = { background: "linear-gradient(180deg, rgba(255,255,255,0.90), rgba(255,255,255,0.62))", border: "1px solid rgba(255,255,255,0.78)", borderRadius: 24, padding: "22px 18px", marginBottom: 14, boxShadow: "0 20px 55px rgba(15,23,42,0.10)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)" };
+const mobileNewsMastheadKickerStyle = { color: "#9a5a00", fontSize: 11, fontWeight: 1000, letterSpacing: 1.8, textTransform: "uppercase", marginBottom: 8 };
+const mobileNewsMastheadTitleStyle = { margin: 0, fontSize: 32, lineHeight: 0.95, fontWeight: 1000, letterSpacing: -1.2, color: "#1d1d1f" };
+const mobileNewsMastheadSubStyle = { margin: "10px 0 0", color: "#6e6e73", fontSize: 14, lineHeight: 1.45, fontWeight: 600 };
 const mobileNewsMastheadActionsStyle = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 16 };
-const mobileNewsPrimaryButtonStyle = { background: "linear-gradient(135deg, #d4af37, #facc15)", color: "#111", border: "none", borderRadius: 14, padding: "12px 14px", fontWeight: 1000, fontSize: 14, cursor: "pointer" };
-const mobileNewsGhostButtonStyle = { background: "#151c28", color: "#ffffff", border: "1px solid #2d3748", borderRadius: 14, padding: "12px 14px", fontWeight: 1000, fontSize: 14, cursor: "pointer" };
+const mobileNewsPrimaryButtonStyle = { background: "linear-gradient(135deg, #007aff 0%, #5856d6 100%)", color: "#ffffff", border: "none", borderRadius: 999, padding: "12px 14px", fontWeight: 1000, fontSize: 14, cursor: "pointer", fontFamily: mobileAppFont, boxShadow: "0 12px 26px rgba(0,122,255,0.24)" };
+const mobileNewsGhostButtonStyle = { background: "rgba(255,255,255,0.72)", color: "#1d1d1f", border: "1px solid rgba(0,0,0,0.10)", borderRadius: 999, padding: "12px 14px", fontWeight: 1000, fontSize: 14, cursor: "pointer", fontFamily: mobileAppFont };
 const mobileNewsFeedStyle = { display: "flex", flexDirection: "column", gap: 14, paddingBottom: 18 };
-const mobileNewsLeadCardStyle = { background: "#0f141c", border: "1px solid rgba(212,175,55,0.38)", borderRadius: 24, overflow: "hidden", marginBottom: 18, boxShadow: "0 20px 46px rgba(0,0,0,0.42)" };
-const mobileNewsLeadImageStyle = { width: "100%", height: 220, objectFit: "cover", display: "block", background: "#05070a" };
-const mobileNewsLeadImageFallbackStyle = { height: 135, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 48, background: "linear-gradient(135deg, rgba(212,175,55,0.25), rgba(17,24,39,0.95))" };
+const mobileNewsLeadCardStyle = { background: "linear-gradient(180deg, rgba(255,255,255,0.90), rgba(255,255,255,0.62))", border: "1px solid rgba(255,255,255,0.78)", borderRadius: 24, overflow: "hidden", marginBottom: 18, boxShadow: "0 20px 55px rgba(15,23,42,0.10)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)" };
+const mobileNewsLeadImageStyle = { width: "100%", height: 220, objectFit: "cover", display: "block", background: "rgba(0,0,0,0.04)" };
+const mobileNewsLeadImageFallbackStyle = { height: 135, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 48, background: "linear-gradient(135deg, rgba(255,159,10,0.14), rgba(255,255,255,0.6))" };
 const mobileNewsLeadContentStyle = { padding: "16px 16px 18px" };
-const mobileNewsLeadTitleStyle = { margin: "8px 0 10px", fontSize: 27, lineHeight: 1.02, fontWeight: 1000, letterSpacing: -0.8, color: "#ffffff" };
-const mobileNewsLeadExcerptStyle = { margin: "0 0 12px", color: "#d7dde8", fontSize: 15, lineHeight: 1.5 };
-const mobileNewsArticleStyle = { background: "#101722", border: "1px solid #263244", borderRadius: 20, overflow: "hidden", boxShadow: "0 12px 30px rgba(0,0,0,0.28)" };
-const mobileNewsCardImageStyle = { width: "100%", height: 150, objectFit: "cover", display: "block", background: "#05070a" };
+const mobileNewsLeadTitleStyle = { margin: "8px 0 10px", fontSize: 27, lineHeight: 1.02, fontWeight: 1000, letterSpacing: -0.8, color: "#1d1d1f" };
+const mobileNewsLeadExcerptStyle = { margin: "0 0 12px", color: "#3a3a3c", fontSize: 15, lineHeight: 1.5, fontWeight: 600 };
+const mobileNewsArticleStyle = { background: "rgba(255,255,255,0.88)", border: "1px solid rgba(0,0,0,0.06)", borderRadius: 20, overflow: "hidden", boxShadow: "0 14px 34px rgba(15,23,42,0.08)" };
+const mobileNewsCardImageStyle = { width: "100%", height: 150, objectFit: "cover", display: "block", background: "rgba(0,0,0,0.04)" };
 const mobileNewsStoryContentStyle = { padding: "15px 15px 16px" };
-const mobileNewsMetaRowStyle = { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, color: "#9ca8ba", fontSize: 12, fontWeight: 900, marginBottom: 8 };
-const mobileNewsCategoryPillStyle = { background: "rgba(212,175,55,0.14)", border: "1px solid rgba(212,175,55,0.5)", color: "#facc15", borderRadius: 999, padding: "5px 9px", textTransform: "uppercase", letterSpacing: 0.75, fontSize: 10, fontWeight: 1000, maxWidth: "58%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" };
-const mobileNewsTitleStyle = { margin: "0 0 7px", fontSize: 20, lineHeight: 1.12, fontWeight: 1000, letterSpacing: -0.35, color: "#ffffff" };
-const mobileNewsBylineStyle = { color: "#d4af37", fontSize: 11, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 0.75, marginBottom: 9 };
-const mobileNewsExcerptStyle = { margin: 0, color: "#cbd5e1", fontSize: 14, lineHeight: 1.48 };
-const mobileNewsArchiveShellStyle = { overflowX: "auto", WebkitOverflowScrolling: "touch", borderRadius: 18, border: "1px solid #263244", background: "#0f141c" };
+const mobileNewsMetaRowStyle = { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, color: "#6e6e73", fontSize: 12, fontWeight: 900, marginBottom: 8 };
+const mobileNewsCategoryPillStyle = { background: "rgba(255,149,0,0.12)", border: "1px solid rgba(255,149,0,0.30)", color: "#9a5a00", borderRadius: 999, padding: "5px 9px", textTransform: "uppercase", letterSpacing: 0.75, fontSize: 10, fontWeight: 1000, maxWidth: "58%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" };
+const mobileNewsTitleStyle = { margin: "0 0 7px", fontSize: 20, lineHeight: 1.12, fontWeight: 1000, letterSpacing: -0.35, color: "#1d1d1f" };
+const mobileNewsBylineStyle = { color: "#9a5a00", fontSize: 11, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 0.75, marginBottom: 9 };
+const mobileNewsExcerptStyle = { margin: 0, color: "#3a3a3c", fontSize: 14, lineHeight: 1.48, fontWeight: 600 };
+const mobileNewsArchiveShellStyle = { overflowX: "auto", WebkitOverflowScrolling: "touch", borderRadius: 18, border: "1px solid rgba(0,0,0,0.06)", background: "rgba(255,255,255,0.88)" };
 
 const mobileAppFont = "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif";
 const mobileAppStyle = { minHeight: "100vh", background: "radial-gradient(circle at top left, rgba(255,255,255,0.95), rgba(245,245,247,0.94) 36%, rgba(229,229,234,0.98) 100%)", color: "#1d1d1f", paddingBottom: 82, fontFamily: mobileAppFont };
@@ -5452,19 +5447,19 @@ const mobileDataFrameCss = `
 
 
 const mobileNewsHeadlineListStyle = { display: "grid", gap: 12, paddingBottom: 14 };
-const mobileNewsHeadlineButtonStyle = { width: "100%", textAlign: "left", background: "#10151f", color: "white", border: "1px solid rgba(212,175,55,0.22)", borderRadius: 18, padding: 14, cursor: "pointer", boxShadow: "0 12px 30px rgba(0,0,0,0.22)" };
-const mobileNewsHeadlineLeadButtonStyle = { ...mobileNewsHeadlineButtonStyle, padding: 0, overflow: "hidden", borderColor: "rgba(212,175,55,0.55)", background: "linear-gradient(180deg, #141a24 0%, #0d1118 100%)" };
-const mobileNewsHeadlineLeadImageStyle = { width: "100%", height: 190, objectFit: "cover", display: "block", borderBottom: "1px solid rgba(212,175,55,0.25)" };
-const mobileNewsHeadlineLeadTitleStyle = { margin: "10px 14px 6px", fontSize: 24, lineHeight: 1.05, fontWeight: 1000, letterSpacing: -0.4 };
-const mobileNewsHeadlineTitleStyle = { margin: "8px 0 6px", fontSize: 18, lineHeight: 1.12, fontWeight: 1000, letterSpacing: -0.2 };
-const mobileNewsHeadlineExcerptStyle = { margin: "0 0 8px", color: "#aab3c2", fontSize: 13, lineHeight: 1.45 };
-const mobileNewsReadMoreStyle = { color: "#d4af37", fontSize: 12, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 0.6 };
-const mobileNewsBackButtonStyle = { width: "100%", background: "#111827", color: "#ffffff", border: "1px solid rgba(212,175,55,0.35)", borderRadius: 14, padding: "12px 14px", fontWeight: 1000, marginBottom: 12, cursor: "pointer", textAlign: "left" };
-const mobileNewsDetailCardStyle = { background: "#0f141d", border: "1px solid rgba(212,175,55,0.28)", borderRadius: 22, padding: 16, boxShadow: "0 14px 34px rgba(0,0,0,0.32)", marginBottom: 22 };
-const mobileNewsDetailTitleStyle = { margin: "10px 0 8px", fontSize: 28, lineHeight: 1.05, fontWeight: 1000, letterSpacing: -0.5 };
-const mobileNewsDetailImageStyle = { width: "100%", borderRadius: 18, border: "1px solid rgba(255,255,255,0.12)", objectFit: "cover", maxHeight: 360 };
-const mobileNewsDetailImageFallbackStyle = { height: 190, borderRadius: 18, background: "linear-gradient(135deg, #1b2330, #0c1017)", border: "1px solid rgba(212,175,55,0.22)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 54 };
-const mobileNewsDetailBodyStyle = { whiteSpace: "pre-wrap", color: "#e5e7eb", fontSize: 16, lineHeight: 1.65 };
+const mobileNewsHeadlineButtonStyle = { width: "100%", textAlign: "left", background: "rgba(255,255,255,0.88)", color: "#1d1d1f", border: "1px solid rgba(0,0,0,0.06)", borderRadius: 18, padding: 14, cursor: "pointer", boxShadow: "0 14px 34px rgba(15,23,42,0.08)", fontFamily: mobileAppFont };
+const mobileNewsHeadlineLeadButtonStyle = { ...mobileNewsHeadlineButtonStyle, padding: 0, overflow: "hidden", borderColor: "rgba(255,159,10,0.30)", background: "linear-gradient(180deg, rgba(255,255,255,0.92), rgba(255,255,255,0.66))" };
+const mobileNewsHeadlineLeadImageStyle = { width: "100%", height: 190, objectFit: "cover", display: "block", borderBottom: "1px solid rgba(0,0,0,0.06)" };
+const mobileNewsHeadlineLeadTitleStyle = { margin: "10px 14px 6px", fontSize: 24, lineHeight: 1.05, fontWeight: 1000, letterSpacing: -0.4, color: "#1d1d1f" };
+const mobileNewsHeadlineTitleStyle = { margin: "8px 0 6px", fontSize: 18, lineHeight: 1.12, fontWeight: 1000, letterSpacing: -0.2, color: "#1d1d1f" };
+const mobileNewsHeadlineExcerptStyle = { margin: "0 0 8px", color: "#6e6e73", fontSize: 13, lineHeight: 1.45, fontWeight: 600 };
+const mobileNewsReadMoreStyle = { color: "#0057d9", fontSize: 12, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 0.6 };
+const mobileNewsBackButtonStyle = { width: "100%", background: "rgba(255,255,255,0.8)", color: "#1d1d1f", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 999, padding: "12px 14px", fontWeight: 1000, marginBottom: 12, cursor: "pointer", textAlign: "left", fontFamily: mobileAppFont };
+const mobileNewsDetailCardStyle = { background: "linear-gradient(180deg, rgba(255,255,255,0.90), rgba(255,255,255,0.62))", border: "1px solid rgba(255,255,255,0.78)", borderRadius: 22, padding: 16, boxShadow: "0 20px 55px rgba(15,23,42,0.10)", marginBottom: 22, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)" };
+const mobileNewsDetailTitleStyle = { margin: "10px 0 8px", fontSize: 28, lineHeight: 1.05, fontWeight: 1000, letterSpacing: -0.5, color: "#1d1d1f" };
+const mobileNewsDetailImageStyle = { width: "100%", borderRadius: 18, border: "1px solid rgba(0,0,0,0.06)", objectFit: "cover", maxHeight: 360 };
+const mobileNewsDetailImageFallbackStyle = { height: 190, borderRadius: 18, background: "linear-gradient(135deg, rgba(255,159,10,0.14), rgba(255,255,255,0.7))", border: "1px solid rgba(0,0,0,0.06)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 54 };
+const mobileNewsDetailBodyStyle = { whiteSpace: "pre-wrap", color: "#3a3a3c", fontSize: 16, lineHeight: 1.65, fontWeight: 600 };
 
 
 const NASCAR26_RELEASE_DATE = "2026-09-15T00:00:00-04:00";
