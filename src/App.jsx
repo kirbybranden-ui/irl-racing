@@ -4214,6 +4214,12 @@ function MobileLeagueApp({
     return frame("Team HQ", "more", <OwnerHQPage drivers={drivers} teams={teams} seasonName={seasonName} tracks={tracks} go={go} supabase={supabase} />);
   }
 
+  if (path.startsWith("/race/")) {
+    const raceName = decodeURIComponent(rawPath.replace(/^\/race\//i, "").split("/")[0]);
+    const matchedRace = (raceHistory || []).find((r) => String(r.raceName || "") === raceName) || null;
+    return dataFrame("Race Recap", "standings", <MobileRaceRecapPage race={matchedRace} go={go} />);
+  }
+
   if (path.startsWith("/team/")) {
     const abbr = decodeURIComponent(rawPath.replace(/^\/team\//i, "").split("/")[0]);
     const normalizedTeam = String(abbr || "").toLowerCase();
@@ -4395,7 +4401,7 @@ function MobileLeagueApp({
         )}
 
         {raceHistory?.length > 0 && <MobileSectionTitle>Recent Race Results</MobileSectionTitle>}
-        {(raceHistory || []).slice(-3).reverse().map((race) => <MobileRaceResultCard key={race.raceName} race={race} />)}
+        {(raceHistory || []).slice(-3).reverse().map((race) => <MobileRaceResultCard key={race.raceName} race={race} go={go} />)}
         <LeagueStatusWidget tracks={tracks} seasonName={seasonName} mobile />
       </MobileLayout>
     );
@@ -5132,26 +5138,123 @@ function MobileDataFrame({ children }) {
   );
 }
 
-function MobileRaceResultCard({ race }) {
+function MobileRaceResultCard({ race, go }) {
   const winner = race?.results?.find((r) => Number(r.finishPos) === 1);
   const topFive = [...(race?.results || [])]
     .filter((r) => r.finishPos)
     .sort((a, b) => Number(a.finishPos) - Number(b.finishPos))
     .slice(0, 5);
   return (
-    <MobileCard>
-      <div style={mobileKickerStyle}>Race Results</div>
-      <h2 style={{ margin: "4px 0 8px" }}>{race.raceName}</h2>
-      {winner && <p style={{ margin: "0 0 10px", color: "#6e6e73" }}>Winner: #{winner.number} {winner.name}</p>}
+    <button
+      type="button"
+      onClick={() => go && go(`/race/${encodeURIComponent(race.raceName)}`)}
+      style={{ ...mobileCardStyle, width: "100%", textAlign: "left", border: mobileCardStyle.border, cursor: go ? "pointer" : "default", fontFamily: mobileAppFont }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={mobileKickerStyle}>Race Results</div>
+          <h2 style={{ margin: "4px 0 8px", color: "#1d1d1f", fontSize: 19, fontWeight: 950 }}>{race.raceName}</h2>
+          {winner && <p style={{ margin: "0 0 10px", color: "#6e6e73", fontWeight: 700 }}>Winner: #{winner.number} {winner.name}</p>}
+        </div>
+        {go && <div style={{ color: "#c7c7cc", fontSize: 20, fontWeight: 900, flexShrink: 0 }}>›</div>}
+      </div>
       <div style={{ display: "grid", gap: 8 }}>
         {topFive.map((r) => (
           <div key={`${race.raceName}-${r.driverId}`} style={mobileSmallRowStyle}>
-            <strong>{r.finishPos}. #{r.number} {r.name}</strong>
-            <span>{r.totalRacePoints || 0} pts</span>
+            <strong style={{ color: "#1d1d1f" }}>{r.finishPos}. #{r.number} {r.name}</strong>
+            <span style={{ color: "#1d1d1f", fontWeight: 800 }}>{r.totalRacePoints || 0} pts</span>
           </div>
         ))}
       </div>
-    </MobileCard>
+    </button>
+  );
+}
+
+function MobileRaceRecapPage({ race, go }) {
+  if (!race) {
+    return (
+      <MobileCard>
+        <h2 style={{ margin: "4px 0 8px", color: "#1d1d1f" }}>Race not found</h2>
+        <p style={{ color: "#6e6e73", fontWeight: 600 }}>This race doesn't have results on file yet.</p>
+        <button type="button" onClick={() => go("/")} style={{ ...mobileActionStyle, background: "linear-gradient(180deg, #ffd60a 0%, #ff9f0a 100%)", color: "#1d1d1f", borderColor: "transparent" }}>← Back to Race Hub</button>
+      </MobileCard>
+    );
+  }
+
+  const sortedResults = [...(race.results || [])].sort((a, b) => {
+    const posA = Number(a.finishPos) || 999;
+    const posB = Number(b.finishPos) || 999;
+    return posA - posB;
+  });
+  const winner = sortedResults.find((r) => Number(r.finishPos) === 1);
+  const fastestLapDriver = sortedResults.find((r) => r.fastestLap);
+  const dnfCount = sortedResults.filter((r) => r.dnf).length;
+
+  return (
+    <>
+      <button type="button" onClick={() => go("/")} style={{ ...mobileActionStyle, background: "rgba(255,255,255,0.72)", color: "#1d1d1f", border: "1px solid rgba(0,0,0,0.10)", width: "auto", padding: "10px 16px", minHeight: 0 }}>← Race Hub</button>
+
+      <MobileHero kicker="Race Recap" title={race.raceName} subtitle={winner ? `Winner: #${winner.number} ${winner.name}` : "Full results"} />
+
+      <div style={mobileStatGridStyle}>
+        <div style={mobileStatCardStyle}>
+          <div style={{ fontSize: 11, color: "#6e6e73", fontWeight: 900, marginBottom: 4, letterSpacing: 0.4 }}>WINNER</div>
+          <div style={{ fontSize: 16, fontWeight: 950, color: "#1d1d1f" }}>{winner ? `#${winner.number} ${winner.name}` : "—"}</div>
+        </div>
+        <div style={mobileStatCardStyle}>
+          <div style={{ fontSize: 11, color: "#6e6e73", fontWeight: 900, marginBottom: 4, letterSpacing: 0.4 }}>FASTEST LAP</div>
+          <div style={{ fontSize: 16, fontWeight: 950, color: "#1d1d1f" }}>{fastestLapDriver ? `#${fastestLapDriver.number} ${fastestLapDriver.name}` : "—"}</div>
+        </div>
+        <div style={mobileStatCardStyle}>
+          <div style={{ fontSize: 11, color: "#6e6e73", fontWeight: 900, marginBottom: 4, letterSpacing: 0.4 }}>FINISHERS</div>
+          <div style={{ fontSize: 22, fontWeight: 950, color: "#1d1d1f" }}>{sortedResults.length - dnfCount}</div>
+        </div>
+        <div style={mobileStatCardStyle}>
+          <div style={{ fontSize: 11, color: "#6e6e73", fontWeight: 900, marginBottom: 4, letterSpacing: 0.4 }}>DNFs</div>
+          <div style={{ fontSize: 22, fontWeight: 950, color: "#1d1d1f" }}>{dnfCount}</div>
+        </div>
+      </div>
+
+      <MobileSectionTitle>Full Results</MobileSectionTitle>
+      <div style={{ display: "grid", gap: 8 }}>
+        {sortedResults.map((r) => (
+          <div key={`${race.raceName}-${r.driverId}`} style={{ ...mobileCardStyle, marginBottom: 0, padding: 12 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                <div style={{
+                  width: 30,
+                  height: 30,
+                  borderRadius: 999,
+                  background: r.finishPos === 1 ? "linear-gradient(180deg, #ffd60a 0%, #ff9f0a 100%)" : "rgba(0,0,0,0.05)",
+                  color: r.finishPos === 1 ? "#1d1d1f" : "#6e6e73",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontWeight: 950,
+                  fontSize: 13,
+                  flexShrink: 0,
+                }}>
+                  {r.finishPos || "—"}
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 900, color: "#1d1d1f", fontSize: 14, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>#{r.number} {r.name}</div>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 3 }}>
+                    {r.fastestLap && <span style={{ background: "rgba(0,122,255,0.10)", color: "#0057d9", borderRadius: 999, padding: "2px 7px", fontSize: 10, fontWeight: 900 }}>FASTEST LAP</span>}
+                    {r.dnf && <span style={{ background: "rgba(255,59,48,0.10)", color: "#c62d24", borderRadius: 999, padding: "2px 7px", fontSize: 10, fontWeight: 900 }}>DNF{r.dnfReason ? `: ${r.dnfReason}` : ""}</span>}
+                    {r.startPark && <span style={{ background: "rgba(255,149,0,0.12)", color: "#9a5a00", borderRadius: 999, padding: "2px 7px", fontSize: 10, fontWeight: 900 }}>START & PARK</span>}
+                    {r.offense && <span style={{ background: "rgba(255,59,48,0.10)", color: "#c62d24", borderRadius: 999, padding: "2px 7px", fontSize: 10, fontWeight: 900 }}>PENALTY</span>}
+                  </div>
+                </div>
+              </div>
+              <div style={{ textAlign: "right", flexShrink: 0 }}>
+                <div style={{ fontWeight: 950, color: "#1d1d1f", fontSize: 16 }}>{r.totalRacePoints || 0}</div>
+                <div style={{ fontSize: 10, color: "#86868b", fontWeight: 700 }}>pts</div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </>
   );
 }
 
