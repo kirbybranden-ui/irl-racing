@@ -378,7 +378,10 @@ export async function saveArcaStandings({ season, arcaDrivers = [] }) {
       .upsert(rows, { onConflict: "season_id,driver_number" });
 
     if (error) {
-      console.error("Could not save arca_standings:", error);
+      console.error("Could not save arca_standings — message:", error.message);
+      console.error("Could not save arca_standings — details:", error.details);
+      console.error("Could not save arca_standings — hint:", error.hint);
+      console.error("Could not save arca_standings — code:", error.code);
       return { ok: false, error };
     }
 
