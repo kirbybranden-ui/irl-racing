@@ -241,3 +241,49 @@ export async function syncAllArcaRaceResultsLedger(raceHistory = [], season = {}
   );
   return saveArcaRaceResultsLedger(rows);
 }
+
+
+function normalizeArcaStandingRow(row = {}) {
+  const carNumber = row?.carNumber ?? row?.number ?? row?.car_number ?? "";
+
+  return {
+    id: row?.id ?? String(carNumber || row?.driverName || row?.name || crypto.randomUUID?.() || Date.now()),
+    car_number: String(carNumber),
+    driver_name: row?.driverName || row?.name || row?.driver || row?.driver_name || "",
+    team: row?.team || row?.teamName || row?.team_name || "",
+    manufacturer: row?.manufacturer || "",
+    points: row?.points ?? 0,
+    wins: row?.wins ?? 0,
+    top5: row?.top5 ?? row?.top_5 ?? 0,
+    top10: row?.top10 ?? row?.top_10 ?? 0,
+    starts: row?.starts ?? 0,
+    stage_wins: row?.stageWins ?? row?.stage_wins ?? 0,
+    playoff_points: row?.playoffPoints ?? row?.playoff_points ?? 0,
+    updated_at: new Date().toISOString(),
+  };
+}
+
+export async function saveArcaStandings(standings = []) {
+  const rows = (Array.isArray(standings) ? standings : [])
+    .map((row) => normalizeArcaStandingRow(row))
+    .filter((row) => row.driver_name || row.car_number);
+
+  if (rows.length === 0) return { ok: true, data: [] };
+
+  try {
+    const { data, error } = await supabase
+      .from("arca_standings")
+      .upsert(rows, { onConflict: "id" })
+      .select();
+
+    if (error) {
+      console.error("Could not save arca_standings:", error);
+      return { ok: false, error };
+    }
+
+    return { ok: true, data };
+  } catch (error) {
+    console.error("Could not save arca_standings:", error);
+    return { ok: false, error };
+  }
+}
