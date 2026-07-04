@@ -597,19 +597,37 @@ function RumorMill({ marketDrivers = [], interestRows = [], reSignRows = [], rac
   );
 }
 
-function TeamGradesPanel({ teamGrades }) {
+const prestigeTierColors = {
+  Elite: { bg: "#fff7ed", color: "#c2410c" },
+  Prestigious: { bg: "#eff6ff", color: "#1d4ed8" },
+  Good: { bg: "#f0fdf4", color: "#15803d" },
+  Developing: { bg: "#f5f5f7", color: "#6b7280" },
+};
+
+function TeamGradesPanel({ teamPrestigeRows = [] }) {
+  const rows = [...(teamPrestigeRows || [])].sort((a, b) => Number(b.prestige || 0) - Number(a.prestige || 0));
+
+  if (!rows.length) {
+    return (
+      <div style={sectionCardStyle}>
+        <div style={{ color: "#6e6e73", fontSize: 11, fontWeight: 900, letterSpacing: "0.04em" }}>TEAM PRESTIGE</div>
+        <p style={{ color: "#6e6e73", fontSize: 13, fontWeight: 700, marginTop: 8, marginBottom: 0 }}>Prestige tiers haven't been calculated yet this season — check back soon.</p>
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}>
-      {teamGrades.map((team) => {
-        const clr = ratingColor(team.score);
+      {rows.map((team) => {
+        const tierStyle = prestigeTierColors[team.tier] || prestigeTierColors.Developing;
         return (
           <div key={team.team} style={sectionCardStyle}>
             <div style={{ color: "#6e6e73", fontSize: 11, fontWeight: 900, letterSpacing: "0.04em" }}>TEAM PRESTIGE</div>
             <h3 style={{ margin: "6px 0", fontSize: 20, fontWeight: 950, color: "#1d1d1f" }}>{getTeamFullName(team.team)}</h3>
-            <div style={{ fontSize: 38, fontWeight: 950, color: clr }}>{team.grade}</div>
-            <Meter score={team.score} />
+            <span style={{ display: "inline-block", fontSize: 11.5, fontWeight: 950, letterSpacing: "0.04em", borderRadius: 999, padding: "4px 12px", background: tierStyle.bg, color: tierStyle.color }}>{team.tier || "Developing"}</span>
+            <div style={{ marginTop: 10 }}><Meter score={Number(team.prestige || 0)} /></div>
             <div style={{ marginTop: 10, color: "#6e6e73", fontSize: 12.5, fontWeight: 700 }}>
-              {team.wins} wins • {team.points} pts • {team.paintPoints} media pts
+              {team.manufacturer || "Unknown"} • Score {team.prestige ?? 0}
             </div>
           </div>
         );
@@ -711,6 +729,23 @@ export default function DriverMarketPage({
   const paintStats = useMemo(() => makePaintStats(paintSchemePayouts, drivers), [paintSchemePayouts, drivers]);
   const teamGrades = useMemo(() => makeTeamGrades(drivers, raceStats, paintStats), [drivers, raceStats, paintStats]);
 
+  // Real, saved prestige tiers (Elite/Prestigious/Good/Developing) computed in
+  // the admin portal — this is the authoritative source the "Team Prestige"
+  // panel below should reflect, rather than the legacy ad-hoc teamGrades score.
+  const [teamPrestigeRows, setTeamPrestigeRows] = useState([]);
+  React.useEffect(() => {
+    if (!supabase) return;
+    async function loadTeamPrestige() {
+      const { data, error } = await supabase.from("team_prestige").select("*");
+      if (error) {
+        console.error("Could not load team_prestige:", error);
+        return;
+      }
+      setTeamPrestigeRows(data || []);
+    }
+    loadTeamPrestige();
+  }, [supabase]);
+
   const marketDrivers = useMemo(() => {
     return [...(drivers || [])]
       .filter((driver) => !driver.retired)
@@ -805,7 +840,7 @@ export default function DriverMarketPage({
               </div>
             </div>
 
-            <TeamGradesPanel teamGrades={teamGrades} />
+            <TeamGradesPanel teamPrestigeRows={teamPrestigeRows} />
           </div>
         )}
 
