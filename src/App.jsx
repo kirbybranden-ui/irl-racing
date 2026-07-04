@@ -7768,12 +7768,16 @@ export default function App() {
       tracks: arcaTracks || [],
     });
 
-    const standingsResult = await saveArcaStandings({
-      season: updatedSeason,
-      arcaDrivers: updatedArcaDrivers,
-    });
+    // NOTE: saveArcaStandings() is intentionally NOT called here.
+    // saveArcaRaceResultsLedger() already rebuilds arca_standings internally
+    // (via rebuildArcaStandingsFromResults, reading fresh from arca_results),
+    // matching the Cup series pattern (saveRaceResultsLedger). Calling
+    // saveArcaStandings afterward with the client-side roster overwrote that
+    // correct rebuild with stale/zeroed local values. saveArcaStandings is
+    // still available for other flows (e.g. manual roster resets) — it's
+    // just no longer auto-run after every race post.
 
-    if (!ledgerResult.ok || !standingsResult.ok) {
+    if (!ledgerResult.ok) {
       alert("ARCA race results posted locally but Supabase sync failed. Check arca_results/arca_standings tables and RLS.");
     } else {
       alert("ARCA race results posted to standings.");
