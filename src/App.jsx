@@ -3890,25 +3890,26 @@ function MobileLoginModal({ drivers = [], onClose, onSuccess }) {
   const modalInputStyle = {
     width: "100%",
     minHeight: 48,
-    background: "#020617",
-    color: "#fff",
-    border: "1px solid #334155",
+    background: "rgba(255,255,255,0.72)",
+    color: "#1d1d1f",
+    border: "1px solid rgba(0,0,0,0.08)",
     borderRadius: 14,
     padding: "12px 13px",
     fontSize: 15,
     fontWeight: 900,
     boxSizing: "border-box",
+    fontFamily: mobileAppFont,
   };
 
   return createPortal(
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1300, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
-      <div style={{ width: "100%", maxWidth: 480, background: "#0b0f16", borderTop: "1px solid #263244", borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: "20px 18px 28px", maxHeight: "88vh", overflowY: "auto" }}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(29,29,31,0.42)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", zIndex: 1300, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+      <div style={{ width: "100%", maxWidth: 480, background: "linear-gradient(180deg, rgba(255,255,255,0.97), rgba(248,250,252,0.95))", borderTop: "1px solid rgba(255,255,255,0.8)", borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: "20px 18px 28px", maxHeight: "88vh", overflowY: "auto", boxShadow: "0 -20px 60px rgba(0,0,0,0.20)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <div>
             <div style={mobileKickerStyle}>Driver Login</div>
-            <h2 style={{ margin: "4px 0 0", fontSize: 20, color: "#fff" }}>Sign In</h2>
+            <h2 style={{ margin: "4px 0 0", fontSize: 20, color: "#1d1d1f", fontWeight: 950 }}>Sign In</h2>
           </div>
-          <button type="button" onClick={onClose} style={{ background: "#1e2530", border: "1px solid #334155", borderRadius: 999, width: 34, height: 34, color: "#fff", fontSize: 18, cursor: "pointer" }}>×</button>
+          <button type="button" onClick={onClose} style={{ background: "rgba(0,0,0,0.05)", border: "none", borderRadius: 999, width: 34, height: 34, color: "#1d1d1f", fontSize: 18, cursor: "pointer" }}>×</button>
         </div>
 
         <form onSubmit={loginDriver} style={{ display: "grid", gap: 12 }}>
@@ -3927,8 +3928,8 @@ function MobileLoginModal({ drivers = [], onClose, onSuccess }) {
             placeholder="Enter driver password"
             style={modalInputStyle}
           />
-          {error && <div style={{ color: "#f87171", fontWeight: 900, lineHeight: 1.35 }}>{error}</div>}
-          <button disabled={loading} type="submit" style={{ ...mobileActionStyle, background: "#d4af37", color: "#111", borderColor: "#d4af37" }}>
+          {error && <div style={{ color: "#c62d24", fontWeight: 900, lineHeight: 1.35 }}>{error}</div>}
+          <button disabled={loading} type="submit" style={{ ...mobileActionStyle, background: "linear-gradient(180deg, #ffd60a 0%, #ff9f0a 100%)", color: "#1d1d1f", borderColor: "transparent" }}>
             {loading ? "Checking..." : "Log In & Stay Signed In"}
           </button>
         </form>
@@ -3943,7 +3944,7 @@ function MobileGuestLockedCard({ title = "Driver Login Required", go }) {
     <MobileCard>
       <div style={mobileKickerStyle}>Guest Mode</div>
       <h2 style={{ margin: "5px 0 8px" }}>{title}</h2>
-      <p style={{ color: "#aab3c2", lineHeight: 1.5 }}>
+      <p style={{ color: "#6e6e73", lineHeight: 1.5, fontWeight: 600 }}>
         Guest access is view-only. Log in as a driver to submit votes, interviews, appeals, messages, or other changes.
       </p>
       <button
@@ -3952,7 +3953,7 @@ function MobileGuestLockedCard({ title = "Driver Login Required", go }) {
           clearBclMobileSession();
           window.location.reload();
         }}
-        style={{ ...mobileActionStyle, background: "#d4af37", color: "#111", borderColor: "#d4af37" }}
+        style={{ ...mobileActionStyle, background: "linear-gradient(180deg, #ffd60a 0%, #ff9f0a 100%)", color: "#1d1d1f", borderColor: "transparent" }}
       >
         Driver Login
       </button>
@@ -5133,35 +5134,35 @@ function MobileLayout({ title, children, go, active, session = null, onLogout = 
       <header style={mobileTopbarStyle}>
         <button type="button" onClick={() => go("/standings")} style={mobileLogoButtonStyle}>🏁</button>
         <div style={{ minWidth: 0, flex: 1 }}>
-          <strong style={{ fontSize: 16, display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{title}</strong>
+          <strong style={{ fontSize: 16, display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", color: "#1d1d1f" }}>{title}</strong>
           {session && (
-            <span style={{ display: "block", color: "#9ca3af", fontSize: 10, fontWeight: 900, textTransform: "uppercase", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            <span style={{ display: "block", color: "#6e6e73", fontSize: 10, fontWeight: 900, textTransform: "uppercase", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
               {session.mode === "guest" ? "Guest View Only" : `#${session.driverNumber} ${session.driverName}`}
             </span>
           )}
         </div>
         <button type="button" onClick={() => go("/message-center")} style={mobileBellStyle} aria-label="League Messages">💬</button>
         {session?.mode === "guest" && (
-          <button type="button" onClick={onLoginClick} style={{ ...mobileBellStyle, background: "#d4af37", color: "#111" }} aria-label="Log in">🔑</button>
+          <button type="button" onClick={onLoginClick} style={{ ...mobileBellStyle, background: "linear-gradient(180deg, #ffd60a 0%, #ff9f0a 100%)", color: "#1d1d1f", border: "1px solid rgba(17,24,39,0.10)" }} aria-label="Log in">🔑</button>
         )}
       </header>
       <main style={mobileContentStyle}>
         {session && (
-          <div style={{ background: "rgba(15,23,42,0.92)", border: "1px solid #263244", borderRadius: 16, padding: "10px 12px", marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+          <div style={{ background: "rgba(255,255,255,0.88)", border: "1px solid rgba(0,0,0,0.06)", borderRadius: 18, padding: "10px 12px", marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, boxShadow: "0 12px 28px rgba(15,23,42,0.06)" }}>
             <div style={{ minWidth: 0 }}>
-              <div style={{ color: session.mode === "guest" ? "#fbbf24" : "#4ade80", fontSize: 10, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 0.8 }}>
+              <div style={{ color: session.mode === "guest" ? "#9a5a00" : "#147d35", fontSize: 10, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 0.8 }}>
                 {session.mode === "guest" ? "Guest Access" : "Driver Signed In"}
               </div>
-              <div style={{ fontSize: 13, fontWeight: 900, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              <div style={{ fontSize: 13, fontWeight: 900, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", color: "#1d1d1f" }}>
                 {session.mode === "guest" ? "View-only mode" : `#${session.driverNumber} ${session.driverName}`}
               </div>
             </div>
             {session.mode === "guest" ? (
-              <button type="button" onClick={onLoginClick} style={{ background: "#d4af37", color: "#111", border: "1px solid #d4af37", borderRadius: 12, padding: "8px 14px", fontSize: 12, fontWeight: 900 }}>
+              <button type="button" onClick={onLoginClick} style={{ background: "linear-gradient(180deg, #ffd60a 0%, #ff9f0a 100%)", color: "#1d1d1f", border: "1px solid rgba(17,24,39,0.10)", borderRadius: 999, padding: "8px 14px", fontSize: 12, fontWeight: 900 }}>
                 Log In
               </button>
             ) : (
-              <button type="button" onClick={onLogout} style={{ background: "#111827", color: "#fff", border: "1px solid #334155", borderRadius: 12, padding: "8px 10px", fontSize: 12, fontWeight: 900 }}>
+              <button type="button" onClick={onLogout} style={{ background: "rgba(0,0,0,0.06)", color: "#1d1d1f", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 999, padding: "8px 10px", fontSize: 12, fontWeight: 900 }}>
                 Log Out
               </button>
             )}
@@ -5170,9 +5171,9 @@ function MobileLayout({ title, children, go, active, session = null, onLogout = 
         {children}
         <div style={mobileDesktopSwitchCardStyle}>
           <div>
-            <div style={{ fontSize: 12, fontWeight: 1000, color: "#d4af37", letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 4 }}>Display Mode</div>
-            <div style={{ fontSize: 15, fontWeight: 900 }}>Mobile Version</div>
-            <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 3 }}>Optimized for phones</div>
+            <div style={{ fontSize: 12, fontWeight: 1000, color: "#9a5a00", letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 4 }}>Display Mode</div>
+            <div style={{ fontSize: 15, fontWeight: 900, color: "#1d1d1f" }}>Mobile Version</div>
+            <div style={{ fontSize: 12, color: "#6e6e73", marginTop: 3 }}>Optimized for phones</div>
           </div>
           <button type="button" onClick={openDesktopVersion} style={mobileDesktopSwitchButtonStyle}>
             🖥 View Desktop
@@ -5196,8 +5197,8 @@ function MobileLayout({ title, children, go, active, session = null, onLogout = 
     </div>
   );
 }
-function MobileNavButton({ icon, label, onClick, active }) { return <button type="button" onClick={onClick} style={{ ...mobileNavButtonStyle, color: active ? "#d4af37" : "#ffffff" }}><span style={{ fontSize: 20 }}>{icon}</span><span style={{ fontSize: 10 }}>{label}</span></button>; }
-function MobileHero({ kicker, title, subtitle }) { return <section style={mobileHeroStyle}><div style={mobileKickerStyle}>{kicker}</div><h1 style={{ margin: "4px 0", fontSize: 28, lineHeight: 1.05 }}>{title}</h1>{subtitle && <p style={{ margin: "8px 0 0", color: "rgba(255,255,255,0.82)", lineHeight: 1.4 }}>{subtitle}</p>}</section>; }
+function MobileNavButton({ icon, label, onClick, active }) { return <button type="button" onClick={onClick} style={{ ...mobileNavButtonStyle, color: active ? "#ff9500" : "#6e6e73" }}><span style={{ fontSize: 20 }}>{icon}</span><span style={{ fontSize: 10 }}>{label}</span></button>; }
+function MobileHero({ kicker, title, subtitle }) { return <section style={mobileHeroStyle}><div style={mobileKickerStyle}>{kicker}</div><h1 style={{ margin: "4px 0", fontSize: 28, lineHeight: 1.05, color: "#1d1d1f", fontWeight: 950, letterSpacing: "-0.02em" }}>{title}</h1>{subtitle && <p style={{ margin: "8px 0 0", color: "#3a3a3c", lineHeight: 1.4, fontWeight: 600 }}>{subtitle}</p>}</section>; }
 function MobileCard({ children }) { return <section style={mobileCardStyle}>{children}</section>; }
 function MobileAction({ label, onClick, secondary = false }) { return <button type="button" onClick={onClick} style={{ ...mobileActionStyle, background: secondary ? "#111827" : "#d4af37", color: secondary ? "#ffffff" : "#111111", borderColor: secondary ? "#263244" : "#d4af37" }}>{label}</button>; }
 function MobileStatGrid({ items }) { return <div style={mobileStatGridStyle}>{items.map(([label, value]) => <div key={label} style={mobileStatCardStyle}><div style={{ color: "#aab3c2", fontSize: 11, fontWeight: 900, textTransform: "uppercase" }}>{label}</div><strong style={{ fontSize: 20 }}>{value}</strong></div>)}</div>; }
@@ -5403,25 +5404,26 @@ const mobileNewsBylineStyle = { color: "#d4af37", fontSize: 11, fontWeight: 1000
 const mobileNewsExcerptStyle = { margin: 0, color: "#cbd5e1", fontSize: 14, lineHeight: 1.48 };
 const mobileNewsArchiveShellStyle = { overflowX: "auto", WebkitOverflowScrolling: "touch", borderRadius: 18, border: "1px solid #263244", background: "#0f141c" };
 
-const mobileAppStyle = { minHeight: "100vh", background: "#080b10", color: "white", paddingBottom: 82, fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' };
-const mobileTopbarStyle = { position: "sticky", top: 0, zIndex: 20, background: "#0c0f14", borderBottom: "1px solid #222936", padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" };
-const mobileLogoButtonStyle = { width: 44, height: 44, borderRadius: 999, border: "1px solid #2d3544", background: "#171c26", color: "white", fontSize: 18 };
-const mobileBellStyle = { width: 44, height: 44, borderRadius: 999, border: "1px solid #2d3544", background: "#171c26", color: "white", fontSize: 20 };
+const mobileAppFont = "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif";
+const mobileAppStyle = { minHeight: "100vh", background: "radial-gradient(circle at top left, rgba(255,255,255,0.95), rgba(245,245,247,0.94) 36%, rgba(229,229,234,0.98) 100%)", color: "#1d1d1f", paddingBottom: 82, fontFamily: mobileAppFont };
+const mobileTopbarStyle = { position: "sticky", top: 0, zIndex: 20, background: "rgba(255,255,255,0.82)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", borderBottom: "1px solid rgba(0,0,0,0.06)", padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" };
+const mobileLogoButtonStyle = { width: 44, height: 44, borderRadius: 14, border: "1px solid rgba(0,0,0,0.08)", background: "rgba(255,255,255,0.9)", color: "#1d1d1f", fontSize: 18, boxShadow: "0 8px 20px rgba(15,23,42,0.08)" };
+const mobileBellStyle = { width: 44, height: 44, borderRadius: 14, border: "1px solid rgba(0,0,0,0.08)", background: "rgba(255,255,255,0.9)", color: "#1d1d1f", fontSize: 20, boxShadow: "0 8px 20px rgba(15,23,42,0.08)" };
 const mobileContentStyle = { padding: 14 };
-const mobileHeroStyle = { background: "linear-gradient(135deg, #c8102e, #111827)", borderRadius: 20, padding: 18, marginBottom: 14, border: "1px solid rgba(255,255,255,0.12)", boxShadow: "0 14px 30px rgba(0,0,0,0.25)" };
-const mobileKickerStyle = { color: "#d4af37", fontSize: 11, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 1.3 };
-const mobileCardStyle = { background: "#111827", border: "1px solid #263244", borderRadius: 16, padding: 14, marginBottom: 12 };
-const mobileDriverCardStyle = { width: "100%", background: "#111827", color: "white", border: "1px solid #263244", borderRadius: 16, padding: 12, marginBottom: 10, display: "grid", gridTemplateColumns: "38px 1fr auto", alignItems: "center", gap: 10, textAlign: "left" };
-const mobileRankStyle = { width: 34, height: 34, background: "#d4af37", color: "#111", borderRadius: 999, display: "grid", placeItems: "center", fontWeight: 1000 };
-const mobilePointsStyle = { fontWeight: 1000, fontSize: 19, textAlign: "right" };
-const mobileBottomNavStyle = { position: "fixed", left: 0, right: 0, bottom: 0, background: "#0c0f14", borderTop: "1px solid #222936", display: "grid", gridTemplateColumns: "repeat(5, 1fr)", padding: "7px 4px", zIndex: 30 };
-const mobileDesktopSwitchCardStyle = { marginTop: 18, marginBottom: 84, background: "linear-gradient(135deg, rgba(212,175,55,0.10), rgba(15,19,25,0.96))", border: "1px solid rgba(212,175,55,0.28)", borderRadius: 18, padding: 14, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, boxShadow: "0 12px 26px rgba(0,0,0,0.24)" };
-const mobileDesktopSwitchButtonStyle = { border: "none", borderRadius: 999, padding: "11px 13px", background: "linear-gradient(135deg, #d4af37, #facc15)", color: "#111", fontWeight: 1000, fontSize: 12, whiteSpace: "nowrap", boxShadow: "0 10px 20px rgba(212,175,55,0.18)", cursor: "pointer" };
-const mobileNavButtonStyle = { background: "transparent", border: "none", display: "flex", flexDirection: "column", alignItems: "center", gap: 2, minHeight: 50, fontWeight: 800 };
-const mobileActionStyle = { width: "100%", minHeight: 48, borderRadius: 14, border: "1px solid", padding: "12px 14px", fontWeight: 1000, marginBottom: 10 };
+const mobileHeroStyle = { background: "linear-gradient(180deg, rgba(255,255,255,0.90), rgba(255,255,255,0.62))", borderRadius: 24, padding: 18, marginBottom: 14, border: "1px solid rgba(255,255,255,0.78)", boxShadow: "0 20px 55px rgba(15,23,42,0.10)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)" };
+const mobileKickerStyle = { color: "#9a5a00", fontSize: 11, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 1.3 };
+const mobileCardStyle = { background: "linear-gradient(180deg, rgba(255,255,255,0.88), rgba(255,255,255,0.60))", border: "1px solid rgba(255,255,255,0.78)", borderRadius: 20, padding: 14, marginBottom: 12, boxShadow: "0 16px 40px rgba(15,23,42,0.08)", backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)" };
+const mobileDriverCardStyle = { width: "100%", background: "rgba(255,255,255,0.9)", color: "#1d1d1f", border: "1px solid rgba(0,0,0,0.06)", borderRadius: 18, padding: 12, marginBottom: 10, display: "grid", gridTemplateColumns: "38px 1fr auto", alignItems: "center", gap: 10, textAlign: "left", boxShadow: "0 10px 26px rgba(15,23,42,0.06)" };
+const mobileRankStyle = { width: 34, height: 34, background: "linear-gradient(180deg, #ffd60a 0%, #ff9f0a 100%)", color: "#1d1d1f", borderRadius: 999, display: "grid", placeItems: "center", fontWeight: 1000 };
+const mobilePointsStyle = { fontWeight: 1000, fontSize: 19, textAlign: "right", color: "#1d1d1f" };
+const mobileBottomNavStyle = { position: "fixed", left: 0, right: 0, bottom: 0, background: "rgba(255,255,255,0.86)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", borderTop: "1px solid rgba(0,0,0,0.06)", display: "grid", gridTemplateColumns: "repeat(5, 1fr)", padding: "7px 4px", zIndex: 30 };
+const mobileDesktopSwitchCardStyle = { marginTop: 18, marginBottom: 84, background: "linear-gradient(180deg, rgba(255,255,255,0.88), rgba(255,255,255,0.60))", border: "1px solid rgba(255,255,255,0.78)", borderRadius: 20, padding: 14, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, boxShadow: "0 16px 40px rgba(15,23,42,0.08)", backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)" };
+const mobileDesktopSwitchButtonStyle = { border: "none", borderRadius: 999, padding: "11px 13px", background: "linear-gradient(135deg, #007aff 0%, #5856d6 100%)", color: "#ffffff", fontWeight: 1000, fontSize: 12, whiteSpace: "nowrap", boxShadow: "0 10px 24px rgba(0,122,255,0.24)", cursor: "pointer" };
+const mobileNavButtonStyle = { background: "transparent", border: "none", display: "flex", flexDirection: "column", alignItems: "center", gap: 2, minHeight: 50, fontWeight: 800, color: "#1d1d1f" };
+const mobileActionStyle = { width: "100%", minHeight: 48, borderRadius: 999, border: "1px solid", padding: "12px 14px", fontWeight: 1000, marginBottom: 10, fontFamily: mobileAppFont };
 const mobileStatGridStyle = { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10, marginBottom: 12 };
-const mobileStatCardStyle = { background: "#111827", border: "1px solid #263244", borderRadius: 16, padding: 12 };
-const mobileSmallRowStyle = { background: "#111827", border: "1px solid #263244", borderRadius: 14, padding: "12px 14px", marginBottom: 8, display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" };
+const mobileStatCardStyle = { background: "rgba(255,255,255,0.88)", border: "1px solid rgba(0,0,0,0.06)", borderRadius: 18, padding: 12, boxShadow: "0 12px 28px rgba(15,23,42,0.06)" };
+const mobileSmallRowStyle = { background: "rgba(255,255,255,0.88)", border: "1px solid rgba(0,0,0,0.06)", borderRadius: 16, padding: "12px 14px", marginBottom: 8, display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", boxShadow: "0 10px 24px rgba(15,23,42,0.05)" };
 
 const mobileDataFrameStyle = { width: "100%", maxWidth: "100%", overflowX: "hidden", borderRadius: 18 };
 const mobileDataFrameCss = `
