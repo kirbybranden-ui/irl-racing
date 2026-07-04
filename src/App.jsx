@@ -107,6 +107,7 @@ import {
   saveArcaRaceResultsLedger,
   syncAllArcaRaceResultsLedger,
   saveArcaStandings,
+  saveTeamPrestige,
 } from "./utils/backupHelpers";
 import { money } from "./utils/formatters";
 import {
@@ -2893,6 +2894,105 @@ function buildPaymentComplianceRows({ teams = [], drivers = [], interviews = [],
       overrideStatus,
     };
   });
+}
+
+function buildTeamPrestigeRows({ teams = [], drivers = [], interviews = [], carUploads = [], seasonRaceNames = null }) {
+  interviews = (Array.isArray(interviews) ? interviews : []).filter((row) => row && typeof row === "object");
+  carUploads = (Array.isArray(carUploads) ? carUploads : []).filter((row) => row && typeof row === "object");
+
+  // Scope interviews/car uploads to the current season's races only, so these
+  // tiebreaker scores reset each season instead of accumulating all-time.
+  // Neither table has a season_id column, so we match by race name against the
+  // active season's own race history instead.
+  if (Array.isArray(seasonRaceNames)) {
+    const seasonRaceSet = new Set(seasonRaceNames.map((name) => String(name || "").trim().toLowerCase()).filter(Boolean));
+    if (seasonRaceSet.size > 0) {
+      interviews = interviews.filter((row) => seasonRaceSet.has(getRecordRaceName(row).toLowerCase()));
+      carUploads = carUploads.filter((row) => seasonRaceSet.has(getRecordRaceName(row).toLowerCase()));
+    } else {
+      // No races posted yet this season — no interviews/uploads should count.
+      interviews = [];
+      carUploads = [];
+    }
+  }
+
+  const eligibleTeams = (teams || []).filter((team) => team?.team && team.team !== "Independent" && team.team !== "IND");
+
+  const rows = eligibleTeams.map((team) => {
+    const teamDrivers = (drivers || [])
+      .filter((driver) => !driver.retired && !isInactivePlaceholderDriver(driver) && String(driver.team || "") === String(team.team));
+
+    // Manufacturer: most common among this team's active drivers.
+    const manufacturerCounts = {};
+    teamDrivers.forEach((driver) => {
+      if (driver.manufacturer) manufacturerCounts[driver.manufacturer] = (manufacturerCounts[driver.manufacturer] || 0) + 1;
+    });
+    const manufacturer = Object.entries(manufacturerCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "Unknown";
+
+    // Driver performance — heaviest-weighted component. Pulled from the team's
+    // current Cup standings (points/wins/top5/top3), same fields used elsewhere
+    // in the app (e.g. the Team Standings table).
+    const points = Number(team.points || 0);
+    const wins = Number(team.wins || 0);
+    const top5 = Number(team.top5 || 0);
+    const top3 = Number(team.top3 || 0);
+    const performanceRaw = points + wins * 25 + top5 * 8 + top3 * 4;
+
+    // Interviews — light tiebreaker. Count of answered interviews across the team's drivers.
+    const interviewCount = teamDrivers.reduce(
+      (sum, driver) => sum + interviews.filter((row) => interviewLooksAnswered(row) && recordMatchesDriver(row, driver)).length,
+      0
+    );
+
+    // Car uploads — light tiebreaker. Count of paint scheme/car uploads across the team's drivers.
+    const uploadCount = teamDrivers.reduce(
+      (sum, driver) => sum + carUploads.filter((row) => recordMatchesDriver(row, driver)).length,
+      0
+    );
+
+    return {
+      team: team.team,
+      teamName: getTeamFullName(team.team),
+      manufacturer,
+      driverCount: teamDrivers.length,
+      performanceRaw,
+      interviewCount,
+      uploadCount,
+    };
+  });
+
+  // Normalize each component to a 0-100 scale across all Cup teams, then combine
+  // with performance weighted heaviest and interviews/uploads as light tiebreakers.
+  const maxPerf = Math.max(1, ...rows.map((r) => r.performanceRaw));
+  const maxInterviews = Math.max(1, ...rows.map((r) => r.interviewCount));
+  const maxUploads = Math.max(1, ...rows.map((r) => r.uploadCount));
+
+  rows.forEach((r) => {
+    r.performanceScore = Math.round((r.performanceRaw / maxPerf) * 100);
+    r.interviewScore = Math.round((r.interviewCount / maxInterviews) * 100);
+    r.uploadScore = Math.round((r.uploadCount / maxUploads) * 100);
+    r.compositeScore = Math.round(r.performanceScore * 0.8 + r.interviewScore * 0.1 + r.uploadScore * 0.1);
+  });
+
+  // Tier assignment is relative to each manufacturer's own team set, not global:
+  // within each manufacturer, rank by composite score and assign Elite -> Prestigious
+  // -> Good -> Developing by rank. A manufacturer with fewer than 4 teams simply
+  // won't use the lower tiers yet.
+  const tierNames = ["Elite", "Prestigious", "Good", "Developing"];
+  const byManufacturer = {};
+  rows.forEach((r) => {
+    (byManufacturer[r.manufacturer] = byManufacturer[r.manufacturer] || []).push(r);
+  });
+
+  Object.values(byManufacturer).forEach((group) => {
+    group.sort((a, b) => b.compositeScore - a.compositeScore);
+    group.forEach((r, idx) => {
+      r.tier = tierNames[Math.min(idx, tierNames.length - 1)];
+      r.manufacturerRank = idx + 1;
+    });
+  });
+
+  return rows.sort((a, b) => b.compositeScore - a.compositeScore);
 }
 
 function DriverVoteReminderStrip({ driverNumber = "" }) {
@@ -7084,6 +7184,33 @@ export default function App() {
     previousRace: previousRaceForPayment,
     upcomingRace: upcomingRaceForPayment,
   }), [teamStandings, visibleDrivers, paymentComplianceInterviews, paymentComplianceUploads, paymentComplianceOverrides, previousRaceForPayment, upcomingRaceForPayment]);
+
+  // Cup series team prestige: driver performance weighted heaviest, interviews
+  // and car uploads as light tiebreakers, tiered relative to each manufacturer's
+  // own set of teams (Elite/Prestigious/Good/Developing by rank within manufacturer).
+  const teamPrestigeRows = useMemo(() => buildTeamPrestigeRows({
+    teams: teamStandings,
+    drivers: visibleDrivers,
+    interviews: paymentComplianceInterviews,
+    carUploads: paymentComplianceUploads,
+    seasonRaceNames: (raceHistory || []).map((r) => r.raceName),
+  }), [teamStandings, visibleDrivers, paymentComplianceInterviews, paymentComplianceUploads, raceHistory]);
+
+  const [teamPrestigeStatus, setTeamPrestigeStatus] = useState("");
+  const [teamPrestigeSaving, setTeamPrestigeSaving] = useState(false);
+
+  const recalculateTeamPrestige = async () => {
+    setTeamPrestigeSaving(true);
+    setTeamPrestigeStatus("Recalculating team prestige...");
+    const result = await saveTeamPrestige(teamPrestigeRows);
+    setTeamPrestigeSaving(false);
+    if (!result.ok) {
+      setTeamPrestigeStatus("Could not save team prestige. Check team_prestige table/RLS and console for details.");
+      return;
+    }
+    setTeamPrestigeStatus(`Team prestige recalculated for ${teamPrestigeRows.length} teams.`);
+  };
+
   const saveOwnerAccessCodes = (nextCodes) => {
     setOwnerAccessCodes(nextCodes);
     localStorage.setItem("ownerPortalAccessCodes", JSON.stringify(nextCodes));
@@ -8576,6 +8703,10 @@ export default function App() {
   }
   return (
     <AdminPortal
+      teamPrestigeRows={teamPrestigeRows}
+      teamPrestigeStatus={teamPrestigeStatus}
+      teamPrestigeSaving={teamPrestigeSaving}
+      recalculateTeamPrestige={recalculateTeamPrestige}
       AdminLeagueMessageComposer={AdminLeagueMessageComposer}
       AdminLeagueMessageDashboard={AdminLeagueMessageDashboard}
       PaymentCompliancePanel={PaymentCompliancePanel}
