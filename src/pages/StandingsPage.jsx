@@ -1233,8 +1233,8 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
         {renderTeamBadge(driver.team, 44)}
         <div style={{ minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-            <span style={{ fontSize: 22, fontWeight: 950, lineHeight: 1 }}>#{driver.number}</span>
-            <span style={{ fontSize: 18, fontWeight: 900, lineHeight: 1.15 }}>{driver.name}</span>
+            <span style={{ fontSize: 22, fontWeight: 950, lineHeight: 1 }}>#{driver.driver_number || driver.car_number || driver.number}</span>
+            <span style={{ fontSize: 18, fontWeight: 900, lineHeight: 1.15 }}>{driver.driver_name || driver.name}</span>
             {driver.retired && <span style={{ fontSize: 11, borderRadius: 999, padding: "3px 8px", background: "#fff7ed", color: "#c2410c", fontWeight: 900 }}>R</span>}
           </div>
           <div style={{ marginTop: 5, fontSize: 13, color: "#6e6e73", fontWeight: 720 }}>{driver.team} • ARCA Menards Series</div>
