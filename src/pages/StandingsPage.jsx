@@ -810,14 +810,15 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
           console.warn("Could not load active ARCA season; loading all ARCA standings instead.", seasonError);
         }
 
+        // NOTE: not filtering by activeSeasonData.id here — arca_standings and
+        // arca_results are written with the app's own local season_id format
+        // (e.g. "season-1779120609648-pkzdb2"), which never matches the
+        // Supabase-generated UUID from arca_seasons.id. Filtering on it always
+        // returned zero rows and forced the zeroed roster fallback below.
         let query = supabase
           .from("arca_standings")
           .select("*")
           .order("points", { ascending: false });
-
-        if (activeSeasonData?.id) {
-          query = query.eq("season_id", activeSeasonData.id);
-        }
 
         let { data: standings, error: standingsError } = await query;
 
@@ -829,9 +830,6 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
         // If standings are empty, build a live standings view from posted ARCA results.
         if (!standings?.length) {
           let resultsQuery = supabase.from("arca_results").select("*");
-          if (activeSeasonData?.id) {
-            resultsQuery = resultsQuery.eq("season_id", activeSeasonData.id);
-          }
           const { data: results, error: resultsError } = await resultsQuery;
           if (resultsError) {
             console.error("Error loading ARCA results for standings fallback:", resultsError);
