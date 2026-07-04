@@ -340,3 +340,51 @@ export async function syncAllArcaRaceResultsLedger({ seasons = [], tracks = [] }
     return { ok: false, error };
   }
 }
+
+/**
+ * Writes the aggregated per-driver totals to arca_standings — the table
+ * StandingsPage.jsx actually reads from. saveArcaRaceResultsLedger() only
+ * writes the race-by-race arca_results ledger and never touched this table,
+ * which is why posted results weren't showing up on the standings page.
+ *
+ * NOTE: this upserts on (season_id, driver_number). If arca_standings doesn't
+ * already have a unique constraint on that pair, add one in Supabase, or
+ * this will insert duplicate rows on every re-post instead of updating them.
+ */
+export async function saveArcaStandings({ season, arcaDrivers = [] }) {
+  if (!season || !Array.isArray(arcaDrivers) || arcaDrivers.length === 0) {
+    return { ok: true, skipped: true };
+  }
+
+  const rows = arcaDrivers.map((driver) => ({
+    season_id: String(season.id || ""),
+    season_name: season.name || "Season",
+    driver_number: String(driver.number || ""),
+    driver_name: driver.name || "",
+    team: driver.team || "",
+    manufacturer: driver.manufacturer || "",
+    points: Number(driver.points || 0),
+    wins: Number(driver.wins || 0),
+    top5: Number(driver.top5 || 0),
+    top10: Number(driver.top10 || 0),
+    dnfs: Number(driver.dnfs || 0),
+    starts: Number(driver.starts || 0),
+    updated_at: new Date().toISOString(),
+  }));
+
+  try {
+    const { error } = await supabase
+      .from("arca_standings")
+      .upsert(rows, { onConflict: "season_id,driver_number" });
+
+    if (error) {
+      console.error("Could not save arca_standings:", error);
+      return { ok: false, error };
+    }
+
+    return { ok: true };
+  } catch (error) {
+    console.error("arca_standings save crashed:", error);
+    return { ok: false, error };
+  }
+}
