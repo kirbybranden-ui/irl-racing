@@ -11,6 +11,19 @@ const GLASS_BORDER = "1px solid rgba(0,0,0,0.06)";
 const GLASS_SHADOW = "0 8px 30px rgba(0,0,0,0.06), 0 1px 0 rgba(255,255,255,0.6) inset";
 const HAIRLINE = "1px solid rgba(0,0,0,0.08)";
 
+const TYPE_ACCENTS = {
+  pre: { color: "#0071e3", tint: "rgba(0,113,227,0.09)", label: "Pre-Race" },
+  post: { color: "#af52de", tint: "rgba(175,82,222,0.09)", label: "Post-Race" },
+  default: { color: "#ff9500", tint: "rgba(255,149,0,0.1)", label: "Interview" },
+};
+
+function getTypeAccent(interviewType) {
+  const key = String(interviewType || "").toLowerCase();
+  if (key.includes("pre")) return TYPE_ACCENTS.pre;
+  if (key.includes("post")) return TYPE_ACCENTS.post;
+  return TYPE_ACCENTS.default;
+}
+
 export default function PublicInterviewsPage({ seriesId = "cup" }) {
   const [interviews, setInterviews] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -321,6 +334,8 @@ export default function PublicInterviewsPage({ seriesId = "cup" }) {
               const interviewType =
                 interview.type || interview.interview_type || "Interview";
 
+              const accent = getTypeAccent(interviewType);
+
               return (
                 <div
                   key={interview.id || `${interview.driver_name}-${raceName}`}
@@ -329,6 +344,7 @@ export default function PublicInterviewsPage({ seriesId = "cup" }) {
                     backdropFilter: "blur(24px) saturate(180%)",
                     WebkitBackdropFilter: "blur(24px) saturate(180%)",
                     border: GLASS_BORDER,
+                    borderLeft: `4px solid ${accent.color}`,
                     borderRadius: 22,
                     padding: 22,
                     boxShadow: GLASS_SHADOW,
@@ -349,8 +365,22 @@ export default function PublicInterviewsPage({ seriesId = "cup" }) {
                         {interview.driver_name || "Unknown Driver"}
                       </h2>
 
-                      <div style={{ color: TEXT_SECONDARY, marginTop: 4, fontSize: 13.5 }}>
-                        {interviewType} • {raceName}
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+                        <span
+                          style={{
+                            background: accent.tint,
+                            color: accent.color,
+                            borderRadius: 999,
+                            padding: "4px 11px",
+                            fontWeight: 700,
+                            fontSize: 12,
+                            textTransform: "uppercase",
+                            letterSpacing: 0.4,
+                          }}
+                        >
+                          {accent.label}
+                        </span>
+                        <span style={{ color: TEXT_SECONDARY, fontSize: 13.5 }}>{raceName}</span>
                       </div>
                     </div>
 
@@ -374,13 +404,13 @@ export default function PublicInterviewsPage({ seriesId = "cup" }) {
                       <div
                         key={index}
                         style={{
-                          background: "rgba(0,0,0,0.03)",
-                          border: HAIRLINE,
+                          background: accent.tint,
+                          border: `1px solid ${accent.color}22`,
                           borderRadius: 16,
                           padding: 16,
                         }}
                       >
-                        <div style={{ color: GOLD, fontWeight: 700, fontSize: 14.5 }}>
+                        <div style={{ color: accent.color, fontWeight: 700, fontSize: 14.5 }}>
                           Q: {pair.question}
                         </div>
 
