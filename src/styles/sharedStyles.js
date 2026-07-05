@@ -1,8 +1,26 @@
+export const FONT_STACK =
+  '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif';
+
+export const GOLD = "#d4af37";
+export const TEXT_PRIMARY = "#1d1d1f";
+export const TEXT_SECONDARY = "#6e6e73";
+export const GLASS_BG = "rgba(255,255,255,0.7)";
+export const GLASS_BG_STRONG = "rgba(255,255,255,0.85)";
+export const GLASS_BORDER = "1px solid rgba(0,0,0,0.06)";
+export const GLASS_SHADOW = "0 8px 30px rgba(0,0,0,0.06), 0 1px 0 rgba(255,255,255,0.6) inset";
+export const HAIRLINE = "1px solid rgba(0,0,0,0.08)";
+export const GREEN = "#34c759";
+export const RED = "#ff3b30";
+export const ORANGE = "#ff9500";
+export const BLUE = "#0071e3";
+export const PURPLE = "#af52de";
+
 export const appShellStyle = {
   minHeight: "100vh",
-  background: "#0c0f14",
-  color: "white",
-  fontFamily: "Arial, sans-serif",
+  background: "linear-gradient(180deg, #f5f5f7 0%, #ffffff 40%, #f5f5f7 100%)",
+  color: TEXT_PRIMARY,
+  fontFamily: FONT_STACK,
+  WebkitFontSmoothing: "antialiased",
 };
 
 export const pageContainerStyle = {
@@ -12,69 +30,76 @@ export const pageContainerStyle = {
 };
 
 export const sectionCardStyle = {
-  background: "#171b22",
-  border: "1px solid #2c3440",
-  borderRadius: 16,
+  background: GLASS_BG,
+  backdropFilter: "blur(24px) saturate(180%)",
+  WebkitBackdropFilter: "blur(24px) saturate(180%)",
+  border: GLASS_BORDER,
+  borderRadius: 22,
   padding: 18,
   marginBottom: 20,
-  boxShadow: "0 8px 24px rgba(0,0,0,0.22)",
+  boxShadow: GLASS_SHADOW,
 };
 
 export const headerButtonStyle = {
-  background: "#222936",
-  color: "white",
-  border: "1px solid #3a4453",
-  borderRadius: 10,
-  padding: "10px 14px",
-  fontWeight: 700,
+  background: "rgba(0,0,0,0.05)",
+  color: TEXT_PRIMARY,
+  border: "1px solid rgba(0,0,0,0.08)",
+  borderRadius: 999,
+  padding: "10px 16px",
+  fontWeight: 600,
   cursor: "pointer",
+  fontFamily: FONT_STACK,
 };
 
 export const activeHeaderButtonStyle = {
   ...headerButtonStyle,
-  background: "#d4af37",
-  color: "#111",
-  border: "1px solid #d4af37",
+  background: TEXT_PRIMARY,
+  color: "white",
+  border: `1px solid ${TEXT_PRIMARY}`,
 };
 
 export const primaryButtonStyle = {
-  background: "#d4af37",
-  color: "#111",
+  background: GOLD,
+  color: "#1d1d1f",
   border: "none",
-  borderRadius: 10,
-  padding: "10px 16px",
+  borderRadius: 999,
+  padding: "10px 18px",
   fontWeight: 700,
   cursor: "pointer",
+  fontFamily: FONT_STACK,
 };
 
 export const secondaryButtonStyle = {
-  background: "#2a3140",
-  color: "white",
-  border: "1px solid #3d4859",
-  borderRadius: 10,
-  padding: "10px 16px",
-  fontWeight: 700,
+  background: "rgba(0,0,0,0.05)",
+  color: TEXT_PRIMARY,
+  border: "1px solid rgba(0,0,0,0.08)",
+  borderRadius: 999,
+  padding: "10px 18px",
+  fontWeight: 600,
   cursor: "pointer",
+  fontFamily: FONT_STACK,
 };
 
 export const dangerButtonStyle = {
-  background: "#b42318",
+  background: RED,
   color: "white",
   border: "none",
-  borderRadius: 10,
-  padding: "10px 16px",
-  fontWeight: 700,
+  borderRadius: 999,
+  padding: "10px 18px",
+  fontWeight: 600,
   cursor: "pointer",
+  fontFamily: FONT_STACK,
 };
 
 export const inputStyle = {
   width: "100%",
-  background: "#0f1319",
-  color: "white",
-  border: "1px solid #313947",
-  borderRadius: 10,
+  background: "rgba(0,0,0,0.04)",
+  color: TEXT_PRIMARY,
+  border: "1px solid rgba(0,0,0,0.08)",
+  borderRadius: 12,
   padding: "10px 12px",
   boxSizing: "border-box",
+  fontFamily: FONT_STACK,
 };
 
 export const racePositionInputStyle = {
@@ -84,7 +109,7 @@ export const racePositionInputStyle = {
   maxWidth: 130,
   padding: "10px 12px",
   fontSize: 16,
-  fontWeight: 800,
+  fontWeight: 700,
   textAlign: "center",
 };
 
@@ -95,7 +120,7 @@ export const racePenaltyInputStyle = {
   maxWidth: 150,
   padding: "10px 12px",
   fontSize: 15,
-  fontWeight: 800,
+  fontWeight: 700,
   textAlign: "center",
 };
 
@@ -115,16 +140,19 @@ export const tableStyle = {
 export const thStyle = {
   textAlign: "left",
   padding: 10,
-  borderBottom: "1px solid #313947",
-  background: "#10141b",
+  borderBottom: HAIRLINE,
+  background: "rgba(0,0,0,0.03)",
   fontSize: 13,
+  color: TEXT_SECONDARY,
+  fontWeight: 600,
 };
 
 export const tdStyle = {
   padding: 10,
-  borderBottom: "1px solid #252c38",
+  borderBottom: "1px solid rgba(0,0,0,0.06)",
   verticalAlign: "top",
   fontSize: 14,
+  color: TEXT_PRIMARY,
 };
 
 export const raceEntryThStyle = {
@@ -139,9 +167,12 @@ export const raceEntryTdStyle = {
 };
 
 export const statBoxStyle = {
-  background: "#11161d",
-  border: "1px solid #2a3240",
-  borderRadius: 14,
+  background: GLASS_BG,
+  backdropFilter: "blur(20px)",
+  WebkitBackdropFilter: "blur(20px)",
+  border: GLASS_BORDER,
+  borderRadius: 16,
   padding: 16,
   flex: "1 1 220px",
+  boxShadow: GLASS_SHADOW,
 };
