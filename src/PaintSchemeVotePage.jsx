@@ -1,27 +1,68 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "./lib/supabase";
 
+const FONT_STACK =
+  '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif';
+const GOLD = "#d4af37";
+const TEXT_PRIMARY = "#1d1d1f";
+const TEXT_SECONDARY = "#6e6e73";
+const GLASS_BG = "rgba(255,255,255,0.7)";
+const GLASS_BORDER = "1px solid rgba(0,0,0,0.06)";
+const GLASS_SHADOW = "0 8px 30px rgba(0,0,0,0.06), 0 1px 0 rgba(255,255,255,0.6) inset";
+const HAIRLINE = "1px solid rgba(0,0,0,0.08)";
+const GREEN = "#34c759";
+const RED = "#ff3b30";
+const ORANGE = "#ff9500";
+const BLUE = "#0071e3";
+const PURPLE = "#af52de";
+
 const appShellStyle = {
   minHeight: "100vh",
-  background: "radial-gradient(circle at top, #18202b 0%, #0d1117 38%, #090c11 100%)",
-  color: "white",
-  fontFamily: "Arial, sans-serif",
+  background: "linear-gradient(180deg, #f5f5f7 0%, #ffffff 40%, #f5f5f7 100%)",
+  color: TEXT_PRIMARY,
+  fontFamily: FONT_STACK,
+  WebkitFontSmoothing: "antialiased",
 };
 
 const pageContainerStyle = { maxWidth: 1180, margin: "0 auto", padding: 24 };
 const sectionCardStyle = {
-  background: "#171b22",
-  border: "1px solid #2c3440",
-  borderRadius: 18,
+  background: GLASS_BG,
+  backdropFilter: "blur(24px) saturate(180%)",
+  WebkitBackdropFilter: "blur(24px) saturate(180%)",
+  border: GLASS_BORDER,
+  borderRadius: 22,
   padding: 20,
   marginBottom: 20,
-  boxShadow: "0 8px 24px rgba(0,0,0,0.22)",
+  boxShadow: GLASS_SHADOW,
 };
-const primaryButtonStyle = { background: "#d4af37", color: "#111", border: "none", borderRadius: 10, padding: "10px 16px", fontWeight: 900, cursor: "pointer" };
-const secondaryButtonStyle = { background: "#2a3140", color: "white", border: "1px solid #3d4859", borderRadius: 10, padding: "10px 16px", fontWeight: 800, cursor: "pointer" };
-const dangerButtonStyle = { background: "#b42318", color: "white", border: "none", borderRadius: 10, padding: "10px 16px", fontWeight: 800, cursor: "pointer" };
-const inputStyle = { width: "100%", background: "#0f1319", color: "white", border: "1px solid #313947", borderRadius: 10, padding: "10px 12px", boxSizing: "border-box" };
+const primaryButtonStyle = { background: GOLD, color: "#1d1d1f", border: "none", borderRadius: 999, padding: "10px 18px", fontWeight: 700, cursor: "pointer", fontFamily: FONT_STACK, fontSize: 14 };
+const secondaryButtonStyle = { background: "rgba(0,0,0,0.05)", color: TEXT_PRIMARY, border: "1px solid rgba(0,0,0,0.08)", borderRadius: 999, padding: "10px 18px", fontWeight: 600, cursor: "pointer", fontFamily: FONT_STACK, fontSize: 14 };
+const dangerButtonStyle = { background: RED, color: "white", border: "none", borderRadius: 999, padding: "10px 18px", fontWeight: 600, cursor: "pointer", fontFamily: FONT_STACK, fontSize: 14 };
+const inputStyle = { width: "100%", background: "rgba(0,0,0,0.04)", color: TEXT_PRIMARY, border: "1px solid rgba(0,0,0,0.08)", borderRadius: 12, padding: "10px 12px", boxSizing: "border-box", fontFamily: FONT_STACK, fontSize: 14 };
 const MASTER_ACCESS_CODE = "BCLADMINPASSWORD2026";
+
+function StepBadge({ number, color }) {
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: 26,
+        height: 26,
+        borderRadius: "50%",
+        background: color,
+        color: "white",
+        fontWeight: 700,
+        fontSize: 13,
+        marginRight: 10,
+        flexShrink: 0,
+      }}
+    >
+      {number}
+    </span>
+  );
+}
 
 function normalize(value) {
   return String(value || "").trim().toLowerCase();
@@ -325,16 +366,16 @@ export default function PaintSchemeVotePage({ drivers = [], tracks = [] }) {
       <div style={pageContainerStyle}>
         <button onClick={() => (window.location.pathname = "/standings")} style={secondaryButtonStyle}>← Back to Standings</button>
 
-        <div style={{ ...sectionCardStyle, marginTop: 18, borderColor: "#f97316" }}>
-          <div style={{ fontSize: 12, fontWeight: 900, color: "#f97316", letterSpacing: 1 }}>BUDWEISER CUP LEAGUE</div>
-          <h1 style={{ margin: "6px 0 6px", fontSize: 38 }}>🎨 Paint Scheme Vote</h1>
-          <div style={{ opacity: 0.75, lineHeight: 1.6 }}>
+        <div style={{ ...sectionCardStyle, marginTop: 18, borderLeft: `4px solid ${ORANGE}` }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: ORANGE, letterSpacing: 1, textTransform: "uppercase" }}>Budweiser Cup League</div>
+          <h1 style={{ margin: "6px 0 6px", fontSize: 34, fontWeight: 700, letterSpacing: -0.8, color: TEXT_PRIMARY }}>🎨 Paint Scheme Vote</h1>
+          <div style={{ color: TEXT_SECONDARY, lineHeight: 1.6, fontSize: 14.5 }}>
             Drivers must unlock with their Driver Profile password before voting. One vote per driver profile per race week. No self-votes. Voting closes every {getDeadlineLabel()}.
           </div>
         </div>
 
         <div style={sectionCardStyle}>
-          <h2 style={{ marginTop: 0 }}>Official Rules</h2>
+          <h2 style={{ marginTop: 0, fontSize: 20, fontWeight: 600, letterSpacing: -0.3, color: TEXT_PRIMARY }}>Official Rules</h2>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: 10 }}>
             {[
               "Driver password required to vote.",
@@ -345,14 +386,16 @@ export default function PaintSchemeVotePage({ drivers = [], tracks = [] }) {
               "Voting closes Friday at 12:00 AM ET.",
               "Cars not updated by the deadline are ineligible for payout.",
             ].map((rule) => (
-              <div key={rule} style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 12, padding: 12, fontWeight: 800 }}>✅ {rule}</div>
+              <div key={rule} style={{ background: "rgba(52,199,89,0.08)", border: "1px solid rgba(52,199,89,0.25)", borderRadius: 14, padding: 12, fontWeight: 600, color: TEXT_PRIMARY, fontSize: 13.5 }}>✅ {rule}</div>
             ))}
           </div>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 16 }}>
           <div style={sectionCardStyle}>
-            <h2 style={{ marginTop: 0 }}>1. Select Vote Week</h2>
+            <h2 style={{ marginTop: 0, fontSize: 19, fontWeight: 600, letterSpacing: -0.3, color: TEXT_PRIMARY, display: "flex", alignItems: "center" }}>
+              <StepBadge number={1} color={BLUE} /> Select Vote Week
+            </h2>
             <select value={raceName} onChange={(event) => setRaceName(event.target.value)} style={inputStyle}>
               <option value="">Select race week...</option>
               {(tracks || []).map((track) => <option key={track.name} value={track.name}>{track.name}</option>)}
@@ -363,21 +406,23 @@ export default function PaintSchemeVotePage({ drivers = [], tracks = [] }) {
           </div>
 
           <div style={sectionCardStyle}>
-            <h2 style={{ marginTop: 0 }}>2. Unlock Driver Profile</h2>
+            <h2 style={{ marginTop: 0, fontSize: 19, fontWeight: 600, letterSpacing: -0.3, color: TEXT_PRIMARY, display: "flex", alignItems: "center" }}>
+              <StepBadge number={2} color={PURPLE} /> Unlock Driver Profile
+            </h2>
             {unlockedDriver ? (
-              <div style={{ background: "#102a16", border: "1px solid #22c55e", borderRadius: 12, padding: 14 }}>
-                <div style={{ fontWeight: 900, color: "#4ade80" }}>Unlocked</div>
-                <div style={{ marginTop: 4 }}>#{unlockedDriver.number} {unlockedDriver.name}</div>
+              <div style={{ background: "rgba(52,199,89,0.08)", border: `1px solid ${GREEN}55`, borderRadius: 16, padding: 14 }}>
+                <div style={{ fontWeight: 700, color: GREEN }}>Unlocked</div>
+                <div style={{ marginTop: 4, color: TEXT_PRIMARY }}>#{unlockedDriver.number} {unlockedDriver.name}</div>
                 <button onClick={() => { setUnlockedDriver(null); setSelectedUploadId(""); }} style={{ ...dangerButtonStyle, marginTop: 12 }}>Lock / Switch Driver</button>
               </div>
             ) : (
               <>
-                <div style={{ marginBottom: 8, fontWeight: 800 }}>Driver</div>
+                <div style={{ marginBottom: 8, fontWeight: 600, color: TEXT_PRIMARY, fontSize: 14 }}>Driver</div>
                 <select value={selectedVoterNumber} onChange={(event) => setSelectedVoterNumber(event.target.value)} style={inputStyle}>
                   <option value="">Select your driver...</option>
                   {activeDrivers.map((driver) => <option key={driver.id || driver.number} value={driver.number}>#{driver.number} {driver.name}</option>)}
                 </select>
-                <div style={{ marginTop: 12, marginBottom: 8, fontWeight: 800 }}>Driver Profile Password</div>
+                <div style={{ marginTop: 12, marginBottom: 8, fontWeight: 600, color: TEXT_PRIMARY, fontSize: 14 }}>Driver Profile Password</div>
                 <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Enter driver password" style={inputStyle} />
                 <button onClick={unlockVoter} style={{ ...primaryButtonStyle, marginTop: 12 }}>Unlock To Vote</button>
               </>
@@ -385,21 +430,23 @@ export default function PaintSchemeVotePage({ drivers = [], tracks = [] }) {
           </div>
         </div>
 
-        {status && <div style={{ ...sectionCardStyle, borderColor: "#22c55e", color: "#4ade80", fontWeight: 900 }}>{status}</div>}
-        {error && <div style={{ ...sectionCardStyle, borderColor: "#ef4444", color: "#fecaca", fontWeight: 900 }}>{error}</div>}
+        {status && <div style={{ ...sectionCardStyle, background: "rgba(52,199,89,0.08)", border: `1px solid ${GREEN}55`, color: GREEN, fontWeight: 700 }}>{status}</div>}
+        {error && <div style={{ ...sectionCardStyle, background: "rgba(255,59,48,0.08)", border: `1px solid ${RED}55`, color: RED, fontWeight: 700 }}>{error}</div>}
 
         <div style={sectionCardStyle}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap", marginBottom: 16 }}>
             <div>
-              <h2 style={{ margin: 0 }}>3. Choose Paint Scheme</h2>
-              <div style={{ opacity: 0.7, marginTop: 5 }}>{uploads.length} eligible image upload(s) found for {raceName || "this race week"}.</div>
+              <h2 style={{ margin: 0, fontSize: 19, fontWeight: 600, letterSpacing: -0.3, color: TEXT_PRIMARY, display: "flex", alignItems: "center" }}>
+                <StepBadge number={3} color={GOLD} /> Choose Paint Scheme
+              </h2>
+              <div style={{ color: TEXT_SECONDARY, marginTop: 6, fontSize: 13.5 }}>{uploads.length} eligible image upload(s) found for {raceName || "this race week"}.</div>
             </div>
-            {votingClosed && <div style={{ background: "#431407", border: "1px solid #f97316", color: "#fed7aa", borderRadius: 12, padding: "10px 12px", fontWeight: 900 }}>Voting Closed</div>}
-            {unlockedDriver && voterHasAlreadyVoted && <div style={{ background: "#1e293b", border: "1px solid #64748b", borderRadius: 12, padding: "10px 12px", fontWeight: 900 }}>Current Vote: #{currentVoteUpload?.displayDriverNumber || existingVoteForRace?.voted_driver_number || "—"} {currentVoteUpload?.displayDriverName || existingVoteForRace?.voted_driver_name || "Unknown"}</div>}
+            {votingClosed && <div style={{ background: "rgba(255,149,0,0.1)", border: `1px solid ${ORANGE}55`, color: "#b45309", borderRadius: 999, padding: "8px 14px", fontWeight: 700, fontSize: 13 }}>Voting Closed</div>}
+            {unlockedDriver && voterHasAlreadyVoted && <div style={{ background: "rgba(0,0,0,0.04)", border: HAIRLINE, color: TEXT_PRIMARY, borderRadius: 999, padding: "8px 14px", fontWeight: 700, fontSize: 13 }}>Current Vote: #{currentVoteUpload?.displayDriverNumber || existingVoteForRace?.voted_driver_number || "—"} {currentVoteUpload?.displayDriverName || existingVoteForRace?.voted_driver_name || "Unknown"}</div>}
           </div>
 
           {uploads.length === 0 ? (
-            <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 16, opacity: 0.78 }}>
+            <div style={{ background: "rgba(0,0,0,0.03)", border: HAIRLINE, borderRadius: 16, padding: 16, color: TEXT_SECONDARY }}>
               No paint scheme image uploads found for this race week yet.
             </div>
           ) : (
@@ -415,25 +462,27 @@ export default function PaintSchemeVotePage({ drivers = [], tracks = [] }) {
                     onClick={() => setSelectedUploadId(upload.id)}
                     style={{
                       textAlign: "left",
-                      background: selected ? "#2a230f" : "#0f1319",
-                      color: "white",
-                      border: selected ? "2px solid #d4af37" : "1px solid #2c3440",
-                      borderRadius: 16,
+                      background: selected ? "rgba(212,175,55,0.12)" : "rgba(255,255,255,0.75)",
+                      color: TEXT_PRIMARY,
+                      border: selected ? `2px solid ${GOLD}` : HAIRLINE,
+                      borderRadius: 18,
                       padding: 12,
                       cursor: !unlockedDriver || votingClosed || isSelf ? "not-allowed" : "pointer",
-                      opacity: isSelf ? 0.48 : 1,
+                      opacity: isSelf ? 0.5 : 1,
+                      fontFamily: FONT_STACK,
+                      boxShadow: selected ? "0 6px 20px rgba(212,175,55,0.18)" : "0 4px 14px rgba(0,0,0,0.04)",
                     }}
                   >
                     {upload.imageUrl ? (
-                      <img src={upload.imageUrl} alt={`${upload.displayDriverName} paint scheme`} style={{ width: "100%", height: 145, objectFit: "cover", borderRadius: 12, marginBottom: 10, background: "#111" }} />
+                      <img src={upload.imageUrl} alt={`${upload.displayDriverName} paint scheme`} style={{ width: "100%", height: 145, objectFit: "cover", borderRadius: 14, marginBottom: 10, background: "#f0f0f0" }} />
                     ) : (
-                      <div style={{ height: 145, borderRadius: 12, background: "#111", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 10 }}>No Image URL</div>
+                      <div style={{ height: 145, borderRadius: 14, background: "#f0f0f0", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 10, color: TEXT_SECONDARY }}>No Image URL</div>
                     )}
-                    <div style={{ fontWeight: 900 }}>#{upload.displayDriverNumber || "—"} {upload.displayDriverName}</div>
-                    <div style={{ opacity: 0.68, marginTop: 3 }}>{getTeamFullName(upload.displayTeam)}</div>
-                    <div style={{ marginTop: 8, color: "#d4af37", fontWeight: 900 }}>{upload.voteCount || 0} vote{Number(upload.voteCount || 0) === 1 ? "" : "s"}</div>
-                    {isSelf && <div style={{ color: "#f87171", marginTop: 8, fontWeight: 900 }}>Self-vote blocked</div>}
-                    {getUploadUpdatedAt(upload) && <div style={{ opacity: 0.5, fontSize: 11, marginTop: 8 }}>Updated: {new Date(getUploadUpdatedAt(upload)).toLocaleString()}</div>}
+                    <div style={{ fontWeight: 700, color: TEXT_PRIMARY }}>#{upload.displayDriverNumber || "—"} {upload.displayDriverName}</div>
+                    <div style={{ color: TEXT_SECONDARY, marginTop: 3, fontSize: 13.5 }}>{getTeamFullName(upload.displayTeam)}</div>
+                    <div style={{ marginTop: 8, color: GOLD, fontWeight: 700 }}>{upload.voteCount || 0} vote{Number(upload.voteCount || 0) === 1 ? "" : "s"}</div>
+                    {isSelf && <div style={{ color: RED, marginTop: 8, fontWeight: 700, fontSize: 13 }}>Self-vote blocked</div>}
+                    {getUploadUpdatedAt(upload) && <div style={{ color: TEXT_SECONDARY, fontSize: 11, marginTop: 8 }}>Updated: {new Date(getUploadUpdatedAt(upload)).toLocaleString()}</div>}
                   </button>
                 );
               })}
