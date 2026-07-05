@@ -47,6 +47,8 @@ const teamFullNames = {
   "ME Racing": "ME Racing",
   BXM: "BayouX Motorsports",
   "BayouX Motorsports": "BayouX Motorsports",
+  TMS: "Tolbert Motorsports",
+  "Tolbert Motorsports": "Tolbert Motorsports",
 };
 
 const teamThemes = {
@@ -64,6 +66,8 @@ const teamThemes = {
   Independent: { accent: "#9ca3af", glow: "rgba(156,163,175,0.24)", dark: "#1f2937" },
   BXM: { accent: "#2563eb", glow: "rgba(37,99,235,0.28)", dark: "#0f172a" },
   "BayouX Motorsports": { accent: "#2563eb", glow: "rgba(37,99,235,0.28)", dark: "#0f172a" },
+  TMS: { accent: "#0891b2", glow: "rgba(8,145,178,0.28)", dark: "#052e33" },
+  "Tolbert Motorsports": { accent: "#0891b2", glow: "rgba(8,145,178,0.28)", dark: "#052e33" },
 };
 
 function getTeamFullName(teamAbbr) {
