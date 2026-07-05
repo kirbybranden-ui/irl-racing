@@ -3881,6 +3881,28 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
           <div style={{ position: "relative", display: "flex", justifyContent: "flex-end", gap: 10, marginBottom: 18 }}>
             <button
               type="button"
+              aria-label="Go to standings home page"
+              onClick={() => window.location.pathname = standingsRoute}
+              title="Home"
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 14,
+                border: "1px solid rgba(17,24,39,0.10)",
+                background: "linear-gradient(180deg, #ffd60a 0%, #ff9f0a 100%)",
+                boxShadow: "0 16px 38px rgba(255,159,10,0.30)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                fontSize: 19,
+              }}
+            >
+              🏠
+            </button>
+
+            <button
+              type="button"
               aria-label="Open messages"
               onClick={() => openProtectedDriverSection(`/driver/${driverNumber}/messages`)}
               title="Messages"
@@ -3906,6 +3928,226 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
               )}
             </button>
 
+            <div style={{ position: "relative" }}>
+              <button
+                ref={driverMenuButtonRef}
+                type="button"
+                aria-label="Open menu"
+                onClick={toggleDriverMenu}
+                title="Menu"
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 14,
+                  border: "1px solid rgba(17,24,39,0.10)",
+                  background: "rgba(255,255,255,0.92)",
+                  boxShadow: "0 10px 28px rgba(15,23,42,0.12)",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  gap: 5,
+                  cursor: "pointer",
+                  position: "relative",
+                }}
+              >
+                <span style={{ width: 20, height: 2, borderRadius: 999, background: "#111827" }} />
+                <span style={{ width: 20, height: 2, borderRadius: 999, background: "#111827" }} />
+                <span style={{ width: 20, height: 2, borderRadius: 999, background: "#111827" }} />
+                {myAppeals.length > 0 && (
+                  <span style={{ position: "absolute", top: -6, right: -6, background: myAppeals.some((a) => a.status !== "Open") ? "#34c759" : "#007aff", color: "white", borderRadius: 99, minWidth: 18, height: 18, padding: "0 4px", fontSize: 10.5, fontWeight: 900, display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #fff" }}>{myAppeals.length}</span>
+                )}
+              </button>
+
+              {showDriverMenu && driverMenuPosition && createPortal(
+                <div
+                  style={{
+                    position: "fixed",
+                    top: driverMenuPosition.top,
+                    right: driverMenuPosition.right,
+                    width: 280,
+                    maxWidth: "calc(100vw - 40px)",
+                    background: "linear-gradient(180deg, rgba(255,255,255,0.97), rgba(248,250,252,0.95))",
+                    border: "1px solid rgba(255,255,255,0.8)",
+                    borderRadius: 22,
+                    boxShadow: "0 30px 80px rgba(0,0,0,0.20)",
+                    backdropFilter: "blur(20px)",
+                    WebkitBackdropFilter: "blur(20px)",
+                    zIndex: 99999,
+                    overflow: "hidden",
+                    padding: 8,
+                  }}
+                >
+                  {[
+                    { icon: "📄", label: "Contracts", href: `/driver/${driverNumber}/contracts` },
+                    ...(isArcaDriver ? [] : [{ icon: "🏎️", label: "Developmental Ride", href: `/driver/${driverNumber}/development` }]),
+                    { icon: "📷", label: "Uploads", href: `/driver/${driverNumber}/upload` },
+                    { icon: "🎙️", label: "Interviews", href: `/driver/${driverNumber}/interviews` },
+                    { icon: "📋", label: "Appeals", href: `/driver/${driverNumber}/appeals`, badge: myAppeals.length > 0 ? myAppeals.length : null, badgeColor: myAppeals.some((a) => a.status !== "Open") ? "#34c759" : "#007aff" },
+                    { icon: "🎯", label: "Assignments", href: `/driver/${driverNumber}/assignments` },
+                    { icon: "😊", label: "Driver Feedback", href: `/driver/${driverNumber}/feedback` },
+                    { icon: "🤝", label: "Team Interest", href: `/driver/${driverNumber}/team-interest` },
+                    { icon: "🏁", label: "Start & Park", href: `/driver/${driverNumber}/start-park` },
+                    { icon: "🔄", label: "Transfer Portal", href: `/driver/${driverNumber}/portal` },
+                    { icon: "🎨", label: "Paint Scheme Vote", href: "/paint-scheme-vote" },
+                    { icon: "🏆", label: "In-Season Bracket", href: "/bracket" },
+                    { icon: "🗳️", label: "League Vote", href: "/vote" },
+                    { icon: "✍️", label: "Add Story", href: "/submit-story" },
+                    { icon: "⚙️", label: "Settings", href: `/driver/${driverNumber}/settings` },
+                  ].map((item) => (
+                    <button
+                      key={item.label}
+                      type="button"
+                      onClick={() => {
+                        if (item.action) {
+                          item.action();
+                        } else {
+                          setShowDriverMenu(false);
+                          openProtectedDriverSection(item.href);
+                        }
+                      }}
+                      style={{
+                        width: "100%",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 12,
+                        textAlign: "left",
+                        background: "transparent",
+                        color: "#1d1d1f",
+                        border: "none",
+                        borderRadius: 14,
+                        padding: "11px 12px",
+                        cursor: "pointer",
+                        fontFamily: appleFont,
+                        fontSize: 14,
+                        fontWeight: 800,
+                      }}
+                    >
+                      <span style={{ fontSize: 18, width: 22, textAlign: "center" }}>{item.icon}</span>
+                      <span style={{ flex: 1 }}>{item.label}</span>
+                      {item.badge && (
+                        <span style={{ background: item.badgeColor, color: "white", borderRadius: 99, padding: "2px 8px", fontSize: 11, fontWeight: 800 }}>{item.badge}</span>
+                      )}
+                    </button>
+                  ))}
+                </div>,
+                document.body
+              )}
+            </div>
+
+            <div style={{ position: "relative" }}>
+              <button
+                ref={driverTodoButtonRef}
+                type="button"
+                onClick={toggleDriverTodo}
+                title="To-Do"
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 14,
+                  border: `1px solid ${driverTodoCount > 0 ? teamTheme.accent : "rgba(17,24,39,0.10)"}`,
+                  background: driverTodoCount > 0 ? `${teamTheme.accent}14` : "rgba(255,255,255,0.92)",
+                  boxShadow: driverTodoCount > 0 ? `0 10px 26px ${teamTheme.glow}` : "0 10px 28px rgba(15,23,42,0.12)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  position: "relative",
+                  fontSize: 19,
+                  cursor: "pointer",
+                }}
+              >
+                🔔
+                {driverTodoCount > 0 && (
+                  <span
+                    style={{
+                      position: "absolute",
+                      top: -6,
+                      right: -6,
+                      minWidth: 18,
+                      height: 18,
+                      padding: "0 4px",
+                      borderRadius: 999,
+                      background: "#ff3b30",
+                      color: "white",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 10.5,
+                      fontWeight: 900,
+                      border: "2px solid #fff",
+                    }}
+                  >
+                    {driverTodoCount}
+                  </span>
+                )}
+              </button>
+
+              {showDriverTodo && driverTodoPosition && createPortal(
+                <div
+                  style={{
+                    position: "fixed",
+                    top: driverTodoPosition.top,
+                    right: driverTodoPosition.right,
+                    width: 360,
+                    maxWidth: "calc(100vw - 40px)",
+                    background: "linear-gradient(180deg, rgba(255,255,255,0.97), rgba(248,250,252,0.95))",
+                    border: "1px solid rgba(255,255,255,0.8)",
+                    borderRadius: 22,
+                    boxShadow: "0 30px 80px rgba(0,0,0,0.20)",
+                    backdropFilter: "blur(20px)",
+                    WebkitBackdropFilter: "blur(20px)",
+                    zIndex: 99999,
+                    overflow: "hidden",
+                  }}
+                >
+                  <div style={{ padding: 16, borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
+                    <div style={{ fontSize: 15, fontWeight: 1000, color: "#1d1d1f" }}>🔔 Driver To-Do Center</div>
+                    <div style={{ fontSize: 12, color: "#6e6e73", fontWeight: 700, marginTop: 3 }}>
+                      Interviews, assignments, messages, contracts, and request updates.
+                    </div>
+                  </div>
+
+                  {driverTodoItems.length === 0 ? (
+                    <div style={{ padding: 24, fontSize: 14, color: "#6e6e73", fontWeight: 700, textAlign: "center" }}>
+                      ✅ Nothing due right now.
+                    </div>
+                  ) : (
+                    <div style={{ maxHeight: 380, overflowY: "auto" }}>
+                      {driverTodoItems.map((item) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => {
+                            setShowDriverTodo(false);
+                            openProtectedDriverSection(item.href);
+                          }}
+                          style={{
+                            width: "100%",
+                            display: "flex",
+                            gap: 12,
+                            textAlign: "left",
+                            background: "transparent",
+                            color: "#1d1d1f",
+                            border: "none",
+                            borderBottom: "1px solid rgba(0,0,0,0.05)",
+                            padding: 14,
+                            cursor: "pointer",
+                            fontFamily: appleFont,
+                          }}
+                        >
+                          <span style={{ fontSize: 22, lineHeight: 1 }}>{item.icon}</span>
+                          <span>
+                            <span style={{ display: "block", fontSize: 13, fontWeight: 900 }}>{item.title}</span>
+                            <span style={{ display: "block", fontSize: 12, color: "#6e6e73", fontWeight: 700, marginTop: 3, lineHeight: 1.35 }}>{item.detail}</span>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>,
+                document.body
+              )}
+            </div>
           </div>
 
           <div style={{ position: "relative", display: "flex", gap: 22, flexWrap: "wrap", alignItems: "flex-start" }}>
