@@ -73,6 +73,9 @@ export const teamFullNames = {
 
   IND: "Independent",
   Independent: "Independent",
+
+  TMS: "Tolbert Motorsports",
+  "Tolbert Motorsports": "Tolbert Motorsports",
 };
 
 export const teamBudgets = {
@@ -103,6 +106,9 @@ export const teamBranding = {
 
   BXM: { logo: "BXM", accent: "#2563eb", dark: "#0f172a", fullName: "BayouX Motorsports" },
   "BayouX Motorsports": { logo: "BXM", accent: "#2563eb", dark: "#0f172a", fullName: "BayouX Motorsports" },
+
+  TMS: { logo: "TMS", accent: "#0891b2", dark: "#052e33", fullName: "Tolbert Motorsports" },
+  "Tolbert Motorsports": { logo: "TMS", accent: "#0891b2", dark: "#052e33", fullName: "Tolbert Motorsports" },
 };
 
 export function getTeamFullName(teamAbbr) {
