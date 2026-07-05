@@ -4497,6 +4497,17 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
         </div>
 
         <div style={sectionCardStyle}>
+          <h2 style={{ marginTop: 0, marginBottom: 14 }}>League Participation</h2>
+          <div style={{ fontSize: 13, opacity: 0.7, marginBottom: 14 }}>Vote on paint schemes, track the in-season tournament, weigh in on league ballots, and submit your own stories.</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
+            <button style={secondaryButtonStyle} onClick={() => window.location.pathname = "/paint-scheme-vote"}>🎨 Paint Scheme Vote</button>
+            <button style={secondaryButtonStyle} onClick={() => window.location.pathname = "/bracket"}>🏆 In-Season Bracket</button>
+            <button style={secondaryButtonStyle} onClick={() => window.location.pathname = "/vote"}>🗳️ League Vote</button>
+            <button style={secondaryButtonStyle} onClick={() => window.location.pathname = "/submit-story"}>✍️ Add Story</button>
+          </div>
+        </div>
+
+        <div style={sectionCardStyle}>
           <h2 style={{ marginTop: 0, marginBottom: 16 }}>Race-by-Race Breakdown</h2>
           {raceBreakdown.length === 0 ? (
             <div style={{ opacity: 0.75 }}>No races entered yet.</div>
