@@ -1,6 +1,16 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
 
+const FONT_STACK =
+  '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif';
+const GOLD = "#d4af37";
+const TEXT_PRIMARY = "#1d1d1f";
+const TEXT_SECONDARY = "#6e6e73";
+const GLASS_BG = "rgba(255,255,255,0.7)";
+const GLASS_BORDER = "1px solid rgba(0,0,0,0.06)";
+const GLASS_SHADOW = "0 8px 30px rgba(0,0,0,0.06), 0 1px 0 rgba(255,255,255,0.6) inset";
+const HAIRLINE = "1px solid rgba(0,0,0,0.08)";
+
 export default function PublicInterviewsPage({ seriesId = "cup" }) {
   const [interviews, setInterviews] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -129,47 +139,94 @@ export default function PublicInterviewsPage({ seriesId = "cup" }) {
     <div
       style={{
         minHeight: "100vh",
-        background: "#0c0f14",
-        color: "white",
-        fontFamily: "Arial, sans-serif",
+        background: "linear-gradient(180deg, #f5f5f7 0%, #ffffff 40%, #f5f5f7 100%)",
+        color: TEXT_PRIMARY,
+        fontFamily: FONT_STACK,
+        WebkitFontSmoothing: "antialiased",
       }}
     >
-      <div style={{ maxWidth: 1200, margin: "0 auto", padding: 20 }}>
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: 24 }}>
         <div
           style={{
-            background: "#171b22",
-            border: "1px solid #2c3440",
-            borderRadius: 16,
-            padding: 20,
-            marginBottom: 20,
+            background: GLASS_BG,
+            backdropFilter: "blur(24px) saturate(180%)",
+            WebkitBackdropFilter: "blur(24px) saturate(180%)",
+            border: GLASS_BORDER,
+            borderRadius: 22,
+            padding: 22,
+            marginBottom: 22,
+            boxShadow: GLASS_SHADOW,
           }}
         >
           <button
             onClick={() => (window.location.href = seriesFilter === "arca" ? "/series/arca/standings" : "/standings")}
             style={{
-              background: "#2a3140",
-              color: "white",
-              border: "1px solid #3d4859",
-              borderRadius: 10,
-              padding: "10px 16px",
-              fontWeight: 700,
+              background: "rgba(0,0,0,0.05)",
+              color: TEXT_PRIMARY,
+              border: "1px solid rgba(0,0,0,0.08)",
+              borderRadius: 999,
+              padding: "9px 16px",
+              fontWeight: 600,
               cursor: "pointer",
-              marginBottom: 16,
+              marginBottom: 18,
+              fontFamily: FONT_STACK,
+              fontSize: 14,
             }}
           >
             ← Back to Standings
           </button>
 
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 16, marginBottom: 12 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 16, marginBottom: 4 }}>
             <div>
-              <h1 style={{ margin: 0, fontSize: 36 }}>🎤 Driver Interviews</h1>
-              <p style={{ opacity: 0.75, marginTop: 8 }}>
+              <h1 style={{ margin: 0, fontSize: 32, fontWeight: 700, letterSpacing: -0.8, color: TEXT_PRIMARY }}>
+                Driver Interviews
+              </h1>
+              <p style={{ color: TEXT_SECONDARY, marginTop: 8, fontSize: 14.5 }}>
                 Answered pre-race and post-race interviews from the Budweiser {seriesFilter === "arca" ? "ARCA" : "Cup"} League.
               </p>
             </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button onClick={() => setSeriesFilter("cup")} style={{ background: seriesFilter === "cup" ? "#3b82f6" : "#2a3140", color: "white", border: seriesFilter === "cup" ? "none" : "1px solid #3d4859", borderRadius: 8, padding: "8px 14px", fontWeight: 700, cursor: "pointer", fontSize: 12 }}>Cup Series</button>
-              <button onClick={() => setSeriesFilter("arca")} style={{ background: seriesFilter === "arca" ? "#16a34a" : "#2a3140", color: "white", border: seriesFilter === "arca" ? "none" : "1px solid #3d4859", borderRadius: 8, padding: "8px 14px", fontWeight: 700, cursor: "pointer", fontSize: 12 }}>ARCA Series</button>
+
+            <div
+              style={{
+                display: "flex",
+                gap: 4,
+                background: "rgba(0,0,0,0.05)",
+                borderRadius: 999,
+                padding: 4,
+              }}
+            >
+              <button
+                onClick={() => setSeriesFilter("cup")}
+                style={{
+                  background: seriesFilter === "cup" ? TEXT_PRIMARY : "transparent",
+                  color: seriesFilter === "cup" ? "white" : TEXT_SECONDARY,
+                  border: "none",
+                  borderRadius: 999,
+                  padding: "8px 16px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  fontSize: 13,
+                  fontFamily: FONT_STACK,
+                }}
+              >
+                Cup Series
+              </button>
+              <button
+                onClick={() => setSeriesFilter("arca")}
+                style={{
+                  background: seriesFilter === "arca" ? TEXT_PRIMARY : "transparent",
+                  color: seriesFilter === "arca" ? "white" : TEXT_SECONDARY,
+                  border: "none",
+                  borderRadius: 999,
+                  padding: "8px 16px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  fontSize: 13,
+                  fontFamily: FONT_STACK,
+                }}
+              >
+                ARCA Series
+              </button>
             </div>
           </div>
         </div>
@@ -179,7 +236,7 @@ export default function PublicInterviewsPage({ seriesId = "cup" }) {
             display: "flex",
             gap: 12,
             flexWrap: "wrap",
-            marginBottom: 20,
+            marginBottom: 22,
           }}
         >
           <input
@@ -188,11 +245,13 @@ export default function PublicInterviewsPage({ seriesId = "cup" }) {
             placeholder="Search driver, number, question, or answer..."
             style={{
               flex: "1 1 280px",
-              background: "#0f1319",
-              color: "white",
-              border: "1px solid #313947",
-              borderRadius: 10,
-              padding: "10px 12px",
+              background: "rgba(0,0,0,0.04)",
+              color: TEXT_PRIMARY,
+              border: "1px solid rgba(0,0,0,0.08)",
+              borderRadius: 12,
+              padding: "11px 14px",
+              fontFamily: FONT_STACK,
+              fontSize: 14,
             }}
           />
 
@@ -200,11 +259,13 @@ export default function PublicInterviewsPage({ seriesId = "cup" }) {
             value={raceFilter}
             onChange={(event) => setRaceFilter(event.target.value)}
             style={{
-              background: "#0f1319",
-              color: "white",
-              border: "1px solid #313947",
-              borderRadius: 10,
-              padding: "10px 12px",
+              background: "rgba(0,0,0,0.04)",
+              color: TEXT_PRIMARY,
+              border: "1px solid rgba(0,0,0,0.08)",
+              borderRadius: 12,
+              padding: "11px 14px",
+              fontFamily: FONT_STACK,
+              fontSize: 14,
             }}
           >
             {races.map((race) => (
@@ -218,11 +279,13 @@ export default function PublicInterviewsPage({ seriesId = "cup" }) {
             value={typeFilter}
             onChange={(event) => setTypeFilter(event.target.value)}
             style={{
-              background: "#0f1319",
-              color: "white",
-              border: "1px solid #313947",
-              borderRadius: 10,
-              padding: "10px 12px",
+              background: "rgba(0,0,0,0.04)",
+              color: TEXT_PRIMARY,
+              border: "1px solid rgba(0,0,0,0.08)",
+              borderRadius: 12,
+              padding: "11px 14px",
+              fontFamily: FONT_STACK,
+              fontSize: 14,
             }}
           >
             <option value="All">All Interviews</option>
@@ -232,20 +295,25 @@ export default function PublicInterviewsPage({ seriesId = "cup" }) {
         </div>
 
         {loading ? (
-          <div>Loading interviews...</div>
+          <div style={{ color: TEXT_SECONDARY, padding: 24 }}>Loading interviews...</div>
         ) : filteredInterviews.length === 0 ? (
           <div
             style={{
-              background: "#171b22",
-              border: "1px solid #2c3440",
-              borderRadius: 16,
-              padding: 20,
+              background: GLASS_BG,
+              backdropFilter: "blur(20px)",
+              WebkitBackdropFilter: "blur(20px)",
+              border: GLASS_BORDER,
+              borderRadius: 22,
+              padding: 30,
+              textAlign: "center",
+              color: TEXT_SECONDARY,
+              boxShadow: GLASS_SHADOW,
             }}
           >
             No answered interviews found.
           </div>
         ) : (
-          <div style={{ display: "grid", gap: 16 }}>
+          <div style={{ display: "grid", gap: 18 }}>
             {filteredInterviews.map((interview) => {
               const raceName =
                 interview.race_name || interview.race || "Unknown Race";
@@ -257,10 +325,13 @@ export default function PublicInterviewsPage({ seriesId = "cup" }) {
                 <div
                   key={interview.id || `${interview.driver_name}-${raceName}`}
                   style={{
-                    background: "#171b22",
-                    border: "1px solid #2c3440",
-                    borderRadius: 16,
-                    padding: 20,
+                    background: GLASS_BG,
+                    backdropFilter: "blur(24px) saturate(180%)",
+                    WebkitBackdropFilter: "blur(24px) saturate(180%)",
+                    border: GLASS_BORDER,
+                    borderRadius: 22,
+                    padding: 22,
+                    boxShadow: GLASS_SHADOW,
                   }}
                 >
                   <div
@@ -269,27 +340,28 @@ export default function PublicInterviewsPage({ seriesId = "cup" }) {
                       justifyContent: "space-between",
                       gap: 12,
                       flexWrap: "wrap",
-                      marginBottom: 14,
+                      marginBottom: 16,
                     }}
                   >
                     <div>
-                      <h2 style={{ margin: 0 }}>
+                      <h2 style={{ margin: 0, fontSize: 22, fontWeight: 600, letterSpacing: -0.4, color: TEXT_PRIMARY }}>
                         #{interview.driver_number || "--"}{" "}
                         {interview.driver_name || "Unknown Driver"}
                       </h2>
 
-                      <div style={{ opacity: 0.7, marginTop: 4 }}>
+                      <div style={{ color: TEXT_SECONDARY, marginTop: 4, fontSize: 13.5 }}>
                         {interviewType} • {raceName}
                       </div>
                     </div>
 
                     <div
                       style={{
-                        background: "#d4af37",
-                        color: "#111",
+                        background: GOLD,
+                        color: "#1d1d1f",
                         borderRadius: 999,
-                        padding: "6px 12px",
-                        fontWeight: 900,
+                        padding: "6px 14px",
+                        fontWeight: 700,
+                        fontSize: 12.5,
                         height: "fit-content",
                       }}
                     >
@@ -302,13 +374,13 @@ export default function PublicInterviewsPage({ seriesId = "cup" }) {
                       <div
                         key={index}
                         style={{
-                          background: "#0f1319",
-                          border: "1px solid #252c38",
-                          borderRadius: 12,
-                          padding: 14,
+                          background: "rgba(0,0,0,0.03)",
+                          border: HAIRLINE,
+                          borderRadius: 16,
+                          padding: 16,
                         }}
                       >
-                        <div style={{ color: "#d4af37", fontWeight: 900 }}>
+                        <div style={{ color: GOLD, fontWeight: 700, fontSize: 14.5 }}>
                           Q: {pair.question}
                         </div>
 
@@ -316,7 +388,9 @@ export default function PublicInterviewsPage({ seriesId = "cup" }) {
                           style={{
                             marginTop: 10,
                             lineHeight: 1.6,
-                            color: "#f3f4f6",
+                            color: TEXT_PRIMARY,
+                            opacity: 0.88,
+                            fontSize: 15,
                           }}
                         >
                           A: {pair.answer}
