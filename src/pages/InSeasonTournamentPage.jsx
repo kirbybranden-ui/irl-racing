@@ -9,27 +9,9 @@ import {
   TEXT_PRIMARY,
   TEXT_SECONDARY,
   HAIRLINE,
-  GREEN,
   RED,
-  BLUE,
-  PURPLE,
-  ORANGE,
 } from "../styles/sharedStyles";
 import { getTeamFullName } from "../data/teams";
-
-// Layout-only constants for the bracket-tree grid below. These mirror the
-// round color language used elsewhere in the app and do not affect any
-// scoring/eligibility logic.
-const BRACKET_COLORS = [BLUE, PURPLE, ORANGE, GREEN, GOLD];
-const BRACKET_COL_WIDTH = 260;
-const BRACKET_GAP = 28;
-const BRACKET_ROW_HEIGHT = 64;
-
-// Derived directly from the roundOf16 pairing below (playIn[3]->idx0,
-// playIn[0]->idx1, playIn[2]->idx3, playIn[1]->idx5). Used only to position
-// each Play-In match beside the exact Round of 16 slot its winner feeds —
-// purely visual, does not affect matchup logic.
-const PLAYIN_TO_ROUND16_INDEX = [1, 5, 3, 0];
 
 const TOURNAMENT_RACES = [
   { round: "Play-In", race: "Las Vegas", matchups: ["13-20", "14-19", "15-18", "16-17"] },
@@ -281,32 +263,48 @@ function DriverCard({ driver, status = "", entry = null }) {
   const resultLabel = entry
     ? entry.ineligible
       ? entry.reason
-      : `Finished P${entry.finish}`
+      : `P${entry.finish}`
     : "";
 
+  const isDecided = status === "ADVANCES" || status === "ELIMINATED";
+  const isWinner = status === "ADVANCES";
+
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "5px 0" }}>
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 12,
+        padding: "10px 0",
+        opacity: isDecided && !isWinner ? 0.45 : 1,
+      }}
+    >
       <div style={{ minWidth: 0 }}>
-        <div style={{ color: GOLD, fontSize: 10, fontWeight: 700, letterSpacing: 0.3 }}>
+        <div style={{ color: TEXT_SECONDARY, fontSize: 11, fontWeight: 600, letterSpacing: 0.3 }}>
           {driver ? `SEED #${driver.seed}` : "TBD"}
         </div>
         <div
           style={{
-            fontSize: 14,
-            fontWeight: 700,
+            fontSize: 16,
+            fontWeight: isWinner ? 700 : 600,
             color: TEXT_PRIMARY,
-            letterSpacing: -0.2,
+            letterSpacing: -0.3,
             whiteSpace: "nowrap",
             overflow: "hidden",
             textOverflow: "ellipsis",
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
           }}
         >
           {driverLabel(driver)}
+          {isWinner && <span style={{ color: GOLD, fontSize: 10 }}>●</span>}
         </div>
         <div
           style={{
             color: TEXT_SECONDARY,
-            fontSize: 11,
+            fontSize: 12,
             whiteSpace: "nowrap",
             overflow: "hidden",
             textOverflow: "ellipsis",
@@ -316,44 +314,35 @@ function DriverCard({ driver, status = "", entry = null }) {
         </div>
       </div>
 
-      <div style={{ textAlign: "right", flexShrink: 0 }}>
-        {resultLabel && (
-          <div style={{ fontSize: 11, fontWeight: 700, color: entry?.ineligible ? RED : BLUE }}>
-            {resultLabel}
-          </div>
-        )}
-        {status && (
-          <div style={{ fontSize: 10, fontWeight: 700, color: status === "ADVANCES" ? GREEN : RED, marginTop: 2 }}>
-            {status}
-          </div>
-        )}
-      </div>
+      {resultLabel && (
+        <div style={{ fontSize: 12, fontWeight: 600, color: entry?.ineligible ? RED : TEXT_SECONDARY, flexShrink: 0 }}>
+          {resultLabel}
+        </div>
+      )}
     </div>
   );
 }
 
-function MatchupCard({ driverA, driverB, winner, entryA, entryB, accentColor }) {
+function MatchupCard({ driverA, driverB, winner, entryA, entryB }) {
+  const aStatus = winner ? (cleanNumber(winner.number) === cleanNumber(driverA?.number) ? "ADVANCES" : "ELIMINATED") : "";
+  const bStatus = winner ? (cleanNumber(winner.number) === cleanNumber(driverB?.number) ? "ADVANCES" : "ELIMINATED") : "";
+
   return (
     <div
       style={{
-        background: "rgba(255,255,255,0.8)",
+        background: "rgba(255,255,255,0.85)",
         border: HAIRLINE,
-        borderLeft: `3px solid ${accentColor}`,
-        borderRadius: 14,
-        padding: "6px 12px",
+        borderRadius: 20,
+        padding: "14px 18px",
+        boxShadow: "0 4px 16px rgba(0,0,0,0.05)",
+        minWidth: 260,
+        flexShrink: 0,
+        scrollSnapAlign: "start",
       }}
     >
-      <DriverCard
-        driver={driverA}
-        entry={entryA}
-        status={winner && cleanNumber(winner.number) === cleanNumber(driverA?.number) ? "ADVANCES" : ""}
-      />
-      <div style={{ height: 1, background: "rgba(0,0,0,0.08)" }} />
-      <DriverCard
-        driver={driverB}
-        entry={entryB}
-        status={winner && cleanNumber(winner.number) === cleanNumber(driverB?.number) ? "ADVANCES" : ""}
-      />
+      <DriverCard driver={driverA} entry={entryA} status={aStatus} />
+      <div style={{ height: 1, background: "rgba(0,0,0,0.07)" }} />
+      <DriverCard driver={driverB} entry={entryB} status={bStatus} />
     </div>
   );
 }
@@ -484,106 +473,52 @@ function InSeasonTournamentPage({ drivers = [], raceHistory = [] }) {
           </div>
         </div>
 
-        <div style={{ ...sectionCardStyle, overflowX: "auto", paddingBottom: 16 }} className="bcl-bracket-scroll">
-          <h2 style={{ marginTop: 0, marginBottom: 16, fontSize: 20, fontWeight: 600, letterSpacing: -0.3, color: TEXT_PRIMARY }}>
-            Bracket
-          </h2>
+        {rounds.map((round, roundIndex) => (
+          <div key={round.title}>
+            <div style={sectionCardStyle}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
+                <div>
+                  <div style={{ color: GOLD, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.8 }}>
+                    Round {roundIndex + 1} of {rounds.length}
+                  </div>
+                  <h2 style={{ margin: "4px 0 0", fontSize: 24, fontWeight: 700, letterSpacing: -0.6, color: TEXT_PRIMARY }}>
+                    {round.title}
+                  </h2>
+                </div>
+                <div style={{ color: TEXT_SECONDARY, fontSize: 13, fontWeight: 500 }}>
+                  {round.matchups.length} matchup{round.matchups.length === 1 ? "" : "s"}
+                </div>
+              </div>
 
-          <div
-            className="bcl-bracket-grid"
-            style={{
-              display: "grid",
-              gridTemplateColumns: `repeat(5, ${BRACKET_COL_WIDTH}px)`,
-              columnGap: BRACKET_GAP,
-              marginBottom: 10,
-              minWidth: 5 * BRACKET_COL_WIDTH + 4 * BRACKET_GAP,
-            }}
-          >
-            {rounds.map((round, colIndex) => (
               <div
-                key={round.title}
                 style={{
-                  gridColumn: colIndex + 1,
-                  color: BRACKET_COLORS[colIndex],
-                  fontSize: 12,
-                  fontWeight: 700,
-                  textTransform: "uppercase",
-                  letterSpacing: 0.5,
-                  paddingBottom: 8,
-                  borderBottom: `2px solid ${BRACKET_COLORS[colIndex]}`,
+                  display: "flex",
+                  gap: 14,
+                  overflowX: "auto",
+                  paddingBottom: 6,
+                  scrollSnapType: "x proximity",
                 }}
               >
-                {round.title}
+                {round.matchups.map((matchup, index) => (
+                  <MatchupCard
+                    key={`${round.title}-${index}`}
+                    driverA={matchup.a}
+                    driverB={matchup.b}
+                    winner={matchup.winner}
+                    entryA={matchup.aEntry}
+                    entryB={matchup.bEntry}
+                  />
+                ))}
               </div>
-            ))}
+            </div>
+
+            {roundIndex < rounds.length - 1 && (
+              <div style={{ display: "flex", justifyContent: "center", color: GOLD, fontSize: 20, margin: "-8px 0 4px" }}>
+                ⌄
+              </div>
+            )}
           </div>
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: `repeat(5, ${BRACKET_COL_WIDTH}px)`,
-              gridTemplateRows: `repeat(16, ${BRACKET_ROW_HEIGHT}px)`,
-              columnGap: BRACKET_GAP,
-              rowGap: 6,
-              minWidth: 5 * BRACKET_COL_WIDTH + 4 * BRACKET_GAP,
-            }}
-          >
-            {playIn.map((matchup, index) => {
-              const feedsIndex = PLAYIN_TO_ROUND16_INDEX[index];
-              return (
-                <div
-                  key={`playin-${index}`}
-                  style={{ gridColumn: 1, gridRow: `${feedsIndex * 2 + 1} / span 2`, display: "flex", alignItems: "center" }}
-                >
-                  <MatchupCard driverA={matchup.a} driverB={matchup.b} winner={matchup.winner} entryA={matchup.aEntry} entryB={matchup.bEntry} accentColor={BRACKET_COLORS[0]} />
-                </div>
-              );
-            })}
-
-            {roundOf16.map((matchup, index) => (
-              <div
-                key={`r16-${index}`}
-                style={{ gridColumn: 2, gridRow: `${index * 2 + 1} / span 2`, display: "flex", alignItems: "center" }}
-              >
-                <MatchupCard driverA={matchup.a} driverB={matchup.b} winner={matchup.winner} entryA={matchup.aEntry} entryB={matchup.bEntry} accentColor={BRACKET_COLORS[1]} />
-              </div>
-            ))}
-
-            {quarterfinals.map((matchup, index) => (
-              <div
-                key={`qf-${index}`}
-                style={{ gridColumn: 3, gridRow: `${index * 4 + 1} / span 4`, display: "flex", alignItems: "center" }}
-              >
-                <MatchupCard driverA={matchup.a} driverB={matchup.b} winner={matchup.winner} entryA={matchup.aEntry} entryB={matchup.bEntry} accentColor={BRACKET_COLORS[2]} />
-              </div>
-            ))}
-
-            {semifinals.map((matchup, index) => (
-              <div
-                key={`sf-${index}`}
-                style={{ gridColumn: 4, gridRow: `${index * 8 + 1} / span 8`, display: "flex", alignItems: "center" }}
-              >
-                <MatchupCard driverA={matchup.a} driverB={matchup.b} winner={matchup.winner} entryA={matchup.aEntry} entryB={matchup.bEntry} accentColor={BRACKET_COLORS[3]} />
-              </div>
-            ))}
-
-            {championship.map((matchup, index) => (
-              <div
-                key={`final-${index}`}
-                style={{ gridColumn: 5, gridRow: "1 / span 16", display: "flex", alignItems: "center" }}
-              >
-                <MatchupCard driverA={matchup.a} driverB={matchup.b} winner={matchup.winner} entryA={matchup.aEntry} entryB={matchup.bEntry} accentColor={BRACKET_COLORS[4]} />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <style>{`
-          @media print {
-            .bcl-bracket-scroll { overflow: visible !important; }
-            .bcl-bracket-grid { }
-          }
-        `}</style>
+        ))}
 
         <div style={{ height: 40 }} />
       </div>
