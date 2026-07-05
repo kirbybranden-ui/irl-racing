@@ -6,6 +6,7 @@ import {
   isInactivePlaceholderDriver,
 } from "../utils/driverHelpers";
 import { getTeamFullName } from "../data/teams";
+import { getLeagueSession, loginToLeague, logoutOfLeague } from "../lib/leagueAuth";
 import {
   appShellStyle,
   pageContainerStyle,
@@ -104,6 +105,18 @@ export default function LeagueVotingPage({ drivers = [] }) {
 
   useEffect(() => { loadVotes(); }, []);
 
+  useEffect(() => {
+    const session = getLeagueSession();
+    if (!session?.driverNumber) return;
+    const rosterDriver = activeDrivers.find((item) => String(item.number) === String(session.driverNumber)) || {};
+    setDriver({
+      ...rosterDriver,
+      number: session.driverNumber,
+      driver_number: session.driverNumber,
+      name: rosterDriver.name || session.driverName || `#${session.driverNumber}`,
+    });
+  }, [activeDrivers]);
+
   const selectedVote = useMemo(() => votes.find((vote) => String(vote.id) === String(selectedVoteId)) || null, [votes, selectedVoteId]);
   const selectedOptions = selectedVote ? (optionsByVote[String(selectedVote.id)] || []) : [];
   const selectedStatus = getVoteDeadlineStatus(selectedVote?.deadline);
@@ -120,37 +133,39 @@ export default function LeagueVotingPage({ drivers = [] }) {
       return;
     }
 
-    const { data, error } = await supabase
+    const { data: accessCodes, error: codeError } = await supabase
       .from("driver_access_codes")
       .select("*")
       .eq("driver_number", number)
       .limit(10);
 
-    if (error) {
-      console.error("Could not verify driver vote login:", error);
+    if (codeError) {
+      console.error("Could not verify driver vote login:", codeError);
       setError("Could not verify access. Check driver_access_codes select policy and columns.");
       return;
     }
 
-    const enteredCode = code.toUpperCase();
-    const match = (data || []).find((row) => {
-      const rowNumber = String(row.driver_number ?? row.car_number ?? "").trim();
-      const possibleCodes = [row.code, row.access_code, row.password, row.driver_password]
-        .map((value) => String(value ?? "").trim().toUpperCase())
-        .filter(Boolean);
-      return rowNumber === number && possibleCodes.includes(enteredCode) && row.active !== false;
+    const result = await loginToLeague({
+      driverNumber: number,
+      password: code,
+      driverAccessCodes: accessCodes || [],
+      drivers: activeDrivers,
+      teams: [],
+      supabase,
     });
 
-    const adminMatch = enteredCode === "BCLADMINPASSWORD2026";
-
-    if (!match && !adminMatch) {
-      setError("Invalid car number or driver password.");
+    if (!result.success) {
+      setError(result.error || "Invalid car number or driver password.");
       return;
     }
 
     const rosterDriver = activeDrivers.find((item) => String(item.number) === number) || {};
-    const authRow = match || {};
-    setDriver({ ...authRow, ...rosterDriver, number, driver_number: number, name: rosterDriver.name || authRow.driver_name || authRow.name || `#${number}` });
+    setDriver({
+      ...rosterDriver,
+      number,
+      driver_number: number,
+      name: rosterDriver.name || result.session?.driverName || `#${number}`,
+    });
     setMessage(`Logged in as #${number}.`);
   }
 
@@ -320,7 +335,7 @@ export default function LeagueVotingPage({ drivers = [] }) {
                 <div style={{ fontSize: 11, color: "#aab3c2", fontWeight: 1000, textTransform: "uppercase" }}>Logged In As</div>
                 <div style={{ fontSize: isPhone ? 22 : 24, fontWeight: 1000, marginTop: 4 }}>#{driver.number} {driver.name}</div>
                 <div style={{ color: "#aab3c2", fontSize: 13, marginTop: 3 }}>{getTeamFullName(driver.team || "Independent")} • {driver.manufacturer || ""}</div>
-                <button type="button" onClick={() => { setDriver(null); setPassword(""); setMessage("Logged out."); }} style={{ ...mobileSecondaryButtonStyle, marginTop: 12 }}>Log Out</button>
+                <button type="button" onClick={() => { logoutOfLeague(); setDriver(null); setPassword(""); setMessage("Logged out."); }} style={{ ...mobileSecondaryButtonStyle, marginTop: 12 }}>Log Out</button>
               </div>
             )}
             {message && <div style={{ marginTop: 12, color: "#4ade80", fontWeight: 900, lineHeight: 1.35 }}>{message}</div>}
