@@ -1068,14 +1068,19 @@ function DriverTransferPortalPanel({ driver, driverNumber, teamTheme, standingsR
   );
 }
 
-export default function DriverProfilePage({ seasons, activeSeason, tracks = [], ownerDriverAssignments = [], loadOwnerDriverAssignments, arcaDrivers = [], arcaTracks = [] }) {
+export default function DriverProfilePage({ seasons, activeSeason, tracks = [], ownerDriverAssignments = [], loadOwnerDriverAssignments, arcaDrivers = [], arcaTracks = [], driverNumberOverride = "" }) {
   const pathParts = window.location.pathname.split("/");
   
   // Parse driver number from either /driver/:number or /series/arca/driver/:number
   let requestedDriverNumber;
   let subPage;
   
-  if (pathParts.includes("arca")) {
+  if (driverNumberOverride) {
+    // Used by the mobile Home tab, which shows "my profile" at a stable "/"
+    // URL rather than redirecting to /driver/:number.
+    requestedDriverNumber = driverNumberOverride;
+    subPage = undefined;
+  } else if (pathParts.includes("arca")) {
     // ARCA route: /series/arca/driver/88 or /series/arca/driver/88/subpage
     requestedDriverNumber = pathParts[4];
     subPage = pathParts[5];
