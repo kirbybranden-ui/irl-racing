@@ -14,7 +14,7 @@ export const defaultDrivers = [
   { id: 46, number: 39, name: "BigDiehl21",                manufacturer: "Chevrolet", team: "MER"         },
   { id: 11, number: 6,  name: "Highlander713",             manufacturer: "Ford",      team: "NLM"         },
   { id: 24, number: 21, name: "kevron-75",                 manufacturer: "Ford",      team: "NLM"         },
-  { id: 23, number: 10, name: "Y2JTolbert",                manufacturer: "Ford",      team: "NLM"         },
+  { id: 23, number: 10, name: "Y2JTolbert",                manufacturer: "Toyota",    team: "TMS"         },
   { id: 18, number: 9, name: "abajack91",                 manufacturer: "Ford",      team: "NLM"         },
   { id: 26, number: 7,  name: "gunszmb",                   manufacturer: "Ford",      team: "BWR"         },
   { id: 27, number: 97, name: "JPC_Racing",                manufacturer: "Ford",      team: "BWR"         },
