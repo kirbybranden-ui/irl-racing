@@ -17,7 +17,20 @@ import {
   tableStyle,
   thStyle,
   tdStyle,
+  GOLD,
+  TEXT_PRIMARY,
+  TEXT_SECONDARY,
+  HAIRLINE,
+  GLASS_BG,
+  GREEN,
+  RED,
+  BLUE,
+  PURPLE,
 } from "../styles/sharedStyles";
+
+// Cycled across ballots so the swipeable chip list reads with some visual
+// variety instead of every active ballot using the same gold highlight.
+const BALLOT_COLORS = [GOLD, BLUE, PURPLE];
 
 function getVoteDeadlineStatus(deadline) {
   if (!deadline) return { closed: false, label: "No deadline set", remaining: "Open" };
@@ -208,75 +221,32 @@ export default function LeagueVotingPage({ drivers = [] }) {
     ? responses.filter((row) => String(row.vote_id) === String(selectedVote.id)).length
     : 0;
 
-  const pageStyle = isPhone
-    ? {
-        minHeight: "100vh",
-        background: "#070a0f",
-        color: "white",
-        fontFamily: "Arial, sans-serif",
-        paddingBottom: 92,
-        overflowX: "hidden",
-      }
-    : appShellStyle;
+  const pageStyle = appShellStyle;
 
   const containerStyle = isPhone
-    ? { width: "100%", maxWidth: 520, margin: "0 auto", padding: "12px 12px 92px", boxSizing: "border-box", overflowX: "hidden" }
+    ? { ...pageContainerStyle, maxWidth: 520, padding: "12px 12px 92px" }
     : pageContainerStyle;
 
   const cardStyle = isPhone
-    ? {
-        background: "linear-gradient(180deg, #151a22 0%, #0f141b 100%)",
-        border: "1px solid rgba(212,175,55,0.22)",
-        borderRadius: 18,
-        padding: 14,
-        marginBottom: 12,
-        boxShadow: "0 12px 28px rgba(0,0,0,0.34)",
-        minWidth: 0,
-        overflow: "hidden",
-      }
+    ? { ...sectionCardStyle, padding: 14, marginBottom: 12 }
     : sectionCardStyle;
 
-  const heroStyle = isPhone
-    ? {
-        ...cardStyle,
-        background: "linear-gradient(135deg, #d4af37 0%, #9f7414 45%, #111827 100%)",
-        color: "#ffffff",
-        padding: 16,
-        position: "relative",
-        overflow: "hidden",
-      }
-    : { ...sectionCardStyle, background: "linear-gradient(135deg, #191d25 0%, #10141b 100%)" };
+  const heroStyle = {
+    ...sectionCardStyle,
+    background: "linear-gradient(135deg, rgba(212,175,55,0.14), rgba(255,255,255,0.85))",
+    border: `1px solid ${GOLD}55`,
+  };
 
   const mobileInputStyle = isPhone
-    ? {
-        ...inputStyle,
-        minHeight: 48,
-        borderRadius: 14,
-        fontSize: 16,
-        background: "#090d13",
-        border: "1px solid #303a49",
-      }
+    ? { ...inputStyle, minHeight: 48, borderRadius: 14, fontSize: 16 }
     : inputStyle;
 
   const mobilePrimaryButtonStyle = isPhone
-    ? {
-        ...primaryButtonStyle,
-        width: "100%",
-        minHeight: 50,
-        borderRadius: 14,
-        fontSize: 15,
-        boxShadow: "0 10px 24px rgba(212,175,55,0.24)",
-      }
+    ? { ...primaryButtonStyle, width: "100%", minHeight: 50, fontSize: 15 }
     : primaryButtonStyle;
 
   const mobileSecondaryButtonStyle = isPhone
-    ? {
-        ...secondaryButtonStyle,
-        width: "100%",
-        minHeight: 46,
-        borderRadius: 14,
-        fontSize: 14,
-      }
+    ? { ...secondaryButtonStyle, width: "100%", minHeight: 46, fontSize: 14 }
     : secondaryButtonStyle;
 
   return (
@@ -285,11 +255,11 @@ export default function LeagueVotingPage({ drivers = [] }) {
         <div style={heroStyle}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: isPhone ? "flex-start" : "center", flexDirection: isPhone ? "column" : "row" }}>
             <div>
-              <div style={{ fontSize: 11, fontWeight: 1000, letterSpacing: 1.1, textTransform: "uppercase", color: isPhone ? "#111" : "#d4af37", background: isPhone ? "rgba(255,255,255,0.75)" : "transparent", display: "inline-block", padding: isPhone ? "5px 8px" : 0, borderRadius: 999 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.1, textTransform: "uppercase", color: GOLD }}>
                 Official Ballot
               </div>
-              <h1 style={{ margin: "8px 0 4px", fontSize: isPhone ? 30 : 38, lineHeight: 1 }}>🗳️ League Voting</h1>
-              <p style={{ opacity: 0.86, margin: 0, lineHeight: 1.45, fontSize: isPhone ? 14 : 16 }}>
+              <h1 style={{ margin: "8px 0 4px", fontSize: isPhone ? 30 : 36, lineHeight: 1.05, fontWeight: 700, letterSpacing: -0.8, color: TEXT_PRIMARY }}>🗳️ League Voting</h1>
+              <p style={{ color: TEXT_SECONDARY, margin: 0, lineHeight: 1.45, fontSize: isPhone ? 14 : 15 }}>
                 Pick your car, enter your driver password, and cast your vote before the deadline.
               </p>
             </div>
@@ -307,14 +277,14 @@ export default function LeagueVotingPage({ drivers = [] }) {
         <div style={{ display: "grid", gridTemplateColumns: isPhone ? "minmax(0, 1fr)" : "minmax(280px, 380px) minmax(0, 1fr)", gap: isPhone ? 12 : 18, alignItems: "start", minWidth: 0, overflowX: "hidden" }}>
           <div style={cardStyle}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 12 }}>
-              <h2 style={{ margin: 0, fontSize: isPhone ? 18 : 24 }}>Driver Login</h2>
-              {driver && <span style={{ color: "#4ade80", fontSize: 12, fontWeight: 1000 }}>SIGNED IN</span>}
+              <h2 style={{ margin: 0, fontSize: isPhone ? 18 : 22, fontWeight: 600, letterSpacing: -0.3, color: TEXT_PRIMARY }}>Driver Login</h2>
+              {driver && <span style={{ color: GREEN, fontSize: 12, fontWeight: 700 }}>SIGNED IN</span>}
             </div>
 
             {!driver ? (
               <form onSubmit={loginDriver} style={{ display: "grid", gap: 12 }}>
                 <label style={{ display: "grid", gap: 6 }}>
-                  <span style={{ color: "#aab3c2", fontSize: 11, fontWeight: 1000, textTransform: "uppercase" }}>Car / Driver</span>
+                  <span style={{ color: TEXT_SECONDARY, fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>Car / Driver</span>
                   <select value={driverNumber} onChange={(event) => setDriverNumber(event.target.value)} style={mobileInputStyle}>
                     <option value="">Select Your Driver</option>
                     {activeDrivers.map((item) => (
@@ -325,40 +295,41 @@ export default function LeagueVotingPage({ drivers = [] }) {
                   </select>
                 </label>
                 <label style={{ display: "grid", gap: 6 }}>
-                  <span style={{ color: "#aab3c2", fontSize: 11, fontWeight: 1000, textTransform: "uppercase" }}>Driver Password</span>
+                  <span style={{ color: TEXT_SECONDARY, fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>Driver Password</span>
                   <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Enter driver password" style={mobileInputStyle} />
                 </label>
                 <button type="submit" style={mobilePrimaryButtonStyle}>Log In To Vote</button>
               </form>
             ) : (
-              <div style={{ background: "#090d13", border: "1px solid #2a3240", borderRadius: 16, padding: 14 }}>
-                <div style={{ fontSize: 11, color: "#aab3c2", fontWeight: 1000, textTransform: "uppercase" }}>Logged In As</div>
-                <div style={{ fontSize: isPhone ? 22 : 24, fontWeight: 1000, marginTop: 4 }}>#{driver.number} {driver.name}</div>
-                <div style={{ color: "#aab3c2", fontSize: 13, marginTop: 3 }}>{getTeamFullName(driver.team || "Independent")} • {driver.manufacturer || ""}</div>
+              <div style={{ background: "rgba(52,199,89,0.08)", border: `1px solid ${GREEN}55`, borderRadius: 16, padding: 14 }}>
+                <div style={{ fontSize: 11, color: TEXT_SECONDARY, fontWeight: 700, textTransform: "uppercase" }}>Logged In As</div>
+                <div style={{ fontSize: isPhone ? 22 : 24, fontWeight: 700, marginTop: 4, color: TEXT_PRIMARY, letterSpacing: -0.5 }}>#{driver.number} {driver.name}</div>
+                <div style={{ color: TEXT_SECONDARY, fontSize: 13, marginTop: 3 }}>{getTeamFullName(driver.team || "Independent")} • {driver.manufacturer || ""}</div>
                 <button type="button" onClick={() => { logoutOfLeague(); setDriver(null); setPassword(""); setMessage("Logged out."); }} style={{ ...mobileSecondaryButtonStyle, marginTop: 12 }}>Log Out</button>
               </div>
             )}
-            {message && <div style={{ marginTop: 12, color: "#4ade80", fontWeight: 900, lineHeight: 1.35 }}>{message}</div>}
-            {error && <div style={{ marginTop: 12, color: "#f87171", fontWeight: 900, lineHeight: 1.35 }}>{error}</div>}
+            {message && <div style={{ marginTop: 12, color: GREEN, fontWeight: 700, lineHeight: 1.35 }}>{message}</div>}
+            {error && <div style={{ marginTop: 12, color: RED, fontWeight: 700, lineHeight: 1.35 }}>{error}</div>}
           </div>
 
           <div style={{ ...cardStyle, overflowX: isPhone ? "auto" : cardStyle.overflow, WebkitOverflowScrolling: "touch" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 12, minWidth: 0 }}>
-              <h2 style={{ margin: 0, fontSize: isPhone ? 18 : 24 }}>Open Votes</h2>
-              {!loading && <span style={{ color: "#aab3c2", fontSize: 12, fontWeight: 900 }}>{votes.length} open</span>}
+              <h2 style={{ margin: 0, fontSize: isPhone ? 18 : 22, fontWeight: 600, letterSpacing: -0.3, color: TEXT_PRIMARY }}>Open Votes</h2>
+              {!loading && <span style={{ color: TEXT_SECONDARY, fontSize: 12, fontWeight: 600 }}>{votes.length} open</span>}
             </div>
 
-            {loading && <div style={{ color: "#aab3c2" }}>Loading votes...</div>}
-            {!loading && votes.length === 0 && <div style={{ opacity: 0.72 }}>No active votes are open right now.</div>}
+            {loading && <div style={{ color: TEXT_SECONDARY }}>Loading votes...</div>}
+            {!loading && votes.length === 0 && <div style={{ color: TEXT_SECONDARY }}>No active votes are open right now.</div>}
 
             {votes.length > 0 && (
               <div style={{ display: "grid", gap: 12 }}>
                 {isPhone ? (
                   <>
-                    <div style={{ color: "#aab3c2", fontSize: 11, fontWeight: 900, textTransform: "uppercase", letterSpacing: 0.7 }}>Swipe ballots →</div>
+                    <div style={{ color: TEXT_SECONDARY, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.7 }}>Swipe ballots →</div>
                     <div style={{ display: "flex", gap: 8, overflowX: "auto", overflowY: "hidden", paddingBottom: 8, WebkitOverflowScrolling: "touch", scrollbarWidth: "thin", maxWidth: "100%" }}>
-                    {votes.map((vote) => {
+                    {votes.map((vote, voteIndex) => {
                       const active = String(vote.id) === String(selectedVoteId);
+                      const chipColor = BALLOT_COLORS[voteIndex % BALLOT_COLORS.length];
                       return (
                         <button
                           key={vote.id}
@@ -367,13 +338,14 @@ export default function LeagueVotingPage({ drivers = [] }) {
                           style={{
                             minWidth: 210,
                             textAlign: "left",
-                            background: active ? "linear-gradient(135deg, #d4af37 0%, #facc15 100%)" : "#090d13",
-                            color: active ? "#111" : "#fff",
-                            border: active ? "1px solid #d4af37" : "1px solid #2a3240",
+                            background: active ? chipColor : "rgba(0,0,0,0.03)",
+                            color: active ? "#fff" : TEXT_PRIMARY,
+                            border: active ? `1px solid ${chipColor}` : HAIRLINE,
                             borderRadius: 14,
                             padding: 12,
-                            fontWeight: 1000,
+                            fontWeight: 700,
                             cursor: "pointer",
+                            fontFamily: "inherit",
                           }}
                         >
                           <span style={{ display: "block", fontSize: 11, opacity: 0.78, textTransform: "uppercase" }}>Ballot</span>
@@ -391,18 +363,18 @@ export default function LeagueVotingPage({ drivers = [] }) {
 
                 {selectedVote && (
                   <div style={isPhone ? { width: "100%", maxWidth: "100%", overflowX: "auto", overflowY: "hidden", WebkitOverflowScrolling: "touch", paddingBottom: 8 } : {}}>
-                    {isPhone && <div style={{ color: "#aab3c2", fontSize: 11, fontWeight: 900, textTransform: "uppercase", letterSpacing: 0.7, marginBottom: 8 }}>Swipe ballot if needed →</div>}
-                    <div style={{ background: "#090d13", border: "1px solid #2a3240", borderRadius: 18, padding: isPhone ? 14 : 16, minWidth: isPhone ? 340 : "auto", maxWidth: isPhone ? 440 : "none", boxSizing: "border-box" }}>
+                    {isPhone && <div style={{ color: TEXT_SECONDARY, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.7, marginBottom: 8 }}>Swipe ballot if needed →</div>}
+                    <div style={{ background: GLASS_BG, border: HAIRLINE, borderRadius: 18, padding: isPhone ? 14 : 16, minWidth: isPhone ? 340 : "auto", maxWidth: isPhone ? 440 : "none", boxSizing: "border-box" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexDirection: isPhone ? "column" : "row" }}>
                       <div>
-                        <div style={{ color: "#d4af37", fontSize: 11, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 0.8 }}>League Ballot</div>
-                        <h2 style={{ margin: "6px 0", fontSize: isPhone ? 24 : 28, lineHeight: 1.05 }}>{selectedVote.title}</h2>
-                        {selectedVote.description && <p style={{ opacity: 0.82, lineHeight: 1.45, margin: "8px 0 0" }}>{selectedVote.description}</p>}
+                        <div style={{ color: GOLD, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.8 }}>League Ballot</div>
+                        <h2 style={{ margin: "6px 0", fontSize: isPhone ? 24 : 26, lineHeight: 1.1, fontWeight: 700, letterSpacing: -0.6, color: TEXT_PRIMARY }}>{selectedVote.title}</h2>
+                        {selectedVote.description && <p style={{ color: TEXT_SECONDARY, lineHeight: 1.45, margin: "8px 0 0", fontSize: 14 }}>{selectedVote.description}</p>}
                       </div>
-                      <div style={{ textAlign: isPhone ? "left" : "right", background: "#0f151f", border: "1px solid #263244", borderRadius: 14, padding: 10, minWidth: isPhone ? "auto" : 170 }}>
-                        <div style={{ color: selectedStatus.closed ? "#f87171" : "#4ade80", fontWeight: 1000 }}>{selectedStatus.remaining}</div>
-                        <div style={{ fontSize: 11, opacity: 0.7, marginTop: 3 }}>Deadline: {selectedStatus.label}</div>
-                        <div style={{ fontSize: 11, color: "#aab3c2", marginTop: 6 }}>{voteResponseCount} submitted</div>
+                      <div style={{ textAlign: isPhone ? "left" : "right", background: "rgba(0,0,0,0.03)", border: HAIRLINE, borderRadius: 14, padding: 10, minWidth: isPhone ? "auto" : 170 }}>
+                        <div style={{ color: selectedStatus.closed ? RED : GREEN, fontWeight: 700 }}>{selectedStatus.remaining}</div>
+                        <div style={{ fontSize: 11, color: TEXT_SECONDARY, marginTop: 3 }}>Deadline: {selectedStatus.label}</div>
+                        <div style={{ fontSize: 11, color: TEXT_SECONDARY, marginTop: 6 }}>{voteResponseCount} submitted</div>
                       </div>
                     </div>
 
@@ -417,8 +389,8 @@ export default function LeagueVotingPage({ drivers = [] }) {
                               display: "flex",
                               gap: 12,
                               alignItems: "center",
-                              background: checked ? "rgba(212,175,55,0.14)" : "#070b10",
-                              border: checked ? "2px solid #d4af37" : "1px solid #273140",
+                              background: checked ? "rgba(212,175,55,0.12)" : "rgba(0,0,0,0.02)",
+                              border: checked ? `2px solid ${GOLD}` : HAIRLINE,
                               borderRadius: 15,
                               padding: isPhone ? 14 : 12,
                               cursor: disabled ? "not-allowed" : "pointer",
@@ -426,7 +398,7 @@ export default function LeagueVotingPage({ drivers = [] }) {
                             }}
                           >
                             <input type="radio" disabled={disabled} name="league-vote-option" value={option.id} checked={checked} onChange={(event) => setSelectedOptionId(event.target.value)} style={{ width: 20, height: 20 }} />
-                            <span style={{ fontWeight: 1000, fontSize: isPhone ? 16 : 14, lineHeight: 1.3 }}>{option.option_text || option.label}</span>
+                            <span style={{ fontWeight: 600, fontSize: isPhone ? 16 : 14, lineHeight: 1.3, color: TEXT_PRIMARY }}>{option.option_text || option.label}</span>
                           </label>
                         );
                       })}
