@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "./lib/supabase";
+import { getLeagueSession, loginToLeague, logoutOfLeague } from "./lib/leagueAuth";
 
 const FONT_STACK =
   '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif';
@@ -39,8 +40,6 @@ const primaryButtonStyle = { background: GOLD, color: "#1d1d1f", border: "none",
 const secondaryButtonStyle = { background: "rgba(0,0,0,0.05)", color: TEXT_PRIMARY, border: "1px solid rgba(0,0,0,0.08)", borderRadius: 999, padding: "10px 18px", fontWeight: 600, cursor: "pointer", fontFamily: FONT_STACK, fontSize: 14 };
 const dangerButtonStyle = { background: RED, color: "white", border: "none", borderRadius: 999, padding: "10px 18px", fontWeight: 600, cursor: "pointer", fontFamily: FONT_STACK, fontSize: 14 };
 const inputStyle = { width: "100%", background: "rgba(0,0,0,0.04)", color: TEXT_PRIMARY, border: "1px solid rgba(0,0,0,0.08)", borderRadius: 12, padding: "10px 12px", boxSizing: "border-box", fontFamily: FONT_STACK, fontSize: 14 };
-const MASTER_ACCESS_CODE = "BCLADMINPASSWORD2026";
-
 function StepBadge({ number, color }) {
   return (
     <span
@@ -66,10 +65,6 @@ function StepBadge({ number, color }) {
 
 function normalize(value) {
   return String(value || "").trim().toLowerCase();
-}
-
-function normalizeCode(value) {
-  return String(value || "").trim().toUpperCase();
 }
 
 function getTeamFullName(team) {
@@ -165,7 +160,7 @@ export default function PaintSchemeVotePage({ drivers = [], tracks = [] }) {
   const [raceName, setRaceName] = useState(() => getDefaultRaceName(tracks));
   const [uploads, setUploads] = useState([]);
   const [votes, setVotes] = useState([]);
-  const [driverCodes, setDriverCodes] = useState({});
+  const [driverAccessCodes, setDriverAccessCodes] = useState([]);
   const [selectedVoterNumber, setSelectedVoterNumber] = useState("");
   const [password, setPassword] = useState("");
   const [unlockedDriver, setUnlockedDriver] = useState(null);
@@ -200,8 +195,15 @@ export default function PaintSchemeVotePage({ drivers = [], tracks = [] }) {
   }, [tracks, raceName]);
 
   useEffect(() => {
-    loadDriverCodes();
+    loadDriverAccessCodes();
   }, []);
+
+  useEffect(() => {
+    const session = getLeagueSession();
+    if (!session?.driverNumber) return;
+    const matched = activeDrivers.find((driver) => String(driver.number || "") === String(session.driverNumber));
+    setUnlockedDriver(matched || { number: session.driverNumber, name: session.driverName || "" });
+  }, [activeDrivers]);
 
   useEffect(() => {
     loadPaintSchemeData();
@@ -210,7 +212,7 @@ export default function PaintSchemeVotePage({ drivers = [], tracks = [] }) {
     setError("");
   }, [raceName]);
 
-  async function loadDriverCodes() {
+  async function loadDriverAccessCodes() {
     const { data, error: codeError } = await supabase
       .from("driver_access_codes")
       .select("driver_number, driver_name, code, active")
@@ -222,14 +224,7 @@ export default function PaintSchemeVotePage({ drivers = [], tracks = [] }) {
       return;
     }
 
-    const nextCodes = {};
-    (data || []).forEach((row) => {
-      const code = row.code;
-      if (!code) return;
-      if (row.driver_number) nextCodes[String(row.driver_number).trim()] = code;
-      if (row.driver_name) nextCodes[normalize(row.driver_name)] = code;
-    });
-    setDriverCodes(nextCodes);
+    setDriverAccessCodes(data || []);
   }
 
   async function loadPaintSchemeData() {
@@ -277,28 +272,34 @@ export default function PaintSchemeVotePage({ drivers = [], tracks = [] }) {
     setVotes(voteData || []);
   }
 
-  function unlockVoter() {
+  async function unlockVoter() {
     setError("");
     setStatus("");
 
-    const voter = activeDrivers.find((driver) => String(driver.number || "") === String(selectedVoterNumber || ""));
-    if (!voter) {
+    if (!selectedVoterNumber) {
       setError("Select your driver profile first.");
       return;
     }
 
-    const savedCode = driverCodes[String(voter.number)] || driverCodes[normalize(voter.name)] || "";
-    const codeMatches = normalizeCode(password) === normalizeCode(savedCode) || normalizeCode(password) === normalizeCode(MASTER_ACCESS_CODE);
+    const result = await loginToLeague({
+      driverNumber: selectedVoterNumber,
+      password,
+      driverAccessCodes,
+      drivers: activeDrivers,
+      teams: [],
+      supabase,
+    });
 
-    if (!codeMatches) {
-      setError("Incorrect driver password. Use the same password that unlocks your Driver Profile.");
+    if (!result.success) {
+      setError(result.error || "Incorrect driver password. Use the same password that unlocks your Driver Profile.");
       setUnlockedDriver(null);
       return;
     }
 
-    setUnlockedDriver(voter);
+    const voter = activeDrivers.find((driver) => String(driver.number || "") === String(selectedVoterNumber || ""));
+    setUnlockedDriver(voter || { number: selectedVoterNumber, name: result.session?.driverName || "" });
     setPassword("");
-    setStatus(`Unlocked as #${voter.number} ${voter.name}.`);
+    setStatus(`Unlocked as #${selectedVoterNumber} ${voter?.name || result.session?.driverName || ""}.`);
   }
 
   async function submitVote() {
@@ -413,7 +414,7 @@ export default function PaintSchemeVotePage({ drivers = [], tracks = [] }) {
               <div style={{ background: "rgba(52,199,89,0.08)", border: `1px solid ${GREEN}55`, borderRadius: 16, padding: 14 }}>
                 <div style={{ fontWeight: 700, color: GREEN }}>Unlocked</div>
                 <div style={{ marginTop: 4, color: TEXT_PRIMARY }}>#{unlockedDriver.number} {unlockedDriver.name}</div>
-                <button onClick={() => { setUnlockedDriver(null); setSelectedUploadId(""); }} style={{ ...dangerButtonStyle, marginTop: 12 }}>Lock / Switch Driver</button>
+                <button onClick={() => { logoutOfLeague(); setUnlockedDriver(null); setSelectedUploadId(""); }} style={{ ...dangerButtonStyle, marginTop: 12 }}>Lock / Switch Driver</button>
               </div>
             ) : (
               <>
