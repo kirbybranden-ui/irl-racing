@@ -2,6 +2,17 @@ import { useEffect, useState } from "react";
 import { supabase } from "./lib/supabase";
 import logo from "./assets/logo1.png";
 
+const FONT_STACK =
+  '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif';
+const GOLD = "#d4af37";
+const TEXT_PRIMARY = "#1d1d1f";
+const TEXT_SECONDARY = "#6e6e73";
+const GLASS_BG = "rgba(255,255,255,0.7)";
+const GLASS_BG_STRONG = "rgba(255,255,255,0.85)";
+const GLASS_BORDER = "1px solid rgba(0,0,0,0.06)";
+const GLASS_SHADOW = "0 8px 30px rgba(0,0,0,0.06), 0 1px 0 rgba(255,255,255,0.6) inset";
+const HAIRLINE = "1px solid rgba(0,0,0,0.08)";
+
 export default function NewsPage() {
   const [news, setNews] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -32,30 +43,43 @@ export default function NewsPage() {
     <div
       style={{
         minHeight: "100vh",
-        background: "#080b10",
-        color: "white",
-        fontFamily: "Arial, sans-serif",
+        background: "linear-gradient(180deg, #f5f5f7 0%, #ffffff 40%, #f5f5f7 100%)",
+        color: TEXT_PRIMARY,
+        fontFamily: FONT_STACK,
+        WebkitFontSmoothing: "antialiased",
       }}
     >
       <div
         style={{
-          background: "#151a22",
-          borderBottom: "4px solid #d4af37",
+          background: GLASS_BG_STRONG,
+          backdropFilter: "blur(24px) saturate(180%)",
+          WebkitBackdropFilter: "blur(24px) saturate(180%)",
+          borderBottom: "1px solid rgba(0,0,0,0.06)",
           padding: "16px 24px",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
           gap: 16,
           flexWrap: "wrap",
+          position: "sticky",
+          top: 0,
+          zIndex: 50,
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <img src={logo} alt="League Logo" style={{ height: 48 }} />
+          <img src={logo} alt="League Logo" style={{ height: 44 }} />
           <div>
-            <div style={{ fontSize: 28, fontWeight: 900 }}>
-              BUDWEISER CUP NEWS
+            <div
+              style={{
+                fontSize: 24,
+                fontWeight: 700,
+                letterSpacing: -0.5,
+                color: TEXT_PRIMARY,
+              }}
+            >
+              Budweiser Cup News
             </div>
-            <div style={{ fontSize: 13, opacity: 0.65 }}>
+            <div style={{ fontSize: 13, color: TEXT_SECONDARY, marginTop: 2 }}>
               Race recaps • driver headlines • league updates
             </div>
           </div>
@@ -64,13 +88,15 @@ export default function NewsPage() {
         <button
           onClick={() => (window.location.pathname = "/standings")}
           style={{
-            background: "#d4af37",
-            color: "#111",
+            background: TEXT_PRIMARY,
+            color: "white",
             border: "none",
-            borderRadius: 10,
-            padding: "10px 16px",
-            fontWeight: 900,
+            borderRadius: 999,
+            padding: "10px 18px",
+            fontWeight: 600,
+            fontSize: 14,
             cursor: "pointer",
+            fontFamily: FONT_STACK,
           }}
         >
           Back to Standings
@@ -79,15 +105,19 @@ export default function NewsPage() {
 
       <div style={{ maxWidth: 1450, margin: "0 auto", padding: 24 }}>
         {loading ? (
-          <div>Loading news...</div>
+          <div style={{ color: TEXT_SECONDARY, padding: 24 }}>Loading news...</div>
         ) : news.length === 0 ? (
           <div
             style={{
-              background: "#151a22",
-              border: "1px solid #2d3643",
-              borderRadius: 18,
+              background: GLASS_BG,
+              backdropFilter: "blur(20px)",
+              WebkitBackdropFilter: "blur(20px)",
+              border: GLASS_BORDER,
+              borderRadius: 22,
               padding: 40,
               textAlign: "center",
+              color: TEXT_SECONDARY,
+              boxShadow: GLASS_SHADOW,
             }}
           >
             No news posts yet.
@@ -104,20 +134,21 @@ export default function NewsPage() {
             >
               <div
                 style={{
-                  background:
-                    "linear-gradient(135deg, #1b2330 0%, #10151d 100%)",
-                  border: "1px solid #2d3643",
-                  borderRadius: 22,
-                  padding: 24,
-                  boxShadow: "0 14px 34px rgba(0,0,0,0.4)",
+                  background: GLASS_BG,
+                  backdropFilter: "blur(24px) saturate(180%)",
+                  WebkitBackdropFilter: "blur(24px) saturate(180%)",
+                  border: GLASS_BORDER,
+                  borderRadius: 24,
+                  padding: 28,
+                  boxShadow: GLASS_SHADOW,
                 }}
               >
                 <div
                   style={{
-                    color: "#d4af37",
+                    color: GOLD,
                     fontSize: 13,
-                    fontWeight: 900,
-                    marginBottom: 10,
+                    fontWeight: 700,
+                    marginBottom: 12,
                     letterSpacing: 1,
                     textTransform: "uppercase",
                   }}
@@ -127,10 +158,12 @@ export default function NewsPage() {
 
                 <div
                   style={{
-                    fontSize: 44,
-                    fontWeight: 900,
-                    lineHeight: 1,
-                    marginBottom: 16,
+                    fontSize: 46,
+                    fontWeight: 700,
+                    lineHeight: 1.05,
+                    marginBottom: 18,
+                    letterSpacing: -1.2,
+                    color: TEXT_PRIMARY,
                   }}
                 >
                   {leadStory.title}
@@ -144,24 +177,26 @@ export default function NewsPage() {
                       width: "100%",
                       maxHeight: 620,
                       objectFit: "cover",
-                      borderRadius: 18,
-                      border: "1px solid #2d3643",
-                      marginBottom: 16,
-                      boxShadow: "0 16px 36px rgba(0,0,0,0.45)",
+                      borderRadius: 20,
+                      border: "1px solid rgba(0,0,0,0.06)",
+                      marginBottom: 18,
+                      boxShadow: "0 16px 36px rgba(0,0,0,0.12)",
                     }}
                   />
                 )}
 
-                <div style={{ opacity: 0.55, fontSize: 12, marginBottom: 14 }}>
+                <div style={{ color: TEXT_SECONDARY, fontSize: 12.5, marginBottom: 16, fontWeight: 500 }}>
                   {new Date(leadStory.created_at).toLocaleString()}
                 </div>
 
                 <div
                   style={{
-                    fontSize: 17,
-                    lineHeight: 1.6,
-                    opacity: 0.9,
+                    fontSize: 18,
+                    lineHeight: 1.65,
+                    color: TEXT_PRIMARY,
+                    opacity: 0.88,
                     whiteSpace: "pre-line",
+                    fontWeight: 400,
                   }}
                 >
                   {leadStory.content}
@@ -173,10 +208,13 @@ export default function NewsPage() {
                   <div
                     key={post.id}
                     style={{
-                      background: "#151a22",
-                      border: "1px solid #2d3643",
-                      borderRadius: 16,
+                      background: GLASS_BG,
+                      backdropFilter: "blur(20px)",
+                      WebkitBackdropFilter: "blur(20px)",
+                      border: GLASS_BORDER,
+                      borderRadius: 18,
                       padding: 16,
+                      boxShadow: GLASS_SHADOW,
                     }}
                   >
                     {post.image_url && (
@@ -187,34 +225,43 @@ export default function NewsPage() {
                           width: "100%",
                           height: 135,
                           objectFit: "cover",
-                          borderRadius: 12,
+                          borderRadius: 14,
                           marginBottom: 12,
-                          border: "1px solid #2d3643",
+                          border: "1px solid rgba(0,0,0,0.06)",
                         }}
                       />
                     )}
 
                     <div
                       style={{
-                        color: "#d4af37",
+                        color: GOLD,
                         fontSize: 11,
-                        fontWeight: 900,
+                        fontWeight: 700,
                         marginBottom: 8,
                         textTransform: "uppercase",
+                        letterSpacing: 0.5,
                       }}
                     >
                       {post.category || "Headline"}
                     </div>
 
-                    <div style={{ fontSize: 20, fontWeight: 900 }}>
+                    <div
+                      style={{
+                        fontSize: 19,
+                        fontWeight: 600,
+                        color: TEXT_PRIMARY,
+                        letterSpacing: -0.3,
+                        lineHeight: 1.2,
+                      }}
+                    >
                       {post.title}
                     </div>
 
                     <div
                       style={{
                         fontSize: 13,
-                        opacity: 0.75,
-                        lineHeight: 1.45,
+                        color: TEXT_SECONDARY,
+                        lineHeight: 1.5,
                         marginTop: 8,
                         whiteSpace: "pre-line",
                       }}
@@ -228,13 +275,24 @@ export default function NewsPage() {
 
             <div
               style={{
-                background: "#151a22",
-                border: "1px solid #2d3643",
-                borderRadius: 20,
-                padding: 20,
+                background: GLASS_BG,
+                backdropFilter: "blur(24px) saturate(180%)",
+                WebkitBackdropFilter: "blur(24px) saturate(180%)",
+                border: GLASS_BORDER,
+                borderRadius: 22,
+                padding: 22,
+                boxShadow: GLASS_SHADOW,
               }}
             >
-              <div style={{ fontSize: 26, fontWeight: 900, marginBottom: 12 }}>
+              <div
+                style={{
+                  fontSize: 26,
+                  fontWeight: 700,
+                  marginBottom: 12,
+                  color: TEXT_PRIMARY,
+                  letterSpacing: -0.6,
+                }}
+              >
                 Latest News
               </div>
 
@@ -242,7 +300,7 @@ export default function NewsPage() {
                 <div
                   key={post.id}
                   style={{
-                    borderTop: "1px solid #2d3643",
+                    borderTop: HAIRLINE,
                     padding: "18px 0",
                     display: "grid",
                     gridTemplateColumns: post.image_url ? "180px 1fr" : "1fr",
@@ -257,8 +315,8 @@ export default function NewsPage() {
                         width: "100%",
                         height: 105,
                         objectFit: "cover",
-                        borderRadius: 12,
-                        border: "1px solid #2d3643",
+                        borderRadius: 14,
+                        border: "1px solid rgba(0,0,0,0.06)",
                       }}
                     />
                   )}
@@ -266,29 +324,40 @@ export default function NewsPage() {
                   <div>
                     <div
                       style={{
-                        color: "#d4af37",
+                        color: GOLD,
                         fontSize: 11,
-                        fontWeight: 900,
+                        fontWeight: 700,
                         marginBottom: 6,
                         textTransform: "uppercase",
+                        letterSpacing: 0.5,
                       }}
                     >
                       {post.category || "News"}
                     </div>
 
-                    <div style={{ fontSize: 22, fontWeight: 900 }}>
+                    <div
+                      style={{
+                        fontSize: 21,
+                        fontWeight: 600,
+                        color: TEXT_PRIMARY,
+                        letterSpacing: -0.3,
+                        lineHeight: 1.2,
+                      }}
+                    >
                       {post.title}
                     </div>
 
-                    <div style={{ opacity: 0.5, fontSize: 12, margin: "6px 0" }}>
+                    <div style={{ color: TEXT_SECONDARY, fontSize: 12, margin: "6px 0", fontWeight: 500 }}>
                       {new Date(post.created_at).toLocaleString()}
                     </div>
 
                     <div
                       style={{
+                        color: TEXT_PRIMARY,
                         opacity: 0.82,
                         lineHeight: 1.55,
                         whiteSpace: "pre-line",
+                        fontSize: 15,
                       }}
                     >
                       {post.content}
