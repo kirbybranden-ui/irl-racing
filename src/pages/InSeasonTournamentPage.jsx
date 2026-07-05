@@ -5,6 +5,13 @@ import {
   sectionCardStyle,
   primaryButtonStyle,
   secondaryButtonStyle,
+  GOLD,
+  TEXT_PRIMARY,
+  TEXT_SECONDARY,
+  HAIRLINE,
+  GREEN,
+  RED,
+  BLUE,
 } from "../styles/sharedStyles";
 import { getTeamFullName } from "../data/teams";
 
@@ -264,28 +271,28 @@ function DriverCard({ driver, status = "", entry = null }) {
   return (
     <div
       style={{
-        background: "#0f1319",
-        border: entry?.ineligible ? "1px solid #f87171" : "1px solid #2c3440",
-        borderRadius: 14,
+        background: entry?.ineligible ? "rgba(255,59,48,0.06)" : "rgba(255,255,255,0.75)",
+        border: entry?.ineligible ? `1px solid ${RED}55` : HAIRLINE,
+        borderRadius: 16,
         padding: 12,
       }}
     >
-      <div style={{ color: "#d4af37", fontSize: 12, fontWeight: 900 }}>
+      <div style={{ color: GOLD, fontSize: 12, fontWeight: 700, letterSpacing: 0.4 }}>
         {driver ? `SEED #${driver.seed}` : "TBD"}
       </div>
-      <div style={{ fontSize: 18, fontWeight: 900, marginTop: 4 }}>
+      <div style={{ fontSize: 18, fontWeight: 700, marginTop: 4, color: TEXT_PRIMARY, letterSpacing: -0.3 }}>
         {driverLabel(driver)}
       </div>
-      <div style={{ opacity: 0.72, fontSize: 13, marginTop: 4 }}>
+      <div style={{ color: TEXT_SECONDARY, fontSize: 13, marginTop: 4 }}>
         {driver ? `${getTeamFullName(driver.team)} • ${driver.manufacturer || "—"}` : "Awaiting result"}
       </div>
       {resultLabel && (
-        <div style={{ marginTop: 8, fontSize: 12, fontWeight: 900, color: entry?.ineligible ? "#f87171" : "#93c5fd" }}>
+        <div style={{ marginTop: 8, fontSize: 12, fontWeight: 700, color: entry?.ineligible ? RED : BLUE }}>
           {resultLabel}
         </div>
       )}
       {status && (
-        <div style={{ marginTop: 8, fontSize: 12, fontWeight: 900, color: status === "ADVANCES" ? "#4ade80" : "#f87171" }}>
+        <div style={{ marginTop: 8, fontSize: 12, fontWeight: 700, color: status === "ADVANCES" ? GREEN : RED }}>
           {status}
         </div>
       )}
@@ -296,7 +303,7 @@ function DriverCard({ driver, status = "", entry = null }) {
 function MatchupCard({ title, driverA, driverB, winner, entryA, entryB }) {
   return (
     <div style={sectionCardStyle}>
-      <div style={{ color: "#d4af37", fontSize: 12, fontWeight: 900, letterSpacing: 1.2 }}>
+      <div style={{ color: GOLD, fontSize: 12, fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase" }}>
         {title}
       </div>
 
@@ -306,7 +313,7 @@ function MatchupCard({ title, driverA, driverB, winner, entryA, entryB }) {
           entry={entryA}
           status={winner && cleanNumber(winner.number) === cleanNumber(driverA?.number) ? "ADVANCES" : ""}
         />
-        <div style={{ textAlign: "center", fontWeight: 900, opacity: 0.65 }}>VS</div>
+        <div style={{ textAlign: "center", fontWeight: 700, color: TEXT_SECONDARY, fontSize: 13 }}>VS</div>
         <DriverCard
           driver={driverB}
           entry={entryB}
@@ -314,9 +321,9 @@ function MatchupCard({ title, driverA, driverB, winner, entryA, entryB }) {
         />
       </div>
 
-      <div style={{ marginTop: 12, padding: 10, borderRadius: 12, background: "#111827", border: "1px solid #263244" }}>
-        <span style={{ opacity: 0.65, fontSize: 12, fontWeight: 900 }}>WINNER: </span>
-        <span style={{ fontWeight: 900 }}>{driverLabel(winner)}</span>
+      <div style={{ marginTop: 12, padding: 10, borderRadius: 14, background: "rgba(0,0,0,0.03)", border: HAIRLINE }}>
+        <span style={{ color: TEXT_SECONDARY, fontSize: 12, fontWeight: 600 }}>WINNER: </span>
+        <span style={{ fontWeight: 700, color: TEXT_PRIMARY }}>{driverLabel(winner)}</span>
       </div>
     </div>
   );
@@ -392,19 +399,19 @@ function InSeasonTournamentPage({ drivers = [], raceHistory = [] }) {
         <div
           style={{
             ...sectionCardStyle,
-            background: "linear-gradient(135deg, rgba(212,175,55,0.22), rgba(15,23,42,0.98))",
-            border: "1px solid rgba(212,175,55,0.65)",
+            background: "linear-gradient(135deg, rgba(212,175,55,0.12), rgba(255,255,255,0.85))",
+            border: `1px solid ${GOLD}55`,
           }}
         >
           <div style={{ display: "flex", justifyContent: "space-between", gap: 14, flexWrap: "wrap", alignItems: "center" }}>
             <div>
-              <div style={{ color: "#d4af37", fontSize: 13, fontWeight: 1000, letterSpacing: 1.5 }}>
-                BUDWEISER CUP LEAGUE
+              <div style={{ color: GOLD, fontSize: 13, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase" }}>
+                Budweiser Cup League
               </div>
-              <h1 style={{ margin: "8px 0", fontSize: 40, lineHeight: 1 }}>
+              <h1 style={{ margin: "8px 0", fontSize: 38, lineHeight: 1.05, fontWeight: 700, letterSpacing: -1, color: TEXT_PRIMARY }}>
                 🏆 2026 In-Season Tournament
               </h1>
-              <p style={{ margin: 0, opacity: 0.82 }}>
+              <p style={{ margin: 0, color: TEXT_SECONDARY, fontSize: 14.5 }}>
                 Starts this weekend at Las Vegas. Seeds are based on current championship standings. Substitute starts and substitute wins do not advance a bracket seed.
               </p>
             </div>
@@ -424,25 +431,25 @@ function InSeasonTournamentPage({ drivers = [], raceHistory = [] }) {
         </div>
 
         {champion && (
-          <div style={{ ...sectionCardStyle, border: "1px solid #d4af37", background: "#111827" }}>
-            <div style={{ color: "#d4af37", fontWeight: 1000, fontSize: 13 }}>TOURNAMENT CHAMPION</div>
-            <h2 style={{ margin: "8px 0 0", fontSize: 34 }}>
+          <div style={{ ...sectionCardStyle, border: `1px solid ${GOLD}`, background: "rgba(212,175,55,0.08)" }}>
+            <div style={{ color: GOLD, fontWeight: 700, fontSize: 13, textTransform: "uppercase", letterSpacing: 0.5 }}>Tournament Champion</div>
+            <h2 style={{ margin: "8px 0 0", fontSize: 32, fontWeight: 700, letterSpacing: -0.8, color: TEXT_PRIMARY }}>
               🏆 {driverLabel(champion)}
             </h2>
-            <div style={{ opacity: 0.75, marginTop: 4 }}>
+            <div style={{ color: TEXT_SECONDARY, marginTop: 4, fontSize: 14.5 }}>
               {getTeamFullName(champion.team)} • {champion.manufacturer || "—"}
             </div>
           </div>
         )}
 
         <div style={sectionCardStyle}>
-          <h2 style={{ marginTop: 0 }}>Tournament Schedule</h2>
+          <h2 style={{ marginTop: 0, fontSize: 20, fontWeight: 600, letterSpacing: -0.3, color: TEXT_PRIMARY }}>Tournament Schedule</h2>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 10 }}>
             {TOURNAMENT_RACES.map((item) => (
-              <div key={item.round} style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 12 }}>
-                <div style={{ color: "#d4af37", fontWeight: 900, fontSize: 12 }}>{item.round}</div>
-                <div style={{ fontSize: 18, fontWeight: 900, marginTop: 4 }}>{item.race}</div>
-                {item.matchups && <div style={{ opacity: 0.65, fontSize: 12, marginTop: 4 }}>{item.matchups.join(" • ")}</div>}
+              <div key={item.round} style={{ background: "rgba(0,0,0,0.03)", border: HAIRLINE, borderRadius: 16, padding: 12 }}>
+                <div style={{ color: GOLD, fontWeight: 700, fontSize: 12, textTransform: "uppercase", letterSpacing: 0.4 }}>{item.round}</div>
+                <div style={{ fontSize: 18, fontWeight: 700, marginTop: 4, color: TEXT_PRIMARY }}>{item.race}</div>
+                {item.matchups && <div style={{ color: TEXT_SECONDARY, fontSize: 12, marginTop: 4 }}>{item.matchups.join(" • ")}</div>}
               </div>
             ))}
           </div>
@@ -450,7 +457,7 @@ function InSeasonTournamentPage({ drivers = [], raceHistory = [] }) {
 
         {rounds.map((round) => (
           <div key={round.title}>
-            <h2 style={{ margin: "28px 0 12px", fontSize: 26 }}>{round.title}</h2>
+            <h2 style={{ margin: "28px 0 12px", fontSize: 24, fontWeight: 700, letterSpacing: -0.6, color: TEXT_PRIMARY }}>{round.title}</h2>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(290px, 1fr))", gap: 14 }}>
               {round.matchups.map((matchup, index) => (
                 <MatchupCard
