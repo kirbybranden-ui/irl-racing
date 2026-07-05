@@ -12,8 +12,24 @@ import {
   GREEN,
   RED,
   BLUE,
+  PURPLE,
+  ORANGE,
 } from "../styles/sharedStyles";
 import { getTeamFullName } from "../data/teams";
+
+// Layout-only constants for the bracket-tree grid below. These mirror the
+// round color language used elsewhere in the app and do not affect any
+// scoring/eligibility logic.
+const BRACKET_COLORS = [BLUE, PURPLE, ORANGE, GREEN, GOLD];
+const BRACKET_COL_WIDTH = 260;
+const BRACKET_GAP = 28;
+const BRACKET_ROW_HEIGHT = 64;
+
+// Derived directly from the roundOf16 pairing below (playIn[3]->idx0,
+// playIn[0]->idx1, playIn[2]->idx3, playIn[1]->idx5). Used only to position
+// each Play-In match beside the exact Round of 16 slot its winner feeds —
+// purely visual, does not affect matchup logic.
+const PLAYIN_TO_ROUND16_INDEX = [1, 5, 3, 0];
 
 const TOURNAMENT_RACES = [
   { round: "Play-In", race: "Las Vegas", matchups: ["13-20", "14-19", "15-18", "16-17"] },
@@ -269,62 +285,75 @@ function DriverCard({ driver, status = "", entry = null }) {
     : "";
 
   return (
-    <div
-      style={{
-        background: entry?.ineligible ? "rgba(255,59,48,0.06)" : "rgba(255,255,255,0.75)",
-        border: entry?.ineligible ? `1px solid ${RED}55` : HAIRLINE,
-        borderRadius: 16,
-        padding: 12,
-      }}
-    >
-      <div style={{ color: GOLD, fontSize: 12, fontWeight: 700, letterSpacing: 0.4 }}>
-        {driver ? `SEED #${driver.seed}` : "TBD"}
-      </div>
-      <div style={{ fontSize: 18, fontWeight: 700, marginTop: 4, color: TEXT_PRIMARY, letterSpacing: -0.3 }}>
-        {driverLabel(driver)}
-      </div>
-      <div style={{ color: TEXT_SECONDARY, fontSize: 13, marginTop: 4 }}>
-        {driver ? `${getTeamFullName(driver.team)} • ${driver.manufacturer || "—"}` : "Awaiting result"}
-      </div>
-      {resultLabel && (
-        <div style={{ marginTop: 8, fontSize: 12, fontWeight: 700, color: entry?.ineligible ? RED : BLUE }}>
-          {resultLabel}
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "5px 0" }}>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ color: GOLD, fontSize: 10, fontWeight: 700, letterSpacing: 0.3 }}>
+          {driver ? `SEED #${driver.seed}` : "TBD"}
         </div>
-      )}
-      {status && (
-        <div style={{ marginTop: 8, fontSize: 12, fontWeight: 700, color: status === "ADVANCES" ? GREEN : RED }}>
-          {status}
+        <div
+          style={{
+            fontSize: 14,
+            fontWeight: 700,
+            color: TEXT_PRIMARY,
+            letterSpacing: -0.2,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+        >
+          {driverLabel(driver)}
         </div>
-      )}
+        <div
+          style={{
+            color: TEXT_SECONDARY,
+            fontSize: 11,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+        >
+          {driver ? getTeamFullName(driver.team) : "Awaiting result"}
+        </div>
+      </div>
+
+      <div style={{ textAlign: "right", flexShrink: 0 }}>
+        {resultLabel && (
+          <div style={{ fontSize: 11, fontWeight: 700, color: entry?.ineligible ? RED : BLUE }}>
+            {resultLabel}
+          </div>
+        )}
+        {status && (
+          <div style={{ fontSize: 10, fontWeight: 700, color: status === "ADVANCES" ? GREEN : RED, marginTop: 2 }}>
+            {status}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
-function MatchupCard({ title, driverA, driverB, winner, entryA, entryB }) {
+function MatchupCard({ driverA, driverB, winner, entryA, entryB, accentColor }) {
   return (
-    <div style={sectionCardStyle}>
-      <div style={{ color: GOLD, fontSize: 12, fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase" }}>
-        {title}
-      </div>
-
-      <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
-        <DriverCard
-          driver={driverA}
-          entry={entryA}
-          status={winner && cleanNumber(winner.number) === cleanNumber(driverA?.number) ? "ADVANCES" : ""}
-        />
-        <div style={{ textAlign: "center", fontWeight: 700, color: TEXT_SECONDARY, fontSize: 13 }}>VS</div>
-        <DriverCard
-          driver={driverB}
-          entry={entryB}
-          status={winner && cleanNumber(winner.number) === cleanNumber(driverB?.number) ? "ADVANCES" : ""}
-        />
-      </div>
-
-      <div style={{ marginTop: 12, padding: 10, borderRadius: 14, background: "rgba(0,0,0,0.03)", border: HAIRLINE }}>
-        <span style={{ color: TEXT_SECONDARY, fontSize: 12, fontWeight: 600 }}>WINNER: </span>
-        <span style={{ fontWeight: 700, color: TEXT_PRIMARY }}>{driverLabel(winner)}</span>
-      </div>
+    <div
+      style={{
+        background: "rgba(255,255,255,0.8)",
+        border: HAIRLINE,
+        borderLeft: `3px solid ${accentColor}`,
+        borderRadius: 14,
+        padding: "6px 12px",
+      }}
+    >
+      <DriverCard
+        driver={driverA}
+        entry={entryA}
+        status={winner && cleanNumber(winner.number) === cleanNumber(driverA?.number) ? "ADVANCES" : ""}
+      />
+      <div style={{ height: 1, background: "rgba(0,0,0,0.08)" }} />
+      <DriverCard
+        driver={driverB}
+        entry={entryB}
+        status={winner && cleanNumber(winner.number) === cleanNumber(driverB?.number) ? "ADVANCES" : ""}
+      />
     </div>
   );
 }
@@ -455,24 +484,106 @@ function InSeasonTournamentPage({ drivers = [], raceHistory = [] }) {
           </div>
         </div>
 
-        {rounds.map((round) => (
-          <div key={round.title}>
-            <h2 style={{ margin: "28px 0 12px", fontSize: 24, fontWeight: 700, letterSpacing: -0.6, color: TEXT_PRIMARY }}>{round.title}</h2>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(290px, 1fr))", gap: 14 }}>
-              {round.matchups.map((matchup, index) => (
-                <MatchupCard
-                  key={`${round.title}-${index}`}
-                  title={`Matchup ${index + 1}`}
-                  driverA={matchup.a}
-                  driverB={matchup.b}
-                  winner={matchup.winner}
-                  entryA={matchup.aEntry}
-                  entryB={matchup.bEntry}
-                />
-              ))}
-            </div>
+        <div style={{ ...sectionCardStyle, overflowX: "auto", paddingBottom: 16 }} className="bcl-bracket-scroll">
+          <h2 style={{ marginTop: 0, marginBottom: 16, fontSize: 20, fontWeight: 600, letterSpacing: -0.3, color: TEXT_PRIMARY }}>
+            Bracket
+          </h2>
+
+          <div
+            className="bcl-bracket-grid"
+            style={{
+              display: "grid",
+              gridTemplateColumns: `repeat(5, ${BRACKET_COL_WIDTH}px)`,
+              columnGap: BRACKET_GAP,
+              marginBottom: 10,
+              minWidth: 5 * BRACKET_COL_WIDTH + 4 * BRACKET_GAP,
+            }}
+          >
+            {rounds.map((round, colIndex) => (
+              <div
+                key={round.title}
+                style={{
+                  gridColumn: colIndex + 1,
+                  color: BRACKET_COLORS[colIndex],
+                  fontSize: 12,
+                  fontWeight: 700,
+                  textTransform: "uppercase",
+                  letterSpacing: 0.5,
+                  paddingBottom: 8,
+                  borderBottom: `2px solid ${BRACKET_COLORS[colIndex]}`,
+                }}
+              >
+                {round.title}
+              </div>
+            ))}
           </div>
-        ))}
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: `repeat(5, ${BRACKET_COL_WIDTH}px)`,
+              gridTemplateRows: `repeat(16, ${BRACKET_ROW_HEIGHT}px)`,
+              columnGap: BRACKET_GAP,
+              rowGap: 6,
+              minWidth: 5 * BRACKET_COL_WIDTH + 4 * BRACKET_GAP,
+            }}
+          >
+            {playIn.map((matchup, index) => {
+              const feedsIndex = PLAYIN_TO_ROUND16_INDEX[index];
+              return (
+                <div
+                  key={`playin-${index}`}
+                  style={{ gridColumn: 1, gridRow: `${feedsIndex * 2 + 1} / span 2`, display: "flex", alignItems: "center" }}
+                >
+                  <MatchupCard driverA={matchup.a} driverB={matchup.b} winner={matchup.winner} entryA={matchup.aEntry} entryB={matchup.bEntry} accentColor={BRACKET_COLORS[0]} />
+                </div>
+              );
+            })}
+
+            {roundOf16.map((matchup, index) => (
+              <div
+                key={`r16-${index}`}
+                style={{ gridColumn: 2, gridRow: `${index * 2 + 1} / span 2`, display: "flex", alignItems: "center" }}
+              >
+                <MatchupCard driverA={matchup.a} driverB={matchup.b} winner={matchup.winner} entryA={matchup.aEntry} entryB={matchup.bEntry} accentColor={BRACKET_COLORS[1]} />
+              </div>
+            ))}
+
+            {quarterfinals.map((matchup, index) => (
+              <div
+                key={`qf-${index}`}
+                style={{ gridColumn: 3, gridRow: `${index * 4 + 1} / span 4`, display: "flex", alignItems: "center" }}
+              >
+                <MatchupCard driverA={matchup.a} driverB={matchup.b} winner={matchup.winner} entryA={matchup.aEntry} entryB={matchup.bEntry} accentColor={BRACKET_COLORS[2]} />
+              </div>
+            ))}
+
+            {semifinals.map((matchup, index) => (
+              <div
+                key={`sf-${index}`}
+                style={{ gridColumn: 4, gridRow: `${index * 8 + 1} / span 8`, display: "flex", alignItems: "center" }}
+              >
+                <MatchupCard driverA={matchup.a} driverB={matchup.b} winner={matchup.winner} entryA={matchup.aEntry} entryB={matchup.bEntry} accentColor={BRACKET_COLORS[3]} />
+              </div>
+            ))}
+
+            {championship.map((matchup, index) => (
+              <div
+                key={`final-${index}`}
+                style={{ gridColumn: 5, gridRow: "1 / span 16", display: "flex", alignItems: "center" }}
+              >
+                <MatchupCard driverA={matchup.a} driverB={matchup.b} winner={matchup.winner} entryA={matchup.aEntry} entryB={matchup.bEntry} accentColor={BRACKET_COLORS[4]} />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <style>{`
+          @media print {
+            .bcl-bracket-scroll { overflow: visible !important; }
+            .bcl-bracket-grid { }
+          }
+        `}</style>
 
         <div style={{ height: 40 }} />
       </div>
