@@ -1106,15 +1106,11 @@ export default function StandingsPage({ seriesId = "cup", drivers = [], teams = 
     WebkitBackdropFilter: "blur(18px)",
   };
 
-  const leagueSessionForNav = getLeagueSession();
-  const isOwnerViewer = Boolean(leagueSessionForNav?.isOwner);
-  const isAdminViewerForNav = typeof window !== "undefined" && sessionStorage.getItem("bcl-admin-auth") === "true";
-
   const navItems = [
     { label: "Streams", subtitle: "Live broadcasts", icon: "📡", route: "/streams" },
     { label: "News", subtitle: "League stories", icon: "📰", route: "/news" },
     { label: "Interviews", subtitle: "Driver media", icon: "🎤", route: seriesId === "arca" ? "/series/arca/interviews" : "/interviews" },
-    ...(isOwnerViewer || isAdminViewerForNav ? [{ label: "Team HQ", subtitle: "Owner workspace", icon: "🏢", route: "/team-hq" }] : []),
+    { label: "Team HQ", subtitle: "Owner workspace", icon: "🏢", route: "/team-hq" },
     { label: "Active Contracts", subtitle: "Current agreements", icon: "📄", route: "/contracts" },
     { label: "Notifications", subtitle: "Public alerts", icon: "🔔", route: "/notifications" },
     { label: "League Chat", subtitle: "Community room", icon: "💬", route: "/chat" },
