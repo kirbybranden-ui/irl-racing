@@ -4119,6 +4119,8 @@ function MobileLeagueApp({
   seasons = [],
   activeSeason = null,
   activeSeasonId = "",
+  arcaDrivers = [],
+  arcaTracks = [],
   paymentCompliance = null,
   onApplyTeamTransaction = () => {},
 }) {
@@ -4167,11 +4169,11 @@ function MobileLeagueApp({
   if (path === "/submit-story") return dataFrame("Submit Story", "more", isGuestSession ? <MobileGuestLockedCard title="Story Submissions Require Driver Login" go={go} /> : <SubmitStoryPage />);
   if (path === "/appeals") return dataFrame("Appeals", "more", <AppealsPage />);
   if (path === "/issues") return dataFrame("Issues & Feedback", "more", <IssuesRollupPage />);
-  if (path === "/news") return frame("News", "news", <MobileNewsFeed go={go} desktopArchive={<NewsPage />} />);
-  if (path === "/paint-scheme-vote") return frame("Paint Scheme Votes", "votes", <MobilePaintSchemeVotesHub drivers={drivers} tracks={tracks} go={go} session={mobileSession} />);
-  if (path === "/vote" || path === "/league-vote" || path === "/voting") return dataFrame("League Vote", "more", isGuestSession ? <MobileGuestLockedCard title="League Voting Requires Driver Login" go={go} /> : <LeagueVotingPage drivers={drivers} />);
+  if (path === "/news") return frame("News", "news", <NewsPage />);
+  if (path === "/paint-scheme-vote") return frame("Paint Scheme Votes", "votes", <PaintSchemeVotePage drivers={drivers} tracks={tracks} />);
+  if (path === "/vote" || path === "/league-vote" || path === "/voting") return dataFrame("League Vote", "more", <LeagueVotingPage drivers={drivers} />);
   if (path === "/notifications") return dataFrame("Notifications", "more", <NotificationsPage />);
-  if (path === "/interviews") return frame("Interviews", "interviews", <MobileInterviewsHub session={mobileSession} go={go} />);
+  if (path === "/interviews") return frame("Interviews", "interviews", <PublicInterviewsPage seriesId="cup" />);
   if (path === "/contracts") return dataFrame("Contracts", "more", <ContractsPage drivers={drivers} />);
   if (path === "/driver-market" || path === "/transfer-portal" || path === "/silly-season") return dataFrame("Driver Market", "more", <DriverMarketPage drivers={drivers || []} raceHistory={raceHistory || []} startParkRequests={[]} paintSchemePayouts={[]} supabase={supabase} />);
   if (path === "/development-requests" || path === "/developmental-requests" || path === "/dev-requests") return dataFrame("Development Requests", "more", (
@@ -4279,10 +4281,10 @@ function MobileLeagueApp({
 
   if (path === "/streams" || path === "/stream") {
     return frame("Streams", "more", (
-      <MobileStreamsPage
+      <StreamPage
         drivers={drivers}
         teams={teams}
-        manufacturerStandings={manufacturerStandings}
+        manufacturers={manufacturerStandings}
         activeRace={upcomingRace}
         selectedTrack={getTrackOverview(upcomingRace)}
       />
@@ -4368,20 +4370,20 @@ function MobileLeagueApp({
   }
 
   if (path.startsWith("/driver/")) {
-    const driverNumber = decodeURIComponent(rawPath.replace(/^\/driver\//i, "").split("/")[0]);
-    const selectedDriver = drivers.find((driver) => String(driver.number) === String(driverNumber));
+    const requestedDriverNumber = decodeURIComponent(rawPath.replace(/^\/driver\//i, "").split("/")[0]);
+    const leagueSession = getLeagueSession();
+    const isAdminViewing = typeof window !== "undefined" && sessionStorage.getItem("bcl-admin-auth") === "true";
+    const isOwnProfile = leagueSession && String(leagueSession.driverNumber) === String(requestedDriverNumber);
 
-    return dataFrame("Driver Profile", "standings", (
-      <MobileDriverProfilePolished
-        driver={selectedDriver}
-        driverNumber={driverNumber}
-        drivers={drivers}
-        raceHistory={raceHistory}
-        tracks={tracks}
-        seasons={seasons}
-        activeSeason={activeSeason}
-        go={go}
-      />
+    if (!isAdminViewing && !isOwnProfile) {
+      return <DriverProfileSignInGate driverNumber={requestedDriverNumber} />;
+    }
+
+    return dataFrame("Driver Profile", "home", (
+      <>
+        <DriverVoteReminderStrip driverNumber={requestedDriverNumber} />
+        <DriverProfilePage seasons={seasons} activeSeason={activeSeason} tracks={tracks} arcaDrivers={arcaDrivers} arcaTracks={arcaTracks} />
+      </>
     ));
   }
 
@@ -4397,9 +4399,89 @@ function MobileLeagueApp({
     ));
   }
 
-  if (path === "/" || path === "/standings") {
+  if (path === "/") {
+    const leagueSession = getLeagueSession();
+    const isAdminViewing = typeof window !== "undefined" && sessionStorage.getItem("bcl-admin-auth") === "true";
+
+    if (!leagueSession?.driverNumber && !isAdminViewing) {
+      return (
+        <div style={{
+          minHeight: "100vh",
+          background: "radial-gradient(circle at top left, rgba(255,255,255,0.95), rgba(245,245,247,0.94) 36%, rgba(229,229,234,0.98) 100%)",
+          color: "#1d1d1f",
+          fontFamily: mobileAppFont,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 20,
+        }}>
+          <div style={{
+            maxWidth: 400,
+            width: "100%",
+            borderRadius: 30,
+            padding: "clamp(26px, 5vw, 36px)",
+            background: "linear-gradient(180deg, rgba(255,255,255,0.90), rgba(255,255,255,0.62))",
+            border: "1px solid rgba(255,255,255,0.78)",
+            boxShadow: "0 30px 90px rgba(0,0,0,0.14)",
+            backdropFilter: "blur(22px)",
+            WebkitBackdropFilter: "blur(22px)",
+            textAlign: "center",
+          }}>
+            <div style={{
+              width: 56, height: 56, borderRadius: "50%", background: "#f5f5f7",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 26, border: "1px solid #e8e8ed", margin: "0 auto 18px",
+            }}>
+              👤
+            </div>
+            <h1 style={{ margin: "0 0 8px", fontSize: 22, fontWeight: 1000, letterSpacing: "-0.02em" }}>Welcome</h1>
+            <p style={{ margin: "0 0 24px", fontSize: 14, color: "#6e6e73", fontWeight: 700, lineHeight: 1.5 }}>
+              Log in with your driver number and password to see your profile here.
+            </p>
+            <button
+              type="button"
+              onClick={() => (window.location.href = `/standings?login=1&redirect=${encodeURIComponent("/")}`)}
+              style={{
+                width: "100%",
+                minHeight: 50,
+                borderRadius: 999,
+                border: "none",
+                background: "linear-gradient(180deg, #d4af37 0%, #b8912c 100%)",
+                color: "#fff",
+                fontWeight: 900,
+                fontSize: 15,
+                cursor: "pointer",
+                fontFamily: mobileAppFont,
+              }}
+            >
+              Driver Login
+            </button>
+            <div style={{ marginTop: 18 }}>
+              <MobileNavButton active={false} icon="🏆" label="View Standings" onClick={() => go("/standings")} />
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return dataFrame("My Profile", "home", (
+      <>
+        <DriverVoteReminderStrip driverNumber={leagueSession?.driverNumber || ""} />
+        <DriverProfilePage
+          seasons={seasons}
+          activeSeason={activeSeason}
+          tracks={tracks}
+          arcaDrivers={arcaDrivers}
+          arcaTracks={arcaTracks}
+          driverNumberOverride={leagueSession?.driverNumber || ""}
+        />
+      </>
+    ));
+  }
+
+  if (path === "/standings") {
     return (
-      <MobileLayout title="Budweiser Cup" go={go} active="home" session={mobileSession} onLogout={handleMobileLogout} onLoginClick={() => setShowMobileLoginModal(true)} showLoginModal={showMobileLoginModal} onCloseLoginModal={() => setShowMobileLoginModal(false)} onLoginSuccess={handleMobileLoginSuccess} drivers={drivers}>
+      <MobileLayout title="Budweiser Cup" go={go} active="standings" session={mobileSession} onLogout={handleMobileLogout} onLoginClick={() => setShowMobileLoginModal(true)} showLoginModal={showMobileLoginModal} onCloseLoginModal={() => setShowMobileLoginModal(false)} onLoginSuccess={handleMobileLoginSuccess} drivers={drivers}>
         <MobileHero
           kicker={seasonName || "Current Season"}
           title="Race Hub"
@@ -8422,15 +8504,13 @@ export default function App() {
   }
   if (isAdminProtectedPath && !isAdminAuthenticated) return <AdminLoginPage />;
 
-  // Series Portal - new opening page for Cup, Xfinity, Trucks, and ARCA.
-  // Existing Cup standings remain available at /standings.
-  if (path === "/" || path === "/series") {
-    return <AppleSeriesPortalLanding />;
-  }
-
-  // Mobile experience gate — phones use the NASCAR-style mobile shell for all non-admin / non-overlay routes.
-  // Desktop routes below stay unchanged. Mobile routes render real app data in a phone-friendly shell.
-  const mobileExcludedPaths = path.startsWith("/admin") || path.startsWith("/overlay") || path.startsWith("/series") || path === "/bracket";
+  // Mobile experience gate — phones use the app shell (with a real Driver
+  // Profile home) for all non-admin / non-overlay / non-series routes.
+  // Desktop routes below stay unchanged. Mobile routes render real app data
+  // in a phone-friendly shell. This check must run before the "/" → Series
+  // Portal redirect below, since on mobile "/" is the Driver Profile home,
+  // not the series picker.
+  const mobileExcludedPaths = path.startsWith("/admin") || path.startsWith("/overlay") || path.startsWith("/series");
   if (isMobileViewport && !forceDesktop && !mobileExcludedPaths) {
     if (!isHydrated) {
       return <div style={appShellStyle}><div style={pageContainerStyle}><div style={sectionCardStyle}>Loading mobile league data...</div></div></div>;
@@ -8449,10 +8529,19 @@ export default function App() {
         seasons={seasons}
         activeSeason={activeSeason}
         activeSeasonId={activeSeasonId}
+        arcaDrivers={arcaDrivers}
+        arcaTracks={arcaTracks}
         paymentCompliance={paymentComplianceSummary}
         onApplyTeamTransaction={applyOwnerPortalTeamTransaction}
       />
     );
+  }
+
+  // Series Portal - opening page for Cup, Xfinity, Trucks, and ARCA (desktop only —
+  // mobile's "/" is handled above as the Driver Profile home).
+  // Existing Cup standings remain available at /standings.
+  if (path === "/" || path === "/series") {
+    return <AppleSeriesPortalLanding />;
   }
 
   // Static desktop pages
