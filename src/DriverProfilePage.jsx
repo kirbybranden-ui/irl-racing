@@ -3984,6 +3984,10 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
                     { icon: "🤝", label: "Team Interest", href: `/driver/${driverNumber}/team-interest` },
                     { icon: "🏁", label: "Start & Park", href: `/driver/${driverNumber}/start-park` },
                     { icon: "🔄", label: "Transfer Portal", href: `/driver/${driverNumber}/portal` },
+                    { icon: "🎨", label: "Paint Scheme Vote", href: "/paint-scheme-vote" },
+                    { icon: "🏆", label: "In-Season Bracket", href: "/bracket" },
+                    { icon: "🗳️", label: "League Vote", href: "/vote" },
+                    { icon: "✍️", label: "Add Story", href: "/submit-story" },
                     { icon: "⚙️", label: "Settings", href: `/driver/${driverNumber}/settings` },
                   ].map((item) => (
                     <button
