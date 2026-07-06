@@ -4139,6 +4139,15 @@ function MobileLeagueApp({
   function handleMobileLoginSuccess(session) {
     setMobileSession(session);
     setShowMobileLoginModal(false);
+    // Logging in doesn't change which URL you're on — if you were viewing
+    // someone else's fixed /driver/:number page, that page would keep
+    // showing that same driver regardless of who just logged in. Sending
+    // everyone to "/" (Home) after login ensures you land on your own
+    // profile rather than staying stuck on whichever driver's page you
+    // happened to be testing from.
+    if (path !== "/") {
+      window.location.href = "/";
+    }
   }
 
   function getTrackOverview(race) {
