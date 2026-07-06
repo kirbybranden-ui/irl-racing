@@ -6,6 +6,7 @@ import teamLogoIND from "../assets/teams/IND.png";
 import teamLogo19XI from "../assets/teams/19XI.png";
 import teamLogoBWR from "../assets/teams/BWR.png";
 import teamLogoBXM from "../assets/teams/BXM.png";
+import teamLogoTMS from "../assets/teams/TMS.png";
 
 import manufacturerChevrolet from "../assets/manufacturers/chevrolet.png";
 import manufacturerFord from "../assets/manufacturers/ford.png";
@@ -39,6 +40,9 @@ export const teamLogos = {
 
   BXM: teamLogoBXM,
   "BayouX Motorsports": teamLogoBXM,
+
+  TMS: teamLogoTMS,
+  "Tolbert Motorsports": teamLogoTMS,
 };
 
 export const manufacturerLogos = {
