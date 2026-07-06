@@ -6043,6 +6043,7 @@ function AppleSeriesPortalLanding() {
   const [isStandaloneApp, setIsStandaloneApp] = useState(false);
   const [isIOSDevice, setIsIOSDevice] = useState(false);
   const [showIOSInstallSteps, setShowIOSInstallSteps] = useState(false);
+  const [selectedInstallPlatform, setSelectedInstallPlatform] = useState(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -6073,7 +6074,9 @@ function AppleSeriesPortalLanding() {
       return;
     }
     // iOS Safari (and any browser without native install support) can't be
-    // prompted programmatically — show manual "Add to Home Screen" steps.
+    // prompted programmatically — ask which platform they're on and show
+    // the matching manual steps.
+    setSelectedInstallPlatform(null);
     setShowIOSInstallSteps(true);
   }
 
@@ -6514,22 +6517,83 @@ function AppleSeriesPortalLanding() {
               <div style={{ fontSize: 19, fontWeight: 900 }}>📲 Add to Home Screen</div>
               <button
                 type="button"
-                onClick={() => setShowIOSInstallSteps(false)}
+                onClick={() => { setShowIOSInstallSteps(false); setSelectedInstallPlatform(null); }}
                 style={{ background: "rgba(0,0,0,0.05)", border: "none", borderRadius: 999, width: 32, height: 32, color: "#1d1d1f", fontSize: 18, cursor: "pointer" }}
               >
                 ×
               </button>
             </div>
-            {isIOSDevice ? (
-              <div style={{ lineHeight: 1.7, color: "#3a3a3c" }}>
-                1. Tap the <strong>Share</strong> button <span style={{ color: "#6e6e73" }}>(the square with an arrow, in Safari's toolbar)</span><br />
-                2. Scroll down and tap <strong>Add to Home Screen</strong><br />
-                3. Tap <strong>Add</strong> in the top right
-              </div>
+
+            {!selectedInstallPlatform ? (
+              <>
+                <div style={{ color: "#6e6e73", fontWeight: 700, marginBottom: 16, fontSize: 14 }}>
+                  Which phone are you using?
+                </div>
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedInstallPlatform("ios")}
+                    style={{
+                      flex: 1,
+                      padding: "16px 12px",
+                      borderRadius: 16,
+                      border: isIOSDevice ? "2px solid #007aff" : "1px solid rgba(0,0,0,0.1)",
+                      background: isIOSDevice ? "rgba(0,122,255,0.08)" : "rgba(0,0,0,0.03)",
+                      color: "#1d1d1f",
+                      fontWeight: 800,
+                      cursor: "pointer",
+                      textAlign: "center",
+                    }}
+                  >
+                    <div style={{ fontSize: 26, marginBottom: 6 }}>📱</div>
+                    iPhone (iOS)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedInstallPlatform("android")}
+                    style={{
+                      flex: 1,
+                      padding: "16px 12px",
+                      borderRadius: 16,
+                      border: !isIOSDevice ? "2px solid #007aff" : "1px solid rgba(0,0,0,0.1)",
+                      background: !isIOSDevice ? "rgba(0,122,255,0.08)" : "rgba(0,0,0,0.03)",
+                      color: "#1d1d1f",
+                      fontWeight: 800,
+                      cursor: "pointer",
+                      textAlign: "center",
+                    }}
+                  >
+                    <div style={{ fontSize: 26, marginBottom: 6 }}>🤖</div>
+                    Android
+                  </button>
+                </div>
+              </>
             ) : (
-              <div style={{ lineHeight: 1.7, color: "#3a3a3c" }}>
-                Open this page in <strong>Chrome</strong> or <strong>Edge</strong> on your phone, then look for <strong>Install app</strong> or <strong>Add to Home Screen</strong> in the browser's menu (⋮ or share icon).
-              </div>
+              <>
+                <button
+                  type="button"
+                  onClick={() => setSelectedInstallPlatform(null)}
+                  style={{ background: "none", border: "none", color: "#0057d9", fontWeight: 800, fontSize: 13, cursor: "pointer", padding: 0, marginBottom: 14 }}
+                >
+                  ← Choose a different device
+                </button>
+                {selectedInstallPlatform === "ios" ? (
+                  <div style={{ lineHeight: 1.7, color: "#3a3a3c" }}>
+                    1. Tap the <strong>Share</strong> button <span style={{ color: "#6e6e73" }}>(the square with an arrow, in Safari's toolbar)</span><br />
+                    2. Scroll down and tap <strong>Add to Home Screen</strong><br />
+                    3. Tap <strong>Add</strong> in the top right
+                  </div>
+                ) : (
+                  <div style={{ lineHeight: 1.7, color: "#3a3a3c" }}>
+                    1. Tap the <strong>⋮</strong> menu button <span style={{ color: "#6e6e73" }}>(three dots, top right of Chrome)</span><br />
+                    2. Tap <strong>Install app</strong> or <strong>Add to Home screen</strong><br />
+                    3. Tap <strong>Install</strong> (or <strong>Add</strong>) to confirm
+                    <div style={{ marginTop: 10, fontSize: 12.5, color: "#6e6e73" }}>
+                      Using a different Android browser? Look for the same option under its menu — it may be called "Install app," "Add to Home screen," or "Add shortcut to Home screen."
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
