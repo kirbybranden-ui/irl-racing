@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { ReportIssueModal } from "../../components/ReportIssueModal";
 
 const SERIES = [
@@ -26,7 +26,44 @@ const cardStyle = {
 
 export default function SeriesPortal() {
   const [isReportingIssue, setIsReportingIssue] = useState(false);
+  const [installPromptEvent, setInstallPromptEvent] = useState(null);
+  const [isStandalone, setIsStandalone] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
+  const [showIOSInstructions, setShowIOSInstructions] = useState(false);
   const go = (to) => { window.location.href = to; };
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    setIsStandalone(
+      window.matchMedia?.("(display-mode: standalone)")?.matches ||
+      window.navigator?.standalone === true
+    );
+    setIsIOS(/iphone|ipad|ipod/i.test(window.navigator.userAgent) && !window.MSStream);
+
+    function handleBeforeInstallPrompt(event) {
+      event.preventDefault();
+      setInstallPromptEvent(event);
+    }
+
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    return () => window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+  }, []);
+
+  async function handleInstallClick() {
+    if (installPromptEvent) {
+      installPromptEvent.prompt();
+      try {
+        await installPromptEvent.userChoice;
+      } finally {
+        setInstallPromptEvent(null);
+      }
+      return;
+    }
+    // iOS Safari (and any browser without native install support) can't be
+    // prompted programmatically — show manual "Add to Home Screen" steps.
+    setShowIOSInstructions(true);
+  }
 
   return (
     <div style={pageStyle}>
@@ -69,6 +106,11 @@ export default function SeriesPortal() {
         </div>
 
         <div style={{ marginTop: 18, display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
+          {!isStandalone && (
+            <button type="button" onClick={handleInstallClick} style={{ padding: "12px 16px", borderRadius: 12, border: "1px solid #facc15", background: "linear-gradient(135deg, #facc15, #b45309)", color: "#111", fontWeight: 900 }}>
+              📲 Download App
+            </button>
+          )}
           <button type="button" onClick={() => go("/standings")} style={{ padding: "12px 16px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.16)", background: "#111827", color: "white", fontWeight: 900 }}>
             View Current Cup Standings
           </button>
@@ -80,6 +122,45 @@ export default function SeriesPortal() {
           </button>
         </div>
       </div>
+
+      {showIOSInstructions && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.6)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+            padding: 20,
+          }}
+        >
+          <div style={{ ...cardStyle, maxWidth: 420, background: "#111827" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <div style={{ fontSize: 19, fontWeight: 1000 }}>📲 Add to Home Screen</div>
+              <button
+                type="button"
+                onClick={() => setShowIOSInstructions(false)}
+                style={{ background: "none", border: "none", color: "white", fontSize: 22, cursor: "pointer" }}
+              >
+                ×
+              </button>
+            </div>
+            {isIOS ? (
+              <div style={{ lineHeight: 1.7, opacity: 0.9 }}>
+                1. Tap the <strong>Share</strong> button <span style={{ opacity: 0.7 }}>(the square with an arrow, in Safari's toolbar)</span><br />
+                2. Scroll down and tap <strong>Add to Home Screen</strong><br />
+                3. Tap <strong>Add</strong> in the top right
+              </div>
+            ) : (
+              <div style={{ lineHeight: 1.7, opacity: 0.9 }}>
+                Open this page in <strong>Chrome</strong> or <strong>Edge</strong> on your phone, then look for <strong>Install app</strong> or <strong>Add to Home Screen</strong> in the browser's menu (⋮ or share icon).
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <ReportIssueModal
         isOpen={isReportingIssue}
