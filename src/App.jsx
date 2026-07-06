@@ -33,7 +33,7 @@ import DriverMarketPage from "./pages/DriverMarketPage";
 import DevelopmentRequestsPage from "./pages/DevelopmentRequestsPage";
 import IssuesPage from "./pages/IssuesPage";
 import IssuesRollupPage from "./pages/IssuesRollupPage";
-import { getLeagueSession } from "./lib/leagueAuth";
+import { getLeagueSession, loginToLeague } from "./lib/leagueAuth";
 import LeagueChatPage from "./LeagueChatPage";
 import OwnersPage from "./OwnersPage.jsx";
 import { defaultDrivers } from "./data/drivers";
@@ -3786,36 +3786,34 @@ function MobileAccessGate({ drivers = [], onSession }) {
       return;
     }
 
-    const enteredCode = code.toUpperCase();
-    const match = (data || []).find((row) => {
-      const rowNumber = String(row.driver_number ?? row.car_number ?? "").trim();
-      const possibleCodes = [row.code, row.access_code, row.password, row.driver_password]
-        .map((value) => String(value ?? "").trim().toUpperCase())
-        .filter(Boolean);
-      return rowNumber === number && possibleCodes.includes(enteredCode) && row.active !== false;
+    const leagueResult = await loginToLeague({
+      driverNumber: number,
+      password: code,
+      driverAccessCodes: data || [],
+      drivers: activeDrivers,
+      teams: [],
+      supabase,
     });
 
-    const adminMatch = enteredCode === "BCLADMINPASSWORD2026";
-    if (!match && !adminMatch) {
+    if (!leagueResult.success) {
       setLoading(false);
-      setError("Invalid car number or driver password.");
+      setError(leagueResult.error || "Invalid car number or driver password.");
       return;
     }
 
+    const adminMatch = code.toUpperCase() === "BCLADMINPASSWORD2026";
     const rosterDriver = activeDrivers.find((driver) => String(driver.number) === number) || {};
-    const authRow = match || {};
     const driverForRoles = {
-      ...authRow,
       ...rosterDriver,
-      name: rosterDriver.name || authRow.driver_name || authRow.name || `#${number}`,
-      team: rosterDriver.team || authRow.team || "",
-      manufacturer: rosterDriver.manufacturer || authRow.manufacturer || "",
+      name: rosterDriver.name || leagueResult.session?.driverName || `#${number}`,
+      team: rosterDriver.team || leagueResult.session?.team || "",
+      manufacturer: rosterDriver.manufacturer || "",
     };
     const roleFlags = getBclRoleFlagsForDriver(driverForRoles, Boolean(adminMatch));
     const session = {
       mode: "driver",
       role: roleFlags.role,
-      driverId: rosterDriver.id || authRow.driver_id || authRow.id || null,
+      driverId: rosterDriver.id || null,
       driverNumber: number,
       driverName: driverForRoles.name,
       team: driverForRoles.team,
@@ -3934,36 +3932,34 @@ function MobileLoginModal({ drivers = [], onClose, onSuccess }) {
       return;
     }
 
-    const enteredCode = code.toUpperCase();
-    const match = (data || []).find((row) => {
-      const rowNumber = String(row.driver_number ?? row.car_number ?? "").trim();
-      const possibleCodes = [row.code, row.access_code, row.password, row.driver_password]
-        .map((value) => String(value ?? "").trim().toUpperCase())
-        .filter(Boolean);
-      return rowNumber === number && possibleCodes.includes(enteredCode) && row.active !== false;
+    const leagueResult = await loginToLeague({
+      driverNumber: number,
+      password: code,
+      driverAccessCodes: data || [],
+      drivers: activeDrivers,
+      teams: [],
+      supabase,
     });
 
-    const adminMatch = enteredCode === "BCLADMINPASSWORD2026";
-    if (!match && !adminMatch) {
+    if (!leagueResult.success) {
       setLoading(false);
-      setError("Invalid car number or driver password.");
+      setError(leagueResult.error || "Invalid car number or driver password.");
       return;
     }
 
+    const adminMatch = code.toUpperCase() === "BCLADMINPASSWORD2026";
     const rosterDriver = activeDrivers.find((driver) => String(driver.number) === number) || {};
-    const authRow = match || {};
     const driverForRoles = {
-      ...authRow,
       ...rosterDriver,
-      name: rosterDriver.name || authRow.driver_name || authRow.name || `#${number}`,
-      team: rosterDriver.team || authRow.team || "",
-      manufacturer: rosterDriver.manufacturer || authRow.manufacturer || "",
+      name: rosterDriver.name || leagueResult.session?.driverName || `#${number}`,
+      team: rosterDriver.team || leagueResult.session?.team || "",
+      manufacturer: rosterDriver.manufacturer || "",
     };
     const roleFlags = getBclRoleFlagsForDriver(driverForRoles, Boolean(adminMatch));
     const session = {
       mode: "driver",
       role: roleFlags.role,
-      driverId: rosterDriver.id || authRow.driver_id || authRow.id || null,
+      driverId: rosterDriver.id || null,
       driverNumber: number,
       driverName: driverForRoles.name,
       team: driverForRoles.team,
