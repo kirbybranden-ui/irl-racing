@@ -6039,6 +6039,43 @@ function LeagueStatusWidget({ tracks = [], seasonName = "", mobile = false }) {
 function AppleSeriesPortalLanding() {
   const [showV3Details, setShowV3Details] = useState(false);
   const [isReportingIssue, setIsReportingIssue] = useState(false);
+  const [installPromptEvent, setInstallPromptEvent] = useState(null);
+  const [isStandaloneApp, setIsStandaloneApp] = useState(false);
+  const [isIOSDevice, setIsIOSDevice] = useState(false);
+  const [showIOSInstallSteps, setShowIOSInstallSteps] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    setIsStandaloneApp(
+      window.matchMedia?.("(display-mode: standalone)")?.matches ||
+      window.navigator?.standalone === true
+    );
+    setIsIOSDevice(/iphone|ipad|ipod/i.test(window.navigator.userAgent) && !window.MSStream);
+
+    function handleBeforeInstallPrompt(event) {
+      event.preventDefault();
+      setInstallPromptEvent(event);
+    }
+
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    return () => window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+  }, []);
+
+  async function handleInstallAppClick() {
+    if (installPromptEvent) {
+      installPromptEvent.prompt();
+      try {
+        await installPromptEvent.userChoice;
+      } finally {
+        setInstallPromptEvent(null);
+      }
+      return;
+    }
+    // iOS Safari (and any browser without native install support) can't be
+    // prompted programmatically — show manual "Add to Home Screen" steps.
+    setShowIOSInstallSteps(true);
+  }
 
   const allLeagueDrivers = [
     ...(defaultDrivers || []).map((driver) => ({
@@ -6148,6 +6185,26 @@ function AppleSeriesPortalLanding() {
           </div>
 
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            {!isStandaloneApp && (
+              <button
+                type="button"
+                onClick={handleInstallAppClick}
+                style={{
+                  border: "1px solid rgba(0,122,255,0.28)",
+                  borderRadius: 999,
+                  padding: "12px 16px",
+                  background: "rgba(0,122,255,0.10)",
+                  backdropFilter: "blur(16px)",
+                  WebkitBackdropFilter: "blur(16px)",
+                  color: "#0057d9",
+                  fontWeight: 900,
+                  cursor: "pointer",
+                  boxShadow: "0 14px 32px rgba(0,0,0,0.06)",
+                }}
+              >
+                📲 Download App
+              </button>
+            )}
             <button
               type="button"
               onClick={() => (window.location.pathname = "/issues")}
@@ -6425,6 +6482,58 @@ function AppleSeriesPortalLanding() {
         series="cup"
         drivers={allLeagueDrivers}
       />
+
+      {showIOSInstallSteps && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(29,29,31,0.42)",
+            backdropFilter: "blur(6px)",
+            WebkitBackdropFilter: "blur(6px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+            padding: 20,
+          }}
+        >
+          <div
+            style={{
+              background: "linear-gradient(180deg, rgba(255,255,255,0.94), rgba(248,250,252,0.92))",
+              border: "1px solid rgba(255,255,255,0.8)",
+              borderRadius: 26,
+              padding: "clamp(20px, 4vw, 28px)",
+              maxWidth: 420,
+              width: "100%",
+              boxShadow: "0 30px 90px rgba(0,0,0,0.28)",
+              color: "#1d1d1f",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <div style={{ fontSize: 19, fontWeight: 900 }}>📲 Add to Home Screen</div>
+              <button
+                type="button"
+                onClick={() => setShowIOSInstallSteps(false)}
+                style={{ background: "rgba(0,0,0,0.05)", border: "none", borderRadius: 999, width: 32, height: 32, color: "#1d1d1f", fontSize: 18, cursor: "pointer" }}
+              >
+                ×
+              </button>
+            </div>
+            {isIOSDevice ? (
+              <div style={{ lineHeight: 1.7, color: "#3a3a3c" }}>
+                1. Tap the <strong>Share</strong> button <span style={{ color: "#6e6e73" }}>(the square with an arrow, in Safari's toolbar)</span><br />
+                2. Scroll down and tap <strong>Add to Home Screen</strong><br />
+                3. Tap <strong>Add</strong> in the top right
+              </div>
+            ) : (
+              <div style={{ lineHeight: 1.7, color: "#3a3a3c" }}>
+                Open this page in <strong>Chrome</strong> or <strong>Edge</strong> on your phone, then look for <strong>Install app</strong> or <strong>Add to Home Screen</strong> in the browser's menu (⋮ or share icon).
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
