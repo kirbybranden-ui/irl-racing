@@ -4464,6 +4464,67 @@ function MobileLeagueApp({
       );
     }
 
+    if (!seasons || seasons.length === 0) {
+      return (
+        <div style={{
+          minHeight: "100vh",
+          background: "radial-gradient(circle at top left, rgba(255,255,255,0.95), rgba(245,245,247,0.94) 36%, rgba(229,229,234,0.98) 100%)",
+          color: "#1d1d1f",
+          fontFamily: mobileAppFont,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 20,
+        }}>
+          <div style={{
+            maxWidth: 400,
+            width: "100%",
+            borderRadius: 30,
+            padding: "clamp(26px, 5vw, 36px)",
+            background: "linear-gradient(180deg, rgba(255,255,255,0.90), rgba(255,255,255,0.62))",
+            border: "1px solid rgba(255,255,255,0.78)",
+            boxShadow: "0 30px 90px rgba(0,0,0,0.14)",
+            backdropFilter: "blur(22px)",
+            WebkitBackdropFilter: "blur(22px)",
+            textAlign: "center",
+          }}>
+            <div style={{
+              width: 56, height: 56, borderRadius: "50%", background: "#f5f5f7",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 26, border: "1px solid #e8e8ed", margin: "0 auto 18px",
+            }}>
+              ⏳
+            </div>
+            <h1 style={{ margin: "0 0 8px", fontSize: 22, fontWeight: 1000, letterSpacing: "-0.02em" }}>Still Loading Season Data</h1>
+            <p style={{ margin: "0 0 24px", fontSize: 14, color: "#6e6e73", fontWeight: 700, lineHeight: 1.5 }}>
+              This can happen briefly on a first visit. If it doesn't clear after a retry, league season data may not be reachable right now.
+            </p>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              style={{
+                width: "100%",
+                minHeight: 50,
+                borderRadius: 999,
+                border: "none",
+                background: "linear-gradient(180deg, #d4af37 0%, #b8912c 100%)",
+                color: "#fff",
+                fontWeight: 900,
+                fontSize: 15,
+                cursor: "pointer",
+                fontFamily: mobileAppFont,
+              }}
+            >
+              Retry
+            </button>
+            <div style={{ marginTop: 18 }}>
+              <MobileNavButton active={false} icon="🏆" label="View Standings" onClick={() => go("/standings")} />
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return dataFrame("My Profile", "home", (
       <>
         <DriverVoteReminderStrip driverNumber={leagueSession?.driverNumber || ""} />
@@ -4474,6 +4535,7 @@ function MobileLeagueApp({
           arcaDrivers={arcaDrivers}
           arcaTracks={arcaTracks}
           driverNumberOverride={leagueSession?.driverNumber || ""}
+          driverSeriesOverride={leagueSession?.series || "cup"}
         />
       </>
     ));
@@ -5442,6 +5504,8 @@ function MobileRaceRecapPage({ race, go }) {
 }
 
 function MobileLayout({ title, children, go, active, session = null, onLogout = () => {}, onLoginClick = () => {}, showLoginModal = false, onCloseLoginModal = () => {}, onLoginSuccess = () => {}, drivers = [] }) {
+  const [showMoreSheet, setShowMoreSheet] = useState(false);
+
   function openDesktopVersion() {
     if (typeof document !== "undefined") {
       document.cookie = "bcl-force-desktop=1; path=/; max-age=2592000";
@@ -5449,10 +5513,35 @@ function MobileLayout({ title, children, go, active, session = null, onLogout = 
     window.location.reload();
   }
 
+  const leagueSession = getLeagueSession();
+  const driverNumber = leagueSession?.driverNumber || "";
+  const isOwner = Boolean(leagueSession?.isOwner);
+
+  const moreMenuItems = [
+    ...(driverNumber ? [
+      { icon: "📄", label: "Contracts", href: `/driver/${driverNumber}/contracts` },
+      { icon: "🏎️", label: "Developmental Ride", href: `/driver/${driverNumber}/development` },
+      { icon: "📷", label: "Uploads", href: `/driver/${driverNumber}/upload` },
+      { icon: "📋", label: "Appeals", href: `/driver/${driverNumber}/appeals` },
+      { icon: "🎯", label: "Assignments", href: `/driver/${driverNumber}/assignments` },
+      { icon: "😊", label: "Driver Feedback", href: `/driver/${driverNumber}/feedback` },
+      { icon: "🤝", label: "Team Interest", href: `/driver/${driverNumber}/team-interest` },
+      { icon: "🏁", label: "Start & Park", href: `/driver/${driverNumber}/start-park` },
+      { icon: "🔄", label: "Transfer Portal", href: `/driver/${driverNumber}/portal` },
+      { icon: "⚙️", label: "Settings", href: `/driver/${driverNumber}/settings` },
+    ] : []),
+    { icon: "🏆", label: "In-Season Bracket", href: "/bracket" },
+    { icon: "🗳️", label: "League Vote", href: "/vote" },
+    { icon: "✍️", label: "Add Story", href: "/submit-story" },
+    ...(isOwner ? [{ icon: "🏢", label: "Team HQ", href: "/team-hq" }] : []),
+    { icon: "💬", label: "League Chat", href: "/chat" },
+    { icon: "🖼️", label: "Files", href: "/files" },
+  ];
+
   return (
     <div style={mobileAppStyle}>
       <header style={mobileTopbarStyle}>
-        <button type="button" onClick={() => go("/standings")} style={mobileLogoButtonStyle}>🏁</button>
+        <button type="button" onClick={() => go("/")} style={mobileLogoButtonStyle}>🏁</button>
         <div style={{ minWidth: 0, flex: 1 }}>
           <strong style={{ fontSize: 16, display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", color: "#1d1d1f" }}>{title}</strong>
           {session && (
@@ -5461,7 +5550,7 @@ function MobileLayout({ title, children, go, active, session = null, onLogout = 
             </span>
           )}
         </div>
-        <button type="button" onClick={() => go("/message-center")} style={mobileBellStyle} aria-label="League Messages">💬</button>
+        <button type="button" onClick={() => go("/notifications")} style={mobileBellStyle} aria-label="Notifications">🔔</button>
         {session?.mode === "guest" && (
           <button type="button" onClick={onLoginClick} style={{ ...mobileBellStyle, background: "linear-gradient(180deg, #ffd60a 0%, #ff9f0a 100%)", color: "#1d1d1f", border: "1px solid rgba(17,24,39,0.10)" }} aria-label="Log in">🔑</button>
         )}
@@ -5505,8 +5594,64 @@ function MobileLayout({ title, children, go, active, session = null, onLogout = 
         <MobileNavButton active={active === "news"} icon="📰" label="News" onClick={() => go("/news")} />
         <MobileNavButton active={active === "votes"} icon="🎨" label="Votes" onClick={() => go("/paint-scheme-vote")} />
         <MobileNavButton active={active === "interviews"} icon="🎤" label="Interviews" onClick={() => go("/interviews")} />
-        <MobileNavButton active={active === "more"} icon="☰" label="More" onClick={() => go("/more")} />
+        <MobileNavButton active={active === "more" || showMoreSheet} icon="☰" label="More" onClick={() => setShowMoreSheet(true)} />
       </nav>
+      {showMoreSheet && (
+        <>
+          <button
+            type="button"
+            aria-label="Close menu"
+            onClick={() => setShowMoreSheet(false)}
+            style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.32)", border: "none", zIndex: 99998 }}
+          />
+          <div
+            style={{
+              position: "fixed",
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 99999,
+              background: "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.97))",
+              borderTopLeftRadius: 26,
+              borderTopRightRadius: 26,
+              boxShadow: "0 -20px 60px rgba(0,0,0,0.22)",
+              backdropFilter: "blur(20px)",
+              WebkitBackdropFilter: "blur(20px)",
+              padding: "10px 10px calc(env(safe-area-inset-bottom, 0px) + 14px)",
+              maxHeight: "72vh",
+              overflowY: "auto",
+            }}
+          >
+            <div style={{ width: 40, height: 5, borderRadius: 999, background: "rgba(0,0,0,0.15)", margin: "6px auto 12px" }} />
+            {moreMenuItems.map((item) => (
+              <button
+                key={item.label}
+                type="button"
+                onClick={() => { setShowMoreSheet(false); go(item.href); }}
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 14,
+                  textAlign: "left",
+                  background: "transparent",
+                  color: "#1d1d1f",
+                  border: "none",
+                  borderRadius: 14,
+                  padding: "13px 12px",
+                  cursor: "pointer",
+                  fontFamily: mobileAppFont,
+                  fontSize: 15,
+                  fontWeight: 700,
+                }}
+              >
+                <span style={{ fontSize: 19, width: 24, textAlign: "center" }}>{item.icon}</span>
+                <span style={{ flex: 1 }}>{item.label}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
       {showLoginModal && (
         <MobileLoginModal
           drivers={drivers}
