@@ -1072,32 +1072,41 @@ function DriverTransferPortalPanel({ driver, driverNumber, teamTheme, standingsR
   );
 }
 
-export default function DriverProfilePage({ seasons, activeSeason, tracks = [], ownerDriverAssignments = [], loadOwnerDriverAssignments, arcaDrivers = [], arcaTracks = [], driverNumberOverride = "" }) {
+export default function DriverProfilePage({ seasons, activeSeason, tracks = [], ownerDriverAssignments = [], loadOwnerDriverAssignments, arcaDrivers = [], arcaTracks = [], driverNumberOverride = "", driverSeriesOverride = "" }) {
   const pathParts = window.location.pathname.split("/");
   
   // Parse driver number from either /driver/:number or /series/arca/driver/:number
   let requestedDriverNumber;
   let subPage;
+  let isArcaRoute;
   
   if (driverNumberOverride) {
     // Used by the mobile Home tab, which shows "my profile" at a stable "/"
-    // URL rather than redirecting to /driver/:number.
+    // URL rather than redirecting to /driver/:number. There's no URL path to
+    // read the series from here, so rely on the driver's actual series
+    // (from their login session) instead.
     requestedDriverNumber = driverNumberOverride;
     subPage = undefined;
+    isArcaRoute = driverSeriesOverride === "arca";
   } else if (pathParts.includes("arca")) {
     // ARCA route: /series/arca/driver/88 or /series/arca/driver/88/subpage
     requestedDriverNumber = pathParts[4];
     subPage = pathParts[5];
+    isArcaRoute = true;
   } else {
     // Cup route: /driver/88 or /driver/88/subpage
     requestedDriverNumber = pathParts[2];
     subPage = pathParts[3];
+    isArcaRoute = false;
   }
   
   const driverNumber = String(requestedDriverNumber) === "46" ? "39" : requestedDriverNumber;
 
-  // Check ARCA first, then Cup
-  const arcaDriver = arcaDrivers.find((d) => String(d.number) === String(driverNumber));
+  // Only look up an ARCA driver when the route/session actually indicates ARCA.
+  // Car numbers can repeat between Cup and ARCA rosters, so matching by number
+  // alone (regardless of series) would show the wrong driver whenever a Cup
+  // and ARCA car happen to share a number.
+  const arcaDriver = isArcaRoute ? arcaDrivers.find((d) => String(d.number) === String(driverNumber)) : null;
   const isArcaDriver = !!arcaDriver;
 
   const allSeasons = Array.isArray(seasons) ? seasons : [];
