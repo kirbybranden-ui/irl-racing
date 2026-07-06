@@ -8,6 +8,7 @@ import teamLogoIND from "./assets/teams/IND.png";
 import teamLogo19XI from "./assets/teams/19XI.png";
 import teamLogoBWR from "./assets/teams/BWR.png";
 import teamLogoBXM from "./assets/teams/BXM.png";
+import teamLogoTMS from "./assets/teams/TMS.png";
 import { supabase } from "./lib/supabase";
 import { getLeagueSession } from "./lib/leagueAuth";
 import { uploadCarFile, getCarUploads, deleteCarUpload } from "./lib/carUploads";
@@ -29,6 +30,8 @@ const teamLogos = {
   "ME Racing": teamLogoMER,
   BXM: teamLogoBXM,
   "BayouX Motorsports": teamLogoBXM,
+  TMS: teamLogoTMS,
+  "Tolbert Motorsports": teamLogoTMS,
 };
 
 const teamFullNames = {
