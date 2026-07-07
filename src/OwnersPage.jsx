@@ -172,6 +172,8 @@ const ownerNames = {
   BXM: "Cajun",
   "BayouX Motorsports": "Cajun",
   MER: "Kevdinho",
+  TMS: "Y2JTolbert",
+  "Tolbert Motorsports": "Y2JTolbert",
 };
 
 const TEAM_STARTING_FUNDS = {
