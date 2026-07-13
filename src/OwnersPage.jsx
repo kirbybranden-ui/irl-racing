@@ -38,6 +38,20 @@ const DEVELOPMENT_SERIES_OPTIONS = [
   { value: "arca", label: "ARCA Series" },
 ];
 
+const DEFAULT_SUBSTITUTE_DRIVERS = [
+  {
+    id: 103,
+    number: null,
+    name: "BusterTC007",
+    manufacturer: null,
+    team: "IND",
+    series: "substitute",
+    isSubstitute: true,
+    driver_type: "substitute",
+    status: "active",
+  },
+];
+
 const DEFAULT_DEVELOPMENT_ASSIGNMENT_FORM = {
   driver_id: "",
   requested_series: "truck",
@@ -928,15 +942,29 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
   }, [selected.drivers, ownerDriverAssignmentForm.original_driver_id]);
 
   const ownerAssignmentSubstituteOptions = useMemo(() => {
-    return (drivers || [])
-      .filter((driver) => !driver.retired)
+    const liveDrivers = Array.isArray(drivers) ? drivers : [];
+    const mergedDrivers = [...liveDrivers];
+
+    DEFAULT_SUBSTITUTE_DRIVERS.forEach((fallbackDriver) => {
+      const alreadyLoaded = mergedDrivers.some((driver) =>
+        String(driver?.id || "") === String(fallbackDriver.id) ||
+        String(driver?.name || "").trim().toLowerCase() === fallbackDriver.name.toLowerCase()
+      );
+
+      if (!alreadyLoaded) mergedDrivers.push(fallbackDriver);
+    });
+
+    return mergedDrivers
+      .filter((driver) => !driver?.retired)
       .filter((driver) => {
         const team = String(driver?.team || "").trim().toLowerCase();
-        const role = String(driver?.driver_type || driver?.status || driver?.role || "").trim().toLowerCase();
+        const role = String(driver?.driver_type || driver?.role || "").trim().toLowerCase();
+        const status = String(driver?.status || "").trim().toLowerCase();
         const hasNoPermanentNumber = driver?.number === null || driver?.number === undefined || String(driver?.number).trim() === "";
 
         return driver?.isSubstitute === true
           || role.includes("substitute")
+          || status.includes("substitute")
           || ((team === "ind" || team === "independent") && hasNoPermanentNumber);
       })
       .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
@@ -3082,7 +3110,9 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
     }
 
     const originalDriver = selected.drivers.find((driver) => String(driver.id || driver.number) === String(ownerDriverAssignmentForm.original_driver_id)) || selectedOwnerAssignmentOriginalDriver;
-    const assignedDriver = (drivers || []).find((driver) => String(driver.id || driver.number) === String(ownerDriverAssignmentForm.assigned_driver_id));
+    const assignedDriver = ownerAssignmentSubstituteOptions.find((driver) =>
+      String(driver?.id || driver?.number || driver?.name) === String(ownerDriverAssignmentForm.assigned_driver_id)
+    );
 
     if (!String(ownerDriverAssignmentForm.race_name || "").trim()) {
       setOwnerDriverAssignmentError("Select the race for this assignment.");
