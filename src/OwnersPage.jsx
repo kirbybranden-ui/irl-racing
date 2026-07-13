@@ -930,7 +930,15 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
   const ownerAssignmentSubstituteOptions = useMemo(() => {
     return (drivers || [])
       .filter((driver) => !driver.retired)
-      .filter((driver) => driver.isSubstitute === true)
+      .filter((driver) => {
+        const team = String(driver?.team || "").trim().toLowerCase();
+        const role = String(driver?.driver_type || driver?.status || driver?.role || "").trim().toLowerCase();
+        const hasNoPermanentNumber = driver?.number === null || driver?.number === undefined || String(driver?.number).trim() === "";
+
+        return driver?.isSubstitute === true
+          || role.includes("substitute")
+          || ((team === "ind" || team === "independent") && hasNoPermanentNumber);
+      })
       .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
   }, [drivers]);
 
