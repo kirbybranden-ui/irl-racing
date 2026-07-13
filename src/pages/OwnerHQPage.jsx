@@ -189,9 +189,15 @@ export default function OwnerHQPage({ drivers = [], teams = [], seasonName = "",
   }, [substitutionForm.originalDriverId, roster]);
 
   const selectedOriginalDriver = roster.find((driver) => String(driver?.id || "") === String(substitutionForm.originalDriverId || "")) || roster[0] || null;
-  const substituteDriverOptions = cupDrivers
-    .filter((driver) => String(driver?.id || "") !== String(selectedOriginalDriver?.id || ""))
-    .sort((a, b) => Number(getDriverNumber(a) || 9999) - Number(getDriverNumber(b) || 9999));
+  const substituteDriverOptions = useMemo(() => {
+    return (drivers || [])
+      .filter(
+        (driver) =>
+          driver?.isSubstitute === true &&
+          String(driver?.id || "") !== String(selectedOriginalDriver?.id || "")
+      )
+      .sort((a, b) => getDriverDisplayName(a).localeCompare(getDriverDisplayName(b)));
+  }, [drivers, selectedOriginalDriver?.id]);
 
   useEffect(() => {
     if (!substitutionForm.substituteDriverId && substituteDriverOptions.length > 0) {
@@ -254,7 +260,9 @@ export default function OwnerHQPage({ drivers = [], teams = [], seasonName = "",
     setSubstitutionError("");
 
     const originalDriver = roster.find((driver) => String(driver?.id || "") === String(substitutionForm.originalDriverId || ""));
-    const substituteDriver = cupDrivers.find((driver) => String(driver?.id || "") === String(substitutionForm.substituteDriverId || ""));
+    const substituteDriver = (drivers || []).find(
+      (driver) => String(driver?.id || "") === String(substitutionForm.substituteDriverId || "")
+    );
 
     if (!currentTeam?.team) {
       setSubstitutionError("Select a team before submitting a substitution request.");
@@ -561,11 +569,15 @@ export default function OwnerHQPage({ drivers = [], teams = [], seasonName = "",
                 onChange={(event) => setSubstitutionForm((current) => ({ ...current, substituteDriverId: event.target.value }))}
                 style={{ ...inputStyle, minHeight: 46 }}
               >
-                {substituteDriverOptions.map((driver) => (
-                  <option key={`${driver.id}-${getDriverNumber(driver)}`} value={driver.id}>
-                    #{getDriverNumber(driver)} {getDriverDisplayName(driver)}
-                  </option>
-                ))}
+                {substituteDriverOptions.length === 0 ? (
+                  <option value="">No substitute drivers available</option>
+                ) : (
+                  substituteDriverOptions.map((driver) => (
+                    <option key={`${driver.id}-${getDriverDisplayName(driver)}`} value={driver.id}>
+                      {getDriverNumber(driver) ? `#${getDriverNumber(driver)} ` : ""}{getDriverDisplayName(driver)}
+                    </option>
+                  ))
+                )}
               </select>
 
               <label style={{ color: "#aab3c2", fontSize: 11, fontWeight: 1000, textTransform: "uppercase" }}>Assignment Type</label>
@@ -588,7 +600,17 @@ export default function OwnerHQPage({ drivers = [], teams = [], seasonName = "",
                 style={{ ...inputStyle, minHeight: 84, resize: "vertical" }}
               />
 
-              <button type="submit" style={{ ...mobileActionStyle, background: "#34c759", borderColor: "#34c759", color: "#07110b" }}>
+              <button
+                type="submit"
+                disabled={substituteDriverOptions.length === 0}
+                style={{
+                  ...mobileActionStyle,
+                  background: substituteDriverOptions.length === 0 ? "#374151" : "#34c759",
+                  borderColor: substituteDriverOptions.length === 0 ? "#4b5563" : "#34c759",
+                  color: substituteDriverOptions.length === 0 ? "#9ca3af" : "#07110b",
+                  cursor: substituteDriverOptions.length === 0 ? "not-allowed" : "pointer",
+                }}
+              >
                 Submit to Race Operations
               </button>
             </form>
