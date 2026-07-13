@@ -928,12 +928,11 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
   }, [selected.drivers, ownerDriverAssignmentForm.original_driver_id]);
 
   const ownerAssignmentSubstituteOptions = useMemo(() => {
-    const originalKey = String(selectedOwnerAssignmentOriginalDriver?.id || selectedOwnerAssignmentOriginalDriver?.number || "");
     return (drivers || [])
-      .filter((driver) => !driver.retired || String(driver?.driver_type || driver?.status || "").toLowerCase().includes("substitute"))
-      .filter((driver) => String(driver.id || driver.number || driver.name) !== originalKey)
-      .sort((a, b) => Number(a.number || 9999) - Number(b.number || 9999));
-  }, [drivers, selectedOwnerAssignmentOriginalDriver]);
+      .filter((driver) => !driver.retired)
+      .filter((driver) => driver.isSubstitute === true)
+      .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+  }, [drivers]);
 
   const developmentStartCounts = useMemo(() => {
     const counts = {};
@@ -3884,7 +3883,9 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
                       <select value={ownerDriverAssignmentForm.assigned_driver_id} onChange={(event) => updateOwnerDriverAssignmentForm("assigned_driver_id", event.target.value)} style={inputStyle}>
                         <option value="">Select substitute...</option>
                         {ownerAssignmentSubstituteOptions.map((driver) => (
-                          <option key={`${driver.id || driver.number || driver.name}-assigned`} value={driver.id || driver.number || driver.name}>{driver.number ? `#${driver.number} ` : ""}{driver.name} {driver.team ? `• ${getTeamFullName(driver.team)}` : "• Sub Only"}</option>
+                          <option key={`${driver.id || driver.number || driver.name}-assigned`} value={driver.id || driver.number || driver.name}>
+                            {driver.number ? `#${driver.number} ` : ""}{driver.name} • Substitute Driver
+                          </option>
                         ))}
                       </select>
                     </div>
