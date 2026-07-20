@@ -15914,11 +15914,6 @@ function AppleSeriesPortalLanding() {
   );
 }
 
-export default function App() {
-  useEffect(() => {
-    // syncCruiserNumberAndNumberOwnership();
-  }, []);
-
   const [seasons, setSeasons] = useState([]);
   const [openAppealCount, setOpenAppealCount] = useState(0);
   const [openStoryCount, setOpenStoryCount] = useState(0);
