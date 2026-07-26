@@ -1407,103 +1407,93 @@ function PreviousRaceWinnerAdminPanel({ drivers = [], raceHistory = [] }) {
   const [winnerMessage, setWinnerMessage] = useState("");
   const [winnerError, setWinnerError] = useState("");
 
-  const [cloudinaryReady, setCloudinaryReady] = useState(Boolean(window.cloudinary));
-  const imageWidgetRef = useRef(null);
-  const videoWidgetRef = useRef(null);
+  const [winnerMediaUploading, setWinnerMediaUploading] = useState("");
+  const imageFileInputRef = useRef(null);
+  const videoFileInputRef = useRef(null);
 
-  useEffect(() => {
-    if (window.cloudinary) {
-      setCloudinaryReady(true);
+  async function uploadWinnerMedia(file, mediaType) {
+    if (!file) return;
+
+    const isVideo = mediaType === "video";
+    const allowedImageTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    const allowedVideoTypes = ["video/mp4", "video/quicktime", "video/x-msvideo", "video/x-matroska", "video/webm"];
+    const allowedTypes = isVideo ? allowedVideoTypes : allowedImageTypes;
+    const maxFileSize = isVideo ? 200000000 : 15000000;
+
+    setWinnerMessage("");
+    setWinnerError("");
+
+    if (!allowedTypes.includes(file.type)) {
+      const message = isVideo
+        ? "Choose an MP4, MOV, AVI, MKV, or WebM video."
+        : "Choose a JPG, PNG, WebP, or GIF image.";
+      setWinnerError(message);
+      alert(message);
       return;
     }
 
-    const existing = document.getElementById("cloudinary-widget-script");
-    if (existing) {
-      existing.addEventListener("load", () => setCloudinaryReady(true));
+    if (file.size > maxFileSize) {
+      const message = isVideo
+        ? "Winner videos must be 200 MB or smaller."
+        : "Winner pictures must be 15 MB or smaller.";
+      setWinnerError(message);
+      alert(message);
       return;
     }
 
-    const script = document.createElement("script");
-    script.id = "cloudinary-widget-script";
-    script.src = "https://widget.cloudinary.com/v2.0/global/all.js";
-    script.async = true;
-    script.onload = () => setCloudinaryReady(true);
-    script.onerror = () => console.error("Cloudinary widget failed to load");
-    document.body.appendChild(script);
-  }, []);
+    setWinnerMediaUploading(mediaType);
 
-  useEffect(() => {
-    if (!cloudinaryReady || !window.cloudinary) return;
+    try {
+      const uploadData = new FormData();
+      uploadData.append("file", file);
+      // Cloudinary requires the snake_case field in the unsigned upload request.
+      uploadData.append("upload_preset", "car_uploads");
+      uploadData.append("folder", "previous-race-winners");
 
-    imageWidgetRef.current = window.cloudinary.createUploadWidget(
-      {
-        cloudName: "dpu05oykz",
-        uploadPreset: "car_uploads",
-        resourceType: "image",
-        folder: "previous-race-winners",
-        maxFileSize: 15000000,
-        clientAllowedFormats: ["jpg", "jpeg", "png", "webp", "gif"],
-      },
-      (error, result) => {
-        if (error) {
-          console.error("Previous race winner image upload failed:", error);
-          alert("Image upload failed: " + (error.message || "Unknown error"));
-          return;
+      const resourceType = isVideo ? "video" : "image";
+      const response = await fetch(
+        `https://api.cloudinary.com/v1_1/dpu05oykz/${resourceType}/upload`,
+        {
+          method: "POST",
+          body: uploadData,
         }
+      );
 
-        if (result?.event === "success") {
-          setForm((current) => ({
-            ...current,
-            mediaUrl: result.info.secure_url,
-            mediaType: "image",
-          }));
-          alert("✅ Winner picture uploaded.");
-        }
+      const result = await response.json().catch(() => ({}));
+
+      if (!response.ok || !result?.secure_url) {
+        const cloudinaryMessage =
+          result?.error?.message ||
+          result?.message ||
+          `${response.status} ${response.statusText}`.trim() ||
+          "Cloudinary rejected the upload.";
+        throw new Error(cloudinaryMessage);
       }
-    );
 
-    videoWidgetRef.current = window.cloudinary.createUploadWidget(
-      {
-        cloudName: "dpu05oykz",
-        uploadPreset: "car_uploads",
-        resourceType: "auto",
-        folder: "previous-race-winners",
-        maxFileSize: 200000000,
-        clientAllowedFormats: ["mp4", "mov", "avi", "mkv", "webm"],
-      },
-      (error, result) => {
-        if (error) {
-          console.error("Previous race winner video upload failed:", error);
-          alert("Video upload failed: " + (error.message || "Unknown error"));
-          return;
-        }
-
-        if (result?.event === "success") {
-          setForm((current) => ({
-            ...current,
-            mediaUrl: result.info.secure_url,
-            mediaType: "video",
-          }));
-          alert("✅ Winner video uploaded.");
-        }
-      }
-    );
-  }, [cloudinaryReady]);
+      setForm((current) => ({
+        ...current,
+        mediaUrl: result.secure_url,
+        mediaType,
+      }));
+      setWinnerMessage(isVideo ? "Winner video uploaded. Save Winner to publish it." : "Winner picture uploaded. Save Winner to publish it.");
+    } catch (error) {
+      console.error(`Previous race winner ${mediaType} upload failed:`, error);
+      const message = error?.message || "Unknown Cloudinary upload error.";
+      setWinnerError(`${isVideo ? "Video" : "Image"} upload failed: ${message}`);
+      alert(`${isVideo ? "Video" : "Image"} upload failed: ${message}`);
+    } finally {
+      setWinnerMediaUploading("");
+      if (imageFileInputRef.current) imageFileInputRef.current.value = "";
+      if (videoFileInputRef.current) videoFileInputRef.current.value = "";
+    }
+  }
 
   function openWinnerImageUploader() {
-    if (!cloudinaryReady || !imageWidgetRef.current) {
-      alert("Uploader is still loading. Try again in a moment.");
-      return;
-    }
-    imageWidgetRef.current.open();
+    imageFileInputRef.current?.click();
   }
 
   function openWinnerVideoUploader() {
-    if (!cloudinaryReady || !videoWidgetRef.current) {
-      alert("Uploader is still loading. Try again in a moment.");
-      return;
-    }
-    videoWidgetRef.current.open();
+    videoFileInputRef.current?.click();
   }
 
 
@@ -1818,12 +1808,26 @@ function PreviousRaceWinnerAdminPanel({ drivers = [], raceHistory = [] }) {
       <div style={{ display: "grid", gridTemplateColumns: isWinnerMobile ? "1fr" : "0.9fr 1.1fr", gap: 14, marginTop: 16 }}>
         <div style={appleFormCardStyle}>
           <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.3, textTransform: "uppercase", color: "#6b7280", marginBottom: 10 }}>Winner Media</div>
+          <input
+            ref={imageFileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            onChange={(event) => uploadWinnerMedia(event.target.files?.[0], "image")}
+            style={{ display: "none" }}
+          />
+          <input
+            ref={videoFileInputRef}
+            type="file"
+            accept="video/mp4,video/quicktime,video/x-msvideo,video/x-matroska,video/webm"
+            onChange={(event) => uploadWinnerMedia(event.target.files?.[0], "video")}
+            style={{ display: "none" }}
+          />
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <button type="button" onClick={openWinnerImageUploader} style={{ ...secondaryButtonStyle, background: "#f3f4f6", color: "#111827", border: "1px solid #e5e7eb", borderRadius: 999, opacity: cloudinaryReady ? 1 : 0.6 }}>
-              {cloudinaryReady ? "Upload Picture" : "Loading Uploader"}
+            <button type="button" onClick={openWinnerImageUploader} disabled={Boolean(winnerMediaUploading)} style={{ ...secondaryButtonStyle, background: "#f3f4f6", color: "#111827", border: "1px solid #e5e7eb", borderRadius: 999, opacity: winnerMediaUploading ? 0.6 : 1 }}>
+              {winnerMediaUploading === "image" ? "Uploading Picture..." : "Upload Picture"}
             </button>
-            <button type="button" onClick={openWinnerVideoUploader} style={{ ...secondaryButtonStyle, background: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: 999, opacity: cloudinaryReady ? 1 : 0.6 }}>
-              {cloudinaryReady ? "Upload Video" : "Loading Uploader"}
+            <button type="button" onClick={openWinnerVideoUploader} disabled={Boolean(winnerMediaUploading)} style={{ ...secondaryButtonStyle, background: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: 999, opacity: winnerMediaUploading ? 0.6 : 1 }}>
+              {winnerMediaUploading === "video" ? "Uploading Video..." : "Upload Video"}
             </button>
             {form.mediaUrl && (
               <button type="button" onClick={() => setForm((current) => ({ ...current, mediaUrl: "", mediaType: "" }))} style={{ ...dangerButtonStyle, borderRadius: 999 }}>
