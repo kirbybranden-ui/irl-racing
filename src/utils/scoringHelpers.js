@@ -22,6 +22,74 @@ export function pointsForPosition(position, table) {
   return Number(table[numericPosition - 1] || 0);
 }
 
+export function getStagePoints(position) {
+  return pointsForPosition(position, STAGE_POINTS);
+}
+
+export function getOffensePenaltyPoints(offense) {
+  if (!offense) return 0;
+
+  if (typeof offense === "number") {
+    return Math.max(0, offense);
+  }
+
+  if (typeof offense === "object") {
+    return Math.max(
+      0,
+      Number(
+        offense.penaltyPoints ??
+        offense.penalty_points ??
+        offense.points ??
+        offense.value ??
+        0
+      ) || 0
+    );
+  }
+
+  const normalized = String(offense).trim().toLowerCase();
+
+  const penalties = {
+    warning: 0,
+    "verbal warning": 0,
+    minor: 5,
+    moderate: 10,
+    major: 25,
+    severe: 50,
+    disqualification: 55,
+    dq: 55,
+  };
+
+  return penalties[normalized] ?? 0;
+}
+
+export function countPriorOffenses(offenseLog, driverId, currentRaceName = "") {
+  if (!Array.isArray(offenseLog) || !driverId) {
+    return 0;
+  }
+
+  return offenseLog.filter((offense) => {
+    const offenseDriverId =
+      offense.driverId ??
+      offense.driver_id ??
+      offense.driver?.id;
+
+    const offenseRaceName =
+      offense.raceName ??
+      offense.race_name ??
+      offense.race ??
+      "";
+
+    const sameDriver =
+      String(offenseDriverId) === String(driverId);
+
+    const isDifferentRace =
+      !currentRaceName ||
+      String(offenseRaceName) !== String(currentRaceName);
+
+    return sameDriver && isDifferentRace;
+  }).length;
+}
+
 export function calculateRacePoints({
   finishPosition,
   stage1Position,
