@@ -1407,50 +1407,44 @@ function PreviousRaceWinnerAdminPanel({ drivers = [], raceHistory = [] }) {
   const [winnerMessage, setWinnerMessage] = useState("");
   const [winnerError, setWinnerError] = useState("");
 
-  const [winnerMediaUploading, setWinnerMediaUploading] = useState("");
-  const imageFileInputRef = useRef(null);
-  const videoFileInputRef = useRef(null);
+  const [winnerMediaUploading, setWinnerMediaUploading] = useState(false);
+  const winnerImageInputRef = useRef(null);
+  const winnerVideoInputRef = useRef(null);
 
   async function uploadWinnerMedia(file, mediaType) {
     if (!file) return;
 
-    const isVideo = mediaType === "video";
+    const isImage = mediaType === "image";
+    const maxSize = isImage ? 15_000_000 : 200_000_000;
     const allowedImageTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
-    const allowedVideoTypes = ["video/mp4", "video/quicktime", "video/x-msvideo", "video/x-matroska", "video/webm"];
-    const allowedTypes = isVideo ? allowedVideoTypes : allowedImageTypes;
-    const maxFileSize = isVideo ? 200000000 : 15000000;
-
-    setWinnerMessage("");
-    setWinnerError("");
+    const allowedVideoTypes = ["video/mp4", "video/quicktime", "video/webm", "video/x-msvideo"];
+    const allowedTypes = isImage ? allowedImageTypes : allowedVideoTypes;
 
     if (!allowedTypes.includes(file.type)) {
-      const message = isVideo
-        ? "Choose an MP4, MOV, AVI, MKV, or WebM video."
-        : "Choose a JPG, PNG, WebP, or GIF image.";
-      setWinnerError(message);
-      alert(message);
+      alert(isImage
+        ? "Choose a JPG, PNG, WebP, or GIF image."
+        : "Choose an MP4, MOV, WebM, or AVI video.");
       return;
     }
 
-    if (file.size > maxFileSize) {
-      const message = isVideo
-        ? "Winner videos must be 200 MB or smaller."
-        : "Winner pictures must be 15 MB or smaller.";
-      setWinnerError(message);
-      alert(message);
+    if (file.size > maxSize) {
+      alert(isImage
+        ? "Winner pictures must be 15 MB or smaller."
+        : "Winner videos must be 200 MB or smaller.");
       return;
     }
 
-    setWinnerMediaUploading(mediaType);
+    setWinnerMediaUploading(true);
+    setWinnerError("");
+    setWinnerMessage("");
 
     try {
       const uploadData = new FormData();
       uploadData.append("file", file);
-      // Cloudinary requires the snake_case field in the unsigned upload request.
       uploadData.append("upload_preset", "car_uploads");
       uploadData.append("folder", "previous-race-winners");
 
-      const resourceType = isVideo ? "video" : "image";
+      const resourceType = isImage ? "image" : "video";
       const response = await fetch(
         `https://api.cloudinary.com/v1_1/dpu05oykz/${resourceType}/upload`,
         {
@@ -1465,8 +1459,7 @@ function PreviousRaceWinnerAdminPanel({ drivers = [], raceHistory = [] }) {
         const cloudinaryMessage =
           result?.error?.message ||
           result?.message ||
-          `${response.status} ${response.statusText}`.trim() ||
-          "Cloudinary rejected the upload.";
+          `Cloudinary upload failed with status ${response.status}.`;
         throw new Error(cloudinaryMessage);
       }
 
@@ -1475,25 +1468,25 @@ function PreviousRaceWinnerAdminPanel({ drivers = [], raceHistory = [] }) {
         mediaUrl: result.secure_url,
         mediaType,
       }));
-      setWinnerMessage(isVideo ? "Winner video uploaded. Save Winner to publish it." : "Winner picture uploaded. Save Winner to publish it.");
+      setWinnerMessage(`${isImage ? "Winner picture" : "Winner video"} uploaded. Press Save Winner to publish it.`);
     } catch (error) {
       console.error(`Previous race winner ${mediaType} upload failed:`, error);
-      const message = error?.message || "Unknown Cloudinary upload error.";
-      setWinnerError(`${isVideo ? "Video" : "Image"} upload failed: ${message}`);
-      alert(`${isVideo ? "Video" : "Image"} upload failed: ${message}`);
+      const message = error?.message || "Unknown upload error.";
+      setWinnerError(`Media upload failed: ${message}`);
+      alert(`${isImage ? "Image" : "Video"} upload failed: ${message}`);
     } finally {
-      setWinnerMediaUploading("");
-      if (imageFileInputRef.current) imageFileInputRef.current.value = "";
-      if (videoFileInputRef.current) videoFileInputRef.current.value = "";
+      setWinnerMediaUploading(false);
+      if (winnerImageInputRef.current) winnerImageInputRef.current.value = "";
+      if (winnerVideoInputRef.current) winnerVideoInputRef.current.value = "";
     }
   }
 
   function openWinnerImageUploader() {
-    imageFileInputRef.current?.click();
+    if (!winnerMediaUploading) winnerImageInputRef.current?.click();
   }
 
   function openWinnerVideoUploader() {
-    videoFileInputRef.current?.click();
+    if (!winnerMediaUploading) winnerVideoInputRef.current?.click();
   }
 
 
@@ -1809,25 +1802,25 @@ function PreviousRaceWinnerAdminPanel({ drivers = [], raceHistory = [] }) {
         <div style={appleFormCardStyle}>
           <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.3, textTransform: "uppercase", color: "#6b7280", marginBottom: 10 }}>Winner Media</div>
           <input
-            ref={imageFileInputRef}
+            ref={winnerImageInputRef}
             type="file"
             accept="image/jpeg,image/png,image/webp,image/gif"
-            onChange={(event) => uploadWinnerMedia(event.target.files?.[0], "image")}
             style={{ display: "none" }}
+            onChange={(event) => uploadWinnerMedia(event.target.files?.[0], "image")}
           />
           <input
-            ref={videoFileInputRef}
+            ref={winnerVideoInputRef}
             type="file"
-            accept="video/mp4,video/quicktime,video/x-msvideo,video/x-matroska,video/webm"
-            onChange={(event) => uploadWinnerMedia(event.target.files?.[0], "video")}
+            accept="video/mp4,video/quicktime,video/webm,video/x-msvideo"
             style={{ display: "none" }}
+            onChange={(event) => uploadWinnerMedia(event.target.files?.[0], "video")}
           />
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <button type="button" onClick={openWinnerImageUploader} disabled={Boolean(winnerMediaUploading)} style={{ ...secondaryButtonStyle, background: "#f3f4f6", color: "#111827", border: "1px solid #e5e7eb", borderRadius: 999, opacity: winnerMediaUploading ? 0.6 : 1 }}>
-              {winnerMediaUploading === "image" ? "Uploading Picture..." : "Upload Picture"}
+            <button type="button" disabled={winnerMediaUploading} onClick={openWinnerImageUploader} style={{ ...secondaryButtonStyle, background: "#f3f4f6", color: "#111827", border: "1px solid #e5e7eb", borderRadius: 999, opacity: winnerMediaUploading ? 0.6 : 1 }}>
+              {winnerMediaUploading ? "Uploading..." : "Upload Picture"}
             </button>
-            <button type="button" onClick={openWinnerVideoUploader} disabled={Boolean(winnerMediaUploading)} style={{ ...secondaryButtonStyle, background: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: 999, opacity: winnerMediaUploading ? 0.6 : 1 }}>
-              {winnerMediaUploading === "video" ? "Uploading Video..." : "Upload Video"}
+            <button type="button" disabled={winnerMediaUploading} onClick={openWinnerVideoUploader} style={{ ...secondaryButtonStyle, background: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: 999, opacity: winnerMediaUploading ? 0.6 : 1 }}>
+              {winnerMediaUploading ? "Uploading..." : "Upload Video"}
             </button>
             {form.mediaUrl && (
               <button type="button" onClick={() => setForm((current) => ({ ...current, mediaUrl: "", mediaType: "" }))} style={{ ...dangerButtonStyle, borderRadius: 999 }}>
