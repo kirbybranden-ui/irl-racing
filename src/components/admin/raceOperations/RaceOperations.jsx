@@ -505,7 +505,27 @@ export default function RaceOperations({
 
                   <div style={{ display: "flex", justifyContent: isAdminMobile ? "flex-start" : "flex-end", gap: 8, flexWrap: "wrap", marginTop: isAdminMobile ? 12 : 0 }}>
                     <button type="button" onClick={(e) => { e.preventDefault(); downloadRaceHistoryCsv([race], race.raceName || "Race"); }} style={{ ...adminSecondaryButtonStyle, borderRadius: 16, padding: "9px 12px" }}>Download</button>
-                    <button type="button" onClick={(e) => { e.preventDefault(); handleEditRace(race); }} style={{ ...adminSecondaryButtonStyle, borderRadius: 16, padding: "9px 12px" }}>Edit</button>
+                    <button
+                      type="button"
+                      onClick={async (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+
+                        await Promise.resolve(handleEditRace(race));
+                        setRaceOperationsTab("input");
+
+                        window.requestAnimationFrame(() => {
+                          window.scrollTo({ top: 0, behavior: "smooth" });
+                        });
+                      }}
+                      style={{
+                        ...adminSecondaryButtonStyle,
+                        borderRadius: 16,
+                        padding: "9px 12px",
+                      }}
+                    >
+                      Edit
+                    </button>
                     <button type="button" onClick={(e) => { e.preventDefault(); handleDeleteRace(race.raceName); }} style={{ ...adminDangerButtonStyle, borderRadius: 16, padding: "9px 12px" }}>Remove</button>
                   </div>
                 </summary>
