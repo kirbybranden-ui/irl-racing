@@ -1608,7 +1608,14 @@ export default function AdminPortal({
                 <div style={prCardStyle}>
                   <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Board Winner Spotlight</div>
                   <h2 style={{ margin: "3px 0 14px", fontSize: 28, letterSpacing: -0.7 }}>Previous Race Winner Post</h2>
-                  <PreviousRaceWinnerAdminPanel drivers={visibleDrivers} raceHistory={raceHistory} />
+                  <PreviousRaceWinnerAdminPanel
+                    drivers={visibleDrivers}
+                    raceHistory={raceHistory}
+                    supabase={supabase}
+                    activeSeason={activeSeason}
+                    activeSeasonId={activeSeasonId}
+                    latestWinner={latestWinner}
+                  />
                 </div>
               )}
 
