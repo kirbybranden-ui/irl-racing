@@ -27,9 +27,6 @@ import AdminVotingPage from "./pages/AdminVotingPage";
 import DriverFeedbackPage from "./pages/DriverFeedbackPage";
 import OwnerHQPage from "./pages/OwnerHQPage";
 import AdminPortal from "./pages/AdminPortal";
-import PermissionsCenter from "./pages/PermissionsCenter";
-import CommunityEventsPage from "./pages/CommunityEventsPage";
-import CommunityEventDetailPage from "./pages/CommunityEventDetailPage";
 import LeagueMessageCenter from "./pages/LeagueMessageCenter";
 import InSeasonTournamentPage from "./pages/InSeasonTournamentPage";
 import DriverMarketPage from "./pages/DriverMarketPage";
@@ -4269,26 +4266,6 @@ function MobileLeagueApp({
   if (path === "/tournament" || path === "/in-season-tournament" || path === "/in-season-bracket" || path === "/bracket") {
     return dataFrame("Tournament", "standings", <InSeasonTournamentPage drivers={drivers} raceHistory={raceHistory} />);
   }
-  if (path === "/community-events") {
-    return dataFrame("Community Events", "more", (
-      <CommunityEventsPage
-        supabase={supabase}
-        drivers={drivers}
-        currentSession={mobileSession}
-      />
-    ));
-  }
-  if (path.startsWith("/community-events/")) {
-    const eventId = decodeURIComponent(path.split("/")[2] || "");
-    return dataFrame("Community Event", "more", (
-      <CommunityEventDetailPage
-        supabase={supabase}
-        eventId={eventId}
-        drivers={drivers}
-        currentSession={mobileSession}
-      />
-    ));
-  }
   if (path === "/chat") return dataFrame("League Chat", "more", isGuestSession ? <MobileGuestLockedCard title="League Chat Requires Driver Login" go={go} /> : <LeagueChatPage drivers={drivers} />);
   if (path === "/message-center") return frame("Messages", "more", <LeagueMessageCenter drivers={drivers} session={mobileSession} mobile go={go} />);
   if (path === "/discord") return dataFrame("Discord", "more", <DiscordPage />);
@@ -5553,7 +5530,6 @@ function MobileLayout({ title, children, go, active, session = null, onLogout = 
       { icon: "🤝", label: "Team Interest", href: `/driver/${driverNumber}/team-interest` },
       { icon: "🏁", label: "Start & Park", href: `/driver/${driverNumber}/start-park` },
       { icon: "🔄", label: "Transfer Portal", href: `/driver/${driverNumber}/portal` },
-      { icon: "🌐", label: "Community Events", href: "/community-events" },
       { icon: "⚙️", label: "Settings", href: `/driver/${driverNumber}/settings` },
     ] : []),
     { icon: "🏆", label: "In-Season Bracket", href: "/bracket" },
@@ -5805,7 +5781,6 @@ function MobileDriverProfilePolished({ driver, driverNumber, raceHistory = [], t
         <MobileAction label="🎤 Interviews" onClick={() => go("/interviews")} />
         <MobileAction label="🎨 Paint Vote" onClick={() => go("/paint-scheme-vote")} />
         <MobileAction label="💬 Messages" onClick={() => go("/message-center")} secondary />
-        <MobileAction label="🌐 Community Events" onClick={() => go("/community-events")} secondary />
         <MobileAction label="📺 Streams" onClick={() => go("/streams")} secondary />
       </div>
 
@@ -6059,7 +6034,6 @@ function LeagueStatusWidget({ tracks = [], seasonName = "", mobile = false }) {
 
 
 function AppleSeriesPortalLanding() {
-  const [showV3Details, setShowV3Details] = useState(false);
   const [isReportingIssue, setIsReportingIssue] = useState(false);
   const [installPromptEvent, setInstallPromptEvent] = useState(null);
   const [isStandaloneApp, setIsStandaloneApp] = useState(false);
@@ -6178,38 +6152,14 @@ function AppleSeriesPortalLanding() {
       fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif",
     }}>
       <div style={{ maxWidth: 1180, margin: "0 auto" }}>
-        <header style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 18,
-          marginBottom: 26,
-          flexWrap: "wrap",
-        }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <div style={{
-              width: 54,
-              height: 54,
-              borderRadius: 18,
-              background: "linear-gradient(135deg, rgba(255,255,255,0.95), rgba(255,255,255,0.55))",
-              boxShadow: "0 18px 42px rgba(0,0,0,0.14), inset 0 0 0 1px rgba(255,255,255,0.7)",
-              display: "grid",
-              placeItems: "center",
-              overflow: "hidden",
-            }}>
-              <img src={logo} alt="Budweiser Motorsports" style={{ width: "82%", height: "82%", objectFit: "contain" }} />
-            </div>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 900, letterSpacing: "0.16em", textTransform: "uppercase", color: "rgba(29,29,31,0.58)" }}>
-                Budweiser Motorsports
-              </div>
-              <h1 style={{ margin: "4px 0 0", fontSize: "clamp(30px, 5vw, 58px)", lineHeight: 0.96, letterSpacing: "-0.055em" }}>
-                Choose Your Series
-              </h1>
-            </div>
-          </div>
-
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <header style={{ marginBottom: 24 }}>
+          <div style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            gap: 10,
+            flexWrap: "wrap",
+            marginBottom: 22,
+          }}>
             {!isStandaloneApp && (
               <button
                 type="button"
@@ -6267,177 +6217,41 @@ function AppleSeriesPortalLanding() {
               Admin Portal
             </button>
           </div>
-        </header>
 
-        <section style={{
-          marginBottom: 18,
-          borderRadius: 30,
-          padding: "clamp(18px, 3vw, 28px)",
-          background: "linear-gradient(135deg, rgba(255,255,255,0.86), rgba(255,255,255,0.58))",
-          border: "1px solid rgba(255,255,255,0.78)",
-          boxShadow: "0 24px 70px rgba(0,0,0,0.10)",
-          backdropFilter: "blur(22px)",
-          WebkitBackdropFilter: "blur(22px)",
-          overflow: "hidden",
-          position: "relative",
-        }}>
-          <div style={{
-            position: "absolute",
-            inset: "-40% -20% auto auto",
-            width: 320,
-            height: 320,
-            borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(0,122,255,0.18), rgba(255,59,48,0.08), transparent 68%)",
-            pointerEvents: "none",
-          }} />
-
-          <div style={{ position: "relative", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 18, alignItems: "stretch" }}>
-            <div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
-                <span style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 7,
-                  borderRadius: 999,
-                  padding: "8px 11px",
-                  background: "rgba(0,122,255,0.12)",
-                  color: "#0057d9",
-                  fontWeight: 1000,
-                  fontSize: 12,
-                  letterSpacing: "0.08em",
-                  textTransform: "uppercase",
-                }}>Version 3</span>
-                <span style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 7,
-                  borderRadius: 999,
-                  padding: "8px 11px",
-                  background: "rgba(52,199,89,0.12)",
-                  color: "#147d35",
-                  fontWeight: 1000,
-                  fontSize: 12,
-                  letterSpacing: "0.08em",
-                  textTransform: "uppercase",
-                }}>BRL Rebrand</span>
-                <span style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 7,
-                  borderRadius: 999,
-                  padding: "8px 11px",
-                  background: "rgba(255,149,0,0.14)",
-                  color: "#9a5a00",
-                  fontWeight: 1000,
-                  fontSize: 12,
-                  letterSpacing: "0.08em",
-                  textTransform: "uppercase",
-                }}>Expected Downtime: ~5 Days</span>
-              </div>
-
-              <h2 style={{ margin: 0, fontSize: "clamp(27px, 4vw, 46px)", lineHeight: 0.98, letterSpacing: "-0.055em", color: "#1d1d1f" }}>
-                The next generation of Budweiser Racing League is coming.
-              </h2>
-              <p style={{ margin: "14px 0 0", maxWidth: 760, color: "rgba(29,29,31,0.72)", fontSize: "clamp(14px, 2vw, 17px)", lineHeight: 1.55, fontWeight: 750 }}>
-                Budweiser Cup League will transition to <strong>Budweiser Racing League</strong> with Version 3, a complete platform redesign built to support Cup, Xfinity, Truck, and ARCA under one seamless league experience.
-              </p>
-
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(175px, 1fr))", gap: 10, marginTop: 18 }}>
-                {[
-                  ["Unified Login", "One access point across every series."],
-                  ["Enhanced View", "Apple-inspired visuals and easier navigation."],
-                  ["Season 2 Contracts", "More stability for owners and drivers."],
-                  ["ARCA Ready", "Fully functional before its season begins."],
-                ].map(([title, text]) => (
-                  <div key={title} style={{
-                    borderRadius: 20,
-                    padding: 14,
-                    background: "rgba(255,255,255,0.64)",
-                    border: "1px solid rgba(0,0,0,0.06)",
-                    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.75)",
-                  }}>
-                    <div style={{ color: "#1d1d1f", fontSize: 13, fontWeight: 1000 }}>{title}</div>
-                    <div style={{ marginTop: 5, color: "rgba(29,29,31,0.62)", fontSize: 12.5, fontWeight: 750, lineHeight: 1.35 }}>{text}</div>
-                  </div>
-                ))}
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setShowV3Details((current) => !current)}
-                style={{
-                  marginTop: 18,
-                  border: "1px solid rgba(0,122,255,0.20)",
-                  borderRadius: 999,
-                  padding: "11px 15px",
-                  background: "rgba(0,122,255,0.10)",
-                  color: "#0057d9",
-                  fontWeight: 1000,
-                  cursor: "pointer",
-                  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.72)",
-                }}
-              >
-                {showV3Details ? "Hide Version 3 Details" : "Read More About Version 3"}
-              </button>
-
-              {showV3Details && (
-                <div style={{
-                  marginTop: 16,
-                  borderRadius: 24,
-                  padding: "16px",
-                  background: "rgba(255,255,255,0.72)",
-                  border: "1px solid rgba(0,0,0,0.06)",
-                  boxShadow: "0 16px 34px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.78)",
-                }}>
-                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(29,29,31,0.54)", marginBottom: 8 }}>Full Update Preview</div>
-                  <h3 style={{ margin: "0 0 10px", fontSize: 24, lineHeight: 1.05, letterSpacing: "-0.04em" }}>What Version 3 is designed to accomplish</h3>
-                  <div style={{ display: "grid", gap: 12, color: "rgba(29,29,31,0.72)", fontWeight: 760, lineHeight: 1.5, fontSize: 14 }}>
-                    <p style={{ margin: 0 }}>
-                      Version 3 is more than a visual refresh. The league is being rebuilt into the <strong>Budweiser Racing League</strong>, a unified platform designed to support Cup, Xfinity, Truck, and ARCA from one connected home.
-                    </p>
-                    <p style={{ margin: 0 }}>
-                      The redesign will focus on a cleaner Apple-inspired view, easier navigation, improved mobile support, and a seamless login experience that connects every series without forcing drivers or owners to jump between separate systems.
-                    </p>
-                    <p style={{ margin: 0 }}>
-                      Season 2 will also include a contract and team-ownership revamp. The goal is to give owners and drivers more stability through clearer logistical requirements, smaller and more controlled budgets, stronger fund management, and a better foundation for long-term team planning.
-                    </p>
-                    <p style={{ margin: 0 }}>
-                      The ARCA Series will be fully functional before the start of its season, including driver and owner management, contracts, race operations, HR tools, PR tools, voting, standings, race history, and team/driver pages under the same league guidelines.
-                    </p>
-                    <p style={{ margin: 0 }}>
-                      To complete the Version 3 migration and rebrand, the platform is expected to have approximately <strong>five days of scheduled downtime</strong> while data is secured, moved, tested, and deployed.
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <aside style={{
-              borderRadius: 26,
-              padding: 18,
-              background: "linear-gradient(180deg, rgba(29,29,31,0.92), rgba(44,44,46,0.86))",
-              color: "white",
-              boxShadow: "0 24px 55px rgba(0,0,0,0.18)",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "space-between",
-              gap: 18,
+          <div style={{ textAlign: "center", padding: "10px 0 8px" }}>
+            <img
+              src={logo}
+              alt="Budweiser Racing League"
+              style={{
+                width: "min(620px, 88vw)",
+                maxHeight: 260,
+                objectFit: "contain",
+                display: "block",
+                margin: "0 auto",
+                filter: "drop-shadow(0 22px 38px rgba(0,0,0,0.16))",
+              }}
+            />
+            <h1 style={{
+              margin: "18px 0 4px",
+              fontSize: "clamp(34px, 6vw, 68px)",
+              lineHeight: 0.98,
+              letterSpacing: "-0.055em",
+              color: "#1d1d1f",
             }}>
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: "0.12em", textTransform: "uppercase", opacity: 0.62 }}>Platform Upgrade</div>
-                <div style={{ marginTop: 8, fontSize: 30, fontWeight: 1000, letterSpacing: "-0.045em", lineHeight: 1 }}>Version 3</div>
-                <p style={{ margin: "10px 0 0", color: "rgba(255,255,255,0.72)", fontSize: 13.5, lineHeight: 1.45, fontWeight: 750 }}>
-                  The migration will include redesigned contracts, smaller budgets, clearer logistical requirements, and a stronger foundation for league funds.
-                </p>
-              </div>
-              <div style={{ display: "grid", gap: 8 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: 13, fontWeight: 900 }}><span style={{ opacity: 0.65 }}>Downtime</span><span>~5 Days</span></div>
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: 13, fontWeight: 900 }}><span style={{ opacity: 0.65 }}>New Identity</span><span>BRL</span></div>
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: 13, fontWeight: 900 }}><span style={{ opacity: 0.65 }}>ARCA Launch</span><span>Fully Supported</span></div>
-              </div>
-            </aside>
+              Choose Your Series
+            </h1>
+            <p style={{
+              margin: "10px auto 0",
+              color: "rgba(29,29,31,0.60)",
+              fontSize: "clamp(13px, 2vw, 16px)",
+              fontWeight: 800,
+              letterSpacing: "0.04em",
+              textTransform: "uppercase",
+            }}>
+              Budweiser Racing League
+            </p>
           </div>
-        </section>
+        </header>
 
         <div style={{
           borderRadius: 30,
@@ -6496,47 +6310,35 @@ function AppleSeriesPortalLanding() {
               </button>
             ))}
           </div>
-        </div>
 
-        <section style={{
-          marginTop: 18,
-          borderRadius: 28,
-          padding: "clamp(20px, 3vw, 30px)",
-          background: "linear-gradient(135deg, rgba(17,24,39,0.96), rgba(30,41,59,0.92))",
-          border: "1px solid rgba(255,255,255,0.10)",
-          color: "white",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 18,
-          flexWrap: "wrap",
-          boxShadow: "0 24px 60px rgba(0,0,0,0.16)",
-        }}>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: "0.13em", textTransform: "uppercase", color: "#d4af37" }}>Community Racing</div>
-            <h2 style={{ margin: "7px 0 6px", fontSize: "clamp(25px, 4vw, 38px)", letterSpacing: "-0.04em" }}>Community Events</h2>
-            <div style={{ color: "rgba(255,255,255,0.72)", fontWeight: 750, lineHeight: 1.5, maxWidth: 680 }}>
-              Browse driver-hosted tournaments, join an event, or create a separate racing series without changing official BRL standings.
-            </div>
-          </div>
           <button
             type="button"
-            onClick={() => (window.location.pathname = "/community-events")}
+            onClick={() => openSeries("/community-events")}
+            aria-label="Open Community Events"
             style={{
+              width: "100%",
+              marginTop: 16,
+              minHeight: 92,
               border: 0,
-              borderRadius: 999,
-              padding: "13px 20px",
-              background: "linear-gradient(180deg, #ffd60a 0%, #ff9f0a 100%)",
-              color: "#111827",
-              fontWeight: 1000,
+              borderRadius: 24,
+              padding: "18px 24px",
               cursor: "pointer",
-              boxShadow: "0 14px 32px rgba(255,159,10,0.22)",
-              whiteSpace: "nowrap",
+              background: "linear-gradient(135deg, #1d1d1f 0%, #3a3a3c 60%, #c8102e 140%)",
+              color: "white",
+              boxShadow: "0 18px 42px rgba(0,0,0,0.16)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 14,
+              fontSize: "clamp(20px, 3vw, 30px)",
+              fontWeight: 1000,
+              letterSpacing: "-0.025em",
             }}
           >
-            View Events →
+            <span style={{ fontSize: "1.15em" }}>🏁</span>
+            Community Events
           </button>
-        </section>
+        </div>
       </div>
 
       <ReportIssueModal
@@ -8869,7 +8671,7 @@ export default function App() {
     );
   }
 
-  const adminProtectedPaths = new Set(["/admin", "/admin/permissions", "/appeals", "/admin/stories", "/stories", "/admin/live-control", "/admin/car-gallery", "/admin/arca-car-gallery", "/admin/interviews", "/admin/votes"]);
+  const adminProtectedPaths = new Set(["/admin", "/appeals", "/admin/stories", "/stories", "/admin/live-control", "/admin/car-gallery", "/admin/arca-car-gallery", "/admin/interviews", "/admin/votes"]);
   const isAdminProtectedPath = adminProtectedPaths.has(path);
   const isAdminAuthenticated = sessionStorage.getItem("bcl-admin-auth") === "true";
   const logoutAdmin = () => {
@@ -8987,45 +8789,6 @@ export default function App() {
   }
   // Loading gate — all routes below this need Supabase data
   if (!isHydrated) return <div style={appShellStyle}><div style={pageContainerStyle}><div style={sectionCardStyle}>Loading league data...</div></div></div>;
-
-  // Community-created tournaments and events. These use isolated rosters, schedules, results, and standings.
-  if (path === "/community-events") {
-    return (
-      <CommunityEventsPage
-        supabase={supabase}
-        drivers={visibleDrivers}
-        currentSession={getLeagueSession()}
-      />
-    );
-  }
-
-  if (path.startsWith("/community-events/")) {
-    const eventId = decodeURIComponent(rawPath.split("/")[2] || "");
-    return (
-      <CommunityEventDetailPage
-        supabase={supabase}
-        eventId={eventId}
-        drivers={visibleDrivers}
-        currentSession={getLeagueSession()}
-      />
-    );
-  }
-
-  // Identity & Access Management
-  if (path === "/admin/permissions") {
-    return (
-      <PermissionsCenter
-        supabase={supabase}
-        drivers={visibleDrivers}
-        teams={(ownerPortalTeams || []).map((team) => ({
-          id: team,
-          code: team,
-          name: getTeamFullName(team),
-        }))}
-        currentSession={getLeagueSession()}
-      />
-    );
-  }
 
   // Development series pages. These do not remove any existing Cup routes.
   // ARCA interviews
@@ -9216,7 +8979,6 @@ export default function App() {
   }
   return (
     <AdminPortal
-      currentSession={getLeagueSession()}
       teamPrestigeRows={teamPrestigeRows}
       teamPrestigeStatus={teamPrestigeStatus}
       teamPrestigeSaving={teamPrestigeSaving}
