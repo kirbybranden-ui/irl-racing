@@ -1,5 +1,5 @@
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { supabase as appSupabase } from "../lib/supabase";
 
 const TABS = ["Users", "Roles", "Permission Matrix", "Audit Log"];
@@ -261,6 +261,11 @@ function PermissionsCenter({
   currentSession = null,
 }) {
   const supabase = providedSupabase || appSupabase;
+  // Keep the initial driver fallback stable. App.jsx refreshes league state periodically,
+  // which can create a new drivers array even when its contents have not changed.
+  // Using that array as an effect dependency caused this page to enter its full-screen
+  // loading state repeatedly, which looked like a five-second blink.
+  const initialDriversRef = useRef(drivers);
   const [activeTab, setActiveTab] = useState("Users");
   const [users, setUsers] = useState([]);
   const [roles, setRoles] = useState(BUILT_IN_ROLES);
@@ -329,8 +334,9 @@ function PermissionsCenter({
 
         let loadedUsers = (userResult.data || []).map(normalizeUser);
 
-        if (!loadedUsers.length && drivers.length) {
-          loadedUsers = drivers.map((driver) =>
+        const fallbackDrivers = initialDriversRef.current || [];
+        if (!loadedUsers.length && fallbackDrivers.length) {
+          loadedUsers = fallbackDrivers.map((driver) =>
             normalizeUser({
               id: `driver-${driver.id}`,
               display_name: driver.name,
@@ -377,7 +383,7 @@ function PermissionsCenter({
     return () => {
       active = false;
     };
-  }, [supabase, drivers]);
+  }, [supabase]);
 
   useEffect(() => {
     if (!selectedUserId || String(selectedUserId).startsWith("driver-")) {
