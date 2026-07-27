@@ -42,6 +42,12 @@ export default function CommunityEventDetailPage({ supabase, eventId, drivers = 
 
   const sessionKey = getSessionKey(currentSession);
   const displayName = getSessionDisplayName(currentSession);
+  const currentDriver = drivers.find((driver) => {
+    const candidates = [driver.id, driver.name, driver.username, driver.gamerTag, driver.gamertag]
+      .filter(Boolean)
+      .map((value) => String(value).trim().toLowerCase());
+    return candidates.includes(sessionKey);
+  });
 
   async function loadAll() {
     setLoading(true); setError("");
@@ -65,6 +71,20 @@ export default function CommunityEventDetailPage({ supabase, eventId, drivers = 
   const can = (permission) => event && canManageEvent(event, staff, currentSession, permission);
   const selectedRace = races.find((race) => String(race.id) === String(selectedRaceId));
   const acceptedMembers = members.filter((member) => member.is_active && member.invite_status !== "removed" && member.invite_status !== "declined");
+  const selfMember = currentDriver
+    ? members.find((member) => String(member.driver_id || "") === String(currentDriver.id))
+    : null;
+  const isSignedUp = Boolean(selfMember?.is_active && selfMember?.invite_status === "accepted");
+  const registrationDeadlinePassed = Boolean(
+    event?.registration_deadline && new Date(event.registration_deadline).getTime() < Date.now()
+  );
+  const rosterIsFull = acceptedMembers.length >= Number(event?.max_drivers || 0);
+  const registrationIsOpen = Boolean(
+    event?.status === "registration" &&
+    event?.visibility !== "invite_only" &&
+    !registrationDeadlinePassed &&
+    (!rosterIsFull || isSignedUp)
+  );
   const standings = useMemo(() => {
     const map = new Map(acceptedMembers.map((member) => [member.id, { member, points: 0, wins: 0, starts: 0, top5: 0 }]));
     results.forEach((row) => {
@@ -80,6 +100,55 @@ export default function CommunityEventDetailPage({ supabase, eventId, drivers = 
     await supabase.from("community_event_audit_log").insert({ event_id: eventId, actor_key: sessionKey || displayName, action, entity_type: entityType, entity_id: entityId ? String(entityId) : null, details });
   }
   function notify(text) { setMessage(text); setTimeout(() => setMessage(""), 3500); }
+
+  async function signUpForEvent() {
+    setError("");
+    if (!sessionKey) return setError("Sign in as a driver before registering.");
+    if (!currentDriver) return setError("Your login is not connected to a driver profile.");
+    if (event.visibility === "invite_only") return setError("This event is invite only.");
+    if (event.status !== "registration") return setError("Registration is not currently open.");
+    if (registrationDeadlinePassed) return setError("The registration deadline has passed.");
+    if (rosterIsFull && !isSignedUp) return setError("This event roster is full.");
+
+    const payload = {
+      event_id: eventId,
+      driver_id: String(currentDriver.id),
+      display_name: currentDriver.name || currentDriver.username || displayName,
+      driver_number: String(currentDriver.number || ""),
+      manufacturer: currentDriver.manufacturer || "",
+      team_name: currentDriver.team || "",
+      member_type: "existing",
+      invite_status: "accepted",
+      is_active: true,
+      joined_at: new Date().toISOString(),
+    };
+
+    const request = selfMember
+      ? supabase.from("community_event_members").update(payload).eq("id", selfMember.id)
+      : supabase.from("community_event_members").insert(payload);
+    const { error: signupError } = await request;
+    if (signupError) return setError(signupError.message);
+
+    await audit("driver_registered", "member", currentDriver.id, { display_name: payload.display_name });
+    await loadAll();
+    notify("You are registered to run this event.");
+  }
+
+  async function withdrawFromEvent() {
+    setError("");
+    if (!selfMember || !isSignedUp) return;
+    if (["active", "completed"].includes(event.status)) {
+      return setError("You cannot withdraw after the event has started. Contact the event host.");
+    }
+    const { error: withdrawError } = await supabase
+      .from("community_event_members")
+      .update({ invite_status: "removed", is_active: false })
+      .eq("id", selfMember.id);
+    if (withdrawError) return setError(withdrawError.message);
+    await audit("driver_withdrew", "member", selfMember.id, { display_name: selfMember.display_name });
+    await loadAll();
+    notify("You have withdrawn from this event.");
+  }
 
   async function addExistingDriver() {
     if (!can("event.roster")) return setError("You do not have roster permission.");
@@ -147,5 +216,33 @@ export default function CommunityEventDetailPage({ supabase, eventId, drivers = 
     return null;
   };
 
-  return <div style={shell}><div style={wrap}><div style={{ display:"flex",justifyContent:"space-between",gap:14,alignItems:"center",flexWrap:"wrap",marginBottom:16 }}><div><button style={{ ...secondary,padding:"7px 10px",marginBottom:10 }} onClick={()=>window.location.pathname="/community-events"}>← Community Events</button><h1 style={{ margin:0 }}>{event.name}</h1><div style={{ color:"#6b7280",marginTop:6 }}>{event.event_type.replaceAll('_',' ')} · hosted by {event.created_by}</div></div><span style={{ padding:"7px 11px",borderRadius:999,background:"white",border:"1px solid #ddd",fontWeight:900 }}>{event.status}</span></div>{message && <div style={{ ...card,background:"#f0fdf4",borderColor:"#86efac",marginBottom:12 }}>{message}</div>}{error && <div style={{ ...card,background:"#fef2f2",borderColor:"#fca5a5",marginBottom:12 }}>{error}</div>}<div style={{ display:"flex",gap:8,flexWrap:"wrap",marginBottom:16 }}>{tabs.map((name)=><button key={name} style={tab===name?primary:secondary} onClick={()=>setTab(name)}>{name}</button>)}</div>{renderTab()}</div></div>;
+  return <div style={shell}><div style={wrap}><div style={{ display:"flex",justifyContent:"space-between",gap:14,alignItems:"center",flexWrap:"wrap",marginBottom:16 }}><div><button style={{ ...secondary,padding:"7px 10px",marginBottom:10 }} onClick={()=>window.location.pathname="/community-events"}>← Community Events</button><h1 style={{ margin:0 }}>{event.name}</h1><div style={{ color:"#6b7280",marginTop:6 }}>{event.event_type.replaceAll('_',' ')} · hosted by {event.created_by}</div></div><span style={{ padding:"7px 11px",borderRadius:999,background:"white",border:"1px solid #ddd",fontWeight:900 }}>{event.status}</span></div>{message && <div style={{ ...card,background:"#f0fdf4",borderColor:"#86efac",marginBottom:12 }}>{message}</div>}{error && <div style={{ ...card,background:"#fef2f2",borderColor:"#fca5a5",marginBottom:12 }}>{error}</div>}
+      {!isOwner && (
+        <div style={{ ...card, marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+          <div>
+            <div style={{ fontWeight: 900, fontSize: 18 }}>{isSignedUp ? "You are registered" : "Want to run this event?"}</div>
+            <div style={{ color: "#6b7280", marginTop: 4 }}>
+              {isSignedUp
+                ? `You are on the roster as #${selfMember?.driver_number || currentDriver?.number || "—"} ${selfMember?.display_name || displayName}.`
+                : event.visibility === "invite_only"
+                  ? "This event is invite only."
+                  : event.status !== "registration"
+                    ? "Registration is not currently open."
+                    : registrationDeadlinePassed
+                      ? "The registration deadline has passed."
+                      : rosterIsFull
+                        ? "The event roster is full."
+                        : currentDriver
+                          ? `${acceptedMembers.length} of ${event.max_drivers} spots are filled.`
+                          : "Sign in with a linked driver profile to register."}
+            </div>
+          </div>
+          {isSignedUp ? (
+            <button type="button" style={secondary} onClick={withdrawFromEvent}>Withdraw</button>
+          ) : (
+            <button type="button" style={{ ...primary, opacity: registrationIsOpen && currentDriver ? 1 : 0.55 }} disabled={!registrationIsOpen || !currentDriver} onClick={signUpForEvent}>Sign Up to Race</button>
+          )}
+        </div>
+      )}
+      <div style={{ display:"flex",gap:8,flexWrap:"wrap",marginBottom:16 }}>{tabs.map((name)=><button key={name} style={tab===name?primary:secondary} onClick={()=>setTab(name)}>{name}</button>)}</div>{renderTab()}</div></div>;
 }
