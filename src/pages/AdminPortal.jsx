@@ -3,6 +3,7 @@ import RaceOperations from "../components/admin/raceOperations/RaceOperations";
 // import { IssuesRollup } from "../components/IssuesRollup"; // TODO: Uncomment once IssuesRollup.jsx is in repo
 
 export default function AdminPortal({
+  currentSession,
   AdminLeagueMessageComposer,
   AdminLeagueMessageDashboard,
   PaymentCompliancePanel,
@@ -618,6 +619,7 @@ export default function AdminPortal({
     { label: "ARCA Series", action: () => openArcaOperations("overview"), primary: true },
     { label: "Finance Department", action: () => openFinanceDepartment("overview"), primary: true },
     { label: "Public Relations", action: () => openPublicRelations("overview"), primary: true },
+    { label: "Permissions Center", action: () => (window.location.pathname = "/admin/permissions"), primary: true },
     { label: "Issues", action: () => (window.location.pathname = "/admin/issues") },
     { label: "Settings", action: openSettings, primary: true },
     { label: "Streams", action: () => (window.location.pathname = "/streams") },
@@ -678,6 +680,15 @@ export default function AdminPortal({
       text: "Inbox, league broadcasts, owner notices, and admin conversations.",
       action: openAdminMessages,
       gradient: "linear-gradient(135deg, #30d158 0%, #32ade6 45%, #007aff 100%)",
+    },
+    {
+      title: "Permissions Center",
+      icon: "🛡️",
+      value: "IAM",
+      meta: "Roles and access",
+      text: "Assign executive, staff, owner, driver, series, and team permissions.",
+      action: () => (window.location.pathname = "/admin/permissions"),
+      gradient: "linear-gradient(135deg, #5856d6 0%, #007aff 48%, #32ade6 100%)",
     },
     {
       title: "Settings",
@@ -1431,6 +1442,7 @@ export default function AdminPortal({
                 ["Messages", `${adminUnreadCount || 0} unread`, "💬", "#007aff", openAdminMessages],
                 ["Public Relations", `${openStoryCount || 0} stories pending`, "📰", "#af52de", () => openPublicRelations("stories")],
                 ["Issues", `${openIssueCount || 0} open`, "🐛", "#ff3b30", () => (window.location.pathname = "/admin/issues")],
+                ["Permissions Center", "Roles & access", "🛡️", "#5856d6", () => (window.location.pathname = "/admin/permissions")],
               ].map(([label, value, icon, color, action]) => (
                 <button key={label} type="button" onClick={action} style={{ width: "100%", border: "1px solid rgba(229,231,235,0.82)", background: "rgba(255,255,255,0.76)", padding: "10px 12px", borderRadius: 18, marginTop: 8, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, cursor: "pointer", textAlign: "left", boxShadow: "0 8px 18px rgba(15,23,42,0.045)" }}>
                   <span style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
