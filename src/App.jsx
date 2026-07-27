@@ -4269,6 +4269,26 @@ function MobileLeagueApp({
   if (path === "/tournament" || path === "/in-season-tournament" || path === "/in-season-bracket" || path === "/bracket") {
     return dataFrame("Tournament", "standings", <InSeasonTournamentPage drivers={drivers} raceHistory={raceHistory} />);
   }
+  if (path === "/community-events") {
+    return dataFrame("Community Events", "more", (
+      <CommunityEventsPage
+        supabase={supabase}
+        drivers={drivers}
+        currentSession={mobileSession}
+      />
+    ));
+  }
+  if (path.startsWith("/community-events/")) {
+    const eventId = decodeURIComponent(path.split("/")[2] || "");
+    return dataFrame("Community Event", "more", (
+      <CommunityEventDetailPage
+        supabase={supabase}
+        eventId={eventId}
+        drivers={drivers}
+        currentSession={mobileSession}
+      />
+    ));
+  }
   if (path === "/chat") return dataFrame("League Chat", "more", isGuestSession ? <MobileGuestLockedCard title="League Chat Requires Driver Login" go={go} /> : <LeagueChatPage drivers={drivers} />);
   if (path === "/message-center") return frame("Messages", "more", <LeagueMessageCenter drivers={drivers} session={mobileSession} mobile go={go} />);
   if (path === "/discord") return dataFrame("Discord", "more", <DiscordPage />);
@@ -5533,6 +5553,7 @@ function MobileLayout({ title, children, go, active, session = null, onLogout = 
       { icon: "🤝", label: "Team Interest", href: `/driver/${driverNumber}/team-interest` },
       { icon: "🏁", label: "Start & Park", href: `/driver/${driverNumber}/start-park` },
       { icon: "🔄", label: "Transfer Portal", href: `/driver/${driverNumber}/portal` },
+      { icon: "🌐", label: "Community Events", href: "/community-events" },
       { icon: "⚙️", label: "Settings", href: `/driver/${driverNumber}/settings` },
     ] : []),
     { icon: "🏆", label: "In-Season Bracket", href: "/bracket" },
@@ -5784,6 +5805,7 @@ function MobileDriverProfilePolished({ driver, driverNumber, raceHistory = [], t
         <MobileAction label="🎤 Interviews" onClick={() => go("/interviews")} />
         <MobileAction label="🎨 Paint Vote" onClick={() => go("/paint-scheme-vote")} />
         <MobileAction label="💬 Messages" onClick={() => go("/message-center")} secondary />
+        <MobileAction label="🌐 Community Events" onClick={() => go("/community-events")} secondary />
         <MobileAction label="📺 Streams" onClick={() => go("/streams")} secondary />
       </div>
 
@@ -6475,6 +6497,46 @@ function AppleSeriesPortalLanding() {
             ))}
           </div>
         </div>
+
+        <section style={{
+          marginTop: 18,
+          borderRadius: 28,
+          padding: "clamp(20px, 3vw, 30px)",
+          background: "linear-gradient(135deg, rgba(17,24,39,0.96), rgba(30,41,59,0.92))",
+          border: "1px solid rgba(255,255,255,0.10)",
+          color: "white",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 18,
+          flexWrap: "wrap",
+          boxShadow: "0 24px 60px rgba(0,0,0,0.16)",
+        }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: "0.13em", textTransform: "uppercase", color: "#d4af37" }}>Community Racing</div>
+            <h2 style={{ margin: "7px 0 6px", fontSize: "clamp(25px, 4vw, 38px)", letterSpacing: "-0.04em" }}>Community Events</h2>
+            <div style={{ color: "rgba(255,255,255,0.72)", fontWeight: 750, lineHeight: 1.5, maxWidth: 680 }}>
+              Browse driver-hosted tournaments, join an event, or create a separate racing series without changing official BRL standings.
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => (window.location.pathname = "/community-events")}
+            style={{
+              border: 0,
+              borderRadius: 999,
+              padding: "13px 20px",
+              background: "linear-gradient(180deg, #ffd60a 0%, #ff9f0a 100%)",
+              color: "#111827",
+              fontWeight: 1000,
+              cursor: "pointer",
+              boxShadow: "0 14px 32px rgba(255,159,10,0.22)",
+              whiteSpace: "nowrap",
+            }}
+          >
+            View Events →
+          </button>
+        </section>
       </div>
 
       <ReportIssueModal
