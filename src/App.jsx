@@ -8744,7 +8744,7 @@ export default function App() {
     return (
       <PermissionsCenter
         supabase={supabase}
-        drivers={visibleDrivers}
+        drivers={drivers}
         teams={teamStandings}
         currentSession={getLeagueSession()}
       />
