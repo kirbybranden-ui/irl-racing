@@ -269,6 +269,10 @@ function PermissionsCenter({
   const [activeTab, setActiveTab] = useState("Users");
   const [users, setUsers] = useState([]);
   const [roles, setRoles] = useState(BUILT_IN_ROLES);
+  const [selectedRoleKey, setSelectedRoleKey] = useState("");
+  const [roleForm, setRoleForm] = useState({ name: "", key: "", description: "", permissions: [] });
+  const [roleSaving, setRoleSaving] = useState(false);
+  const [matrixDirty, setMatrixDirty] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState("");
   const [search, setSearch] = useState("");
   const [roleKeys, setRoleKeys] = useState([]);
@@ -284,6 +288,11 @@ function PermissionsCenter({
   const selectedUser = useMemo(
     () => users.find((user) => String(user.id) === String(selectedUserId)) || null,
     [users, selectedUserId]
+  );
+
+  const selectedRole = useMemo(
+    () => roles.find((role) => role.key === selectedRoleKey) || null,
+    [roles, selectedRoleKey]
   );
 
   const filteredUsers = useMemo(() => {
@@ -358,9 +367,12 @@ function PermissionsCenter({
                 .select("permission_key")
                 .eq("role_id", role.id);
 
+              const loadedPermissionKeys = (permissions || []).map((row) => row.permission_key);
               return {
                 ...role,
-                permissions: (permissions || []).map((row) => row.permission_key),
+                permissions: loadedPermissionKeys.includes("*")
+                  ? ALL_PERMISSIONS.map((item) => item.key)
+                  : loadedPermissionKeys,
               };
             })
           );
@@ -370,6 +382,7 @@ function PermissionsCenter({
         setUsers(loadedUsers);
         setRoles(loadedRoles);
         setAuditRows(auditResult.data || []);
+        setSelectedRoleKey((current) => current || loadedRoles[0]?.key || "");
         setSelectedUserId((current) => current || String(loadedUsers[0]?.id || ""));
       } catch (loadError) {
         console.error(loadError);
@@ -456,6 +469,181 @@ function PermissionsCenter({
       active = false;
     };
   }, [selectedUserId, supabase]);
+
+  useEffect(() => {
+    if (!selectedRole) return;
+    setRoleForm({
+      name: selectedRole.name || "",
+      key: selectedRole.key || "",
+      description: selectedRole.description || "",
+      permissions: [...(selectedRole.permissions || [])],
+    });
+  }, [selectedRole]);
+
+  function makeRoleKey(value) {
+    return String(value || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "");
+  }
+
+  function startNewRole() {
+    setSelectedRoleKey("");
+    setRoleForm({ name: "", key: "", description: "", permissions: [] });
+    setMessage("");
+    setError("");
+  }
+
+  function toggleRoleFormPermission(permissionKey) {
+    setRoleForm((current) => ({
+      ...current,
+      permissions: current.permissions.includes(permissionKey)
+        ? current.permissions.filter((key) => key !== permissionKey)
+        : [...current.permissions, permissionKey],
+    }));
+  }
+
+  async function saveRoleDefinition() {
+    const name = roleForm.name.trim();
+    const key = makeRoleKey(roleForm.key || name);
+    if (!name || !key) {
+      setError("Enter a role name and role key.");
+      return;
+    }
+
+    setRoleSaving(true);
+    setError("");
+    setMessage("");
+    try {
+      let roleId = selectedRole?.id || null;
+      if (roleId) {
+        const { error: updateError } = await supabase
+          .from("permission_roles")
+          .update({ name, key, description: roleForm.description.trim() })
+          .eq("id", roleId);
+        if (updateError) throw updateError;
+      } else {
+        const { data, error: insertError } = await supabase
+          .from("permission_roles")
+          .insert({ name, key, description: roleForm.description.trim(), protected: false })
+          .select("*")
+          .single();
+        if (insertError) throw insertError;
+        roleId = data.id;
+      }
+
+      const { error: deleteError } = await supabase
+        .from("role_permissions")
+        .delete()
+        .eq("role_id", roleId);
+      if (deleteError) throw deleteError;
+
+      if (roleForm.permissions.length) {
+        const { error: insertPermissionsError } = await supabase
+          .from("role_permissions")
+          .insert(roleForm.permissions.map((permissionKey) => ({
+            role_id: roleId,
+            permission_key: permissionKey,
+          })));
+        if (insertPermissionsError) throw insertPermissionsError;
+      }
+
+      const savedRole = {
+        ...(selectedRole || {}),
+        id: roleId,
+        key,
+        name,
+        description: roleForm.description.trim(),
+        permissions: [...roleForm.permissions],
+      };
+      setRoles((current) => {
+        const exists = current.some((role) => role.id === roleId);
+        return exists
+          ? current.map((role) => (role.id === roleId ? savedRole : role))
+          : [...current, savedRole].sort((a, b) => a.name.localeCompare(b.name));
+      });
+      setSelectedRoleKey(key);
+      setMessage(`Role ${name} saved.`);
+
+      await supabase.from("permission_audit_log").insert({
+        actor_user_id: currentSession?.userId || currentSession?.id || null,
+        action: selectedRole ? "role_updated" : "role_created",
+        details: { role_id: roleId, role_key: key, role_name: name, permissions: roleForm.permissions },
+      });
+    } catch (saveError) {
+      console.error(saveError);
+      setError(saveError.message || "Unable to save role.");
+    } finally {
+      setRoleSaving(false);
+    }
+  }
+
+  async function deleteSelectedRole() {
+    if (!selectedRole?.id) return;
+    if (selectedRole.protected) {
+      setError("This built-in role is protected. You can edit its permissions, but it cannot be deleted.");
+      return;
+    }
+    if (!window.confirm(`Delete the ${selectedRole.name} role? Users assigned to it will lose that role.`)) return;
+
+    setRoleSaving(true);
+    setError("");
+    try {
+      const { error: deleteError } = await supabase
+        .from("permission_roles")
+        .delete()
+        .eq("id", selectedRole.id);
+      if (deleteError) throw deleteError;
+      setRoles((current) => current.filter((role) => role.id !== selectedRole.id));
+      setSelectedRoleKey("");
+      setRoleForm({ name: "", key: "", description: "", permissions: [] });
+      setMessage(`Role ${selectedRole.name} deleted.`);
+    } catch (deleteError) {
+      setError(deleteError.message || "Unable to delete role.");
+    } finally {
+      setRoleSaving(false);
+    }
+  }
+
+  function toggleMatrixPermission(roleKey, permissionKey) {
+    setRoles((current) => current.map((role) => {
+      if (role.key !== roleKey) return role;
+      const permissions = role.permissions || [];
+      return {
+        ...role,
+        permissions: permissions.includes(permissionKey)
+          ? permissions.filter((key) => key !== permissionKey)
+          : [...permissions, permissionKey],
+      };
+    }));
+    setMatrixDirty(true);
+  }
+
+  async function savePermissionMatrix() {
+    setRoleSaving(true);
+    setError("");
+    setMessage("");
+    try {
+      for (const role of roles) {
+        if (!role.id) continue;
+        const { error: deleteError } = await supabase.from("role_permissions").delete().eq("role_id", role.id);
+        if (deleteError) throw deleteError;
+        if ((role.permissions || []).length) {
+          const { error: insertError } = await supabase.from("role_permissions").insert(
+            role.permissions.map((permissionKey) => ({ role_id: role.id, permission_key: permissionKey }))
+          );
+          if (insertError) throw insertError;
+        }
+      }
+      setMatrixDirty(false);
+      setMessage("Permission matrix saved.");
+    } catch (matrixError) {
+      setError(matrixError.message || "Unable to save permission matrix.");
+    } finally {
+      setRoleSaving(false);
+    }
+  }
 
   function toggleRole(key) {
     setRoleKeys((current) =>
@@ -900,20 +1088,93 @@ function PermissionsCenter({
         )}
 
         {activeTab === "Roles" && (
-          <section style={{ ...card, padding: 22 }}>
-            <h2 style={{ marginTop: 0 }}>Role Library</h2>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))", gap: 12 }}>
-              {roles.map((role) => (
-                <div key={role.id || role.key} style={{ border: "1px solid rgba(17,24,39,0.08)", borderRadius: 18, padding: 15, background: "#fff" }}>
-                  <div style={{ fontWeight: 950, fontSize: 18 }}>{role.name}</div>
-                  <div style={{ color: "#6e6e73", marginTop: 6, lineHeight: 1.4 }}>{role.description}</div>
-                  <div style={{ marginTop: 10, fontSize: 12, fontWeight: 900, color: "#5856d6" }}>
-                    {(role.permissions || []).length} PERMISSIONS
+          <div className="iam-grid" style={{ display: "grid", gridTemplateColumns: "320px minmax(0,1fr)", gap: 18 }}>
+            <aside style={{ ...card, padding: 15, alignSelf: "start", position: "sticky", top: 12 }}>
+              <button type="button" onClick={startNewRole} style={{ ...pill(false), width: "100%", marginBottom: 12 }}>
+                ＋ Create Role
+              </button>
+              <div style={{ display: "grid", gap: 8 }}>
+                {roles.map((role) => {
+                  const selected = role.key === selectedRoleKey;
+                  return (
+                    <button
+                      key={role.id || role.key}
+                      type="button"
+                      onClick={() => setSelectedRoleKey(role.key)}
+                      style={{
+                        border: selected ? "1px solid rgba(0,122,255,0.4)" : "1px solid rgba(17,24,39,0.08)",
+                        background: selected ? "rgba(0,122,255,0.1)" : "#fff",
+                        borderRadius: 17,
+                        padding: 13,
+                        cursor: "pointer",
+                        textAlign: "left",
+                      }}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                        <strong>{role.name}</strong>
+                        {role.protected && <span title="Protected role">🔒</span>}
+                      </div>
+                      <div style={{ color: "#6e6e73", fontSize: 12, marginTop: 5 }}>
+                        {(role.permissions || []).length} permissions
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </aside>
+
+            <main style={{ display: "grid", gap: 18 }}>
+              <section style={{ ...card, padding: 22 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+                  <div>
+                    <h2 style={{ margin: 0 }}>{selectedRole ? `Edit ${selectedRole.name}` : "Create Role"}</h2>
+                    <div style={{ color: "#6e6e73", marginTop: 5 }}>Change the role name, description, and every permission assigned to it.</div>
                   </div>
+                  {selectedRole && !selectedRole.protected && (
+                    <button type="button" onClick={deleteSelectedRole} disabled={roleSaving} style={{ ...pill(false), color: "#b91c1c" }}>Delete Role</button>
+                  )}
                 </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 12, marginTop: 18 }}>
+                  <label style={{ fontWeight: 850 }}>
+                    Role name
+                    <input value={roleForm.name} onChange={(event) => setRoleForm((current) => ({ ...current, name: event.target.value, key: current.key || makeRoleKey(event.target.value) }))} style={{ width: "100%", boxSizing: "border-box", marginTop: 7, padding: 12, borderRadius: 14, border: "1px solid rgba(17,24,39,0.1)" }} />
+                  </label>
+                  <label style={{ fontWeight: 850 }}>
+                    Role key
+                    <input value={roleForm.key} disabled={Boolean(selectedRole?.protected)} onChange={(event) => setRoleForm((current) => ({ ...current, key: makeRoleKey(event.target.value) }))} style={{ width: "100%", boxSizing: "border-box", marginTop: 7, padding: 12, borderRadius: 14, border: "1px solid rgba(17,24,39,0.1)", opacity: selectedRole?.protected ? 0.65 : 1 }} />
+                  </label>
+                </div>
+                <label style={{ display: "block", fontWeight: 850, marginTop: 12 }}>
+                  Description
+                  <textarea value={roleForm.description} onChange={(event) => setRoleForm((current) => ({ ...current, description: event.target.value }))} rows={3} style={{ width: "100%", boxSizing: "border-box", marginTop: 7, padding: 12, borderRadius: 14, border: "1px solid rgba(17,24,39,0.1)", resize: "vertical" }} />
+                </label>
+              </section>
+
+              {PERMISSION_GROUPS.map((group) => (
+                <section key={group.key} style={{ ...card, padding: 22 }}>
+                  <div style={{ fontSize: 20, fontWeight: 950 }}>{group.label}</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(250px,1fr))", gap: 9, marginTop: 13 }}>
+                    {group.permissions.map(([key, label]) => {
+                      const enabled = roleForm.permissions.includes(key);
+                      return (
+                        <button key={key} type="button" onClick={() => toggleRoleFormPermission(key)} style={{ border: enabled ? "1px solid rgba(52,199,89,0.45)" : "1px solid rgba(17,24,39,0.08)", background: enabled ? "rgba(52,199,89,0.1)" : "#fff", borderRadius: 16, padding: 13, cursor: "pointer", display: "flex", justifyContent: "space-between", gap: 10, textAlign: "left" }}>
+                          <span style={{ fontWeight: 850 }}>{label}</span>
+                          <span>{enabled ? "✓" : "—"}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
               ))}
-            </div>
-          </section>
+
+              <section style={{ ...card, padding: 17, position: "sticky", bottom: 10, display: "flex", justifyContent: "flex-end" }}>
+                <button type="button" onClick={saveRoleDefinition} disabled={roleSaving} style={{ border: 0, borderRadius: 999, padding: "13px 20px", color: "#fff", background: roleSaving ? "#9ca3af" : "linear-gradient(135deg,#007aff,#5856d6)", fontWeight: 950, cursor: roleSaving ? "wait" : "pointer" }}>
+                  {roleSaving ? "Saving…" : selectedRole ? "Save Role" : "Create Role"}
+                </button>
+              </section>
+            </main>
+          </div>
         )}
 
         {activeTab === "Permission Matrix" && (
@@ -938,14 +1199,34 @@ function PermissionsCenter({
                       <div style={{ fontSize: 11, color: "#6e6e73" }}>{permission.group}</div>
                     </td>
                     {roles.map((role) => (
-                      <td key={`${permission.key}-${role.key}`} style={{ textAlign: "center", padding: 10 }}>
-                        {(role.permissions || []).includes(permission.key) ? "✓" : "—"}
+                      <td key={`${permission.key}-${role.key}`} style={{ textAlign: "center", padding: 7 }}>
+                        <button
+                          type="button"
+                          onClick={() => toggleMatrixPermission(role.key, permission.key)}
+                          title={`Toggle ${permission.label} for ${role.name}`}
+                          style={{
+                            width: 38,
+                            height: 32,
+                            borderRadius: 10,
+                            border: (role.permissions || []).includes(permission.key) ? "1px solid rgba(52,199,89,0.45)" : "1px solid rgba(17,24,39,0.08)",
+                            background: (role.permissions || []).includes(permission.key) ? "rgba(52,199,89,0.12)" : "#fff",
+                            cursor: "pointer",
+                            fontWeight: 950,
+                          }}
+                        >
+                          {(role.permissions || []).includes(permission.key) ? "✓" : "—"}
+                        </button>
                       </td>
                     ))}
                   </tr>
                 ))}
               </tbody>
             </table>
+            <div style={{ position: "sticky", bottom: 10, marginTop: 16, display: "flex", justifyContent: "flex-end" }}>
+              <button type="button" disabled={!matrixDirty || roleSaving} onClick={savePermissionMatrix} style={{ border: 0, borderRadius: 999, padding: "13px 20px", color: "#fff", background: !matrixDirty || roleSaving ? "#9ca3af" : "linear-gradient(135deg,#007aff,#5856d6)", fontWeight: 950, cursor: !matrixDirty || roleSaving ? "default" : "pointer" }}>
+                {roleSaving ? "Saving…" : matrixDirty ? "Save Matrix Changes" : "Matrix Saved"}
+              </button>
+            </div>
           </section>
         )}
 
