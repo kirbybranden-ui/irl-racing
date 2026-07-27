@@ -339,23 +339,76 @@ function PermissionsCenter({
             .limit(100),
         ]);
 
-        if (userResult.error) throw userResult.error;
-
-        let loadedUsers = (userResult.data || []).map(normalizeUser);
+        // app_users may be empty, blocked by RLS, or not created yet. The Permissions
+        // Center should still show the league roster instead of rendering an empty page.
+        let loadedUsers = userResult.error
+          ? []
+          : (userResult.data || []).map(normalizeUser);
 
         const fallbackDrivers = initialDriversRef.current || [];
-        if (!loadedUsers.length && fallbackDrivers.length) {
-          loadedUsers = fallbackDrivers.map((driver) =>
-            normalizeUser({
-              id: `driver-${driver.id}`,
-              display_name: driver.name,
-              username: driver.name,
-              driver_id: driver.id,
-              team: driver.team,
-              active: !driver.retired,
-            })
+
+        // Keep app_users synchronized with the active league roster. This makes league
+        // drivers immediately assignable in IAM without requiring manual SQL inserts.
+        if (!userResult.error && fallbackDrivers.length) {
+          const existingDriverIds = new Set(
+            loadedUsers
+              .map((user) => String(user.driverId || ""))
+              .filter(Boolean)
           );
+
+          const missingDrivers = fallbackDrivers.filter(
+            (driver) => driver?.id != null && !existingDriverIds.has(String(driver.id))
+          );
+
+          if (missingDrivers.length) {
+            const rows = missingDrivers.map((driver) => ({
+              display_name: driver.name || driver.username || `Driver ${driver.id}`,
+              username: driver.username || driver.name || `driver_${driver.id}`,
+              driver_id: String(driver.id),
+              team: driver.team || "",
+              active: !driver.retired,
+            }));
+
+            const { data: insertedUsers, error: insertUsersError } = await supabase
+              .from("app_users")
+              .insert(rows)
+              .select("*");
+
+            if (!insertUsersError && insertedUsers?.length) {
+              loadedUsers = [...loadedUsers, ...insertedUsers.map(normalizeUser)];
+            }
+          }
         }
+
+        // Always display the league roster as a fallback, including when app_users is
+        // empty or an RLS policy prevents reading it. Existing database users take
+        // priority so their saved role assignments remain connected.
+        if (fallbackDrivers.length) {
+          const representedDriverIds = new Set(
+            loadedUsers
+              .map((user) => String(user.driverId || ""))
+              .filter(Boolean)
+          );
+
+          const fallbackUsers = fallbackDrivers
+            .filter((driver) => !representedDriverIds.has(String(driver.id)))
+            .map((driver) =>
+              normalizeUser({
+                id: `driver-${driver.id}`,
+                display_name: driver.name || driver.username || `Driver ${driver.id}`,
+                username: driver.username || driver.name || "",
+                driver_id: String(driver.id),
+                team: driver.team || "",
+                active: !driver.retired,
+              })
+            );
+
+          loadedUsers = [...loadedUsers, ...fallbackUsers];
+        }
+
+        loadedUsers.sort((a, b) =>
+          String(a.displayName || "").localeCompare(String(b.displayName || ""))
+        );
 
         let loadedRoles = BUILT_IN_ROLES;
 
@@ -386,7 +439,26 @@ function PermissionsCenter({
         setSelectedUserId((current) => current || String(loadedUsers[0]?.id || ""));
       } catch (loadError) {
         console.error(loadError);
-        if (active) setError(loadError.message || "Unable to load permissions center.");
+        if (active) {
+          const fallbackDrivers = initialDriversRef.current || [];
+          if (fallbackDrivers.length) {
+            const fallbackUsers = fallbackDrivers.map((driver) =>
+              normalizeUser({
+                id: `driver-${driver.id}`,
+                display_name: driver.name || driver.username || `Driver ${driver.id}`,
+                username: driver.username || driver.name || "",
+                driver_id: String(driver.id),
+                team: driver.team || "",
+                active: !driver.retired,
+              })
+            );
+            setUsers(fallbackUsers);
+            setSelectedUserId((current) => current || String(fallbackUsers[0]?.id || ""));
+            setError("League drivers are visible, but Supabase IAM tables could not be fully loaded. Run the included IAM access SQL if assignments will not save.");
+          } else {
+            setError(loadError.message || "Unable to load permissions center.");
+          }
+        }
       } finally {
         if (active) setLoading(false);
       }
