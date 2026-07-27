@@ -10,7 +10,7 @@ const primary = { border: 0, borderRadius: 11, padding: "11px 15px", background:
 const secondary = { ...primary, background: "white", color: "#111827", border: "1px solid #d1d5db" };
 const modalOverlay = { position: "fixed", inset: 0, background: "rgba(17,24,39,.68)", zIndex: 9999, display: "grid", placeItems: "center", padding: 18 };
 const modalCard = { ...card, width: "min(760px, 96vw)", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 24px 80px rgba(0,0,0,.3)" };
-const AGREEMENT_VERSION = "host-v1.0";
+const AGREEMENT_VERSION = "host-v1.1";
 
 const EVENT_TYPES = [
   ["mini_tournament", "Mini Tournament"],
@@ -115,10 +115,10 @@ export default function CommunityEventsPage({ supabase, drivers = [], currentSes
     setMessage(""); setError("");
     const validationError = validateEvent();
     if (validationError) return setError(validationError);
-    if (Number(form.entry_fee) > 0) {
-      setHostChecks(Array(10).fill(false)); setHostFinal(false); setShowHostTerms(true); return;
-    }
-    createEvent(false);
+    const termsCount = Number(form.entry_fee) > 0 ? 10 : 6;
+    setHostChecks(Array(termsCount).fill(false));
+    setHostFinal(false);
+    setShowHostTerms(true);
   }
 
   async function createEvent(termsAccepted = false) {
@@ -138,7 +138,7 @@ export default function CommunityEventsPage({ supabase, drivers = [], currentSes
       prize_pool: Number(form.prize_pool) || 0,
       starts_at: form.starts_at || null,
       registration_deadline: form.registration_deadline || null,
-      status: Number(form.entry_fee) > 0 ? "registration" : "draft",
+      status: "registration",
       is_paid: Number(form.entry_fee) > 0,
       host_terms_version: termsAccepted ? AGREEMENT_VERSION : null,
       host_terms_accepted_at: termsAccepted ? new Date().toISOString() : null,
@@ -154,6 +154,10 @@ export default function CommunityEventsPage({ supabase, drivers = [], currentSes
       setError(createError.message);
       return;
     }
+    if (!termsAccepted) {
+      setError("You must accept the event host terms before the event can be posted.");
+      return;
+    }
     if (termsAccepted) {
       const { error: agreementError } = await supabase.from("community_event_agreements").insert({
         event_id: data.id,
@@ -161,7 +165,7 @@ export default function CommunityEventsPage({ supabase, drivers = [], currentSes
         display_name: displayName,
         user_role: "host",
         agreement_version: AGREEMENT_VERSION,
-        agreement_type: "host_paid_event",
+        agreement_type: Number(form.entry_fee) > 0 ? "host_paid_event" : "host_event",
         accepted_at: new Date().toISOString(),
         metadata: { entry_fee: Number(form.entry_fee) || 0, prize_pool: Number(form.prize_pool) || 0 }
       });
@@ -228,7 +232,7 @@ export default function CommunityEventsPage({ supabase, drivers = [], currentSes
             <label style={{ ...label, marginTop: 14 }}>Refund policy<textarea style={{ ...input, minHeight: 80 }} value={form.refund_policy} onChange={(e) => setForm({ ...form, refund_policy: e.target.value })} /></label>
             <label style={{ ...label, marginTop: 14 }}>Rules<textarea style={{ ...input, minHeight: 120 }} value={form.rules} onChange={(e) => setForm({ ...form, rules: e.target.value })} /></label>
             <label style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 14, fontWeight: 800 }}><input type="checkbox" checked={form.stage_points_enabled} onChange={(e) => setForm({ ...form, stage_points_enabled: e.target.checked })} /> Enable stage points</label>
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 18 }}><button type="button" style={secondary} onClick={() => setShowCreate(false)}>Cancel</button><button type="button" style={primary} onClick={requestCreateEvent}>{Number(form.entry_fee) > 0 ? "Review Terms & Post" : "Create & Manage"}</button></div>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 18 }}><button type="button" style={secondary} onClick={() => setShowCreate(false)}>Cancel</button><button type="button" style={primary} onClick={requestCreateEvent}>Review Terms & Post</button></div>
           </div>
         )}
 
@@ -250,12 +254,14 @@ export default function CommunityEventsPage({ supabase, drivers = [], currentSes
         {showHostTerms && (
           <div style={modalOverlay} role="dialog" aria-modal="true" aria-label="Paid event host agreement">
             <div style={modalCard}>
-              <h2 style={{ marginTop: 0 }}>BRL Paid Event Host Agreement</h2>
-              <p style={{ color: "#4b5563" }}>You must accept every item before this paid event can be posted.</p>
-              <div style={{ background: "#fef2f2", border: "2px solid #dc2626", borderRadius: 12, padding: 14, fontWeight: 900, color: "#991b1b", marginBottom: 14 }}>
-                Warning: Creating a paid event establishes an agreement between you and the participating drivers. Failure to honor your advertised payouts or event rules may result in permanent suspension from hosting events or participating in the Budweiser Racing League.
-              </div>
-              {[
+              <h2 style={{ marginTop: 0 }}>BRL Event Host Agreement</h2>
+              <p style={{ color: "#4b5563" }}>You must accept every item before this event can be posted.</p>
+              {Number(form.entry_fee) > 0 && (
+                <div style={{ background: "#fef2f2", border: "2px solid #dc2626", borderRadius: 12, padding: 14, fontWeight: 900, color: "#991b1b", marginBottom: 14 }}>
+                  Warning: Creating a paid event establishes an agreement between you and the participating drivers. Failure to honor your advertised payouts or event rules may result in permanent suspension from hosting events or participating in the Budweiser Racing League.
+                </div>
+              )}
+              {(Number(form.entry_fee) > 0 ? [
                 "I understand this is an independently hosted event and may not be an official BRL-sanctioned competition.",
                 "I am solely responsible for collecting all entry fees.",
                 "I understand BRL does not collect, hold, distribute, or manage participant funds.",
@@ -266,7 +272,14 @@ export default function CommunityEventsPage({ supabase, drivers = [], currentSes
                 "I understand BRL provides the platform only and is not responsible for off-platform payment disputes.",
                 "I understand complaints, fraud, or failure to honor commitments may result in event removal, loss of hosting privileges, suspension, or a permanent ban.",
                 "I certify that I am legally eligible to host a paid competition and will comply with all applicable laws and age requirements."
-              ].map((text, index) => (
+              ] : [
+                "I understand this is an independently hosted event and may not be an official BRL-sanctioned competition.",
+                "I agree to conduct the event fairly and enforce the published rules consistently.",
+                "I understand changes to the rules or schedule after registration opens may require participant notice or cancellation.",
+                "I am responsible for registration, schedule, rules, and event communication.",
+                "I understand BRL provides the event platform and may remove events that violate league standards.",
+                "I understand complaints, fraud, or failure to honor event commitments may result in loss of hosting privileges or league discipline."
+              ]).map((text, index) => (
                 <label key={text} style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "9px 0", fontWeight: 700 }}>
                   <input type="checkbox" checked={hostChecks[index]} onChange={(e) => setHostChecks((items) => items.map((v, i) => i === index ? e.target.checked : v))} />
                   <span>{text}</span>
