@@ -620,6 +620,7 @@ export default function AdminPortal({
     { label: "Finance Department", action: () => openFinanceDepartment("overview"), primary: true },
     { label: "Public Relations", action: () => openPublicRelations("overview"), primary: true },
     { label: "Permissions Center", action: () => (window.location.pathname = "/admin/permissions"), primary: true },
+    { label: "Community Events", action: () => (window.location.pathname = "/community-events"), primary: true },
     { label: "Issues", action: () => (window.location.pathname = "/admin/issues") },
     { label: "Settings", action: openSettings, primary: true },
     { label: "Streams", action: () => (window.location.pathname = "/streams") },
@@ -680,6 +681,15 @@ export default function AdminPortal({
       text: "Inbox, league broadcasts, owner notices, and admin conversations.",
       action: openAdminMessages,
       gradient: "linear-gradient(135deg, #30d158 0%, #32ade6 45%, #007aff 100%)",
+    },
+    {
+      title: "Community Events",
+      icon: "🏆",
+      value: "Host",
+      meta: "Tournaments & fun runs",
+      text: "Create and manage member-hosted events with separate rosters, schedules, results, and standings.",
+      action: () => (window.location.pathname = "/community-events"),
+      gradient: "linear-gradient(135deg, #d4af37 0%, #ff9500 48%, #b45309 100%)",
     },
     {
       title: "Permissions Center",
