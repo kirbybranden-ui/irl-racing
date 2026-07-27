@@ -10,7 +10,7 @@ const secondary = { ...primary, background: "white", color: "#111827", border: "
 const danger = { ...primary, background: "#b91c1c" };
 const modalOverlay = { position: "fixed", inset: 0, background: "rgba(17,24,39,.68)", zIndex: 9999, display: "grid", placeItems: "center", padding: 18 };
 const modalCard = { ...card, width: "min(760px, 96vw)", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 24px 80px rgba(0,0,0,.3)" };
-const DRIVER_AGREEMENT_VERSION = "driver-v1.0";
+const DRIVER_AGREEMENT_VERSION = "driver-v1.1";
 const label = { display: "grid", gap: 6, fontWeight: 800, fontSize: 13 };
 const tabs = ["Overview", "Roster", "Schedule", "Results", "Standings", "Staff", "Settings"];
 const finishPoints = [40,35,34,33,32,31,30,29,28,27,26,25,24,23,22,21,20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1];
@@ -115,10 +115,10 @@ export default function CommunityEventDetailPage({ supabase, eventId, drivers = 
     if (event.status !== "registration") return setError("Registration is not currently open.");
     if (registrationDeadlinePassed) return setError("The registration deadline has passed.");
     if (rosterIsFull && !isSignedUp) return setError("This event roster is full.");
-    if (Number(event.entry_fee || 0) > 0) {
-      setDriverChecks(Array(11).fill(false)); setDriverFinal(false); setShowDriverTerms(true); return;
-    }
-    signUpForEvent(false);
+    const termsCount = Number(event.entry_fee || 0) > 0 ? 11 : 6;
+    setDriverChecks(Array(termsCount).fill(false));
+    setDriverFinal(false);
+    setShowDriverTerms(true);
   }
 
   async function signUpForEvent(termsAccepted = false) {
@@ -143,7 +143,7 @@ export default function CommunityEventDetailPage({ supabase, eventId, drivers = 
       joined_at: new Date().toISOString(),
     };
 
-    if (Number(event.entry_fee || 0) > 0 && !termsAccepted) return setError("You must accept the paid-event terms before registering.");
+    if (!termsAccepted) return setError("You must accept the event participation terms before registering.");
 
     if (termsAccepted) {
       const { error: agreementError } = await supabase.from("community_event_agreements").insert({
@@ -153,7 +153,7 @@ export default function CommunityEventDetailPage({ supabase, eventId, drivers = 
         display_name: payload.display_name,
         user_role: "driver",
         agreement_version: DRIVER_AGREEMENT_VERSION,
-        agreement_type: "driver_paid_event",
+        agreement_type: Number(event.entry_fee || 0) > 0 ? "driver_paid_event" : "driver_event",
         accepted_at: new Date().toISOString(),
         registration_status: "accepted",
         payment_status: "pending",
@@ -280,7 +280,7 @@ export default function CommunityEventDetailPage({ supabase, eventId, drivers = 
           {isSignedUp ? (
             <button type="button" style={secondary} onClick={withdrawFromEvent}>Withdraw</button>
           ) : (
-            <button type="button" style={{ ...primary, opacity: registrationIsOpen && currentDriver ? 1 : 0.55 }} disabled={!registrationIsOpen || !currentDriver} onClick={requestSignUp}>{Number(event.entry_fee || 0) > 0 ? `Review Terms & Register ($${Number(event.entry_fee).toLocaleString()})` : "Sign Up to Race"}</button>
+            <button type="button" style={{ ...primary, opacity: registrationIsOpen && currentDriver ? 1 : 0.55 }} disabled={!registrationIsOpen || !currentDriver} onClick={requestSignUp}>{Number(event.entry_fee || 0) > 0 ? `Review Terms & Register ($${Number(event.entry_fee).toLocaleString()})` : "Review Terms & Sign Up"}</button>
           )}
         </div>
       )}
@@ -288,14 +288,17 @@ export default function CommunityEventDetailPage({ supabase, eventId, drivers = 
       {showDriverTerms && (
         <div style={modalOverlay} role="dialog" aria-modal="true" aria-label="Paid event driver agreement">
           <div style={modalCard}>
-            <h2 style={{ marginTop: 0 }}>BRL Paid Event Driver Agreement</h2>
+            <h2 style={{ marginTop: 0 }}>BRL Event Driver Agreement</h2>
             <div style={{ ...card, background: "#f9fafb", marginBottom: 12 }}>
-              <b>{event.name}</b><div style={{ marginTop: 5 }}>Entry fee: <b>${Number(event.entry_fee || 0).toLocaleString()}</b></div>
-              <div>Payment method: {event.payment_method || "Contact the host"}</div>
-              <div>Prize distribution: {event.prize_distribution || "Not posted"}</div>
-              <div>Refund policy: {event.refund_policy || "Not posted"}</div>
+              <b>{event.name}</b>
+              {Number(event.entry_fee || 0) > 0 ? (<>
+                <div style={{ marginTop: 5 }}>Entry fee: <b>${Number(event.entry_fee || 0).toLocaleString()}</b></div>
+                <div>Payment method: {event.payment_method || "Contact the host"}</div>
+                <div>Prize distribution: {event.prize_distribution || "Not posted"}</div>
+                <div>Refund policy: {event.refund_policy || "Not posted"}</div>
+              </>) : <div style={{ marginTop: 5 }}>Free event — no entry fee.</div>}
             </div>
-            {[
+            {(Number(event.entry_fee || 0) > 0 ? [
               "I understand this is an independently hosted event and may not be an official BRL-sanctioned competition.",
               `I understand this event requires an entry fee of $${Number(event.entry_fee || 0).toLocaleString()}.`,
               "I am responsible for submitting payment directly to the event host using the posted method.",
@@ -307,7 +310,14 @@ export default function CommunityEventDetailPage({ supabase, eventId, drivers = 
               "I understand prize payouts are the responsibility of the event host.",
               "I understand BRL is not responsible for payment disputes, refunds, cancellations, or prize distribution.",
               "I certify that I am legally eligible to enter a paid competition and will comply with all applicable laws and age requirements."
-            ].map((text, index) => (
+            ] : [
+              "I understand this is an independently hosted event and may not be an official BRL-sanctioned competition.",
+              "I have read and agree to the host's event rules.",
+              "I agree to compete fairly and follow BRL and event-specific conduct standards.",
+              "I understand that repeated no-shows or disruptive conduct may result in removal from the event or league discipline.",
+              "I understand BRL may remove or suspend events that violate league standards.",
+              "I understand registration confirms my intent to participate in the posted event schedule."
+            ]).map((text, index) => (
               <label key={text} style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "9px 0", fontWeight: 700 }}>
                 <input type="checkbox" checked={driverChecks[index]} onChange={(e) => setDriverChecks((items) => items.map((v, i) => i === index ? e.target.checked : v))} />
                 <span>{text}</span>
