@@ -27,6 +27,7 @@ import AdminVotingPage from "./pages/AdminVotingPage";
 import DriverFeedbackPage from "./pages/DriverFeedbackPage";
 import OwnerHQPage from "./pages/OwnerHQPage";
 import AdminPortal from "./pages/AdminPortal";
+import PermissionsCenter from "./pages/PermissionsCenter";
 import LeagueMessageCenter from "./pages/LeagueMessageCenter";
 import InSeasonTournamentPage from "./pages/InSeasonTournamentPage";
 import DriverMarketPage from "./pages/DriverMarketPage";
@@ -8671,7 +8672,7 @@ export default function App() {
     );
   }
 
-  const adminProtectedPaths = new Set(["/admin", "/appeals", "/admin/stories", "/stories", "/admin/live-control", "/admin/car-gallery", "/admin/arca-car-gallery", "/admin/interviews", "/admin/votes"]);
+  const adminProtectedPaths = new Set(["/admin", "/admin/permissions", "/appeals", "/admin/stories", "/stories", "/admin/live-control", "/admin/car-gallery", "/admin/arca-car-gallery", "/admin/interviews", "/admin/votes"]);
   const isAdminProtectedPath = adminProtectedPaths.has(path);
   const isAdminAuthenticated = sessionStorage.getItem("bcl-admin-auth") === "true";
   const logoutAdmin = () => {
@@ -8739,6 +8740,16 @@ export default function App() {
   if (path === "/appeals") return <AppealsPage />;
   if (path === "/issues") return <IssuesRollupPage />;
   if (path === "/admin/issues") return <IssuesPage isAdmin={true} />;
+  if (path === "/admin/permissions") {
+    return (
+      <PermissionsCenter
+        supabase={supabase}
+        drivers={visibleDrivers}
+        teams={teamStandings}
+        currentSession={getLeagueSession()}
+      />
+    );
+  }
   if (path === "/admin/stories" || path === "/stories") return <StoriesAdminPage />;
   if (path === "/admin/live-control") {
   return <LiveControlPanel />;
