@@ -28,6 +28,8 @@ import DriverFeedbackPage from "./pages/DriverFeedbackPage";
 import OwnerHQPage from "./pages/OwnerHQPage";
 import AdminPortal from "./pages/AdminPortal";
 import PermissionsCenter from "./pages/PermissionsCenter";
+import CommunityEventsPage from "./pages/CommunityEventsPage";
+import CommunityEventDetailPage from "./pages/CommunityEventDetailPage";
 import LeagueMessageCenter from "./pages/LeagueMessageCenter";
 import InSeasonTournamentPage from "./pages/InSeasonTournamentPage";
 import DriverMarketPage from "./pages/DriverMarketPage";
@@ -8923,6 +8925,29 @@ export default function App() {
   }
   // Loading gate — all routes below this need Supabase data
   if (!isHydrated) return <div style={appShellStyle}><div style={pageContainerStyle}><div style={sectionCardStyle}>Loading league data...</div></div></div>;
+
+  // Community-created tournaments and events. These use isolated rosters, schedules, results, and standings.
+  if (path === "/community-events") {
+    return (
+      <CommunityEventsPage
+        supabase={supabase}
+        drivers={visibleDrivers}
+        currentSession={getLeagueSession()}
+      />
+    );
+  }
+
+  if (path.startsWith("/community-events/")) {
+    const eventId = decodeURIComponent(rawPath.split("/")[2] || "");
+    return (
+      <CommunityEventDetailPage
+        supabase={supabase}
+        eventId={eventId}
+        drivers={visibleDrivers}
+        currentSession={getLeagueSession()}
+      />
+    );
+  }
 
   // Identity & Access Management
   if (path === "/admin/permissions") {
