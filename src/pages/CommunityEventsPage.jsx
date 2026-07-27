@@ -63,6 +63,9 @@ export default function CommunityEventsPage({ supabase, drivers = [], currentSes
     payment_method: "",
     prize_distribution: "",
     refund_policy: "",
+    allow_guest_drivers: false,
+    guest_approval_required: true,
+    max_guest_drivers: 8,
   });
 
   const sessionKey = getSessionKey(currentSession);
@@ -136,6 +139,9 @@ export default function CommunityEventsPage({ supabase, drivers = [], currentSes
       max_drivers: Number(form.max_drivers) || 24,
       entry_fee: Number(form.entry_fee) || 0,
       prize_pool: Number(form.prize_pool) || 0,
+      allow_guest_drivers: Boolean(form.allow_guest_drivers),
+      guest_approval_required: Boolean(form.guest_approval_required),
+      max_guest_drivers: Math.max(0, Number(form.max_guest_drivers) || 0),
       starts_at: form.starts_at || null,
       registration_deadline: form.registration_deadline || null,
       status: "registration",
@@ -220,7 +226,9 @@ export default function CommunityEventsPage({ supabase, drivers = [], currentSes
               <label style={label}>Event type<select style={input} value={form.event_type} onChange={(e) => setForm({ ...form, event_type: e.target.value })}>{EVENT_TYPES.map(([value, text]) => <option key={value} value={value}>{text}</option>)}</select></label>
               <label style={label}>Series<select style={input} value={form.series_type} onChange={(e) => setForm({ ...form, series_type: e.target.value })}><option value="mixed">Mixed / Custom</option><option value="cup">Cup</option><option value="xfinity">Xfinity</option><option value="trucks">Trucks</option><option value="arca">ARCA</option></select></label>
               <label style={label}>Visibility<select style={input} value={form.visibility} onChange={(e) => setForm({ ...form, visibility: e.target.value })}><option value="public">Public</option><option value="invite_only">Invite only</option><option value="unlisted">Unlisted</option></select></label>
-              <label style={label}>Maximum drivers<input style={input} type="number" min="2" max="100" value={form.max_drivers} onChange={(e) => setForm({ ...form, max_drivers: e.target.value })} /></label>
+              <label style={label}>Maximum drivers<input style={input} type="number" min="2" max="100" value={form.max_drivers} onChange={(e) => setForm({ ...form, max_drivers: e.target.value })} /></label>              <label style={{ ...label, display: "flex", alignItems: "center", gap: 10 }}><span>Allow non-league guest drivers</span><input type="checkbox" checked={form.allow_guest_drivers} onChange={(e) => setForm({ ...form, allow_guest_drivers: e.target.checked })} /></label>
+              {form.allow_guest_drivers && <label style={label}>Maximum guest drivers<input style={input} type="number" min="0" max="100" value={form.max_guest_drivers} onChange={(e) => setForm({ ...form, max_guest_drivers: e.target.value })} /></label>}
+              {form.allow_guest_drivers && <label style={{ ...label, display: "flex", alignItems: "center", gap: 10 }}><span>Require host approval for guests</span><input type="checkbox" checked={form.guest_approval_required} onChange={(e) => setForm({ ...form, guest_approval_required: e.target.checked })} /></label>}
               <label style={label}>First race<input style={input} type="datetime-local" value={form.starts_at} onChange={(e) => setForm({ ...form, starts_at: e.target.value })} /></label>
               <label style={label}>Registration deadline<input style={input} type="datetime-local" value={form.registration_deadline} onChange={(e) => setForm({ ...form, registration_deadline: e.target.value })} /></label>
               <label style={label}>Entry fee ($)<input style={input} type="number" min="0" step="0.01" value={form.entry_fee} onChange={(e) => setForm({ ...form, entry_fee: e.target.value })} /></label>
