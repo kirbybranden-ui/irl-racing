@@ -45,6 +45,11 @@ export default function CommunityEventDetailPage({ supabase, eventId, drivers = 
   const [showDriverTerms, setShowDriverTerms] = useState(false);
   const [driverChecks, setDriverChecks] = useState(Array(11).fill(false));
   const [driverFinal, setDriverFinal] = useState(false);
+  const [showGuestForm, setShowGuestForm] = useState(false);
+  const [showGuestTerms, setShowGuestTerms] = useState(false);
+  const [guestChecks, setGuestChecks] = useState(Array(11).fill(false));
+  const [guestFinal, setGuestFinal] = useState(false);
+  const [guestForm, setGuestForm] = useState({ display_name: "", gamertag: "", platform: "PlayStation", email: "", discord: "", driver_number: "" });
 
   const sessionKey = getSessionKey(currentSession);
   const displayName = getSessionDisplayName(currentSession);
@@ -76,7 +81,10 @@ export default function CommunityEventDetailPage({ supabase, eventId, drivers = 
   const isOwner = event && String(event.created_by || "").toLowerCase() === sessionKey;
   const can = (permission) => event && canManageEvent(event, staff, currentSession, permission);
   const selectedRace = races.find((race) => String(race.id) === String(selectedRaceId));
-  const acceptedMembers = members.filter((member) => member.is_active && member.invite_status !== "removed" && member.invite_status !== "declined");
+  const acceptedMembers = members.filter((member) => member.is_active && member.invite_status === "accepted");
+  const pendingGuestMembers = members.filter((member) => member.is_active && member.member_type === "external" && member.invite_status === "pending");
+  const acceptedGuestCount = acceptedMembers.filter((member) => member.member_type === "external").length;
+  const guestCapacityReached = acceptedGuestCount >= Number(event?.max_guest_drivers || 0);
   const selfMember = currentDriver
     ? members.find((member) => String(member.driver_id || "") === String(currentDriver.id))
     : null;
@@ -174,6 +182,115 @@ export default function CommunityEventDetailPage({ supabase, eventId, drivers = 
     notify("You are registered to run this event.");
   }
 
+
+  function requestGuestRegistration() {
+    setError("");
+    if (!event.allow_guest_drivers) return setError("This event is not accepting non-league guest drivers.");
+    if (event.visibility === "invite_only") return setError("This event is invite only.");
+    if (event.status !== "registration") return setError("Registration is not currently open.");
+    if (registrationDeadlinePassed) return setError("The registration deadline has passed.");
+    if (rosterIsFull) return setError("This event roster is full.");
+    if (guestCapacityReached) return setError("All guest driver spots are filled.");
+    if (!guestForm.display_name.trim()) return setError("Enter your name.");
+    if (!guestForm.gamertag.trim()) return setError("Enter your racing gamertag.");
+    if (!guestForm.email.trim() || !guestForm.email.includes("@")) return setError("Enter a valid email address.");
+    const termsCount = Number(event.entry_fee || 0) > 0 ? 11 : 6;
+    setGuestChecks(Array(termsCount).fill(false));
+    setGuestFinal(false);
+    setShowGuestTerms(true);
+  }
+
+  async function submitGuestRegistration(termsAccepted = false) {
+    setError("");
+    if (!termsAccepted) return setError("You must accept the event participation terms before registering.");
+    if (!event.allow_guest_drivers) return setError("This event is not accepting non-league guest drivers.");
+    if (event.status !== "registration" || registrationDeadlinePassed) return setError("Registration is not currently open.");
+    if (rosterIsFull || guestCapacityReached) return setError("No guest driver spots remain.");
+
+    const cleanEmail = guestForm.email.trim().toLowerCase();
+    const duplicate = members.find((member) =>
+      member.member_type === "external" &&
+      member.is_active &&
+      (String(member.email || "").toLowerCase() === cleanEmail ||
+       String(member.gamertag || "").toLowerCase() === guestForm.gamertag.trim().toLowerCase())
+    );
+    if (duplicate) return setError("A guest registration using that email or gamertag already exists for this event.");
+
+    const inviteStatus = event.guest_approval_required ? "pending" : "accepted";
+    const userKey = `guest:${cleanEmail}:${eventId}`;
+    const payload = {
+      event_id: eventId,
+      driver_id: null,
+      display_name: guestForm.display_name.trim(),
+      gamertag: guestForm.gamertag.trim(),
+      platform: guestForm.platform,
+      email: cleanEmail,
+      discord: guestForm.discord.trim(),
+      driver_number: guestForm.driver_number.trim(),
+      manufacturer: "",
+      team_name: "Guest Driver",
+      member_type: "external",
+      invite_status: inviteStatus,
+      is_active: true,
+      joined_at: inviteStatus === "accepted" ? new Date().toISOString() : null,
+    };
+
+    const { data: memberData, error: memberError } = await supabase
+      .from("community_event_members")
+      .insert(payload)
+      .select("*")
+      .single();
+    if (memberError) return setError(memberError.message);
+
+    const { error: agreementError } = await supabase.from("community_event_agreements").insert({
+      event_id: eventId,
+      user_key: userKey,
+      display_name: payload.display_name,
+      user_role: "driver",
+      agreement_version: DRIVER_AGREEMENT_VERSION,
+      agreement_type: Number(event.entry_fee || 0) > 0 ? "guest_paid_event" : "guest_event",
+      accepted_at: new Date().toISOString(),
+      registration_status: inviteStatus,
+      payment_status: "pending",
+      metadata: {
+        entry_fee: Number(event.entry_fee) || 0,
+        refund_policy: event.refund_policy || "",
+        member_id: memberData.id,
+        gamertag: payload.gamertag,
+        platform: payload.platform,
+      }
+    });
+    if (agreementError) {
+      await supabase.from("community_event_members").delete().eq("id", memberData.id);
+      return setError(`Registration was not completed because your agreement could not be recorded: ${agreementError.message}`);
+    }
+
+    await audit("guest_registration_submitted", "member", memberData.id, { display_name: payload.display_name, gamertag: payload.gamertag, status: inviteStatus });
+    setShowGuestTerms(false);
+    setShowGuestForm(false);
+    setGuestForm({ display_name: "", gamertag: "", platform: "PlayStation", email: "", discord: "", driver_number: "" });
+    await loadAll();
+    notify(inviteStatus === "accepted" ? "Guest registration accepted. You are on the roster." : "Guest registration submitted for host approval.");
+  }
+
+  async function updateGuestRequest(member, inviteStatus) {
+    if (!can("event.roster")) return setError("You do not have roster permission.");
+    const patch = {
+      invite_status: inviteStatus,
+      is_active: inviteStatus !== "declined",
+      joined_at: inviteStatus === "accepted" ? new Date().toISOString() : member.joined_at,
+    };
+    const { error: updateError } = await supabase.from("community_event_members").update(patch).eq("id", member.id);
+    if (updateError) return setError(updateError.message);
+    await supabase.from("community_event_agreements")
+      .update({ registration_status: inviteStatus })
+      .eq("event_id", eventId)
+      .eq("user_key", `guest:${String(member.email || "").toLowerCase()}:${eventId}`);
+    await audit(`guest_${inviteStatus}`, "member", member.id, { display_name: member.display_name, gamertag: member.gamertag });
+    await loadAll();
+    notify(inviteStatus === "accepted" ? "Guest driver approved." : "Guest registration declined.");
+  }
+
   async function withdrawFromEvent() {
     setError("");
     if (!selfMember || !isSignedUp) return;
@@ -245,14 +362,30 @@ export default function CommunityEventDetailPage({ supabase, eventId, drivers = 
       <div style={{ ...card, gridColumn: "1 / -1" }}><h3 style={{ marginTop: 0 }}>Description</h3><div style={{ whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{event.description || "No description yet."}</div>{Number(event.entry_fee || 0) > 0 && <><h3>Payment Method</h3><div style={{ whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{event.payment_method || "Contact the host."}</div><h3>Prize Distribution</h3><div style={{ whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{event.prize_distribution || "Not posted."}</div><h3>Refund Policy</h3><div style={{ whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{event.refund_policy || "No refund policy posted."}</div></>}<h3>Rules</h3><div style={{ whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{event.rules || "No rules posted yet."}</div></div>
     </div>;
     if (tab === "Roster") return <div style={{ display: "grid", gap: 16 }}>
-      {can("event.roster") && <div style={card}><h3 style={{ marginTop: 0 }}>Add Existing BRL Driver</h3><div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}><select style={{ ...input, flex: 1, minWidth: 240 }} value={selectedDriverId} onChange={(e) => setSelectedDriverId(e.target.value)}><option value="">Select driver…</option>{drivers.filter((d) => !members.some((m) => String(m.driver_id) === String(d.id))).map((d) => <option key={d.id} value={d.id}>#{d.number} {d.name || d.username}</option>)}</select><button style={primary} onClick={addExistingDriver}>Add Driver</button></div><h3>Add New / External Driver</h3><div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 10 }}>{Object.keys(external).map((key) => <input key={key} style={input} placeholder={key.replaceAll('_',' ')} value={external[key]} onChange={(e) => setExternal({ ...external, [key]: e.target.value })} />)}</div><button style={{ ...primary, marginTop: 10 }} onClick={addExternalDriver}>Add New Driver</button></div>}
-      <div style={card}><h3 style={{ marginTop: 0 }}>Event Roster</h3>{acceptedMembers.map((m) => <div key={m.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, padding: "11px 0", borderBottom: "1px solid #eee" }}><div><b>#{m.driver_number || '—'} {m.display_name}</b><div style={{ color: "#6b7280", fontSize: 13 }}>{m.member_type} · {m.manufacturer || 'No manufacturer'} · {m.team_name || 'Independent'}</div></div>{can("event.roster") && <button style={danger} onClick={() => removeMember(m.id)}>Remove</button>}</div>)}</div>
+      {can("event.roster") && <div style={card}>
+        <h3 style={{ marginTop: 0 }}>Add Existing BRL Driver</h3>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <select style={{ ...input, flex: 1, minWidth: 240 }} value={selectedDriverId} onChange={(e) => setSelectedDriverId(e.target.value)}><option value="">Select driver…</option>{drivers.filter((d) => !members.some((m) => String(m.driver_id) === String(d.id))).map((d) => <option key={d.id} value={d.id}>#{d.number} {d.name || d.username}</option>)}</select>
+          <button style={primary} onClick={addExistingDriver}>Add Driver</button>
+        </div>
+        <h3>Add Guest Manually</h3>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 10 }}>{Object.keys(external).map((key) => <input key={key} style={input} placeholder={key.replaceAll('_',' ')} value={external[key]} onChange={(e) => setExternal({ ...external, [key]: e.target.value })} />)}</div>
+        <button style={{ ...primary, marginTop: 10 }} onClick={addExternalDriver}>Add Guest</button>
+      </div>}
+      {can("event.roster") && pendingGuestMembers.length > 0 && <div style={{ ...card, borderColor: "#f59e0b" }}>
+        <h3 style={{ marginTop: 0 }}>Pending Guest Registrations ({pendingGuestMembers.length})</h3>
+        {pendingGuestMembers.map((m) => <div key={m.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, padding: "12px 0", borderBottom: "1px solid #eee", flexWrap: "wrap" }}>
+          <div><b>{m.display_name} · {m.gamertag || "No gamertag"}</b><div style={{ color: "#6b7280", fontSize: 13 }}>{m.platform || "Platform not listed"} · {m.email}</div></div>
+          <div style={{ display: "flex", gap: 8 }}><button style={primary} onClick={() => updateGuestRequest(m, "accepted")}>Approve</button><button style={danger} onClick={() => updateGuestRequest(m, "declined")}>Decline</button></div>
+        </div>)}
+      </div>}
+      <div style={card}><h3 style={{ marginTop: 0 }}>Event Roster</h3>{acceptedMembers.map((m) => <div key={m.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, padding: "11px 0", borderBottom: "1px solid #eee" }}><div><b>#{m.driver_number || '—'} {m.display_name}</b>{m.member_type === "external" && <span style={{ marginLeft: 8, padding: "3px 7px", borderRadius: 999, background: "#eef2ff", fontSize: 11, fontWeight: 900 }}>GUEST</span>}<div style={{ color: "#6b7280", fontSize: 13 }}>{m.member_type === "external" ? `${m.gamertag || "Guest"} · ${m.platform || "Platform not listed"}` : `${m.manufacturer || 'No manufacturer'} · ${m.team_name || 'Independent'}`}</div></div>{can("event.roster") && <button style={danger} onClick={() => removeMember(m.id)}>Remove</button>}</div>)}</div>
     </div>;
     if (tab === "Schedule") return <div style={{ display: "grid", gap: 16 }}>{can("event.schedule") && <div style={card}><h3 style={{ marginTop: 0 }}>Add Race</h3><div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))", gap: 10 }}><input style={input} placeholder="Race name" value={raceForm.name} onChange={(e) => setRaceForm({ ...raceForm, name: e.target.value })}/><input style={input} placeholder="Track" value={raceForm.track_name} onChange={(e) => setRaceForm({ ...raceForm, track_name: e.target.value })}/><input style={input} type="datetime-local" value={raceForm.scheduled_at} onChange={(e) => setRaceForm({ ...raceForm, scheduled_at: e.target.value })}/><input style={input} type="number" min="0" max="4" placeholder="Stages" value={raceForm.stage_count} onChange={(e) => setRaceForm({ ...raceForm, stage_count: e.target.value })}/><input style={input} type="number" placeholder="Laps" value={raceForm.laps} onChange={(e) => setRaceForm({ ...raceForm, laps: e.target.value })}/></div><button style={{ ...primary, marginTop: 10 }} onClick={addRace}>Add Race</button></div>}<div style={card}>{races.map((r) => <div key={r.id} style={{ display:"flex",justifyContent:"space-between",gap:12,padding:"12px 0",borderBottom:"1px solid #eee" }}><div><b>Race {r.race_number}: {r.name}</b><div style={{ color:"#6b7280" }}>{r.track_name} · {fmt(r.scheduled_at)} · {r.stage_count} stages · {r.status}</div></div>{can("event.schedule") && <button style={danger} onClick={() => deleteRace(r.id)}>Delete</button>}</div>)}</div></div>;
     if (tab === "Results") return <div style={card}><div style={{ display:"flex",justifyContent:"space-between",gap:10,alignItems:"end",flexWrap:"wrap" }}><label style={{ ...label, minWidth:260 }}>Race<select style={input} value={selectedRaceId} onChange={(e) => { setSelectedRaceId(e.target.value); setResultDrafts({}); }}>{races.map((r) => <option key={r.id} value={r.id}>Race {r.race_number}: {r.name}</option>)}</select></label>{can("event.results") && <button style={primary} onClick={saveResults}>Save Results</button>}</div>{!selectedRace ? <p>Add a race first.</p> : <div style={{ overflowX:"auto",marginTop:16 }}><table style={{ width:"100%",borderCollapse:"collapse",minWidth:980 }}><thead><tr>{['Driver','Finish','S1','S2','S3','S4','Penalty','Fast Lap','Led Lap','Most Led','DNF','DNS','DQ','Points'].map(h => <th key={h} style={{ textAlign:"left",padding:8,borderBottom:"2px solid #ddd" }}>{h}</th>)}</tr></thead><tbody>{acceptedMembers.map((m) => { const d=draftFor(m.id); return <tr key={m.id}><td style={{ padding:8,borderBottom:"1px solid #eee",fontWeight:800 }}>#{m.driver_number} {m.display_name}</td>{['finish_position','stage1_position','stage2_position','stage3_position','stage4_position','penalty_points'].map(k => <td key={k} style={{ padding:5 }}><input disabled={!can("event.results")} style={{ ...input,width:68,padding:7 }} type="number" value={d[k]} onChange={(e)=>updateDraft(m.id,{[k]:e.target.value})}/></td>)}{['fastest_lap','led_lap','most_laps_led','dnf','dns','disqualified'].map(k => <td key={k} style={{ padding:8,textAlign:"center" }}><input disabled={!can("event.results")} type="checkbox" checked={d[k]} onChange={(e)=>updateDraft(m.id,{[k]:e.target.checked})}/></td>)}<td style={{ padding:8,fontWeight:900 }}>{totalForResult(d)}</td></tr>})}</tbody></table></div>}</div>;
     if (tab === "Standings") return <div style={card}><h3 style={{ marginTop:0 }}>Tournament Standings</h3>{standings.map((s,i) => <div key={s.member.id} style={{ display:"grid",gridTemplateColumns:"45px 1fr repeat(4,80px)",gap:10,padding:"12px 0",borderBottom:"1px solid #eee",alignItems:"center" }}><b>{i+1}</b><b>#{s.member.driver_number} {s.member.display_name}</b><span>{s.points} pts</span><span>{s.wins} wins</span><span>{s.top5} top 5</span><span>{s.starts} starts</span></div>)}</div>;
     if (tab === "Staff") return <div style={{ display:"grid",gap:16 }}>{can("event.staff") && <div style={card}><h3 style={{ marginTop:0 }}>Assign Event Staff</h3><div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:10 }}><input style={input} placeholder="Login username / key" value={staffForm.user_key} onChange={(e)=>setStaffForm({...staffForm,user_key:e.target.value})}/><input style={input} placeholder="Display name" value={staffForm.display_name} onChange={(e)=>setStaffForm({...staffForm,display_name:e.target.value})}/><select style={input} value={staffForm.role_key} onChange={(e)=>setStaffForm({...staffForm,role_key:e.target.value})}>{Object.keys(EVENT_ROLE_TEMPLATES).map(k=><option key={k} value={k}>{k.replaceAll('_',' ')}</option>)}</select></div><button style={{ ...primary,marginTop:10 }} onClick={addStaff}>Assign Role</button></div>}<div style={card}>{staff.map((s)=><div key={s.id} style={{ display:"flex",justifyContent:"space-between",padding:"11px 0",borderBottom:"1px solid #eee" }}><div><b>{s.display_name}</b><div style={{ color:"#6b7280" }}>{s.role_key.replaceAll('_',' ')} · {s.user_key}</div></div>{can("event.staff") && s.role_key!=="owner" && <button style={danger} onClick={()=>removeStaff(s.id)}>Remove</button>}</div>)}</div></div>;
-    if (tab === "Settings") return <div style={card}><div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(210px,1fr))",gap:12 }}><label style={label}>Name<input style={input} disabled={!can("event.settings")} value={event.name} onChange={(e)=>setEvent({...event,name:e.target.value})}/></label><label style={label}>Status<select style={input} disabled={!can("event.settings")} value={event.status} onChange={(e)=>setEvent({...event,status:e.target.value})}>{['draft','registration','active','completed','cancelled'].map(v=><option key={v}>{v}</option>)}</select></label><label style={label}>Visibility<select style={input} disabled={!can("event.settings")} value={event.visibility} onChange={(e)=>setEvent({...event,visibility:e.target.value})}>{['public','invite_only','unlisted'].map(v=><option key={v}>{v}</option>)}</select></label><label style={label}>Max drivers<input style={input} type="number" disabled={!can("event.settings")} value={event.max_drivers} onChange={(e)=>setEvent({...event,max_drivers:Number(e.target.value)})}/></label><label style={label}>Entry fee ($)<input style={input} type="number" min="0" step="0.01" disabled={!can("event.settings")} value={event.entry_fee || 0} onChange={(e)=>setEvent({...event,entry_fee:Number(e.target.value)})}/></label><label style={label}>Prize pool ($)<input style={input} type="number" disabled={!can("event.settings")} value={event.prize_pool} onChange={(e)=>setEvent({...event,prize_pool:Number(e.target.value)})}/></label><label style={label}>Payment method<input style={input} disabled={!can("event.settings")} value={event.payment_method||''} onChange={(e)=>setEvent({...event,payment_method:e.target.value})}/></label><label style={label}>Discord URL<input style={input} disabled={!can("event.settings")} value={event.discord_url||''} onChange={(e)=>setEvent({...event,discord_url:e.target.value})}/></label></div><label style={{ ...label,marginTop:12 }}>Description<textarea style={{ ...input,minHeight:90 }} disabled={!can("event.settings")} value={event.description||''} onChange={(e)=>setEvent({...event,description:e.target.value})}/></label><label style={{ ...label,marginTop:12 }}>Prize distribution<textarea style={{ ...input,minHeight:90 }} disabled={!can("event.settings")} value={event.prize_distribution||''} onChange={(e)=>setEvent({...event,prize_distribution:e.target.value})}/></label><label style={{ ...label,marginTop:12 }}>Refund policy<textarea style={{ ...input,minHeight:90 }} disabled={!can("event.settings")} value={event.refund_policy||''} onChange={(e)=>setEvent({...event,refund_policy:e.target.value})}/></label><label style={{ ...label,marginTop:12 }}>Rules<textarea style={{ ...input,minHeight:130 }} disabled={!can("event.settings")} value={event.rules||''} onChange={(e)=>setEvent({...event,rules:e.target.value})}/></label>{can("event.settings") && <button style={{ ...primary,marginTop:14 }} onClick={saveSettings}>Save Settings</button>}{isOwner && <button style={{ ...danger,marginTop:14,marginLeft:10 }} onClick={deleteEvent}>Delete Event</button>}</div>;
+    if (tab === "Settings") return <div style={card}><div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(210px,1fr))",gap:12 }}><label style={label}>Name<input style={input} disabled={!can("event.settings")} value={event.name} onChange={(e)=>setEvent({...event,name:e.target.value})}/></label><label style={label}>Status<select style={input} disabled={!can("event.settings")} value={event.status} onChange={(e)=>setEvent({...event,status:e.target.value})}>{['draft','registration','active','completed','cancelled'].map(v=><option key={v}>{v}</option>)}</select></label><label style={label}>Visibility<select style={input} disabled={!can("event.settings")} value={event.visibility} onChange={(e)=>setEvent({...event,visibility:e.target.value})}>{['public','invite_only','unlisted'].map(v=><option key={v}>{v}</option>)}</select></label><label style={label}>Max drivers<input style={input} type="number" disabled={!can("event.settings")} value={event.max_drivers} onChange={(e)=>setEvent({...event,max_drivers:Number(e.target.value)})}/></label><label style={{ ...label, display:"flex",alignItems:"center",gap:10 }}><span>Allow guest drivers</span><input type="checkbox" disabled={!can("event.settings")} checked={!!event.allow_guest_drivers} onChange={(e)=>setEvent({...event,allow_guest_drivers:e.target.checked})}/></label>{event.allow_guest_drivers && <label style={label}>Max guest drivers<input style={input} type="number" min="0" disabled={!can("event.settings")} value={event.max_guest_drivers || 0} onChange={(e)=>setEvent({...event,max_guest_drivers:Number(e.target.value)})}/></label>}{event.allow_guest_drivers && <label style={{ ...label, display:"flex",alignItems:"center",gap:10 }}><span>Require guest approval</span><input type="checkbox" disabled={!can("event.settings")} checked={event.guest_approval_required !== false} onChange={(e)=>setEvent({...event,guest_approval_required:e.target.checked})}/></label>}<label style={label}>Entry fee ($)<input style={input} type="number" min="0" step="0.01" disabled={!can("event.settings")} value={event.entry_fee || 0} onChange={(e)=>setEvent({...event,entry_fee:Number(e.target.value)})}/></label><label style={label}>Prize pool ($)<input style={input} type="number" disabled={!can("event.settings")} value={event.prize_pool} onChange={(e)=>setEvent({...event,prize_pool:Number(e.target.value)})}/></label><label style={label}>Payment method<input style={input} disabled={!can("event.settings")} value={event.payment_method||''} onChange={(e)=>setEvent({...event,payment_method:e.target.value})}/></label><label style={label}>Discord URL<input style={input} disabled={!can("event.settings")} value={event.discord_url||''} onChange={(e)=>setEvent({...event,discord_url:e.target.value})}/></label></div><label style={{ ...label,marginTop:12 }}>Description<textarea style={{ ...input,minHeight:90 }} disabled={!can("event.settings")} value={event.description||''} onChange={(e)=>setEvent({...event,description:e.target.value})}/></label><label style={{ ...label,marginTop:12 }}>Prize distribution<textarea style={{ ...input,minHeight:90 }} disabled={!can("event.settings")} value={event.prize_distribution||''} onChange={(e)=>setEvent({...event,prize_distribution:e.target.value})}/></label><label style={{ ...label,marginTop:12 }}>Refund policy<textarea style={{ ...input,minHeight:90 }} disabled={!can("event.settings")} value={event.refund_policy||''} onChange={(e)=>setEvent({...event,refund_policy:e.target.value})}/></label><label style={{ ...label,marginTop:12 }}>Rules<textarea style={{ ...input,minHeight:130 }} disabled={!can("event.settings")} value={event.rules||''} onChange={(e)=>setEvent({...event,rules:e.target.value})}/></label>{can("event.settings") && <button style={{ ...primary,marginTop:14 }} onClick={saveSettings}>Save Settings</button>}{isOwner && <button style={{ ...danger,marginTop:14,marginLeft:10 }} onClick={deleteEvent}>Delete Event</button>}</div>;
     return null;
   };
 
@@ -284,7 +417,54 @@ export default function CommunityEventDetailPage({ supabase, eventId, drivers = 
           )}
         </div>
       )}
+      {event.allow_guest_drivers && !isOwner && (
+        <div style={{ ...card, marginBottom: 16 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+            <div><div style={{ fontWeight: 900, fontSize: 18 }}>Not a BRL league driver?</div><div style={{ color: "#6b7280", marginTop: 4 }}>Guest drivers may apply to run this event. {event.guest_approval_required ? "The event host must approve the registration." : "Approved registrations are added immediately."}</div><div style={{ color: "#6b7280", marginTop: 3 }}>{acceptedGuestCount} of {event.max_guest_drivers || 0} guest spots filled.</div></div>
+            <button type="button" style={{ ...secondary, opacity: registrationIsOpen && !guestCapacityReached ? 1 : .55 }} disabled={!registrationIsOpen || guestCapacityReached} onClick={() => setShowGuestForm((value) => !value)}>{showGuestForm ? "Close Guest Form" : "Register as Guest"}</button>
+          </div>
+          {showGuestForm && <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(190px,1fr))", gap: 10 }}>
+            <label style={label}>Name<input style={input} value={guestForm.display_name} onChange={(e)=>setGuestForm({...guestForm,display_name:e.target.value})}/></label>
+            <label style={label}>Racing gamertag<input style={input} value={guestForm.gamertag} onChange={(e)=>setGuestForm({...guestForm,gamertag:e.target.value})}/></label>
+            <label style={label}>Platform<select style={input} value={guestForm.platform} onChange={(e)=>setGuestForm({...guestForm,platform:e.target.value})}><option>PlayStation</option><option>Xbox</option><option>PC</option><option>Other</option></select></label>
+            <label style={label}>Email<input style={input} type="email" value={guestForm.email} onChange={(e)=>setGuestForm({...guestForm,email:e.target.value})}/></label>
+            <label style={label}>Discord (optional)<input style={input} value={guestForm.discord} onChange={(e)=>setGuestForm({...guestForm,discord:e.target.value})}/></label>
+            <label style={label}>Preferred number (optional)<input style={input} value={guestForm.driver_number} onChange={(e)=>setGuestForm({...guestForm,driver_number:e.target.value})}/></label>
+            <div style={{ gridColumn:"1 / -1" }}><button type="button" style={primary} onClick={requestGuestRegistration}>Review Terms & Submit</button></div>
+          </div>}
+        </div>
+      )}
       <div style={{ display:"flex",gap:8,flexWrap:"wrap",marginBottom:16 }}>{tabs.map((name)=><button key={name} style={tab===name?primary:secondary} onClick={()=>setTab(name)}>{name}</button>)}</div>{renderTab()}
+      {showGuestTerms && (
+        <div style={modalOverlay} role="dialog" aria-modal="true" aria-label="Guest event driver agreement">
+          <div style={modalCard}>
+            <h2 style={{ marginTop: 0 }}>BRL Guest Driver Agreement</h2>
+            <div style={{ ...card, background: "#f9fafb", marginBottom: 12 }}><b>{event.name}</b><div style={{ marginTop: 5 }}>Guest: <b>{guestForm.display_name}</b> ({guestForm.gamertag})</div>{Number(event.entry_fee || 0) > 0 ? <><div>Entry fee: <b>${Number(event.entry_fee || 0).toLocaleString()}</b></div><div>Payment method: {event.payment_method || "Contact the host"}</div><div>Refund policy: {event.refund_policy || "Not posted"}</div></> : <div>Free event — no entry fee.</div>}</div>
+            {(Number(event.entry_fee || 0) > 0 ? [
+              "I understand this is an independently hosted event and may not be an official BRL-sanctioned competition.",
+              `I understand this event requires an entry fee of $${Number(event.entry_fee || 0).toLocaleString()}.`,
+              "I am responsible for submitting payment directly to the event host using the posted method.",
+              "I understand BRL does not process, collect, hold, or distribute entry fees.",
+              "I have read and agree to the host's event rules.",
+              "I have read and accept the posted refund policy.",
+              "I agree to compete fairly and follow BRL and event-specific conduct standards.",
+              "I understand failure to appear may result in forfeiture of my entry fee under the posted refund policy.",
+              "I understand prize payouts are the responsibility of the event host.",
+              "I understand BRL is not responsible for payment disputes, refunds, cancellations, or prize distribution.",
+              "I certify that I am legally eligible to enter a paid competition and will comply with all applicable laws and age requirements."
+            ] : [
+              "I understand this is an independently hosted event and may not be an official BRL-sanctioned competition.",
+              "I have read and agree to the host's event rules.",
+              "I agree to compete fairly and follow BRL and event-specific conduct standards.",
+              "I understand that repeated no-shows or disruptive conduct may result in removal.",
+              "I understand BRL may remove or suspend events that violate league standards.",
+              "I understand registration confirms my intent to participate in the posted event schedule."
+            ]).map((text,index)=><label key={text} style={{ display:"flex",gap:10,alignItems:"flex-start",padding:"9px 0",fontWeight:700 }}><input type="checkbox" checked={guestChecks[index]} onChange={(e)=>setGuestChecks(items=>items.map((v,i)=>i===index?e.target.checked:v))}/><span>{text}</span></label>)}
+            <label style={{ display:"flex",gap:10,alignItems:"flex-start",padding:"14px 0",borderTop:"1px solid #e5e7eb",fontWeight:900 }}><input type="checkbox" checked={guestFinal} onChange={(e)=>setGuestFinal(e.target.checked)}/><span>I have read, understand, and agree to all terms above.</span></label>
+            <div style={{ display:"flex",justifyContent:"flex-end",gap:10 }}><button type="button" style={secondary} onClick={()=>setShowGuestTerms(false)}>Cancel</button><button type="button" style={{ ...primary,opacity:guestChecks.every(Boolean)&&guestFinal?1:.5 }} disabled={!guestChecks.every(Boolean)||!guestFinal} onClick={()=>submitGuestRegistration(true)}>Accept & Submit Registration</button></div>
+          </div>
+        </div>
+      )}
       {showDriverTerms && (
         <div style={modalOverlay} role="dialog" aria-modal="true" aria-label="Paid event driver agreement">
           <div style={modalCard}>
