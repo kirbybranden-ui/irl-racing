@@ -27,6 +27,7 @@ import AdminVotingPage from "./pages/AdminVotingPage";
 import DriverFeedbackPage from "./pages/DriverFeedbackPage";
 import OwnerHQPage from "./pages/OwnerHQPage";
 import AdminPortal from "./pages/AdminPortal";
+import PermissionsCenter from "./pages/PermissionsCenter";
 import LeagueMessageCenter from "./pages/LeagueMessageCenter";
 import InSeasonTournamentPage from "./pages/InSeasonTournamentPage";
 import DriverMarketPage from "./pages/DriverMarketPage";
@@ -8804,7 +8805,7 @@ export default function App() {
     );
   }
 
-  const adminProtectedPaths = new Set(["/admin", "/appeals", "/admin/stories", "/stories", "/admin/live-control", "/admin/car-gallery", "/admin/arca-car-gallery", "/admin/interviews", "/admin/votes"]);
+  const adminProtectedPaths = new Set(["/admin", "/admin/permissions", "/appeals", "/admin/stories", "/stories", "/admin/live-control", "/admin/car-gallery", "/admin/arca-car-gallery", "/admin/interviews", "/admin/votes"]);
   const isAdminProtectedPath = adminProtectedPaths.has(path);
   const isAdminAuthenticated = sessionStorage.getItem("bcl-admin-auth") === "true";
   const logoutAdmin = () => {
@@ -8922,6 +8923,22 @@ export default function App() {
   }
   // Loading gate — all routes below this need Supabase data
   if (!isHydrated) return <div style={appShellStyle}><div style={pageContainerStyle}><div style={sectionCardStyle}>Loading league data...</div></div></div>;
+
+  // Identity & Access Management
+  if (path === "/admin/permissions") {
+    return (
+      <PermissionsCenter
+        supabase={supabase}
+        drivers={visibleDrivers}
+        teams={(ownerPortalTeams || []).map((team) => ({
+          id: team,
+          code: team,
+          name: getTeamFullName(team),
+        }))}
+        currentSession={getLeagueSession()}
+      />
+    );
+  }
 
   // Development series pages. These do not remove any existing Cup routes.
   // ARCA interviews
@@ -9112,6 +9129,7 @@ export default function App() {
   }
   return (
     <AdminPortal
+      currentSession={getLeagueSession()}
       teamPrestigeRows={teamPrestigeRows}
       teamPrestigeStatus={teamPrestigeStatus}
       teamPrestigeSaving={teamPrestigeSaving}
