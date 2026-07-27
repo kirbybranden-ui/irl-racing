@@ -208,40 +208,190 @@ async function verifyAdminBiometric() {
   return true;
 }
 
-function AdminLoginPage() {
+function AdminLoginPage({ drivers = [] }) {
   const ADMIN_ACCESS_CODE = "BCLADMINPASSWORD2026";
+  const [driverNumber, setDriverNumber] = useState("");
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
+  const [loggingIn, setLoggingIn] = useState(false);
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [hasBiometricCredential, setHasBiometricCredential] = useState(() => (typeof window !== "undefined" ? !!localStorage.getItem(ADMIN_BIOMETRIC_CREDENTIAL_KEY) : false));
   const [biometricBusy, setBiometricBusy] = useState(false);
   const [biometricError, setBiometricError] = useState("");
   const [offerBiometricSetup, setOfferBiometricSetup] = useState(false);
 
+  const activeDrivers = useMemo(() => {
+    return dedupeDriversByNumber(drivers || [])
+      .filter((driver) => !driver.retired && !isInactivePlaceholderDriver(driver))
+      .sort((a, b) => Number(a.number || 9999) - Number(b.number || 9999));
+  }, [drivers]);
+
   useEffect(() => {
     isBiometricAvailable().then(setBiometricAvailable);
   }, []);
 
-  function completeLogin() {
+  function completeLogin(session = {}) {
     sessionStorage.setItem("bcl-admin-auth", "true");
     sessionStorage.setItem("bcl-admin-auth-time", new Date().toISOString());
+    sessionStorage.setItem("bcl-admin-session", JSON.stringify({
+      mode: session.mode || "master",
+      userId: session.userId || null,
+      driverId: session.driverId || null,
+      driverNumber: session.driverNumber || null,
+      driverName: session.driverName || "League Admin",
+      permissions: session.permissions || ["*"],
+      loggedInAt: new Date().toISOString(),
+    }));
     localStorage.removeItem("bcl-admin-auth");
     localStorage.removeItem("bcl-admin-auth-time");
     window.location.pathname = "/admin";
   }
 
-  const handleLogin = (event) => {
+  async function getAdminPermissionForUser(userId) {
+    const [rolesResult, overridesResult] = await Promise.all([
+      supabase.from("user_roles").select("role_id").eq("user_id", userId),
+      supabase
+        .from("user_permission_overrides")
+        .select("permission_key, allowed")
+        .eq("user_id", userId),
+    ]);
+
+    if (rolesResult.error) throw rolesResult.error;
+    if (overridesResult.error) throw overridesResult.error;
+
+    const overrideMap = new Map(
+      (overridesResult.data || []).map((row) => [String(row.permission_key), Boolean(row.allowed)])
+    );
+
+    // A direct deny always wins. A direct allow grants access even without a role.
+    if (overrideMap.get("admin.access") === false || overrideMap.get("*") === false) {
+      return { allowed: false, permissions: [] };
+    }
+
+    const roleIds = (rolesResult.data || []).map((row) => row.role_id).filter(Boolean);
+    let rolePermissionKeys = [];
+
+    if (roleIds.length) {
+      const { data, error } = await supabase
+        .from("role_permissions")
+        .select("permission_key")
+        .in("role_id", roleIds);
+      if (error) throw error;
+      rolePermissionKeys = (data || []).map((row) => String(row.permission_key));
+    }
+
+    const grantedOverrides = [...overrideMap.entries()]
+      .filter(([, allowed]) => allowed)
+      .map(([permissionKey]) => permissionKey);
+    const deniedOverrides = new Set(
+      [...overrideMap.entries()]
+        .filter(([, allowed]) => !allowed)
+        .map(([permissionKey]) => permissionKey)
+    );
+
+    const permissions = [...new Set([...rolePermissionKeys, ...grantedOverrides])]
+      .filter((permissionKey) => !deniedOverrides.has(permissionKey));
+
+    return {
+      allowed: permissions.includes("admin.access") || permissions.includes("*"),
+      permissions,
+    };
+  }
+
+  const handleLogin = async (event) => {
     event.preventDefault();
-    if (code.trim() === ADMIN_ACCESS_CODE) {
-      const alreadyDeclined = localStorage.getItem(ADMIN_BIOMETRIC_DECLINED_KEY);
-      if (biometricAvailable && !hasBiometricCredential && !alreadyDeclined) {
-        setOfferBiometricSetup(true);
+    setError("");
+    setLoggingIn(true);
+
+    try {
+      const enteredCode = String(code || "").trim();
+      const number = String(driverNumber || "").trim();
+
+      // Commissioner/master login remains available as an emergency login.
+      if (enteredCode === ADMIN_ACCESS_CODE) {
+        const alreadyDeclined = localStorage.getItem(ADMIN_BIOMETRIC_DECLINED_KEY);
+        if (biometricAvailable && !hasBiometricCredential && !alreadyDeclined) {
+          setOfferBiometricSetup(true);
+          return;
+        }
+        completeLogin({ mode: "master", permissions: ["*"] });
         return;
       }
-      completeLogin();
-      return;
+
+      if (!number || !enteredCode) {
+        setError("Select your driver and enter your normal driver password.");
+        return;
+      }
+
+      const { data: accessRows, error: accessError } = await supabase
+        .from("driver_access_codes")
+        .select("*")
+        .eq("driver_number", number)
+        .limit(10);
+
+      if (accessError) throw accessError;
+
+      const normalizedCode = enteredCode.toUpperCase();
+      const accessMatch = (accessRows || []).find((row) => {
+        const rowNumber = String(row.driver_number ?? row.car_number ?? "").trim();
+        const possibleCodes = [row.code, row.access_code, row.password, row.driver_password]
+          .map((value) => String(value ?? "").trim().toUpperCase())
+          .filter(Boolean);
+        return rowNumber === number && possibleCodes.includes(normalizedCode) && row.active !== false;
+      });
+
+      if (!accessMatch) {
+        setError("Invalid driver number or password.");
+        return;
+      }
+
+      const rosterDriver = activeDrivers.find((driver) => String(driver.number) === number) || null;
+      const { data: appUsers, error: usersError } = await supabase
+        .from("app_users")
+        .select("*");
+
+      if (usersError) throw usersError;
+
+      const normalizeName = (value) => String(value || "").trim().toLowerCase();
+      const rosterName = normalizeName(rosterDriver?.name || accessMatch.driver_name);
+      const appUser = (appUsers || []).find((user) => {
+        const driverIdMatches = rosterDriver?.id != null && String(user.driver_id || "") === String(rosterDriver.id);
+        const numberMatches = String(user.driver_number || user.car_number || "").trim() === number;
+        const nameMatches = rosterName && [user.display_name, user.username, user.name, user.login_name]
+          .some((value) => normalizeName(value) === rosterName);
+        return driverIdMatches || numberMatches || nameMatches;
+      });
+
+      if (!appUser) {
+        setError("Your driver login is valid, but no Permissions Center account is linked to this driver.");
+        return;
+      }
+
+      if (appUser.active === false) {
+        setError("This Permissions Center account is inactive.");
+        return;
+      }
+
+      const permissionResult = await getAdminPermissionForUser(appUser.id);
+      if (!permissionResult.allowed) {
+        setError("Your account does not have Admin Portal access.");
+        return;
+      }
+
+      completeLogin({
+        mode: "delegated",
+        userId: appUser.id,
+        driverId: rosterDriver?.id || appUser.driver_id || null,
+        driverNumber: number,
+        driverName: rosterDriver?.name || appUser.display_name || accessMatch.driver_name || `#${number}`,
+        permissions: permissionResult.permissions,
+      });
+    } catch (loginError) {
+      console.error("Admin login failed:", loginError);
+      setError(loginError?.message || "Could not verify Admin Portal access.");
+    } finally {
+      setLoggingIn(false);
     }
-    setError("Invalid admin code.");
   };
 
   async function handleEnableBiometric() {
@@ -250,7 +400,7 @@ function AdminLoginPage() {
     try {
       await registerAdminBiometric();
       setHasBiometricCredential(true);
-      completeLogin();
+      completeLogin({ mode: "master", permissions: ["*"] });
     } catch (err) {
       console.error("Biometric setup failed:", err);
       setBiometricError("Could not set up Face ID / Touch ID on this device.");
@@ -260,7 +410,7 @@ function AdminLoginPage() {
 
   function handleSkipBiometric() {
     localStorage.setItem(ADMIN_BIOMETRIC_DECLINED_KEY, "true");
-    completeLogin();
+    completeLogin({ mode: "master", permissions: ["*"] });
   }
 
   async function handleBiometricUnlock() {
@@ -268,7 +418,7 @@ function AdminLoginPage() {
     setBiometricError("");
     try {
       await verifyAdminBiometric();
-      completeLogin();
+      completeLogin({ mode: "master", permissions: ["*"] });
     } catch (err) {
       console.error("Biometric unlock failed:", err);
       setBiometricError("Face ID / Touch ID didn't match. Use your access code instead.");
@@ -343,41 +493,10 @@ function AdminLoginPage() {
             </p>
             {biometricError && <div style={{ color: "#c62d24", fontWeight: 800, fontSize: 12.5, marginBottom: 12 }}>{biometricError}</div>}
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <button
-                type="button"
-                onClick={handleEnableBiometric}
-                disabled={biometricBusy}
-                style={{
-                  flex: 1,
-                  border: 0,
-                  borderRadius: 999,
-                  padding: "13px 18px",
-                  background: "linear-gradient(135deg, #34c759 0%, #248a3d 100%)",
-                  color: "#ffffff",
-                  fontWeight: 1000,
-                  fontSize: 14,
-                  cursor: biometricBusy ? "default" : "pointer",
-                  opacity: biometricBusy ? 0.7 : 1,
-                  boxShadow: "0 14px 32px rgba(52,199,89,0.26)",
-                }}
-              >
+              <button type="button" onClick={handleEnableBiometric} disabled={biometricBusy} style={{ flex: 1, border: 0, borderRadius: 999, padding: "13px 18px", background: "linear-gradient(135deg, #34c759 0%, #248a3d 100%)", color: "#ffffff", fontWeight: 1000, fontSize: 14, cursor: biometricBusy ? "default" : "pointer", opacity: biometricBusy ? 0.7 : 1, boxShadow: "0 14px 32px rgba(52,199,89,0.26)" }}>
                 {biometricBusy ? "Setting up..." : "Enable"}
               </button>
-              <button
-                type="button"
-                onClick={handleSkipBiometric}
-                disabled={biometricBusy}
-                style={{
-                  border: "1px solid rgba(0,0,0,0.10)",
-                  borderRadius: 999,
-                  padding: "13px 18px",
-                  background: "rgba(255,255,255,0.7)",
-                  color: "#1d1d1f",
-                  fontWeight: 900,
-                  fontSize: 14,
-                  cursor: "pointer",
-                }}
-              >
+              <button type="button" onClick={handleSkipBiometric} disabled={biometricBusy} style={{ border: "1px solid rgba(0,0,0,0.10)", borderRadius: 999, padding: "13px 18px", background: "rgba(255,255,255,0.7)", color: "#1d1d1f", fontWeight: 900, fontSize: 14, cursor: "pointer" }}>
                 Not now
               </button>
             </div>
@@ -386,24 +505,7 @@ function AdminLoginPage() {
           <>
             {biometricAvailable && hasBiometricCredential && (
               <div style={{ marginBottom: 20 }}>
-                <button
-                  type="button"
-                  onClick={handleBiometricUnlock}
-                  disabled={biometricBusy}
-                  style={{
-                    width: "100%",
-                    border: 0,
-                    borderRadius: 999,
-                    padding: "14px 18px",
-                    background: "linear-gradient(135deg, #34c759 0%, #248a3d 100%)",
-                    color: "#ffffff",
-                    fontWeight: 1000,
-                    fontSize: 15,
-                    cursor: biometricBusy ? "default" : "pointer",
-                    opacity: biometricBusy ? 0.7 : 1,
-                    boxShadow: "0 16px 34px rgba(52,199,89,0.28)",
-                  }}
-                >
+                <button type="button" onClick={handleBiometricUnlock} disabled={biometricBusy} style={{ width: "100%", border: 0, borderRadius: 999, padding: "14px 18px", background: "linear-gradient(135deg, #34c759 0%, #248a3d 100%)", color: "#ffffff", fontWeight: 1000, fontSize: 15, cursor: biometricBusy ? "default" : "pointer", opacity: biometricBusy ? 0.7 : 1, boxShadow: "0 16px 34px rgba(52,199,89,0.28)" }}>
                   {biometricBusy ? "Verifying..." : "🔓 Unlock with Face ID / Touch ID"}
                 </button>
                 {biometricError && <div style={{ color: "#c62d24", fontWeight: 800, fontSize: 12.5, marginTop: 10 }}>{biometricError}</div>}
@@ -417,49 +519,41 @@ function AdminLoginPage() {
 
             <form onSubmit={handleLogin}>
               <label style={{ display: "block", fontSize: 12, fontWeight: 900, color: "#6e6e73", marginBottom: 8, letterSpacing: "0.04em" }}>
-                ADMIN ACCESS CODE
+                DRIVER NUMBER
+              </label>
+              <select
+                value={driverNumber}
+                onChange={(event) => { setDriverNumber(event.target.value); setError(""); }}
+                style={{ ...appleInputStyle, marginBottom: 14 }}
+              >
+                <option value="">Commissioner login or select driver</option>
+                {activeDrivers.map((driver) => (
+                  <option key={driver.id || driver.number} value={String(driver.number)}>
+                    #{driver.number} {driver.name}
+                  </option>
+                ))}
+              </select>
+
+              <label style={{ display: "block", fontSize: 12, fontWeight: 900, color: "#6e6e73", marginBottom: 8, letterSpacing: "0.04em" }}>
+                DRIVER PASSWORD OR MASTER CODE
               </label>
               <input
                 type="password"
                 value={code}
                 onChange={(event) => { setCode(event.target.value); setError(""); }}
-                placeholder="Enter admin access code"
+                placeholder="Enter password"
                 style={appleInputStyle}
                 autoFocus
               />
+              <div style={{ color: "#86868b", marginTop: 9, fontWeight: 700, fontSize: 11.5, lineHeight: 1.4 }}>
+                Delegated staff must use their driver number and normal driver password. Access is allowed only when Admin Portal Access is granted in Permissions Center.
+              </div>
               {error && <div style={{ color: "#c62d24", marginTop: 10, fontWeight: 800, fontSize: 12.5 }}>{error}</div>}
               <div style={{ display: "flex", gap: 10, marginTop: 18, flexWrap: "wrap" }}>
-                <button
-                  type="submit"
-                  style={{
-                    flex: 1,
-                    border: 0,
-                    borderRadius: 999,
-                    padding: "13px 18px",
-                    background: "linear-gradient(135deg, #007aff 0%, #5856d6 100%)",
-                    color: "#ffffff",
-                    fontWeight: 1000,
-                    fontSize: 14,
-                    cursor: "pointer",
-                    boxShadow: "0 14px 32px rgba(0,122,255,0.26)",
-                  }}
-                >
-                  Unlock Admin Portal
+                <button type="submit" disabled={loggingIn} style={{ flex: 1, border: 0, borderRadius: 999, padding: "13px 18px", background: "linear-gradient(135deg, #007aff 0%, #5856d6 100%)", color: "#ffffff", fontWeight: 1000, fontSize: 14, cursor: loggingIn ? "default" : "pointer", opacity: loggingIn ? 0.7 : 1, boxShadow: "0 14px 32px rgba(0,122,255,0.26)" }}>
+                  {loggingIn ? "Checking Access..." : "Unlock Admin Portal"}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => (window.location.pathname = "/standings")}
-                  style={{
-                    border: "1px solid rgba(0,0,0,0.10)",
-                    borderRadius: 999,
-                    padding: "13px 18px",
-                    background: "rgba(255,255,255,0.7)",
-                    color: "#1d1d1f",
-                    fontWeight: 900,
-                    fontSize: 14,
-                    cursor: "pointer",
-                  }}
-                >
+                <button type="button" onClick={() => (window.location.pathname = "/standings")} style={{ border: "1px solid rgba(0,0,0,0.10)", borderRadius: 999, padding: "13px 18px", background: "rgba(255,255,255,0.7)", color: "#1d1d1f", fontWeight: 900, fontSize: 14, cursor: "pointer" }}>
                   Back to Standings
                 </button>
               </div>
@@ -8688,9 +8782,9 @@ export default function App() {
       window.history.replaceState({}, "", "/admin");
       return null;
     }
-    return <AdminLoginPage />;
+    return <AdminLoginPage drivers={drivers} />;
   }
-  if (isAdminProtectedPath && !isAdminAuthenticated) return <AdminLoginPage />;
+  if (isAdminProtectedPath && !isAdminAuthenticated) return <AdminLoginPage drivers={drivers} />;
 
   // Mobile experience gate — phones use the app shell (with a real Driver
   // Profile home) for all non-admin / non-overlay / non-series routes.
