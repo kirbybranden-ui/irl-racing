@@ -266,6 +266,16 @@ function PermissionsCenter({
   // Using that array as an effect dependency caused this page to enter its full-screen
   // loading state repeatedly, which looked like a five-second blink.
   const initialDriversRef = useRef(drivers);
+
+  // App.jsx often loads the league roster after this page mounts. Keep the
+  // latest non-empty roster available without making the full Supabase load
+  // effect rerun and blink every time league state refreshes.
+  useEffect(() => {
+    if (Array.isArray(drivers) && drivers.length) {
+      initialDriversRef.current = drivers;
+    }
+  }, [drivers]);
+
   const [activeTab, setActiveTab] = useState("Users");
   const [users, setUsers] = useState([]);
   const [roles, setRoles] = useState(BUILT_IN_ROLES);
@@ -469,6 +479,44 @@ function PermissionsCenter({
       active = false;
     };
   }, [supabase]);
+
+  // If the roster arrives after the initial IAM request finishes, merge those
+  // drivers into the visible user list immediately. This is intentionally a
+  // lightweight state merge: it does not restart the loading screen or clear
+  // any saved app_users/role assignments.
+  useEffect(() => {
+    if (!Array.isArray(drivers) || !drivers.length) return;
+
+    setUsers((currentUsers) => {
+      const representedDriverIds = new Set(
+        (currentUsers || [])
+          .map((user) => String(user.driverId || ""))
+          .filter(Boolean)
+      );
+
+      const additions = drivers
+        .filter((driver) => driver?.id != null && !representedDriverIds.has(String(driver.id)))
+        .map((driver) =>
+          normalizeUser({
+            id: `driver-${driver.id}`,
+            display_name: driver.name || driver.username || `Driver ${driver.id}`,
+            username: driver.username || driver.name || "",
+            driver_id: String(driver.id),
+            team: driver.team || "",
+            active: !driver.retired,
+          })
+        );
+
+      if (!additions.length) return currentUsers;
+
+      const merged = [...currentUsers, ...additions].sort((a, b) =>
+        String(a.displayName || "").localeCompare(String(b.displayName || ""))
+      );
+
+      setSelectedUserId((current) => current || String(merged[0]?.id || ""));
+      return merged;
+    });
+  }, [drivers]);
 
   useEffect(() => {
     if (!selectedUserId || String(selectedUserId).startsWith("driver-")) {
