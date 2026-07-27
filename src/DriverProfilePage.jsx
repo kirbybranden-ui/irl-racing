@@ -1180,6 +1180,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
   const [driverAssignmentMessage, setDriverAssignmentMessage] = useState("");
   const [driverAssignmentError, setDriverAssignmentError] = useState("");
   const [unreadMessages, setUnreadMessages] = useState(0);
+  const [communityEventNotifications, setCommunityEventNotifications] = useState([]);
   const [driverMessages, setDriverMessages] = useState([]);
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [messageRecipientNumber, setMessageRecipientNumber] = useState("");
@@ -1356,10 +1357,69 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
     return () => clearInterval(interval);
   }, [driver?.number]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadCommunityEventNotifications() {
+      const { data, error } = await supabase
+        .from("community_events")
+        .select("id,name,description,status,visibility,entry_fee,starts_at,registration_deadline,created_by,created_at")
+        .eq("visibility", "public")
+        .in("status", ["registration", "active"])
+        .order("created_at", { ascending: false })
+        .limit(10);
+
+      if (cancelled) return;
+
+      if (error) {
+        console.error("Failed to load Community Event notifications:", error);
+        setCommunityEventNotifications([]);
+        return;
+      }
+
+      setCommunityEventNotifications(data || []);
+    }
+
+    loadCommunityEventNotifications();
+
+    const channel = supabase
+      .channel(`driver-community-events-${driverNumber}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "community_events" },
+        loadCommunityEventNotifications
+      )
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+    };
+  }, [driverNumber]);
+
   const driverTodoItems = useMemo(() => {
     const items = [];
     const now = new Date();
     const myInterviews = isArcaDriver ? arcaInterviews : interviews;
+
+    (communityEventNotifications || []).forEach((event) => {
+      const fee = Number(event?.entry_fee || 0);
+      const entryLabel = fee > 0
+        ? `${fee.toLocaleString("en-US", { style: "currency", currency: "USD" })} entry`
+        : "Free entry";
+      const raceTime = event?.starts_at
+        ? formatInterviewDateTime(event.starts_at)
+        : "Race date to be announced";
+
+      items.push({
+        id: `community-event-${event.id}`,
+        icon: "🏁",
+        title: event.status === "active" ? "Community Event Active" : "Community Event Registration Open",
+        detail: `${event.name || "Community Event"} • ${entryLabel} • ${raceTime}`,
+        href: `/community-events/${event.id}`,
+        priority: 0,
+      });
+    });
 
     (myInterviews || []).forEach((interview) => {
       const answered = Boolean(interview?.answered);
@@ -1472,7 +1532,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
     });
 
     return items.sort((a, b) => a.priority - b.priority);
-  }, [interviews, arcaInterviews, isArcaDriver, driverAssignments, contractOffers, unreadMessages, issueChatTodos, startParkRequests, teamInterestHistory, myAppeals, driverNumber]);
+  }, [communityEventNotifications, interviews, arcaInterviews, isArcaDriver, driverAssignments, contractOffers, unreadMessages, issueChatTodos, startParkRequests, teamInterestHistory, myAppeals, driverNumber]);
 
   const driverTodoCount = driverTodoItems.length;
 
@@ -4120,7 +4180,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
                   <div style={{ padding: 16, borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
                     <div style={{ fontSize: 15, fontWeight: 1000, color: "#1d1d1f" }}>🔔 Driver To-Do Center</div>
                     <div style={{ fontSize: 12, color: "#6e6e73", fontWeight: 700, marginTop: 3 }}>
-                      Interviews, assignments, messages, contracts, and request updates.
+                      Community Events, interviews, assignments, messages, contracts, and request updates.
                     </div>
                   </div>
 
