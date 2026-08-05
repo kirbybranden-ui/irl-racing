@@ -4141,6 +4141,269 @@ function MobileGuestLockedCard({ title = "Driver Login Required", go }) {
 }
 
 
+
+function MobileMyInterviewsPage({ session }) {
+  const driverNumber = String(session?.driverNumber || session?.number || "").trim();
+  const driverName = session?.driverName || session?.displayName || "Driver";
+  const [interviews, setInterviews] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+
+  async function loadMyInterviews() {
+    if (!driverNumber) {
+      setInterviews([]);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setLoadError("");
+    const { data, error } = await supabase
+      .from("interviews")
+      .select("*")
+      .eq("driver_number", driverNumber)
+      .eq("series", session?.series || "cup")
+      .order("generated_at", { ascending: false });
+
+    if (error) {
+      console.error("Could not load driver interviews:", error);
+      setLoadError("Your interviews could not be loaded. Please try again.");
+      setInterviews([]);
+    } else {
+      setInterviews(data || []);
+    }
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    loadMyInterviews();
+  }, [driverNumber, session?.series]);
+
+  const openCount = interviews.filter((item) => !item.answered).length;
+  const completedCount = interviews.filter((item) => item.answered).length;
+
+  return (
+    <div style={{ display: "grid", gap: 16, paddingBottom: 8, fontFamily: mobileAppFont }}>
+      <section style={{
+        borderRadius: 28,
+        padding: "24px 20px",
+        background: "linear-gradient(145deg, rgba(255,255,255,0.98), rgba(246,248,252,0.86))",
+        border: "1px solid rgba(255,255,255,0.9)",
+        boxShadow: "0 20px 50px rgba(15,23,42,0.10)",
+        backdropFilter: "blur(24px)",
+        WebkitBackdropFilter: "blur(24px)",
+      }}>
+        <div style={{
+          width: 54,
+          height: 54,
+          borderRadius: 18,
+          display: "grid",
+          placeItems: "center",
+          fontSize: 27,
+          background: "linear-gradient(145deg, #0a84ff, #5856d6)",
+          color: "white",
+          boxShadow: "0 12px 28px rgba(10,132,255,0.28)",
+          marginBottom: 16,
+        }}>🎤</div>
+        <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: "0.08em", textTransform: "uppercase", color: "#6e6e73" }}>
+          Driver Interview Center
+        </div>
+        <h1 style={{ margin: "6px 0 8px", fontSize: 30, lineHeight: 1.04, letterSpacing: "-0.035em", color: "#1d1d1f", fontWeight: 950 }}>
+          My Interviews
+        </h1>
+        <p style={{ margin: 0, color: "#6e6e73", lineHeight: 1.5, fontSize: 15, fontWeight: 600 }}>
+          Logged in as #{driverNumber} {driverName}. Complete each assigned interview below.
+        </p>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 18 }}>
+          <div style={{ borderRadius: 18, padding: 14, background: "rgba(10,132,255,0.08)", border: "1px solid rgba(10,132,255,0.12)" }}>
+            <div style={{ fontSize: 26, fontWeight: 950, color: "#007aff", letterSpacing: "-0.03em" }}>{openCount}</div>
+            <div style={{ fontSize: 12, color: "#6e6e73", fontWeight: 800 }}>Needs attention</div>
+          </div>
+          <div style={{ borderRadius: 18, padding: 14, background: "rgba(52,199,89,0.09)", border: "1px solid rgba(52,199,89,0.14)" }}>
+            <div style={{ fontSize: 26, fontWeight: 950, color: "#248a3d", letterSpacing: "-0.03em" }}>{completedCount}</div>
+            <div style={{ fontSize: 12, color: "#6e6e73", fontWeight: 800 }}>Submitted</div>
+          </div>
+        </div>
+      </section>
+
+      {loading ? (
+        <section style={{ borderRadius: 24, padding: 28, background: "rgba(255,255,255,0.9)", textAlign: "center", color: "#6e6e73", boxShadow: "0 14px 36px rgba(15,23,42,0.08)" }}>
+          Loading your interviews…
+        </section>
+      ) : loadError ? (
+        <section style={{ borderRadius: 24, padding: 22, background: "rgba(255,255,255,0.94)", border: "1px solid rgba(255,59,48,0.16)", boxShadow: "0 14px 36px rgba(15,23,42,0.08)" }}>
+          <div style={{ color: "#c62d24", fontWeight: 850, lineHeight: 1.45 }}>{loadError}</div>
+          <button type="button" onClick={loadMyInterviews} style={{ marginTop: 14, width: "100%", minHeight: 50, border: 0, borderRadius: 999, background: "#007aff", color: "white", fontWeight: 900, fontSize: 15 }}>Try Again</button>
+        </section>
+      ) : interviews.length === 0 ? (
+        <section style={{ borderRadius: 24, padding: "30px 22px", background: "rgba(255,255,255,0.92)", border: "1px solid rgba(255,255,255,0.95)", boxShadow: "0 14px 36px rgba(15,23,42,0.08)", textAlign: "center" }}>
+          <div style={{ fontSize: 34, marginBottom: 10 }}>✅</div>
+          <h2 style={{ margin: "0 0 7px", fontSize: 21, color: "#1d1d1f" }}>You're all caught up</h2>
+          <p style={{ margin: 0, color: "#6e6e73", lineHeight: 1.5 }}>No interview assignments are waiting for you.</p>
+        </section>
+      ) : (
+        interviews.map((interview) => (
+          <MobileAppleInterviewCard
+            key={interview.id}
+            interview={interview}
+            onSubmitted={(updated) => setInterviews((current) => current.map((item) => item.id === updated.id ? updated : item))}
+          />
+        ))
+      )}
+    </div>
+  );
+}
+
+function MobileAppleInterviewCard({ interview, onSubmitted }) {
+  const qa = Array.isArray(interview?.questions_and_answers) ? interview.questions_and_answers : [];
+  const [answers, setAnswers] = useState(() => qa.map((item) => item.answer || ""));
+  const [submitting, setSubmitting] = useState(false);
+  const [message, setMessage] = useState("");
+  const submitted = Boolean(interview?.answered);
+  const isPre = interview?.type === "pre";
+  const accent = isPre ? "#007aff" : "#34c759";
+  const accentSoft = isPre ? "rgba(0,122,255,0.10)" : "rgba(52,199,89,0.11)";
+  const deadlineValue = interview?.deadline_at || interview?.due_at || interview?.deadlineAt || null;
+  const deadline = deadlineValue ? new Date(deadlineValue) : null;
+  const deadlineLabel = deadline && !Number.isNaN(deadline.getTime())
+    ? deadline.toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })
+    : "No deadline set";
+
+  async function submitAnswers() {
+    const missing = qa.some((item, index) => item.question && !String(answers[index] || "").trim());
+    if (missing) {
+      setMessage("Please answer every question before submitting.");
+      return;
+    }
+
+    setSubmitting(true);
+    setMessage("");
+    const nowIso = new Date().toISOString();
+    const late = deadline && !Number.isNaN(deadline.getTime()) && new Date(nowIso).getTime() > deadline.getTime();
+    const updatedQa = qa.map((item, index) => ({ ...item, answer: String(answers[index] || "").trim() }));
+
+    const { data, error } = await supabase
+      .from("interviews")
+      .update({
+        questions_and_answers: updatedQa,
+        answered: true,
+        submitted_at: nowIso,
+        status: late ? "late" : "submitted",
+        payment_status: "unpaid",
+      })
+      .eq("id", interview.id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Could not submit interview:", error);
+      setMessage("Your interview was not submitted. Please try again.");
+    } else {
+      setMessage("Interview submitted successfully.");
+      onSubmitted(data);
+    }
+    setSubmitting(false);
+  }
+
+  return (
+    <section style={{
+      borderRadius: 28,
+      overflow: "hidden",
+      background: "rgba(255,255,255,0.94)",
+      border: "1px solid rgba(255,255,255,0.96)",
+      boxShadow: "0 18px 46px rgba(15,23,42,0.10)",
+      backdropFilter: "blur(24px)",
+      WebkitBackdropFilter: "blur(24px)",
+    }}>
+      <div style={{ padding: "20px 19px 16px", background: `linear-gradient(145deg, ${accentSoft}, rgba(255,255,255,0.5))` }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
+          <div>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 7, borderRadius: 999, padding: "7px 11px", background: accentSoft, color: accent, fontSize: 11, fontWeight: 950, letterSpacing: "0.04em", textTransform: "uppercase" }}>
+              <span style={{ width: 7, height: 7, borderRadius: "50%", background: accent }} />
+              {isPre ? "Pre-Race" : "Post-Race"}
+            </div>
+            <h2 style={{ margin: "12px 0 5px", color: "#1d1d1f", fontSize: 23, lineHeight: 1.12, letterSpacing: "-0.025em", fontWeight: 950 }}>
+              {interview?.race_name || "Race Interview"}
+            </h2>
+            <div style={{ color: "#6e6e73", fontSize: 13, fontWeight: 700 }}>Due {deadlineLabel}</div>
+          </div>
+          <div style={{ borderRadius: 999, padding: "7px 10px", background: submitted ? "rgba(52,199,89,0.12)" : "rgba(255,159,10,0.12)", color: submitted ? "#248a3d" : "#b05c00", fontSize: 11, fontWeight: 900, whiteSpace: "nowrap" }}>
+            {submitted ? "Submitted" : "Open"}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ padding: "18px 18px 20px", display: "grid", gap: 14 }}>
+        {qa.map((item, index) => (
+          <div key={`${interview.id}-${index}`} style={{ borderRadius: 22, padding: 16, background: "#f5f5f7", border: "1px solid rgba(0,0,0,0.045)" }}>
+            <div style={{ color: accent, fontSize: 11, fontWeight: 950, letterSpacing: "0.07em", textTransform: "uppercase", marginBottom: 7 }}>
+              Question {index + 1}
+            </div>
+            <div style={{ color: "#1d1d1f", fontSize: 16, fontWeight: 850, lineHeight: 1.4, marginBottom: 12 }}>
+              {item.question}
+            </div>
+            <textarea
+              value={answers[index] || ""}
+              onChange={(event) => setAnswers((current) => current.map((answer, answerIndex) => answerIndex === index ? event.target.value : answer))}
+              disabled={submitted}
+              rows={4}
+              placeholder="Type your answer…"
+              style={{
+                width: "100%",
+                minHeight: 116,
+                resize: "vertical",
+                boxSizing: "border-box",
+                borderRadius: 18,
+                border: "1px solid rgba(60,60,67,0.16)",
+                background: submitted ? "rgba(255,255,255,0.58)" : "white",
+                color: "#1d1d1f",
+                padding: "14px 15px",
+                fontFamily: mobileAppFont,
+                fontSize: 16,
+                lineHeight: 1.45,
+                outline: "none",
+                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.7)",
+                WebkitTextFillColor: "#1d1d1f",
+                opacity: 1,
+              }}
+            />
+          </div>
+        ))}
+
+        {message && (
+          <div style={{ borderRadius: 16, padding: "12px 14px", background: message.includes("successfully") ? "rgba(52,199,89,0.10)" : "rgba(255,59,48,0.09)", color: message.includes("successfully") ? "#248a3d" : "#c62d24", fontSize: 13, fontWeight: 800, lineHeight: 1.4 }}>
+            {message}
+          </div>
+        )}
+
+        {!submitted && (
+          <button
+            type="button"
+            onClick={submitAnswers}
+            disabled={submitting}
+            style={{
+              width: "100%",
+              minHeight: 54,
+              border: 0,
+              borderRadius: 999,
+              background: submitting ? "#a7a7ab" : "linear-gradient(180deg, #0a84ff 0%, #007aff 100%)",
+              color: "white",
+              fontFamily: mobileAppFont,
+              fontSize: 16,
+              fontWeight: 950,
+              cursor: submitting ? "default" : "pointer",
+              boxShadow: submitting ? "none" : "0 12px 26px rgba(0,122,255,0.28)",
+            }}
+          >
+            {submitting ? "Submitting…" : "Submit Interview"}
+          </button>
+        )}
+      </div>
+    </section>
+  );
+}
+
 function MobileInterviewsHub({ session, go }) {
   const isGuest = session?.mode === "guest";
   const driverNumber = session?.driverNumber || session?.number || "";
@@ -4280,11 +4543,10 @@ function MobileLeagueApp({
       );
     }
 
-    window.location.replace(`/driver/${mobileSession.driverNumber}/interviews`);
     return frame(
       "My Interviews",
       "interviews",
-      <MobileCard>Opening your interview assignments...</MobileCard>
+      <MobileMyInterviewsPage session={mobileSession} />
     );
   }
   if (path === "/contracts") return dataFrame("Contracts", "more", <ContractsPage drivers={drivers} />);
