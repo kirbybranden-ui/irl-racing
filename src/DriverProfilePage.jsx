@@ -482,7 +482,7 @@ function isDriverInterviewLate(interview, submittedAt = new Date()) {
   return new Date(submittedAt).getTime() > new Date(deadline).getTime();
 }
 
-function InterviewAnswerCard({ interview, onAnswered, accent = "#d4af37" }) {
+function InterviewAnswerCard({ interview, onAnswered, accent = "#007aff" }) {
   const isPre = interview.type === "pre";
   const qa = Array.isArray(interview.questions_and_answers) ? interview.questions_and_answers : [];
   const [answers, setAnswers] = useState(() => qa.map((q) => q.answer || ""));
@@ -490,19 +490,32 @@ function InterviewAnswerCard({ interview, onAnswered, accent = "#d4af37" }) {
   const [submitted, setSubmitted] = useState(interview.answered || false);
   const deadline = getInterviewDeadline(interview);
   const submittedAt = interview.submitted_at || interview.answered_at || interview.updated_at || null;
-  const wasLate = submitted ? isDriverInterviewLate(interview, submittedAt || new Date()) : isDriverInterviewLate(interview, new Date());
+  const wasLate = submitted
+    ? isDriverInterviewLate(interview, submittedAt || new Date())
+    : isDriverInterviewLate(interview, new Date());
+
+  const typeColor = isPre ? "#007aff" : "#30b75f";
+  const typeTint = isPre ? "rgba(0,122,255,0.10)" : "rgba(48,183,95,0.11)";
+  const typeBorder = isPre ? "rgba(0,122,255,0.22)" : "rgba(48,183,95,0.24)";
 
   async function submitAnswers() {
-    const filled = answers.every((a, i) => !qa[i].question || a.trim());
+    const filled = answers.every((answer, index) => !qa[index].question || answer.trim());
+
     if (!filled) {
       alert("Please answer all questions before submitting.");
       return;
     }
 
     setSubmitting(true);
-    const updated = qa.map((q, i) => ({ question: q.question, answer: answers[i].trim() }));
+
+    const updated = qa.map((question, index) => ({
+      question: question.question,
+      answer: answers[index].trim(),
+    }));
+
     const nowIso = new Date().toISOString();
     const late = isDriverInterviewLate(interview, nowIso);
+
     const { data, error } = await supabase
       .from("interviews")
       .update({
@@ -522,50 +535,305 @@ function InterviewAnswerCard({ interview, onAnswered, accent = "#d4af37" }) {
     } else {
       alert("Failed to submit answers. Please try again.");
     }
+
     setSubmitting(false);
   }
 
   return (
-    <div style={{ background: "#0f1319", border: `1px solid ${submitted ? accent : "#3a3200"}`, borderRadius: 12, padding: 16 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
-        <span style={{ background: isPre ? "#3b82f6" : "#22c55e", color: "white", borderRadius: 8, padding: "3px 10px", fontSize: 11, fontWeight: 800 }}>
-          {isPre ? "🎤 PRE-RACE" : "🏆 POST-RACE"}
-        </span>
-        <span style={{ fontSize: 14, fontWeight: 700 }}>{interview.race_name}</span>
-        {submitted && <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 6, background: wasLate ? "#3f1212" : "#14532d", color: wasLate ? "#f87171" : "#4ade80", marginLeft: "auto" }}>{wasLate ? "⚠️ Submitted Late" : "✅ Submitted"}</span>}
-      </div>
-      <div style={{ background: "#0b1017", border: "1px solid #2c3440", borderRadius: 10, padding: "10px 12px", marginBottom: 14, fontSize: 12, lineHeight: 1.5 }}>
-        <strong>Deadline:</strong> {formatInterviewDateTime(deadline)}<br />
-        <span style={{ opacity: 0.72 }}>Team bonus is only paid if you submit on time and league admin marks the interview complete.</span>
+    <article
+      style={{
+        background: "rgba(255,255,255,0.88)",
+        border: "1px solid rgba(255,255,255,0.94)",
+        borderRadius: 28,
+        padding: "clamp(18px, 4vw, 26px)",
+        boxShadow: "0 22px 60px rgba(15,23,42,0.10)",
+        backdropFilter: "blur(24px)",
+        WebkitBackdropFilter: "blur(24px)",
+        overflow: "hidden",
+        position: "relative",
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          width: 180,
+          height: 180,
+          borderRadius: "50%",
+          right: -82,
+          top: -92,
+          background: typeTint,
+          filter: "blur(2px)",
+          pointerEvents: "none",
+        }}
+      />
+
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          gap: 14,
+          flexWrap: "wrap",
+          position: "relative",
+          marginBottom: 18,
+        }}
+      >
+        <div>
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 7,
+              padding: "7px 11px",
+              borderRadius: 999,
+              background: typeTint,
+              border: `1px solid ${typeBorder}`,
+              color: typeColor,
+              fontSize: 11,
+              fontWeight: 950,
+              letterSpacing: "0.05em",
+              textTransform: "uppercase",
+            }}
+          >
+            <span
+              style={{
+                width: 7,
+                height: 7,
+                borderRadius: "50%",
+                background: typeColor,
+                boxShadow: `0 0 0 4px ${typeTint}`,
+              }}
+            />
+            {isPre ? "Pre-Race" : "Post-Race"}
+          </div>
+
+          <h2
+            style={{
+              margin: "13px 0 4px",
+              color: "#1d1d1f",
+              fontSize: "clamp(22px, 6vw, 30px)",
+              lineHeight: 1.1,
+              fontWeight: 1000,
+              letterSpacing: "-0.035em",
+            }}
+          >
+            {interview.race_name}
+          </h2>
+
+          <div style={{ color: "#6e6e73", fontSize: 13, fontWeight: 750 }}>
+            {qa.filter((item) => item.question).length} question{qa.filter((item) => item.question).length === 1 ? "" : "s"}
+          </div>
+        </div>
+
+        <div
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 7,
+            padding: "8px 12px",
+            borderRadius: 999,
+            background: submitted
+              ? wasLate
+                ? "rgba(255,59,48,0.10)"
+                : "rgba(52,199,89,0.11)"
+              : "rgba(142,142,147,0.10)",
+            color: submitted ? (wasLate ? "#c62d24" : "#147d35") : "#6e6e73",
+            border: submitted
+              ? wasLate
+                ? "1px solid rgba(255,59,48,0.20)"
+                : "1px solid rgba(52,199,89,0.22)"
+              : "1px solid rgba(142,142,147,0.16)",
+            fontSize: 11.5,
+            fontWeight: 900,
+            whiteSpace: "nowrap",
+          }}
+        >
+          {submitted ? (wasLate ? "Submitted Late" : "Submitted") : "Not Submitted"}
+        </div>
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        {qa.map((item, i) => (
-          <div key={i} style={{ borderLeft: `3px solid ${isPre ? "#3b82f6" : "#22c55e"}`, paddingLeft: 14 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, opacity: 0.85, marginBottom: 8 }}>Q: {item.question}</div>
-            {submitted ? (
-              <div style={{ fontSize: 14, lineHeight: 1.6, fontStyle: "italic", color: "#e2e8f0" }}>"{answers[i]}"</div>
-            ) : (
-              <textarea
-                rows={3}
-                style={{ width: "100%", background: "#0c1018", color: "white", border: "1px solid #313947", borderRadius: 10, padding: "10px 12px", boxSizing: "border-box", resize: "vertical", fontSize: 14, lineHeight: 1.5 }}
-                placeholder="Type your answer..."
-                value={answers[i]}
-                onChange={(e) => setAnswers((prev) => prev.map((a, idx) => (idx === i ? e.target.value : a)))}
-              />
-            )}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "36px minmax(0,1fr)",
+          gap: 12,
+          alignItems: "center",
+          background: "rgba(118,118,128,0.07)",
+          border: "1px solid rgba(0,0,0,0.05)",
+          borderRadius: 18,
+          padding: "13px 14px",
+          marginBottom: 20,
+          position: "relative",
+        }}
+      >
+        <div
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: 12,
+            background: "rgba(0,122,255,0.10)",
+            color: "#007aff",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 17,
+          }}
+        >
+          ◷
+        </div>
+
+        <div>
+          <div style={{ color: "#1d1d1f", fontWeight: 900, fontSize: 12.5 }}>
+            Due {formatInterviewDateTime(deadline)}
           </div>
-        ))}
+          <div style={{ color: "#86868b", fontWeight: 650, fontSize: 11.5, lineHeight: 1.4, marginTop: 2 }}>
+            Submit on time for team-bonus eligibility.
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        {qa.map((item, index) => {
+          if (!item.question) return null;
+
+          return (
+            <section
+              key={index}
+              style={{
+                background: "rgba(248,248,250,0.92)",
+                border: "1px solid rgba(0,0,0,0.055)",
+                borderRadius: 22,
+                padding: "17px",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 11,
+                  marginBottom: 13,
+                }}
+              >
+                <div
+                  style={{
+                    width: 28,
+                    height: 28,
+                    minWidth: 28,
+                    borderRadius: 10,
+                    background: typeTint,
+                    color: typeColor,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 12,
+                    fontWeight: 1000,
+                  }}
+                >
+                  {index + 1}
+                </div>
+
+                <div
+                  style={{
+                    color: "#1d1d1f",
+                    fontSize: 15,
+                    lineHeight: 1.45,
+                    fontWeight: 850,
+                    letterSpacing: "-0.012em",
+                  }}
+                >
+                  {item.question}
+                </div>
+              </div>
+
+              {submitted ? (
+                <div
+                  style={{
+                    background: "#ffffff",
+                    border: "1px solid rgba(0,0,0,0.055)",
+                    borderRadius: 17,
+                    padding: "14px 15px",
+                    color: "#3a3a3c",
+                    fontSize: 14,
+                    lineHeight: 1.55,
+                    fontWeight: 620,
+                    whiteSpace: "pre-wrap",
+                  }}
+                >
+                  {answers[index]}
+                </div>
+              ) : (
+                <textarea
+                  rows={4}
+                  style={{
+                    width: "100%",
+                    minHeight: 116,
+                    background: "#ffffff",
+                    color: "#1d1d1f",
+                    border: "1px solid rgba(60,60,67,0.13)",
+                    borderRadius: 17,
+                    padding: "14px 15px",
+                    boxSizing: "border-box",
+                    resize: "vertical",
+                    fontFamily: appleFont,
+                    fontSize: 15,
+                    lineHeight: 1.5,
+                    outline: "none",
+                    boxShadow: "inset 0 1px 1px rgba(0,0,0,0.025)",
+                  }}
+                  placeholder="Type your answer…"
+                  value={answers[index]}
+                  onChange={(event) =>
+                    setAnswers((current) =>
+                      current.map((answer, answerIndex) =>
+                        answerIndex === index ? event.target.value : answer
+                      )
+                    )
+                  }
+                  onFocus={(event) => {
+                    event.currentTarget.style.borderColor = "rgba(0,122,255,0.60)";
+                    event.currentTarget.style.boxShadow = "0 0 0 4px rgba(0,122,255,0.10)";
+                  }}
+                  onBlur={(event) => {
+                    event.currentTarget.style.borderColor = "rgba(60,60,67,0.13)";
+                    event.currentTarget.style.boxShadow = "inset 0 1px 1px rgba(0,0,0,0.025)";
+                  }}
+                />
+              )}
+            </section>
+          );
+        })}
       </div>
 
       {!submitted && (
-        <button onClick={submitAnswers} disabled={submitting} style={{ marginTop: 16, background: accent, color: "#111", border: "none", borderRadius: 10, padding: "10px 18px", fontWeight: 700, cursor: "pointer", opacity: submitting ? 0.6 : 1 }}>
-          {submitting ? "Submitting..." : "📨 Submit Answers"}
+        <button
+          type="button"
+          onClick={submitAnswers}
+          disabled={submitting}
+          style={{
+            width: "100%",
+            marginTop: 18,
+            border: 0,
+            borderRadius: 18,
+            padding: "15px 18px",
+            background: submitting
+              ? "rgba(0,122,255,0.52)"
+              : "linear-gradient(180deg, #1a8cff 0%, #007aff 100%)",
+            color: "#ffffff",
+            fontFamily: appleFont,
+            fontSize: 15,
+            fontWeight: 950,
+            cursor: submitting ? "default" : "pointer",
+            boxShadow: submitting ? "none" : "0 14px 30px rgba(0,122,255,0.25)",
+            transition: "transform 160ms ease, box-shadow 160ms ease",
+          }}
+        >
+          {submitting ? "Submitting…" : "Submit Interview"}
         </button>
       )}
-    </div>
+    </article>
   );
 }
+
 
 function AppealModal({ isOpen, onClose, selectedSeason, driverNumber, arcaDrivers, allDrivers, tracks, arcaTracks }) {
   const [requester, setRequester] = useState("");
@@ -3844,47 +4112,226 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
 
   if (subPage === "interviews") {
     const activeInterviews = isArcaDriver ? arcaInterviews : interviews;
-    return (
-      <div style={{ ...appShellStyle, background: `radial-gradient(circle at top, ${teamTheme.glow} 0%, rgba(245,245,247,0.95) 34%, rgba(229,229,234,0.98) 100%)` }}>
-        <div style={pageContainerStyle}>
-          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20, flexWrap: "wrap" }}>
-            <button onClick={() => window.location.pathname = `/driver/${driverNumber}`} style={secondaryButtonStyle}>← Back to Profile</button>
-            <div>
-              <div style={{ fontSize: 22, fontWeight: 900 }}>#{driver.number} {driver.name} — Interview Center</div>
-              <div style={{ fontSize: 13, opacity: 0.6, marginTop: 2 }}>{activeInterviews.length} interview{activeInterviews.length !== 1 ? "s" : ""} assigned</div>
-            </div>
-          </div>
+    const completedInterviews = activeInterviews.filter((item) => item.answered).length;
+    const pendingInterviews = activeInterviews.length - completedInterviews;
 
-          <div style={{ ...sectionCardStyle, borderColor: teamTheme.accent }}>
-            <h2 style={{ marginTop: 0, marginBottom: 4 }}>🎙️ Interview Center</h2>
-            <div style={{ fontSize: 13, opacity: 0.65, marginBottom: 16 }}>Answer assigned league interviews here. Your responses go to league admin.</div>
-            {arcaInterviewsLoading && isArcaDriver ? (
-              <div style={{ opacity: 0.7 }}>Loading interviews...</div>
-            ) : activeInterviews.length === 0 ? (
-              <div style={{ opacity: 0.7 }}>No interviews assigned right now.</div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-                {activeInterviews.map((interview) => (
-                  <InterviewAnswerCard
-                    key={interview.id}
-                    interview={interview}
-                    accent={teamTheme.accent}
-                    onAnswered={(updated) => {
-                      if (isArcaDriver) {
-                        setArcaInterviews((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
-                      } else {
-                        setInterviews((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
-                      }
-                    }}
-                  />
-                ))}
+    return (
+      <div
+        style={{
+          ...appShellStyle,
+          background:
+            "radial-gradient(circle at 10% -8%, rgba(0,122,255,0.14), transparent 30%), radial-gradient(circle at 100% 0%, rgba(88,86,214,0.10), transparent 28%), linear-gradient(180deg, #f7f7fa 0%, #ececf1 100%)",
+        }}
+      >
+        <div style={{ ...pageContainerStyle, maxWidth: 820, paddingBottom: 120 }}>
+          <header
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 14,
+              padding: "8px 2px 22px",
+              flexWrap: "wrap",
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => (window.location.pathname = `/driver/${driverNumber}`)}
+              style={{
+                width: 42,
+                height: 42,
+                borderRadius: "50%",
+                border: "1px solid rgba(0,0,0,0.07)",
+                background: "rgba(255,255,255,0.78)",
+                color: "#1d1d1f",
+                fontFamily: appleFont,
+                fontSize: 22,
+                fontWeight: 850,
+                cursor: "pointer",
+                boxShadow: "0 8px 24px rgba(15,23,42,0.07)",
+                backdropFilter: "blur(18px)",
+                WebkitBackdropFilter: "blur(18px)",
+              }}
+              aria-label="Back to driver profile"
+            >
+              ‹
+            </button>
+
+            <div style={{ textAlign: "center", flex: "1 1 220px" }}>
+              <div
+                style={{
+                  color: "#86868b",
+                  fontSize: 11,
+                  fontWeight: 950,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                }}
+              >
+                #{driver.number} {driver.name}
               </div>
-            )}
-          </div>
+              <h1
+                style={{
+                  margin: "5px 0 0",
+                  color: "#1d1d1f",
+                  fontSize: "clamp(27px, 7vw, 36px)",
+                  fontWeight: 1000,
+                  letterSpacing: "-0.045em",
+                  lineHeight: 1,
+                }}
+              >
+                My Interviews
+              </h1>
+            </div>
+
+            <div style={{ width: 42, height: 42 }} aria-hidden="true" />
+          </header>
+
+          <section
+            style={{
+              background: "linear-gradient(145deg, rgba(255,255,255,0.96), rgba(250,250,252,0.78))",
+              border: "1px solid rgba(255,255,255,0.95)",
+              borderRadius: 30,
+              padding: "clamp(20px, 5vw, 28px)",
+              marginBottom: 20,
+              boxShadow: "0 24px 70px rgba(15,23,42,0.09)",
+              backdropFilter: "blur(24px)",
+              WebkitBackdropFilter: "blur(24px)",
+            }}
+          >
+            <div
+              style={{
+                width: 52,
+                height: 52,
+                borderRadius: 18,
+                background: "linear-gradient(145deg, #35a0ff, #007aff)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 24,
+                boxShadow: "0 15px 32px rgba(0,122,255,0.28)",
+                marginBottom: 18,
+              }}
+            >
+              🎙️
+            </div>
+
+            <h2
+              style={{
+                margin: 0,
+                color: "#1d1d1f",
+                fontSize: "clamp(24px, 6vw, 31px)",
+                fontWeight: 1000,
+                letterSpacing: "-0.035em",
+              }}
+            >
+              Interview Center
+            </h2>
+
+            <p
+              style={{
+                margin: "8px 0 20px",
+                color: "#6e6e73",
+                fontSize: 14.5,
+                lineHeight: 1.5,
+                fontWeight: 650,
+                maxWidth: 560,
+              }}
+            >
+              Complete your assigned pre-race and post-race interviews. Your responses are sent directly to league administration.
+            </p>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                gap: 10,
+              }}
+            >
+              <div
+                style={{
+                  background: "rgba(255,149,0,0.09)",
+                  border: "1px solid rgba(255,149,0,0.17)",
+                  borderRadius: 19,
+                  padding: "14px 15px",
+                }}
+              >
+                <div style={{ color: "#9a5a00", fontSize: 23, fontWeight: 1000 }}>{pendingInterviews}</div>
+                <div style={{ color: "#9a5a00", fontSize: 11.5, fontWeight: 900, marginTop: 2 }}>Pending</div>
+              </div>
+
+              <div
+                style={{
+                  background: "rgba(52,199,89,0.09)",
+                  border: "1px solid rgba(52,199,89,0.17)",
+                  borderRadius: 19,
+                  padding: "14px 15px",
+                }}
+              >
+                <div style={{ color: "#147d35", fontSize: 23, fontWeight: 1000 }}>{completedInterviews}</div>
+                <div style={{ color: "#147d35", fontSize: 11.5, fontWeight: 900, marginTop: 2 }}>Completed</div>
+              </div>
+            </div>
+          </section>
+
+          {arcaInterviewsLoading && isArcaDriver ? (
+            <div
+              style={{
+                background: "rgba(255,255,255,0.82)",
+                border: "1px solid rgba(255,255,255,0.95)",
+                borderRadius: 24,
+                padding: 28,
+                color: "#6e6e73",
+                textAlign: "center",
+                fontWeight: 800,
+                boxShadow: "0 18px 50px rgba(15,23,42,0.07)",
+              }}
+            >
+              Loading interviews…
+            </div>
+          ) : activeInterviews.length === 0 ? (
+            <div
+              style={{
+                background: "rgba(255,255,255,0.84)",
+                border: "1px solid rgba(255,255,255,0.95)",
+                borderRadius: 28,
+                padding: "38px 22px",
+                textAlign: "center",
+                boxShadow: "0 20px 55px rgba(15,23,42,0.07)",
+              }}
+            >
+              <div style={{ fontSize: 34, marginBottom: 10 }}>✓</div>
+              <div style={{ color: "#1d1d1f", fontSize: 19, fontWeight: 1000 }}>You're all caught up</div>
+              <div style={{ color: "#86868b", fontSize: 13.5, fontWeight: 650, marginTop: 6 }}>
+                No interviews are assigned right now.
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+              {activeInterviews.map((interview) => (
+                <InterviewAnswerCard
+                  key={interview.id}
+                  interview={interview}
+                  accent={teamTheme.accent}
+                  onAnswered={(updated) => {
+                    if (isArcaDriver) {
+                      setArcaInterviews((current) =>
+                        current.map((item) => (item.id === updated.id ? updated : item))
+                      );
+                    } else {
+                      setInterviews((current) =>
+                        current.map((item) => (item.id === updated.id ? updated : item))
+                      );
+                    }
+                  }}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </div>
     );
   }
+
 
   if (subPage === "upload") {
     return (
