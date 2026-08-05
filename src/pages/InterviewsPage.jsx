@@ -1,17 +1,112 @@
 import { useEffect, useState, useMemo, useRef } from "react";
 import { supabase } from "../lib/supabase";
 
-const appShellStyle = { minHeight: "100vh", background: "#0c0f14", color: "white", fontFamily: "Arial, sans-serif" };
-const pageContainerStyle = { maxWidth: 1000, margin: "0 auto", padding: 24 };
-const sectionCardStyle = { background: "#171b22", border: "1px solid #2c3440", borderRadius: 16, padding: 20, marginBottom: 20, boxShadow: "0 8px 24px rgba(0,0,0,0.22)" };
-const inputStyle = { background: "#0f1319", color: "white", border: "1px solid #313947", borderRadius: 10, padding: "10px 12px", boxSizing: "border-box", width: "100%", resize: "vertical" };
-const selectStyle = { background: "#0f1319", color: "white", border: "1px solid #313947", borderRadius: 10, padding: "10px 12px", boxSizing: "border-box", width: "100%" };
-const primaryButtonStyle = { background: "#d4af37", color: "#111", border: "none", borderRadius: 10, padding: "10px 18px", fontWeight: 700, cursor: "pointer" };
-const secondaryButtonStyle = { background: "#2a3140", color: "white", border: "1px solid #3d4859", borderRadius: 10, padding: "10px 16px", fontWeight: 700, cursor: "pointer" };
-const dangerButtonStyle = { background: "#b42318", color: "white", border: "none", borderRadius: 10, padding: "8px 14px", fontWeight: 700, cursor: "pointer", fontSize: 12 };
-const blueButtonStyle = { background: "#2563eb", color: "white", border: "none", borderRadius: 10, padding: "10px 18px", fontWeight: 700, cursor: "pointer" };
-const greenButtonStyle = { background: "#16a34a", color: "white", border: "none", borderRadius: 10, padding: "10px 18px", fontWeight: 700, cursor: "pointer" };
-const exportButtonStyle = { background: "#1e293b", color: "#d4af37", border: "1px solid #d4af37", borderRadius: 8, padding: "6px 12px", fontWeight: 700, cursor: "pointer", fontSize: 12 };
+const pageFont = "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif";
+
+const appShellStyle = {
+  minHeight: "100vh",
+  background:
+    "radial-gradient(circle at top left, rgba(0,122,255,0.10), transparent 30%), radial-gradient(circle at top right, rgba(88,86,214,0.10), transparent 28%), linear-gradient(180deg, #f5f5f7 0%, #eef0f5 100%)",
+  color: "#1d1d1f",
+  fontFamily: pageFont,
+};
+
+const pageContainerStyle = {
+  maxWidth: 1120,
+  margin: "0 auto",
+  padding: "clamp(18px, 4vw, 34px)",
+};
+
+const sectionCardStyle = {
+  background: "linear-gradient(180deg, rgba(255,255,255,0.92), rgba(255,255,255,0.72))",
+  border: "1px solid rgba(255,255,255,0.88)",
+  borderRadius: 26,
+  padding: "clamp(18px, 3vw, 26px)",
+  marginBottom: 20,
+  boxShadow: "0 18px 50px rgba(15,23,42,0.09)",
+  backdropFilter: "blur(22px)",
+  WebkitBackdropFilter: "blur(22px)",
+};
+
+const inputStyle = {
+  background: "rgba(255,255,255,0.86)",
+  color: "#1d1d1f",
+  border: "1px solid rgba(60,60,67,0.16)",
+  borderRadius: 14,
+  padding: "12px 14px",
+  boxSizing: "border-box",
+  width: "100%",
+  resize: "vertical",
+  fontFamily: pageFont,
+  fontSize: 14,
+  outline: "none",
+  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.75)",
+};
+
+const selectStyle = {
+  ...inputStyle,
+  resize: "none",
+  appearance: "auto",
+};
+
+const primaryButtonStyle = {
+  background: "linear-gradient(135deg, #007aff 0%, #5856d6 100%)",
+  color: "#ffffff",
+  border: "none",
+  borderRadius: 999,
+  padding: "12px 18px",
+  fontWeight: 900,
+  cursor: "pointer",
+  boxShadow: "0 12px 28px rgba(0,122,255,0.22)",
+  fontFamily: pageFont,
+};
+
+const secondaryButtonStyle = {
+  background: "rgba(255,255,255,0.76)",
+  color: "#1d1d1f",
+  border: "1px solid rgba(60,60,67,0.14)",
+  borderRadius: 999,
+  padding: "11px 16px",
+  fontWeight: 850,
+  cursor: "pointer",
+  boxShadow: "0 8px 20px rgba(15,23,42,0.06)",
+  fontFamily: pageFont,
+};
+
+const dangerButtonStyle = {
+  background: "rgba(255,59,48,0.11)",
+  color: "#d70015",
+  border: "1px solid rgba(255,59,48,0.16)",
+  borderRadius: 999,
+  padding: "8px 14px",
+  fontWeight: 850,
+  cursor: "pointer",
+  fontSize: 12,
+  fontFamily: pageFont,
+};
+
+const blueButtonStyle = {
+  ...primaryButtonStyle,
+  background: "linear-gradient(135deg, #0a84ff 0%, #007aff 100%)",
+};
+
+const greenButtonStyle = {
+  ...primaryButtonStyle,
+  background: "linear-gradient(135deg, #34c759 0%, #248a3d 100%)",
+  boxShadow: "0 12px 28px rgba(52,199,89,0.22)",
+};
+
+const exportButtonStyle = {
+  background: "rgba(0,122,255,0.09)",
+  color: "#0066cc",
+  border: "1px solid rgba(0,122,255,0.16)",
+  borderRadius: 999,
+  padding: "7px 12px",
+  fontWeight: 850,
+  cursor: "pointer",
+  fontSize: 12,
+  fontFamily: pageFont,
+};
 
 const INTERVIEW_DEFAULT_BONUS = 25000;
 
@@ -81,15 +176,15 @@ function isInterviewOnTime(interview) {
 }
 
 function getInterviewAdminStatus(interview) {
-  if (interview?.paid || interview?.payment_status === "paid") return { label: "PAID", color: "#4ade80", bg: "#14532d" };
-  if (interview?.completed || interview?.status === "complete" || interview?.status === "completed") return { label: "COMPLETE", color: "#93c5fd", bg: "#1e3a8a" };
+  if (interview?.paid || interview?.payment_status === "paid") return { label: "PAID", color: "#248a3d", bg: "rgba(52,199,89,0.13)" };
+  if (interview?.completed || interview?.status === "complete" || interview?.status === "completed") return { label: "COMPLETE", color: "#0066cc", bg: "rgba(0,122,255,0.12)" };
   if (interview?.answered) {
-    if (!isInterviewOnTime(interview)) return { label: "LATE / UNPAID", color: "#f87171", bg: "#3f1212" };
-    return { label: "SUBMITTED", color: "#facc15", bg: "#3a2a00" };
+    if (!isInterviewOnTime(interview)) return { label: "LATE / UNPAID", color: "#d70015", bg: "rgba(255,59,48,0.12)" };
+    return { label: "SUBMITTED", color: "#9a6700", bg: "rgba(255,204,0,0.16)" };
   }
   const deadline = getInterviewDeadline(interview);
-  if (deadline && new Date().getTime() > new Date(deadline).getTime()) return { label: "MISSING", color: "#f87171", bg: "#3f1212" };
-  return { label: "OPEN", color: "#93c5fd", bg: "#172554" };
+  if (deadline && new Date().getTime() > new Date(deadline).getTime()) return { label: "MISSING", color: "#d70015", bg: "rgba(255,59,48,0.12)" };
+  return { label: "OPEN", color: "#0066cc", bg: "rgba(0,122,255,0.12)" };
 }
 
 
@@ -674,9 +769,10 @@ export default function InterviewsPage({ drivers = [], arcaDrivers = [], tracks 
       <div style={pageContainerStyle}>
 
         {/* Header */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
+        <div style={{ ...sectionCardStyle, display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 22, flexWrap: "wrap", gap: 14, background: "linear-gradient(135deg, rgba(255,255,255,0.96), rgba(245,247,255,0.82))" }}>
           <div>
-            <h1 style={{ margin: 0, fontSize: 28, fontWeight: 900 }}>🎙️ Driver Interviews</h1>
+            <div style={{ fontSize: 12, fontWeight: 900, color: "#007aff", letterSpacing: "0.10em", textTransform: "uppercase", marginBottom: 7 }}>Race Operations</div>
+            <h1 style={{ margin: 0, fontSize: "clamp(28px, 5vw, 42px)", fontWeight: 950, letterSpacing: "-0.035em" }}>Driver Interviews</h1>
             <div style={{ opacity: 0.6, fontSize: 14, marginTop: 4 }}>
               {answeredCount} answered · {pendingCount} awaiting response
             </div>
@@ -685,15 +781,15 @@ export default function InterviewsPage({ drivers = [], arcaDrivers = [], tracks 
         </div>
 
         {/* Post Questions Form */}
-        <div style={{ ...sectionCardStyle, border: "1px solid #d4af37" }}>
+        <div style={{ ...sectionCardStyle, border: "1px solid rgba(0,122,255,0.18)" }}>
           <h2 style={{ marginTop: 0, marginBottom: 4 }}>Post Interview Questions</h2>
           <div style={{ fontSize: 13, opacity: 0.65, marginBottom: 20 }}>
             Type up to 3 questions. They appear on the driver's profile page where the driver types their answers and submits back here.
           </div>
 
           {/* Step 1: Series Selection */}
-          <div style={{ marginBottom: 24, paddingBottom: 24, borderBottom: "2px solid #2c3440" }}>
-            <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 10, color: "#d4af37", letterSpacing: 1.2, textTransform: "uppercase" }}>Step 1: Select Series</div>
+          <div style={{ marginBottom: 24, paddingBottom: 24, borderBottom: "1px solid rgba(60,60,67,0.12)" }}>
+            <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 10, color: "#0066cc", letterSpacing: 1.2, textTransform: "uppercase" }}>Step 1: Select Series</div>
             <div style={{ display: "flex", gap: 12 }}>
               <button onClick={() => setInterviewSeries("cup")} style={{ ...(interviewSeries === "cup" ? { ...blueButtonStyle, flex: 1, fontSize: 14, padding: "12px 16px" } : { ...secondaryButtonStyle, flex: 1, fontSize: 14, padding: "12px 16px" }) }}>🏁 Cup Series</button>
               <button onClick={() => setInterviewSeries("arca")} style={{ ...(interviewSeries === "arca" ? { ...greenButtonStyle, flex: 1, fontSize: 14, padding: "12px 16px" } : { ...secondaryButtonStyle, flex: 1, fontSize: 14, padding: "12px 16px" }) }}>🏎️ ARCA Series</button>
@@ -704,7 +800,7 @@ export default function InterviewsPage({ drivers = [], arcaDrivers = [], tracks 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 20 }}>
             {/* Step 2: Driver Selection */}
             <div>
-              <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6, color: "#d4af37" }}>Step 2: Driver</div>
+              <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6, color: "#0066cc" }}>Step 2: Driver</div>
               <select style={selectStyle} value={selectedDriverId} onChange={e => setSelectedDriverId(e.target.value)}>
                 <option value="">Select driver...</option>
                 {[...(interviewSeries === "arca" ? arcaDrivers : drivers)].filter(d => !d.retired).sort((a, b) => a.number - b.number).map(d => (
@@ -715,8 +811,8 @@ export default function InterviewsPage({ drivers = [], arcaDrivers = [], tracks 
 
             {/* Step 3: Race Selection */}
             <div>
-              <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6, color: "#d4af37" }}>
-                Step 3: Race {nextRace && <span style={{ color: "#d4af37", fontWeight: 400 }}>→ {nextRace.name}</span>}
+              <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6, color: "#0066cc" }}>
+                Step 3: Race {nextRace && <span style={{ color: "#0066cc", fontWeight: 400 }}>→ {nextRace.name}</span>}
               </div>
               <select style={selectStyle} value={selectedRace} onChange={e => setSelectedRace(e.target.value)}>
                 <option value="">Select race...</option>
@@ -734,7 +830,7 @@ export default function InterviewsPage({ drivers = [], arcaDrivers = [], tracks 
 
             {/* Step 4: Interview Type */}
             <div>
-              <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6, color: "#d4af37" }}>Step 4: Type</div>
+              <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6, color: "#0066cc" }}>Step 4: Type</div>
               <div style={{ display: "flex", gap: 8 }}>
                 <button onClick={() => setInterviewType("pre")} style={{ ...(interviewType === "pre" ? blueButtonStyle : secondaryButtonStyle), flex: 1, fontSize: 13 }}>🎤 Pre</button>
                 <button onClick={() => setInterviewType("post")} style={{ ...(interviewType === "post" ? greenButtonStyle : secondaryButtonStyle), flex: 1, fontSize: 13 }}>🏆 Post</button>
@@ -781,14 +877,14 @@ export default function InterviewsPage({ drivers = [], arcaDrivers = [], tracks 
           </div>
 
           {saveStatus && (
-            <div style={{ marginTop: 14, fontSize: 13, padding: "10px 14px", background: "#0a0d12", borderRadius: 10, border: "1px solid #2c3440" }}>
+            <div style={{ marginTop: 14, fontSize: 13, padding: "10px 14px", background: "rgba(0,122,255,0.07)", color: "#1d1d1f", borderRadius: 14, border: "1px solid rgba(0,122,255,0.12)" }}>
               {saveStatus}
             </div>
           )}
         </div>
 
         {/* ─── Facebook Export (Bulk) ─────────────────────────────────────── */}
-        <div style={{ ...sectionCardStyle, border: "1px solid #d4af37" }}>
+        <div style={{ ...sectionCardStyle, border: "1px solid rgba(0,122,255,0.18)" }}>
           <h2 style={{ marginTop: 0, marginBottom: 4 }}>📘 Facebook Export</h2>
           <div style={{ fontSize: 13, opacity: 0.65, marginBottom: 20 }}>
             Export answered interviews as branded image cards (1080×1350, perfect for Facebook) or copy as ready-to-paste text. Use the buttons on individual interviews below, or bulk export by race here.
@@ -818,7 +914,7 @@ export default function InterviewsPage({ drivers = [], arcaDrivers = [], tracks 
           </div>
 
           {exportStatus && (
-            <div style={{ marginTop: 14, fontSize: 13, padding: "10px 14px", background: "#0a0d12", borderRadius: 10, border: "1px solid #2c3440" }}>
+            <div style={{ marginTop: 14, fontSize: 13, padding: "10px 14px", background: "rgba(0,122,255,0.07)", color: "#1d1d1f", borderRadius: 14, border: "1px solid rgba(0,122,255,0.12)" }}>
               {exportStatus}
             </div>
           )}
@@ -884,7 +980,7 @@ export default function InterviewsPage({ drivers = [], arcaDrivers = [], tracks 
         ) : (
           Object.entries(grouped).map(([raceName, raceInterviews]) => (
             <div key={raceName} style={sectionCardStyle}>
-              <div style={{ fontSize: 20, fontWeight: 900, marginBottom: 16, borderBottom: "1px solid #2c3440", paddingBottom: 12 }}>
+              <div style={{ fontSize: 20, fontWeight: 900, marginBottom: 16, borderBottom: "1px solid rgba(60,60,67,0.12)", paddingBottom: 12 }}>
                 🏁 {raceName}
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -898,7 +994,7 @@ export default function InterviewsPage({ drivers = [], arcaDrivers = [], tracks 
                   const bonusAmount = Math.max(0, Number(interview.bonus_amount ?? interview.payment_amount ?? INTERVIEW_DEFAULT_BONUS) || 0);
                   const canPay = isAnswered && isInterviewOnTime(interview) && !(interview.paid || interview.payment_status === "paid");
                   return (
-                    <div key={interview.id} style={{ background: "#0f1319", border: `1px solid ${isAnswered ? (isPre ? "#1e3a6e" : "#1a5c30") : "#3a3a1a"}`, borderRadius: 12, padding: 16 }}>
+                    <div key={interview.id} style={{ background: "rgba(255,255,255,0.82)", border: `1px solid ${isAnswered ? (isPre ? "rgba(0,122,255,0.20)" : "rgba(52,199,89,0.22)") : "rgba(255,149,0,0.20)"}`, borderRadius: 20, padding: 18, boxShadow: "0 12px 32px rgba(15,23,42,0.07)" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14, flexWrap: "wrap", gap: 8 }}>
                         <div>
                           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4, flexWrap: "wrap" }}>
@@ -906,7 +1002,7 @@ export default function InterviewsPage({ drivers = [], arcaDrivers = [], tracks 
                               {isPre ? "🎤 PRE-RACE" : "🏆 POST-RACE"}
                             </span>
                             <span style={{ fontSize: 16, fontWeight: 800 }}>#{interview.driver_number} {interview.driver_name}</span>
-                            <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 6, background: isAnswered ? "#14532d" : "#3a2a00", color: isAnswered ? "#4ade80" : "#f59e0b" }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 6, background: isAnswered ? "rgba(52,199,89,0.13)" : "rgba(255,149,0,0.13)", color: isAnswered ? "#248a3d" : "#b25000" }}>
                               {isAnswered ? "✅ Answered" : "⏳ Awaiting Answer"}
                             </span>
                             <span style={{ fontSize: 11, fontWeight: 900, padding: "2px 8px", borderRadius: 6, background: adminStatus.bg, color: adminStatus.color }}>
@@ -938,7 +1034,7 @@ export default function InterviewsPage({ drivers = [], arcaDrivers = [], tracks 
                             </button>
                           )}
                           {isAnswered && !canPay && !(interview.paid || interview.payment_status === "paid") && (
-                            <span style={{ alignSelf: "center", fontSize: 11, color: "#f87171", fontWeight: 800 }}>Not eligible for payment</span>
+                            <span style={{ alignSelf: "center", fontSize: 11, color: "#d70015", fontWeight: 800 }}>Not eligible for payment</span>
                           )}
                           <button onClick={() => deleteInterview(interview.id)} style={dangerButtonStyle}>Delete</button>
                         </div>
@@ -948,7 +1044,7 @@ export default function InterviewsPage({ drivers = [], arcaDrivers = [], tracks 
                           <div key={i} style={{ borderLeft: `3px solid ${isPre ? "#3b82f6" : "#22c55e"}`, paddingLeft: 14 }}>
                             <div style={{ fontSize: 13, fontWeight: 700, opacity: 0.8, marginBottom: 6 }}>Q: {item.question}</div>
                             {item.answer ? (
-                              <div style={{ fontSize: 14, lineHeight: 1.6, fontStyle: "italic", color: "#e2e8f0" }}>"{item.answer}"</div>
+                              <div style={{ fontSize: 14, lineHeight: 1.6, fontStyle: "italic", color: "#3a3a3c" }}>"{item.answer}"</div>
                             ) : (
                               <div style={{ fontSize: 12, opacity: 0.4, fontStyle: "italic" }}>No answer yet...</div>
                             )}
@@ -970,12 +1066,12 @@ export default function InterviewsPage({ drivers = [], arcaDrivers = [], tracks 
             onClick={() => setPreviewInterview(null)}
           >
             <div
-              style={{ background: "#151a22", border: "1px solid #d4af37", borderRadius: 20, padding: 24, maxWidth: 600, width: "100%", maxHeight: "90vh", overflowY: "auto" }}
+              style={{ background: "#151a22", border: "1px solid rgba(0,122,255,0.18)", borderRadius: 20, padding: 24, maxWidth: 600, width: "100%", maxHeight: "90vh", overflowY: "auto" }}
               onClick={e => e.stopPropagation()}
             >
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
                 <div style={{ fontSize: 18, fontWeight: 900 }}>📘 Facebook Post Preview</div>
-                <button onClick={() => setPreviewInterview(null)} style={{ background: "none", border: "none", color: "white", fontSize: 24, cursor: "pointer" }}>×</button>
+                <button onClick={() => setPreviewInterview(null)} style={{ background: "none", border: "none", color: "#1d1d1f", fontSize: 24, cursor: "pointer" }}>×</button>
               </div>
               <div style={{ background: "#000", borderRadius: 12, overflow: "hidden", marginBottom: 16 }}>
                 <canvas ref={previewCanvasRef} style={{ width: "100%", height: "auto", display: "block" }} />
@@ -987,6 +1083,27 @@ export default function InterviewsPage({ drivers = [], arcaDrivers = [], tracks 
             </div>
           </div>
         )}
+
+        <style>{`
+          input:focus, select:focus, textarea:focus {
+            border-color: rgba(0,122,255,0.55) !important;
+            box-shadow: 0 0 0 4px rgba(0,122,255,0.12) !important;
+          }
+          button {
+            transition: transform 160ms ease, box-shadow 160ms ease, opacity 160ms ease;
+          }
+          button:hover:not(:disabled) {
+            transform: translateY(-1px);
+          }
+          button:active:not(:disabled) {
+            transform: scale(0.98);
+          }
+          @media (max-width: 640px) {
+            .interviews-page-grid {
+              grid-template-columns: 1fr !important;
+            }
+          }
+        `}</style>
       </div>
     </div>
   );
