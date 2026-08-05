@@ -4270,7 +4270,23 @@ function MobileLeagueApp({
   if (path === "/paint-scheme-vote") return frame("Paint Scheme Votes", "votes", <PaintSchemeVotePage drivers={drivers} tracks={tracks} />);
   if (path === "/vote" || path === "/league-vote" || path === "/voting") return dataFrame("League Vote", "more", <LeagueVotingPage drivers={drivers} />);
   if (path === "/notifications") return dataFrame("Notifications", "more", <NotificationsPage />);
-  if (path === "/interviews") return frame("Interviews", "interviews", <PublicInterviewsPage seriesId="cup" />);
+  if (path === "/public-interviews") return frame("Public Interviews", "more", <PublicInterviewsPage seriesId="cup" />);
+  if (path === "/interviews") {
+    if (isGuestSession || !mobileSession?.driverNumber) {
+      return frame(
+        "My Interviews",
+        "interviews",
+        <MobileGuestLockedCard title="Interviews Require Driver Login" go={go} />
+      );
+    }
+
+    window.location.replace(`/driver/${mobileSession.driverNumber}/interviews`);
+    return frame(
+      "My Interviews",
+      "interviews",
+      <MobileCard>Opening your interview assignments...</MobileCard>
+    );
+  }
   if (path === "/contracts") return dataFrame("Contracts", "more", <ContractsPage drivers={drivers} />);
   if (path === "/driver-market" || path === "/transfer-portal" || path === "/silly-season") return dataFrame("Driver Market", "more", <DriverMarketPage drivers={drivers || []} raceHistory={raceHistory || []} startParkRequests={[]} paintSchemePayouts={[]} supabase={supabase} />);
   if (path === "/development-requests" || path === "/developmental-requests" || path === "/dev-requests") return dataFrame("Development Requests", "more", (
@@ -4468,6 +4484,7 @@ function MobileLeagueApp({
 
   if (path.startsWith("/driver/")) {
     const requestedDriverNumber = decodeURIComponent(rawPath.replace(/^\/driver\//i, "").split("/")[0]);
+    const isInterviewRoute = /\/interviews\/?$/i.test(rawPath);
     const leagueSession = getLeagueSession();
     const isAdminViewing = typeof window !== "undefined" && sessionStorage.getItem("bcl-admin-auth") === "true";
     const isOwnProfile = leagueSession && String(leagueSession.driverNumber) === String(requestedDriverNumber);
@@ -4476,7 +4493,7 @@ function MobileLeagueApp({
       return <DriverProfileSignInGate driverNumber={requestedDriverNumber} />;
     }
 
-    return dataFrame("Driver Profile", "home", (
+    return dataFrame(isInterviewRoute ? "My Interviews" : "Driver Profile", isInterviewRoute ? "interviews" : "home", (
       <>
         <DriverVoteReminderStrip driverNumber={requestedDriverNumber} />
         <DriverProfilePage seasons={seasons} activeSeason={activeSeason} tracks={tracks} arcaDrivers={arcaDrivers} arcaTracks={arcaTracks} />
@@ -5627,6 +5644,7 @@ function MobileLayout({ title, children, go, active, session = null, onLogout = 
       { icon: "🔄", label: "Transfer Portal", href: `/driver/${driverNumber}/portal` },
       { icon: "⚙️", label: "Settings", href: `/driver/${driverNumber}/settings` },
     ] : []),
+    { icon: "🎙️", label: "Public Interviews", href: "/public-interviews" },
     { icon: "🏆", label: "In-Season Bracket", href: "/bracket" },
     { icon: "🗳️", label: "League Vote", href: "/vote" },
     { icon: "✍️", label: "Add Story", href: "/submit-story" },
@@ -5690,7 +5708,12 @@ function MobileLayout({ title, children, go, active, session = null, onLogout = 
         <MobileNavButton active={active === "standings" || active === "home"} icon="🏁" label="Home" onClick={() => go("/")} />
         <MobileNavButton active={active === "news"} icon="📰" label="News" onClick={() => go("/news")} />
         <MobileNavButton active={active === "votes"} icon="🎨" label="Votes" onClick={() => go("/paint-scheme-vote")} />
-        <MobileNavButton active={active === "interviews"} icon="🎤" label="Interviews" onClick={() => go("/interviews")} />
+        <MobileNavButton
+          active={active === "interviews"}
+          icon="🎤"
+          label="My Interviews"
+          onClick={() => go(driverNumber ? `/driver/${driverNumber}/interviews` : "/interviews")}
+        />
         <MobileNavButton active={active === "more" || showMoreSheet} icon="☰" label="More" onClick={() => setShowMoreSheet(true)} />
       </nav>
       {showMoreSheet && (
@@ -8874,7 +8897,7 @@ export default function App() {
   if (path === "/vote" || path === "/league-vote" || path === "/voting") return <LeagueVotingPage drivers={visibleDrivers} />;
   if (path === "/notifications") return withLeagueStatusWidget(<NotificationsPage />);
   if ((!isMobileViewport || forceDesktop) && path === "/discord") return <DiscordPage />;
-  if ((!isMobileViewport || forceDesktop) && path === "/interviews") return <PublicInterviewsPage seriesId="cup" />;
+  if ((!isMobileViewport || forceDesktop) && (path === "/interviews" || path === "/public-interviews")) return <PublicInterviewsPage seriesId="cup" />;
   if ((!isMobileViewport || forceDesktop) && path === "/driver-feedback") {
     return (
       <div style={appShellStyle}>
