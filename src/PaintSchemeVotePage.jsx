@@ -19,7 +19,7 @@ const PURPLE = "#af52de";
 
 const appShellStyle = {
   minHeight: "100vh",
-  background: "linear-gradient(180deg, #f5f5f7 0%, #ffffff 40%, #f5f5f7 100%)",
+  background: "#f7f7f5",
   color: TEXT_PRIMARY,
   fontFamily: FONT_STACK,
   WebkitFontSmoothing: "antialiased",
@@ -28,15 +28,14 @@ const appShellStyle = {
 const pageContainerStyle = { maxWidth: 1180, margin: "0 auto", padding: 24 };
 const sectionCardStyle = {
   background: GLASS_BG,
-  backdropFilter: "blur(24px) saturate(180%)",
-  WebkitBackdropFilter: "blur(24px) saturate(180%)",
-  border: GLASS_BORDER,
-  borderRadius: 22,
+  border: 0,
+  borderTop: "1px solid #d6d7d9",
+  borderRadius: 0,
   padding: 20,
   marginBottom: 20,
   boxShadow: GLASS_SHADOW,
 };
-const primaryButtonStyle = { background: GOLD, color: "#1d1d1f", border: "none", borderRadius: 999, padding: "10px 18px", fontWeight: 700, cursor: "pointer", fontFamily: FONT_STACK, fontSize: 14 };
+const primaryButtonStyle = { background: "#111216", color: "#fff", border: "none", borderRadius: 999, padding: "10px 18px", fontWeight: 700, cursor: "pointer", fontFamily: FONT_STACK, fontSize: 14 };
 const secondaryButtonStyle = { background: "rgba(0,0,0,0.05)", color: TEXT_PRIMARY, border: "1px solid rgba(0,0,0,0.08)", borderRadius: 999, padding: "10px 18px", fontWeight: 600, cursor: "pointer", fontFamily: FONT_STACK, fontSize: 14 };
 const dangerButtonStyle = { background: RED, color: "white", border: "none", borderRadius: 999, padding: "10px 18px", fontWeight: 600, cursor: "pointer", fontFamily: FONT_STACK, fontSize: 14 };
 const inputStyle = { width: "100%", background: "rgba(0,0,0,0.04)", color: TEXT_PRIMARY, border: "1px solid rgba(0,0,0,0.08)", borderRadius: 12, padding: "10px 12px", boxSizing: "border-box", fontFamily: FONT_STACK, fontSize: 14 };
