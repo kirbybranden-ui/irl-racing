@@ -1130,23 +1130,24 @@ function StandingsPage({ seriesId = "cup", drivers = [], teams = [], manufacture
       type="button"
       onClick={onClick}
       style={{
-        ...glassCard,
+        border: 0,
+        borderRight: "1px solid rgba(17,24,39,.15)",
+        borderRadius: 0,
+        boxShadow: "none",
         textAlign: "left",
-        padding: isMobile ? 14 : 18,
-        minHeight: isMobile ? 112 : 132,
-        background: `linear-gradient(135deg, ${tint}, rgba(255,255,255,0.94))`,
+        padding: isMobile ? "18px 12px" : "20px 22px",
+        minHeight: isMobile ? 105 : 120,
+        background: "transparent",
         cursor: onClick ? "pointer" : "default",
         width: "100%",
         transition: "transform 180ms ease, box-shadow 180ms ease",
       }}
     >
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-        <div style={{ width: 44, height: 44, borderRadius: 16, background: accent, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, boxShadow: `0 10px 24px ${accent}33` }}>
-          {icon}
-        </div>
+        <div aria-hidden="true" style={{ fontSize: 19, color: accent }}>{icon}</div>
         {onClick && <div style={{ opacity: 0.38, fontWeight: 900 }}>›</div>}
       </div>
-      <div style={{ marginTop: isMobile ? 12 : 16, fontSize: 11, fontWeight: 950, letterSpacing: 1.1, color: "#4b5563", textTransform: "uppercase" }}>{label}</div>
+      <div style={{ marginTop: isMobile ? 8 : 12, fontSize: 11, fontWeight: 950, letterSpacing: 1.1, color: "#4b5563", textTransform: "uppercase" }}>{label}</div>
       <div style={{ marginTop: 4, fontSize: isMobile ? 20 : 24, lineHeight: 1.05, fontWeight: 950, letterSpacing: -0.5, color: "#111827" }}>{value || "—"}</div>
       {detail && <div style={{ marginTop: 6, fontSize: 13, color: "#374151", fontWeight: 750 }}>{detail}</div>}
     </button>
@@ -1482,9 +1483,12 @@ function StandingsPage({ seriesId = "cup", drivers = [], teams = [], manufacture
       <div style={container}>
         <style>{`
           * { box-sizing: border-box; }
+          .brl-standings-stats > button:last-child { border-right: 0 !important; }
           @media (max-width: 760px) {
             .bcl-driver-row { min-width: 0 !important; }
             .bcl-scroll-safe { overflow-x: hidden !important; }
+            .brl-standings-stats > button:nth-child(2n) { border-right: 0 !important; }
+            .brl-standings-stats > button:nth-child(-n+2) { border-bottom: 1px solid rgba(17,24,39,.15) !important; }
             button, a { -webkit-tap-highlight-color: transparent; }
           }
           @media (hover: hover) {
@@ -1492,7 +1496,7 @@ function StandingsPage({ seriesId = "cup", drivers = [], teams = [], manufacture
           }
         `}</style>
 
-        <div style={{ ...glassCard, marginBottom: isMobile ? 10 : 16, padding: isMobile ? "12px" : "18px 20px", background: "rgba(255,255,255,0.82)", boxShadow: "0 18px 48px rgba(15,23,42,0.08)" }}>
+        <div style={{ marginBottom: isMobile ? 10 : 16, padding: isMobile ? "12px 0" : "12px 0 18px", borderBottom: "1px solid rgba(17,24,39,.18)" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: isMobile ? 10 : 14, flexWrap: "nowrap" }}>
             <div style={{ fontSize: isMobile ? 11 : 13, color: "#6e6e73", fontWeight: 950, letterSpacing: 1.1, textTransform: "uppercase" }}>{isMobile ? (seriesId === "arca" ? "ARCA" : "Cup") : (seriesId === "arca" ? "ARCA Control Center" : "Cup Control Center")}</div>
             <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 8 : 12 }}>
@@ -1608,9 +1612,8 @@ function StandingsPage({ seriesId = "cup", drivers = [], teams = [], manufacture
           </>
         )}
 
-        <section style={{ ...glassCard, padding: isMobile ? 14 : "clamp(18px, 2.5vw, 26px)", marginBottom: isMobile ? 12 : 18, position: "relative", overflow: "hidden" }}>
-          <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 88% 0%, rgba(212,175,55,0.16), transparent 34%)", pointerEvents: "none" }} />
-          <div style={{ position: "relative", display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 1fr) minmax(240px, 0.62fr)", gap: isMobile ? 12 : 20, alignItems: "center" }}>
+        <section style={{ padding: isMobile ? "24px 0" : "36px 0 44px", marginBottom: 0, position: "relative", borderBottom: "1px solid rgba(17,24,39,.18)", background: "linear-gradient(110deg,rgba(215,25,32,.07),transparent 66%)" }}>
+          <div style={{ position: "relative", display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 1fr) minmax(260px, 0.82fr)", gap: isMobile ? 25 : 60, alignItems: "center" }}>
             <div>
               <img
                 src={seriesId === "arca" ? arcaLogo : ncsLogo}
@@ -1625,7 +1628,7 @@ function StandingsPage({ seriesId = "cup", drivers = [], teams = [], manufacture
                 }}
               />
             </div>
-            <div style={{ ...glassCard, padding: 18, background: "rgba(255,255,255,0.62)", boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.5), 0 18px 50px rgba(15,23,42,0.08)" }}>
+            <div style={{ padding: isMobile ? "8px 0 0" : "16px 0 16px 35px", borderLeft: isMobile ? 0 : "3px solid #d71920" }}>
               <div style={{ fontSize: 12, color: "#6e6e73", fontWeight: 950, letterSpacing: 1.15, textTransform: "uppercase" }}>Race Weekend</div>
               <div style={{ marginTop: 10, fontSize: isMobile ? 24 : 30, lineHeight: 1.02, fontWeight: 1000 }}>{nextRace?.name || "Season Complete"}</div>
               <div style={{ marginTop: 8, color: "#6e6e73", fontWeight: 800 }}>
@@ -1658,7 +1661,7 @@ function StandingsPage({ seriesId = "cup", drivers = [], teams = [], manufacture
           </section>
         )}
 
-        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(auto-fit, minmax(210px, 1fr))", gap: isMobile ? 10 : 14, marginBottom: isMobile ? 12 : 18 }}>
+        <div className="brl-standings-stats" style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, minmax(0, 1fr))", gap: 0, marginBottom: isMobile ? 22 : 36, borderBottom: "1px solid rgba(17,24,39,.18)" }}>
           <StatCard icon="🏆" label="Active Season" value={seasonName || "Season"} detail={`${completedRaceCount} races entered`} accent="#ff9f0a" tint="rgba(255,159,10,0.16)" />
           <StatCard icon="👑" label="Points Leader" value={leader ? `#${leader.number} ${leader.name}` : "—"} detail={leader ? `${leader.points} points` : "No leader yet"} accent="#5856d6" tint="rgba(88,86,214,0.14)" />
           <StatCard icon="👥" label="Active Drivers" value={sorted.length} detail={`${teams.length} teams`} accent="#34c759" tint="rgba(52,199,89,0.14)" />
