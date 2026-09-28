@@ -1,0 +1,52 @@
+:root{
+ --brl-team:#d71920;--brl-team-dark:#3b0b0d;--brl-team-rgb:215,25,32;
+ --brl-bg:#07080b;--brl-surface:#0f1116;--brl-surface-2:#151820;--brl-text:#f7f7f8;--brl-muted:#9b9ea7;
+ --brl-line:rgba(255,255,255,.10);--brl-radius:22px;--brl-font:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Helvetica Neue",Arial,sans-serif;
+}
+html{scroll-behavior:smooth;background:var(--brl-bg)}
+body{margin:0;background:var(--brl-bg)!important;color:var(--brl-text);font-family:var(--brl-font);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+body,button,input,select,textarea{font-family:var(--brl-font)}
+body *{box-sizing:border-box}
+body a{transition:color .2s ease,background .2s ease,border-color .2s ease,transform .2s ease,opacity .2s ease}
+body button{transition:background .2s ease,border-color .2s ease,transform .2s ease,box-shadow .2s ease}
+body button:hover:not(:disabled),body a:hover{transform:translateY(-1px)}
+body img{max-width:100%}
+/* Team identity follows the session, while layout and controls stay fixed. */
+body[data-brl-team]{--brl-accent:var(--brl-team)}
+/* Make legacy light shells feel like the approved cinematic system without hiding content. */
+#root{min-height:100vh;background:radial-gradient(circle at 85% -10%,rgba(var(--brl-team-rgb),.18),transparent 32%),linear-gradient(180deg,#08090c,#0c0e13 42%,#08090c)}
+/* Global readable typography. Never clip important copy. */
+h1,h2,h3,h4,h5,h6,p,span,a,button,td,th,label{overflow-wrap:anywhere}
+h1,h2,h3,h4{letter-spacing:-.035em}
+input,select,textarea{max-width:100%;border-radius:12px!important}
+/* Tables keep information dense but premium and horizontally usable on phones. */
+table{border-collapse:separate!important;border-spacing:0!important;max-width:100%}
+th{font-size:11px!important;letter-spacing:.07em;text-transform:uppercase}
+td,th{vertical-align:middle}
+/* Shared native scroll treatment */
+*{scrollbar-width:thin;scrollbar-color:rgba(var(--brl-team-rgb),.55) rgba(255,255,255,.05)}
+*::-webkit-scrollbar{width:8px;height:8px}*::-webkit-scrollbar-track{background:rgba(255,255,255,.04)}*::-webkit-scrollbar-thumb{background:rgba(var(--brl-team-rgb),.55);border-radius:20px}
+/* Opt-in wrapper for progressively migrated pages. */
+.brl-page{min-height:100vh;color:var(--brl-text);background:radial-gradient(circle at 90% 0,rgba(var(--brl-team-rgb),.16),transparent 30%),var(--brl-bg)}
+.brl-page__content{width:min(1440px,100%);margin:auto;padding:clamp(18px,3vw,40px)}
+.brl-flow-section{position:relative;padding:clamp(38px,6vw,82px) 0;border-top:1px solid var(--brl-line)}
+.brl-flow-kicker{font-size:10px;font-weight:900;letter-spacing:.18em;text-transform:uppercase;color:var(--brl-team)}
+.brl-primary-action{display:inline-flex;align-items:center;justify-content:center;gap:16px;min-height:44px;padding:0 20px;border:1px solid rgba(var(--brl-team-rgb),.65);border-radius:999px;background:linear-gradient(120deg,var(--brl-team-dark),var(--brl-team));color:white!important;font-weight:850;text-decoration:none;box-shadow:0 0 26px rgba(var(--brl-team-rgb),.20)}
+.brl-primary-action:hover{box-shadow:0 0 38px rgba(var(--brl-team-rgb),.34)}
+/* Accessibility/readability safeguards */
+@media(max-width:900px){body{font-size:15px}button,a{touch-action:manipulation}table{font-size:12px}.brl-page__content{padding:16px 14px 96px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+
+/* Phase 1.2 app-wide migration: legacy content now lives inside one BRL shell. */
+.brl-migrated-page{min-width:0;color:var(--brl-text)}
+.brl-migrated-page>div,.brl-migrated-page>section{max-width:100%}
+.brl-migrated-page [style*="background: rgb(255, 255, 255)"],.brl-migrated-page [style*="background: white"]{border-color:rgba(255,255,255,.10)}
+.brl-inline-banner{max-width:1400px;margin:0 auto;padding:10px 0 0}
+.brl-route-hero{padding:clamp(48px,7vw,92px) clamp(4px,2vw,24px) clamp(35px,5vw,65px);border-bottom:1px solid var(--brl-line);background:radial-gradient(circle at 82% 20%,rgba(var(--brl-team-rgb),.20),transparent 32%)}
+.brl-route-hero h1{margin:8px 0 10px;font-size:clamp(42px,7vw,86px);line-height:.9;color:#fff}.brl-route-hero p{max-width:650px;color:var(--brl-muted);line-height:1.6}.brl-route-hero .brl-primary-action{margin-top:20px}
+.brl-next-race-flow{display:flex;justify-content:space-between;align-items:end;gap:25px;padding:clamp(30px,5vw,60px) clamp(4px,2vw,24px);border-bottom:1px solid var(--brl-line);background:linear-gradient(90deg,rgba(var(--brl-team-rgb),.13),transparent 70%)}
+.brl-next-race-flow small,.brl-race-main small{font-size:9px;letter-spacing:.17em;font-weight:950;color:var(--brl-team)}.brl-next-race-flow h2{margin:5px 0;font-size:clamp(34px,5vw,62px);color:#fff}.brl-next-race-flow p{margin:0;color:var(--brl-muted)}.brl-next-race-flow>strong{font-size:clamp(72px,10vw,150px);line-height:.7;color:rgba(255,255,255,.055);font-style:italic}
+.brl-schedule-flow{padding:0 clamp(4px,2vw,24px) 70px}.brl-race-row{display:grid;grid-template-columns:70px minmax(0,1fr) auto;align-items:center;gap:20px;min-height:118px;border-bottom:1px solid var(--brl-line);transition:background .2s,padding .2s}.brl-race-row:hover{background:linear-gradient(90deg,rgba(var(--brl-team-rgb),.10),transparent);padding-left:10px}.brl-race-row.is-next{background:linear-gradient(90deg,rgba(var(--brl-team-rgb),.15),transparent);border-left:3px solid var(--brl-team);padding-left:16px}.brl-race-index{font-size:13px;font-weight:950;color:#62656d}.brl-race-main h3{margin:4px 0;font-size:clamp(22px,3vw,34px);color:#fff}.brl-race-main p{margin:0;font-size:12px;color:var(--brl-muted)}.brl-race-meta{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}.brl-race-meta span{padding:7px 10px;border:1px solid var(--brl-line);border-radius:999px;font-size:9px;color:#b9bbc2;background:rgba(255,255,255,.035)}.brl-empty-state{padding:60px 0;color:var(--brl-muted)}
+/* Keep the shell visible while old page internals are progressively restyled. */
+.brl-shell .brl-migrated-page{background:radial-gradient(circle at 90% 0,rgba(var(--brl-team-rgb),.10),transparent 28%)}
+@media(max-width:900px){.brl-race-row{grid-template-columns:38px 1fr;padding:18px 0}.brl-race-meta{grid-column:2;justify-content:flex-start}.brl-next-race-flow>strong{display:none}.brl-route-hero{padding-top:38px}.brl-shell__main{padding-left:10px!important;padding-right:10px!important}}
