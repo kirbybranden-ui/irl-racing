@@ -7,3 +7,16 @@
 .brl-desktop-header__panel h2{font-size:11px;text-transform:uppercase;letter-spacing:.2em;color:#f3444d;margin:0 0 12px}.brl-desktop-header__panel a{display:flex;justify-content:space-between;gap:20px;padding:9px 10px;border-bottom:1px solid #292c33;font-size:13px;font-weight:700}.brl-desktop-header__panel a span{color:#f3444d}
 @media(max-width:1100px){.brl-desktop-header__quick{gap:0}.brl-desktop-header__quick a{padding:10px 6px}.brl-desktop-header__profile{display:none}}
 @media(max-width:900px){.brl-desktop-header{display:none}}
+
+/* Continuous navigation surface: headings and rules, not a grid of cards. */
+.brl-desktop-header{border-bottom:1px solid rgba(255,255,255,.16);background:rgba(7,9,13,.9)}
+.brl-desktop-header__row{height:76px}
+.brl-desktop-header__quick a,.brl-desktop-header__message,.brl-desktop-header__profile{border-radius:0;border-bottom:2px solid transparent}
+.brl-desktop-header__quick a:hover,.brl-desktop-header__quick a.active{background:transparent;border-color:#e92932}
+.brl-desktop-header__menu{border:0;border-radius:0;background:transparent;box-shadow:none;border-left:1px solid rgba(255,255,255,.2);padding:12px 0 12px 22px;font-size:13px;letter-spacing:.04em}
+.brl-desktop-header__menu:hover{color:#ff4a52}
+.brl-desktop-header__panel{padding-top:42px;padding-bottom:54px;gap:48px 60px;background:linear-gradient(145deg,#0d1017,#08090d);border-bottom:1px solid #a32028}
+.brl-desktop-header__panel section{border-top:1px solid rgba(255,255,255,.22);padding-top:16px}
+.brl-desktop-header__panel h2{margin-bottom:14px}
+.brl-desktop-header__panel a{border:0;padding:8px 0;font-size:14px}
+.brl-desktop-header__panel a:hover{background:transparent;color:#ff5159;transform:translateX(5px)}
