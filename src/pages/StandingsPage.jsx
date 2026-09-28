@@ -1016,8 +1016,8 @@ function StandingsPage({ seriesId = "cup", drivers = [], teams = [], manufacture
 
   const applePage = {
     minHeight: "100vh",
-    background: "radial-gradient(circle at 10% 0%, rgba(0,122,255,0.16), transparent 28%), radial-gradient(circle at 82% 8%, rgba(255,149,0,0.15), transparent 26%), radial-gradient(circle at 50% 0%, rgba(88,86,214,0.10), transparent 36%), #f5f5f7",
-    color: "#1d1d1f",
+    background: "#f7f7f5",
+    color: "#111216",
     fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif",
   };
 
@@ -1028,33 +1028,32 @@ function StandingsPage({ seriesId = "cup", drivers = [], teams = [], manufacture
   };
 
   const glassCard = {
-    background: "rgba(255,255,255,0.88)",
-    border: "1px solid rgba(255,255,255,0.92)",
-    borderRadius: 30,
-    boxShadow: "0 24px 70px rgba(15,23,42,0.10)",
-    backdropFilter: "blur(24px)",
-    WebkitBackdropFilter: "blur(24px)",
+    background: "transparent",
+    border: "0",
+    borderBottom: "1px solid #d6d7d9",
+    borderRadius: 0,
+    boxShadow: "none",
   };
 
   const pillButton = {
-    border: "1px solid rgba(15,23,42,0.08)",
-    background: "rgba(255,255,255,0.74)",
-    color: "#1d1d1f",
-    borderRadius: 999,
+    border: "1px solid #111216",
+    background: "#111216",
+    color: "#fff",
+    borderRadius: 2,
     padding: "11px 15px",
     fontWeight: 850,
     cursor: "pointer",
-    boxShadow: "0 10px 28px rgba(15,23,42,0.06)",
+    boxShadow: "none",
   };
 
   const publicMessageIconButtonStyle = {
     width: isMobile ? 44 : 50,
     height: isMobile ? 44 : 50,
-    borderRadius: isMobile ? 14 : 16,
-    border: "1px solid rgba(17,24,39,0.10)",
-    background: "linear-gradient(180deg, #007aff 0%, #5856d6 100%)",
+    borderRadius: 2,
+    border: "1px solid #111216",
+    background: "#111216",
     color: "#ffffff",
-    boxShadow: "0 16px 38px rgba(0,122,255,0.26)",
+    boxShadow: "none",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -1067,10 +1066,10 @@ function StandingsPage({ seriesId = "cup", drivers = [], teams = [], manufacture
   const publicMenuButtonStyle = {
     width: isMobile ? 44 : 50,
     height: isMobile ? 44 : 50,
-    borderRadius: isMobile ? 14 : 16,
-    border: "1px solid rgba(17,24,39,0.10)",
-    background: "rgba(255,255,255,0.92)",
-    boxShadow: "0 10px 28px rgba(15,23,42,0.12)",
+    borderRadius: 2,
+    border: "1px solid #111216",
+    background: "transparent",
+    boxShadow: "none",
     display: "flex",
     flexDirection: "column",
     justifyContent: "center",
@@ -1504,7 +1503,7 @@ function StandingsPage({ seriesId = "cup", drivers = [], teams = [], manufacture
                 type="button"
                 aria-label="Go to league landing page"
                 onClick={() => (window.location.pathname = "/")}
-                style={{ ...publicMessageIconButtonStyle, background: "linear-gradient(180deg, #ffd60a 0%, #ff9f0a 100%)", boxShadow: "0 16px 38px rgba(255,159,10,0.30)" }}
+                style={{ ...publicMessageIconButtonStyle, background: "#111216" }}
                 title="Home"
               >
                 🏠
@@ -1516,7 +1515,7 @@ function StandingsPage({ seriesId = "cup", drivers = [], teams = [], manufacture
                     type="button"
                     aria-label="Go to my profile"
                     onClick={() => (window.location.pathname = `/driver/${leagueSession.driverNumber}`)}
-                    style={{ ...publicMessageIconButtonStyle, background: "linear-gradient(180deg, #34c759 0%, #248a3d 100%)", boxShadow: "0 16px 38px rgba(52,199,89,0.30)", width: isMobile ? 44 : "auto", paddingLeft: isMobile ? 0 : 16, paddingRight: isMobile ? 0 : 16 }}
+                    style={{ ...publicMessageIconButtonStyle, background: "#111216", width: isMobile ? 44 : "auto", paddingLeft: isMobile ? 0 : 16, paddingRight: isMobile ? 0 : 16 }}
                     title={`Signed in as #${leagueSession.driverNumber} ${leagueSession.driverName}`}
                   >
                     {isMobile ? "👤" : `👤 #${leagueSession.driverNumber} ${leagueSession.driverName}`}
@@ -1536,7 +1535,7 @@ function StandingsPage({ seriesId = "cup", drivers = [], teams = [], manufacture
                   type="button"
                   aria-label="Log in"
                   onClick={() => setShowLoginModal(true)}
-                  style={{ ...publicMessageIconButtonStyle, background: "linear-gradient(180deg, #007aff 0%, #5856d6 100%)", boxShadow: "0 16px 38px rgba(0,122,255,0.30)", width: isMobile ? 44 : "auto", paddingLeft: isMobile ? 0 : 16, paddingRight: isMobile ? 0 : 16 }}
+                  style={{ ...publicMessageIconButtonStyle, background: "#d71920", borderColor: "#d71920", width: isMobile ? 44 : "auto", paddingLeft: isMobile ? 0 : 16, paddingRight: isMobile ? 0 : 16 }}
                   title="Log in"
                 >
                   {isMobile ? "🔑" : "🔑 Log In"}
