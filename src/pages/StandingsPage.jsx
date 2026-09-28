@@ -632,7 +632,6 @@ function StandingsPage({ seriesId = "cup", drivers = [], teams = [], manufacture
   const [standingsTab, setStandingsTab] = useState(seriesId === "arca" ? "arca-drivers" : "drivers");
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [selectedTrackInfo, setSelectedTrackInfo] = useState(null);
-  const [publicMenuOpen, setPublicMenuOpen] = useState(false);
   const [featuredVideo, setFeaturedVideo] = useState(null);
   const [manualOnesToWatch, setManualOnesToWatch] = useState([]);
   const [viewportWidth, setViewportWidth] = useState(() => (typeof window !== "undefined" ? window.innerWidth : 1200));
@@ -670,6 +669,7 @@ function StandingsPage({ seriesId = "cup", drivers = [], teams = [], manufacture
   function handleLeagueLogout() {
     logoutOfLeague();
     setLeagueSession(null);
+    window.dispatchEvent(new Event("brl:session-changed"));
   }
 
   const handleDriverClick = (number) => {
@@ -1046,84 +1046,6 @@ function StandingsPage({ seriesId = "cup", drivers = [], teams = [], manufacture
     boxShadow: "none",
   };
 
-  const publicMessageIconButtonStyle = {
-    width: isMobile ? 44 : 50,
-    height: isMobile ? 44 : 50,
-    borderRadius: 2,
-    border: "1px solid #111216",
-    background: "#111216",
-    color: "#ffffff",
-    boxShadow: "none",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    cursor: "pointer",
-    position: "relative",
-    fontSize: 20,
-    fontWeight: 1000,
-  };
-
-  const publicMenuButtonStyle = {
-    width: isMobile ? 44 : 50,
-    height: isMobile ? 44 : 50,
-    borderRadius: 2,
-    border: "1px solid #111216",
-    background: "transparent",
-    boxShadow: "none",
-    display: "flex",
-    flexDirection: "column",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 5,
-    cursor: "pointer",
-    position: "relative",
-    zIndex: 100002,
-  };
-
-  const publicMenuLineStyle = {
-    width: 22,
-    height: 2,
-    borderRadius: 999,
-    background: "#111827",
-  };
-
-  const publicMenuBackdropStyle = {
-    position: "fixed",
-    inset: 0,
-    zIndex: 2147483000,
-    background: "rgba(15,23,42,0.22)",
-    backdropFilter: "blur(10px)",
-    WebkitBackdropFilter: "blur(10px)",
-  };
-
-  const publicMenuPanelStyle = {
-    position: "fixed",
-    right: isMobile ? 10 : 24,
-    top: isMobile ? 78 : 96,
-    zIndex: 2147483001,
-    width: isMobile ? "calc(100vw - 20px)" : "min(360px, calc(100vw - 48px))",
-    background: "rgba(255,255,255,0.98)",
-    border: "1px solid rgba(17,24,39,0.10)",
-    borderRadius: 24,
-    boxShadow: "0 28px 80px rgba(15,23,42,0.30)",
-    padding: 12,
-    backdropFilter: "blur(18px)",
-    WebkitBackdropFilter: "blur(18px)",
-  };
-
-  const navItems = [
-    { label: "Streams", subtitle: "Live broadcasts", icon: "📡", route: "/streams" },
-    { label: "News", subtitle: "League stories", icon: "📰", route: "/news" },
-    { label: "Interviews", subtitle: "Driver media", icon: "🎤", route: seriesId === "arca" ? "/series/arca/interviews" : "/interviews" },
-    { label: "Team HQ", subtitle: "Owner workspace", icon: "🏢", route: "/team-hq" },
-    { label: "Active Contracts", subtitle: "Current agreements", icon: "📄", route: "/contracts" },
-    { label: "Notifications", subtitle: "Public alerts", icon: "🔔", route: "/notifications" },
-    { label: "League Chat", subtitle: "Community room", icon: "💬", route: "/chat" },
-    { label: "Admin Portal", subtitle: "League control", icon: "🔐", route: "/admin" },
-  ];
-
-  const filteredNavItems = seriesId === "arca" ? navItems.filter(item => item.route === "/admin" || item.label === "Interviews" || item.label === "Team HQ") : navItems;
-
   const StatCard = ({ icon, label, value, detail, onClick, accent = "#007aff", tint = "rgba(0,122,255,0.12)" }) => (
     <button
       type="button"
@@ -1483,9 +1405,14 @@ function StandingsPage({ seriesId = "cup", drivers = [], teams = [], manufacture
         <style>{`
           * { box-sizing: border-box; }
           .brl-standings-stats > button:last-child { border-right: 0 !important; }
+          .brl-standings-mobile-links { display: none; }
+          .brl-standings-mobile-links a, .brl-standings-mobile-links button { color: inherit; font-size: 11px; font-weight: 850; text-decoration: none; text-transform: uppercase; letter-spacing: .08em; border: 0; border-bottom: 2px solid #d71920; background: none; padding: 8px 0; }
+          .brl-standings-mobile-links span { font-size: 10px; font-weight: 950; letter-spacing: .16em; color: #d71920; }
+          @media (max-width: 900px) { .brl-standings-mobile-links { display: flex; align-items: center; gap: 16px; overflow-x: auto; white-space: nowrap; border-bottom: 1px solid #d6d7d9; padding: 6px 0 12px; } }
           @media (max-width: 760px) {
             .bcl-driver-row { min-width: 0 !important; }
             .bcl-scroll-safe { overflow-x: hidden !important; }
+            .brl-standings-mobile-links { display: flex; align-items: center; gap: 16px; overflow-x: auto; white-space: nowrap; border-bottom: 1px solid #d6d7d9; padding: 6px 0 12px; }
             .brl-standings-stats > button:nth-child(2n) { border-right: 0 !important; }
             .brl-standings-stats > button:nth-child(-n+2) { border-bottom: 1px solid rgba(17,24,39,.15) !important; }
             button, a { -webkit-tap-highlight-color: transparent; }
@@ -1495,121 +1422,16 @@ function StandingsPage({ seriesId = "cup", drivers = [], teams = [], manufacture
           }
         `}</style>
 
-        <div style={{ marginBottom: isMobile ? 10 : 16, padding: isMobile ? "12px 0" : "12px 0 18px", borderBottom: "1px solid rgba(17,24,39,.18)" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: isMobile ? 10 : 14, flexWrap: "nowrap" }}>
-            <div style={{ fontSize: isMobile ? 11 : 13, color: "#6e6e73", fontWeight: 950, letterSpacing: 1.1, textTransform: "uppercase" }}>{isMobile ? (seriesId === "arca" ? "ARCA" : "Cup") : (seriesId === "arca" ? "ARCA Control Center" : "Cup Control Center")}</div>
-            <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 8 : 12 }}>
-              <button
-                type="button"
-                aria-label="Go to league landing page"
-                onClick={() => (window.location.pathname = "/")}
-                style={{ ...publicMessageIconButtonStyle, background: "#111216" }}
-                title="Home"
-              >
-                🏠
-              </button>
-
-              {leagueSession ? (
-                <>
-                  <button
-                    type="button"
-                    aria-label="Go to my profile"
-                    onClick={() => (window.location.pathname = `/driver/${leagueSession.driverNumber}`)}
-                    style={{ ...publicMessageIconButtonStyle, background: "#111216", width: isMobile ? 44 : "auto", paddingLeft: isMobile ? 0 : 16, paddingRight: isMobile ? 0 : 16 }}
-                    title={`Signed in as #${leagueSession.driverNumber} ${leagueSession.driverName}`}
-                  >
-                    {isMobile ? "👤" : `👤 #${leagueSession.driverNumber} ${leagueSession.driverName}`}
-                  </button>
-                  <button
-                    type="button"
-                    aria-label="Log out"
-                    onClick={handleLeagueLogout}
-                    style={{ ...publicMessageIconButtonStyle, background: "rgba(0,0,0,0.06)", color: "#1d1d1f", boxShadow: "none" }}
-                    title="Log out"
-                  >
-                    🚪
-                  </button>
-                </>
-              ) : (
-                <button
-                  type="button"
-                  aria-label="Log in"
-                  onClick={() => setShowLoginModal(true)}
-                  style={{ ...publicMessageIconButtonStyle, background: "#d71920", borderColor: "#d71920", width: isMobile ? 44 : "auto", paddingLeft: isMobile ? 0 : 16, paddingRight: isMobile ? 0 : 16 }}
-                  title="Log in"
-                >
-                  {isMobile ? "🔑" : "🔑 Log In"}
-                </button>
-              )}
-
-              {seriesId !== "arca" && (
-                <button
-                  type="button"
-                  aria-label="Open messages"
-                  onClick={() => (window.location.pathname = "/message-center")}
-                  style={publicMessageIconButtonStyle}
-                  title="Messages"
-                >
-                  💬
-                </button>
-              )}
-
-              <button
-                type="button"
-                aria-label="Open menu"
-                onClick={() => setPublicMenuOpen((open) => !open)}
-                style={publicMenuButtonStyle}
-                title="Menu"
-              >
-                <span style={publicMenuLineStyle} />
-                <span style={publicMenuLineStyle} />
-                <span style={publicMenuLineStyle} />
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {publicMenuOpen && (
-          <>
-            <button
-              type="button"
-              aria-label="Close public menu"
-              onClick={() => setPublicMenuOpen(false)}
-              style={publicMenuBackdropStyle}
-            />
-            <div style={publicMenuPanelStyle}>
-              <div style={{ padding: "8px 10px 12px", borderBottom: "1px solid #e5e7eb", marginBottom: 8 }}>
-                <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.5, textTransform: "uppercase", color: "#6b7280" }}>{seriesId === "arca" ? "ARCA Series" : "Cup Series"} Menu</div>
-                <div style={{ fontSize: 20, fontWeight: 1000, color: "#111827" }}>League Pages</div>
-              </div>
-
-              <div style={{ display: "grid", gap: 6 }}>
-                {filteredNavItems.map((item) => (
-                  <button
-                    key={item.label}
-                    type="button"
-                    onClick={() => {
-                      setPublicMenuOpen(false);
-                      window.location.pathname = item.route;
-                    }}
-                    style={{
-                      border: 0,
-                      borderRadius: 14,
-                      background: item.route === "/admin" ? "#111827" : "#f8fafc",
-                      color: item.route === "/admin" ? "#ffffff" : "#111827",
-                      padding: "12px 14px",
-                      textAlign: "left",
-                      fontWeight: 900,
-                      cursor: "pointer",
-                    }}
-                  >
-                    {item.icon} {item.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </>
-        )}
+        <nav className="brl-standings-mobile-links" aria-label="Series navigation">
+          <span>{seriesId === "arca" ? "ARCA SERIES" : "CUP SERIES"}</span>
+          <a href="/">Home</a>
+          <a href="/series">All pages</a>
+          {seriesId !== "arca" && <a href="/message-center">Messages</a>}
+          {leagueSession ? <>
+            <a href={`/driver/${leagueSession.driverNumber}`}>My profile</a>
+            <button type="button" onClick={handleLeagueLogout}>Log out</button>
+          </> : <button type="button" onClick={() => setShowLoginModal(true)}>Log in</button>}
+        </nav>
 
         <section style={{ padding: isMobile ? "24px 0" : "36px 0 44px", marginBottom: 0, position: "relative", borderBottom: "1px solid rgba(17,24,39,.18)", background: "linear-gradient(110deg,rgba(215,25,32,.07),transparent 66%)" }}>
           <div style={{ position: "relative", display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 1fr) minmax(260px, 0.82fr)", gap: isMobile ? 25 : 60, alignItems: "center" }}>
@@ -1984,6 +1806,7 @@ function StandingsPage({ seriesId = "cup", drivers = [], teams = [], manufacture
             onSuccess={(session) => {
               setLeagueSession(session);
               setShowLoginModal(false);
+              window.dispatchEvent(new Event("brl:session-changed"));
               const redirectTo = getPostLoginRedirect();
               if (redirectTo) {
                 window.location.href = redirectTo;
