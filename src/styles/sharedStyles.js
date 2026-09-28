@@ -1,14 +1,14 @@
 export const FONT_STACK =
   '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif';
 
-export const GOLD = "#d4af37";
-export const TEXT_PRIMARY = "#1d1d1f";
-export const TEXT_SECONDARY = "#6e6e73";
-export const GLASS_BG = "rgba(255,255,255,0.7)";
-export const GLASS_BG_STRONG = "rgba(255,255,255,0.85)";
-export const GLASS_BORDER = "1px solid rgba(0,0,0,0.06)";
-export const GLASS_SHADOW = "0 8px 30px rgba(0,0,0,0.06), 0 1px 0 rgba(255,255,255,0.6) inset";
-export const HAIRLINE = "1px solid rgba(0,0,0,0.08)";
+export const GOLD = "#d71920";
+export const TEXT_PRIMARY = "#111216";
+export const TEXT_SECONDARY = "#686b70";
+export const GLASS_BG = "transparent";
+export const GLASS_BG_STRONG = "#f7f7f5";
+export const GLASS_BORDER = "1px solid #d6d7d9";
+export const GLASS_SHADOW = "none";
+export const HAIRLINE = "1px solid #d6d7d9";
 export const GREEN = "#34c759";
 export const RED = "#ff3b30";
 export const ORANGE = "#ff9500";
@@ -17,7 +17,7 @@ export const PURPLE = "#af52de";
 
 export const appShellStyle = {
   minHeight: "100vh",
-  background: "linear-gradient(180deg, #f5f5f7 0%, #ffffff 40%, #f5f5f7 100%)",
+  background: "#f7f7f5",
   color: TEXT_PRIMARY,
   fontFamily: FONT_STACK,
   WebkitFontSmoothing: "antialiased",
@@ -31,13 +31,12 @@ export const pageContainerStyle = {
 
 export const sectionCardStyle = {
   background: GLASS_BG,
-  backdropFilter: "blur(24px) saturate(180%)",
-  WebkitBackdropFilter: "blur(24px) saturate(180%)",
-  border: GLASS_BORDER,
-  borderRadius: 22,
-  padding: 18,
+  border: 0,
+  borderTop: HAIRLINE,
+  borderRadius: 0,
+  padding: "24px 0",
   marginBottom: 20,
-  boxShadow: GLASS_SHADOW,
+  boxShadow: "none",
 };
 
 export const headerButtonStyle = {
@@ -59,10 +58,10 @@ export const activeHeaderButtonStyle = {
 };
 
 export const primaryButtonStyle = {
-  background: GOLD,
-  color: "#1d1d1f",
+  background: TEXT_PRIMARY,
+  color: "#fff",
   border: "none",
-  borderRadius: 999,
+  borderRadius: 2,
   padding: "10px 18px",
   fontWeight: 700,
   cursor: "pointer",
