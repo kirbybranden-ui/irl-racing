@@ -271,23 +271,22 @@ const appleFont = "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSyste
 
 const appShellStyle = {
   minHeight: "100vh",
-  background: "radial-gradient(circle at top left, rgba(255,255,255,0.95), rgba(245,245,247,0.94) 36%, rgba(229,229,234,0.98) 100%)",
+  background: "#f7f7f5",
   color: "#1d1d1f",
   fontFamily: appleFont,
 };
 const pageContainerStyle = { maxWidth: 1000, margin: "0 auto", padding: 20 };
 const sectionCardStyle = {
-  background: "linear-gradient(180deg, rgba(255,255,255,0.88), rgba(255,255,255,0.60))",
-  border: "1px solid rgba(255,255,255,0.78)",
-  borderRadius: 24,
+  background: "transparent",
+  border: 0,
+  borderTop: "1px solid #d6d7d9",
+  borderRadius: 0,
   padding: 22,
   marginBottom: 20,
-  boxShadow: "0 20px 55px rgba(15,23,42,0.08)",
-  backdropFilter: "blur(20px)",
-  WebkitBackdropFilter: "blur(20px)",
+  boxShadow: "none",
 };
 const primaryButtonStyle = {
-  background: "linear-gradient(135deg, #007aff 0%, #5856d6 100%)",
+  background: "#111216",
   color: "#ffffff",
   border: "none",
   borderRadius: 999,
@@ -295,7 +294,7 @@ const primaryButtonStyle = {
   fontWeight: 900,
   fontFamily: appleFont,
   cursor: "pointer",
-  boxShadow: "0 12px 28px rgba(0,122,255,0.24)",
+  boxShadow: "none",
 };
 const secondaryButtonStyle = {
   background: "rgba(255,255,255,0.72)",
