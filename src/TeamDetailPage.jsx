@@ -2,32 +2,33 @@ import React, { useState } from "react";
 
 const pageStyle = {
   minHeight: "100vh",
-  background: "radial-gradient(circle at top, #18202b 0%, #0d1117 38%, #090c11 100%)",
-  color: "white",
-  fontFamily: "Arial, sans-serif",
+  background: "#f7f7f5",
+  color: "#111216",
+  fontFamily: "Inter, Arial, sans-serif",
   padding: 24,
 };
 
 const cardStyle = {
-  background: "#151a22",
-  border: "1px solid #2d3643",
-  borderRadius: 22,
+  background: "transparent",
+  border: 0,
+  borderTop: "1px solid #d6d7d9",
+  borderRadius: 0,
   padding: 20,
   marginBottom: 18,
-  boxShadow: "0 10px 28px rgba(0,0,0,0.22)",
+  boxShadow: "none",
 };
 
 const thStyle = {
   textAlign: "left",
   padding: 10,
-  borderBottom: "1px solid #313947",
-  background: "#10141b",
+  borderBottom: "1px solid #d6d7d9",
+  background: "#ededeb",
   fontSize: 13,
 };
 
 const tdStyle = {
   padding: 10,
-  borderBottom: "1px solid #252c38",
+  borderBottom: "1px solid #d6d7d9",
   verticalAlign: "top",
   fontSize: 14,
 };
