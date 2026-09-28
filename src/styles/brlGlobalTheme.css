@@ -50,3 +50,14 @@ td,th{vertical-align:middle}
 /* Keep the shell visible while old page internals are progressively restyled. */
 .brl-shell .brl-migrated-page{background:radial-gradient(circle at 90% 0,rgba(var(--brl-team-rgb),.10),transparent 28%)}
 @media(max-width:900px){.brl-race-row{grid-template-columns:38px 1fr;padding:18px 0}.brl-race-meta{grid-column:2;justify-content:flex-start}.brl-next-race-flow>strong{display:none}.brl-route-hero{padding-top:38px}.brl-shell__main{padding-left:10px!important;padding-right:10px!important}}
+
+/* Page sections read as one racing editorial surface. */
+.brl-migrated-page{position:relative}
+.brl-migrated-page:before{content:"";pointer-events:none;position:absolute;inset:0 0 auto;height:360px;background:linear-gradient(125deg,rgba(var(--brl-team-rgb),.08),transparent 55%);z-index:0}
+.brl-migrated-page>*{position:relative}
+.brl-flow-section{border-top:1px solid rgba(255,255,255,.14)}
+.brl-route-hero{border-bottom:0;padding-bottom:65px}
+.brl-next-race-flow{border-top:1px solid var(--brl-line);background:transparent}
+.brl-race-row{border-bottom:1px solid rgba(255,255,255,.11)}
+.brl-race-row.is-next{border-left:0;padding-left:0;background:linear-gradient(90deg,rgba(var(--brl-team-rgb),.12),transparent 70%)}
+.brl-race-row.is-next .brl-race-index{color:var(--brl-team)}
