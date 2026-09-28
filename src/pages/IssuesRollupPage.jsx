@@ -10,7 +10,7 @@ const pageFont = "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystem
 
 const pageStyle = {
   minHeight: "100vh",
-  background: "radial-gradient(circle at top left, rgba(255,255,255,0.95), rgba(245,245,247,0.94) 36%, rgba(229,229,234,0.98) 100%)",
+  background: "#f7f7f5",
   color: "#1d1d1f",
   fontFamily: pageFont,
   padding: "clamp(18px, 4vw, 42px)",
@@ -20,13 +20,12 @@ const pageStyle = {
 const wrapStyle = { maxWidth: 1000, margin: "0 auto" };
 
 const glassCardStyle = {
-  borderRadius: 28,
-  padding: "clamp(16px, 3vw, 24px)",
-  background: "linear-gradient(180deg, rgba(255,255,255,0.86), rgba(255,255,255,0.58))",
-  border: "1px solid rgba(255,255,255,0.78)",
-  boxShadow: "0 24px 70px rgba(0,0,0,0.10)",
-  backdropFilter: "blur(22px)",
-  WebkitBackdropFilter: "blur(22px)",
+  borderRadius: 0,
+  padding: "24px 0",
+  background: "transparent",
+  border: 0,
+  borderTop: "1px solid #d6d7d9",
+  boxShadow: "none",
 };
 
 const statusColors = {
