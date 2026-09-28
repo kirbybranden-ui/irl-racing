@@ -12,6 +12,9 @@ import DriverProfilePage from "./DriverProfilePage";
 import TeamDetailPage from "./TeamDetailPage";
 import ManufacturerDetailPage from "./ManufacturerDetailPage";
 import WelcomePage from "./WelcomePage";
+import FoundationPreviewPage from "./pages/FoundationPreviewPage";
+import { AppShell } from "./components/layout/AppShell";
+import SchedulePage from "./pages/SchedulePage";
 import { supabase } from "./lib/supabase";
 import CarGalleryPage from "./CarGalleryPage";
 import PaintSchemeVotePage from "./PaintSchemeVotePage";
@@ -147,6 +150,9 @@ import {
 // Note: there's no backend here to verify the signature server-side, so this works as a
 // genuine device-level biometric unlock (a real credential tied to this device + origin,
 // verified by the OS) rather than a full server-verified WebAuthn round trip.
+
+const mobileAppFont = "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif";
+
 const ADMIN_BIOMETRIC_CREDENTIAL_KEY = "bcl-admin-biometric-credential-id";
 const ADMIN_BIOMETRIC_DECLINED_KEY = "bcl-admin-biometric-declined";
 
@@ -246,6 +252,8 @@ function AdminLoginPage({ drivers = [] }) {
     localStorage.removeItem("bcl-admin-auth-time");
     window.location.pathname = "/admin";
   }
+
+
 
   async function getAdminPermissionForUser(userId) {
     const [rolesResult, overridesResult] = await Promise.all([
@@ -6206,6 +6214,7 @@ function MobileManufacturerRow({ manufacturer, index }) { return <div style={mob
 function MobileRaceCard({ race }) { return <MobileCard><div style={mobileKickerStyle}>Next Race</div><h2 style={{ margin: "4px 0" }}>{race.name || race.track || "Race"}</h2><p style={{ color: "#6e6e73", margin: 0 }}>{race.date || "Date TBA"} • Qualifying 9:15 PM • Race 9:30 PM</p></MobileCard>; }
 
 
+
 const mobileStreamHeroCardStyle = { background: "linear-gradient(135deg, #111827 0%, #070b10 100%)", border: "1px solid rgba(212,175,55,0.38)", borderRadius: 24, padding: 18, marginBottom: 14, boxShadow: "0 18px 42px rgba(0,0,0,0.36)" };
 const mobileLivePillStyle = { background: "#dc2626", color: "white", borderRadius: 999, padding: "6px 9px", fontSize: 11, fontWeight: 1000, letterSpacing: 0.7 };
 const mobileLivePillSmallStyle = { background: "#dc2626", color: "white", borderRadius: 999, padding: "4px 7px", fontSize: 10, fontWeight: 1000, letterSpacing: 0.5 };
@@ -6251,7 +6260,6 @@ const mobileNewsBylineStyle = { color: "#9a5a00", fontSize: 11, fontWeight: 1000
 const mobileNewsExcerptStyle = { margin: 0, color: "#3a3a3c", fontSize: 14, lineHeight: 1.48, fontWeight: 600 };
 const mobileNewsArchiveShellStyle = { overflowX: "auto", WebkitOverflowScrolling: "touch", borderRadius: 18, border: "1px solid rgba(0,0,0,0.06)", background: "rgba(255,255,255,0.88)" };
 
-const mobileAppFont = "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif";
 const mobileAppStyle = { minHeight: "100vh", background: "radial-gradient(circle at top left, rgba(255,255,255,0.95), rgba(245,245,247,0.94) 36%, rgba(229,229,234,0.98) 100%)", color: "#1d1d1f", paddingBottom: 82, fontFamily: mobileAppFont };
 const mobileTopbarStyle = { position: "sticky", top: 0, zIndex: 20, background: "rgba(255,255,255,0.82)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", borderBottom: "1px solid rgba(0,0,0,0.06)", padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" };
 const mobileLogoButtonStyle = { width: 44, height: 44, borderRadius: 14, border: "1px solid rgba(0,0,0,0.08)", background: "rgba(255,255,255,0.9)", color: "#1d1d1f", fontSize: 18, boxShadow: "0 8px 20px rgba(15,23,42,0.08)" };
@@ -6848,6 +6856,23 @@ function AppleSeriesPortalLanding() {
 
 export default function App() {
   useEffect(() => {
+    const session = getLeagueSession();
+    const teamName = session?.team || session?.teamName || "";
+    const brand = getTeamBranding(teamName);
+    const accent = brand?.accent || "#d71920";
+    const dark = brand?.dark || "#3b0b0d";
+    const hex = String(accent).replace("#", "");
+    const fullHex = hex.length === 3 ? hex.split("").map((c) => c + c).join("") : hex;
+    const rgb = /^[0-9a-fA-F]{6}$/.test(fullHex)
+      ? [0, 2, 4].map((i) => parseInt(fullHex.slice(i, i + 2), 16)).join(",")
+      : "215,25,32";
+    document.documentElement.style.setProperty("--brl-team", accent);
+    document.documentElement.style.setProperty("--brl-team-dark", dark);
+    document.documentElement.style.setProperty("--brl-team-rgb", rgb);
+    document.body.dataset.brlTeam = brand?.logo || teamName || "BRL";
+    return () => { delete document.body.dataset.brlTeam; };
+  }, []);
+  useEffect(() => {
     // syncCruiserNumberAndNumberOwnership();
   }, []);
 
@@ -6980,7 +7005,32 @@ export default function App() {
 
   // ─── Computed values (must be before all hooks) ───────────────────────────
   const activeSeason = seasons.find((s) => s.id === activeSeasonId) || seasons[0] || null;
-  const withLeagueStatusWidget = (page) => (<> {page} <LeagueStatusWidget tracks={tracks} seasonName={activeSeason?.name || ""} /> </>);
+  const withUniversalShell = (page, themedTeam = "") => {
+    const session = getLeagueSession();
+    const teamName = themedTeam || session?.team || session?.teamName || "";
+    const brand = getTeamBranding(teamName);
+    return (
+      <AppShell
+        currentUser={session ? {
+          displayName: session.driverName || session.name || `Driver ${session.driverNumber || ""}`,
+          roleLabel: session.isOwner ? `${brand?.fullName || teamName} • Owner` : (brand?.fullName || teamName || "Driver"),
+          driverNumber: session.driverNumber,
+        } : null}
+        currentPath={path}
+        teamIdentity={themedTeam ? { name: brand?.fullName || teamName, logo: teamLogos[teamName] || teamLogos[brand?.fullName] } : null}
+        teamTheme={{
+          "--team-primary": brand?.accent || "#d71920",
+          "--team-secondary": brand?.dark || "#3b0b0d",
+          "--team-glow": `rgba(var(--brl-team-rgb),.38)`,
+          "--team-soft": `rgba(var(--brl-team-rgb),.12)`,
+        }}
+      >
+        <div className="brl-migrated-page">{page}</div>
+      </AppShell>
+    );
+  };
+
+  const withLeagueStatusWidget = (page) => withUniversalShell(<> {page} <LeagueStatusWidget tracks={tracks} seasonName={activeSeason?.name || ""} /> </>);
   const drivers = realignLeagueDrivers(activeSeason?.drivers || []);
   const visibleDrivers = drivers.filter((d) => !isInactivePlaceholderDriver(d));
   const activeDrivers = visibleDrivers.filter((d) => !d.retired);
@@ -9111,6 +9161,9 @@ export default function App() {
     return <AppleSeriesPortalLanding />;
   }
 
+  // Phase 1 universal shell preview — isolated from live league business logic.
+  if (path === "/foundation-preview") return <FoundationPreviewPage />;
+
   // Static desktop pages
   if (path === "/files") return <FilesPage />;
   if (path === "/welcome") return <WelcomePage />;
@@ -9154,12 +9207,13 @@ export default function App() {
     />
   );
 }
+  if (path === "/schedule" || path === "/tracks" || path === "/season-schedule") return withLeagueStatusWidget(<SchedulePage tracks={tracks} raceHistory={raceHistory} />);
   if (path === "/news") return withLeagueStatusWidget(<NewsPage />);
   if (path === "/paint-scheme-vote") return withLeagueStatusWidget(<PaintSchemeVotePage drivers={visibleDrivers} tracks={tracks} />);
   if (path === "/vote" || path === "/league-vote" || path === "/voting") return <LeagueVotingPage drivers={visibleDrivers} />;
   if (path === "/notifications") return withLeagueStatusWidget(<NotificationsPage />);
   if ((!isMobileViewport || forceDesktop) && path === "/discord") return <DiscordPage />;
-  if ((!isMobileViewport || forceDesktop) && (path === "/interviews" || path === "/public-interviews")) return <PublicInterviewsPage seriesId="cup" />;
+  if ((!isMobileViewport || forceDesktop) && (path === "/interviews" || path === "/public-interviews")) return withUniversalShell(<PublicInterviewsPage seriesId="cup" />);
   if ((!isMobileViewport || forceDesktop) && path === "/driver-feedback") {
     return (
       <div style={appShellStyle}>
@@ -9249,7 +9303,7 @@ export default function App() {
       (t) => String(t.team || "").toLowerCase() === normalizedTeam
     ) || null;
 
-    return (
+    return withUniversalShell(
       <TeamDetailPage
         key={`team-${abbr}-${activeSeasonId}-${raceHistory.length}-${selectedTeamStanding?.points || 0}`}
         drivers={visibleDrivers}
@@ -9263,7 +9317,8 @@ export default function App() {
         seasonName={activeSeason?.name || ""}
         initialTeam={abbr}
         selectedTeam={abbr}
-      />
+      />,
+      abbr
     );
   }
 
@@ -9280,7 +9335,7 @@ export default function App() {
       (m) => String(m.manufacturer || "").toLowerCase() === normalizedManufacturer
     ) || null;
 
-    return (
+    return withUniversalShell(
       <ManufacturerDetailPage
         key={`manufacturer-${mfrName}-${activeSeasonId}-${raceHistory.length}-${selectedManufacturerStanding?.points || 0}`}
         drivers={visibleDrivers}
@@ -9307,19 +9362,16 @@ export default function App() {
       return <DriverProfileSignInGate driverNumber={requestedDriverNumber} />;
     }
 
-    return (
+    return withUniversalShell(
       <>
-        <div style={{ minHeight: 0, background: "#0c0f14", padding: "20px 20px 0" }}>
-          <div style={{ maxWidth: 1400, margin: "0 auto" }}>
-            <AppUpdateBanner page="driver" />
-          </div>
-        </div>
+        <div className="brl-inline-banner"><AppUpdateBanner page="driver" /></div>
         <DriverVoteReminderStrip driverNumber={requestedDriverNumber} />
         <DriverProfilePage seasons={seasons} activeSeason={activeSeason} tracks={tracks} arcaDrivers={activeSeason?.arcaDrivers || arcaDrivers} arcaTracks={arcaTracks} />
-      </>
+      </>,
+      visibleDrivers.find(d => String(d.number) === String(requestedDriverNumber))?.team || leagueSession?.team || "Independent"
     );
   }
-  if (["/owners", "/owner", "/team-hq", "/hq", "/teamhq"].includes(path)) return (
+  if (["/owners", "/owner", "/team-hq", "/hq", "/teamhq"].includes(path)) return withUniversalShell(
     <>
       <OwnersPage
         drivers={visibleDrivers}
@@ -9365,7 +9417,7 @@ export default function App() {
   if (path === "/standings") return withLeagueStatusWidget(<StandingsPage drivers={visibleDrivers} teams={teamStandings} manufacturerStandings={manufacturerStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} supabase={supabase} driverAccessCodes={driverAccessCodes} />);
   if (path === "/overlay/ticker" || viewMode === "overlay-ticker") return <TickerOverlay drivers={visibleDrivers} teams={teamStandings} raceHistory={raceHistory} preview={viewMode === "overlay-ticker"} seasonName={activeSeason?.name || ""} />;
   if (path !== "/admin") {
-    return <StandingsPage drivers={visibleDrivers} teams={teamStandings} manufacturerStandings={manufacturerStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} supabase={supabase} driverAccessCodes={driverAccessCodes} />;
+    return withLeagueStatusWidget(<StandingsPage drivers={visibleDrivers} teams={teamStandings} manufacturerStandings={manufacturerStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} supabase={supabase} driverAccessCodes={driverAccessCodes} />);
   }
   return (
     <AdminPortal
