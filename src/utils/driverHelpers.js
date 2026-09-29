@@ -37,61 +37,6 @@ export function isRemovedLeagueDriver(driver) {
 
 export function realignLeagueDriver(driver) {
   if (!driver || isRemovedLeagueDriver(driver)) return null;
-
-  const id = Number(driver.id ?? driver.driver_id);
-  const nameKey = String(driver.name ?? driver.driver_name ?? "").trim().toLowerCase();
-
-  if (id === 6 || nameKey === "kapsig") {
-    return {
-      ...driver,
-      number: 14,
-    };
-  }
-
-  if (id === 7 || id === 46 || nameKey === "kevdinho7" || nameKey === "bigdiehl21") {
-    return {
-      ...driver,
-    };
-  }
-
-  if (id === 5 || nameKey === "ixgusty") {
-    return {
-      ...driver,
-      number: 3,
-    };
-  }
-
-  if (id === 21 || nameKey === "yinzermob_86") {
-    return {
-      ...driver,
-      number: 86,
-    };
-  }
-
-  if (id === 34 || nameKey === "cajunthrottle28") {
-    return {
-      ...driver,
-      number: 48,
-      driver_number: driver.driver_number !== undefined ? 48 : driver.driver_number,
-    };
-  }
-
-  if (id === 54 || nameKey === "thecruiser54") {
-    return {
-      ...driver,
-      id: 54,
-      number: 8,
-      driver_number: driver.driver_number !== undefined ? 8 : driver.driver_number,
-      name: "TheCruiser54",
-    };
-  }
-
-  if (id === 35 || id === 102 || ["knighttrain41", "ghostracer388"].includes(nameKey)) {
-    return {
-      ...driver,
-    };
-  }
-
   return driver;
 }
 
@@ -228,56 +173,5 @@ export function rebuildDriversFromHistory(history, driverRoster) {
 }
 
 export function apply2026DriverNumberAdjustments(roster = [], history = []) {
-  const normalizedRoster = Array.isArray(roster)
-    ? roster.map((driver) => ({ ...driver }))
-    : [];
-
-  const normalizedHistory = Array.isArray(history) ? history : [];
-
-  normalizedRoster.forEach((driver) => {
-    const nameKey = String(driver?.name || "").trim().toLowerCase();
-
-    if (nameKey === "cajunthrottle28") {
-      driver.number = 48;
-    }
-
-    if (nameKey === "knighttrain41") {
-      driver.number = 41;
-    }
-
-    if (nameKey === "thecruiser54" || Number(driver?.id) === 54) {
-      driver.id = 54;
-      driver.number = 8;
-    }
-  });
-
-  const adjustedHistory = normalizedHistory.map((race) => ({
-    ...race,
-    results: Array.isArray(race?.results)
-      ? race.results.map((result) => {
-          const resultName = String(result?.name || "").trim().toLowerCase();
-
-          if (resultName === "cajunthrottle28") {
-            return { ...result, number: 48 };
-          }
-
-          if (resultName === "knighttrain41") {
-            return { ...result, number: 41 };
-          }
-
-          if (resultName === "thecruiser54" || Number(result?.driverId) === 54) {
-            return {
-              ...result,
-              driverId: 54,
-              number: 8,
-              name: "TheCruiser54",
-            };
-          }
-
-          return result;
-        })
-      : [],
-  }));
-
-  return { roster: normalizedRoster, history: adjustedHistory };
+  return { roster: Array.isArray(roster) ? roster : [], history: Array.isArray(history) ? history : [] };
 }
