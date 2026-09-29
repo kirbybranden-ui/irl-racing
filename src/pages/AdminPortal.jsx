@@ -6,6 +6,7 @@ import { teamLogos, getTeamBranding, getTeamIdentifier } from "../data/teams";
 export default function AdminPortal({
   currentSession,
   customTeamBranding = {},
+  registeredTeams = {},
   onSaveTeamBranding,
   onCreateTeam,
   onDeleteTeam,
@@ -264,6 +265,7 @@ export default function AdminPortal({
   const [newTeamStatus, setNewTeamStatus] = useState("");
   const [rebrandName, setRebrandName] = useState("");
   const [rebrandIdentifier, setRebrandIdentifier] = useState("");
+  const [rebrandManufacturer, setRebrandManufacturer] = useState("");
   const [rebrandAccent, setRebrandAccent] = useState("#d71920");
   const [rebrandDark, setRebrandDark] = useState("#111216");
   const [logoFile, setLogoFile] = useState(null);
@@ -2142,16 +2144,17 @@ export default function AdminPortal({
                     <h2 style={{ margin: "0 0 6px" }}>Team Rebranding</h2>
                     <p style={{ margin: "0 0 16px", color: "#4b5563" }}>Change the public name, team identifier, colors, and logo. Existing results, finances, and owner access stay linked to the same team.</p>
                     <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(2, minmax(0, 1fr))", gap: 12, alignItems: "end" }}>
-                      <label>Team<select value={logoTeam} onChange={(event) => { const team = event.target.value; const brand = getTeamBranding(team); setLogoTeam(team); setRebrandName(team ? getTeamFullName(team) : ""); setRebrandIdentifier(team ? getTeamIdentifier(team) : ""); setRebrandAccent(brand.accent || "#d71920"); setRebrandDark(brand.dark || "#111216"); setLogoFile(null); setLogoStatus(""); }} style={adminInputStyle}><option value="">Select team</option>{(ownerPortalTeams || []).map((team) => <option key={team} value={team}>{getTeamFullName(team)} ({getTeamIdentifier(team)})</option>)}</select></label>
+                      <label>Team<select value={logoTeam} onChange={(event) => { const team = event.target.value; const brand = getTeamBranding(team); setLogoTeam(team); setRebrandName(team ? getTeamFullName(team) : ""); setRebrandIdentifier(team ? getTeamIdentifier(team) : ""); setRebrandManufacturer(team ? registeredTeams[team]?.manufacturer || (visibleDrivers || []).find((driver) => driver.team === team)?.manufacturer || "" : ""); setRebrandAccent(brand.accent || "#d71920"); setRebrandDark(brand.dark || "#111216"); setLogoFile(null); setLogoStatus(""); }} style={adminInputStyle}><option value="">Select team</option>{(ownerPortalTeams || []).map((team) => <option key={team} value={team}>{getTeamFullName(team)} ({getTeamIdentifier(team)})</option>)}</select></label>
                       <label>Public team name<input value={rebrandName} onChange={(event) => setRebrandName(event.target.value)} maxLength={80} disabled={!logoTeam} style={adminInputStyle} placeholder="New team name" /></label>
                       <label>Team identifier<input value={rebrandIdentifier} onChange={(event) => setRebrandIdentifier(event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))} maxLength={5} disabled={!logoTeam} style={adminInputStyle} placeholder="B2J" /></label>
+                      <label>Manufacturer<select value={rebrandManufacturer} onChange={(event) => setRebrandManufacturer(event.target.value)} disabled={!logoTeam} style={adminInputStyle}><option value="">Select manufacturer</option><option>Chevrolet</option><option>Ford</option><option>Toyota</option><option>Other</option></select></label>
                       <label>Logo image (optional)<input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => { setLogoFile(event.target.files?.[0] || null); setLogoStatus(""); }} style={{ ...adminInputStyle, padding: 8 }} /></label>
                       <div style={{ display: "flex", gap: 12 }}>
                         <label style={{ flex: 1 }}>Team color<input type="color" value={rebrandAccent} onChange={(event) => setRebrandAccent(event.target.value)} style={{ ...adminInputStyle, height: 46, padding: 4 }} /></label>
                         <label style={{ flex: 1 }}>Dark color<input type="color" value={rebrandDark} onChange={(event) => setRebrandDark(event.target.value)} style={{ ...adminInputStyle, height: 46, padding: 4 }} /></label>
                       </div>
                     </div>
-                    <button type="button" disabled={logoSaving || !logoTeam || !rebrandName.trim() || !rebrandIdentifier.trim() || typeof onSaveTeamBranding !== "function"} onClick={async () => { setLogoSaving(true); setLogoStatus(""); try { await onSaveTeamBranding(logoTeam, { fullName: rebrandName, identifier: rebrandIdentifier, file: logoFile, accent: rebrandAccent, dark: rebrandDark }); setLogoStatus(`Branding saved for ${rebrandName.trim()} (${rebrandIdentifier}).`); setLogoFile(null); } catch (error) { console.error("Team rebrand failed:", error); setLogoStatus(error?.message || "Could not save team branding."); } finally { setLogoSaving(false); } }} style={{ ...adminPrimaryButtonStyle, borderRadius: 2, marginTop: 16, opacity: logoSaving || !logoTeam || !rebrandName.trim() || !rebrandIdentifier.trim() || typeof onSaveTeamBranding !== "function" ? 0.5 : 1 }}>{logoSaving ? "Saving…" : "Save Team Branding"}</button>
+                    <button type="button" disabled={logoSaving || !logoTeam || !rebrandName.trim() || !rebrandIdentifier.trim() || !rebrandManufacturer || typeof onSaveTeamBranding !== "function"} onClick={async () => { setLogoSaving(true); setLogoStatus(""); try { await onSaveTeamBranding(logoTeam, { fullName: rebrandName, identifier: rebrandIdentifier, manufacturer: rebrandManufacturer, file: logoFile, accent: rebrandAccent, dark: rebrandDark }); setLogoStatus(`Team updated. Current drivers now show ${rebrandManufacturer}.`); setLogoFile(null); } catch (error) { console.error("Team rebrand failed:", error); setLogoStatus(error?.message || "Could not save team branding."); } finally { setLogoSaving(false); } }} style={{ ...adminPrimaryButtonStyle, borderRadius: 2, marginTop: 16, opacity: logoSaving || !logoTeam || !rebrandName.trim() || !rebrandIdentifier.trim() || !rebrandManufacturer || typeof onSaveTeamBranding !== "function" ? 0.5 : 1 }}>{logoSaving ? "Saving…" : "Save Team Changes"}</button>
                     {typeof onSaveTeamBranding !== "function" && <p role="alert" style={{ color: "#a31820", fontWeight: 800 }}>Update src/App.jsx from the same ZIP to enable team rebranding.</p>}
                     {logoTeam && <div style={{ marginTop: 16, borderTop: "1px solid #d6d7d9", paddingTop: 14 }}>
                       <div style={{ fontSize: 12, fontWeight: 900, textTransform: "uppercase", marginBottom: 10 }}>Current brand · {getTeamFullName(logoTeam)}</div>
