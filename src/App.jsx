@@ -2446,26 +2446,13 @@ function patchMissingDrivers(cleanSeasons) {
     const missing = defaultDrivers.filter(
       (d) => !isRemovedLeagueDriver(d) && Number(d.number) !== 76 && !existingNums.has(String(d.number))
     );
-    // Update any drivers whose name/number/manufacturer/team has changed in defaultDrivers
+    // Existing saved roster assignments take precedence over bundled defaults.
     const updatedDrivers = realignLeagueDrivers(season.drivers)
       .filter((d) => !isInactivePlaceholderDriver(d))
       .filter((d) => !isRemovedLeagueDriver(d))
       .filter((d) => Number(d.number) !== 76 && String(d.name || "").trim().toLowerCase() !== "bcr_ziggy5525")
       .map((d) => {
-        const canonical =
-          defaultDrivers.find((dd) => dd.id === d.id) ||
-          defaultDrivers.find((dd) => String(dd.number) === String(d.number));
-        if (!canonical) {
-          return { ...d };
-        }
-        return {
-          ...d,
-          id: canonical.id,
-          name: canonical.name,
-          number: canonical.number,
-          manufacturer: canonical.manufacturer,
-          team: canonical.team,
-        };
+        return d;
       });
     if (missing.length === 0 && updatedDrivers.every((d, i) => d === season.drivers[i])) return season;
     const newRoster = dedupeDriversByNumber([
