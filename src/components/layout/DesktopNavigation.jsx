@@ -34,12 +34,12 @@ export default function DesktopNavigation() {
         {[["Home", "/"], ["Schedule", "/schedule"], ["News", "/news"], ["Teams", "/owners"]].map(([label, href]) => <a className={path === href ? "active" : ""} href={href} key={href}>{label}</a>)}
       </nav>
       <a className="brl-desktop-header__message" href="/message-center">Messages</a>
-      <a className="brl-desktop-header__profile" href={profile}>{session?.driverNumber ? `#${session.driverNumber} Profile` : "Log In"}</a>
+      <a className="brl-desktop-header__profile" href={profile}>{session?.driverNumber ? `#${session.driverNumber} Profile` : "Login / Register"}</a>
       <button className="brl-desktop-header__menu" type="button" aria-expanded={open} aria-controls="brl-all-pages" onClick={() => setOpen(!open)}>{open ? "Close" : "☰  All pages"}</button>
     </div>
     {open && <div id="brl-all-pages" className="brl-desktop-header__panel">
       {groups.map(group => <section key={group.title}><h2>{group.title}</h2>{group.links.map(([label, href]) => <a key={`${label}-${href}`} href={href} className={path === href ? "active" : ""}>{label}<span aria-hidden="true">↗</span></a>)}</section>)}
-      <section><h2>Account & team</h2><a href={profile}>{session?.driverNumber ? "Driver profile" : "Log in"}<span>↗</span></a>{session?.team && <a href={`/team/${encodeURIComponent(session.team)}`}>{session.team} page<span>↗</span></a>}{session && <button className="brl-desktop-header__signout" type="button" onClick={signOut}>Log out <span>↗</span></button>}</section>
+      <section><h2>Account & team</h2><a href={profile}>{session?.driverNumber ? "Driver profile" : "Login / Register"}<span>↗</span></a>{session?.team && <a href={`/team/${encodeURIComponent(session.team)}`}>{session.team} page<span>↗</span></a>}{session && <button className="brl-desktop-header__signout" type="button" onClick={signOut}>Log out <span>↗</span></button>}</section>
     </div>}
   </header>;
 }
