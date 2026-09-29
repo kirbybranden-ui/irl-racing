@@ -8334,6 +8334,34 @@ export default function App() {
     setAddDriverStatus(`#${driverNumber} ${trimmedName} added.`);
     setNewDriverName(""); setNewDriverNumber(""); setNewDriverManufacturer(""); setNewDriverTeam("");
   };
+  const recallCandidates = [
+    ...seasons.flatMap((season) => season.id === activeSeasonId ? [] : (season.drivers || [])),
+    ...(activeSeason?.arcaDrivers?.length ? activeSeason.arcaDrivers : arcaDrivers || []),
+  ].filter((candidate, index, source) => candidate?.name && !drivers.some((driver) => driver.name.toLowerCase() === String(candidate.name).toLowerCase()) && source.findIndex((item) => String(item.name).toLowerCase() === String(candidate.name).toLowerCase()) === index);
+  const recallDriver = async (candidate) => {
+    const name = String(candidate?.name || "").trim();
+    const number = String(candidate?.number || "").trim();
+    const team = String(candidate?.team || "").trim();
+    const manufacturer = registeredTeams[team]?.manufacturer || String(candidate?.manufacturer || "").trim();
+    setAddDriverStatus("");
+    if (!name || !/^\d{1,3}$/.test(number) || !team || !manufacturer) { setAddDriverStatus("Save failed: This driver needs a number, team, and manufacturer. Use Add Driver to enter them."); return; }
+    if (drivers.some((driver) => String(driver.number) === number)) { setAddDriverStatus(`Save failed: #${number} is already assigned. Use Add Driver with an available number.`); return; }
+    const preservedId = seasons.flatMap((season) => season.drivers || []).find((driver) => driver.name?.toLowerCase() === name.toLowerCase())?.id;
+    const id = preservedId && !isRemovedLeagueDriver({ id: preservedId, name, number }) && !drivers.some((driver) => String(driver.id) === String(preservedId)) ? preservedId : Date.now();
+    const restored = { id, number: Number(number), name, team, manufacturer, manufacturerLogo: manufacturerLogos[manufacturer] || null, startingPoints: 0, manualWins: 0 };
+    const nextSeasons = seasons.map((season) => season.id === activeSeasonId ? { ...season, drivers: rebuildDriversFromHistory(raceHistory, [...drivers, restored]) } : season);
+    const nextState = { seasons: nextSeasons, activeSeasonId, tracks, customTeamBranding, registeredTeams };
+    setAddDriverStatus("Saving…");
+    try {
+      await queueLeagueSave(nextState);
+      const stored = await loadLeagueState();
+      const savedSeason = stored?.seasons?.find((season) => String(season.id) === String(activeSeasonId));
+      if (!savedSeason?.drivers?.some((driver) => String(driver.id) === String(id) && String(driver.number) === number)) throw new Error("The recalled driver was not found in the saved roster.");
+    } catch (error) { setAddDriverStatus(`Save failed: ${error.message}`); return; }
+    loadedStateSignatureRef.current = makeLeagueStateSignature(nextState);
+    setSeasons(nextSeasons);
+    setAddDriverStatus(`#${number} ${name} recalled.`);
+  };
   const openEditDriver = (driver) => { setDriverSaveStatus(""); setEditingDriverId(driver.id); setEditDriverForm({ name: driver.name, number: driver.number, manufacturer: driver.manufacturer || "", team: driver.team }); };
   const cancelEditDriver = () => { setEditingDriverId(null); setEditDriverForm({ name: "", number: "", manufacturer: "", team: "" }); };
   const saveDriverEdit = async () => {
@@ -9593,6 +9621,8 @@ export default function App() {
       activeSeasonId={activeSeasonId}
       addDriver={addDriver}
       addDriverStatus={addDriverStatus}
+      recallCandidates={recallCandidates}
+      recallDriver={recallDriver}
       addManualWatchPick={addManualWatchPick}
       addTrack={addTrack}
       appShellStyle={appShellStyle}
