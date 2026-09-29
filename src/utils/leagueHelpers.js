@@ -226,6 +226,13 @@ export function normalizeLoadedLeagueState(savedState, patchMissingDriversFn = n
     seasons: cleanSeasons,
     activeSeasonId: activeExists ? savedState.activeSeasonId : cleanSeasons[0].id,
     tracks: cleanTracks,
-    customTeamBranding: savedState.customTeamBranding && typeof savedState.customTeamBranding === "object" ? savedState.customTeamBranding : {},
+    customTeamBranding: (() => {
+      const branding = savedState.customTeamBranding && typeof savedState.customTeamBranding === "object" ? { ...savedState.customTeamBranding } : {};
+      const ja = branding.B2J;
+      if (ja && String(ja.fullName || "").trim().toLowerCase() === "ja motorsports" && (!ja.identifier || String(ja.identifier).toUpperCase() === "B2J")) {
+        branding.B2J = { ...ja, identifier: "JAM" };
+      }
+      return branding;
+    })(),
   };
 }
