@@ -6908,6 +6908,7 @@ export default function App() {
   const [newDriverTeam, setNewDriverTeam] = useState("");
   const [editingDriverId, setEditingDriverId] = useState(null);
   const [driverSaveStatus, setDriverSaveStatus] = useState("");
+  const [addDriverStatus, setAddDriverStatus] = useState("");
   const [editDriverForm, setEditDriverForm] = useState({ name: "", number: "", manufacturer: "", team: "" });
   const [dnfReasons, setDnfReasons] = useState({});
   const [newTrackName, setNewTrackName] = useState("");
@@ -8308,14 +8309,29 @@ export default function App() {
     const updatedDrivers = drivers.map((d) => d.id === driverId ? { ...d, retired: false } : d);
     patchActiveSeason({ drivers: updatedDrivers });
   };
-  const addDriver = () => {
+  const addDriver = async () => {
+    setAddDriverStatus("");
     const trimmedName = newDriverName.trim(), trimmedTeam = newDriverTeam.trim(), trimmedManufacturer = newDriverManufacturer.trim(), driverNumber = String(newDriverNumber).trim();
     if (!trimmedName || !trimmedTeam || !trimmedManufacturer || !driverNumber) { alert("Please enter driver name, number, manufacturer, and team."); return; }
     if (drivers.some((d) => d.name.toLowerCase() === trimmedName.toLowerCase())) { alert("A driver with that name already exists."); return; }
     if (drivers.some((d) => String(d.number) === driverNumber)) { alert("A driver with that number already exists."); return; }
     const rosterDriver = { id: Date.now(), number: Number(driverNumber), name: trimmedName, manufacturer: trimmedManufacturer, manufacturerLogo: manufacturerLogos[trimmedManufacturer] || null, team: trimmedTeam, startingPoints: 0, manualWins: 0 };
-    const newRoster = [...drivers.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer, manufacturerLogo: d.manufacturerLogo || null, team: d.team, startingPoints: 0, manualWins: 0 })), rosterDriver];
-    patchActiveSeason({ drivers: rebuildDriversFromHistory(raceHistory, newRoster) });
+    const newRoster = [...drivers.map((d) => ({ ...d, startingPoints: 0, manualWins: 0 })), rosterDriver];
+    const nextSeasons = seasons.map((season) => season.id === activeSeasonId ? { ...season, drivers: rebuildDriversFromHistory(raceHistory, newRoster) } : season);
+    const nextState = { seasons: nextSeasons, activeSeasonId, tracks, customTeamBranding, registeredTeams };
+    setAddDriverStatus("Saving…");
+    try {
+      await queueLeagueSave(nextState);
+      const stored = await loadLeagueState();
+      const savedSeason = stored?.seasons?.find((season) => String(season.id) === String(activeSeasonId));
+      if (!savedSeason?.drivers?.some((driver) => String(driver.id) === String(rosterDriver.id) && String(driver.number) === driverNumber)) throw new Error("The new driver was not found in the saved roster.");
+    } catch (error) {
+      setAddDriverStatus(`Save failed: ${error.message || "check league_state permissions."}`);
+      return;
+    }
+    loadedStateSignatureRef.current = makeLeagueStateSignature(nextState);
+    setSeasons(nextSeasons);
+    setAddDriverStatus(`#${driverNumber} ${trimmedName} added.`);
     setNewDriverName(""); setNewDriverNumber(""); setNewDriverManufacturer(""); setNewDriverTeam("");
   };
   const openEditDriver = (driver) => { setDriverSaveStatus(""); setEditingDriverId(driver.id); setEditDriverForm({ name: driver.name, number: driver.number, manufacturer: driver.manufacturer || "", team: driver.team }); };
@@ -9576,6 +9592,7 @@ export default function App() {
       activeSeason={activeSeason}
       activeSeasonId={activeSeasonId}
       addDriver={addDriver}
+      addDriverStatus={addDriverStatus}
       addManualWatchPick={addManualWatchPick}
       addTrack={addTrack}
       appShellStyle={appShellStyle}
@@ -9608,6 +9625,7 @@ export default function App() {
       editTickerMessage={editTickerMessage}
       editingDriverId={editingDriverId}
       driverSaveStatus={driverSaveStatus}
+      addDriverStatus={addDriverStatus}
       editingRaceName={editingRaceName}
       editingTickerId={editingTickerId}
       exportAllSeasonsBackup={exportAllSeasonsBackup}
