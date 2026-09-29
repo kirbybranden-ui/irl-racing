@@ -6907,6 +6907,7 @@ export default function App() {
   const [newDriverManufacturer, setNewDriverManufacturer] = useState("");
   const [newDriverTeam, setNewDriverTeam] = useState("");
   const [editingDriverId, setEditingDriverId] = useState(null);
+  const [driverSaveStatus, setDriverSaveStatus] = useState("");
   const [editDriverForm, setEditDriverForm] = useState({ name: "", number: "", manufacturer: "", team: "" });
   const [dnfReasons, setDnfReasons] = useState({});
   const [newTrackName, setNewTrackName] = useState("");
@@ -8317,12 +8318,12 @@ export default function App() {
     patchActiveSeason({ drivers: rebuildDriversFromHistory(raceHistory, newRoster) });
     setNewDriverName(""); setNewDriverNumber(""); setNewDriverManufacturer(""); setNewDriverTeam("");
   };
-  const openEditDriver = (driver) => { setEditingDriverId(driver.id); setEditDriverForm({ name: driver.name, number: driver.number, manufacturer: driver.manufacturer || "", team: driver.team }); };
+  const openEditDriver = (driver) => { setDriverSaveStatus(""); setEditingDriverId(driver.id); setEditDriverForm({ name: driver.name, number: driver.number, manufacturer: driver.manufacturer || "", team: driver.team }); };
   const cancelEditDriver = () => { setEditingDriverId(null); setEditDriverForm({ name: "", number: "", manufacturer: "", team: "" }); };
   const saveDriverEdit = async () => {
     if (!editingDriverId || !activeSeason) return;
     const name = editDriverForm.name.trim(), number = String(editDriverForm.number).trim(), manufacturer = editDriverForm.manufacturer.trim(), team = editDriverForm.team.trim();
-    if (!name || !number || !manufacturer || !team) { alert("Please enter driver name, number, manufacturer, and team."); return; }
+    if (!name || !/^\d{1,3}$/.test(number) || !manufacturer || !team) { alert("Please enter driver name, a 1–3 digit number, manufacturer, and team."); return; }
     if (drivers.some((d) => d.id !== editingDriverId && d.name.toLowerCase() === name.toLowerCase())) { alert("A driver with that name already exists."); return; }
     if (drivers.some((d) => d.id !== editingDriverId && String(d.number) === number)) { alert("A driver with that number already exists."); return; }
     const updatedRoster = drivers.map((d) => d.id === editingDriverId ? { ...d, name, number: Number(number), manufacturer, manufacturerLogo: manufacturerLogos[manufacturer] || null, team, startingPoints: 0, manualWins: 0 } : d);
@@ -8331,15 +8332,21 @@ export default function App() {
     const nextSeason = { ...activeSeason, drivers: rebuildDriversFromHistory(updatedHistory, rosterOnly), raceHistory: updatedHistory };
     const nextSeasons = seasons.map((season) => season.id === activeSeasonId ? nextSeason : season);
     const nextState = { seasons: nextSeasons, activeSeasonId, tracks, customTeamBranding, registeredTeams };
+    setDriverSaveStatus("Saving…");
     try {
       await queueLeagueSave(nextState);
+      const stored = await loadLeagueState();
+      const storedSeason = stored?.seasons?.find((season) => String(season.id) === String(activeSeasonId));
+      const storedDriver = storedSeason?.drivers?.find((driver) => String(driver.id) === String(editingDriverId));
+      if (Number(storedDriver?.number) !== Number(number)) throw new Error("The saved roster still shows the old number. Another update may be replacing the roster.");
     } catch (error) {
-      alert(`Could not save driver changes: ${error.message || "check the league_state Supabase policy."}`);
+      setDriverSaveStatus(`Save failed: ${error.message || "check the league_state Supabase policy."}`);
       return;
     }
     loadedStateSignatureRef.current = makeLeagueStateSignature(nextState);
     setSeasons(nextSeasons);
     cancelEditDriver();
+    setDriverSaveStatus(`#${number} ${name} saved.`);
   };
   const moveLeagueDriver = async (driverId, team) => {
     const destination = ownerPortalTeams.find((key) => key === team);
@@ -9600,6 +9607,7 @@ export default function App() {
       editDriverForm={editDriverForm}
       editTickerMessage={editTickerMessage}
       editingDriverId={editingDriverId}
+      driverSaveStatus={driverSaveStatus}
       editingRaceName={editingRaceName}
       editingTickerId={editingTickerId}
       exportAllSeasonsBackup={exportAllSeasonsBackup}
