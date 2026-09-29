@@ -7129,19 +7129,24 @@ export default function App() {
     await loadOwnerAssignments();
   }
 
-  async function saveTeamLogo(team, file) {
+  async function saveTeamBranding(team, { fullName, file, accent, dark }) {
     const teamKey = String(team || "").trim();
-    if (!teamKey || !file) throw new Error("Select a team and image first.");
-    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) throw new Error("Choose a PNG, JPG, or WebP image.");
-    if (file.size > 5 * 1024 * 1024) throw new Error("Logo must be under 5 MB.");
-    const extension = (file.name.split(".").pop() || "png").toLowerCase().replace(/[^a-z0-9]/g, "");
-    const path = `team-logos/${encodeURIComponent(teamKey)}/${Date.now()}.${extension}`;
-    const { error: uploadError } = await supabase.storage.from("car-uploads").upload(path, file, { contentType: file.type, upsert: false });
-    if (uploadError) throw uploadError;
-    const { data } = supabase.storage.from("car-uploads").getPublicUrl(path);
-    const logoUrl = data?.publicUrl;
-    if (!logoUrl) throw new Error("Could not create a public URL for the logo.");
-    const updated = { ...customTeamBranding, [teamKey]: { ...customTeamBranding[teamKey], fullName: getTeamFullName(teamKey), logoUrl } };
+    const displayName = String(fullName || "").trim();
+    if (!teamKey || !displayName) throw new Error("Select a team and enter its public name.");
+    if (displayName.length > 80) throw new Error("Team name must be 80 characters or fewer.");
+    let logoUrl = customTeamBranding[teamKey]?.logoUrl || "";
+    if (file) {
+      if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) throw new Error("Choose a PNG, JPG, or WebP image.");
+      if (file.size > 5 * 1024 * 1024) throw new Error("Logo must be under 5 MB.");
+      const extension = (file.name.split(".").pop() || "png").toLowerCase().replace(/[^a-z0-9]/g, "");
+      const path = `team-logos/${encodeURIComponent(teamKey)}/${Date.now()}.${extension}`;
+      const { error: uploadError } = await supabase.storage.from("car-uploads").upload(path, file, { contentType: file.type, upsert: false });
+      if (uploadError) throw uploadError;
+      const { data } = supabase.storage.from("car-uploads").getPublicUrl(path);
+      logoUrl = data?.publicUrl;
+      if (!logoUrl) throw new Error("Could not create a public URL for the logo.");
+    }
+    const updated = { ...customTeamBranding, [teamKey]: { ...customTeamBranding[teamKey], fullName: displayName, logoUrl, accent, dark } };
     const nextState = { seasons, activeSeasonId, tracks, customTeamBranding: updated };
     await saveLeagueState(nextState);
     applyCustomTeamBranding(updated);
@@ -9457,7 +9462,7 @@ export default function App() {
   return (
     <AdminPortal
       customTeamBranding={customTeamBranding}
-      onSaveTeamLogo={saveTeamLogo}
+      onSaveTeamBranding={saveTeamBranding}
       teamPrestigeRows={teamPrestigeRows}
       teamPrestigeStatus={teamPrestigeStatus}
       teamPrestigeSaving={teamPrestigeSaving}
