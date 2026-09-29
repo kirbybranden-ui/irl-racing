@@ -12,8 +12,6 @@ export const removedDriverNames = new Set([
   "undeadhelliday",
   "racingis_life87",
   "vanilla04gorilla",
-  "amp-ghostrider",
-  "ampghostrider",
   "gumby_1919",
   "gumby",
   "yinzermob_86",
@@ -29,7 +27,6 @@ export function isRemovedLeagueDriver(driver) {
   const nameKey = String(driver?.name ?? driver?.driver_name ?? "").trim().toLowerCase();
 
   return (
-    removedDriverNumbers.has(numberKey) ||
     removedDriverIds.has(idKey) ||
     removedDriverNames.has(nameKey)
   );
