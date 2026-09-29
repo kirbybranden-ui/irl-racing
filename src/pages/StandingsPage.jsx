@@ -9,6 +9,7 @@ import {
   supabase as appSupabase } from "../lib/supabase"; import { teamLogos,
   manufacturerLogos,
   getTeamFullName,
+  getTeamIdentifier,
   getTeamBranding } from "../data/teams"; import { trackOverviewData } from "../data/trackOverview"; import { dedupeDriversByNumber,
   isInactivePlaceholderDriver } from "../utils/driverHelpers"; import {   getUpcomingRaceByDate,
   getSortedTracksByDate,
@@ -1232,6 +1233,7 @@ function StandingsPage({ seriesId = "cup", drivers = [], teams = [], manufacture
         {renderTeamBadge(team.team, 64)}
         <div style={{ minWidth: 0 }}>
           <div style={{ fontSize: 20, fontWeight: 950 }}>{getTeamFullName(team.team)}</div>
+          <div style={{ color: brand.accent, fontWeight: 900, fontSize: 12, letterSpacing: 1.2 }}>{getTeamIdentifier(team.team)}</div>
           <div style={{ marginTop: 5, color: "#6e6e73", fontWeight: 720 }}>{team.wins || 0} wins • {team.top5 || 0} top 5s</div>
           <div style={{ marginTop: 9, height: 6, borderRadius: 999, background: "#e5e7eb", overflow: "hidden" }}>
             <div style={{ height: "100%", width: `${teamRows[0]?.points ? Math.max(4, Math.min(100, (Number(team.points || 0) / Number(teamRows[0].points || 1)) * 100)) : 0}%`, background: brand.accent, borderRadius: 999 }} />
