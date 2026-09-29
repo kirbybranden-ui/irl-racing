@@ -7034,7 +7034,12 @@ export default function App() {
   };
 
   const withLeagueStatusWidget = (page) => withUniversalShell(<> {page} <LeagueStatusWidget tracks={tracks} seasonName={activeSeason?.name || ""} /> </>);
-  const drivers = realignLeagueDrivers(activeSeason?.drivers || []);
+  const drivers = realignLeagueDrivers(activeSeason?.drivers || []).map((driver) => {
+    const manufacturer = registeredTeams[driver.team]?.manufacturer;
+    return manufacturer && manufacturer !== driver.manufacturer
+      ? { ...driver, manufacturer, manufacturerLogo: manufacturerLogos[manufacturer] || null }
+      : driver;
+  });
   const visibleDrivers = drivers.filter((d) => !isInactivePlaceholderDriver(d));
   const activeDrivers = visibleDrivers.filter((d) => !d.retired);
   const ownerPortalTeams = useMemo(() => {
