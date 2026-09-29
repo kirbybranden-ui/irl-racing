@@ -82,6 +82,8 @@ export const teamFullNames = {
   "Tolbert Motorsports": "Tolbert Motorsports",
 };
 
+const teamIdentifiers = {};
+
 export const teamBudgets = {
   B2J: 3500000,
   "B2J MOTORSPORTS": 3500000,
@@ -121,16 +123,23 @@ export function applyCustomTeamBranding(entries = {}) {
     const key = String(team || "").trim();
     if (!key || !details || typeof details !== "object") continue;
     const fullName = String(details.fullName || key).trim();
+    const identifier = String(details.identifier || key).trim().toUpperCase();
     const logoUrl = String(details.logoUrl || "").trim();
-    if (logoUrl) { teamLogos[key] = logoUrl; teamLogos[fullName] = logoUrl; }
+    if (logoUrl) { teamLogos[key] = logoUrl; teamLogos[fullName] = logoUrl; teamLogos[identifier] = logoUrl; }
     teamFullNames[key] = fullName;
-    teamBranding[key] = { ...getTeamBranding(key), fullName, accent: details.accent || "#d71920", dark: details.dark || "#111216" };
+    teamIdentifiers[key] = identifier;
+    teamIdentifiers[fullName] = identifier;
+    teamBranding[key] = { ...getTeamBranding(key), logo: identifier, fullName, accent: details.accent || "#d71920", dark: details.dark || "#111216" };
     teamBranding[fullName] = teamBranding[key];
   }
 }
 
 export function getTeamFullName(teamAbbr) {
   return teamFullNames[teamAbbr] || teamAbbr;
+}
+
+export function getTeamIdentifier(teamKey) {
+  return teamIdentifiers[teamKey] || teamKey;
 }
 
 export function getTeamBudget(teamAbbr) {
