@@ -95,48 +95,11 @@ export default function RaceOperations({
           <button type="button" onClick={() => setRaceOperationsOpen(false)} style={{ border: 0, borderRadius: 999, background: "#ffffff", color: "#111827", width: 46, height: 46, fontSize: 23, fontWeight: 1000, cursor: "pointer", boxShadow: "0 8px 20px rgba(15,23,42,0.12)" }}>×</button>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(3, minmax(180px, 1fr))", gap: 14, marginBottom: 18 }}>
-          {[
-            ["tracks", "Track Management", "🏁", `${(tracks || []).length} Tracks`, "Schedule + stages", "Update schedule tracks and stage counts.", "linear-gradient(135deg, #34c759 0%, #30d158 45%, #0a7f3f 100%)"],
-            ["input", "Race Input", "🏎️", selectedRace ? "Active" : "Ready", selectedRace || "Select a race", "Enter finishes, stages, penalties, DNFs, and fastest lap.", "linear-gradient(135deg, #007aff 0%, #5ac8fa 45%, #5856d6 100%)"],
-            ["history", "Previous Race Results", "📚", `${raceHistory.length} Races`, "Season archive", "Open the race archive and download single races or the season.", "linear-gradient(135deg, #ff9500 0%, #ffcc00 48%, #ff3b30 100%)"],
-            ["drafts", "Saved Drafts", "📄", `${(raceDrafts || []).length} Draft${(raceDrafts || []).length === 1 ? "" : "s"}`, "Private race control", "Resume, post, or delete admin-only race drafts.", "linear-gradient(135deg, #af52de 0%, #ff2d55 52%, #5856d6 100%)"],
-            ["offenses", "Offense Log", "⚠️", `${offenseLog.length} Open`, "Season discipline", "Review season offense penalties.", "linear-gradient(135deg, #ff3b30 0%, #ff2d55 50%, #8e8e93 100%)"],
-            ["voting", "Voting", "🗳️", "Admin", "League votes", "Create and review league votes from Race Operations.", "linear-gradient(135deg, #5856d6 0%, #007aff 48%, #32ade6 100%)"],
-          ].map(([key, label, icon, value, meta, description, gradient]) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setRaceOperationsTab(key)}
-              style={{
-                padding: 18,
-                minHeight: 156,
-                textAlign: "left",
-                cursor: "pointer",
-                borderRadius: 30,
-                border: raceOperationsTab === key ? "2px solid rgba(255,255,255,0.95)" : "1px solid rgba(255,255,255,0.38)",
-                background: gradient,
-                color: "#ffffff",
-                boxShadow: raceOperationsTab === key ? "0 22px 46px rgba(15,23,42,0.28)" : "0 16px 34px rgba(15,23,42,0.18)",
-                transform: raceOperationsTab === key ? "translateY(-2px)" : "translateY(0)",
-                transition: "transform 160ms ease, box-shadow 160ms ease, border 160ms ease",
-                overflow: "hidden",
-                position: "relative",
-              }}
-            >
-              <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at top right, rgba(255,255,255,0.38), transparent 36%)", pointerEvents: "none" }} />
-              <div style={{ position: "relative", zIndex: 1, minHeight: 118, display: "flex", flexDirection: "column" }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.2, textTransform: "uppercase", color: "rgba(255,255,255,0.82)" }}>{label}</div>
-                  <div style={{ width: 36, height: 36, borderRadius: 14, background: "rgba(255,255,255,0.18)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, boxShadow: "inset 0 1px 0 rgba(255,255,255,0.28)" }}>{icon}</div>
-                </div>
-                <div style={{ fontSize: 30, fontWeight: 1000, letterSpacing: -1, marginTop: 12, color: "#ffffff" }}>{value}</div>
-                <div style={{ marginTop: 2, color: "rgba(255,255,255,0.76)", fontSize: 12, fontWeight: 1000 }}>{meta}</div>
-                <div style={{ marginTop: "auto", paddingTop: 10, color: "rgba(255,255,255,0.88)", fontSize: 13, fontWeight: 800, lineHeight: 1.35 }}>{description}</div>
-              </div>
-            </button>
+        <nav aria-label="Race operations tasks" style={{ display: "flex", gap: 8, flexWrap: "wrap", borderBottom: "2px solid #111216", paddingBottom: 12, marginBottom: 20 }}>
+          {[["input", "Race Input"], ["drafts", "Drafts"], ["tracks", "Tracks"], ["history", "Results"], ["offenses", "Offenses"], ["voting", "Voting"]].map(([key, label]) => (
+            <button key={key} type="button" onClick={() => setRaceOperationsTab(key)} style={{ border: 0, borderRadius: 2, background: raceOperationsTab === key ? "#111216" : "#e8e8e6", color: raceOperationsTab === key ? "#fff" : "#111216", padding: "11px 14px", fontWeight: 900, cursor: "pointer" }}>{label}</button>
           ))}
-        </div>
+        </nav>
 
         {raceOperationsTab === "overview" && (
           <div style={adminReadableCardStyle}>
