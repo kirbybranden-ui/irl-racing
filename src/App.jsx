@@ -7056,7 +7056,7 @@ export default function App() {
       .map((driver) => driver.team || "Independent")
       .filter((team) => team !== "Independent" && team !== "IND");
     return Array.from(new Set([...fixedTeams, ...Object.keys(registeredTeams), ...liveTeams]))
-      .filter(Boolean)
+      .filter((team) => team && !registeredTeams[team]?.deleted)
       .sort((a, b) => getTeamFullName(a).localeCompare(getTeamFullName(b)));
   }, [visibleDrivers, registeredTeams]);
   const selectedRace = activeSeason?.selectedRace || "";
@@ -7183,6 +7183,26 @@ export default function App() {
       if (error) throw new Error(`Team created, but owner assignment failed: ${error.message}`);
       await loadOwnerAssignments();
     }
+  }
+
+  async function deleteLeagueTeam(team) {
+    const key = String(team || "").trim();
+    if (!key || !ownerPortalTeams.includes(key)) throw new Error("Select a team to delete.");
+    if (visibleDrivers.some((driver) => driver.team === key)) throw new Error("Move this team's drivers before deleting it.");
+    if (!window.confirm(`Delete ${getTeamFullName(key)}? Past race results will remain.`)) return false;
+    const nextTeams = { ...registeredTeams, [key]: { ...registeredTeams[key], deleted: true } };
+    const nextBranding = { ...customTeamBranding };
+    delete nextBranding[key];
+    const nextState = { seasons, activeSeasonId, tracks, customTeamBranding: nextBranding, registeredTeams: nextTeams };
+    await saveLeagueState(nextState);
+    const { error } = await supabase.from("team_owner_assignments").delete().eq("team", key);
+    if (error) throw new Error(`Team removed from roster, but owner access could not be cleared: ${error.message}`);
+    applyCustomTeamBranding(nextBranding);
+    loadedStateSignatureRef.current = makeLeagueStateSignature(nextState);
+    setCustomTeamBranding(nextBranding);
+    setRegisteredTeams(nextTeams);
+    await loadOwnerAssignments();
+    return true;
   }
 
 
@@ -7917,7 +7937,7 @@ export default function App() {
   };
   const teamStandings = useMemo(() => {
     const teams = {};
-    for (const team of Object.keys(registeredTeams)) {
+    for (const team of Object.keys(registeredTeams).filter((key) => !registeredTeams[key]?.deleted)) {
       teams[team] = { team, points: 0, wins: 0, top3: 0, top5: 0, drivers: 0, budget: getTeamBudget(team), manufacturer: registeredTeams[team]?.manufacturer || "" };
     }
     for (const d of visibleDrivers) {
@@ -8308,10 +8328,17 @@ export default function App() {
     if (drivers.some((d) => d.id !== editingDriverId && d.name.toLowerCase() === name.toLowerCase())) { alert("A driver with that name already exists."); return; }
     if (drivers.some((d) => d.id !== editingDriverId && String(d.number) === number)) { alert("A driver with that number already exists."); return; }
     const updatedRoster = drivers.map((d) => d.id === editingDriverId ? { ...d, name, number: Number(number), manufacturer, manufacturerLogo: manufacturerLogos[manufacturer] || null, team, startingPoints: 0, manualWins: 0 } : d);
-    const updatedHistory = raceHistory.map((race) => ({ ...race, results: (race.results || []).map((r) => r.driverId === editingDriverId ? { ...r, name, number: Number(number), manufacturer, team } : r) }));
+    const updatedHistory = raceHistory.map((race) => ({ ...race, results: (race.results || []).map((r) => r.driverId === editingDriverId ? { ...r, name, number: Number(number) } : r) }));
     const rosterOnly = updatedRoster.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer, manufacturerLogo: d.manufacturerLogo || null, team: d.team, startingPoints: 0, manualWins: 0 }));
     replaceActiveSeason({ ...activeSeason, drivers: rebuildDriversFromHistory(updatedHistory, rosterOnly), raceHistory: updatedHistory });
     cancelEditDriver();
+  };
+  const moveLeagueDriver = (driverId, team) => {
+    const destination = ownerPortalTeams.find((key) => key === team);
+    const driver = drivers.find((item) => item.id === driverId);
+    if (!activeSeason || !driver || !destination) throw new Error("Select a driver and destination team.");
+    const manufacturer = registeredTeams[destination]?.manufacturer || drivers.find((item) => item.team === destination)?.manufacturer || driver.manufacturer;
+    patchActiveSeason({ drivers: drivers.map((item) => item.id === driverId ? { ...item, team: destination, manufacturer, manufacturerLogo: manufacturerLogos[manufacturer] || null } : item) });
   };
   const removeDriver = (driverId) => {
     if (!activeSeason) return;
@@ -8346,40 +8373,55 @@ export default function App() {
       setEditingRaceName(null);
     }
   };
-  const approvePendingDriver = async (pendingDriver) => {
+  const approvePendingDriver = async (pendingDriver, grantOwner = false) => {
     if (!activeSeason || !pendingDriver) return;
-    if (!window.confirm(`Add ${pendingDriver.driver_name} (#${pendingDriver.car_number}) to the league?`)) return;
+    const requestedTeam = String(pendingDriver.team_name || "").trim();
+    const teamKey = ownerPortalTeams.find((team) => [team, getTeamIdentifier(team), getTeamFullName(team)].some((value) => String(value || "").trim().toLowerCase() === requestedTeam.toLowerCase())) || "";
+    if (grantOwner && (!pendingDriver.requested_owner || !teamKey)) {
+      alert("Create or select the team before approving owner access.");
+      return;
+    }
+    const existingOwner = grantOwner ? ownerAssignments.find((row) => row.team === teamKey) : null;
+    const explanation = existingOwner
+      ? `This will replace current owner #${existingOwner.owner_driver_number} ${existingOwner.owner_driver_name} for ${getTeamFullName(teamKey)}. Continue?`
+      : `Approve #${pendingDriver.car_number} ${pendingDriver.driver_name} as a driver${grantOwner ? ` and owner of ${getTeamFullName(teamKey)}` : ""}?`;
+    if (!window.confirm(explanation)) return;
     try {
-      // Add to active season
-      const newDriver = {
-        id: Date.now(),
-        number: pendingDriver.car_number,
-        name: pendingDriver.driver_name,
-        manufacturer: pendingDriver.manufacturer || "",
-        manufacturerLogo: manufacturerLogos[pendingDriver.manufacturer] || null,
-        team: pendingDriver.team_name,
-        startingPoints: 0,
-        manualWins: 0,
-        retired: false,
-      };
-      const newRoster = [...drivers.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer || "", manufacturerLogo: d.manufacturerLogo || null, team: d.team, startingPoints: 0, manualWins: 0 })), newDriver];
-      patchActiveSeason({ drivers: rebuildDriversFromHistory(raceHistory, newRoster) });
-      // Update pending driver status to approved
+      const existingDriver = drivers.find((driver) => String(driver.number) === String(pendingDriver.car_number));
+      if (existingDriver && String(existingDriver.name).toLowerCase() !== String(pendingDriver.driver_name).toLowerCase()) {
+        throw new Error(`Car #${pendingDriver.car_number} is already assigned to ${existingDriver.name}.`);
+      }
+      if (!existingDriver) {
+        const newDriver = {
+          id: Date.now(), number: Number(pendingDriver.car_number), name: pendingDriver.driver_name,
+          manufacturer: pendingDriver.manufacturer || "", manufacturerLogo: manufacturerLogos[pendingDriver.manufacturer] || null,
+          team: teamKey || requestedTeam, startingPoints: 0, manualWins: 0, retired: false,
+        };
+        const newRoster = [...drivers.map((driver) => ({ id: driver.id, number: driver.number, name: driver.name, manufacturer: driver.manufacturer || "", manufacturerLogo: driver.manufacturerLogo || null, team: driver.team, startingPoints: 0, manualWins: 0 })), newDriver];
+        const nextSeason = { ...activeSeason, drivers: rebuildDriversFromHistory(raceHistory, newRoster) };
+        const nextSeasons = seasons.map((season) => season.id === activeSeasonId ? nextSeason : season);
+        const nextState = { seasons: nextSeasons, activeSeasonId, tracks, customTeamBranding, registeredTeams };
+        await saveLeagueState(nextState);
+        loadedStateSignatureRef.current = makeLeagueStateSignature(nextState);
+        setSeasons(nextSeasons);
+      }
+      if (grantOwner) {
+        const { error: ownerError } = await supabase.from("team_owner_assignments").upsert({ team: teamKey, owner_driver_number: String(pendingDriver.car_number), owner_driver_name: pendingDriver.driver_name, updated_at: new Date().toISOString() }, { onConflict: "team" });
+        if (ownerError) throw new Error(`Driver was added, but owner assignment failed: ${ownerError.message}`);
+        await loadOwnerAssignments();
+      }
       if (pendingDriver.request_source === "series_join_requests") {
         const saved = JSON.parse(localStorage.getItem("series_join_requests") || "[]");
-        const updated = saved.map((request) => String(request.id) === String(pendingDriver.original_id) ? { ...request, status: "approved", reviewedAt: new Date().toISOString() } : request);
-        localStorage.setItem("series_join_requests", JSON.stringify(updated));
+        localStorage.setItem("series_join_requests", JSON.stringify(saved.map((request) => String(request.id) === String(pendingDriver.original_id) ? { ...request, status: "approved", reviewedAt: new Date().toISOString() } : request)));
       } else {
-        await supabase
-          .from("pending_drivers")
-          .update({ status: "approved" })
-          .eq("id", pendingDriver.id);
+        const { error: statusError } = await supabase.from("pending_drivers").update({ status: "approved" }).eq("id", pendingDriver.id);
+        if (statusError) throw statusError;
       }
-      setPendingDrivers((prev) => prev.filter((d) => d.id !== pendingDriver.id));
-      alert(`${pendingDriver.driver_name} has been added to the league!`);
-    } catch (err) {
-      console.error("Error approving driver:", err);
-      alert("Failed to approve driver. Please try again.");
+      setPendingDrivers((prev) => prev.filter((driver) => driver.id !== pendingDriver.id));
+      alert(`${pendingDriver.driver_name} approved as a driver${grantOwner ? " and team owner" : ""}.`);
+    } catch (error) {
+      console.error("Error approving driver:", error);
+      alert(error?.message || "Could not complete approval. Refresh the roster and request queue before retrying.");
     }
   };
   const rejectPendingDriver = async (pendingDriver) => {
@@ -9498,6 +9540,8 @@ export default function App() {
     <AdminPortal
       customTeamBranding={customTeamBranding}
       onCreateTeam={createLeagueTeam}
+      onDeleteTeam={deleteLeagueTeam}
+      onMoveDriver={moveLeagueDriver}
       onSaveTeamBranding={saveTeamBranding}
       teamPrestigeRows={teamPrestigeRows}
       teamPrestigeStatus={teamPrestigeStatus}
