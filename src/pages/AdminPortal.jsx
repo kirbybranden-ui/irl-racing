@@ -55,6 +55,7 @@ export default function AdminPortal({
   editDriverForm,
   editTickerMessage,
   editingDriverId,
+  driverSaveStatus,
   editingRaceName,
   editingTickerId,
   exportAllSeasonsBackup,
@@ -2096,8 +2097,10 @@ export default function AdminPortal({
                         <div><div style={{ marginBottom: 6, fontWeight: 900, color: "#374151" }}>Team</div><input style={adminInputStyle} value={editDriverForm.team} onChange={(e) => setEditDriverForm({ ...editDriverForm, team: e.target.value })} /></div>
                       </div>
                       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}><button onClick={saveDriverEdit} style={adminPrimaryButtonStyle}>Save Changes</button><button onClick={cancelEditDriver} style={adminSecondaryButtonStyle}>Cancel</button></div>
+                      {driverSaveStatus && <p role="status" style={{ fontWeight: 800, color: driverSaveStatus.startsWith("Save failed") ? "#a31820" : "#16803c" }}>{driverSaveStatus}</p>}
                     </div>
                   )}
+                  {!editingDriverId && driverSaveStatus && <p role="status" style={{ fontWeight: 800, color: "#16803c" }}>{driverSaveStatus}</p>}
 
                   <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(auto-fit, minmax(245px, 1fr))", gap: 12, maxHeight: 520, overflowY: "auto" }}>
                     {(visibleDrivers || drivers || []).map((driver) => (
