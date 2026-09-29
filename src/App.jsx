@@ -7131,7 +7131,7 @@ export default function App() {
     await loadOwnerAssignments();
   }
 
-  async function saveTeamBranding(team, { fullName, identifier, file, accent, dark }) {
+  async function saveTeamBranding(team, { fullName, identifier, manufacturer, file, accent, dark }) {
     const teamKey = String(team || "").trim();
     const displayName = String(fullName || "").trim();
     if (!teamKey || !displayName) throw new Error("Select a team and enter its public name.");
@@ -7139,6 +7139,7 @@ export default function App() {
     const publicCode = String(identifier || "").trim().toUpperCase();
     if (!/^[A-Z0-9]{2,5}$/.test(publicCode)) throw new Error("Team identifier must be 2–5 letters or numbers.");
     if (ownerPortalTeams.some((other) => other !== teamKey && getTeamIdentifier(other).toUpperCase() === publicCode)) throw new Error("That team identifier is already in use.");
+    if (!["Chevrolet", "Ford", "Toyota", "Other"].includes(manufacturer)) throw new Error("Select a manufacturer.");
     let logoUrl = customTeamBranding[teamKey]?.logoUrl || "";
     if (file) {
       if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) throw new Error("Choose a PNG, JPG, or WebP image.");
@@ -7152,10 +7153,14 @@ export default function App() {
       if (!logoUrl) throw new Error("Could not create a public URL for the logo.");
     }
     const updated = { ...customTeamBranding, [teamKey]: { ...customTeamBranding[teamKey], fullName: displayName, identifier: publicCode, logoUrl, accent, dark } };
-    const nextState = { seasons, activeSeasonId, tracks, customTeamBranding: updated, registeredTeams };
+    const nextTeams = { ...registeredTeams, [teamKey]: { ...registeredTeams[teamKey], identifier: publicCode, fullName: displayName, manufacturer } };
+    const nextSeasons = seasons.map((season) => season.id === activeSeasonId ? { ...season, drivers: (season.drivers || []).map((driver) => driver.team === teamKey ? { ...driver, manufacturer, manufacturerLogo: manufacturerLogos[manufacturer] || null } : driver) } : season);
+    const nextState = { seasons: nextSeasons, activeSeasonId, tracks, customTeamBranding: updated, registeredTeams: nextTeams };
     await saveLeagueState(nextState);
     applyCustomTeamBranding(updated);
     loadedStateSignatureRef.current = makeLeagueStateSignature(nextState);
+    setSeasons(nextSeasons);
+    setRegisteredTeams(nextTeams);
     setCustomTeamBranding(updated);
   }
 
@@ -9543,6 +9548,7 @@ export default function App() {
       onDeleteTeam={deleteLeagueTeam}
       onMoveDriver={moveLeagueDriver}
       onSaveTeamBranding={saveTeamBranding}
+      registeredTeams={registeredTeams}
       teamPrestigeRows={teamPrestigeRows}
       teamPrestigeStatus={teamPrestigeStatus}
       teamPrestigeSaving={teamPrestigeSaving}
