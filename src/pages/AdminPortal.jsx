@@ -25,6 +25,8 @@ export default function AdminPortal({
   activeSeasonId,
   addDriver,
   addDriverStatus,
+  recallCandidates = [],
+  recallDriver,
   addManualWatchPick,
   addTrack,
   appShellStyle,
@@ -262,6 +264,7 @@ export default function AdminPortal({
   const [quickAddDriverOpen, setQuickAddDriverOpen] = useState(false);
   const [logoTeam, setLogoTeam] = useState("");
   const [moveSelections, setMoveSelections] = useState({});
+  const [recallName, setRecallName] = useState("");
   const [newTeamForm, setNewTeamForm] = useState({ identifier: "", fullName: "", manufacturer: "", ownerDriverNumber: "" });
   const [newTeamSaving, setNewTeamSaving] = useState(false);
   const [newTeamStatus, setNewTeamStatus] = useState("");
@@ -2043,6 +2046,10 @@ export default function AdminPortal({
                     </div>
                     <button type="button" onClick={addDriver} style={adminPrimaryButtonStyle}>Add Driver</button>
                     {addDriverStatus && <p role="status" style={{ fontWeight: 800, color: addDriverStatus.startsWith("Save failed") ? "#a31820" : "#16803c" }}>{addDriverStatus}</p>}
+                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "end", borderTop: "1px solid #ddd", marginTop: 16, paddingTop: 14 }}>
+                      <label style={{ flex: "1 1 240px" }}>Recall former driver<select value={recallName} onChange={(event) => setRecallName(event.target.value)} style={adminInputStyle}><option value="">Select driver</option>{recallCandidates.map((candidate) => <option key={`${candidate.name}-${candidate.number}`} value={candidate.name}>{candidate.name} · #{candidate.number} · {candidate.team}</option>)}</select></label>
+                      <button type="button" disabled={!recallName} onClick={async () => { const candidate = recallCandidates.find((driver) => driver.name === recallName); if (candidate) await recallDriver(candidate); setRecallName(""); }} style={adminSecondaryButtonStyle}>Recall Driver</button>
+                    </div>
                   </div>
 
                   <div id="admin-join-requests" style={{ borderRadius: 24, background: "#ffffff", border: "1px solid #e5e7eb", padding: 16, marginBottom: 14, scrollMarginTop: 24 }}>
