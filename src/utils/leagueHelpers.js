@@ -199,8 +199,8 @@ export function isUsableLeagueState(state) {
   return !!state && Array.isArray(state.seasons) && state.seasons.length > 0 && !!state.activeSeasonId;
 }
 
-export function makeLeagueStateSignature({ seasons = [], activeSeasonId = "", tracks = [], customTeamBranding = {} }) {
-  return JSON.stringify({ seasons, activeSeasonId, tracks, customTeamBranding });
+export function makeLeagueStateSignature({ seasons = [], activeSeasonId = "", tracks = [], customTeamBranding = {}, registeredTeams = {} }) {
+  return JSON.stringify({ seasons, activeSeasonId, tracks, customTeamBranding, registeredTeams });
 }
 
 export function normalizeLoadedLeagueState(savedState, patchMissingDriversFn = null) {
@@ -226,6 +226,7 @@ export function normalizeLoadedLeagueState(savedState, patchMissingDriversFn = n
     seasons: cleanSeasons,
     activeSeasonId: activeExists ? savedState.activeSeasonId : cleanSeasons[0].id,
     tracks: cleanTracks,
+    registeredTeams: savedState.registeredTeams && typeof savedState.registeredTeams === "object" && !Array.isArray(savedState.registeredTeams) ? savedState.registeredTeams : {},
     customTeamBranding: (() => {
       const branding = savedState.customTeamBranding && typeof savedState.customTeamBranding === "object" ? { ...savedState.customTeamBranding } : {};
       const ja = branding.B2J;
