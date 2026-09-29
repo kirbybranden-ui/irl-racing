@@ -7377,7 +7377,7 @@ export default function App() {
         const savedState = await loadLeagueState();
         if (!isMounted) return;
 
-        const normalizedState = normalizeLoadedLeagueState(savedState, patchMissingDrivers);
+        const normalizedState = normalizeLoadedLeagueState(savedState);
 
         if (normalizedState) {
           applyCustomTeamBranding(normalizedState.customTeamBranding);
