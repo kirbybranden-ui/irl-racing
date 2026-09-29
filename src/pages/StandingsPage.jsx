@@ -1408,7 +1408,7 @@ function StandingsPage({ seriesId = "cup", drivers = [], teams = [], manufacture
           .brl-standings-mobile-links { display: none; }
           .brl-standings-mobile-links a, .brl-standings-mobile-links button { color: inherit; font-size: 11px; font-weight: 850; text-decoration: none; text-transform: uppercase; letter-spacing: .08em; border: 0; border-bottom: 2px solid #d71920; background: none; padding: 8px 0; }
           .brl-standings-mobile-links span { font-size: 10px; font-weight: 950; letter-spacing: .16em; color: #d71920; }
-          @media (max-width: 900px) { .brl-standings-mobile-links { display: flex; align-items: center; gap: 16px; overflow-x: auto; white-space: nowrap; border-bottom: 1px solid #d6d7d9; padding: 6px 0 12px; } }
+          @media (max-width: 768px) { .brl-standings-mobile-links { display: flex; align-items: center; gap: 16px; overflow-x: auto; white-space: nowrap; border-bottom: 1px solid #d6d7d9; padding: 6px 0 12px; } }
           @media (max-width: 760px) {
             .bcl-driver-row { min-width: 0 !important; }
             .bcl-scroll-safe { overflow-x: hidden !important; }
@@ -1425,7 +1425,7 @@ function StandingsPage({ seriesId = "cup", drivers = [], teams = [], manufacture
         <nav className="brl-standings-mobile-links" aria-label="Series navigation">
           <span>{seriesId === "arca" ? "ARCA SERIES" : "CUP SERIES"}</span>
           <a href="/">Home</a>
-          <a href="/series">All pages</a>
+          <a href="/more">More</a>
           {seriesId !== "arca" && <a href="/message-center">Messages</a>}
           {leagueSession ? <>
             <a href={`/driver/${leagueSession.driverNumber}`}>My profile</a>
