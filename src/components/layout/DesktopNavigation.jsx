@@ -32,7 +32,7 @@ export default function DesktopNavigation() {
     <div className="brl-desktop-header__row">
       <a className="brl-desktop-header__brand" href="/" aria-label="BRL home"><img src={logo} alt="" /><span>BRL <small>SEASON 2</small></span></a>
       <nav className="brl-desktop-header__quick" aria-label="Quick links">
-        {[["Home", "/"], ["Standings", "/standings"], ["Schedule", "/schedule"], ["News", "/news"], ["Teams", "/owners"]].map(([label, href]) => <a className={path === href ? "active" : ""} href={href} key={href}>{label}</a>)}
+        {[["Home", "/"], ["Series", "/series"], ["Schedule", "/schedule"], ["News", "/news"], ["Teams", "/owners"]].map(([label, href]) => <a className={path === href ? "active" : ""} href={href} key={href}>{label}</a>)}
       </nav>
       <a className="brl-desktop-header__message" href="/message-center">Messages</a>
       <a className="brl-desktop-header__profile" href={profile}>{session?.driverNumber ? `#${session.driverNumber} Profile` : "Log In"}</a>
