@@ -115,6 +115,20 @@ export const teamBranding = {
   "Tolbert Motorsports": { logo: "TMS", accent: "#0891b2", dark: "#052e33", fullName: "Tolbert Motorsports" },
 };
 
+// Supabase league_state can override the bundled branding without a redeploy.
+export function applyCustomTeamBranding(entries = {}) {
+  for (const [team, details] of Object.entries(entries || {})) {
+    const key = String(team || "").trim();
+    if (!key || !details || typeof details !== "object") continue;
+    const fullName = String(details.fullName || key).trim();
+    const logoUrl = String(details.logoUrl || "").trim();
+    if (logoUrl) { teamLogos[key] = logoUrl; teamLogos[fullName] = logoUrl; }
+    teamFullNames[key] = fullName;
+    teamBranding[key] = { ...getTeamBranding(key), fullName, accent: details.accent || "#d71920", dark: details.dark || "#111216" };
+    teamBranding[fullName] = teamBranding[key];
+  }
+}
+
 export function getTeamFullName(teamAbbr) {
   return teamFullNames[teamAbbr] || teamAbbr;
 }
