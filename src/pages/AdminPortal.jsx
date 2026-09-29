@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import RaceOperations from "../components/admin/raceOperations/RaceOperations";
+import { teamLogos } from "../data/teams";
 // import { IssuesRollup } from "../components/IssuesRollup"; // TODO: Uncomment once IssuesRollup.jsx is in repo
 
 export default function AdminPortal({
@@ -2110,7 +2111,12 @@ export default function AdminPortal({
                       <label>Logo image<input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => { setLogoFile(event.target.files?.[0] || null); setLogoStatus(""); }} style={{ ...adminInputStyle, padding: 8 }} /></label>
                       <button type="button" disabled={logoSaving || !logoTeam || !logoFile} onClick={async () => { setLogoSaving(true); setLogoStatus(""); try { await onSaveTeamLogo(logoTeam, logoFile); setLogoStatus(`Logo saved for ${getTeamFullName(logoTeam)}.`); setLogoFile(null); } catch (error) { console.error("Team logo upload failed:", error); setLogoStatus(error?.message || "Could not save team logo."); } finally { setLogoSaving(false); } }} style={{ ...adminPrimaryButtonStyle, borderRadius: 2, opacity: logoSaving || !logoTeam || !logoFile ? 0.5 : 1 }}>{logoSaving ? "Saving…" : "Save Logo"}</button>
                     </div>
-                    {logoTeam && customTeamBranding[logoTeam]?.logoUrl && <img src={customTeamBranding[logoTeam].logoUrl} alt={`${getTeamFullName(logoTeam)} logo`} style={{ maxWidth: 180, maxHeight: 110, objectFit: "contain", marginTop: 16 }} />}
+                    {logoTeam && <div style={{ marginTop: 16, borderTop: "1px solid #d6d7d9", paddingTop: 14 }}>
+                      <div style={{ fontSize: 12, fontWeight: 900, textTransform: "uppercase", marginBottom: 10 }}>Current logo · {getTeamFullName(logoTeam)}</div>
+                      {(customTeamBranding[logoTeam]?.logoUrl || teamLogos[logoTeam] || teamLogos[getTeamFullName(logoTeam)])
+                        ? <img src={customTeamBranding[logoTeam]?.logoUrl || teamLogos[logoTeam] || teamLogos[getTeamFullName(logoTeam)]} alt={`${getTeamFullName(logoTeam)} current logo`} style={{ maxWidth: 180, maxHeight: 110, objectFit: "contain" }} />
+                        : <div style={{ color: "#6b7280" }}>No logo yet. Upload one above.</div>}
+                    </div>}
                     {logoStatus && <p role="status" style={{ fontWeight: 800 }}>{logoStatus}</p>}
                   </section>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
