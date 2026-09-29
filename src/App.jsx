@@ -12,6 +12,7 @@ import DriverProfilePage from "./DriverProfilePage";
 import TeamDetailPage from "./TeamDetailPage";
 import ManufacturerDetailPage from "./ManufacturerDetailPage";
 import WelcomePage from "./WelcomePage";
+import JoinRequestForm from "./components/auth/JoinRequestForm";
 import FoundationPreviewPage from "./pages/FoundationPreviewPage";
 import { AppShell } from "./components/layout/AppShell";
 import SchedulePage from "./pages/SchedulePage";
@@ -3997,6 +3998,7 @@ function MobileAccessGate({ drivers = [], onSession }) {
 }
 
 function MobileLoginModal({ drivers = [], onClose, onSuccess }) {
+  const [authView, setAuthView] = useState("login");
   const [driverNumber, setDriverNumber] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -4093,13 +4095,16 @@ function MobileLoginModal({ drivers = [], onClose, onSuccess }) {
       <div style={{ width: "100%", maxWidth: 480, background: "linear-gradient(180deg, rgba(255,255,255,0.97), rgba(248,250,252,0.95))", borderTop: "1px solid rgba(255,255,255,0.8)", borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: "20px 18px 28px", maxHeight: "88vh", overflowY: "auto", boxShadow: "0 -20px 60px rgba(0,0,0,0.20)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <div>
-            <div style={mobileKickerStyle}>Driver Login</div>
-            <h2 style={{ margin: "4px 0 0", fontSize: 20, color: "#1d1d1f", fontWeight: 950 }}>Sign In</h2>
+            <div style={mobileKickerStyle}>Driver Access</div>
+            <h2 style={{ margin: "4px 0 0", fontSize: 20, color: "#1d1d1f", fontWeight: 950 }}>Login / Register</h2>
           </div>
           <button type="button" onClick={onClose} style={{ background: "rgba(0,0,0,0.05)", border: "none", borderRadius: 999, width: 34, height: 34, color: "#1d1d1f", fontSize: 18, cursor: "pointer" }}>×</button>
         </div>
 
-        <form onSubmit={loginDriver} style={{ display: "grid", gap: 12 }}>
+        <div role="tablist" aria-label="Account access" style={{ display: "flex", borderBottom: "1px solid #d6d7d9", marginBottom: 16 }}>
+          {[["login", "Login"], ["register", "Register"]].map(([key, label]) => <button key={key} role="tab" aria-selected={authView === key} type="button" onClick={() => setAuthView(key)} style={{ flex: 1, border: 0, borderBottom: authView === key ? "3px solid #d71920" : "3px solid transparent", padding: 12, background: "transparent", fontWeight: 900 }}>{label}</button>)}
+        </div>
+        {authView === "register" ? <><p style={{ color: "#4b5563", fontSize: 13 }}>Request to join the league. An admin will review your driver details before login is available.</p><JoinRequestForm /></> : <form onSubmit={loginDriver} style={{ display: "grid", gap: 12 }}>
           <select value={driverNumber} onChange={(event) => setDriverNumber(event.target.value)} style={modalInputStyle}>
             <option value="">Select Your Driver</option>
             {activeDrivers.map((driver) => (
@@ -4119,7 +4124,7 @@ function MobileLoginModal({ drivers = [], onClose, onSuccess }) {
           <button disabled={loading} type="submit" style={{ ...mobileActionStyle, background: "linear-gradient(180deg, #ffd60a 0%, #ff9f0a 100%)", color: "#1d1d1f", borderColor: "transparent" }}>
             {loading ? "Checking..." : "Log In & Stay Signed In"}
           </button>
-        </form>
+        </form>}
       </div>
     </div>,
     document.body
