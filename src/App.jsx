@@ -4930,8 +4930,8 @@ function MobileLeagueApp({
       <MobileLayout title="Budweiser Cup" go={go} active="standings" session={mobileSession} onLogout={handleMobileLogout} onLoginClick={() => setShowMobileLoginModal(true)} showLoginModal={showMobileLoginModal} onCloseLoginModal={() => setShowMobileLoginModal(false)} onLoginSuccess={handleMobileLoginSuccess} drivers={drivers}>
         <MobileHero
           kicker={seasonName || "Current Season"}
-          title="Race Hub"
-          subtitle={upcomingRace ? `${upcomingRace.name || upcomingRace.track || "Next Race"} • Saturday • 9:30 PM ET` : "Mobile league dashboard"}
+          title="Cup Standings"
+          subtitle={upcomingRace ? `Next race: ${upcomingRace.name || upcomingRace.track || "TBA"} • 9:30 PM ET` : "Results, race news, and the championship picture."}
         />
         <LeagueTicker page="standings" />
         <MobileWeekendRecap raceHistory={raceHistory} tracks={tracks} drivers={drivers} go={go} />
@@ -4966,14 +4966,14 @@ function MobileLeagueApp({
             style={{
               width: "100%",
               minHeight: 48,
-              borderRadius: 999,
+              borderRadius: 2,
               border: "none",
-              background: "linear-gradient(180deg, #ffd60a 0%, #ff9f0a 100%)",
-              color: "#1d1d1f",
+              background: "#111216",
+              color: "#ffffff",
               fontWeight: 1000,
               cursor: "pointer",
               fontFamily: mobileAppFont,
-              boxShadow: "0 12px 26px rgba(255,159,10,0.24)",
+              boxShadow: "none",
             }}
           >
             Enter Driver Market
@@ -4982,10 +4982,10 @@ function MobileLeagueApp({
         <MobileTimelineSpotlightPanel tracks={tracks} drivers={drivers} go={go} seasonName={seasonName} />
         <MobileLatestNewsPreview go={go} />
         <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "20px 2px 12px" }}>
-          <div style={{ width: 32, height: 32, borderRadius: 11, background: "rgba(0,122,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, flexShrink: 0 }}>🏆</div>
+          <div style={{ width: 32, height: 32, borderRadius: 2, background: "#d71920", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, flexShrink: 0 }}>🏆</div>
           <h2 style={{ margin: 0, fontSize: 20, color: "#1d1d1f", fontWeight: 950 }}>Standings</h2>
         </div>
-        <div style={{ ...mobileCardStyle, padding: 6, display: "flex", gap: 4, marginBottom: 12 }}>
+        <div style={{ display: "flex", gap: 12, marginBottom: 12, borderBottom: "1px solid #d6d7d9", overflowX: "auto" }}>
           {[
             ["drivers", "Drivers"],
             ["teams", "Teams"],
@@ -4998,15 +4998,16 @@ function MobileLeagueApp({
               style={{
                 flex: "1 1 auto",
                 border: 0,
-                borderRadius: 15,
-                padding: "9px 8px",
+                borderRadius: 0,
+                borderBottom: mobileStandingsTab === key ? "3px solid #d71920" : "3px solid transparent",
+                padding: "12px 2px",
                 fontWeight: 900,
                 fontSize: 12.5,
                 fontFamily: mobileAppFont,
                 cursor: "pointer",
-                background: mobileStandingsTab === key ? "#ffffff" : "transparent",
+                background: "transparent",
                 color: mobileStandingsTab === key ? "#1d1d1f" : "#6e6e73",
-                boxShadow: mobileStandingsTab === key ? "0 6px 16px rgba(15,23,42,0.10)" : "none",
+                boxShadow: "none",
               }}
             >
               {label}
@@ -5105,9 +5106,9 @@ function MobileLeaderCard({ leader, go }) {
     <button
       type="button"
       onClick={() => go(`/driver/${leader.number}`)}
-      style={{ ...mobileCardStyle, width: "100%", textAlign: "left", color: "white", cursor: "pointer", display: "flex", alignItems: "center", gap: 14, marginBottom: 10 }}
+      style={{ ...mobileCardStyle, width: "100%", textAlign: "left", color: "#111216", cursor: "pointer", display: "flex", alignItems: "center", gap: 14, marginBottom: 10 }}
     >
-      <div style={{ width: 60, height: 60, borderRadius: 18, background: "linear-gradient(135deg, #d4af37, #111827)", color: "#111", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, fontWeight: 1000, border: "1px solid rgba(255,255,255,0.16)" }}>#{leader.number}</div>
+      <div style={{ width: 60, height: 60, borderRadius: 2, background: "#111216", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, fontWeight: 1000 }}>#{leader.number}</div>
       <div style={{ minWidth: 0, flex: 1 }}>
         <div style={mobileKickerStyle}>Points Leader</div>
         <strong style={{ display: "block", fontSize: 20, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{leader.name}</strong>
@@ -5139,10 +5140,10 @@ function MobileUpcomingRaceCard({ race, selectedTrack, go }) {
           <h2 style={{ margin: "4px 0 6px", fontSize: 22, lineHeight: 1.08 }}>{trackName}</h2>
           <p style={{ margin: 0, color: "#6e6e73", fontSize: 13 }}>{dateLabel} • Qualifying 9:15 PM ET • Race 9:30 PM ET</p>
         </div>
-        <div style={{ background: "rgba(212,175,55,0.12)", border: "1px solid rgba(212,175,55,0.35)", color: "#facc15", borderRadius: 14, padding: "8px 10px", fontSize: 12, fontWeight: 1000 }}>🏁</div>
+        <div style={{ borderLeft: "3px solid #d71920", padding: "8px 10px", fontSize: 12, fontWeight: 1000 }}>🏁</div>
       </div>
       {selectedTrack?.imageUrl && (
-        <div style={{ marginTop: 14, borderRadius: 18, overflow: "hidden", border: "1px solid rgba(255,255,255,0.12)", background: "#05070a" }}>
+        <div style={{ marginTop: 14, borderRadius: 2, overflow: "hidden", background: "#111216" }}>
           <img
             src={selectedTrack.imageUrl}
             alt={trackName}
@@ -5151,7 +5152,7 @@ function MobileUpcomingRaceCard({ race, selectedTrack, go }) {
           />
         </div>
       )}
-      {details.length > 0 && <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>{details.map((item) => <span key={item} style={{ background: "#0f172a", border: "1px solid #263244", borderRadius: 999, padding: "6px 9px", color: "#d1d5db", fontSize: 11, fontWeight: 800 }}>{item}</span>)}</div>}
+      {details.length > 0 && <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>{details.map((item) => <span key={item} style={{ borderBottom: "2px solid #d71920", padding: "6px 0", color: "#111216", fontSize: 11, fontWeight: 800 }}>{item}</span>)}</div>}
     </MobileCard>
   );
 }
@@ -5915,6 +5916,13 @@ function MobileLayout({ title, children, go, active, session = null, onLogout = 
       { icon: "🔄", label: "Transfer Portal", href: `/driver/${driverNumber}/portal` },
       { icon: "⚙️", label: "Settings", href: `/driver/${driverNumber}/settings` },
     ] : []),
+    { icon: "🏁", label: "Cup Standings", href: "/" },
+    { icon: "📅", label: "Season Schedule", href: "/schedule" },
+    { icon: "🏢", label: "Teams & Owners", href: "/owners" },
+    { icon: "🔥", label: "Driver Market", href: "/driver-market" },
+    { icon: "📺", label: "Streams", href: "/streams" },
+    { icon: "✉️", label: "Messages", href: "/message-center" },
+    { icon: "🔔", label: "Notifications", href: "/notifications" },
     { icon: "🎙️", label: "Public Interviews", href: "/public-interviews" },
     { icon: "🏆", label: "In-Season Bracket", href: "/bracket" },
     { icon: "🗳️", label: "League Vote", href: "/vote" },
@@ -5929,23 +5937,23 @@ function MobileLayout({ title, children, go, active, session = null, onLogout = 
       <header style={mobileTopbarStyle}>
         <button type="button" onClick={() => go("/")} style={mobileLogoButtonStyle}>🏁</button>
         <div style={{ minWidth: 0, flex: 1 }}>
-          <strong style={{ fontSize: 16, display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", color: "#1d1d1f" }}>{title}</strong>
+          <strong style={{ fontSize: 17, display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", color: "#fff", fontStyle: "italic", textTransform: "uppercase", letterSpacing: "-.03em" }}>{title}</strong>
           {session && (
-            <span style={{ display: "block", color: "#6e6e73", fontSize: 10, fontWeight: 900, textTransform: "uppercase", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            <span style={{ display: "block", color: "#b8b9bd", fontSize: 10, fontWeight: 900, textTransform: "uppercase", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
               {session.mode === "guest" ? "Guest View Only" : `#${session.driverNumber} ${session.driverName}`}
             </span>
           )}
         </div>
         <button type="button" onClick={() => go("/notifications")} style={mobileBellStyle} aria-label="Notifications">🔔</button>
         {session?.mode === "guest" && (
-          <button type="button" onClick={onLoginClick} style={{ ...mobileBellStyle, background: "linear-gradient(180deg, #ffd60a 0%, #ff9f0a 100%)", color: "#1d1d1f", border: "1px solid rgba(17,24,39,0.10)" }} aria-label="Log in">🔑</button>
+          <button type="button" onClick={onLoginClick} style={{ ...mobileBellStyle, background: "#d71920", color: "#fff", border: "1px solid #d71920" }} aria-label="Log in">🔑</button>
         )}
       </header>
       <main style={mobileContentStyle}>
         {session && (
-          <div style={{ background: "rgba(255,255,255,0.88)", border: "1px solid rgba(0,0,0,0.06)", borderRadius: 18, padding: "10px 12px", marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, boxShadow: "0 12px 28px rgba(15,23,42,0.06)" }}>
+          <div style={{ background: "transparent", borderBottom: "1px solid #d6d7d9", padding: "14px 0", marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
             <div style={{ minWidth: 0 }}>
-              <div style={{ color: session.mode === "guest" ? "#9a5a00" : "#147d35", fontSize: 10, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 0.8 }}>
+              <div style={{ color: "#d71920", fontSize: 10, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 1.3 }}>
                 {session.mode === "guest" ? "Guest Access" : "Driver Signed In"}
               </div>
               <div style={{ fontSize: 13, fontWeight: 900, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", color: "#1d1d1f" }}>
@@ -5953,11 +5961,11 @@ function MobileLayout({ title, children, go, active, session = null, onLogout = 
               </div>
             </div>
             {session.mode === "guest" ? (
-              <button type="button" onClick={onLoginClick} style={{ background: "linear-gradient(180deg, #ffd60a 0%, #ff9f0a 100%)", color: "#1d1d1f", border: "1px solid rgba(17,24,39,0.10)", borderRadius: 999, padding: "8px 14px", fontSize: 12, fontWeight: 900 }}>
+              <button type="button" onClick={onLoginClick} style={{ background: "#111216", color: "#fff", border: "1px solid #111216", borderRadius: 2, padding: "8px 14px", fontSize: 12, fontWeight: 900 }}>
                 Log In
               </button>
             ) : (
-              <button type="button" onClick={onLogout} style={{ background: "rgba(0,0,0,0.06)", color: "#1d1d1f", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 999, padding: "8px 10px", fontSize: 12, fontWeight: 900 }}>
+              <button type="button" onClick={onLogout} style={{ background: "transparent", color: "#111216", border: "1px solid #111216", borderRadius: 2, padding: "8px 10px", fontSize: 12, fontWeight: 900 }}>
                 Log Out
               </button>
             )}
@@ -6002,12 +6010,9 @@ function MobileLayout({ title, children, go, active, session = null, onLogout = 
               right: 0,
               bottom: 0,
               zIndex: 99999,
-              background: "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.97))",
-              borderTopLeftRadius: 26,
-              borderTopRightRadius: 26,
-              boxShadow: "0 -20px 60px rgba(0,0,0,0.22)",
-              backdropFilter: "blur(20px)",
-              WebkitBackdropFilter: "blur(20px)",
+              background: "#f7f7f5",
+              borderTop: "4px solid #d71920",
+              boxShadow: "0 -12px 32px rgba(0,0,0,0.22)",
               padding: "10px 10px calc(env(safe-area-inset-bottom, 0px) + 14px)",
               maxHeight: "72vh",
               overflowY: "auto",
@@ -6028,7 +6033,8 @@ function MobileLayout({ title, children, go, active, session = null, onLogout = 
                   background: "transparent",
                   color: "#1d1d1f",
                   border: "none",
-                  borderRadius: 14,
+                  borderBottom: "1px solid #d6d7d9",
+                  borderRadius: 0,
                   padding: "13px 12px",
                   cursor: "pointer",
                   fontFamily: mobileAppFont,
@@ -6053,8 +6059,8 @@ function MobileLayout({ title, children, go, active, session = null, onLogout = 
     </div>
   );
 }
-function MobileNavButton({ icon, label, onClick, active }) { return <button type="button" onClick={onClick} style={{ ...mobileNavButtonStyle, color: active ? "#ff9500" : "#6e6e73" }}><span style={{ fontSize: 20 }}>{icon}</span><span style={{ fontSize: 10 }}>{label}</span></button>; }
-function MobileHero({ kicker, title, subtitle }) { return <section style={mobileHeroStyle}><div style={mobileKickerStyle}>{kicker}</div><h1 style={{ margin: "4px 0", fontSize: 28, lineHeight: 1.05, color: "#1d1d1f", fontWeight: 950, letterSpacing: "-0.02em" }}>{title}</h1>{subtitle && <p style={{ margin: "8px 0 0", color: "#3a3a3c", lineHeight: 1.4, fontWeight: 600 }}>{subtitle}</p>}</section>; }
+function MobileNavButton({ icon, label, onClick, active }) { return <button type="button" onClick={onClick} style={{ ...mobileNavButtonStyle, color: active ? "#ffffff" : "#a7a9af" }}><span style={{ fontSize: 20 }}>{icon}</span><span style={{ fontSize: 10 }}>{label}</span></button>; }
+function MobileHero({ kicker, title, subtitle }) { return <section style={mobileHeroStyle}><div style={mobileKickerStyle}>{kicker}</div><h1 style={{ margin: "4px 0", fontSize: 38, lineHeight: .95, color: "#111216", fontStyle: "italic", textTransform: "uppercase", fontWeight: 1000, letterSpacing: "-0.02em" }}>{title}</h1>{subtitle && <p style={{ margin: "8px 0 0", color: "#3a3a3c", lineHeight: 1.4, fontWeight: 600 }}>{subtitle}</p>}</section>; }
 function MobileCard({ children }) { return <section style={mobileCardStyle}>{children}</section>; }
 function MobileAction({ label, onClick, secondary = false }) { return <button type="button" onClick={onClick} style={{ ...mobileActionStyle, background: secondary ? "#111827" : "#d4af37", color: secondary ? "#ffffff" : "#111111", borderColor: secondary ? "#263244" : "#d4af37" }}>{label}</button>; }
 function MobileStatGrid({ items }) { return <div style={mobileStatGridStyle}>{items.map(([label, value]) => <div key={label} style={mobileStatCardStyle}><div style={{ color: "#6e6e73", fontSize: 11, fontWeight: 900, textTransform: "uppercase" }}>{label}</div><strong style={{ fontSize: 20 }}>{value}</strong></div>)}</div>; }
@@ -6261,25 +6267,25 @@ const mobileNewsBylineStyle = { color: "#9a5a00", fontSize: 11, fontWeight: 1000
 const mobileNewsExcerptStyle = { margin: 0, color: "#3a3a3c", fontSize: 14, lineHeight: 1.48, fontWeight: 600 };
 const mobileNewsArchiveShellStyle = { overflowX: "auto", WebkitOverflowScrolling: "touch", borderRadius: 18, border: "1px solid rgba(0,0,0,0.06)", background: "rgba(255,255,255,0.88)" };
 
-const mobileAppStyle = { minHeight: "100vh", background: "radial-gradient(circle at top left, rgba(255,255,255,0.95), rgba(245,245,247,0.94) 36%, rgba(229,229,234,0.98) 100%)", color: "#1d1d1f", paddingBottom: 82, fontFamily: mobileAppFont };
-const mobileTopbarStyle = { position: "sticky", top: 0, zIndex: 20, background: "rgba(255,255,255,0.82)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", borderBottom: "1px solid rgba(0,0,0,0.06)", padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" };
-const mobileLogoButtonStyle = { width: 44, height: 44, borderRadius: 14, border: "1px solid rgba(0,0,0,0.08)", background: "rgba(255,255,255,0.9)", color: "#1d1d1f", fontSize: 18, boxShadow: "0 8px 20px rgba(15,23,42,0.08)" };
-const mobileBellStyle = { width: 44, height: 44, borderRadius: 14, border: "1px solid rgba(0,0,0,0.08)", background: "rgba(255,255,255,0.9)", color: "#1d1d1f", fontSize: 20, boxShadow: "0 8px 20px rgba(15,23,42,0.08)" };
-const mobileContentStyle = { padding: 14 };
-const mobileHeroStyle = { background: "linear-gradient(180deg, rgba(255,255,255,0.90), rgba(255,255,255,0.62))", borderRadius: 24, padding: 18, marginBottom: 14, border: "1px solid rgba(255,255,255,0.78)", boxShadow: "0 20px 55px rgba(15,23,42,0.10)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)" };
-const mobileKickerStyle = { color: "#9a5a00", fontSize: 11, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 1.3 };
-const mobileCardStyle = { background: "linear-gradient(180deg, rgba(255,255,255,0.88), rgba(255,255,255,0.60))", border: "1px solid rgba(255,255,255,0.78)", borderRadius: 20, padding: 14, marginBottom: 12, boxShadow: "0 16px 40px rgba(15,23,42,0.08)", backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)" };
-const mobileDriverCardStyle = { width: "100%", background: "rgba(255,255,255,0.9)", color: "#1d1d1f", border: "1px solid rgba(0,0,0,0.06)", borderRadius: 18, padding: 12, marginBottom: 10, display: "grid", gridTemplateColumns: "38px 1fr auto", alignItems: "center", gap: 10, textAlign: "left", boxShadow: "0 10px 26px rgba(15,23,42,0.06)" };
-const mobileRankStyle = { width: 34, height: 34, background: "linear-gradient(180deg, #ffd60a 0%, #ff9f0a 100%)", color: "#1d1d1f", borderRadius: 999, display: "grid", placeItems: "center", fontWeight: 1000 };
-const mobilePointsStyle = { fontWeight: 1000, fontSize: 19, textAlign: "right", color: "#1d1d1f" };
-const mobileBottomNavStyle = { position: "fixed", left: 0, right: 0, bottom: 0, background: "rgba(255,255,255,0.86)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", borderTop: "1px solid rgba(0,0,0,0.06)", display: "grid", gridTemplateColumns: "repeat(5, 1fr)", padding: "7px 4px", zIndex: 30 };
-const mobileDesktopSwitchCardStyle = { marginTop: 18, marginBottom: 84, background: "linear-gradient(180deg, rgba(255,255,255,0.88), rgba(255,255,255,0.60))", border: "1px solid rgba(255,255,255,0.78)", borderRadius: 20, padding: 14, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, boxShadow: "0 16px 40px rgba(15,23,42,0.08)", backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)" };
-const mobileDesktopSwitchButtonStyle = { border: "none", borderRadius: 999, padding: "11px 13px", background: "linear-gradient(135deg, #007aff 0%, #5856d6 100%)", color: "#ffffff", fontWeight: 1000, fontSize: 12, whiteSpace: "nowrap", boxShadow: "0 10px 24px rgba(0,122,255,0.24)", cursor: "pointer" };
-const mobileNavButtonStyle = { background: "transparent", border: "none", display: "flex", flexDirection: "column", alignItems: "center", gap: 2, minHeight: 50, fontWeight: 800, color: "#1d1d1f" };
-const mobileActionStyle = { width: "100%", minHeight: 48, borderRadius: 999, border: "1px solid", padding: "12px 14px", fontWeight: 1000, marginBottom: 10, fontFamily: mobileAppFont };
-const mobileStatGridStyle = { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10, marginBottom: 12 };
-const mobileStatCardStyle = { background: "rgba(255,255,255,0.88)", border: "1px solid rgba(0,0,0,0.06)", borderRadius: 18, padding: 12, boxShadow: "0 12px 28px rgba(15,23,42,0.06)" };
-const mobileSmallRowStyle = { background: "rgba(255,255,255,0.88)", border: "1px solid rgba(0,0,0,0.06)", borderRadius: 16, padding: "12px 14px", marginBottom: 8, display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", boxShadow: "0 10px 24px rgba(15,23,42,0.05)" };
+const mobileAppStyle = { minHeight: "100vh", background: "#f7f7f5", color: "#111216", paddingBottom: 88, fontFamily: mobileAppFont };
+const mobileTopbarStyle = { position: "sticky", top: 0, zIndex: 20, background: "#111216", color: "#fff", borderBottom: "3px solid #d71920", padding: "10px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 };
+const mobileLogoButtonStyle = { width: 40, height: 40, borderRadius: 2, border: "none", background: "transparent", color: "#fff", fontSize: 20 };
+const mobileBellStyle = { width: 40, height: 40, borderRadius: 2, border: "1px solid rgba(255,255,255,.35)", background: "transparent", color: "#fff", fontSize: 18 };
+const mobileContentStyle = { padding: "0 16px 36px" };
+const mobileHeroStyle = { background: "#f7f7f5", borderRadius: 0, padding: "32px 0 28px", marginBottom: 22, border: 0, borderBottom: "2px solid #111216", boxShadow: "none" };
+const mobileKickerStyle = { color: "#d71920", fontSize: 10, fontWeight: 950, textTransform: "uppercase", letterSpacing: 2 };
+const mobileCardStyle = { background: "transparent", border: 0, borderTop: "1px solid #d6d7d9", borderRadius: 0, padding: "20px 0", marginBottom: 8, boxShadow: "none" };
+const mobileDriverCardStyle = { width: "100%", background: "transparent", color: "#111216", border: 0, borderBottom: "1px solid #d6d7d9", borderRadius: 0, padding: "15px 0", marginBottom: 0, display: "grid", gridTemplateColumns: "38px 1fr auto", alignItems: "center", gap: 10, textAlign: "left", boxShadow: "none" };
+const mobileRankStyle = { width: 34, height: 34, background: "#111216", color: "#fff", borderRadius: 2, display: "grid", placeItems: "center", fontWeight: 1000 };
+const mobilePointsStyle = { fontWeight: 1000, fontSize: 19, textAlign: "right", color: "#111216" };
+const mobileBottomNavStyle = { position: "fixed", left: 0, right: 0, bottom: 0, background: "#111216", borderTop: "2px solid #d71920", display: "grid", gridTemplateColumns: "repeat(5, 1fr)", padding: "7px 4px calc(7px + env(safe-area-inset-bottom, 0px))", zIndex: 30 };
+const mobileDesktopSwitchCardStyle = { marginTop: 35, marginBottom: 84, background: "transparent", border: 0, borderTop: "1px solid #d6d7d9", borderRadius: 0, padding: "20px 0", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, boxShadow: "none" };
+const mobileDesktopSwitchButtonStyle = { border: "1px solid #111216", borderRadius: 2, padding: "11px 13px", background: "transparent", color: "#111216", fontWeight: 900, fontSize: 11, whiteSpace: "nowrap", cursor: "pointer" };
+const mobileNavButtonStyle = { background: "transparent", border: "none", display: "flex", flexDirection: "column", alignItems: "center", gap: 2, minHeight: 50, fontWeight: 850, color: "#b8b9bd" };
+const mobileActionStyle = { width: "100%", minHeight: 48, borderRadius: 2, border: "1px solid #111216", padding: "12px 14px", fontWeight: 900, marginBottom: 10, fontFamily: mobileAppFont };
+const mobileStatGridStyle = { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 0, marginBottom: 16, borderTop: "1px solid #d6d7d9" };
+const mobileStatCardStyle = { background: "transparent", border: 0, borderBottom: "1px solid #d6d7d9", borderRadius: 0, padding: "16px 10px", boxShadow: "none" };
+const mobileSmallRowStyle = { background: "transparent", border: 0, borderBottom: "1px solid #d6d7d9", borderRadius: 0, padding: "14px 0", marginBottom: 0, display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", boxShadow: "none" };
 
 const mobileDataFrameStyle = { width: "100%", maxWidth: "100%", overflowX: "hidden", borderRadius: 18 };
 const mobileDataFrameCss = `
