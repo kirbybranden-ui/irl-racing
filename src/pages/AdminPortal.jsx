@@ -2113,7 +2113,7 @@ export default function AdminPortal({
                             <option value="">Move to team…</option>
                             {(ownerPortalTeams || []).filter((team) => team !== driver.team).map((team) => <option key={team} value={team}>{getTeamFullName(team)}</option>)}
                           </select>
-                          <button type="button" disabled={!moveSelections[driver.id]} onClick={() => { onMoveDriver(driver.id, moveSelections[driver.id]); setMoveSelections((current) => ({ ...current, [driver.id]: "" })); }} style={{ ...adminPrimaryButtonStyle, padding: "8px 12px" }}>Move</button>
+                          <button type="button" disabled={!moveSelections[driver.id]} onClick={async () => { try { await onMoveDriver(driver.id, moveSelections[driver.id]); setMoveSelections((current) => ({ ...current, [driver.id]: "" })); } catch (error) { alert(`Could not save driver move: ${error.message}`); } }} style={{ ...adminPrimaryButtonStyle, padding: "8px 12px" }}>Move</button>
                         </div>
                         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
                           <button onClick={() => openEditDriver(driver)} style={{ ...adminSecondaryButtonStyle, padding: "8px 12px", fontSize: 12 }}>Edit</button>
