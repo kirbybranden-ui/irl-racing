@@ -6892,7 +6892,12 @@ export default function App() {
   const backupFileInputRef = useRef(null);
   const [isHydrated, setIsHydrated] = useState(false);
   const loadedStateSignatureRef = useRef("");
-  const saveInFlightRef = useRef(false);
+  const saveQueueRef = useRef(Promise.resolve());
+  const queueLeagueSave = (state) => {
+    const queued = saveQueueRef.current.catch(() => {}).then(() => saveLeagueState(state));
+    saveQueueRef.current = queued;
+    return queued;
+  };
   const [viewMode, setViewMode] = useState("admin");
   const [editingRaceName, setEditingRaceName] = useState(null);
   const [newSeasonName, setNewSeasonName] = useState("");
@@ -7502,15 +7507,11 @@ export default function App() {
     if (!loadedStateSignatureRef.current || nextSignature === loadedStateSignatureRef.current) return;
 
     const timeout = setTimeout(async () => {
-      if (saveInFlightRef.current) return;
-      saveInFlightRef.current = true;
       try {
-        await saveLeagueState(nextState);
+        await queueLeagueSave(nextState);
         loadedStateSignatureRef.current = nextSignature;
       } catch (e) {
         console.error("Supabase save failed. Existing points were not cleared:", e);
-      } finally {
-        saveInFlightRef.current = false;
       }
     }, 250);
 
@@ -8318,7 +8319,7 @@ export default function App() {
   };
   const openEditDriver = (driver) => { setEditingDriverId(driver.id); setEditDriverForm({ name: driver.name, number: driver.number, manufacturer: driver.manufacturer || "", team: driver.team }); };
   const cancelEditDriver = () => { setEditingDriverId(null); setEditDriverForm({ name: "", number: "", manufacturer: "", team: "" }); };
-  const saveDriverEdit = () => {
+  const saveDriverEdit = async () => {
     if (!editingDriverId || !activeSeason) return;
     const name = editDriverForm.name.trim(), number = String(editDriverForm.number).trim(), manufacturer = editDriverForm.manufacturer.trim(), team = editDriverForm.team.trim();
     if (!name || !number || !manufacturer || !team) { alert("Please enter driver name, number, manufacturer, and team."); return; }
@@ -8327,15 +8328,29 @@ export default function App() {
     const updatedRoster = drivers.map((d) => d.id === editingDriverId ? { ...d, name, number: Number(number), manufacturer, manufacturerLogo: manufacturerLogos[manufacturer] || null, team, startingPoints: 0, manualWins: 0 } : d);
     const updatedHistory = raceHistory.map((race) => ({ ...race, results: (race.results || []).map((r) => r.driverId === editingDriverId ? { ...r, name, number: Number(number) } : r) }));
     const rosterOnly = updatedRoster.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer, manufacturerLogo: d.manufacturerLogo || null, team: d.team, startingPoints: 0, manualWins: 0 }));
-    replaceActiveSeason({ ...activeSeason, drivers: rebuildDriversFromHistory(updatedHistory, rosterOnly), raceHistory: updatedHistory });
+    const nextSeason = { ...activeSeason, drivers: rebuildDriversFromHistory(updatedHistory, rosterOnly), raceHistory: updatedHistory };
+    const nextSeasons = seasons.map((season) => season.id === activeSeasonId ? nextSeason : season);
+    const nextState = { seasons: nextSeasons, activeSeasonId, tracks, customTeamBranding, registeredTeams };
+    try {
+      await queueLeagueSave(nextState);
+    } catch (error) {
+      alert(`Could not save driver changes: ${error.message || "check the league_state Supabase policy."}`);
+      return;
+    }
+    loadedStateSignatureRef.current = makeLeagueStateSignature(nextState);
+    setSeasons(nextSeasons);
     cancelEditDriver();
   };
-  const moveLeagueDriver = (driverId, team) => {
+  const moveLeagueDriver = async (driverId, team) => {
     const destination = ownerPortalTeams.find((key) => key === team);
     const driver = drivers.find((item) => item.id === driverId);
     if (!activeSeason || !driver || !destination) throw new Error("Select a driver and destination team.");
     const manufacturer = registeredTeams[destination]?.manufacturer || drivers.find((item) => item.team === destination)?.manufacturer || driver.manufacturer;
-    patchActiveSeason({ drivers: drivers.map((item) => item.id === driverId ? { ...item, team: destination, manufacturer, manufacturerLogo: manufacturerLogos[manufacturer] || null } : item) });
+    const nextSeasons = seasons.map((season) => season.id === activeSeasonId ? { ...season, drivers: drivers.map((item) => item.id === driverId ? { ...item, team: destination, manufacturer, manufacturerLogo: manufacturerLogos[manufacturer] || null } : item) } : season);
+    const nextState = { seasons: nextSeasons, activeSeasonId, tracks, customTeamBranding, registeredTeams };
+    await queueLeagueSave(nextState);
+    loadedStateSignatureRef.current = makeLeagueStateSignature(nextState);
+    setSeasons(nextSeasons);
   };
   const removeDriver = (driverId) => {
     if (!activeSeason) return;
