@@ -9155,9 +9155,10 @@ export default function App() {
     );
   }
 
-  // The series hub remains available without taking over the league homepage.
+  // Retire the public series landing until additional series launch.
   if (path === "/series") {
-    return <AppleSeriesPortalLanding />;
+    window.location.replace("/");
+    return null;
   }
 
   // Phase 1 universal shell preview — isolated from live league business logic.
