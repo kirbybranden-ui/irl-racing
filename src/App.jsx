@@ -58,6 +58,7 @@ import {
   getTeamFullName,
   getTeamBudget,
   getTeamBranding,
+  applyCustomTeamBranding,
 } from "./data/teams";
 import { pointsTable, stagePointsTable, offensePenaltyPoints } from "./data/points";
 import {
@@ -6889,6 +6890,7 @@ export default function App() {
   }, []);
 
   const [seasons, setSeasons] = useState([]);
+  const [customTeamBranding, setCustomTeamBranding] = useState({});
   const [openAppealCount, setOpenAppealCount] = useState(0);
   const [openStoryCount, setOpenStoryCount] = useState(0);
   const [activeSeasonId, setActiveSeasonId] = useState("");
@@ -7127,6 +7129,26 @@ export default function App() {
     await loadOwnerAssignments();
   }
 
+  async function saveTeamLogo(team, file) {
+    const teamKey = String(team || "").trim();
+    if (!teamKey || !file) throw new Error("Select a team and image first.");
+    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) throw new Error("Choose a PNG, JPG, or WebP image.");
+    if (file.size > 5 * 1024 * 1024) throw new Error("Logo must be under 5 MB.");
+    const extension = (file.name.split(".").pop() || "png").toLowerCase().replace(/[^a-z0-9]/g, "");
+    const path = `team-logos/${encodeURIComponent(teamKey)}/${Date.now()}.${extension}`;
+    const { error: uploadError } = await supabase.storage.from("car-uploads").upload(path, file, { contentType: file.type, upsert: false });
+    if (uploadError) throw uploadError;
+    const { data } = supabase.storage.from("car-uploads").getPublicUrl(path);
+    const logoUrl = data?.publicUrl;
+    if (!logoUrl) throw new Error("Could not create a public URL for the logo.");
+    const updated = { ...customTeamBranding, [teamKey]: { ...customTeamBranding[teamKey], fullName: getTeamFullName(teamKey), logoUrl } };
+    const nextState = { seasons, activeSeasonId, tracks, customTeamBranding: updated };
+    await saveLeagueState(nextState);
+    applyCustomTeamBranding(updated);
+    loadedStateSignatureRef.current = makeLeagueStateSignature(nextState);
+    setCustomTeamBranding(updated);
+  }
+
 
   async function loadTickerMessages() {
     setTickerError("");
@@ -7305,6 +7327,8 @@ export default function App() {
         const normalizedState = normalizeLoadedLeagueState(savedState, patchMissingDrivers);
 
         if (normalizedState) {
+          applyCustomTeamBranding(normalizedState.customTeamBranding);
+          setCustomTeamBranding(normalizedState.customTeamBranding);
           setSeasons(normalizedState.seasons);
           setActiveSeasonId(normalizedState.activeSeasonId);
           setTracks(normalizedState.tracks);
@@ -7416,7 +7440,7 @@ export default function App() {
     if (!isHydrated) return;
     if (!Array.isArray(seasons) || seasons.length === 0 || !activeSeasonId) return;
 
-    const nextState = { seasons, activeSeasonId, tracks };
+    const nextState = { seasons, activeSeasonId, tracks, customTeamBranding };
     const nextSignature = makeLeagueStateSignature(nextState);
 
     // This is the lock that prevents page load, refresh, failed Supabase loads,
@@ -7437,7 +7461,7 @@ export default function App() {
     }, 250);
 
     return () => clearTimeout(timeout);
-  }, [seasons, activeSeasonId, tracks, isHydrated]);
+  }, [seasons, activeSeasonId, tracks, customTeamBranding, isHydrated]);
   useEffect(() => {
     async function loadFeaturedVideo() {
       const { data } = await supabase
@@ -9432,6 +9456,8 @@ export default function App() {
   }
   return (
     <AdminPortal
+      customTeamBranding={customTeamBranding}
+      onSaveTeamLogo={saveTeamLogo}
       teamPrestigeRows={teamPrestigeRows}
       teamPrestigeStatus={teamPrestigeStatus}
       teamPrestigeSaving={teamPrestigeSaving}
