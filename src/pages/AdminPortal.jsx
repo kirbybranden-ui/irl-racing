@@ -24,6 +24,7 @@ export default function AdminPortal({
   activeSeason,
   activeSeasonId,
   addDriver,
+  addDriverStatus,
   addManualWatchPick,
   addTrack,
   appShellStyle,
@@ -1489,6 +1490,7 @@ export default function AdminPortal({
             <label>Team<input style={adminInputStyle} value={newDriverTeam} onChange={(event) => setNewDriverTeam(event.target.value)} placeholder="B2J, 19XI, BXM..." /></label>
           </div>
           <button type="button" onClick={addDriver} style={{ ...adminPrimaryButtonStyle, borderRadius: 2, marginTop: 20 }}>Add Driver</button>
+          {addDriverStatus && <p role="status" style={{ fontWeight: 800, color: addDriverStatus.startsWith("Save failed") ? "#a31820" : "#16803c" }}>{addDriverStatus}</p>}
           <button type="button" onClick={() => openHrDepartment("drivers")} style={{ ...adminSecondaryButtonStyle, borderRadius: 2, margin: "20px 0 0 10px" }}>View Driver Roster ↗</button>
         </section>}
 
@@ -2040,6 +2042,7 @@ export default function AdminPortal({
                       <div><div style={{ marginBottom: 6, fontWeight: 900, color: "#374151" }}>Team</div><input style={adminInputStyle} value={newDriverTeam} onChange={(e) => setNewDriverTeam(e.target.value)} placeholder="B2J, 19XI, BXM..." /></div>
                     </div>
                     <button type="button" onClick={addDriver} style={adminPrimaryButtonStyle}>Add Driver</button>
+                    {addDriverStatus && <p role="status" style={{ fontWeight: 800, color: addDriverStatus.startsWith("Save failed") ? "#a31820" : "#16803c" }}>{addDriverStatus}</p>}
                   </div>
 
                   <div id="admin-join-requests" style={{ borderRadius: 24, background: "#ffffff", border: "1px solid #e5e7eb", padding: 16, marginBottom: 14, scrollMarginTop: 24 }}>
