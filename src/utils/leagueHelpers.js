@@ -199,8 +199,8 @@ export function isUsableLeagueState(state) {
   return !!state && Array.isArray(state.seasons) && state.seasons.length > 0 && !!state.activeSeasonId;
 }
 
-export function makeLeagueStateSignature({ seasons = [], activeSeasonId = "", tracks = [] }) {
-  return JSON.stringify({ seasons, activeSeasonId, tracks });
+export function makeLeagueStateSignature({ seasons = [], activeSeasonId = "", tracks = [], customTeamBranding = {} }) {
+  return JSON.stringify({ seasons, activeSeasonId, tracks, customTeamBranding });
 }
 
 export function normalizeLoadedLeagueState(savedState, patchMissingDriversFn = null) {
@@ -226,5 +226,6 @@ export function normalizeLoadedLeagueState(savedState, patchMissingDriversFn = n
     seasons: cleanSeasons,
     activeSeasonId: activeExists ? savedState.activeSeasonId : cleanSeasons[0].id,
     tracks: cleanTracks,
+    customTeamBranding: savedState.customTeamBranding && typeof savedState.customTeamBranding === "object" ? savedState.customTeamBranding : {},
   };
 }
