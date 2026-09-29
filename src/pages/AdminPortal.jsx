@@ -8,6 +8,8 @@ export default function AdminPortal({
   customTeamBranding = {},
   onSaveTeamBranding,
   onCreateTeam,
+  onDeleteTeam,
+  onMoveDriver,
   AdminLeagueMessageComposer,
   AdminLeagueMessageDashboard,
   PaymentCompliancePanel,
@@ -256,6 +258,7 @@ export default function AdminPortal({
   const [adminMenuOpen, setAdminMenuOpen] = useState(false);
   const [quickAddDriverOpen, setQuickAddDriverOpen] = useState(false);
   const [logoTeam, setLogoTeam] = useState("");
+  const [moveSelections, setMoveSelections] = useState({});
   const [newTeamForm, setNewTeamForm] = useState({ identifier: "", fullName: "", manufacturer: "", ownerDriverNumber: "" });
   const [newTeamSaving, setNewTeamSaving] = useState(false);
   const [newTeamStatus, setNewTeamStatus] = useState("");
@@ -777,6 +780,8 @@ export default function AdminPortal({
   });
 
   const pendingHrRequestCount = (pendingDrivers || []).length + pendingSeriesJoinRequests.length;
+  const getRequestTeamKey = (request) => (ownerPortalTeams || []).find((team) => [team, getTeamIdentifier(team), getTeamFullName(team)].some((name) => String(name || "").trim().toLowerCase() === String(request.team_name || request.preferredTeam || "").trim().toLowerCase())) || "";
+  const getRequestOwner = (request) => (ownerAssignments || []).find((assignment) => String(assignment.team || "") === getRequestTeamKey(request));
 
   function updateSeriesJoinRequestStatus(requestId, status) {
     try {
@@ -2048,10 +2053,13 @@ export default function AdminPortal({
                               <div>
                                 <div style={{ fontWeight: 1000 }}>{d.driver_name || "Pending Driver"}</div>
                                 <div style={{ color: "#6b7280", fontWeight: 750, fontSize: 13 }}>{d.series_name || "League"} · {d.manufacturer || "Manufacturer TBD"} · {d.team_name || "Team TBD"}</div>
+                                {d.requested_owner && <div style={{ color: "#a31820", fontWeight: 900, fontSize: 13, marginTop: 4 }}>OWNER REQUEST · {getRequestOwner(d) ? `Current owner: #${getRequestOwner(d).owner_driver_number} ${getRequestOwner(d).owner_driver_name}` : "No owner currently assigned"}</div>}
+                                {d.requested_owner && !getRequestTeamKey(d) && <div style={{ color: "#a31820", fontSize: 12 }}>Create this team before granting owner access.</div>}
                               </div>
                             </div>
                             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginLeft: isAdminMobile ? 0 : "auto" }}>
-                              <button onClick={() => approvePendingDriver(d)} style={{ ...primaryButtonStyle, padding: "8px 12px", fontSize: 12 }}>Approve</button>
+                              <button onClick={() => approvePendingDriver(d, false)} style={{ ...primaryButtonStyle, padding: "8px 12px", fontSize: 12 }}>Approve Driver</button>
+                              {d.requested_owner && <button disabled={!getRequestTeamKey(d)} onClick={() => approvePendingDriver(d, true)} style={{ ...adminSecondaryButtonStyle, padding: "8px 12px", fontSize: 12, opacity: getRequestTeamKey(d) ? 1 : 0.5 }}>Approve Driver + Owner</button>}
                               <button onClick={() => rejectPendingDriver(d)} style={{ ...dangerButtonStyle, padding: "8px 12px", fontSize: 12 }}>Reject</button>
                             </div>
                           </div>
@@ -2098,6 +2106,13 @@ export default function AdminPortal({
                         </div>
                         <div style={{ fontSize: 20, fontWeight: 1000, marginTop: 12, letterSpacing: -0.4 }}>{driver.name}</div>
                         <div style={{ color: "#6b7280", fontWeight: 800, marginTop: 4 }}>{getTeamFullName(driver.team)} · {driver.manufacturer || "Manufacturer TBD"}</div>
+                        <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                          <select aria-label={`Move ${driver.name} to team`} value={moveSelections[driver.id] || ""} onChange={(event) => setMoveSelections((current) => ({ ...current, [driver.id]: event.target.value }))} style={{ ...adminInputStyle, flex: 1 }}>
+                            <option value="">Move to team…</option>
+                            {(ownerPortalTeams || []).filter((team) => team !== driver.team).map((team) => <option key={team} value={team}>{getTeamFullName(team)}</option>)}
+                          </select>
+                          <button type="button" disabled={!moveSelections[driver.id]} onClick={() => { onMoveDriver(driver.id, moveSelections[driver.id]); setMoveSelections((current) => ({ ...current, [driver.id]: "" })); }} style={{ ...adminPrimaryButtonStyle, padding: "8px 12px" }}>Move</button>
+                        </div>
                         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
                           <button onClick={() => openEditDriver(driver)} style={{ ...adminSecondaryButtonStyle, padding: "8px 12px", fontSize: 12 }}>Edit</button>
                           {driver.retired ? (<button onClick={() => unretireDriver(driver.id)} style={{ ...adminSecondaryButtonStyle, padding: "8px 12px", fontSize: 12 }}>Unretire</button>) : (<button onClick={() => retireDriver(driver.id)} style={{ ...adminSecondaryButtonStyle, padding: "8px 12px", fontSize: 12 }}>Retire</button>)}
@@ -2145,6 +2160,14 @@ export default function AdminPortal({
                         : <div style={{ color: "#6b7280" }}>No logo yet. Upload one above.</div>}
                     </div>}
                     {logoStatus && <p role="status" style={{ fontWeight: 800 }}>{logoStatus}</p>}
+                  </section>
+                  <section style={{ borderTop: "3px solid #a31820", padding: "20px 0", marginBottom: 18 }}>
+                    <h2 style={{ margin: "0 0 12px" }}>Delete Team</h2>
+                    <p style={{ color: "#4b5563" }}>Move its drivers first. Past race results stay intact.</p>
+                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                      <select value={logoTeam} onChange={(event) => setLogoTeam(event.target.value)} style={{ ...adminInputStyle, maxWidth: 340 }}><option value="">Select team</option>{(ownerPortalTeams || []).map((team) => <option key={team} value={team}>{getTeamFullName(team)}</option>)}</select>
+                      <button type="button" disabled={!logoTeam} onClick={async () => { try { const removed = await onDeleteTeam(logoTeam); if (removed) { setLogoTeam(""); setLogoStatus("Team deleted."); } } catch (error) { setLogoStatus(error.message); } }} style={adminDangerButtonStyle}>Delete Team</button>
+                    </div>
                   </section>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
                     <div>
