@@ -8,7 +8,7 @@ const defaultNav = [
   { label: "Standings", href: "/standings" },
   { label: "News", href: "/news" },
   { label: "Team HQ", href: "/owners" },
-  { label: "More", href: "/series" },
+  { label: "More", href: "/more" },
 ];
 
 const mobileNav = [
@@ -16,7 +16,7 @@ const mobileNav = [
   { label: "Race", href: "/schedule", icon: "◫" },
   { label: "Tasks", href: "/foundation-preview#tasks", icon: "✓" },
   { label: "Messages", href: "/message-center", icon: "✉" },
-  { label: "More", href: "/series", icon: "•••" },
+  { label: "More", href: "/more", icon: "•••" },
 ];
 
 function pathIsActive(href, currentPath) {
