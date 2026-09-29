@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import JoinRequestForm from "../components/auth/JoinRequestForm";
 import { getLeagueSession, loginToLeague, logoutOfLeague, isBiometricAvailable, hasAnyDriverBiometricCredential, hasBiometricCredentialForDriver, registerDriverBiometric, loginWithBiometric } from "../lib/leagueAuth";
 import logo from "../assets/logo1.png";
 import ncsLogo from "../assets/series/NCS.png";
@@ -1821,6 +1822,7 @@ function StandingsPage({ seriesId = "cup", drivers = [], teams = [], manufacture
 
 function LeagueLoginModal({ drivers, arcaDrivers, teams, driverAccessCodes, supabase, onClose, onSuccess }) {
   const pageFont = "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Inter', ui-sans-serif, 'Segoe UI', sans-serif";
+  const [authView, setAuthView] = useState("login");
 
   // step: "number" -> "password" -> "biometricOffer"
   const [step, setStep] = useState("number");
@@ -1969,6 +1971,8 @@ function LeagueLoginModal({ drivers, arcaDrivers, teams, driverAccessCodes, supa
         boxShadow: "0 20px 60px rgba(0,0,0,0.30)",
         color: "#1d1d1f",
         position: "relative",
+        maxHeight: "min(90vh, 800px)",
+        overflowY: "auto",
       }}>
         <button
           onClick={onClose}
@@ -1993,6 +1997,10 @@ function LeagueLoginModal({ drivers, arcaDrivers, teams, driverAccessCodes, supa
           ×
         </button>
 
+        <div role="tablist" aria-label="Account access" style={{ display: "flex", borderBottom: "1px solid #d6d7d9", marginBottom: 20 }}>
+          {[["login", "Login"], ["register", "Register"]].map(([key, label]) => <button key={key} role="tab" aria-selected={authView === key} type="button" onClick={() => setAuthView(key)} style={{ flex: 1, padding: 12, border: 0, borderBottom: authView === key ? "3px solid #d71920" : "3px solid transparent", background: "transparent", fontWeight: 900, cursor: "pointer" }}>{label}</button>)}
+        </div>
+        {authView === "register" ? <><h1 style={{ fontSize: 24, margin: "0 0 5px" }}>Join the League</h1><p style={{ color: "#555", fontSize: 13, lineHeight: 1.4 }}>Submit a request for admin review. Your driver login will be available after approval and access setup.</p><JoinRequestForm /></> : <>
         {/* Apple-style centered glyph */}
         <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
           <div style={{
@@ -2152,6 +2160,7 @@ function LeagueLoginModal({ drivers, arcaDrivers, teams, driverAccessCodes, supa
             </button>
           </>
         )}
+        </>}
       </div>
     </div>,
     document.body
