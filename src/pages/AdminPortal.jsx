@@ -4,6 +4,8 @@ import RaceOperations from "../components/admin/raceOperations/RaceOperations";
 
 export default function AdminPortal({
   currentSession,
+  customTeamBranding = {},
+  onSaveTeamLogo,
   AdminLeagueMessageComposer,
   AdminLeagueMessageDashboard,
   PaymentCompliancePanel,
@@ -251,6 +253,10 @@ export default function AdminPortal({
 
   const [adminMenuOpen, setAdminMenuOpen] = useState(false);
   const [quickAddDriverOpen, setQuickAddDriverOpen] = useState(false);
+  const [logoTeam, setLogoTeam] = useState("");
+  const [logoFile, setLogoFile] = useState(null);
+  const [logoSaving, setLogoSaving] = useState(false);
+  const [logoStatus, setLogoStatus] = useState("");
   const [adminMessagesOpen, setAdminMessagesOpen] = useState(false);
   const [adminComposerOpen, setAdminComposerOpen] = useState(false);
   const [adminUnreadMessages, setAdminUnreadMessages] = useState([]);
@@ -1444,7 +1450,7 @@ export default function AdminPortal({
           </div>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 20 }}>
             {[
-              ["Owner Assignments", () => openHrDepartment("owners")],
+              ["Teams & Logos", () => openHrDepartment("owners")],
               ["Start & Park", () => openHrDepartment("startpark")],
               ["Voting", () => openRaceOperations("voting")],
               ["Issues", () => (window.location.pathname = "/admin/issues")],
@@ -2096,6 +2102,17 @@ export default function AdminPortal({
 
               {hrTab === "owners" && (
                 <div style={walletLightCardStyle}>
+                  <section style={{ borderTop: "3px solid #d71920", padding: "20px 0", marginBottom: 18 }}>
+                    <h2 style={{ margin: "0 0 6px" }}>Team Logos</h2>
+                    <p style={{ margin: "0 0 16px", color: "#4b5563" }}>Upload a logo for a team on the active driver roster. New teams appear here after a driver is approved or added.</p>
+                    <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "minmax(180px, 1fr) minmax(180px, 1fr) auto", gap: 12, alignItems: "end" }}>
+                      <label>Team<select value={logoTeam} onChange={(event) => { setLogoTeam(event.target.value); setLogoStatus(""); }} style={adminInputStyle}><option value="">Select team</option>{(ownerPortalTeams || []).map((team) => <option key={team} value={team}>{getTeamFullName(team)}</option>)}</select></label>
+                      <label>Logo image<input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => { setLogoFile(event.target.files?.[0] || null); setLogoStatus(""); }} style={{ ...adminInputStyle, padding: 8 }} /></label>
+                      <button type="button" disabled={logoSaving || !logoTeam || !logoFile} onClick={async () => { setLogoSaving(true); setLogoStatus(""); try { await onSaveTeamLogo(logoTeam, logoFile); setLogoStatus(`Logo saved for ${getTeamFullName(logoTeam)}.`); setLogoFile(null); } catch (error) { console.error("Team logo upload failed:", error); setLogoStatus(error?.message || "Could not save team logo."); } finally { setLogoSaving(false); } }} style={{ ...adminPrimaryButtonStyle, borderRadius: 2, opacity: logoSaving || !logoTeam || !logoFile ? 0.5 : 1 }}>{logoSaving ? "Saving…" : "Save Logo"}</button>
+                    </div>
+                    {logoTeam && customTeamBranding[logoTeam]?.logoUrl && <img src={customTeamBranding[logoTeam].logoUrl} alt={`${getTeamFullName(logoTeam)} logo`} style={{ maxWidth: 180, maxHeight: 110, objectFit: "contain", marginTop: 16 }} />}
+                    {logoStatus && <p role="status" style={{ fontWeight: 800 }}>{logoStatus}</p>}
+                  </section>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
                     <div>
                       <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Team Owner Assignments</div>
