@@ -4783,7 +4783,7 @@ function MobileLeagueApp({
     ));
   }
 
-  if (path === "/") {
+  if (path === "/my-dashboard") {
     const leagueSession = getLeagueSession();
     const isAdminViewing = typeof window !== "undefined" && sessionStorage.getItem("bcl-admin-auth") === "true";
 
@@ -4824,7 +4824,7 @@ function MobileLeagueApp({
             </p>
             <button
               type="button"
-              onClick={() => (window.location.href = `/standings?login=1&redirect=${encodeURIComponent("/")}`)}
+              onClick={() => (window.location.href = `/standings?login=1&redirect=${encodeURIComponent("/my-dashboard")}`)}
               style={{
                 width: "100%",
                 minHeight: 50,
@@ -4925,7 +4925,7 @@ function MobileLeagueApp({
     ));
   }
 
-  if (path === "/standings") {
+  if (path === "/" || path === "/standings") {
     return (
       <MobileLayout title="Budweiser Cup" go={go} active="standings" session={mobileSession} onLogout={handleMobileLogout} onLoginClick={() => setShowMobileLoginModal(true)} showLoginModal={showMobileLoginModal} onCloseLoginModal={() => setShowMobileLoginModal(false)} onLoginSuccess={handleMobileLoginSuccess} drivers={drivers}>
         <MobileHero
@@ -5903,6 +5903,7 @@ function MobileLayout({ title, children, go, active, session = null, onLogout = 
 
   const moreMenuItems = [
     ...(driverNumber ? [
+      { icon: "👤", label: "My Driver Profile", href: "/my-dashboard" },
       { icon: "📄", label: "Contracts", href: `/driver/${driverNumber}/contracts` },
       { icon: "🏎️", label: "Developmental Ride", href: `/driver/${driverNumber}/development` },
       { icon: "📷", label: "Uploads", href: `/driver/${driverNumber}/upload` },
@@ -9154,10 +9155,8 @@ export default function App() {
     );
   }
 
-  // Series Portal - opening page for Cup, Xfinity, Trucks, and ARCA (desktop only —
-  // mobile's "/" is handled above as the Driver Profile home).
-  // Existing Cup standings remain available at /standings.
-  if (path === "/" || path === "/series") {
+  // The series hub remains available without taking over the league homepage.
+  if (path === "/series") {
     return <AppleSeriesPortalLanding />;
   }
 
@@ -9414,7 +9413,7 @@ export default function App() {
       <InSeasonTournamentPage drivers={visibleDrivers} raceHistory={raceHistory} />
     );
   }
-  if (path === "/standings") return withLeagueStatusWidget(<StandingsPage drivers={visibleDrivers} teams={teamStandings} manufacturerStandings={manufacturerStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} supabase={supabase} driverAccessCodes={driverAccessCodes} />);
+  if (path === "/" || path === "/standings") return withLeagueStatusWidget(<StandingsPage drivers={visibleDrivers} teams={teamStandings} manufacturerStandings={manufacturerStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} supabase={supabase} driverAccessCodes={driverAccessCodes} />);
   if (path === "/overlay/ticker" || viewMode === "overlay-ticker") return <TickerOverlay drivers={visibleDrivers} teams={teamStandings} raceHistory={raceHistory} preview={viewMode === "overlay-ticker"} seasonName={activeSeason?.name || ""} />;
   if (path !== "/admin") {
     return withLeagueStatusWidget(<StandingsPage drivers={visibleDrivers} teams={teamStandings} manufacturerStandings={manufacturerStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} supabase={supabase} driverAccessCodes={driverAccessCodes} />);
