@@ -4,7 +4,7 @@ import { supabase } from "../../lib/supabase";
 const field = { width: "100%", boxSizing: "border-box", minHeight: 46, padding: "11px 12px", border: "1px solid #b7b8bc", borderRadius: 2, background: "#fff", color: "#111216", font: "inherit" };
 
 export default function JoinRequestForm() {
-  const [form, setForm] = useState({ driverName: "", carNumber: "", manufacturer: "", teamName: "" });
+  const [form, setForm] = useState({ driverName: "", carNumber: "", manufacturer: "", teamName: "", requestedOwner: false });
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -25,14 +25,15 @@ export default function JoinRequestForm() {
       const { error: saveError } = await supabase.from("pending_drivers").insert({
         driver_name: form.driverName.trim(), car_number: number,
         manufacturer: form.manufacturer, team_name: form.teamName.trim(),
+        requested_owner: form.requestedOwner,
         status: "pending", created_at: new Date().toISOString(),
       });
       if (saveError) throw saveError;
       setStatus("Request submitted. An admin will review it and add you to the driver roster. You can log in after your driver access is set up.");
-      setForm({ driverName: "", carNumber: "", manufacturer: "", teamName: "" });
+      setForm({ driverName: "", carNumber: "", manufacturer: "", teamName: "", requestedOwner: false });
     } catch (saveError) {
       console.error("Could not submit join request:", saveError);
-      setError("Could not submit your request. Please try again.");
+      setError(saveError?.code === "PGRST204" || saveError?.code === "42703" ? "Registration needs the requested_owner database update. Please contact an admin." : "Could not submit your request. Please try again.");
     } finally { setSubmitting(false); }
   }
 
@@ -41,6 +42,7 @@ export default function JoinRequestForm() {
     <label>Car number<input style={field} type="number" min="1" max="999" value={form.carNumber} onChange={update("carNumber")} required placeholder="Preferred number" /></label>
     <label>Manufacturer<select style={field} value={form.manufacturer} onChange={update("manufacturer")} required><option value="">Select manufacturer</option><option>Chevrolet</option><option>Ford</option><option>Toyota</option><option>Other</option></select></label>
     <label>Team<input style={field} value={form.teamName} onChange={update("teamName")} required maxLength={80} placeholder="Team name or Independent" /></label>
+    <label style={{ display: "flex", gap: 10, alignItems: "center" }}><input type="checkbox" checked={form.requestedOwner} onChange={(event) => setForm((previous) => ({ ...previous, requestedOwner: event.target.checked }))} /><span>Owner</span></label>
     {error && <p role="alert" style={{ color: "#a31820", margin: 0 }}>{error}</p>}
     {status && <p role="status" style={{ color: "#176b37", margin: 0 }}>{status}</p>}
     <button type="submit" disabled={submitting} style={{ width: "100%", padding: 14, border: 0, borderRadius: 2, background: "#d71920", color: "white", fontWeight: 900, cursor: "pointer" }}>{submitting ? "Submitting…" : "Request to Join"}</button>
