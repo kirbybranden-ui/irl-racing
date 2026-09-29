@@ -482,12 +482,14 @@ export default function AdminPortal({
   function openFinanceDepartment(section = "overview") {
     setFinanceDepartmentOpen(true);
     setFinanceAction(section);
+    setAdminMenuOpen(false);
     loadFinanceDepartment();
     loadFinanceContracts();
   }
 
-  function openRaceOperations() {
+  function openRaceOperations(tab = "input") {
     setRaceOperationsOpen(true);
+    setRaceOperationsTab(tab);
     setAdminMenuOpen(false);
   }
 
@@ -500,6 +502,7 @@ export default function AdminPortal({
   function openPublicRelations(tab = "overview") {
     setPublicRelationsOpen(true);
     setPublicRelationsTab(tab);
+    setAdminMenuOpen(false);
     if (typeof loadTickerMessages === "function") loadTickerMessages();
   }
 
@@ -615,7 +618,7 @@ export default function AdminPortal({
   const adminMenuItems = [
     { label: "Admin Home", action: goAdmin, primary: true },
     { label: "Human Resources", action: () => openHrDepartment("overview"), primary: true },
-    { label: "Race Operations", action: openRaceOperations, primary: true },
+    { label: "Race Operations", action: () => openRaceOperations("input"), primary: true },
     { label: "ARCA Series", action: () => openArcaOperations("overview"), primary: true },
     { label: "Finance Department", action: () => openFinanceDepartment("overview"), primary: true },
     { label: "Public Relations", action: () => openPublicRelations("overview"), primary: true },
@@ -643,7 +646,7 @@ export default function AdminPortal({
       value: selectedRace ? "Active" : "Ready",
       meta: selectedRace || `${raceHistory.length} races posted`,
       text: "Race input, track management, drafts, archive, and offense log.",
-      action: openRaceOperations,
+      action: () => openRaceOperations("input"),
       gradient: "linear-gradient(135deg, #007aff 0%, #5ac8fa 45%, #5856d6 100%)",
     },
     {
@@ -757,8 +760,7 @@ export default function AdminPortal({
 
   const applePageStyle = {
     ...appShellStyle,
-    background:
-      "radial-gradient(circle at top left, rgba(255,255,255,0.10), transparent 32%), linear-gradient(180deg, #f5f5f7 0%, #e8e8ed 100%)",
+    background: "#f7f7f5",
     color: "#111827",
     minHeight: "100vh",
   };
@@ -770,12 +772,12 @@ export default function AdminPortal({
 
   const appleCardStyle = {
     ...sectionCardStyle,
-    background: "rgba(255,255,255,0.78)",
+    background: "#f7f7f5",
     color: "#111827",
-    border: "1px solid rgba(255,255,255,0.72)",
-    borderRadius: 28,
-    boxShadow: "0 24px 70px rgba(15,23,42,0.16)",
-    backdropFilter: "blur(18px)",
+    border: 0,
+    borderBottom: "2px solid #111216",
+    borderRadius: 0,
+    boxShadow: "none",
   };
 
   const adminNavButtonStyle = {
@@ -1344,8 +1346,8 @@ export default function AdminPortal({
               </div>
               <div>
                 <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 2, textTransform: "uppercase", opacity: 0.62 }}>Budweiser Motorsports</div>
-                <div style={{ fontSize: 34, fontWeight: 1000, letterSpacing: -1 }}>Admin Portal</div>
-                <div style={{ opacity: 0.68, marginTop: 2 }}>League control center · drivers · teams · race operations</div>
+                <div style={{ fontSize: 34, fontWeight: 1000, letterSpacing: -1, fontStyle: "italic", textTransform: "uppercase" }}>Admin Portal</div>
+                <div style={{ opacity: 0.68, marginTop: 2 }}>Season {activeSeason?.name || "2"} · league operations</div>
               </div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -1398,108 +1400,47 @@ export default function AdminPortal({
           </div>
         </div>
 
-        <div style={{ ...adminReadableCardStyle, padding: isAdminMobile ? 18 : 28, borderRadius: 34, background: "linear-gradient(180deg, rgba(255,255,255,0.97), rgba(248,250,252,0.92))", boxShadow: "0 24px 70px rgba(15,23,42,0.14)", border: "1px solid rgba(255,255,255,0.78)" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, flexWrap: "wrap", marginBottom: 18 }}>
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.8, textTransform: "uppercase", color: "#6b7280" }}>Operations Center</div>
-              <h2 style={{ margin: "2px 0 0", fontSize: isAdminMobile ? 34 : 42, letterSpacing: -1.4, lineHeight: 1.02 }}>Admin Home</h2>
-              <p style={{ margin: "8px 0 0", color: "#4b5563", fontWeight: 750, maxWidth: 780 }}>Executive briefing cards for the departments that need attention. Open a department from the tile instead of managing tools on the homepage.</p>
-            </div>
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: isAdminMobile ? "flex-start" : "flex-end" }}>
-              <button onClick={goAdmin} style={{ ...adminPrimaryButtonStyle, borderRadius: 999, padding: "12px 16px", boxShadow: "0 12px 28px rgba(17,24,39,0.16)" }}>Refresh Center</button>
-            </div>
-          </div>
+        <section style={{ background: "#f7f7f5", borderTop: "4px solid #d71920", padding: isAdminMobile ? "22px 4px" : "30px 8px", marginBottom: 28 }}>
+          <div style={{ color: "#d71920", fontSize: 11, fontWeight: 1000, letterSpacing: 2, textTransform: "uppercase" }}>BRL / Operations</div>
+          <h1 style={{ margin: "6px 0", color: "#111216", fontSize: isAdminMobile ? 36 : 52, fontStyle: "italic", textTransform: "uppercase", letterSpacing: -1.5, lineHeight: 1 }}>Race Control</h1>
+          <p style={{ margin: "8px 0 22px", color: "#4b5563", fontWeight: 700 }}>Choose a task. Each shortcut opens the working screen directly.</p>
 
-          <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "1.1fr 0.9fr", gap: 14, marginBottom: 18 }}>
-            <div style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.96), rgba(244,247,251,0.90))", border: "1px solid rgba(255,255,255,0.86)", borderRadius: 32, padding: 18, boxShadow: "0 20px 55px rgba(15,23,42,0.10)", backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)" }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
-                <div>
-                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#8e8e93" }}>Race Weekend</div>
-                  <div style={{ fontSize: isAdminMobile ? 26 : 30, fontWeight: 1000, letterSpacing: -1, marginTop: 2 }}>{selectedRace || "No race selected"}</div>
-                </div>
-                <div style={{ width: 58, height: 58, borderRadius: 21, background: "linear-gradient(135deg, #ffffff 0%, #eaf2ff 100%)", border: "1px solid rgba(0,122,255,0.16)", color: "#007aff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 29, boxShadow: "inset 0 1px 0 rgba(255,255,255,0.9), 0 14px 28px rgba(0,122,255,0.14)" }}>🏁</div>
-              </div>
-              <div style={{ color: "#6b7280", fontWeight: 800, marginBottom: 14 }}>{selectedRace ? "Race control is ready for official input." : "Open Race Operations to select a race and enter results."}</div>
-              <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "repeat(2, minmax(0, 1fr))" : "repeat(4, minmax(0, 1fr))", gap: 10 }}>
-                {[
-                  ["Drivers", drivers.length, "#34c759", "👥"],
-                  ["Posted", raceHistory.length, "#007aff", "📚"],
-                  ["Drafts", (raceDrafts || []).length, "#ff9500", "📄"],
-                  ["Offenses", offenseLog.length, "#ff3b30", "⚠️"],
-                ].map(([label, value, color, icon]) => (
-                  <div key={label} style={{ borderRadius: 22, padding: "13px 12px", background: "rgba(255,255,255,0.82)", border: "1px solid rgba(229,231,235,0.92)", boxShadow: "0 10px 24px rgba(15,23,42,0.06)" }}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                      <span style={{ color: "#8e8e93", fontSize: 11, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 0.9 }}>{label}</span>
-                      <span style={{ width: 24, height: 24, borderRadius: 9, background: `${color}18`, color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13 }}>{icon}</span>
-                    </div>
-                    <div style={{ marginTop: 8, fontSize: 24, fontWeight: 1000, color: "#111827", letterSpacing: -0.8 }}>{value}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.96), rgba(244,247,251,0.90))", border: "1px solid rgba(255,255,255,0.86)", borderRadius: 32, padding: 18, boxShadow: "0 20px 55px rgba(15,23,42,0.10)", backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)" }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 14 }}>
-                <div>
-                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#8e8e93" }}>Need Attention</div>
-                  <div style={{ color: "#6b7280", fontWeight: 800, marginTop: 2 }}>Tap a row to open the owning department.</div>
-                </div>
-                <div style={{ width: 42, height: 42, borderRadius: 16, background: "linear-gradient(135deg, #fff7ed 0%, #fff1f2 100%)", color: "#ff3b30", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, border: "1px solid rgba(255,59,48,0.12)" }}>􀁞</div>
-              </div>
-              {[
-                ["Human Resources", `${(pendingDrivers || []).length} join requests`, "👥", "#34c759", () => openHrDepartment("requests")],
-                ["Appeals", `${openAppealCount || 0} open`, "📣", "#ff9500", () => openHrDepartment("appeals")],
-                ["Messages", `${adminUnreadCount || 0} unread`, "💬", "#007aff", openAdminMessages],
-                ["Public Relations", `${openStoryCount || 0} stories pending`, "📰", "#af52de", () => openPublicRelations("stories")],
-                ["Issues", `${openIssueCount || 0} open`, "🐛", "#ff3b30", () => (window.location.pathname = "/admin/issues")],
-                ["Permissions Center", "Roles & access", "🛡️", "#5856d6", () => (window.location.pathname = "/admin/permissions")],
-              ].map(([label, value, icon, color, action]) => (
-                <button key={label} type="button" onClick={action} style={{ width: "100%", border: "1px solid rgba(229,231,235,0.82)", background: "rgba(255,255,255,0.76)", padding: "10px 12px", borderRadius: 18, marginTop: 8, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, cursor: "pointer", textAlign: "left", boxShadow: "0 8px 18px rgba(15,23,42,0.045)" }}>
-                  <span style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-                    <span style={{ width: 34, height: 34, borderRadius: 13, background: `${color}16`, color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>{icon}</span>
-                    <span style={{ color: "#111827", fontWeight: 1000, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label}</span>
-                  </span>
-                  <span style={{ color: "#6b7280", fontWeight: 900, whiteSpace: "nowrap" }}>{value} ›</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(3, minmax(210px, 1fr))", gap: 14, marginBottom: 18 }}>
-            {adminQuickTiles.map((tile) => (
-              <button
-                key={tile.title}
-                type="button"
-                onClick={tile.action}
-                style={{
-                  padding: 18,
-                  minHeight: 164,
-                  textAlign: "left",
-                  cursor: "pointer",
-                  borderRadius: 30,
-                  border: "1px solid rgba(255,255,255,0.42)",
-                  background: tile.gradient,
-                  color: "#ffffff",
-                  boxShadow: "0 18px 40px rgba(15,23,42,0.18)",
-                  overflow: "hidden",
-                  position: "relative",
-                }}
-              >
-                <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at top right, rgba(255,255,255,0.40), transparent 36%)", pointerEvents: "none" }} />
-                <div style={{ position: "relative", zIndex: 1, minHeight: 124, display: "flex", flexDirection: "column" }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-                    <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.25, textTransform: "uppercase", color: "rgba(255,255,255,0.84)" }}>{tile.title}</div>
-                    <div style={{ width: 38, height: 38, borderRadius: 15, background: "rgba(255,255,255,0.18)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 19, boxShadow: "inset 0 1px 0 rgba(255,255,255,0.28)" }}>{tile.icon}</div>
-                  </div>
-                  <div style={{ fontSize: isAdminMobile ? 30 : 34, fontWeight: 1000, letterSpacing: -1.2, marginTop: 12, color: "#ffffff" }}>{tile.value}</div>
-                  <div style={{ marginTop: 2, color: "rgba(255,255,255,0.76)", fontSize: 12, fontWeight: 1000 }}>{tile.meta}</div>
-                  <div style={{ marginTop: "auto", paddingTop: 10, color: "rgba(255,255,255,0.90)", fontSize: 13, fontWeight: 850, lineHeight: 1.35 }}>{tile.text}</div>
-                </div>
+          <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "repeat(2, minmax(0, 1fr))" : "repeat(4, minmax(0, 1fr))", borderTop: "2px solid #111216" }}>
+            {[
+              ["Add Driver", "Roster", () => openHrDepartment("drivers")],
+              ["Join Requests", `${pendingHrRequestCount} pending`, () => openHrDepartment("drivers")],
+              ["Access Codes", "Drivers & owners", () => openHrDepartment("access")],
+              ["Appeals", `${openAppealCount || 0} open`, () => openHrDepartment("appeals")],
+              ["Race Input", selectedRace || "Select race", () => openRaceOperations("input")],
+              ["Saved Drafts", `${(raceDrafts || []).length} drafts`, () => openRaceOperations("drafts")],
+              ["Tracks", `${(tracks || []).length} tracks`, () => openRaceOperations("tracks")],
+              ["Race History", `${raceHistory.length} posted`, () => openRaceOperations("history")],
+              ["Contracts", "Review offers", () => openFinanceDepartment("contracts")],
+              ["Paint Payouts", "Award winners", () => openFinanceDepartment("paint")],
+              ["Transactions", "Payments & fines", () => openFinanceDepartment("transactions")],
+              ["Ticker", "Publish updates", () => openPublicRelations("ticker")],
+              ["Winner Spotlight", "Feature winner", () => openPublicRelations("winner")],
+              ["Interviews", "Review & post", () => openPublicRelations("interviews")],
+              ["Messages", `${adminUnreadCount} unread`, openAdminMessages],
+              ["Settings", "Seasons & backups", openSettings],
+            ].map(([label, detail, action]) => (
+              <button key={label} type="button" onClick={action} style={{ minWidth: 0, minHeight: 92, padding: "16px 12px", textAlign: "left", cursor: "pointer", background: "transparent", border: 0, borderBottom: "1px solid #cfd0d2", borderRight: "1px solid #cfd0d2", color: "#111216", fontFamily: "inherit" }}>
+                <strong style={{ display: "block", fontSize: isAdminMobile ? 15 : 18, lineHeight: 1.1, textTransform: "uppercase" }}>{label} <span style={{ color: "#d71920" }}>↗</span></strong>
+                <span style={{ display: "block", marginTop: 8, fontSize: 12, color: "#666970", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{detail}</span>
               </button>
             ))}
           </div>
-
-        </div>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 20 }}>
+            {[
+              ["Owner Assignments", () => openHrDepartment("owners")],
+              ["Start & Park", () => openHrDepartment("startpark")],
+              ["Voting", () => openRaceOperations("voting")],
+              ["Issues", () => (window.location.pathname = "/admin/issues")],
+              ["Permissions", () => (window.location.pathname = "/admin/permissions")],
+              ["Stories", () => openPublicRelations("stories")],
+            ].map(([label, action]) => <button key={label} type="button" onClick={action} style={{ ...adminSecondaryButtonStyle, borderRadius: 2 }}>{label} ↗</button>)}
+          </div>
+        </section>
 
         {publicRelationsOpen && (
           <div style={financeOverlayStyle}>
