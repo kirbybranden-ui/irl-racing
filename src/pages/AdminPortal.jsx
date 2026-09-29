@@ -7,6 +7,7 @@ export default function AdminPortal({
   currentSession,
   customTeamBranding = {},
   onSaveTeamBranding,
+  onCreateTeam,
   AdminLeagueMessageComposer,
   AdminLeagueMessageDashboard,
   PaymentCompliancePanel,
@@ -255,6 +256,9 @@ export default function AdminPortal({
   const [adminMenuOpen, setAdminMenuOpen] = useState(false);
   const [quickAddDriverOpen, setQuickAddDriverOpen] = useState(false);
   const [logoTeam, setLogoTeam] = useState("");
+  const [newTeamForm, setNewTeamForm] = useState({ identifier: "", fullName: "", manufacturer: "", ownerDriverNumber: "" });
+  const [newTeamSaving, setNewTeamSaving] = useState(false);
+  const [newTeamStatus, setNewTeamStatus] = useState("");
   const [rebrandName, setRebrandName] = useState("");
   const [rebrandIdentifier, setRebrandIdentifier] = useState("");
   const [rebrandAccent, setRebrandAccent] = useState("#d71920");
@@ -2107,6 +2111,18 @@ export default function AdminPortal({
 
               {hrTab === "owners" && (
                 <div style={walletLightCardStyle}>
+                  <section style={{ borderTop: "3px solid #111216", padding: "20px 0", marginBottom: 22 }}>
+                    <h2 style={{ margin: "0 0 6px" }}>Create Team</h2>
+                    <p style={{ margin: "0 0 16px", color: "#4b5563" }}>Stand up a team before adding its drivers. Assign an existing driver as owner now or later.</p>
+                    <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(2, minmax(0, 1fr))", gap: 12 }}>
+                      <label>Team identifier<input value={newTeamForm.identifier} maxLength={5} onChange={(event) => setNewTeamForm((form) => ({ ...form, identifier: event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "") }))} placeholder="JAM" style={adminInputStyle} /></label>
+                      <label>Public team name<input value={newTeamForm.fullName} maxLength={80} onChange={(event) => setNewTeamForm((form) => ({ ...form, fullName: event.target.value }))} placeholder="Team name" style={adminInputStyle} /></label>
+                      <label>Manufacturer<select value={newTeamForm.manufacturer} onChange={(event) => setNewTeamForm((form) => ({ ...form, manufacturer: event.target.value }))} style={adminInputStyle}><option value="">Select manufacturer</option><option>Chevrolet</option><option>Ford</option><option>Toyota</option><option>Other</option></select></label>
+                      <label>Owner driver (optional)<select value={newTeamForm.ownerDriverNumber} onChange={(event) => setNewTeamForm((form) => ({ ...form, ownerDriverNumber: event.target.value }))} style={adminInputStyle}><option value="">Assign later</option>{(visibleDrivers || []).filter((driver) => !driver.retired && !isInactivePlaceholderDriver(driver)).map((driver) => <option key={driver.id || driver.number} value={driver.number}>#{driver.number} — {driver.name}</option>)}</select></label>
+                    </div>
+                    <button type="button" disabled={newTeamSaving || typeof onCreateTeam !== "function"} onClick={async () => { setNewTeamSaving(true); setNewTeamStatus(""); try { await onCreateTeam(newTeamForm); setNewTeamStatus(`${newTeamForm.fullName.trim()} (${newTeamForm.identifier}) created. Add its logo and drivers when ready.`); setSelectedOwnerTeam(newTeamForm.identifier); setNewTeamForm({ identifier: "", fullName: "", manufacturer: "", ownerDriverNumber: "" }); } catch (error) { setNewTeamStatus(error?.message || "Could not create team."); } finally { setNewTeamSaving(false); } }} style={{ ...adminPrimaryButtonStyle, borderRadius: 2, marginTop: 16 }}>{newTeamSaving ? "Creating…" : "Create Team"}</button>
+                    {newTeamStatus && <p role="status" style={{ fontWeight: 800 }}>{newTeamStatus}</p>}
+                  </section>
                   <section style={{ borderTop: "3px solid #d71920", padding: "20px 0", marginBottom: 18 }}>
                     <h2 style={{ margin: "0 0 6px" }}>Team Rebranding</h2>
                     <p style={{ margin: "0 0 16px", color: "#4b5563" }}>Change the public name, team identifier, colors, and logo. Existing results, finances, and owner access stay linked to the same team.</p>
@@ -2145,11 +2161,7 @@ export default function AdminPortal({
                         <label style={{ display: "block", fontSize: 12, fontWeight: 900, color: "#6b7280", marginBottom: 8 }}>TEAM</label>
                         <select value={selectedOwnerTeam} onChange={(event) => setSelectedOwnerTeam(event.target.value)} style={adminInputStyle}>
                           <option value="">Select team</option>
-                          {(teamStandings || [])
-                            .filter((team) => team.team !== "Independent" && team.team !== "IND")
-                            .map((team) => (
-                              <option key={team.team} value={team.team}>{getTeamFullName(team.team)}</option>
-                            ))}
+                          {(ownerPortalTeams || []).filter((team) => team !== "Independent" && team !== "IND").map((team) => <option key={team} value={team}>{getTeamFullName(team)} ({getTeamIdentifier(team)})</option>)}
                         </select>
                       </div>
 
