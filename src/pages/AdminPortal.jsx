@@ -235,6 +235,7 @@ export default function AdminPortal({
   setArcaSelectedRace,
 }) {
   const goAdmin = () => {
+    closeWorkspace();
     if (window.location.pathname !== "/admin") {
       window.location.pathname = "/admin";
       return;
@@ -249,6 +250,7 @@ export default function AdminPortal({
 
 
   const [adminMenuOpen, setAdminMenuOpen] = useState(false);
+  const [quickAddDriverOpen, setQuickAddDriverOpen] = useState(false);
   const [adminMessagesOpen, setAdminMessagesOpen] = useState(false);
   const [adminComposerOpen, setAdminComposerOpen] = useState(false);
   const [adminUnreadMessages, setAdminUnreadMessages] = useState([]);
@@ -291,6 +293,17 @@ export default function AdminPortal({
   }, []);
 
   const isAdminMobile = adminViewportWidth < 760;
+  const workspaceOpen = quickAddDriverOpen || publicRelationsOpen || hrDepartmentOpen || raceOperationsOpen || financeDepartmentOpen || settingsOpen || adminMessagesOpen || arcaOperationsOpen;
+  function closeWorkspace() {
+    setQuickAddDriverOpen(false);
+    setPublicRelationsOpen(false);
+    setHrDepartmentOpen(false);
+    setRaceOperationsOpen(false);
+    setFinanceDepartmentOpen(false);
+    setSettingsOpen(false);
+    setAdminMessagesOpen(false);
+    setArcaOperationsOpen(false);
+  }
   const adminUnreadCount = adminUnreadMessages.length;
 
   const accessDrivers = (visibleDrivers || drivers || []).filter((driver) => driver?.number && !isInactivePlaceholderDriver?.(driver));
@@ -444,6 +457,7 @@ export default function AdminPortal({
   }
 
   function openAdminMessages() {
+    closeWorkspace();
     setAdminMessagesOpen(true);
     setAdminComposerOpen(false);
     loadAdminUnreadMessages();
@@ -472,6 +486,7 @@ export default function AdminPortal({
   }
 
   function openHrDepartment(section = "overview") {
+    closeWorkspace();
     setHrDepartmentOpen(true);
     setHrTab(section);
     setAdminMenuOpen(false);
@@ -480,6 +495,7 @@ export default function AdminPortal({
   }
 
   function openFinanceDepartment(section = "overview") {
+    closeWorkspace();
     setFinanceDepartmentOpen(true);
     setFinanceAction(section);
     setAdminMenuOpen(false);
@@ -488,18 +504,21 @@ export default function AdminPortal({
   }
 
   function openRaceOperations(tab = "input") {
+    closeWorkspace();
     setRaceOperationsOpen(true);
     setRaceOperationsTab(tab);
     setAdminMenuOpen(false);
   }
 
   function openArcaOperations(tab = "overview") {
+    closeWorkspace();
     setArcaOperationsOpen(true);
     setArcaOperationsTab(tab);
     setAdminMenuOpen(false);
   }
 
   function openPublicRelations(tab = "overview") {
+    closeWorkspace();
     setPublicRelationsOpen(true);
     setPublicRelationsTab(tab);
     setAdminMenuOpen(false);
@@ -507,6 +526,7 @@ export default function AdminPortal({
   }
 
   function openSettings() {
+    closeWorkspace();
     setSettingsOpen(true);
     setAdminMenuOpen(false);
   }
@@ -1000,12 +1020,8 @@ export default function AdminPortal({
 
 
   const appleMessagesOverlayStyle = {
-    position: "fixed",
-    inset: 0,
-    zIndex: 9999,
-    background: "rgba(0, 0, 0, 0.34)",
-    backdropFilter: "blur(18px)",
-    WebkitBackdropFilter: "blur(18px)",
+    position: "relative",
+    background: "#f7f7f5",
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
@@ -1015,12 +1031,12 @@ export default function AdminPortal({
 
   const appleMessagesShellStyle = {
     width: "min(1120px, 100%)",
-    height: "min(760px, calc(100vh - 36px))",
+    minHeight: 600,
     background: "#f5f5f7",
     color: "#111827",
-    borderRadius: 34,
-    border: "1px solid rgba(255,255,255,0.88)",
-    boxShadow: "0 36px 110px rgba(0,0,0,0.32)",
+    borderRadius: 2,
+    border: "1px solid #d6d7d9",
+    boxShadow: "none",
     overflow: "hidden",
     display: "grid",
     gridTemplateColumns: "minmax(260px, 340px) 1fr",
@@ -1171,23 +1187,19 @@ export default function AdminPortal({
   };
 
   const financeOverlayStyle = {
-    position: "fixed",
-    inset: 0,
-    zIndex: 9000,
-    background: "rgba(245,245,247,0.94)",
-    backdropFilter: "blur(24px)",
-    overflowY: "auto",
-    padding: "28px 18px",
+    position: "relative",
+    background: "#f7f7f5",
+    padding: "12px 0 40px",
   };
 
   const financeShellStyle = {
     maxWidth: 1240,
     margin: "0 auto",
-    background: "#f5f5f7",
-    border: "1px solid rgba(17,24,39,0.10)",
-    borderRadius: 34,
-    boxShadow: "0 30px 90px rgba(15,23,42,0.22)",
-    padding: 22,
+    background: "#f7f7f5",
+    border: 0,
+    borderRadius: 0,
+    boxShadow: "none",
+    padding: isAdminMobile ? 8 : 22,
   };
 
   const financeSegmentButtonStyle = (active) => ({
@@ -1400,15 +1412,15 @@ export default function AdminPortal({
           </div>
         </div>
 
-        <section style={{ background: "#f7f7f5", borderTop: "4px solid #d71920", padding: isAdminMobile ? "22px 4px" : "30px 8px", marginBottom: 28 }}>
+        {!workspaceOpen && <section style={{ background: "#f7f7f5", borderTop: "4px solid #d71920", padding: isAdminMobile ? "22px 4px" : "30px 8px", marginBottom: 28 }}>
           <div style={{ color: "#d71920", fontSize: 11, fontWeight: 1000, letterSpacing: 2, textTransform: "uppercase" }}>BRL / Operations</div>
           <h1 style={{ margin: "6px 0", color: "#111216", fontSize: isAdminMobile ? 36 : 52, fontStyle: "italic", textTransform: "uppercase", letterSpacing: -1.5, lineHeight: 1 }}>Race Control</h1>
           <p style={{ margin: "8px 0 22px", color: "#4b5563", fontWeight: 700 }}>Choose a task. Each shortcut opens the working screen directly.</p>
 
           <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "repeat(2, minmax(0, 1fr))" : "repeat(4, minmax(0, 1fr))", borderTop: "2px solid #111216" }}>
             {[
-              ["Add Driver", "Roster", () => openHrDepartment("drivers")],
-              ["Join Requests", `${pendingHrRequestCount} pending`, () => openHrDepartment("drivers")],
+              ["Add Driver", "New roster entry", () => { closeWorkspace(); setQuickAddDriverOpen(true); }],
+              ["Join Requests", `${pendingHrRequestCount} pending`, () => { openHrDepartment("drivers"); requestAnimationFrame(() => setTimeout(() => document.getElementById("admin-join-requests")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50)); }],
               ["Access Codes", "Drivers & owners", () => openHrDepartment("access")],
               ["Appeals", `${openAppealCount || 0} open`, () => openHrDepartment("appeals")],
               ["Race Input", selectedRace || "Select race", () => openRaceOperations("input")],
@@ -1416,7 +1428,7 @@ export default function AdminPortal({
               ["Tracks", `${(tracks || []).length} tracks`, () => openRaceOperations("tracks")],
               ["Race History", `${raceHistory.length} posted`, () => openRaceOperations("history")],
               ["Contracts", "Review offers", () => openFinanceDepartment("contracts")],
-              ["Paint Payouts", "Award winners", () => openFinanceDepartment("paint")],
+              ["Pay Paint Scheme", "Record payout", () => openFinanceDepartment("paint")],
               ["Transactions", "Payments & fines", () => openFinanceDepartment("transactions")],
               ["Ticker", "Publish updates", () => openPublicRelations("ticker")],
               ["Winner Spotlight", "Feature winner", () => openPublicRelations("winner")],
@@ -1440,7 +1452,22 @@ export default function AdminPortal({
               ["Stories", () => openPublicRelations("stories")],
             ].map(([label, action]) => <button key={label} type="button" onClick={action} style={{ ...adminSecondaryButtonStyle, borderRadius: 2 }}>{label} ↗</button>)}
           </div>
-        </section>
+        </section>}
+
+        {workspaceOpen && <button type="button" onClick={closeWorkspace} style={{ ...adminSecondaryButtonStyle, borderRadius: 2, marginBottom: 18 }}>← Admin Home</button>}
+
+        {quickAddDriverOpen && <section style={{ borderTop: "4px solid #d71920", padding: "24px 0", maxWidth: 900 }}>
+          <div style={{ color: "#d71920", fontSize: 11, fontWeight: 1000, letterSpacing: 2, textTransform: "uppercase" }}>Human Resources / Roster</div>
+          <h2 style={{ margin: "6px 0 18px", fontSize: isAdminMobile ? 32 : 44, fontStyle: "italic", textTransform: "uppercase" }}>Add Driver</h2>
+          <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(2, minmax(0, 1fr))", gap: 16 }}>
+            <label>Driver Name<input style={adminInputStyle} value={newDriverName} onChange={(event) => setNewDriverName(event.target.value)} placeholder="Enter driver name" /></label>
+            <label>Car Number<input style={adminInputStyle} value={newDriverNumber} onChange={(event) => setNewDriverNumber(event.target.value)} placeholder="Car number" /></label>
+            <label>Manufacturer<select style={adminInputStyle} value={newDriverManufacturer} onChange={(event) => setNewDriverManufacturer(event.target.value)}><option value="">Select manufacturer</option><option value="Chevrolet">Chevrolet</option><option value="Ford">Ford</option><option value="Toyota">Toyota</option><option value="Other">Other</option></select></label>
+            <label>Team<input style={adminInputStyle} value={newDriverTeam} onChange={(event) => setNewDriverTeam(event.target.value)} placeholder="B2J, 19XI, BXM..." /></label>
+          </div>
+          <button type="button" onClick={addDriver} style={{ ...adminPrimaryButtonStyle, borderRadius: 2, marginTop: 20 }}>Add Driver</button>
+          <button type="button" onClick={() => openHrDepartment("drivers")} style={{ ...adminSecondaryButtonStyle, borderRadius: 2, margin: "20px 0 0 10px" }}>View Driver Roster ↗</button>
+        </section>}
 
         {publicRelationsOpen && (
           <div style={financeOverlayStyle}>
@@ -1992,7 +2019,7 @@ export default function AdminPortal({
                     <button type="button" onClick={addDriver} style={adminPrimaryButtonStyle}>Add Driver</button>
                   </div>
 
-                  <div style={{ borderRadius: 24, background: "#ffffff", border: "1px solid #e5e7eb", padding: 16, marginBottom: 14 }}>
+                  <div id="admin-join-requests" style={{ borderRadius: 24, background: "#ffffff", border: "1px solid #e5e7eb", padding: 16, marginBottom: 14, scrollMarginTop: 24 }}>
                     <h3 style={{ margin: "0 0 6px", fontSize: 21, letterSpacing: -0.4 }}>Pending Driver Requests ({pendingHrRequestCount})</h3>
                     <p style={{ margin: "0 0 12px", color: "#6b7280", fontWeight: 750 }}>All league and series request-to-join submissions feed into this HR queue.</p>
                     {pendingHrRequestCount === 0 ? (
@@ -2785,7 +2812,7 @@ export default function AdminPortal({
 
         {/* ARCA SERIES OPERATIONS */}
         {arcaOperationsOpen && (
-          <div style={{ position: "fixed", inset: 0, zIndex: 9000, background: "rgba(245,245,247,0.94)", backdropFilter: "blur(24px)", overflowY: "auto", padding: "28px 18px" }}>
+          <div style={financeOverlayStyle}>
             <div style={{ maxWidth: 1240, margin: "0 auto", background: "#f5f5f7", border: "1px solid rgba(17,24,39,0.10)", borderRadius: 34, boxShadow: "0 30px 90px rgba(15,23,42,0.22)", padding: 22 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, flexWrap: "wrap", marginBottom: 18 }}>
                 <div>
