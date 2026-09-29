@@ -1,3343 +1,9700 @@
-import React, { useEffect, useState } from "react";
-import RaceOperations from "../components/admin/raceOperations/RaceOperations";
-import { teamLogos, getTeamBranding } from "../data/teams";
-// import { IssuesRollup } from "../components/IssuesRollup"; // TODO: Uncomment once IssuesRollup.jsx is in repo
-
-export default function AdminPortal({
-  currentSession,
-  customTeamBranding = {},
-  onSaveTeamBranding,
-  AdminLeagueMessageComposer,
-  AdminLeagueMessageDashboard,
-  PaymentCompliancePanel,
-  PreviousRaceWinnerAdminPanel,
-  teamPrestigeRows,
-  teamPrestigeStatus,
-  teamPrestigeSaving,
-  recalculateTeamPrestige,
-  activeDrivers,
-  activeHeaderButtonStyle,
-  activeSeason,
-  activeSeasonId,
-  addDriver,
-  addManualWatchPick,
-  addTrack,
-  appShellStyle,
-  applyApprovedStartParkRequestsToRace,
-  approvePendingDriver,
-  awardPaintSchemePayouts,
-  backupFileInputRef,
-  cancelEditDriver,
-  clearDriverAccessCode,
-  clearInputs,
-  clearOwnerCode,
-  copyDriverAccessCode,
-  copyOwnerCode,
-  createSeason,
-  currentLeader,
-  dangerButtonStyle,
-  deleteActiveSeason,
-  deleteManualWatchPick,
-  deleteResultsDraft,
-  deleteTickerMessage,
-  discordAnnouncement,
-  discordInviteUrl,
-  discordRulesText,
-  dnfMap,
-  dnfReasons,
-  downloadRaceHistoryCsv,
-  driverAccessCodes,
-  drivers,
-  editDriverForm,
-  editTickerMessage,
-  editingDriverId,
-  editingRaceName,
-  editingTickerId,
-  exportAllSeasonsBackup,
-  exportAppDataJson,
-  exportBackup,
-  fastestLapMap,
-  featuredVideo,
-  generateAllOwnerCodes,
-  generateDriverAccessCode,
-  generateOwnerCode,
-  getOffensePenaltyPoints,
-  getStagePoints,
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import logo from "./assets/logo1.png";
+import ncsLogo from "./assets/series/NCS.png";
+import nxsLogo from "./assets/series/NXS.png";
+import ctsLogo from "./assets/series/CTS.png";
+import amsLogo from "./assets/series/AMS.png";
+import FilesPage from "./FilesPage";
+import SubmitAppealPage from "./SubmitAppealPage";
+import AppealsPage from "./AppealsPage";
+import DriverProfilePage from "./DriverProfilePage";
+import TeamDetailPage from "./TeamDetailPage";
+import ManufacturerDetailPage from "./ManufacturerDetailPage";
+import WelcomePage from "./WelcomePage";
+import JoinRequestForm from "./components/auth/JoinRequestForm";
+import FoundationPreviewPage from "./pages/FoundationPreviewPage";
+import { AppShell } from "./components/layout/AppShell";
+import SchedulePage from "./pages/SchedulePage";
+import { supabase } from "./lib/supabase";
+import CarGalleryPage from "./CarGalleryPage";
+import PaintSchemeVotePage from "./PaintSchemeVotePage";
+import InterviewsPage from "./pages/InterviewsPage";
+import PublicInterviewsPage from "./pages/PublicInterviewsPage";
+import NewsPage from "./NewsPage";
+import NotificationsPage from "./NotificationsPage";
+import StreamPage from "./pages/StreamPage";
+import StandingsPage from "./pages/StandingsPage";
+import ContractsPage from "./pages/ContractsPage";
+import LeagueVotingPage from "./pages/LeagueVotingPage";
+import AdminVotingPage from "./pages/AdminVotingPage";
+import DriverFeedbackPage from "./pages/DriverFeedbackPage";
+import OwnerHQPage from "./pages/OwnerHQPage";
+import AdminPortal from "./pages/AdminPortal";
+import PermissionsCenter from "./pages/PermissionsCenter";
+import LeagueMessageCenter from "./pages/LeagueMessageCenter";
+import InSeasonTournamentPage from "./pages/InSeasonTournamentPage";
+import DriverMarketPage from "./pages/DriverMarketPage";
+import DevelopmentRequestsPage from "./pages/DevelopmentRequestsPage";
+import IssuesPage from "./pages/IssuesPage";
+import IssuesRollupPage from "./pages/IssuesRollupPage";
+import { getLeagueSession, loginToLeague } from "./lib/leagueAuth";
+import LeagueChatPage from "./LeagueChatPage";
+import OwnersPage from "./OwnersPage.jsx";
+import { defaultDrivers } from "./data/drivers";
+import { defaultRaces } from "./data/races";
+import { defaultArcaRaces } from "./data/arca/races";
+import { defaultArcaTracks } from "./data/arca/tracks";
+import { defaultArcaDrivers } from "./data/arca/drivers";
+import { trackOverviewData } from "./data/trackOverview";
+import SeriesPortal from "./pages/series/SeriesPortal";
+import SeriesLandingPage from "./pages/series/SeriesLandingPage";
+import SeriesJoinPage from "./pages/series/SeriesJoinPage";
+import { ReportIssueModal } from "./components/ReportIssueModal";
+import {
+  teamLogos,
+  manufacturerLogos,
+  teamBudgets,
   getTeamFullName,
-  handleDeleteRace,
-  handleDeleteArcaRace,
-  handleDnfChange,
-  handleDownloadLeagueBackup,
-  handleEditRace,
-  handleEditArcaRace,
-  handleFastestLapChange,
-  handleImportBackup,
-  handleManualPenaltyChange,
-  handleOffenseChange,
-  handlePositionChange,
-  handleRestoreLeagueBackup,
-  handleResultNoteChange,
-  handleStage1Change,
-  handleStage2Change,
-  handleStage3Change,
-  handleStartParkChange,
-  headerButtonStyle,
-  importFileRef,
-  inputStyle,
+  getTeamIdentifier,
+  getTeamBudget,
+  getTeamBranding,
+  applyCustomTeamBranding,
+} from "./data/teams";
+import { pointsTable, stagePointsTable, offensePenaltyPoints } from "./data/points";
+import {
+  getOffensePenaltyPoints,
+  countPriorOffenses,
+  getStagePoints,
+} from "./utils/scoringHelpers";
+import {
   isInactivePlaceholderDriver,
-  latestWinner,
-  loadDriverAccessCodes,
-  loadManualWatchPicks,
-  loadPaintSchemePayoutPreview,
-  loadResultsDraft,
-  loadStartParkRequests,
-  loadTickerMessages,
-  logo,
-  logoutAdmin,
-  manualWatchPicks,
-  manufacturerStandings,
-  money,
-  moveDriverFinishPosition,
-  newDriverManufacturer,
-  newDriverName,
-  newDriverNumber,
-  newDriverTeam,
-  newSeasonName,
-  newTrackName,
-  newTrackStageCount,
-  offenseLog,
-  offenseMap,
-  openAppealCount,
-  openEditDriver,
-  openStoryCount,
-  ownerAccessCodes,
-  ownerAssignmentError,
-  ownerAssignmentMessage,
-  ownerAssignments,
-  ownerPortalTeams,
+  isRemovedLeagueDriver,
+  realignLeagueDrivers,
+  filterRemovedLeagueDrivers,
+  dedupeDriversByNumber,
+  makeDriverWithStats,
+  getDriverAchievements,
+  getDefaultRoster,
+  rebuildDriversFromHistory,
+  apply2026DriverNumberAdjustments,
+} from "./utils/driverHelpers";
+import {
+  normalizeTrackName,
+  getEasternDateParts,
+  getEasternNowParts,
+  getStartParkCutoffInfo,
+  wasStartParkRequestBeforeCutoff,
+  hasRaceRolledOver,
+  getSortedTracksByDate,
+  getUpcomingRaceByDate,
+  isRaceCompleteByDateOrHistory,
+  sanitizeTracks,
+} from "./utils/raceHelpers";
+import {
+  makeSeasonId,
+  createEmptySeason,
+  sanitizeSeason,
+  buildLegacySeasonFromLocalStorage,
+  loadInitialLeagueState,
+  isUsableLeagueState,
+  makeLeagueStateSignature,
+  normalizeLoadedLeagueState,
+} from "./utils/leagueHelpers";
+import {
+  downloadRaceHistoryCsv,
+  makeLeagueBackupPayload,
+  downloadLeagueBackupFile,
+  isValidLeagueBackup,
+  createRaceDataBackup,
+  makeRaceResultsLedgerRows,
+  saveRaceResultsLedger,
+  syncAllRaceResultsLedger,
+  makeArcaRaceResultsLedgerRows,
+  saveArcaRaceResultsLedger,
+  syncAllArcaRaceResultsLedger,
+  saveArcaStandings,
+  saveTeamPrestige,
+} from "./utils/backupHelpers";
+import { money } from "./utils/formatters";
+import {
+  INDEPENDENT_DRIVER_BASE_SALARY,
+  LEAGUE_BANK_NAME,
+  APP_VERSION,
+} from "./data/appConfig";
+import {
+  normalizeMessageValue,
+  getCurrentUserFromSession,
+  canViewLeagueMessage,
+  filterLeagueMessagesForSession,
+} from "./utils/messagePermissions";
+import { loadLeagueState, saveLeagueState } from "./lib/leagueState";
+import {
+  appShellStyle,
   pageContainerStyle,
-  paintPayoutError,
-  paintPayoutLoading,
-  paintPayoutRace,
-  paintPayoutRows,
-  paintPayoutStatus,
-  patchActiveSeason,
-  penaltyMap,
-  pendingDrivers,
-  pointsTable,
-  positions,
-  postResultsDraft,
-  primaryButtonStyle,
-  raceDrafts,
-  raceEntryTdStyle,
-  raceEntryThStyle,
-  raceHistory,
-  raceNotesInputStyle,
-  racePenaltyInputStyle,
-  racePositionInputStyle,
-  rejectPendingDriver,
-  removeDriver,
-  removeTrack,
-  renameActiveSeason,
-  renameSeasonName,
-  resetSeason,
-  resetTickerForm,
-  restoreDefaultTracks,
-  resultNotesMap,
-  retireDriver,
-  saveDiscordSettings,
-  saveDriverEdit,
-  saveOwnerAssignment,
-  saveResultsDraft,
-  saveTickerMessage,
-  seasonOffenseCounts,
-  seasons,
-  secondaryButtonStyle,
   sectionCardStyle,
-  seedWeeklyTickerMessages,
-  selectedOwnerDriverNumber,
-  selectedOwnerTeam,
-  selectedRace,
-  setDiscordAnnouncement,
-  setDiscordInviteUrl,
-  setDiscordRulesText,
-  setDnfReasons,
-  setEditDriverForm,
-  setFeaturedVideo,
-  setNewDriverManufacturer,
-  setNewDriverName,
-  setNewDriverNumber,
-  setNewDriverTeam,
-  setNewSeasonName,
-  setNewTrackName,
-  setNewTrackStageCount,
-  setPaintPayoutRace,
-  setRenameSeasonName,
-  setSelectedOwnerDriverNumber,
-  setSelectedOwnerTeam,
-  setTickerForm,
-  setVideoDescription,
-  setVideoTitle,
-  setVideoUploading,
-  setViewMode,
-  setWatchBadge,
-  setWatchDisplayOrder,
-  setWatchDriverId,
-  setWatchReason,
-  sortedDrivers,
-  stage1,
-  stage2,
-  stage3,
-  stageCount,
-  startParkMap,
-  startParkRequestError,
-  startParkRequestStatus,
-  startParkRequests,
-  startParkRequestsLoading,
-  statBoxStyle,
-  submitResults,
-  submitArcaResults,
-  saveArcaResultsDraft,
-  supabase,
-  switchSeason,
+  headerButtonStyle,
+  activeHeaderButtonStyle,
+  primaryButtonStyle,
+  secondaryButtonStyle,
+  dangerButtonStyle,
+  inputStyle,
+  racePositionInputStyle,
+  racePenaltyInputStyle,
+  raceNotesInputStyle,
   tableStyle,
-  tdStyle,
-  teamStandings,
   thStyle,
-  tickerError,
-  tickerForm,
-  tickerMessages,
-  tickerStatus,
-  toggleManualWatchPick,
-  toggleTickerActive,
-  toggleTickerPinned,
-  tracks,
-  unretireDriver,
-  updateStartParkRequestStatus,
-  updateTrackStageCount,
-  videoDescription,
-  videoFileInputRef,
-  videoTitle,
-  videoUploading,
-  viewMode,
-  visibleDrivers,
-  watchBadge,
-  watchDisplayOrder,
-  watchDriverId,
-  watchReason,
-  watchSaving,
-  arcaRaces,
-  arcaTracks,
-  arcaDrivers,
-  arcaSeasons,
-  setArcaRaces,
-  setArcaTracks,
-  setArcaDrivers,
-  setArcaSeasons,
-  arcaSelectedRace,
-  setArcaSelectedRace,
-}) {
-  const goAdmin = () => {
-    closeWorkspace();
-    if (window.location.pathname !== "/admin") {
-      window.location.pathname = "/admin";
-      return;
-    }
-    if (typeof setViewMode === "function") setViewMode("admin");
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
+  tdStyle,
+  raceEntryThStyle,
+  raceEntryTdStyle,
+  statBoxStyle,
+} from "./styles/sharedStyles";
+// --- WebAuthn helpers for biometric admin unlock (Face ID / Touch ID / Windows Hello) ---
+// Note: there's no backend here to verify the signature server-side, so this works as a
+// genuine device-level biometric unlock (a real credential tied to this device + origin,
+// verified by the OS) rather than a full server-verified WebAuthn round trip.
 
-  const goStandings = () => {
-    window.location.pathname = "/standings";
-  };
+const mobileAppFont = "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif";
 
+const ADMIN_BIOMETRIC_CREDENTIAL_KEY = "bcl-admin-biometric-credential-id";
+const ADMIN_BIOMETRIC_DECLINED_KEY = "bcl-admin-biometric-declined";
 
-  const [adminMenuOpen, setAdminMenuOpen] = useState(false);
-  const [quickAddDriverOpen, setQuickAddDriverOpen] = useState(false);
-  const [logoTeam, setLogoTeam] = useState("");
-  const [rebrandName, setRebrandName] = useState("");
-  const [rebrandAccent, setRebrandAccent] = useState("#d71920");
-  const [rebrandDark, setRebrandDark] = useState("#111216");
-  const [logoFile, setLogoFile] = useState(null);
-  const [logoSaving, setLogoSaving] = useState(false);
-  const [logoStatus, setLogoStatus] = useState("");
-  const [adminMessagesOpen, setAdminMessagesOpen] = useState(false);
-  const [adminComposerOpen, setAdminComposerOpen] = useState(false);
-  const [adminUnreadMessages, setAdminUnreadMessages] = useState([]);
-  const [openIssueCount, setOpenIssueCount] = useState(0);
-  const [adminMessagesLoading, setAdminMessagesLoading] = useState(false);
-  const [adminMessagesError, setAdminMessagesError] = useState("");
-  const [financeTransactions, setFinanceTransactions] = useState([]);
-  const [financeLoading, setFinanceLoading] = useState(false);
-  const [financeError, setFinanceError] = useState("");
-  const [financeDepartmentOpen, setFinanceDepartmentOpen] = useState(false);
-  const [publicRelationsOpen, setPublicRelationsOpen] = useState(false);
-  const [publicRelationsTab, setPublicRelationsTab] = useState("overview");
-  const [hrDepartmentOpen, setHrDepartmentOpen] = useState(false);
-  const [hrTab, setHrTab] = useState("overview");
-  const [raceOperationsOpen, setRaceOperationsOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [raceOperationsTab, setRaceOperationsTab] = useState("overview");
-  const [arcaOperationsOpen, setArcaOperationsOpen] = useState(false);
-  const [arcaOperationsTab, setArcaOperationsTab] = useState("overview");
-  const [hrLocalRefresh, setHrLocalRefresh] = useState(0);
-  const [financeAction, setFinanceAction] = useState("overview");
-  const [financeActionStatus, setFinanceActionStatus] = useState("");
-  const [financeActionError, setFinanceActionError] = useState("");
-  const [financeContracts, setFinanceContracts] = useState([]);
-  const [financeContractsLoading, setFinanceContractsLoading] = useState(false);
-  const [hrAccessStatus, setHrAccessStatus] = useState("");
-  const [hrAccessError, setHrAccessError] = useState("");
-  const [selectedAccessDriverNumber, setSelectedAccessDriverNumber] = useState("");
-  const [accessCodeModalDriverNumber, setAccessCodeModalDriverNumber] = useState("");
-  const [showAccessCodePassword, setShowAccessCodePassword] = useState(false);
-  const [financeForm, setFinanceForm] = useState({ driverId: "", team: "", amount: "", reason: "", note: "" });
-  const [adminViewportWidth, setAdminViewportWidth] = useState(() => (typeof window !== "undefined" ? window.innerWidth : 1200));
+function bufferToBase64(buffer) {
+  return btoa(String.fromCharCode(...new Uint8Array(buffer)));
+}
+
+function base64ToBuffer(base64) {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes.buffer;
+}
+
+async function isBiometricAvailable() {
+  if (typeof window === "undefined" || !window.PublicKeyCredential) return false;
+  try {
+    return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+  } catch {
+    return false;
+  }
+}
+
+async function registerAdminBiometric() {
+  const challenge = crypto.getRandomValues(new Uint8Array(32));
+  const userId = crypto.getRandomValues(new Uint8Array(16));
+
+  const credential = await navigator.credentials.create({
+    publicKey: {
+      challenge,
+      rp: { name: "Budweiser Motorsports Admin" },
+      user: { id: userId, name: "admin", displayName: "League Admin" },
+      pubKeyCredParams: [{ alg: -7, type: "public-key" }, { alg: -257, type: "public-key" }],
+      authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required" },
+      timeout: 60000,
+    },
+  });
+
+  if (!credential) throw new Error("No credential returned.");
+  localStorage.setItem(ADMIN_BIOMETRIC_CREDENTIAL_KEY, bufferToBase64(credential.rawId));
+  return true;
+}
+
+async function verifyAdminBiometric() {
+  const storedId = localStorage.getItem(ADMIN_BIOMETRIC_CREDENTIAL_KEY);
+  if (!storedId) throw new Error("No biometric credential registered on this device.");
+
+  const challenge = crypto.getRandomValues(new Uint8Array(32));
+  const assertion = await navigator.credentials.get({
+    publicKey: {
+      challenge,
+      allowCredentials: [{ id: base64ToBuffer(storedId), type: "public-key" }],
+      userVerification: "required",
+      timeout: 60000,
+    },
+  });
+
+  if (!assertion) throw new Error("Biometric verification failed.");
+  return true;
+}
+
+function AdminLoginPage({ drivers = [] }) {
+  const ADMIN_ACCESS_CODE = "BCLADMINPASSWORD2026";
+  const [driverNumber, setDriverNumber] = useState("");
+  const [code, setCode] = useState("");
+  const [error, setError] = useState("");
+  const [loggingIn, setLoggingIn] = useState(false);
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [hasBiometricCredential, setHasBiometricCredential] = useState(() => (typeof window !== "undefined" ? !!localStorage.getItem(ADMIN_BIOMETRIC_CREDENTIAL_KEY) : false));
+  const [biometricBusy, setBiometricBusy] = useState(false);
+  const [biometricError, setBiometricError] = useState("");
+  const [offerBiometricSetup, setOfferBiometricSetup] = useState(false);
+
+  const activeDrivers = useMemo(() => {
+    return dedupeDriversByNumber(drivers || [])
+      .filter((driver) => !driver.retired && !isInactivePlaceholderDriver(driver))
+      .sort((a, b) => Number(a.number || 9999) - Number(b.number || 9999));
+  }, [drivers]);
 
   useEffect(() => {
-    if (typeof window === "undefined") return undefined;
-    const handleResize = () => setAdminViewportWidth(window.innerWidth);
-    handleResize();
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    isBiometricAvailable().then(setBiometricAvailable);
   }, []);
 
-  const isAdminMobile = adminViewportWidth < 760;
-  const workspaceOpen = quickAddDriverOpen || publicRelationsOpen || hrDepartmentOpen || raceOperationsOpen || financeDepartmentOpen || settingsOpen || adminMessagesOpen || arcaOperationsOpen;
-  function closeWorkspace() {
-    setQuickAddDriverOpen(false);
-    setPublicRelationsOpen(false);
-    setHrDepartmentOpen(false);
-    setRaceOperationsOpen(false);
-    setFinanceDepartmentOpen(false);
-    setSettingsOpen(false);
-    setAdminMessagesOpen(false);
-    setArcaOperationsOpen(false);
+  function completeLogin(session = {}) {
+    sessionStorage.setItem("bcl-admin-auth", "true");
+    sessionStorage.setItem("bcl-admin-auth-time", new Date().toISOString());
+    sessionStorage.setItem("bcl-admin-session", JSON.stringify({
+      mode: session.mode || "master",
+      userId: session.userId || null,
+      driverId: session.driverId || null,
+      driverNumber: session.driverNumber || null,
+      driverName: session.driverName || "League Admin",
+      permissions: session.permissions || ["*"],
+      loggedInAt: new Date().toISOString(),
+    }));
+    localStorage.removeItem("bcl-admin-auth");
+    localStorage.removeItem("bcl-admin-auth-time");
+    window.location.pathname = "/admin";
   }
-  const adminUnreadCount = adminUnreadMessages.length;
 
-  const accessDrivers = (visibleDrivers || drivers || []).filter((driver) => driver?.number && !isInactivePlaceholderDriver?.(driver));
-  const selectedAccessDriver = accessDrivers.find((driver) => String(driver.number) === String(selectedAccessDriverNumber)) || accessDrivers[0] || null;
-  const selectedAccessCodeRow = selectedAccessDriver
-    ? (driverAccessCodes || []).find((row) => String(row.driver_number) === String(selectedAccessDriver.number) && row.active !== false)
-    : null;
-  const selectedAccessCode = selectedAccessCodeRow?.code || "";
-  const accessCodeModalDriver = accessDrivers.find((driver) => String(driver.number) === String(accessCodeModalDriverNumber)) || null;
-  const accessCodeModalRow = accessCodeModalDriver
-    ? (driverAccessCodes || []).find((row) => String(row.driver_number) === String(accessCodeModalDriver.number) && row.active !== false)
-    : null;
-  const accessCodeModalCode = accessCodeModalRow?.code || "";
+
+
+  async function getAdminPermissionForUser(userId) {
+    const [rolesResult, overridesResult] = await Promise.all([
+      supabase.from("user_roles").select("role_id").eq("user_id", userId),
+      supabase
+        .from("user_permission_overrides")
+        .select("permission_key, allowed")
+        .eq("user_id", userId),
+    ]);
+
+    if (rolesResult.error) throw rolesResult.error;
+    if (overridesResult.error) throw overridesResult.error;
+
+    const overrideMap = new Map(
+      (overridesResult.data || []).map((row) => [String(row.permission_key), Boolean(row.allowed)])
+    );
+
+    // A direct deny always wins. A direct allow grants access even without a role.
+    if (overrideMap.get("admin.access") === false || overrideMap.get("*") === false) {
+      return { allowed: false, permissions: [] };
+    }
+
+    const roleIds = (rolesResult.data || []).map((row) => row.role_id).filter(Boolean);
+    let rolePermissionKeys = [];
+
+    if (roleIds.length) {
+      const { data, error } = await supabase
+        .from("role_permissions")
+        .select("permission_key")
+        .in("role_id", roleIds);
+      if (error) throw error;
+      rolePermissionKeys = (data || []).map((row) => String(row.permission_key));
+    }
+
+    const grantedOverrides = [...overrideMap.entries()]
+      .filter(([, allowed]) => allowed)
+      .map(([permissionKey]) => permissionKey);
+    const deniedOverrides = new Set(
+      [...overrideMap.entries()]
+        .filter(([, allowed]) => !allowed)
+        .map(([permissionKey]) => permissionKey)
+    );
+
+    const permissions = [...new Set([...rolePermissionKeys, ...grantedOverrides])]
+      .filter((permissionKey) => !deniedOverrides.has(permissionKey));
+
+    return {
+      allowed: permissions.includes("admin.access") || permissions.includes("*"),
+      permissions,
+    };
+  }
+
+  const handleLogin = async (event) => {
+    event.preventDefault();
+    setError("");
+    setLoggingIn(true);
+
+    try {
+      const enteredCode = String(code || "").trim();
+      const number = String(driverNumber || "").trim();
+
+      // Commissioner/master login remains available as an emergency login.
+      if (enteredCode === ADMIN_ACCESS_CODE) {
+        const alreadyDeclined = localStorage.getItem(ADMIN_BIOMETRIC_DECLINED_KEY);
+        if (biometricAvailable && !hasBiometricCredential && !alreadyDeclined) {
+          setOfferBiometricSetup(true);
+          return;
+        }
+        completeLogin({ mode: "master", permissions: ["*"] });
+        return;
+      }
+
+      if (!number || !enteredCode) {
+        setError("Select your driver and enter your normal driver password.");
+        return;
+      }
+
+      const { data: accessRows, error: accessError } = await supabase
+        .from("driver_access_codes")
+        .select("*")
+        .eq("driver_number", number)
+        .limit(10);
+
+      if (accessError) throw accessError;
+
+      const normalizedCode = enteredCode.toUpperCase();
+      const accessMatch = (accessRows || []).find((row) => {
+        const rowNumber = String(row.driver_number ?? row.car_number ?? "").trim();
+        const possibleCodes = [row.code, row.access_code, row.password, row.driver_password]
+          .map((value) => String(value ?? "").trim().toUpperCase())
+          .filter(Boolean);
+        return rowNumber === number && possibleCodes.includes(normalizedCode) && row.active !== false;
+      });
+
+      if (!accessMatch) {
+        setError("Invalid driver number or password.");
+        return;
+      }
+
+      const rosterDriver = activeDrivers.find((driver) => String(driver.number) === number) || null;
+      const { data: appUsers, error: usersError } = await supabase
+        .from("app_users")
+        .select("*");
+
+      if (usersError) throw usersError;
+
+      const normalizeName = (value) => String(value || "").trim().toLowerCase();
+      const rosterName = normalizeName(rosterDriver?.name || accessMatch.driver_name);
+      const appUser = (appUsers || []).find((user) => {
+        const driverIdMatches = rosterDriver?.id != null && String(user.driver_id || "") === String(rosterDriver.id);
+        const numberMatches = String(user.driver_number || user.car_number || "").trim() === number;
+        const nameMatches = rosterName && [user.display_name, user.username, user.name, user.login_name]
+          .some((value) => normalizeName(value) === rosterName);
+        return driverIdMatches || numberMatches || nameMatches;
+      });
+
+      if (!appUser) {
+        setError("Your driver login is valid, but no Permissions Center account is linked to this driver.");
+        return;
+      }
+
+      if (appUser.active === false) {
+        setError("This Permissions Center account is inactive.");
+        return;
+      }
+
+      const permissionResult = await getAdminPermissionForUser(appUser.id);
+      if (!permissionResult.allowed) {
+        setError("Your account does not have Admin Portal access.");
+        return;
+      }
+
+      completeLogin({
+        mode: "delegated",
+        userId: appUser.id,
+        driverId: rosterDriver?.id || appUser.driver_id || null,
+        driverNumber: number,
+        driverName: rosterDriver?.name || appUser.display_name || accessMatch.driver_name || `#${number}`,
+        permissions: permissionResult.permissions,
+      });
+    } catch (loginError) {
+      console.error("Admin login failed:", loginError);
+      setError(loginError?.message || "Could not verify Admin Portal access.");
+    } finally {
+      setLoggingIn(false);
+    }
+  };
+
+  async function handleEnableBiometric() {
+    setBiometricBusy(true);
+    setBiometricError("");
+    try {
+      await registerAdminBiometric();
+      setHasBiometricCredential(true);
+      completeLogin({ mode: "master", permissions: ["*"] });
+    } catch (err) {
+      console.error("Biometric setup failed:", err);
+      setBiometricError("Could not set up Face ID / Touch ID on this device.");
+      setBiometricBusy(false);
+    }
+  }
+
+  function handleSkipBiometric() {
+    localStorage.setItem(ADMIN_BIOMETRIC_DECLINED_KEY, "true");
+    completeLogin({ mode: "master", permissions: ["*"] });
+  }
+
+  async function handleBiometricUnlock() {
+    setBiometricBusy(true);
+    setBiometricError("");
+    try {
+      await verifyAdminBiometric();
+      completeLogin({ mode: "master", permissions: ["*"] });
+    } catch (err) {
+      console.error("Biometric unlock failed:", err);
+      setBiometricError("Face ID / Touch ID didn't match. Use your access code instead.");
+      setBiometricBusy(false);
+    }
+  }
+
+  const pageFont = "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif";
+  const appleInputStyle = {
+    width: "100%",
+    padding: "12px 14px",
+    borderRadius: 14,
+    border: "1px solid rgba(0,0,0,0.08)",
+    background: "rgba(255,255,255,0.72)",
+    fontSize: 15,
+    boxSizing: "border-box",
+    fontFamily: pageFont,
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.6)",
+  };
+
+  return (
+    <div style={{
+      minHeight: "100vh",
+      background: "radial-gradient(circle at top left, rgba(255,255,255,0.95), rgba(245,245,247,0.94) 36%, rgba(229,229,234,0.98) 100%)",
+      color: "#1d1d1f",
+      fontFamily: pageFont,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: 20,
+    }}>
+      <div style={{
+        maxWidth: 420,
+        width: "100%",
+        borderRadius: 30,
+        padding: "clamp(26px, 5vw, 36px)",
+        background: "linear-gradient(180deg, rgba(255,255,255,0.90), rgba(255,255,255,0.62))",
+        border: "1px solid rgba(255,255,255,0.78)",
+        boxShadow: "0 30px 90px rgba(0,0,0,0.14)",
+        backdropFilter: "blur(22px)",
+        WebkitBackdropFilter: "blur(22px)",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 22 }}>
+          <img src={logo} alt="League Logo" style={{ height: 48, borderRadius: 14 }} />
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(29,29,31,0.55)" }}>
+              Budweiser Motorsports
+            </div>
+            <div style={{ fontSize: 22, fontWeight: 1000, letterSpacing: "-0.02em" }}>Admin Portal Login</div>
+          </div>
+        </div>
+
+        {offerBiometricSetup ? (
+          <div>
+            <div style={{
+              width: 56,
+              height: 56,
+              borderRadius: 18,
+              background: "linear-gradient(135deg, #34c759 0%, #248a3d 100%)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 26,
+              marginBottom: 16,
+              boxShadow: "0 16px 34px rgba(52,199,89,0.28)",
+            }}>
+              🔓
+            </div>
+            <h3 style={{ margin: "0 0 6px", fontSize: 18, fontWeight: 1000 }}>Enable Face ID / Touch ID?</h3>
+            <p style={{ margin: "0 0 18px", fontSize: 13.5, color: "#6e6e73", fontWeight: 700, lineHeight: 1.5 }}>
+              Skip typing the access code next time — unlock the Admin Portal on this device with Face ID, Touch ID, or Windows Hello instead.
+            </p>
+            {biometricError && <div style={{ color: "#c62d24", fontWeight: 800, fontSize: 12.5, marginBottom: 12 }}>{biometricError}</div>}
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <button type="button" onClick={handleEnableBiometric} disabled={biometricBusy} style={{ flex: 1, border: 0, borderRadius: 999, padding: "13px 18px", background: "linear-gradient(135deg, #34c759 0%, #248a3d 100%)", color: "#ffffff", fontWeight: 1000, fontSize: 14, cursor: biometricBusy ? "default" : "pointer", opacity: biometricBusy ? 0.7 : 1, boxShadow: "0 14px 32px rgba(52,199,89,0.26)" }}>
+                {biometricBusy ? "Setting up..." : "Enable"}
+              </button>
+              <button type="button" onClick={handleSkipBiometric} disabled={biometricBusy} style={{ border: "1px solid rgba(0,0,0,0.10)", borderRadius: 999, padding: "13px 18px", background: "rgba(255,255,255,0.7)", color: "#1d1d1f", fontWeight: 900, fontSize: 14, cursor: "pointer" }}>
+                Not now
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            {biometricAvailable && hasBiometricCredential && (
+              <div style={{ marginBottom: 20 }}>
+                <button type="button" onClick={handleBiometricUnlock} disabled={biometricBusy} style={{ width: "100%", border: 0, borderRadius: 999, padding: "14px 18px", background: "linear-gradient(135deg, #34c759 0%, #248a3d 100%)", color: "#ffffff", fontWeight: 1000, fontSize: 15, cursor: biometricBusy ? "default" : "pointer", opacity: biometricBusy ? 0.7 : 1, boxShadow: "0 16px 34px rgba(52,199,89,0.28)" }}>
+                  {biometricBusy ? "Verifying..." : "🔓 Unlock with Face ID / Touch ID"}
+                </button>
+                {biometricError && <div style={{ color: "#c62d24", fontWeight: 800, fontSize: 12.5, marginTop: 10 }}>{biometricError}</div>}
+                <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "18px 0" }}>
+                  <div style={{ flex: 1, height: 1, background: "rgba(0,0,0,0.08)" }} />
+                  <div style={{ fontSize: 11, fontWeight: 900, color: "#86868b", letterSpacing: "0.06em" }}>OR</div>
+                  <div style={{ flex: 1, height: 1, background: "rgba(0,0,0,0.08)" }} />
+                </div>
+              </div>
+            )}
+
+            <form onSubmit={handleLogin}>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 900, color: "#6e6e73", marginBottom: 8, letterSpacing: "0.04em" }}>
+                DRIVER NUMBER
+              </label>
+              <select
+                value={driverNumber}
+                onChange={(event) => { setDriverNumber(event.target.value); setError(""); }}
+                style={{ ...appleInputStyle, marginBottom: 14 }}
+              >
+                <option value="">Commissioner login or select driver</option>
+                {activeDrivers.map((driver) => (
+                  <option key={driver.id || driver.number} value={String(driver.number)}>
+                    #{driver.number} {driver.name}
+                  </option>
+                ))}
+              </select>
+
+              <label style={{ display: "block", fontSize: 12, fontWeight: 900, color: "#6e6e73", marginBottom: 8, letterSpacing: "0.04em" }}>
+                DRIVER PASSWORD OR MASTER CODE
+              </label>
+              <input
+                type="password"
+                value={code}
+                onChange={(event) => { setCode(event.target.value); setError(""); }}
+                placeholder="Enter password"
+                style={appleInputStyle}
+                autoFocus
+              />
+              <div style={{ color: "#86868b", marginTop: 9, fontWeight: 700, fontSize: 11.5, lineHeight: 1.4 }}>
+                Delegated staff must use their driver number and normal driver password. Access is allowed only when Admin Portal Access is granted in Permissions Center.
+              </div>
+              {error && <div style={{ color: "#c62d24", marginTop: 10, fontWeight: 800, fontSize: 12.5 }}>{error}</div>}
+              <div style={{ display: "flex", gap: 10, marginTop: 18, flexWrap: "wrap" }}>
+                <button type="submit" disabled={loggingIn} style={{ flex: 1, border: 0, borderRadius: 999, padding: "13px 18px", background: "linear-gradient(135deg, #007aff 0%, #5856d6 100%)", color: "#ffffff", fontWeight: 1000, fontSize: 14, cursor: loggingIn ? "default" : "pointer", opacity: loggingIn ? 0.7 : 1, boxShadow: "0 14px 32px rgba(0,122,255,0.26)" }}>
+                  {loggingIn ? "Checking Access..." : "Unlock Admin Portal"}
+                </button>
+                <button type="button" onClick={() => (window.location.pathname = "/standings")} style={{ border: "1px solid rgba(0,0,0,0.10)", borderRadius: 999, padding: "13px 18px", background: "rgba(255,255,255,0.7)", color: "#1d1d1f", fontWeight: 900, fontSize: 14, cursor: "pointer" }}>
+                  Back to Standings
+                </button>
+              </div>
+            </form>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function DriverProfileSignInGate({ driverNumber }) {
+  const pageFont = "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif";
+  return (
+    <div style={{
+      minHeight: "100vh",
+      background: "radial-gradient(circle at top left, rgba(255,255,255,0.95), rgba(245,245,247,0.94) 36%, rgba(229,229,234,0.98) 100%)",
+      color: "#1d1d1f",
+      fontFamily: pageFont,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: 20,
+    }}>
+      <div style={{
+        maxWidth: 400,
+        width: "100%",
+        borderRadius: 30,
+        padding: "clamp(26px, 5vw, 36px)",
+        background: "linear-gradient(180deg, rgba(255,255,255,0.90), rgba(255,255,255,0.62))",
+        border: "1px solid rgba(255,255,255,0.78)",
+        boxShadow: "0 30px 90px rgba(0,0,0,0.14)",
+        backdropFilter: "blur(22px)",
+        WebkitBackdropFilter: "blur(22px)",
+        textAlign: "center",
+      }}>
+        <div style={{
+          width: 56,
+          height: 56,
+          borderRadius: "50%",
+          background: "#f5f5f7",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 26,
+          border: "1px solid #e8e8ed",
+          margin: "0 auto 18px",
+        }}>
+          🔒
+        </div>
+        <h1 style={{ margin: "0 0 8px", fontSize: 22, fontWeight: 1000, letterSpacing: "-0.02em" }}>Sign In Required</h1>
+        <p style={{ margin: "0 0 24px", fontSize: 14, color: "#6e6e73", fontWeight: 700, lineHeight: 1.5 }}>
+          {`Driver profiles are only visible to their owner. Sign in as #${driverNumber} to view this page.`}
+        </p>
+        <button
+          type="button"
+          onClick={() => (window.location.href = `/standings?login=1&redirect=${encodeURIComponent(`/driver/${driverNumber}`)}`)}
+          style={{
+            width: "100%",
+            border: 0,
+            borderRadius: 999,
+            padding: "13px 18px",
+            background: "linear-gradient(135deg, #007aff 0%, #5856d6 100%)",
+            color: "#ffffff",
+            fontWeight: 1000,
+            fontSize: 14,
+            cursor: "pointer",
+            boxShadow: "0 14px 32px rgba(0,122,255,0.26)",
+            marginBottom: 10,
+          }}
+        >
+          Sign In
+        </button>
+        <button
+          type="button"
+          onClick={() => (window.location.href = "/standings")}
+          style={{
+            width: "100%",
+            border: "1px solid rgba(0,0,0,0.10)",
+            borderRadius: 999,
+            padding: "13px 18px",
+            background: "rgba(255,255,255,0.7)",
+            color: "#1d1d1f",
+            fontWeight: 900,
+            fontSize: 14,
+            cursor: "pointer",
+          }}
+        >
+          Back to Standings
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function renderTeamBadge(teamName, size = 44) {
+  const brand = getTeamBranding(teamName);
+  const logoSrc = teamLogos[teamName];
+  if (logoSrc) {
+    return (
+      <div style={{ width: size, height: size, minWidth: size, borderRadius: "50%", overflow: "hidden", border: "2px solid rgba(255,255,255,0.15)", boxShadow: "0 6px 16px rgba(0,0,0,0.25)", background: "#111" }}>
+        <img src={logoSrc} alt={teamName} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+      </div>
+    );
+  }
+  return (
+    <div style={{ width: size, height: size, minWidth: size, borderRadius: "50%", background: `linear-gradient(135deg, ${brand.accent} 0%, ${brand.dark} 100%)`, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, color: "white", border: "2px solid rgba(255,255,255,0.15)", boxShadow: "0 6px 16px rgba(0,0,0,0.25)", fontSize: size * 0.28 }}>
+      {brand.logo}
+    </div>
+  );
+}
+
+async function syncCruiserNumberAndNumberOwnership() {
+  try {
+    // Best-effort Supabase sync. If a table/column does not exist in your project, this will fail safely and the app will keep running.
+    await supabase
+      .from("number_pool")
+      .upsert({ number: "54", team: "19XI", owner_team: "19XI", status: "owned", available: false, updated_at: new Date().toISOString() }, { onConflict: "number" });
+  } catch (error) {
+    console.warn("Could not sync No. 54 ownership to 19XI. Check number_pool columns/RLS if needed.", error);
+  }
+}
+
+
+
+function LeaderboardOverlay({ drivers, preview = false, seasonName = "" }) {
+  const cleanDrivers = dedupeDriversByNumber(drivers);
+  const sorted = [...cleanDrivers].sort((a, b) => b.points - a.points || b.wins - a.wins || b.top3 - a.top3 || a.name.localeCompare(b.name));
+  return (
+    <div style={{ minHeight: "100vh", background: preview ? "#111" : "transparent", color: "white", padding: 20, boxSizing: "border-box", fontFamily: "Arial, sans-serif" }}>
+      <div style={{ maxWidth: 1000, background: "rgba(10,10,10,0.84)", border: "2px solid #d4af37", borderRadius: 16, overflow: "hidden" }}>
+        <div style={{ padding: "14px 18px", background: "#0f1218", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", fontSize: 28, fontWeight: 800 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}><img src={logo} alt="League Logo" style={{ height: 42 }} />Driver Standings</div>
+          <div style={{ fontSize: 14, opacity: 0.78 }}>{seasonName}</div>
+        </div>
+        <table style={tableStyle}><thead><tr><th style={thStyle}>Pos</th><th style={thStyle}>#</th><th style={thStyle}>Driver</th><th style={thStyle}>Team</th><th style={thStyle}>Mfr</th><th style={thStyle}>Points</th><th style={thStyle}>Wins</th><th style={thStyle}>Top 3</th><th style={thStyle}>Top 5</th></tr></thead>
+          <tbody>{sorted.map((d, i) => <tr key={d.id}><td style={tdStyle}>{i+1}</td><td style={{...tdStyle, display: "flex", alignItems: "center", justifyContent: "center"}}><div style={{width: 32, height: 32, borderRadius: "50%", background: "#404854", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 12, color: "#fff", border: "2px solid #b8a059"}}>{d.number}</div></td><td style={tdStyle}>{d.name}</td><td style={tdStyle}>{getTeamFullName(d.team)}</td><td style={tdStyle}>{d.manufacturer || "—"}</td><td style={tdStyle}>{d.points}</td><td style={tdStyle}>{d.wins}</td><td style={tdStyle}>{d.top3}</td><td style={tdStyle}>{d.top5}</td></tr>)}</tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+function TeamOverlay({ teams, preview = false, seasonName = "" }) {
+  return (
+    <div style={{ minHeight: "100vh", background: preview ? "#111" : "transparent", color: "white", padding: 20, boxSizing: "border-box", fontFamily: "Arial, sans-serif" }}>
+      <div style={{ maxWidth: 900, background: "rgba(10,10,10,0.84)", border: "2px solid #d4af37", borderRadius: 16, overflow: "hidden" }}>
+        <div style={{ padding: "14px 18px", background: "#0f1218", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", fontSize: 28, fontWeight: 800 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}><img src={logo} alt="League Logo" style={{ height: 42 }} />Team Standings</div>
+          <div style={{ fontSize: 14, opacity: 0.78 }}>{seasonName}</div>
+        </div>
+        <table style={tableStyle}><thead><tr><th style={thStyle}>Pos</th><th style={thStyle}>Team</th><th style={thStyle}>Points</th><th style={thStyle}>Wins</th><th style={thStyle}>Top 3</th><th style={thStyle}>Top 5</th></tr></thead>
+          <tbody>{teams.map((t, i) => <tr key={t.team} onClick={() => (window.location.href = `/team/${t.team}`)} style={{ cursor: "pointer" }}><td style={tdStyle}>{i+1}</td><td style={tdStyle}>{getTeamFullName(t.team)}</td><td style={tdStyle}>{t.points}</td><td style={tdStyle}>{t.wins}</td><td style={tdStyle}>{t.top3}</td><td style={tdStyle}>{t.top5}</td></tr>)}</tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function AppUpdateBanner({ page = "all" }) {
+  const [banner, setBanner] = useState(null);
 
   useEffect(() => {
-    if (!accessDrivers.length) {
-      if (selectedAccessDriverNumber) setSelectedAccessDriverNumber("");
+    let isMounted = true;
+
+    async function loadBanner() {
+      const { data, error } = await supabase
+        .from("app_update_banners")
+        .select("*")
+        .in("page", ["all", page])
+        .eq("active", true)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!isMounted) return;
+      if (!error) setBanner(data || null);
+    }
+
+    loadBanner();
+    return () => {
+      isMounted = false;
+    };
+  }, [page]);
+
+  if (!banner) return null;
+
+  return (
+    <div
+      style={{
+        background: "linear-gradient(90deg, #d4af37 0%, #facc15 45%, #f59e0b 100%)",
+        color: "#111",
+        border: "1px solid rgba(255,255,255,0.18)",
+        borderRadius: 16,
+        padding: "14px 20px",
+        marginBottom: 20,
+        fontWeight: 900,
+        fontSize: 14,
+        boxShadow: "0 10px 30px rgba(212,175,55,0.25)",
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        lineHeight: 1.35,
+      }}
+    >
+      <span style={{ fontSize: 18 }}>🚨</span>
+      <span>{banner.message}</span>
+    </div>
+  );
+}
+
+
+const defaultTickerItems = [
+  { category: "TEAM UPDATE", message: "Current team roster cleaned up for the active season" },
+  { category: "TRANSACTION", message: "BigDiehl21 signs with ME Racing and moves to the No. 39 Chevrolet" },
+  { category: "TRANSACTION", message: "BayouX Motorsports updates KnightTrain41 to the No. 41 Ford" },
+  { category: "TEAM UPDATE", message: "CaJunThrottle28 moves to the No. 48 Chevrolet for BXM" },
+  { category: "RESULTS", message: "Michigan weekend complete — Pocono Raceway is up next" },
+  { category: "APP UPDATE", message: "Driver password reset support, interview sync improvements, and Race Control groundwork added" },
+];
+
+function LeagueTicker({ page = "standings", fallbackItems = defaultTickerItems }) {
+  const [items, setItems] = useState([]);
+  const [loadError, setLoadError] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadTicker() {
+      const nowIso = new Date().toISOString();
+      const { data, error } = await supabase
+        .from("ticker_messages")
+        .select("*")
+        .eq("active", true)
+        .in("page", ["all", page])
+        .or(`expires_at.is.null,expires_at.gt.${nowIso}`)
+        .order("pinned", { ascending: false })
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: false });
+
+      if (!isMounted) return;
+
+      if (error) {
+        console.error("Could not load ticker messages:", error);
+        setLoadError(true);
+        setItems(fallbackItems || []);
+        return;
+      }
+
+      setLoadError(false);
+      setItems(data?.length ? data : (fallbackItems || []));
+    }
+
+    loadTicker();
+    const interval = setInterval(loadTicker, 30000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [page, fallbackItems]);
+
+  const cleanItems = (items || [])
+    .map((item) => ({
+      category: String(item.category || item.type || "NEWS").trim().toUpperCase(),
+      message: String(item.message || "").trim(),
+      pinned: Boolean(item.pinned),
+    }))
+    .filter((item) => item.message);
+
+  if (!cleanItems.length) return null;
+
+  const tickerText = cleanItems
+    .map((item) => `${item.pinned ? "📌 " : ""}${item.category}: ${item.message}`)
+    .join("   •   ");
+
+  const displayItems = cleanItems.length ? cleanItems : [];
+
+  return (
+    <div
+      style={{
+        background: "linear-gradient(180deg, rgba(255,255,255,0.90), rgba(255,255,255,0.70))",
+        border: "1px solid rgba(255,255,255,0.8)",
+        borderRadius: 18,
+        overflow: "hidden",
+        marginBottom: 18,
+        boxShadow: "0 14px 34px rgba(15,23,42,0.08)",
+        backdropFilter: "blur(16px)",
+        WebkitBackdropFilter: "blur(16px)",
+      }}
+    >
+      <div style={{ overflow: "hidden", position: "relative", display: "flex", alignItems: "center", minHeight: 46 }}>
+        <div
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 26,
+            paddingLeft: "100%",
+            whiteSpace: "nowrap",
+            animation: "bcl-ticker-scroll 55s linear infinite",
+          }}
+        >
+          {displayItems.map((item, i) => (
+            <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 9 }}>
+              {item.pinned && <span>📌</span>}
+              <span style={{ background: "rgba(0,122,255,0.10)", color: "#0057d9", borderRadius: 999, padding: "4px 10px", fontSize: 11, fontWeight: 950, letterSpacing: "0.02em" }}>{item.category}</span>
+              <span style={{ color: "#1d1d1f", fontWeight: 700, fontSize: 14 }}>{item.message}</span>
+            </span>
+          ))}
+          {loadError && <span style={{ color: "#c62d24", fontWeight: 800, fontSize: 12 }}>USING FALLBACK TICKER — CHECK SUPABASE TICKER_MESSAGES TABLE</span>}
+        </div>
+      </div>
+      <style>
+        {`
+          @keyframes bcl-ticker-scroll {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-100%); }
+          }
+        `}
+      </style>
+    </div>
+  );
+}
+
+
+function MemorialDayPage({ drivers = [] }) {
+  const [tributes, setTributes] = useState([]);
+  const [form, setForm] = useState({
+    driver_id: "",
+    honoree_name: "",
+    relationship: "",
+    branch: "",
+    accomplishments: "",
+    story: "",
+  });
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
+  const activeDrivers = useMemo(() => {
+    return dedupeDriversByNumber(drivers || [])
+      .filter((driver) => !driver.retired && !isInactivePlaceholderDriver(driver))
+      .sort((a, b) => Number(a.number || 9999) - Number(b.number || 9999));
+  }, [drivers]);
+
+  async function loadTributes() {
+    const { data, error } = await supabase
+      .from("memorial_day_tributes")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Could not load memorial tributes:", error);
+      try {
+        setTributes(JSON.parse(localStorage.getItem("bclMemorialDayTributes") || "[]"));
+      } catch {
+        setTributes([]);
+      }
       return;
     }
-    const stillExists = accessDrivers.some((driver) => String(driver.number) === String(selectedAccessDriverNumber));
-    if (!selectedAccessDriverNumber || !stillExists) {
-      setSelectedAccessDriverNumber(String(accessDrivers[0].number));
-    }
-  }, [accessDrivers.map((driver) => String(driver.number)).join("|"), selectedAccessDriverNumber]);
 
-  function getAdminMessageRecipientLabel(message) {
+    setTributes(data || []);
+  }
+
+  useEffect(() => {
+    loadTributes();
+  }, []);
+  function updateField(field, value) {
+    setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  async function submitTribute(event) {
+    event.preventDefault();
+    setMessage("");
+    setError("");
+
+    const driver = activeDrivers.find((item) => String(item.id) === String(form.driver_id));
+
+    if (!driver) {
+      setError("Select your driver before submitting.");
+      return;
+    }
+
+    if (!form.honoree_name.trim() || !form.story.trim()) {
+      setError("Please add who you are driving for and a short story.");
+      return;
+    }
+
+    const payload = {
+      driver_id: String(driver.id),
+      driver_name: driver.name || "",
+      driver_number: String(driver.number || ""),
+      team: getTeamFullName(driver.team || "Independent"),
+      manufacturer: driver.manufacturer || "",
+      honoree_name: form.honoree_name.trim(),
+      relationship: form.relationship.trim(),
+      branch: form.branch.trim(),
+      accomplishments: form.accomplishments.trim(),
+      story: form.story.trim(),
+      status: "approved",
+      created_at: new Date().toISOString(),
+    };
+
+    const { error: insertError } = await supabase.from("memorial_day_tributes").insert([payload]);
+
+    if (insertError) {
+      console.error("Could not save memorial tribute:", insertError);
+      try {
+        const saved = JSON.parse(localStorage.getItem("bclMemorialDayTributes") || "[]");
+        localStorage.setItem("bclMemorialDayTributes", JSON.stringify([{ ...payload, id: `local-${Date.now()}` }, ...saved]));
+        setMessage("Tribute saved on this browser. Check Supabase table/RLS to make it visible everywhere.");
+      } catch {
+        setError("Could not save tribute. Check the memorial_day_tributes table and RLS policies.");
+        return;
+      }
+    } else {
+      setMessage("Memorial Day tribute submitted.");
+    }
+
+    setForm({
+      driver_id: "",
+      honoree_name: "",
+      relationship: "",
+      branch: "",
+      accomplishments: "",
+      story: "",
+    });
+
+    await loadTributes();
+  }
+
+  return (
+    <div style={{ ...appShellStyle, background: "radial-gradient(circle at top left, rgba(30,64,175,0.32), transparent 34%), radial-gradient(circle at top right, rgba(185,28,28,0.28), transparent 32%), #07111f" }}>
+      <div style={{ ...pageContainerStyle, maxWidth: 1180 }}>
+        <div style={{ ...sectionCardStyle, border: "1px solid rgba(255,255,255,0.16)", background: "linear-gradient(135deg, rgba(127,29,29,0.82), rgba(15,23,42,0.96), rgba(30,64,175,0.78))" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 900, letterSpacing: 2, color: "#facc15" }}>BUDWEISER CUP LEAGUE</div>
+              <h1 style={{ margin: "8px 0", fontSize: 42, lineHeight: 1 }}>🇺🇸 Memorial Day Tribute Wall</h1>
+              <p style={{ margin: 0, opacity: 0.86, maxWidth: 760 }}>
+                Drivers can share who they are driving for and honor their service, sacrifice, and accomplishments.
+              </p>
+            </div>
+            <button type="button" onClick={() => (window.location.pathname = "/standings")} style={secondaryButtonStyle}>Back to Standings</button>
+          </div>
+        </div>
+
+        <form onSubmit={submitTribute} style={sectionCardStyle}>
+          <h2 style={{ marginTop: 0 }}>Submit Driver Tribute</h2>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14 }}>
+            <div>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>DRIVER</label>
+              <select value={form.driver_id} onChange={(event) => updateField("driver_id", event.target.value)} style={inputStyle}>
+                <option value="">Choose driver</option>
+                {activeDrivers.map((driver) => (
+                  <option key={driver.id} value={driver.id}>#{driver.number} {driver.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>WHO ARE YOU DRIVING FOR?</label>
+              <input value={form.honoree_name} onChange={(event) => updateField("honoree_name", event.target.value)} placeholder="Name of honoree" style={inputStyle} />
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>RELATIONSHIP</label>
+              <input value={form.relationship} onChange={(event) => updateField("relationship", event.target.value)} placeholder="Father, grandfather, friend, etc." style={inputStyle} />
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>BRANCH / SERVICE</label>
+              <input value={form.branch} onChange={(event) => updateField("branch", event.target.value)} placeholder="Army, Navy, Marines, Air Force, etc." style={inputStyle} />
+            </div>
+          </div>
+
+          <div style={{ marginTop: 14 }}>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>ACCOMPLISHMENTS</label>
+            <input value={form.accomplishments} onChange={(event) => updateField("accomplishments", event.target.value)} placeholder="Service awards, deployments, family legacy, community impact..." style={inputStyle} />
+          </div>
+
+          <div style={{ marginTop: 14 }}>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>SHORT STORY</label>
+            <textarea value={form.story} onChange={(event) => updateField("story", event.target.value)} rows={5} placeholder="Tell the story of who you are honoring." style={{ ...inputStyle, resize: "vertical" }} />
+          </div>
+
+          {message && <div style={{ color: "#4ade80", marginTop: 12, fontWeight: 900 }}>{message}</div>}
+          {error && <div style={{ color: "#f87171", marginTop: 12, fontWeight: 900 }}>{error}</div>}
+
+          <div style={{ marginTop: 16 }}>
+            <button type="submit" style={primaryButtonStyle}>Submit Tribute</button>
+          </div>
+        </form>
+
+        <div style={sectionCardStyle}>
+          <h2 style={{ marginTop: 0 }}>Tribute Wall</h2>
+          {tributes.length === 0 ? (
+            <div style={{ opacity: 0.72 }}>No tributes submitted yet.</div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 14 }}>
+              {tributes.map((tribute) => (
+                <div key={tribute.id || `${tribute.driver_name}-${tribute.honoree_name}`} style={{ background: "#0f1319", border: "1px solid #334155", borderRadius: 16, padding: 16 }}>
+                  <div style={{ color: "#facc15", fontWeight: 900 }}>#{tribute.driver_number} {tribute.driver_name}</div>
+                  <h3 style={{ margin: "8px 0" }}>Driving for {tribute.honoree_name}</h3>
+                  <div style={{ opacity: 0.75, fontSize: 13 }}>{tribute.relationship || "Honoree"} {tribute.branch ? `• ${tribute.branch}` : ""}</div>
+                  {tribute.accomplishments && <p style={{ fontWeight: 800 }}>{tribute.accomplishments}</p>}
+                  <p style={{ lineHeight: 1.45 }}>{tribute.story}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+const PAINT_SCHEME_WEEKLY_DRIVER_PAYOUT = 10000;
+const PAINT_SCHEME_SEASON_DRIVER_PAYOUT_CAP = 250000;
+
+function getPaintSchemePayout(position) {
+  const pos = Number(position);
+  if (pos >= 1 && pos <= 40) return { team: 0, driver: PAINT_SCHEME_WEEKLY_DRIVER_PAYOUT };
+  return { team: 0, driver: 0 };
+}
+
+function getNextFridayMidnightDeadline(date = new Date()) {
+  const easternParts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const values = Object.fromEntries(easternParts.map((part) => [part.type, part.value]));
+  const currentUtc = new Date(`${values.year}-${values.month}-${values.day}T${values.hour}:${values.minute}:${values.second}-04:00`);
+  const dayIndex = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 }[values.weekday] ?? 0;
+  let daysUntilFriday = (5 - dayIndex + 7) % 7;
+  const passedFridayMidnight = dayIndex === 5 && (Number(values.hour) > 0 || Number(values.minute) > 0 || Number(values.second) > 0);
+  if (passedFridayMidnight) daysUntilFriday = 7;
+  const deadline = new Date(currentUtc);
+  deadline.setUTCDate(deadline.getUTCDate() + daysUntilFriday);
+  deadline.setUTCHours(4, 0, 0, 0); // Friday 12:00 AM Eastern during the season.
+  return deadline;
+}
+
+function getPaintUploadUpdatedAt(upload) {
+  return upload.updated_at || upload.modified_at || upload.uploaded_at || upload.created_at || upload.inserted_at || null;
+}
+
+function isPaintUploadEligibleForPayout(upload, deadline = getNextFridayMidnightDeadline()) {
+  const updatedAt = getPaintUploadUpdatedAt(upload);
+  if (!updatedAt) return false;
+  return new Date(updatedAt).getTime() <= new Date(deadline).getTime();
+}
+
+function getPaintSchemeSeasonPaidByDriver(payouts = []) {
+  const paidByDriver = new Map();
+  (payouts || []).forEach((payout) => {
+    (payout.rows || []).forEach((row) => {
+      const driverKey = String(row.driverId || row.driverNumber || row.driverName || "Unknown Driver");
+      paidByDriver.set(driverKey, (paidByDriver.get(driverKey) || 0) + Number(row.driverPayout || 0));
+    });
+  });
+  return paidByDriver;
+}
+
+function applyPaintSchemeDriverSeasonCaps(
+  rows = [],
+  seasonCap = PAINT_SCHEME_SEASON_DRIVER_PAYOUT_CAP,
+  seasonPaidByDriver = new Map()
+) {
+  const weeklyPaidByDriver = new Map();
+  return rows.map((row) => {
+    const driverKey = String(row.driverId || row.driverNumber || row.driverName || "Unknown Driver");
+    const alreadyPaidThisWeek = weeklyPaidByDriver.get(driverKey) || 0;
+    const alreadyPaidThisSeason = seasonPaidByDriver.get(driverKey) || 0;
+    const seasonRemaining = Math.max(0, seasonCap - alreadyPaidThisSeason - alreadyPaidThisWeek);
+    const originalDriverPayout = Number(row.driverPayout || 0);
+    const cappedDriverPayout = Math.min(originalDriverPayout, seasonRemaining);
+    weeklyPaidByDriver.set(driverKey, alreadyPaidThisWeek + cappedDriverPayout);
+    return {
+      ...row,
+      teamPayout: 0,
+      originalTeamPayout: 0,
+      teamWeeklyCapApplied: false,
+      teamSeasonCapApplied: false,
+      teamCapApplied: false,
+      teamSeasonPaidBeforeAward: 0,
+      originalDriverPayout,
+      driverPayout: cappedDriverPayout,
+      driverSeasonCapApplied: cappedDriverPayout < originalDriverPayout,
+      driverSeasonPaidBeforeAward: alreadyPaidThisSeason,
+    };
+  });
+}
+
+function buildPaintSchemePayoutRows(rankedUploads = [], drivers = [], deadline = getNextFridayMidnightDeadline(), seasonPayouts = []) {
+  const rows = rankedUploads
+    .filter((upload) => isPaintUploadEligibleForPayout(upload, deadline))
+    .slice(0, 40)
+    .map((upload, index) => {
+      const rank = index + 1;
+      const payout = getPaintSchemePayout(rank);
+      const matchedDriver = (drivers || []).find((driver) =>
+        String(driver.id) === String(upload.driver_id) ||
+        String(driver.number) === String(upload.driver_number || upload.car_number || upload.number) ||
+        String(driver.name || '').trim().toLowerCase() === String(upload.driver_name || upload.uploader_name || '').trim().toLowerCase()
+      );
+      return {
+        rank,
+        uploadId: upload.id,
+        driverId: matchedDriver?.id || upload.driver_id || null,
+        driverNumber: matchedDriver?.number || upload.driver_number || upload.car_number || upload.number || '',
+        driverName: matchedDriver?.name || upload.driver_name || upload.uploader_name || 'Unknown Driver',
+        team: matchedDriver?.team || upload.team || upload.team_key || 'Independent',
+        votes: Number(upload.voteCount || 0),
+        imageUrl: upload.image_url || upload.file_url || '',
+        updatedAt: getPaintUploadUpdatedAt(upload),
+        deadline: deadline.toISOString(),
+        teamPayout: payout.team,
+        driverPayout: payout.driver,
+      };
+    });
+  return applyPaintSchemeDriverSeasonCaps(rows, PAINT_SCHEME_SEASON_DRIVER_PAYOUT_CAP, getPaintSchemeSeasonPaidByDriver(seasonPayouts));
+}
+
+function getEasternDateTimePartsForPaintWinner(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+
+  return {
+    dateKey: `${values.year}-${values.month}-${values.day}`,
+    weekday: values.weekday,
+    hour: Number(values.hour || 0),
+    minute: Number(values.minute || 0),
+  };
+}
+
+function isPaintWinnerSpotlightWindow(date = new Date()) {
+  const eastern = getEasternDateTimePartsForPaintWinner(date);
+  const minutes = (Number(eastern.hour) || 0) * 60 + (Number(eastern.minute) || 0);
+
+  // New BCL weekly timeline:
+  // Paint voting winner gets the spotlight after voting closes Wednesday at 11:59 PM ET.
+  // That spotlight stays up until race start Saturday at 9:30 PM ET.
+  if (eastern.weekday === "Wed") return minutes >= (23 * 60 + 59);
+  if (eastern.weekday === "Thu" || eastern.weekday === "Fri") return true;
+  if (eastern.weekday === "Sat") return minutes < (21 * 60 + 30);
+  return false;
+}
+
+function shouldShowPreviousPaintWinner(date = new Date()) {
+  return isPaintWinnerSpotlightWindow(date);
+}
+
+function shouldShowPreviousRaceWinnerSpotlight(date = new Date()) {
+  // Race winner owns the main spotlight from race start Saturday night
+  // until the next paint scheme winner is revealed Wednesday night.
+  return !isPaintWinnerSpotlightWindow(date);
+}
+
+function getPaintWinnerRaceForCurrentWeek(tracks = [], date = new Date()) {
+  // Paint Scheme voting is for the upcoming race week.
+  // Example: after Pocono, the Wednesday paint winner should be Bristol,
+  // not Pocono. This keeps the spotlight tied to the next race on the schedule.
+  return getUpcomingRaceByDate(tracks) || null;
+}
+
+function getPreviousCompletedRaceForPaintWinner(tracks = [], date = new Date()) {
+  const easternNow = getEasternDateTimePartsForPaintWinner(date);
+
+  const sorted = [...(tracks || [])]
+    .filter((track) => track?.date)
+    .sort((a, b) => new Date(`${a.date}T12:00:00`) - new Date(`${b.date}T12:00:00`));
+
+  const completed = sorted.filter((track) => {
+    const raceDate = String(track.date || "").slice(0, 10);
+    if (!raceDate) return false;
+    if (easternNow.dateKey > raceDate) return true;
+    if (easternNow.dateKey < raceDate) return false;
+    return easternNow.hour >= 22;
+  });
+
+  return completed[completed.length - 1] || null;
+}
+
+function getPaintUploadRaceForStandings(upload) {
+  return upload?.race_id || upload?.race_week || upload?.race_name || "";
+}
+
+function isPaintImageUploadForStandings(upload) {
+  const url = upload?.image_url || upload?.file_url || "";
+  const fileType = String(upload?.file_type || "").toLowerCase();
+  return fileType.startsWith("image/") || url.match(/\.(jpg|jpeg|png|gif|webp)(\?|$)/i);
+}
+
+function PaintSchemeWinnerStandingsCard({ tracks = [], drivers = [] }) {
+  const [winners, setWinners] = useState([]);
+  const [raceName, setRaceName] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  const spotlightRace = useMemo(() => getPaintWinnerRaceForCurrentWeek(tracks), [JSON.stringify((tracks || []).map((track) => ({ name: track?.name, date: track?.date }))) ]);
+  const spotlightRaceName = spotlightRace?.name || "";
+  const driversKeyForPaintWinner = useMemo(() => JSON.stringify((drivers || []).map((driver) => ({ id: driver?.id, number: driver?.number, name: driver?.name, team: driver?.team }))), [drivers]);
+  const showWinnerWindow = shouldShowPreviousPaintWinner();
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadWinner() {
+      if (!showWinnerWindow) {
+        if (isMounted) {
+          setWinners([]);
+          setRaceName("");
+          setLoading(false);
+        }
+        return;
+      }
+
+      if (!spotlightRaceName) {
+        if (isMounted) {
+          setWinners([]);
+          setRaceName("");
+          setLoading(false);
+        }
+        return;
+      }
+
+      const [{ data: uploadData, error: uploadError }, { data: voteData, error: voteError }] = await Promise.all([
+        supabase.from("car_uploads").select("*").order("uploaded_at", { ascending: false }),
+        supabase.from("paint_scheme_votes").select("*").order("created_at", { ascending: false }),
+      ]);
+
+      if (uploadError || voteError) {
+        console.error("Could not load upcoming paint scheme winner:", uploadError || voteError);
+        if (isMounted) {
+          setWinners([]);
+          setRaceName("");
+          setLoading(false);
+        }
+        return;
+      }
+
+      const raceUploads = (uploadData || [])
+        .filter((upload) => isPaintImageUploadForStandings(upload))
+        .filter((upload) => normalizeTrackName(getPaintUploadRaceForStandings(upload)) === normalizeTrackName(spotlightRaceName));
+
+      if (raceUploads.length === 0) {
+        if (isMounted) {
+          setWinners([]);
+          setRaceName(spotlightRaceName);
+          setLoading(false);
+        }
+        return;
+      }
+
+      const counts = new Map();
+      (voteData || []).forEach((vote) => {
+        const key = String(vote.upload_id || vote.voted_upload_id || vote.paint_scheme_id || vote.car_upload_id || "");
+        counts.set(key, (counts.get(key) || 0) + 1);
+      });
+
+      const sorted = [...raceUploads].sort((a, b) => {
+        const voteDiff = (counts.get(String(b.id)) || 0) - (counts.get(String(a.id)) || 0);
+        if (voteDiff !== 0) return voteDiff;
+        return new Date(b.uploaded_at || 0) - new Date(a.uploaded_at || 0);
+      });
+
+      const topVoteCount = counts.get(String(sorted[0]?.id)) || 0;
+
+      if (topVoteCount <= 0) {
+        if (isMounted) {
+          setWinners([]);
+          setRaceName(spotlightRaceName);
+          setLoading(false);
+        }
+        return;
+      }
+
+      const winningUploads = sorted.filter((upload) => (counts.get(String(upload.id)) || 0) === topVoteCount);
+      const enrichedWinners = winningUploads.map((winningUpload) => {
+        const driver = (drivers || []).find((item) => String(item.id) === String(winningUpload.driver_id));
+        return {
+          ...winningUpload,
+          voteCount: counts.get(String(winningUpload.id)) || 0,
+          driverLabel: driver ? `#${driver.number} ${driver.name}` : winningUpload.driver_name || winningUpload.uploader_name || "Unknown Driver",
+          teamLabel: driver?.team || winningUpload.team || winningUpload.team_key || "—",
+          imageUrl: winningUpload.image_url || winningUpload.file_url || "",
+        };
+      });
+
+      if (isMounted) {
+        setWinners(enrichedWinners);
+        setRaceName(spotlightRaceName);
+        setLoading(false);
+      }
+    }
+
+    loadWinner();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [spotlightRaceName, showWinnerWindow, driversKeyForPaintWinner]);
+
+  if (loading || winners.length === 0) return null;
+
+  return (
+    <div
+      style={{
+        background: "linear-gradient(135deg, rgba(212,175,55,0.18), rgba(15,23,42,0.96))",
+        border: "1px solid #d4af37",
+        borderRadius: 18,
+        padding: 16,
+        marginBottom: 20,
+        boxShadow: "0 12px 30px rgba(0,0,0,0.24)",
+        display: "grid",
+        gridTemplateColumns: winners.length > 1 ? "minmax(220px, 420px) 1fr" : "minmax(180px, 320px) 1fr",
+        gap: 18,
+        alignItems: "center",
+      }}
+    >
+      <div style={{ borderRadius: 14, overflow: "hidden", background: "#0f1319", border: "1px solid rgba(255,255,255,0.12)" }}>
+        <div style={{ display: "grid", gridTemplateColumns: winners.length > 1 ? "1fr 1fr" : "1fr", gap: winners.length > 1 ? 8 : 0 }}>
+          {winners.map((winner) => (
+            <img key={winner.id} src={winner.imageUrl} alt={winner.driverLabel} style={{ width: "100%", height: 190, objectFit: "cover", display: "block", borderRadius: winners.length > 1 ? 10 : 0 }} />
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <div style={{ color: "#d4af37", fontSize: 12, fontWeight: 900, letterSpacing: 1.6, textTransform: "uppercase" }}>
+          Upcoming Race Paint Winner
+        </div>
+        <div style={{ fontSize: 30, fontWeight: 900, marginTop: 6 }}>
+          🎨 Paint Scheme of the Week
+        </div>
+        <div style={{ fontSize: 20, fontWeight: 900, marginTop: 8 }}>
+          {winners.map((winner) => winner.driverLabel).join(" + ")}
+        </div>
+        <div style={{ opacity: 0.75, marginTop: 4 }}>
+          {raceName} • {winners.length > 1 ? "Tie winners" : winners[0]?.teamLabel} • {winners[0]?.voteCount || 0} votes
+        </div>
+        <div style={{ opacity: 0.62, fontSize: 12, marginTop: 10 }}>
+          Paint winner spotlight runs Wednesday 11:59 PM ET through Saturday 9:30 PM ET.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+function PreviousRaceWinnerStandingsCard() {
+  const [winner, setWinner] = useState(null);
+  const showRaceWinnerWindow = shouldShowPreviousRaceWinnerSpotlight();
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadWinner() {
+      const { data, error } = await supabase
+        .from("previous_race_winner")
+        .select("*")
+        .eq("id", 1)
+        .maybeSingle();
+
+      if (!isMounted) return;
+
+      if (error) {
+        console.error("Could not load previous race winner:", error);
+        setWinner(null);
+        return;
+      }
+
+      setWinner(data || null);
+    }
+
+    loadWinner();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  if (!showRaceWinnerWindow || !winner) return null;
+
+  const mediaUrl = winner.media_url || winner.mediaUrl || "";
+  const mediaType = winner.media_type || winner.mediaType || "";
+  const raceName = winner.race_name || winner.raceName || "Last Race";
+  const driverName = winner.driver_name || winner.name || "";
+  const driverNumber = winner.driver_number || winner.number || "";
+  const votePoints = winner.points || 0;
+
+  return (
+    <div
+      style={{
+        background: "linear-gradient(135deg, rgba(34,197,94,0.18), rgba(15,23,42,0.96))",
+        border: "1px solid #22c55e",
+        borderRadius: 18,
+        padding: 16,
+        marginBottom: 20,
+        boxShadow: "0 12px 30px rgba(0,0,0,0.24)",
+      }}
+    >
+      {mediaUrl && (
+        <div style={{ marginBottom: 14, borderRadius: 16, overflow: "hidden", border: "1px solid rgba(255,255,255,0.14)", background: "#0f1319" }}>
+          {mediaType === "video" ? (
+            <video controls src={mediaUrl} style={{ width: "100%", maxHeight: 420, display: "block", objectFit: "cover" }} />
+          ) : (
+            <img src={mediaUrl} alt={`${driverName} previous race winner`} style={{ width: "100%", maxHeight: 420, display: "block", objectFit: "cover" }} />
+          )}
+        </div>
+      )}
+
+      <div style={{ color: "#22c55e", fontSize: 12, fontWeight: 900, letterSpacing: 1.6, textTransform: "uppercase" }}>
+        Previous Race Winner
+      </div>
+      <div style={{ fontSize: 30, fontWeight: 900, marginTop: 6 }}>
+        🏁 {raceName}
+      </div>
+      <div style={{ fontSize: 22, fontWeight: 900, marginTop: 8 }}>
+        #{driverNumber} {driverName}
+      </div>
+      <div style={{ opacity: 0.75, marginTop: 4 }}>
+        {winner.team || "—"} • {winner.manufacturer || "—"} • {votePoints} points
+      </div>
+      {winner.note && <div style={{ marginTop: 10, lineHeight: 1.5, opacity: 0.82 }}>{winner.note}</div>}
+    </div>
+  );
+}
+
+
+function PreviousRaceWinnerAdminPanel({ drivers = [], raceHistory = [] }) {
+  const [form, setForm] = useState({ raceName: "", driverId: "", number: "", name: "", team: "", manufacturer: "", points: "", note: "", mediaUrl: "", mediaType: "" });
+  const [savingWinner, setSavingWinner] = useState(false);
+  const [winnerMessage, setWinnerMessage] = useState("");
+  const [winnerError, setWinnerError] = useState("");
+
+  const [winnerMediaUploading, setWinnerMediaUploading] = useState(false);
+  const winnerImageInputRef = useRef(null);
+  const winnerVideoInputRef = useRef(null);
+
+  async function uploadWinnerMedia(file, mediaType) {
+    if (!file) return;
+
+    const isImage = mediaType === "image";
+    const maxSize = isImage ? 15_000_000 : 200_000_000;
+    const allowedImageTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    const allowedVideoTypes = ["video/mp4", "video/quicktime", "video/webm", "video/x-msvideo"];
+    const allowedTypes = isImage ? allowedImageTypes : allowedVideoTypes;
+
+    if (!allowedTypes.includes(file.type)) {
+      alert(isImage
+        ? "Choose a JPG, PNG, WebP, or GIF image."
+        : "Choose an MP4, MOV, WebM, or AVI video.");
+      return;
+    }
+
+    if (file.size > maxSize) {
+      alert(isImage
+        ? "Winner pictures must be 15 MB or smaller."
+        : "Winner videos must be 200 MB or smaller.");
+      return;
+    }
+
+    setWinnerMediaUploading(true);
+    setWinnerError("");
+    setWinnerMessage("");
+
+    try {
+      const uploadData = new FormData();
+      uploadData.append("file", file);
+      uploadData.append("upload_preset", "car_uploads");
+      uploadData.append("folder", "previous-race-winners");
+
+      const resourceType = isImage ? "image" : "video";
+      const response = await fetch(
+        `https://api.cloudinary.com/v1_1/dpu05oykz/${resourceType}/upload`,
+        {
+          method: "POST",
+          body: uploadData,
+        }
+      );
+
+      const result = await response.json().catch(() => ({}));
+
+      if (!response.ok || !result?.secure_url) {
+        const cloudinaryMessage =
+          result?.error?.message ||
+          result?.message ||
+          `Cloudinary upload failed with status ${response.status}.`;
+        throw new Error(cloudinaryMessage);
+      }
+
+      setForm((current) => ({
+        ...current,
+        mediaUrl: result.secure_url,
+        mediaType,
+      }));
+      setWinnerMessage(`${isImage ? "Winner picture" : "Winner video"} uploaded. Press Save Winner to publish it.`);
+    } catch (error) {
+      console.error(`Previous race winner ${mediaType} upload failed:`, error);
+      const message = error?.message || "Unknown upload error.";
+      setWinnerError(`Media upload failed: ${message}`);
+      alert(`${isImage ? "Image" : "Video"} upload failed: ${message}`);
+    } finally {
+      setWinnerMediaUploading(false);
+      if (winnerImageInputRef.current) winnerImageInputRef.current.value = "";
+      if (winnerVideoInputRef.current) winnerVideoInputRef.current.value = "";
+    }
+  }
+
+  function openWinnerImageUploader() {
+    if (!winnerMediaUploading) winnerImageInputRef.current?.click();
+  }
+
+  function openWinnerVideoUploader() {
+    if (!winnerMediaUploading) winnerVideoInputRef.current?.click();
+  }
+
+
+  const latestRace = Array.isArray(raceHistory) && raceHistory.length > 0 ? raceHistory[raceHistory.length - 1] : null;
+  const latestWinner = latestRace?.results?.find((result) => Number(result.finishPos) === 1 || result.isWin) || null;
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadSavedWinner() {
+      const { data, error } = await supabase
+        .from("previous_race_winner")
+        .select("*")
+        .eq("id", 1)
+        .maybeSingle();
+
+      if (!isMounted) return;
+
+      if (error) {
+        console.error("Could not load saved previous race winner:", error);
+        setWinnerError("Could not load saved winner. Check previous_race_winner RLS select policy.");
+        return;
+      }
+
+      if (data) {
+        setForm({
+          raceName: data.race_name || "",
+          driverId: data.driver_id || "",
+          number: data.driver_number || "",
+          name: data.driver_name || "",
+          team: data.team || "",
+          manufacturer: data.manufacturer || "",
+          points: data.points || "",
+          note: data.note || "",
+          mediaUrl: data.media_url || "",
+          mediaType: data.media_type || "",
+        });
+      }
+    }
+
+    loadSavedWinner();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+
+  function updateField(field, value) {
+    setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function chooseDriver(driverId) {
+    const driver = (drivers || []).find((item) => String(item.id) === String(driverId));
+    if (!driver) {
+      updateField("driverId", driverId);
+      return;
+    }
+
+    setForm((current) => ({
+      ...current,
+      driverId,
+      number: driver.number || "",
+      name: driver.name || "",
+      team: driver.team || "",
+      manufacturer: driver.manufacturer || "",
+    }));
+  }
+
+  function autofillFromLatestRace() {
+    if (!latestRace || !latestWinner) {
+      alert("No race winner found in race history yet.");
+      return;
+    }
+
+    setForm({
+      raceName: latestRace.raceName || "",
+      driverId: latestWinner.driverId || "",
+      number: latestWinner.number || "",
+      name: latestWinner.name || "",
+      team: latestWinner.team || "",
+      manufacturer: latestWinner.manufacturer || "",
+      points: latestWinner.totalRacePoints ?? "",
+      note: form.note || "",
+      mediaUrl: form.mediaUrl || "",
+      mediaType: form.mediaType || "",
+    });
+  }
+
+  async function saveWinner() {
+    setWinnerMessage("");
+    setWinnerError("");
+
+    if (!form.raceName || !form.name || !form.number) {
+      alert("Add the race name, driver name, and number before saving.");
+      return;
+    }
+
+    const payload = {
+      id: 1,
+      race_name: form.raceName || "",
+      driver_id: form.driverId ? String(form.driverId) : null,
+      driver_number: String(form.number || ""),
+      driver_name: form.name || "",
+      team: form.team || "",
+      manufacturer: form.manufacturer || "",
+      points: Number(form.points || 0),
+      note: form.note || "",
+      media_url: form.mediaUrl || "",
+      media_type: form.mediaType || "",
+      active: true,
+      updated_at: new Date().toISOString(),
+    };
+
+    setSavingWinner(true);
+
+    const { error } = await supabase
+      .from("previous_race_winner")
+      .upsert(payload, { onConflict: "id" });
+
+    setSavingWinner(false);
+
+    if (error) {
+      console.error("Could not save previous race winner:", error);
+      setWinnerError("Could not save winner. Check previous_race_winner table and RLS upsert policy.");
+      alert("Could not save winner. Check previous_race_winner table and RLS policy.");
+      return;
+    }
+
+    setWinnerMessage("Previous race winner saved to /standings.");
+    alert("Previous race winner saved to /standings.");
+  }
+
+  async function clearWinner() {
+    if (!window.confirm("Clear the previous race winner from standings?")) return;
+
+    setWinnerMessage("");
+    setWinnerError("");
+
+    const { error } = await supabase
+      .from("previous_race_winner")
+      .delete()
+      .eq("id", 1);
+
+    if (error) {
+      console.error("Could not clear previous race winner:", error);
+      setWinnerError("Could not clear winner. Check previous_race_winner RLS delete policy.");
+      alert("Could not clear winner. Check previous_race_winner RLS delete policy.");
+      return;
+    }
+
+    setForm({ raceName: "", driverId: "", number: "", name: "", team: "", manufacturer: "", points: "", note: "", mediaUrl: "", mediaType: "" });
+    setWinnerMessage("Previous race winner cleared from /standings.");
+    alert("Previous race winner cleared.");
+  }
+
+  const isWinnerMobile = typeof window !== "undefined" && window.innerWidth < 760;
+
+  const winnerShellStyle = {
+    background: "#f5f5f7",
+    color: "#1d1d1f",
+    border: "1px solid #e5e5ea",
+    borderRadius: isWinnerMobile ? 24 : 34,
+    padding: isWinnerMobile ? 14 : 22,
+    boxShadow: "0 22px 60px rgba(0,0,0,0.08)",
+  };
+
+  const winnerHeroStyle = {
+    position: "relative",
+    overflow: "hidden",
+    minHeight: isWinnerMobile ? 360 : 430,
+    borderRadius: isWinnerMobile ? 22 : 32,
+    padding: isWinnerMobile ? 20 : 34,
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "space-between",
+    background: form.mediaUrl
+      ? "linear-gradient(180deg, rgba(0,0,0,0.20), rgba(0,0,0,0.76))"
+      : "radial-gradient(circle at top left, #ffffff 0%, #e8eefc 34%, #111827 100%)",
+    color: "#ffffff",
+    boxShadow: "0 24px 55px rgba(15,23,42,0.24)",
+  };
+
+  const appleInputStyle = {
+    ...inputStyle,
+    background: "#ffffff",
+    color: "#111827",
+    border: "1px solid #d1d5db",
+    borderRadius: 16,
+    minHeight: 46,
+  };
+
+  const appleLabelStyle = {
+    display: "block",
+    fontSize: 11,
+    fontWeight: 1000,
+    letterSpacing: 1.15,
+    textTransform: "uppercase",
+    color: "#6b7280",
+    marginBottom: 8,
+  };
+
+  const appleActionRowStyle = {
+    display: "flex",
+    gap: 10,
+    flexWrap: "wrap",
+    alignItems: "center",
+    marginTop: 18,
+  };
+
+  const appleFormCardStyle = {
+    background: "#ffffff",
+    border: "1px solid #e5e7eb",
+    borderRadius: isWinnerMobile ? 20 : 26,
+    padding: isWinnerMobile ? 14 : 18,
+    boxShadow: "0 12px 28px rgba(15,23,42,0.06)",
+  };
+
+  return (
+    <div style={winnerShellStyle}>
+      <div style={{ display: "grid", gridTemplateColumns: isWinnerMobile ? "1fr" : "1.05fr 0.95fr", gap: isWinnerMobile ? 16 : 22, alignItems: "stretch" }}>
+        <div style={winnerHeroStyle}>
+          {form.mediaUrl && (
+            form.mediaType === "video" ? (
+              <video src={form.mediaUrl} muted playsInline autoPlay loop style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", zIndex: 0 }} />
+            ) : (
+              <img src={form.mediaUrl} alt="Winner media preview" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", zIndex: 0 }} />
+            )
+          )}
+          <div style={{ position: "absolute", inset: 0, background: form.mediaUrl ? "linear-gradient(180deg, rgba(0,0,0,0.12), rgba(0,0,0,0.82))" : "linear-gradient(180deg, rgba(15,23,42,0.04), rgba(15,23,42,0.74))", zIndex: 1 }} />
+
+          <div style={{ position: "relative", zIndex: 2 }}>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 999, background: "rgba(255,255,255,0.18)", border: "1px solid rgba(255,255,255,0.22)", backdropFilter: "blur(16px)", fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase" }}>
+              🏁 Previous Race
+            </div>
+          </div>
+
+          <div style={{ position: "relative", zIndex: 2 }}>
+            <div style={{ fontSize: isWinnerMobile ? 15 : 17, fontWeight: 900, opacity: 0.86, letterSpacing: 1.2, textTransform: "uppercase" }}>{form.raceName || "Race Weekend"}</div>
+            <div style={{ marginTop: 8, fontSize: isWinnerMobile ? 44 : 64, lineHeight: 0.94, fontWeight: 1000, letterSpacing: isWinnerMobile ? -1.6 : -3.2 }}>
+              #{form.number || "--"}<br />{form.name || "Winner"}
+            </div>
+            <div style={{ marginTop: 18, display: "flex", flexWrap: "wrap", gap: 10 }}>
+              <span style={{ padding: "9px 12px", borderRadius: 999, background: "rgba(255,255,255,0.16)", backdropFilter: "blur(18px)", fontWeight: 900 }}>{form.team || "Team TBD"}</span>
+              <span style={{ padding: "9px 12px", borderRadius: 999, background: "rgba(255,255,255,0.16)", backdropFilter: "blur(18px)", fontWeight: 900 }}>{form.manufacturer || "Manufacturer TBD"}</span>
+              <span style={{ padding: "9px 12px", borderRadius: 999, background: "rgba(255,255,255,0.16)", backdropFilter: "blur(18px)", fontWeight: 900 }}>{form.points || "0"} pts</span>
+            </div>
+            {form.note && <div style={{ marginTop: 18, maxWidth: 620, fontSize: isWinnerMobile ? 14 : 16, lineHeight: 1.5, opacity: 0.9 }}>{form.note}</div>}
+          </div>
+        </div>
+
+        <div style={appleFormCardStyle}>
+          <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.5, textTransform: "uppercase", color: "#6b7280" }}>Race Weekend Recap</div>
+          <h2 style={{ margin: "5px 0 6px", fontSize: isWinnerMobile ? 28 : 38, lineHeight: 1.02, letterSpacing: -1.2 }}>Winner Spotlight</h2>
+          <div style={{ color: "#6b7280", fontWeight: 750, lineHeight: 1.45 }}>Create the Apple-style winner feature that feeds the standings page.</div>
+
+          <div style={appleActionRowStyle}>
+            <button type="button" onClick={autofillFromLatestRace} style={{ ...secondaryButtonStyle, background: "#f3f4f6", color: "#111827", border: "1px solid #e5e7eb", borderRadius: 999 }}>
+              Auto-Fill Latest Race
+            </button>
+            <button type="button" onClick={saveWinner} style={{ ...primaryButtonStyle, borderRadius: 999 }}>
+              {savingWinner ? "Saving..." : "Save Winner"}
+            </button>
+            <button type="button" onClick={clearWinner} style={{ ...dangerButtonStyle, borderRadius: 999 }}>
+              Clear
+            </button>
+          </div>
+
+          {winnerMessage && <div style={{ marginTop: 14, color: "#047857", background: "#ecfdf5", border: "1px solid #a7f3d0", borderRadius: 14, padding: 12, fontWeight: 900 }}>{winnerMessage}</div>}
+          {winnerError && <div style={{ marginTop: 14, color: "#b91c1c", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 14, padding: 12, fontWeight: 900 }}>{winnerError}</div>}
+
+          <div style={{ display: "grid", gridTemplateColumns: isWinnerMobile ? "1fr" : "repeat(2, minmax(0, 1fr))", gap: 12, marginTop: 18 }}>
+            <div style={{ gridColumn: isWinnerMobile ? "auto" : "span 2" }}>
+              <label style={appleLabelStyle}>Race Name</label>
+              <input value={form.raceName || ""} onChange={(event) => updateField("raceName", event.target.value)} placeholder="Las Vegas" style={appleInputStyle} />
+            </div>
+
+            <div style={{ gridColumn: isWinnerMobile ? "auto" : "span 2" }}>
+              <label style={appleLabelStyle}>Select Driver</label>
+              <select value={form.driverId || ""} onChange={(event) => chooseDriver(event.target.value)} style={appleInputStyle}>
+                <option value="">Manual / choose driver</option>
+                {(drivers || []).map((driver) => (
+                  <option key={driver.id} value={driver.id}>#{driver.number} {driver.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label style={appleLabelStyle}>Number</label>
+              <input value={form.number || ""} onChange={(event) => updateField("number", event.target.value)} placeholder="21" style={appleInputStyle} />
+            </div>
+            <div>
+              <label style={appleLabelStyle}>Points</label>
+              <input value={form.points || ""} onChange={(event) => updateField("points", event.target.value)} placeholder="55" style={appleInputStyle} />
+            </div>
+            <div style={{ gridColumn: isWinnerMobile ? "auto" : "span 2" }}>
+              <label style={appleLabelStyle}>Driver Name</label>
+              <input value={form.name || ""} onChange={(event) => updateField("name", event.target.value)} placeholder="Driver name" style={appleInputStyle} />
+            </div>
+            <div>
+              <label style={appleLabelStyle}>Team</label>
+              <input value={form.team || ""} onChange={(event) => updateField("team", event.target.value)} placeholder="Nine Line Motorsports" style={appleInputStyle} />
+            </div>
+            <div>
+              <label style={appleLabelStyle}>Manufacturer</label>
+              <input value={form.manufacturer || ""} onChange={(event) => updateField("manufacturer", event.target.value)} placeholder="Toyota" style={appleInputStyle} />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: isWinnerMobile ? "1fr" : "0.9fr 1.1fr", gap: 14, marginTop: 16 }}>
+        <div style={appleFormCardStyle}>
+          <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.3, textTransform: "uppercase", color: "#6b7280", marginBottom: 10 }}>Winner Media</div>
+          <input
+            ref={winnerImageInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            style={{ display: "none" }}
+            onChange={(event) => uploadWinnerMedia(event.target.files?.[0], "image")}
+          />
+          <input
+            ref={winnerVideoInputRef}
+            type="file"
+            accept="video/mp4,video/quicktime,video/webm,video/x-msvideo"
+            style={{ display: "none" }}
+            onChange={(event) => uploadWinnerMedia(event.target.files?.[0], "video")}
+          />
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <button type="button" disabled={winnerMediaUploading} onClick={openWinnerImageUploader} style={{ ...secondaryButtonStyle, background: "#f3f4f6", color: "#111827", border: "1px solid #e5e7eb", borderRadius: 999, opacity: winnerMediaUploading ? 0.6 : 1 }}>
+              {winnerMediaUploading ? "Uploading..." : "Upload Picture"}
+            </button>
+            <button type="button" disabled={winnerMediaUploading} onClick={openWinnerVideoUploader} style={{ ...secondaryButtonStyle, background: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: 999, opacity: winnerMediaUploading ? 0.6 : 1 }}>
+              {winnerMediaUploading ? "Uploading..." : "Upload Video"}
+            </button>
+            {form.mediaUrl && (
+              <button type="button" onClick={() => setForm((current) => ({ ...current, mediaUrl: "", mediaType: "" }))} style={{ ...dangerButtonStyle, borderRadius: 999 }}>
+                Remove
+              </button>
+            )}
+          </div>
+          <div style={{ marginTop: 12, color: "#6b7280", fontWeight: 750, lineHeight: 1.45 }}>Use a winner car photo, burnout shot, reveal graphic, or short hype video.</div>
+        </div>
+
+        <div style={appleFormCardStyle}>
+          <label style={appleLabelStyle}>Short Note Optional</label>
+          <textarea value={form.note || ""} onChange={(event) => updateField("note", event.target.value)} rows={isWinnerMobile ? 4 : 5} placeholder="Example: Controlled the closing run and delivered a statement win under the lights." style={{ ...appleInputStyle, resize: "vertical", width: "100%" }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+function AdminLeagueMessageComposer({ drivers = [], teams = [] }) {
+  const [form, setForm] = useState({
+    recipient_type: "league",
+    recipient_driver_number: "",
+    recipient_team: "",
+    recipient_manufacturer: "Toyota",
+    subject: "",
+    message: "",
+  });
+  const [status, setStatus] = useState("");
+  const [error, setError] = useState("");
+
+  const activeDrivers = useMemo(() => {
+    return dedupeDriversByNumber(drivers || [])
+      .filter((driver) => !driver.retired && !isInactivePlaceholderDriver(driver))
+      .sort((a, b) => Number(a.number || 9999) - Number(b.number || 9999));
+  }, [drivers]);
+
+  const activeTeams = useMemo(() => {
+    const teamSet = new Set();
+    (teams || []).forEach((team) => {
+      const key = team?.team || team;
+      if (key && key !== "Independent" && key !== "IND") teamSet.add(key);
+    });
+    activeDrivers.forEach((driver) => {
+      if (driver.team && driver.team !== "Independent" && driver.team !== "IND") teamSet.add(driver.team);
+    });
+    return Array.from(teamSet).sort((a, b) => getTeamFullName(a).localeCompare(getTeamFullName(b)));
+  }, [teams, activeDrivers]);
+
+  function updateField(field, value) {
+    setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  async function sendAdminMessage(event) {
+    event?.preventDefault?.();
+    setStatus("");
+    setError("");
+
+    const body = String(form.message || "").trim();
+    const subject = String(form.subject || "").trim();
+    const recipientType = String(form.recipient_type || "league");
+
+    if (!body) {
+      setError("Type a message before sending.");
+      return;
+    }
+
+    if (body.length > 1500) {
+      setError("Keep admin messages under 1,500 characters to save database space.");
+      return;
+    }
+
+    const basePayload = {
+      message_type: recipientType === "manufacturer" ? "manufacturer" : recipientType === "owners" ? "owner_notice" : "race_control",
+      sender_type: "admin",
+      sender_name: recipientType === "manufacturer" ? `${form.recipient_manufacturer} Manufacturer Office` : "Race Control / League Board",
+      subject: subject || null,
+      message: body,
+      is_read: false,
+      archived: false,
+      created_at: new Date().toISOString(),
+    };
+
+    let payload = { ...basePayload, recipient_type: recipientType };
+
+    if (recipientType === "driver") {
+      if (!form.recipient_driver_number) {
+        setError("Choose a driver.");
+        return;
+      }
+      const driver = activeDrivers.find((item) => String(item.number) === String(form.recipient_driver_number));
+      payload = {
+        ...payload,
+        recipient_driver_number: String(form.recipient_driver_number),
+        recipient_team: driver?.team || null,
+        recipient_manufacturer: driver?.manufacturer || null,
+      };
+    }
+
+    if (recipientType === "team") {
+      if (!form.recipient_team) {
+        setError("Choose a team.");
+        return;
+      }
+      payload = { ...payload, recipient_team: form.recipient_team };
+    }
+
+    if (recipientType === "manufacturer") {
+      if (!form.recipient_manufacturer) {
+        setError("Choose a manufacturer.");
+        return;
+      }
+      payload = { ...payload, recipient_manufacturer: form.recipient_manufacturer };
+    }
+
+    const { error: insertError } = await supabase.from("league_messages").insert([payload]);
+
+    if (insertError) {
+      console.error("Could not send admin message:", insertError);
+      setError("Could not send message. Check league_messages insert policy and columns.");
+      return;
+    }
+
+    setForm((current) => ({ ...current, subject: "", message: "" }));
+    setStatus("League Message Center notice sent.");
+  }
+
+  return (
+    <div style={{ ...sectionCardStyle, border: "1px solid #d4af37" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start", marginBottom: 16 }}>
+        <div>
+          <h2 style={{ margin: 0 }}>📢 League Message Center Sender</h2>
+          <div style={{ opacity: 0.72, fontSize: 13, marginTop: 6 }}>Send official messages from the Board, Race Control, owners group, teams, or manufacturers.</div>
+        </div>
+        <button type="button" onClick={() => (window.location.pathname = "/message-center")} style={secondaryButtonStyle}>Open Public Message Center</button>
+      </div>
+
+      <form onSubmit={sendAdminMessage}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, marginBottom: 12 }}>
+          <div>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.72, marginBottom: 8 }}>SEND TO</label>
+            <select value={form.recipient_type} onChange={(event) => updateField("recipient_type", event.target.value)} style={inputStyle}>
+              <option value="league">Entire League</option>
+              <option value="owners">Owners Only</option>
+              <option value="driver">Specific Driver</option>
+              <option value="team">Specific Team</option>
+              <option value="manufacturer">Manufacturer Group</option>
+            </select>
+          </div>
+
+          {form.recipient_type === "driver" && (
+            <div>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.72, marginBottom: 8 }}>DRIVER</label>
+              <select value={form.recipient_driver_number} onChange={(event) => updateField("recipient_driver_number", event.target.value)} style={inputStyle}>
+                <option value="">Choose driver</option>
+                {activeDrivers.map((driver) => (
+                  <option key={driver.id || driver.number} value={String(driver.number)}>#{driver.number} {driver.name} — {getTeamFullName(driver.team)} / {driver.manufacturer}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {form.recipient_type === "team" && (
+            <div>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.72, marginBottom: 8 }}>TEAM</label>
+              <select value={form.recipient_team} onChange={(event) => updateField("recipient_team", event.target.value)} style={inputStyle}>
+                <option value="">Choose team</option>
+                {activeTeams.map((team) => <option key={team} value={team}>{getTeamFullName(team)}</option>)}
+              </select>
+            </div>
+          )}
+
+          {form.recipient_type === "manufacturer" && (
+            <div>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.72, marginBottom: 8 }}>MANUFACTURER</label>
+              <select value={form.recipient_manufacturer} onChange={(event) => updateField("recipient_manufacturer", event.target.value)} style={inputStyle}>
+                <option value="Toyota">Toyota</option>
+                <option value="Ford">Ford</option>
+                <option value="Chevrolet">Chevrolet</option>
+              </select>
+            </div>
+          )}
+
+          <div>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.72, marginBottom: 8 }}>SUBJECT</label>
+            <input value={form.subject} onChange={(event) => updateField("subject", event.target.value)} placeholder="Penalty, meeting, race control notice..." style={inputStyle} maxLength={120} />
+          </div>
+        </div>
+
+        <textarea value={form.message} onChange={(event) => updateField("message", event.target.value)} placeholder="Type the official league message..." rows={5} style={{ ...inputStyle, resize: "vertical" }} maxLength={1500} />
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginTop: 12 }}>
+          <button type="submit" style={primaryButtonStyle}>Send League Message</button>
+          <div style={{ fontSize: 12, opacity: 0.65 }}>{form.message.length}/1500 characters</div>
+        </div>
+        {status && <div style={{ color: "#4ade80", marginTop: 12, fontWeight: 900 }}>{status}</div>}
+        {error && <div style={{ color: "#f87171", marginTop: 12, fontWeight: 900 }}>{error}</div>}
+      </form>
+    </div>
+  );
+}
+
+
+function AdminLeagueMessageDashboard({ drivers = [], teams = [] }) {
+  const [messages, setMessages] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [status, setStatus] = useState("");
+  const [filter, setFilter] = useState("all");
+  const [search, setSearch] = useState("");
+  const [selectedMessage, setSelectedMessage] = useState(null);
+
+  const activeDrivers = useMemo(() => {
+    return dedupeDriversByNumber(drivers || [])
+      .filter((driver) => !driver.retired && !isInactivePlaceholderDriver(driver))
+      .sort((a, b) => Number(a.number || 9999) - Number(b.number || 9999));
+  }, [drivers]);
+
+  function getRecipientLabel(message) {
     const type = String(message?.recipient_type || "").toLowerCase();
-    if (message?.recipient_driver_number) return `#${message.recipient_driver_number}`;
+    if (message?.recipient_driver_number) {
+      const driver = activeDrivers.find((item) => String(item.number) === String(message.recipient_driver_number));
+      return `#${message.recipient_driver_number}${driver?.name ? ` ${driver.name}` : ""}`;
+    }
     if (type === "team" || message?.recipient_team) return getTeamFullName(message.recipient_team || "Team");
     if (type === "manufacturer" || message?.recipient_manufacturer) return `${message.recipient_manufacturer || "Manufacturer"} Drivers`;
     if (type === "owners") return "Owners Only";
     if (type === "league") return "Entire League";
-    return message?.recipient_type || "League";
+    return message?.recipient_type || "Unknown";
   }
 
-  async function resetSingleDriverAccessCode(driver) {
-    if (!driver) return;
-    setHrAccessError("");
-    setHrAccessStatus(`Resetting access code for #${driver.number} ${driver.name}...`);
-    try {
-      await generateDriverAccessCode?.(driver);
-      await loadDriverAccessCodes?.();
-      setHrAccessStatus(`Access code reset for #${driver.number} ${driver.name}.`);
-    } catch (error) {
-      console.error("Could not reset driver access code:", error);
-      setHrAccessError("Could not reset that driver code. Check driver_access_codes permissions or try again.");
-      setHrAccessStatus("");
-    }
-  }
+  const filteredMessages = useMemo(() => {
+    const term = String(search || "").trim().toLowerCase();
+    return (messages || [])
+      .filter((message) => {
+        if (filter !== "all" && getMessageCategory(message) !== filter) return false;
+        if (!term) return true;
+        const haystack = [
+          message.subject,
+          message.message,
+          message.sender_name,
+          message.recipient_type,
+          message.recipient_driver_number,
+          message.recipient_team,
+          message.recipient_manufacturer,
+          getRecipientLabel(message),
+        ].join(" ").toLowerCase();
+        return haystack.includes(term);
+      });
+  }, [messages, filter, search, activeDrivers]);
 
-  async function resetAllDriverAccessCodes() {
-    const resetCandidates = (visibleDrivers || []).filter((driver) => driver?.number && !isInactivePlaceholderDriver?.(driver));
-    if (!resetCandidates.length) {
-      setHrAccessError("No active drivers found to reset.");
-      return;
-    }
-    const ok = window.confirm(`Reset contract access codes for ${resetCandidates.length} active drivers? This will replace their current codes.`);
-    if (!ok) return;
-    setHrAccessError("");
-    setHrAccessStatus(`Resetting ${resetCandidates.length} driver access codes...`);
-    try {
-      for (const driver of resetCandidates) {
-        await generateDriverAccessCode?.(driver);
-      }
-      await loadDriverAccessCodes?.();
-      setHrAccessStatus(`Reset complete. ${resetCandidates.length} driver access codes were regenerated.`);
-    } catch (error) {
-      console.error("Could not reset all driver access codes:", error);
-      setHrAccessError("Could not reset all driver codes. Some may have changed; refresh and verify the list.");
-      setHrAccessStatus("");
-    }
-  }
+  const summary = useMemo(() => {
+    const rows = messages || [];
+    return {
+      total: rows.length,
+      unread: rows.filter((message) => !message.is_read).length,
+      owners: rows.filter((message) => getMessageCategory(message) === "owners" || getMessageCategory(message) === "team").length,
+      drivers: rows.filter((message) => getMessageCategory(message) === "driver").length,
+      broadcasts: rows.filter((message) => ["league", "manufacturer"].includes(getMessageCategory(message))).length,
+    };
+  }, [messages]);
 
-  async function clearAllDriverAccessCodes() {
-    const activeCodeRows = (driverAccessCodes || []).filter((row) => row?.active !== false);
-    if (!activeCodeRows.length) {
-      setHrAccessError("There are no active driver codes to clear.");
-      return;
-    }
-    const ok = window.confirm(`Clear ${activeCodeRows.length} active driver access codes? Drivers will lose contract access until new codes are generated.`);
-    if (!ok) return;
-    setHrAccessError("");
-    setHrAccessStatus(`Clearing ${activeCodeRows.length} driver access codes...`);
-    try {
-      for (const row of activeCodeRows) {
-        const driver = (visibleDrivers || drivers || []).find((item) => String(item.number) === String(row.driver_number)) || { number: row.driver_number, name: row.driver_name || "Driver" };
-        await clearDriverAccessCode?.(driver);
-      }
-      await loadDriverAccessCodes?.();
-      setHrAccessStatus(`Clear complete. ${activeCodeRows.length} driver access codes were removed.`);
-    } catch (error) {
-      console.error("Could not clear all driver access codes:", error);
-      setHrAccessError("Could not clear all driver codes. Refresh and verify the list.");
-      setHrAccessStatus("");
-    }
-  }
-
-  async function loadAdminUnreadMessages() {
-    if (!supabase) return;
-    setAdminMessagesLoading(true);
-    setAdminMessagesError("");
-
-    const { data, error } = await supabase
+  async function loadAdminMessages() {
+    setLoading(true);
+    setError("");
+    const { data, error: loadError } = await supabase
       .from("league_messages")
       .select("*")
-      .eq("is_read", false)
-      .eq("archived", false)
       .order("created_at", { ascending: false })
-      .limit(75);
+      .limit(300);
 
-    if (error) {
-      console.error("Could not load admin unread messages:", error);
-      setAdminMessagesError("Could not load unread messages. Check league_messages select policy.");
-      setAdminUnreadMessages([]);
-      setAdminMessagesLoading(false);
+    if (loadError) {
+      console.error("Could not load admin message dashboard:", loadError);
+      setError("Could not load messages. Check league_messages select policy.");
+      setMessages([]);
+      setLoading(false);
       return;
     }
 
-    setAdminUnreadMessages(data || []);
-    setAdminMessagesLoading(false);
+    setMessages(filterLeagueMessagesForSession(data || [], currentDriverSession || driverSession || loggedInDriver || mobileSession || {}));
+    setLoading(false);
   }
 
-  async function loadOpenIssueCount() {
-    if (!supabase) return;
-    const { data, error } = await supabase
-      .from("issues")
-      .select("id")
-      .in("status", ["Submitted", "Reviewed", "Needs Work"]);
 
-    if (error) {
-      console.error("Could not load open issue count:", error);
-      return;
-    }
-    setOpenIssueCount((data || []).length);
-  }
+  async function updateAdminMessageReadStatus(messageId, isRead) {
+    if (!messageId) return;
+    setStatus("");
+    setError("");
 
-  async function markAdminMessageRead(messageId) {
-    if (!messageId || !supabase) return;
-    const { error } = await supabase
+    const { error: updateError } = await supabase
       .from("league_messages")
-      .update({ is_read: true })
+      .update({ is_read: Boolean(isRead) })
       .eq("id", messageId);
 
-    if (error) {
-      console.error("Could not mark admin message read:", error);
-      setAdminMessagesError("Could not mark message read. Check league_messages update policy.");
+    if (updateError) {
+      console.error("Could not update message read status:", updateError);
+      setError("Could not update message read status. Check league_messages update policy.");
       return;
     }
 
-    setAdminUnreadMessages((current) => current.filter((message) => message.id !== messageId));
+    setMessages((current) => current.map((message) => message.id === messageId ? { ...message, is_read: Boolean(isRead) } : message));
+    setSelectedMessage((current) => current?.id === messageId ? { ...current, is_read: Boolean(isRead) } : current);
+    setStatus(isRead ? "Message marked read." : "Message marked unread.");
   }
 
-  function openAdminMessages() {
-    closeWorkspace();
-    setAdminMessagesOpen(true);
-    setAdminComposerOpen(false);
-    loadAdminUnreadMessages();
-  }
-
-  async function loadFinanceDepartment() {
-    if (!supabase) return;
-    setFinanceLoading(true);
-    setFinanceError("");
-
-    const { data, error } = await supabase
-      .from("league_transactions")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(75);
-
-    if (error) {
-      setFinanceError("Could not load league transactions. Check league_transactions select policy.");
-      setFinanceTransactions([]);
-      setFinanceLoading(false);
+  async function markFilteredMessagesRead() {
+    const unreadIds = (filteredMessages || []).filter((message) => !message.is_read && !message.archived).map((message) => message.id).filter(Boolean);
+    if (!unreadIds.length) {
+      setStatus("No unread messages in the current filter.");
       return;
     }
 
-    setFinanceTransactions(data || []);
-    setFinanceLoading(false);
-  }
+    setStatus("");
+    setError("");
+    const { error: updateError } = await supabase
+      .from("league_messages")
+      .update({ is_read: true })
+      .in("id", unreadIds);
 
-  function openHrDepartment(section = "overview") {
-    closeWorkspace();
-    setHrDepartmentOpen(true);
-    setHrTab(section);
-    setAdminMenuOpen(false);
-    loadDriverAccessCodes?.();
-    loadFinanceContracts?.();
-  }
-
-  function openFinanceDepartment(section = "overview") {
-    closeWorkspace();
-    setFinanceDepartmentOpen(true);
-    setFinanceAction(section);
-    setAdminMenuOpen(false);
-    loadFinanceDepartment();
-    loadFinanceContracts();
-  }
-
-  function openRaceOperations(tab = "input") {
-    closeWorkspace();
-    setRaceOperationsOpen(true);
-    setRaceOperationsTab(tab);
-    setAdminMenuOpen(false);
-  }
-
-  function openArcaOperations(tab = "overview") {
-    closeWorkspace();
-    setArcaOperationsOpen(true);
-    setArcaOperationsTab(tab);
-    setAdminMenuOpen(false);
-  }
-
-  function openPublicRelations(tab = "overview") {
-    closeWorkspace();
-    setPublicRelationsOpen(true);
-    setPublicRelationsTab(tab);
-    setAdminMenuOpen(false);
-    if (typeof loadTickerMessages === "function") loadTickerMessages();
-  }
-
-  function openSettings() {
-    closeWorkspace();
-    setSettingsOpen(true);
-    setAdminMenuOpen(false);
-  }
-
-  function updateFinanceForm(key, value) {
-    setFinanceForm((prev) => ({ ...prev, [key]: value }));
-  }
-
-  function getDriverDisplayName(driverId) {
-    const driver = (visibleDrivers || drivers || []).find((d) => String(d.id) === String(driverId));
-    if (!driver) return "Selected Driver";
-    return `#${driver.number} ${driver.name}`;
-  }
-
-  function getDriverTeam(driverId) {
-    const driver = (visibleDrivers || drivers || []).find((d) => String(d.id) === String(driverId));
-    return driver?.team || financeForm.team || "League";
-  }
-
-  async function loadFinanceContracts() {
-    if (!supabase) return;
-    setFinanceContractsLoading(true);
-    const { data, error } = await supabase
-      .from("contract_offers")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(100);
-    if (error) {
-      console.warn("Finance contracts load skipped", error);
-      setFinanceContracts([]);
-      setFinanceContractsLoading(false);
-      return;
-    }
-    setFinanceContracts(data || []);
-    setFinanceContractsLoading(false);
-  }
-
-  async function recordFinanceTransaction(kind, multiplier = 1) {
-    setFinanceActionStatus("");
-    setFinanceActionError("");
-
-    const amount = Math.abs(Number(financeForm.amount || (financeAction === "paint" ? 10000 : 0)));
-    if (!amount || amount <= 0) {
-      setFinanceActionError("Enter a valid dollar amount.");
+    if (updateError) {
+      console.error("Could not mark filtered messages read:", updateError);
+      setError("Could not mark filtered messages read. Check league_messages update policy.");
       return;
     }
 
-    const driverLabel = financeForm.driverId ? getDriverDisplayName(financeForm.driverId) : "League";
-    const teamLabel = financeForm.driverId ? getDriverTeam(financeForm.driverId) : financeForm.team || "League";
-    const signedAmount = amount * multiplier;
-    const payload = {
-      type: kind,
-      category: kind,
-      amount: signedAmount,
-      driver_id: financeForm.driverId || null,
-      driver_name: driverLabel,
-      team: teamLabel,
-      note: financeForm.note || financeForm.reason || kind,
-      reason: financeForm.reason || kind,
-      created_at: new Date().toISOString(),
-    };
-
-    if (!supabase) {
-      setFinanceActionError("Supabase is not connected, so the transaction could not be saved.");
-      return;
-    }
-
-    let { error } = await supabase.from("league_transactions").insert([payload]);
-    if (error) {
-      const fallbackPayload = {
-        type: kind,
-        amount: signedAmount,
-        team: teamLabel,
-        note: `${driverLabel} — ${financeForm.note || financeForm.reason || kind}`,
-        created_at: new Date().toISOString(),
-      };
-      const fallback = await supabase.from("league_transactions").insert([fallbackPayload]);
-      error = fallback.error;
-    }
-
-    if (error) {
-      console.error("Finance transaction save error", error);
-      setFinanceActionError("Could not save finance transaction. Check league_transactions columns/RLS policy.");
-      return;
-    }
-
-    setFinanceActionStatus(`${kind} saved for ${driverLabel}.`);
-    setFinanceForm({ driverId: "", team: "", amount: "", reason: "", note: "" });
-    loadFinanceDepartment();
+    setMessages((current) => current.map((message) => unreadIds.includes(message.id) ? { ...message, is_read: true } : message));
+    setStatus("Filtered unread messages marked read.");
   }
 
-  const getFinanceAmount = (item) => Number(item?.amount ?? item?.value ?? item?.transaction_amount ?? item?.payout ?? 0) || 0;
-  const getFinanceType = (item) => String(item?.type || item?.category || item?.transaction_type || item?.reason || "Transaction");
-  const getFinanceTeam = (item) => item?.team || item?.team_abbr || item?.team_name || item?.from_team || item?.to_team || "League";
-  const getFinanceNote = (item) => item?.note || item?.notes || item?.description || item?.memo || item?.reason || "League finance activity";
-  const getFinanceDate = (item) => item?.created_at || item?.submitted_at || item?.paid_at || item?.updated_at;
+  async function archiveMessage(messageId) {
+    if (!messageId) return;
+    if (!window.confirm("Archive this message from the admin dashboard?")) return;
+    setStatus("");
+    setError("");
+
+    const { error: archiveError } = await supabase
+      .from("league_messages")
+      .update({ archived: true })
+      .eq("id", messageId);
+
+    if (archiveError) {
+      console.error("Could not archive message:", archiveError);
+      setError("Could not archive message. Check league_messages update policy.");
+      return;
+    }
+
+    setMessages((current) => current.map((message) => message.id === messageId ? { ...message, archived: true } : message));
+    setStatus("Message archived.");
+  }
 
   useEffect(() => {
-    loadAdminUnreadMessages();
-    loadFinanceDepartment();
-    loadOpenIssueCount();
-    const interval = setInterval(() => {
-      loadAdminUnreadMessages();
-      loadOpenIssueCount();
-    }, 60000);
+    loadAdminMessages();
+    const interval = setInterval(loadAdminMessages, 30000);
     return () => clearInterval(interval);
-  }, [supabase]);
-
-  const adminMenuItems = [
-    { label: "Admin Home", action: goAdmin, primary: true },
-    { label: "Human Resources", action: () => openHrDepartment("overview"), primary: true },
-    { label: "Race Operations", action: () => openRaceOperations("input"), primary: true },
-    { label: "ARCA Series", action: () => openArcaOperations("overview"), primary: true },
-    { label: "Finance Department", action: () => openFinanceDepartment("overview"), primary: true },
-    { label: "Public Relations", action: () => openPublicRelations("overview"), primary: true },
-    { label: "Permissions Center", action: () => (window.location.pathname = "/admin/permissions"), primary: true },
-    { label: "Community Events", action: () => (window.location.pathname = "/community-events"), primary: true },
-    { label: "Issues", action: () => (window.location.pathname = "/admin/issues") },
-    { label: "Settings", action: openSettings, primary: true },
-    { label: "Streams", action: () => (window.location.pathname = "/streams") },
-    { label: "Logout", action: logoutAdmin, danger: true },
-  ];
-
-  const adminQuickTiles = [
-    {
-      title: "Human Resources",
-      icon: "👥",
-      value: `${(pendingDrivers || []).length + (openAppealCount || 0)}`,
-      meta: "Items to review",
-      text: "Join requests, driver assignments, owner access, appeals, and start & park.",
-      action: () => openHrDepartment("overview"),
-      gradient: "linear-gradient(135deg, #34c759 0%, #30d158 45%, #0a7f3f 100%)",
-    },
-    {
-      title: "Race Operations",
-      icon: "🏁",
-      value: selectedRace ? "Active" : "Ready",
-      meta: selectedRace || `${raceHistory.length} races posted`,
-      text: "Race input, track management, drafts, archive, and offense log.",
-      action: () => openRaceOperations("input"),
-      gradient: "linear-gradient(135deg, #007aff 0%, #5ac8fa 45%, #5856d6 100%)",
-    },
-    {
-      title: "Finance",
-      icon: "💳",
-      value: money((financeTransactions || []).reduce((sum, item) => sum + (Number(item?.amount ?? item?.value ?? item?.transaction_amount ?? item?.payout ?? 0) || 0), 0)),
-      meta: `${(financeTransactions || []).length} ledger items`,
-      text: "Treasury, payouts, fines, paint payments, interviews, and ledgers.",
-      action: () => openFinanceDepartment("overview"),
-      gradient: "linear-gradient(135deg, #8e8e93 0%, #6366f1 48%, #007aff 100%)",
-    },
-    {
-      title: "Public Relations",
-      icon: "📰",
-      value: `${(openStoryCount || 0)}`,
-      meta: "Open stories",
-      text: "Ticker, winner spotlight, featured media, Ones to Watch, and interviews.",
-      action: () => openPublicRelations("overview"),
-      gradient: "linear-gradient(135deg, #ff9500 0%, #ffcc00 48%, #ff3b30 100%)",
-    },
-    {
-      title: "Issues",
-      icon: "🐛",
-      value: `${openIssueCount || 0}`,
-      meta: "Needing attention",
-      text: "Driver and owner submitted bug reports and feedback awaiting review.",
-      action: () => (window.location.pathname = "/admin/issues"),
-      gradient: "linear-gradient(135deg, #ff3b30 0%, #ff6482 48%, #b91c1c 100%)",
-    },
-    {
-      title: "Messages",
-      icon: "💬",
-      value: `${adminUnreadCount || 0}`,
-      meta: "Unread messages",
-      text: "Inbox, league broadcasts, owner notices, and admin conversations.",
-      action: openAdminMessages,
-      gradient: "linear-gradient(135deg, #30d158 0%, #32ade6 45%, #007aff 100%)",
-    },
-    {
-      title: "Community Events",
-      icon: "🏆",
-      value: "Host",
-      meta: "Tournaments & fun runs",
-      text: "Create and manage member-hosted events with separate rosters, schedules, results, and standings.",
-      action: () => (window.location.pathname = "/community-events"),
-      gradient: "linear-gradient(135deg, #d4af37 0%, #ff9500 48%, #b45309 100%)",
-    },
-    {
-      title: "Permissions Center",
-      icon: "🛡️",
-      value: "IAM",
-      meta: "Roles and access",
-      text: "Assign executive, staff, owner, driver, series, and team permissions.",
-      action: () => (window.location.pathname = "/admin/permissions"),
-      gradient: "linear-gradient(135deg, #5856d6 0%, #007aff 48%, #32ade6 100%)",
-    },
-    {
-      title: "Settings",
-      icon: "⚙️",
-      value: "Data",
-      meta: activeSeason?.name || "League settings",
-      text: "Season Manager, backups, exports, imports, and restore controls.",
-      action: openSettings,
-      gradient: "linear-gradient(135deg, #af52de 0%, #ff2d55 52%, #5856d6 100%)",
-    },
-  ];
-
-
-  const financeTeamWallets = (teamStandings || [])
-    .filter((team) => team.team && team.team !== "Independent" && team.team !== "IND")
-    .map((team) => ({
-      team: team.team,
-      name: getTeamFullName(team.team),
-      balance: Number(team.budget ?? team.balance ?? team.cash ?? team.money ?? 0) || 0,
-      drivers: Number(team.drivers ?? team.driverCount ?? team.count ?? 0) || 0,
-    }));
-
-  const financeTransactionTotal = financeTransactions.reduce((sum, item) => sum + getFinanceAmount(item), 0);
-  const financeRecentPayouts = financeTransactions.filter((item) => /payout|paint|bonus|race|salary|contract|fine|penalty/i.test(getFinanceType(item) + " " + getFinanceNote(item))).slice(0, 8);
-
-  const seriesJoinRequests = (() => {
-    hrLocalRefresh;
-    try {
-      if (typeof window === "undefined") return [];
-      return JSON.parse(localStorage.getItem("series_join_requests") || "[]");
-    } catch {
-      return [];
-    }
-  })();
-
-  const pendingSeriesJoinRequests = seriesJoinRequests.filter((request) => {
-    return String(request?.status || "pending").toLowerCase() === "pending";
-  });
-
-  const pendingHrRequestCount = (pendingDrivers || []).length + pendingSeriesJoinRequests.length;
-
-  function updateSeriesJoinRequestStatus(requestId, status) {
-    try {
-      const next = seriesJoinRequests.map((request) =>
-        String(request.id) === String(requestId)
-          ? { ...request, status, reviewedAt: new Date().toISOString() }
-          : request
-      );
-      localStorage.setItem("series_join_requests", JSON.stringify(next));
-      setHrLocalRefresh((value) => value + 1);
-    } catch (error) {
-      console.error("Could not update series join request", error);
-      alert("Could not update the league join request. Check local storage and try again.");
-    }
-  }
-
-  const applePageStyle = {
-    ...appShellStyle,
-    background: "#f7f7f5",
-    color: "#111827",
-    minHeight: "100vh",
-  };
-
-  const appleContainerStyle = {
-    ...pageContainerStyle,
-    color: "#111827",
-  };
-
-  const appleCardStyle = {
-    ...sectionCardStyle,
-    background: "#f7f7f5",
-    color: "#111827",
-    border: 0,
-    borderBottom: "2px solid #111216",
-    borderRadius: 0,
-    boxShadow: "none",
-  };
-
-  const adminNavButtonStyle = {
-    border: "1px solid rgba(17,24,39,0.10)",
-    background: "rgba(255,255,255,0.72)",
-    color: "#111827",
-    borderRadius: 999,
-    padding: "10px 14px",
-    fontWeight: 800,
-    cursor: "pointer",
-    boxShadow: "0 8px 22px rgba(15,23,42,0.08)",
-  };
-
-  const adminPrimaryNavButtonStyle = {
-    ...adminNavButtonStyle,
-    background: "#111827",
-    color: "white",
-    border: "1px solid #111827",
-  };
-
-  const adminReadableCardStyle = {
-    background: "#ffffff",
-    color: "#111827",
-    border: "1px solid #d1d5db",
-    borderRadius: 20,
-    boxShadow: "0 10px 30px rgba(15, 23, 42, 0.10)",
-    padding: 20,
-    marginBottom: 20,
-  };
-
-  const adminReadableSubCardStyle = {
-    background: "#f8fafc",
-    color: "#111827",
-    border: "1px solid #dbe3ee",
-    borderRadius: 16,
-    padding: 16,
-  };
-
-  const adminInputStyle = {
-    width: "100%",
-    boxSizing: "border-box",
-    background: "#ffffff",
-    color: "#111827",
-    border: "1px solid #9ca3af",
-    borderRadius: 12,
-    padding: "11px 12px",
-    fontSize: 15,
-    fontWeight: 700,
-    outline: "none",
-  };
-
-  const adminTableStyle = {
-    width: "100%",
-    borderCollapse: "separate",
-    borderSpacing: 0,
-    background: "#ffffff",
-    color: "#111827",
-    border: "1px solid #d1d5db",
-    borderRadius: 14,
-    overflow: "hidden",
-  };
-
-  const adminThStyle = {
-    background: "#111827",
-    color: "#ffffff",
-    padding: "12px 10px",
-    textAlign: "left",
-    fontSize: 12,
-    fontWeight: 900,
-    letterSpacing: 0.5,
-    textTransform: "uppercase",
-    borderBottom: "1px solid #d1d5db",
-    whiteSpace: "nowrap",
-  };
-
-  const adminTdStyle = {
-    color: "#111827",
-    padding: "12px 10px",
-    borderBottom: "1px solid #e5e7eb",
-    background: "#ffffff",
-    fontSize: 14,
-    fontWeight: 650,
-    verticalAlign: "top",
-  };
-
-  const adminPrimaryButtonStyle = {
-    background: "#111827",
-    color: "#ffffff",
-    border: "1px solid #111827",
-    borderRadius: 12,
-    padding: "11px 14px",
-    fontWeight: 900,
-    cursor: "pointer",
-  };
-
-  const adminSecondaryButtonStyle = {
-    background: "#ffffff",
-    color: "#111827",
-    border: "1px solid #9ca3af",
-    borderRadius: 12,
-    padding: "11px 14px",
-    fontWeight: 900,
-    cursor: "pointer",
-  };
-
-  const adminDangerButtonStyle = {
-    background: "#b42318",
-    color: "#ffffff",
-    border: "1px solid #b42318",
-    borderRadius: 12,
-    padding: "11px 14px",
-    fontWeight: 900,
-    cursor: "pointer",
-  };
-
-  const adminMutedTextStyle = { color: "#4b5563" };
-
-  const adminMenuButtonStyle = {
-    width: 50,
-    height: 50,
-    borderRadius: 16,
-    border: "1px solid rgba(17,24,39,0.10)",
-    background: "rgba(255,255,255,0.92)",
-    boxShadow: "0 10px 28px rgba(15,23,42,0.12)",
-    display: "flex",
-    flexDirection: "column",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 5,
-    cursor: "pointer",
-    position: "relative",
-    zIndex: 100002,
-  };
-
-  const adminMenuLineStyle = {
-    width: 22,
-    height: 2,
-    borderRadius: 999,
-    background: "#111827",
-  };
-
-  const adminMenuBackdropStyle = {
-    position: "fixed",
-    inset: 0,
-    zIndex: 2147483000,
-    background: "rgba(15,23,42,0.22)",
-    backdropFilter: "blur(10px)",
-    WebkitBackdropFilter: "blur(10px)",
-  };
-
-  const adminMenuPanelStyle = {
-    position: "fixed",
-    right: 24,
-    top: 96,
-    zIndex: 2147483001,
-    width: "min(360px, calc(100vw - 48px))",
-    background: "rgba(255,255,255,0.98)",
-    border: "1px solid rgba(17,24,39,0.10)",
-    borderRadius: 24,
-    boxShadow: "0 28px 80px rgba(15,23,42,0.30)",
-    padding: 12,
-    backdropFilter: "blur(18px)",
-    WebkitBackdropFilter: "blur(18px)",
-  };
-
-  const adminTileStyle = {
-    background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
-    color: "#111827",
-    border: "1px solid #e5e7eb",
-    borderRadius: 24,
-    boxShadow: "0 14px 38px rgba(15,23,42,0.08)",
-    padding: 20,
-    textAlign: "left",
-    cursor: "pointer",
-    minHeight: 138,
-  };
-
-  const adminTileKickerStyle = {
-    width: 38,
-    height: 5,
-    borderRadius: 999,
-    background: "#111827",
-    marginBottom: 16,
-  };
-
-  const adminMessageIconButtonStyle = {
-    position: "relative",
-    width: 54,
-    height: 54,
-    borderRadius: 16,
-    border: "1px solid rgba(255,255,255,0.75)",
-    background: "linear-gradient(180deg, #34d399 0%, #10b981 100%)",
-    color: "white",
-    boxShadow: "0 16px 38px rgba(16,185,129,0.30)",
-    cursor: "pointer",
-    fontSize: 27,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  };
-
-  const adminMessageBadgeStyle = {
-    position: "absolute",
-    top: -7,
-    right: -7,
-    minWidth: 24,
-    height: 24,
-    padding: "0 7px",
-    borderRadius: 999,
-    background: "#ef4444",
-    color: "white",
-    border: "2px solid white",
-    fontSize: 12,
-    fontWeight: 1000,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    boxShadow: "0 8px 18px rgba(239,68,68,0.28)",
-  };
-
-
-  const appleMessagesOverlayStyle = {
-    position: "relative",
-    background: "#f7f7f5",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: "18px",
-    overflowY: "auto",
-  };
-
-  const appleMessagesShellStyle = {
-    width: "min(1120px, 100%)",
-    minHeight: 600,
-    background: "#f5f5f7",
-    color: "#111827",
-    borderRadius: 2,
-    border: "1px solid #d6d7d9",
-    boxShadow: "none",
-    overflow: "hidden",
-    display: "grid",
-    gridTemplateColumns: "minmax(260px, 340px) 1fr",
-  };
-
-  const appleMessagesSidebarStyle = {
-    background: "rgba(255,255,255,0.72)",
-    borderRight: "1px solid #d8d8dc",
-    padding: 18,
-    overflowY: "auto",
-  };
-
-  const appleMessagesMainStyle = {
-    background: "#ffffff",
-    padding: 22,
-    overflowY: "auto",
-    display: "flex",
-    flexDirection: "column",
-    gap: 16,
-  };
-
-  const appleMessagesTitleRowStyle = {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-    marginBottom: 16,
-  };
-
-  const appleMessagesTrafficButtonStyle = {
-    width: 14,
-    height: 14,
-    borderRadius: 999,
-    border: 0,
-    cursor: "pointer",
-    boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.08)",
-  };
-
-  const appleMessagesSegmentStyle = {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: 4,
-    background: "#e9e9ed",
-    borderRadius: 14,
-    padding: 4,
-    marginBottom: 16,
-  };
-
-  const appleMessagesSegmentButtonStyle = (active) => ({
-    border: 0,
-    borderRadius: 11,
-    padding: "10px 12px",
-    background: active ? "#ffffff" : "transparent",
-    color: active ? "#111827" : "#6b7280",
-    fontWeight: 1000,
-    cursor: "pointer",
-    boxShadow: active ? "0 6px 16px rgba(0,0,0,0.08)" : "none",
-  });
-
-  const appleComposeButtonStyle = {
-    width: "100%",
-    border: 0,
-    borderRadius: 18,
-    padding: "13px 14px",
-    background: "linear-gradient(180deg, #34c759 0%, #24a846 100%)",
-    color: "white",
-    fontWeight: 1000,
-    cursor: "pointer",
-    boxShadow: "0 12px 28px rgba(52,199,89,0.24)",
-    marginBottom: 12,
-  };
-
-  const appleMessageThreadStyle = {
-    width: "100%",
-    border: 0,
-    borderRadius: 18,
-    background: "#ffffff",
-    color: "#111827",
-    padding: 14,
-    textAlign: "left",
-    cursor: "pointer",
-    boxShadow: "0 10px 24px rgba(15,23,42,0.07)",
-    marginBottom: 10,
-  };
-
-
-  const walletDepartmentStyle = {
-    ...adminReadableCardStyle,
-    padding: 24,
-    background: "linear-gradient(180deg, #ffffff 0%, #f5f5f7 100%)",
-    border: "1px solid #e5e7eb",
-    boxShadow: "0 22px 60px rgba(15,23,42,0.10)",
-  };
-
-  const walletCardStyle = {
-    border: 0,
-    borderRadius: 28,
-    padding: 22,
-    color: "white",
-    minHeight: 158,
-    boxShadow: "0 22px 45px rgba(15,23,42,0.18)",
-    display: "flex",
-    flexDirection: "column",
-    justifyContent: "space-between",
-    overflow: "hidden",
-    position: "relative",
-  };
-
-  const walletLightCardStyle = {
-    background: "#ffffff",
-    border: "1px solid #e5e7eb",
-    borderRadius: 24,
-    padding: 18,
-    boxShadow: "0 14px 34px rgba(15,23,42,0.07)",
-  };
-
-  const walletTransactionRowStyle = {
-    display: "grid",
-    gridTemplateColumns: "44px 1fr auto",
-    gap: 12,
-    alignItems: "center",
-    padding: "13px 0",
-    borderBottom: "1px solid #eef0f4",
-  };
-
-  const walletIconStyle = {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    background: "linear-gradient(135deg, #34c759, #30d158)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: 21,
-    boxShadow: "0 8px 18px rgba(52,199,89,0.25)",
-  };
-
-  const appleMessageBubbleStyle = {
-    alignSelf: "flex-start",
-    maxWidth: "760px",
-    background: "#e9e9ee",
-    color: "#111827",
-    borderRadius: "24px 24px 24px 7px",
-    padding: "14px 16px",
-    lineHeight: 1.55,
-    whiteSpace: "pre-wrap",
-    fontWeight: 650,
-  };
-
-  const financeOverlayStyle = {
-    position: "relative",
-    background: "#f7f7f5",
-    padding: "12px 0 40px",
-  };
-
-  const financeShellStyle = {
-    maxWidth: 1240,
-    margin: "0 auto",
-    background: "#f7f7f5",
-    border: 0,
-    borderRadius: 0,
-    boxShadow: "none",
-    padding: isAdminMobile ? 8 : 22,
-  };
-
-  const financeSegmentButtonStyle = (active) => ({
-    border: 0,
-    borderRadius: 999,
-    padding: "11px 15px",
-    background: active ? "#111827" : "rgba(255,255,255,0.82)",
-    color: active ? "#fff" : "#111827",
-    fontWeight: 1000,
-    cursor: "pointer",
-    boxShadow: active ? "0 10px 22px rgba(15,23,42,0.18)" : "0 4px 12px rgba(15,23,42,0.08)",
-  });
-
-  const financeActionCardStyle = {
-    background: "#ffffff",
-    border: "1px solid #e5e7eb",
-    borderRadius: 24,
-    padding: 18,
-    boxShadow: "0 10px 28px rgba(15,23,42,0.08)",
-  };
-
-
-  const prHeroCardStyle = {
-    ...walletCardStyle,
-    minHeight: 176,
-    background: "linear-gradient(135deg, #111827 0%, #1d4ed8 48%, #7c3aed 100%)",
-  };
-
-  const prCardStyle = {
-    background: "#ffffff",
-    border: "1px solid #e5e7eb",
-    borderRadius: 26,
-    padding: 20,
-    boxShadow: "0 16px 42px rgba(15,23,42,0.08)",
-  };
-
-  const prIconStyle = {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
-    background: "linear-gradient(135deg, #007aff, #5856d6)",
-    color: "white",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: 24,
-    boxShadow: "0 12px 24px rgba(0,122,255,0.22)",
-  };
-
-  const prListRowStyle = {
-    display: "grid",
-    gridTemplateColumns: isAdminMobile ? "44px 1fr" : "52px 1fr auto",
-    gap: isAdminMobile ? 10 : 12,
-    alignItems: "center",
-    padding: "14px 0",
-    borderBottom: "1px solid #eef0f4",
-  };
-
-  const prDepartmentShellStyle = {
-    ...financeShellStyle,
-    width: "100%",
-    maxWidth: 1240,
-    borderRadius: isAdminMobile ? 22 : 34,
-    padding: isAdminMobile ? 14 : 22,
-  };
-
-  const prDepartmentHeaderStyle = {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: isAdminMobile ? "flex-start" : "center",
-    gap: 14,
-    flexWrap: "nowrap",
-    marginBottom: 18,
-  };
-
-  const prTitleStyle = {
-    margin: "2px 0 0",
-    fontSize: isAdminMobile ? 30 : 42,
-    letterSpacing: isAdminMobile ? -0.8 : -1.6,
-    lineHeight: 1.04,
-  };
-
-  const prTabBarStyle = {
-    display: "flex",
-    gap: 10,
-    overflowX: "auto",
-    paddingBottom: 8,
-    marginBottom: 18,
-    WebkitOverflowScrolling: "touch",
-  };
-
-  const prOverviewGridStyle = {
-    display: "grid",
-    gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(auto-fit, minmax(235px, 1fr))",
-    gap: 14,
-    marginTop: 16,
-  };
-
-  const prMobileStackStyle = {
-    display: "grid",
-    gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(auto-fit, minmax(220px, 1fr))",
-    gap: 12,
-  };
-
+  }, []);
 
   return (
-    <div style={applePageStyle}>
-      {adminMenuOpen && (
-        <>
-          <button
-            type="button"
-            aria-label="Close admin menu"
-            onClick={() => setAdminMenuOpen(false)}
-            style={adminMenuBackdropStyle}
-          />
-          <div style={adminMenuPanelStyle}>
-            <div style={{ padding: "8px 10px 12px", borderBottom: "1px solid #e5e7eb", marginBottom: 8 }}>
-              <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.5, textTransform: "uppercase", color: "#6b7280" }}>Admin Menu</div>
-              <div style={{ fontSize: 20, fontWeight: 1000, color: "#111827" }}>League Control</div>
-            </div>
+    <div style={{ ...sectionCardStyle, border: "1px solid #3d4859" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start", marginBottom: 16 }}>
+        <div>
+          <h2 style={{ margin: 0 }}>📬 Admin Message Dashboard</h2>
+          <div style={{ opacity: 0.72, fontSize: 13, marginTop: 6 }}>
+            Board view for messages sent to owners, teams, drivers, manufacturers, and the entire league.
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button type="button" onClick={loadAdminMessages} style={secondaryButtonStyle} disabled={loading}>
+            {loading ? "Refreshing..." : "Refresh Messages"}
+          </button>
+          <button type="button" onClick={markFilteredMessagesRead} style={primaryButtonStyle}>Mark Filtered Read</button>
+        </div>
+      </div>
 
-            <div style={{ display: "grid", gap: 6 }}>
-              {adminMenuItems.map((item) => (
-                <button
-                  key={item.label}
-                  type="button"
-                  onClick={() => {
-                    setAdminMenuOpen(false);
-                    item.action?.();
-                  }}
-                  style={{
-                    border: 0,
-                    borderRadius: 14,
-                    background: item.primary ? "#111827" : item.danger ? "#fff1f2" : "#f8fafc",
-                    color: item.primary ? "#ffffff" : item.danger ? "#b42318" : "#111827",
-                    padding: "12px 14px",
-                    textAlign: "left",
-                    fontWeight: 900,
-                    cursor: "pointer",
-                  }}
-                >
-                  {item.label}
-                </button>
-              ))}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10, marginBottom: 14 }}>
+        <div style={statBoxStyle}><div style={{ opacity: 0.65, fontSize: 12, fontWeight: 900 }}>TOTAL</div><div style={{ fontSize: 24, fontWeight: 900 }}>{summary.total}</div></div>
+        <div style={statBoxStyle}><div style={{ opacity: 0.65, fontSize: 12, fontWeight: 900 }}>UNREAD</div><div style={{ fontSize: 24, fontWeight: 900, color: "#f87171" }}>{summary.unread}</div></div>
+        <div style={statBoxStyle}><div style={{ opacity: 0.65, fontSize: 12, fontWeight: 900 }}>OWNERS / TEAMS</div><div style={{ fontSize: 24, fontWeight: 900 }}>{summary.owners}</div></div>
+        <div style={statBoxStyle}><div style={{ opacity: 0.65, fontSize: 12, fontWeight: 900 }}>DRIVERS</div><div style={{ fontSize: 24, fontWeight: 900 }}>{summary.drivers}</div></div>
+        <div style={statBoxStyle}><div style={{ opacity: 0.65, fontSize: 12, fontWeight: 900 }}>BROADCASTS</div><div style={{ fontSize: 24, fontWeight: 900 }}>{summary.broadcasts}</div></div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10, marginBottom: 14 }}>
+        <div>
+          <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.72, marginBottom: 8 }}>FILTER</label>
+          <select value={filter} onChange={(event) => setFilter(event.target.value)} style={inputStyle}>
+            <option value="all">All Messages</option>
+            <option value="owners">Owners Only</option>
+            <option value="team">Teams</option>
+            <option value="driver">Drivers</option>
+            <option value="manufacturer">Manufacturers</option>
+            <option value="league">Entire League</option>
+          </select>
+        </div>
+        <div>
+          <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.72, marginBottom: 8 }}>SEARCH</label>
+          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search subject, recipient, team, driver..." style={inputStyle} />
+        </div>
+      </div>
+
+      {status && <div style={{ color: "#4ade80", marginBottom: 12, fontWeight: 900 }}>{status}</div>}
+      {error && <div style={{ color: "#f87171", marginBottom: 12, fontWeight: 900 }}>{error}</div>}
+
+      {filteredMessages.length === 0 ? (
+        <div style={{ opacity: 0.72 }}>No messages found.</div>
+      ) : (
+        <div style={{ overflowX: "auto" }}>
+          <table style={tableStyle}>
+            <thead>
+              <tr>
+                <th style={thStyle}>Date</th>
+                <th style={thStyle}>To</th>
+                <th style={thStyle}>From</th>
+                <th style={thStyle}>Subject</th>
+                <th style={thStyle}>Read</th>
+                <th style={thStyle}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredMessages.map((message) => {
+                const archived = Boolean(message.archived);
+                return (
+                  <tr key={message.id} style={{ opacity: archived ? 0.45 : 1 }}>
+                    <td style={tdStyle}>{message.created_at ? new Date(message.created_at).toLocaleString() : "—"}</td>
+                    <td style={tdStyle}>{getRecipientLabel(message)}</td>
+                    <td style={tdStyle}>{message.sender_name || message.sender_type || "League"}</td>
+                    <td style={tdStyle}>
+                      <div style={{ fontWeight: 900 }}>{message.subject || "No subject"}</div>
+                      <div style={{ opacity: 0.65, fontSize: 12, marginTop: 4 }}>{String(message.message || "").slice(0, 90)}{String(message.message || "").length > 90 ? "..." : ""}</div>
+                    </td>
+                    <td style={tdStyle}>
+                      <span style={{ display: "inline-flex", borderRadius: 999, padding: "4px 9px", fontSize: 11, fontWeight: 900, background: message.is_read ? "#102a16" : "#2a1111", color: message.is_read ? "#4ade80" : "#f87171", border: `1px solid ${message.is_read ? "#22c55e" : "#ef4444"}` }}>
+                        {message.is_read ? "Read" : "Unread"}
+                      </span>
+                    </td>
+                    <td style={tdStyle}>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <button type="button" onClick={() => setSelectedMessage(message)} style={secondaryButtonStyle}>View</button>
+                        {!archived && (!message.is_read ? <button type="button" onClick={() => updateAdminMessageReadStatus(message.id, true)} style={secondaryButtonStyle}>Mark Read</button> : <button type="button" onClick={() => updateAdminMessageReadStatus(message.id, false)} style={secondaryButtonStyle}>Mark Unread</button>)}
+                        {!archived && <button type="button" onClick={() => archiveMessage(message.id)} style={dangerButtonStyle}>Archive</button>}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {selectedMessage && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.74)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div style={{ background: "#171b22", border: "1px solid #3d4859", borderRadius: 18, padding: 22, width: "min(760px, 100%)", maxHeight: "88vh", overflowY: "auto", boxShadow: "0 24px 80px rgba(0,0,0,0.45)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
+              <div>
+                <div style={{ fontSize: 22, fontWeight: 900 }}>{selectedMessage.subject || "No subject"}</div>
+                <div style={{ opacity: 0.65, fontSize: 13, marginTop: 6 }}>
+                  To: {getRecipientLabel(selectedMessage)} · From: {selectedMessage.sender_name || selectedMessage.sender_type || "League"}
+                </div>
+                <div style={{ opacity: 0.55, fontSize: 12, marginTop: 4 }}>{selectedMessage.created_at ? new Date(selectedMessage.created_at).toLocaleString() : ""}</div>
+              </div>
+              <button type="button" onClick={() => setSelectedMessage(null)} style={secondaryButtonStyle}>Close</button>
+            </div>
+            <div style={{ marginTop: 18, background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 16, whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
+              {selectedMessage.message || "No message body."}
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10, marginTop: 14, fontSize: 12, opacity: 0.75 }}>
+              <div>Type: {selectedMessage.message_type || "—"}</div>
+              <div>Recipient Type: {selectedMessage.recipient_type || "—"}</div>
+              <div>Team: {selectedMessage.recipient_team || "—"}</div>
+              <div>Manufacturer: {selectedMessage.recipient_manufacturer || "—"}</div>
+              <div>Archived: {selectedMessage.archived ? "Yes" : "No"}</div>
+              <div>Read: {selectedMessage.is_read ? "Yes" : "No"}</div>
+            </div>
+            <div style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
+              {!selectedMessage.is_read ? <button type="button" onClick={() => updateAdminMessageReadStatus(selectedMessage.id, true)} style={primaryButtonStyle}>Mark Read</button> : <button type="button" onClick={() => updateAdminMessageReadStatus(selectedMessage.id, false)} style={secondaryButtonStyle}>Mark Unread</button>}
+              {!selectedMessage.archived && <button type="button" onClick={() => archiveMessage(selectedMessage.id)} style={dangerButtonStyle}>Archive</button>}
             </div>
           </div>
-        </>
+        </div>
       )}
-      <div style={appleContainerStyle}>
-        {/* Header */}
-        <div style={{ ...appleCardStyle, marginBottom: 22, padding: 22 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 18, flexWrap: "wrap" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-              <div style={{ width: 62, height: 62, borderRadius: 18, background: "linear-gradient(135deg, #111827, #3b4252)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 18px 35px rgba(15,23,42,0.18)", overflow: "hidden" }}>
-                <img src={logo} alt="League Logo" style={{ height: 50, objectFit: "contain" }} />
-              </div>
+    </div>
+  );
+}
+
+
+function TickerOverlay({ drivers, teams, raceHistory, preview = false, seasonName = "" }) {
+  const sorted = [...drivers].sort((a, b) => b.points - a.points);
+  const latestRace = raceHistory?.[raceHistory.length - 1];
+  const winner = latestRace?.results?.find((r) => r.finishPos === 1);
+  const tickerText = [
+    seasonName ? `Season: ${seasonName}` : "Budweiser Cup League",
+    winner ? `Latest Winner: #${winner.number} ${winner.name} (${latestRace.raceName})` : "No race winner yet",
+    ...sorted.map((d, i) => `${i+1}. #${d.number} ${d.name} - ${d.points} pts`),
+    ...teams.map((t, i) => `Team ${i+1}: ${getTeamFullName(t.team)} - ${t.points} pts`),
+  ].join("   •   ");
+  return (
+    <div style={{ width: "100%", minHeight: preview ? "100vh" : "80px", background: preview ? "#111" : "transparent", display: "flex", alignItems: preview ? "center" : "flex-start", justifyContent: "center", paddingTop: preview ? 20 : 0, boxSizing: "border-box" }}>
+      <style>{`.ticker-bar{width:100%;overflow:hidden;background:rgba(0,0,0,0.82);border-top:2px solid #d4af37;border-bottom:2px solid #d4af37;height:80px;display:flex;align-items:center}.ticker-track{display:inline-flex;align-items:center;white-space:nowrap;min-width:max-content;animation:tickerScroll 45s linear infinite}.ticker-logo{height:30px;width:auto;margin-right:28px;vertical-align:middle}.ticker-text{display:inline-block;padding-right:120px;font-size:28px;font-weight:700;color:white}@keyframes tickerScroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}`}</style>
+      <div className="ticker-bar">
+        <div className="ticker-track">
+          <img src={logo} alt="League Logo" className="ticker-logo" />
+          <span className="ticker-text">{tickerText}</span>
+          <img src={logo} alt="League Logo" className="ticker-logo" />
+          <span className="ticker-text">{tickerText}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+// ─── Patch any drivers from defaultDrivers that are missing from saved seasons ─
+// This runs once after Supabase load so new roster additions always appear
+// even when a season already exists in the database.
+function patchMissingDrivers(cleanSeasons) {
+  return cleanSeasons.map((season) => {
+    const existingIds  = new Set(season.drivers.map((d) => d.id));
+    const existingNums = new Set(season.drivers.map((d) => String(d.number)));
+    const missing = defaultDrivers.filter(
+      (d) => !isRemovedLeagueDriver(d) && Number(d.number) !== 76 && !existingNums.has(String(d.number))
+    );
+    // Update any drivers whose name/number/manufacturer/team has changed in defaultDrivers
+    const updatedDrivers = realignLeagueDrivers(season.drivers)
+      .filter((d) => !isInactivePlaceholderDriver(d))
+      .filter((d) => !isRemovedLeagueDriver(d))
+      .filter((d) => Number(d.number) !== 76 && String(d.name || "").trim().toLowerCase() !== "bcr_ziggy5525")
+      .map((d) => {
+        const canonical =
+          defaultDrivers.find((dd) => dd.id === d.id) ||
+          defaultDrivers.find((dd) => String(dd.number) === String(d.number));
+        if (!canonical) {
+          return { ...d };
+        }
+        return {
+          ...d,
+          id: canonical.id,
+          name: canonical.name,
+          number: canonical.number,
+          manufacturer: canonical.manufacturer,
+          team: canonical.team,
+        };
+      });
+    if (missing.length === 0 && updatedDrivers.every((d, i) => d === season.drivers[i])) return season;
+    const newRoster = dedupeDriversByNumber([
+      ...updatedDrivers.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer || "", team: d.team, startingPoints: 0, manualWins: 0, retired: d.retired || false, notes: "" })),
+      ...missing.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer || "", team: d.team, startingPoints: 0, manualWins: 0, retired: false, notes: "" })),
+    ]);
+    return { ...season, drivers: rebuildDriversFromHistory(season.raceHistory || [], newRoster) };
+  });
+}
+
+function SubmitStoryPage() {
+  const [authorName, setAuthorName] = useState("");
+  const [driverName, setDriverName] = useState("");
+  const [storyTitle, setStoryTitle] = useState("");
+  const [storyText, setStoryText] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [showKickGraphic, setShowKickGraphic] = useState(false);
+
+  const submitStory = async (e) => {
+    e.preventDefault();
+    const cleanStory = storyText.trim();
+    if (!cleanStory) {
+      alert("Please type your story before submitting.");
+      return;
+    }
+    setSaving(true);
+    const payload = {
+      author_name: authorName.trim() || null,
+      driver_name: driverName.trim() || null,
+      title: storyTitle.trim() || null,
+      story: cleanStory,
+      status: "Open",
+    };
+    const { error } = await supabase.from("story_submissions").insert(payload);
+    setSaving(false);
+    if (error) {
+      console.error("Story submission failed:", error);
+      alert("Could not submit the story. Make sure the story_submissions Supabase table exists.");
+      return;
+    }
+    setAuthorName("");
+    setDriverName("");
+    setStoryTitle("");
+    setStoryText("");
+    setSubmitted(true);
+    setShowKickGraphic(true);
+  };
+
+  return (
+    <div style={appShellStyle}>
+      <div style={{ ...pageContainerStyle, maxWidth: 900 }}>
+        <div style={{ ...sectionCardStyle, background: "linear-gradient(135deg, #17191f 0%, #101216 100%)" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap", marginBottom: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <img src={logo} alt="League Logo" style={{ height: 48 }} />
               <div>
-                <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 2, textTransform: "uppercase", opacity: 0.62 }}>Budweiser Motorsports</div>
-                <div style={{ fontSize: 34, fontWeight: 1000, letterSpacing: -1, fontStyle: "italic", textTransform: "uppercase" }}>Admin Portal</div>
-                <div style={{ opacity: 0.68, marginTop: 2 }}>Season {activeSeason?.name || "2"} · league operations</div>
+                <div style={{ fontSize: 28, fontWeight: 900 }}>Submit a Story</div>
+                <div style={{ opacity: 0.72, fontSize: 14 }}>Send news, rumors, driver notes, race recaps, or league storylines to the admins.</div>
               </div>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <button
-                type="button"
-                aria-label="Go to standings home page"
-                onClick={goStandings}
-                style={{ ...adminMessageIconButtonStyle, background: "linear-gradient(180deg, #ffd60a 0%, #ff9f0a 100%)", boxShadow: "0 16px 38px rgba(255,159,10,0.30)" }}
-                title="Home / Standings"
-              >
-                🏠
-              </button>
+            <button onClick={() => (window.location.pathname = "/standings")} style={secondaryButtonStyle}>Back to Standings</button>
+          </div>
+          {submitted && (
+            <div style={{ background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.45)", borderRadius: 14, padding: 14, marginBottom: 16, color: "#bbf7d0", fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+              <span>Story submitted. The admins can now review it.</span>
+              <button type="button" onClick={() => setShowKickGraphic(true)} style={{ ...secondaryButtonStyle, padding: "8px 12px", fontSize: 12 }}>View Kick Graphic</button>
+            </div>
+          )}
 
-              <button
-                type="button"
-                aria-label="Exit Admin Portal"
-                onClick={() => (window.location.pathname = "/")}
-                style={{ ...adminMessageIconButtonStyle, background: "linear-gradient(180deg, #ff453a 0%, #b91c1c 100%)", boxShadow: "0 16px 38px rgba(255,69,58,0.30)" }}
-                title="Exit Admin Portal"
-              >
-                🚪
-              </button>
-
-              <button
-                type="button"
-                aria-label="Open admin messages"
-                onClick={openAdminMessages}
-                style={adminMessageIconButtonStyle}
-                title="Messages"
-              >
-                💬
-                {adminUnreadCount > 0 && <span style={adminMessageBadgeStyle}>{adminUnreadCount > 99 ? "99+" : adminUnreadCount}</span>}
-              </button>
-
-              <div style={{ position: "relative" }}>
-                <button
-                  type="button"
-                  aria-label="Open admin menu"
-                  onClick={() => setAdminMenuOpen((open) => !open)}
-                  style={adminMenuButtonStyle}
-                >
-                  <span style={adminMenuLineStyle} />
-                  <span style={adminMenuLineStyle} />
-                  <span style={adminMenuLineStyle} />
-                </button>
-
-
+          {showKickGraphic && (
+            <div onClick={() => setShowKickGraphic(false)} style={{ position: "fixed", inset: 0, zIndex: 3000, background: "rgba(0,0,0,0.86)", display: "flex", alignItems: "center", justifyContent: "center", padding: 18 }}>
+              <div onClick={(e) => e.stopPropagation()} style={{ position: "relative", width: "min(1100px, 96vw)", background: "#050505", border: "2px solid #ef4444", borderRadius: 16, overflow: "hidden", boxShadow: "0 30px 90px rgba(239,68,68,0.25)" }}>
+                <button type="button" onClick={() => setShowKickGraphic(false)} aria-label="Close story submitted graphic" style={{ position: "absolute", top: 12, right: 12, zIndex: 2, width: 38, height: 38, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.25)", background: "rgba(0,0,0,0.55)", color: "white", fontSize: 24, cursor: "pointer", lineHeight: 1 }}>×</button>
+                <img src={logo} alt="Story submitted action graphic" style={{ width: "100%", display: "block" }} />
               </div>
+            </div>
+          )}
+          <form onSubmit={submitStory}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, marginBottom: 12 }}>
+              <div>
+                <div style={{ marginBottom: 6, fontWeight: 800 }}>Your Name / PSN</div>
+                <input style={inputStyle} value={authorName} onChange={(e) => setAuthorName(e.target.value)} placeholder="Example: AMP-GHOSTRIDER" />
+              </div>
+              <div>
+                <div style={{ marginBottom: 6, fontWeight: 800 }}>Driver / Team Mentioned</div>
+                <input style={inputStyle} value={driverName} onChange={(e) => setDriverName(e.target.value)} placeholder="Example: #39 BigDiehl21 / MER" />
+              </div>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ marginBottom: 6, fontWeight: 800 }}>Story Title</div>
+              <input style={inputStyle} value={storyTitle} onChange={(e) => setStoryTitle(e.target.value)} placeholder="Example: B2J adds a new Toyota to the garage" />
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ marginBottom: 6, fontWeight: 800 }}>Story Details</div>
+              <textarea
+                style={{ ...inputStyle, minHeight: 220, resize: "vertical", lineHeight: 1.45 }}
+                value={storyText}
+                onChange={(e) => setStoryText(e.target.value)}
+                placeholder="Type the full story, notes, quote, rumor, race recap, or announcement here."
+              />
+            </div>
+            <button type="submit" disabled={saving} style={{ ...primaryButtonStyle, opacity: saving ? 0.65 : 1 }}>
+              {saving ? "Submitting..." : "Submit Story"}
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StoriesAdminPage() {
+  const [stories, setStories] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [storyLoadError, setStoryLoadError] = useState("");
+
+  const loadStories = async ({ showLoading = false } = {}) => {
+    if (showLoading) setLoading(true);
+    setStoryLoadError("");
+
+    const { data, error } = await supabase
+      .from("story_submissions")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Failed to load stories:", error);
+      setStoryLoadError("Could not load stories. Check the story_submissions table and RLS select policy.");
+      if (showLoading) setLoading(false);
+      return;
+    }
+
+    setStories(data || []);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function initialLoad() {
+      const { data, error } = await supabase
+        .from("story_submissions")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (!isMounted) return;
+
+      if (error) {
+        console.error("Failed to load stories:", error);
+        setStoryLoadError("Could not load stories. Check the story_submissions table and RLS select policy.");
+      } else {
+        setStories(data || []);
+        setStoryLoadError("");
+      }
+
+      setLoading(false);
+    }
+
+    initialLoad();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const updateStoryStatus = async (storyId, status) => {
+    const { error } = await supabase
+      .from("story_submissions")
+      .update({ status })
+      .eq("id", storyId);
+    if (error) {
+      console.error("Failed to update story:", error);
+      alert("Could not update that story.");
+      return;
+    }
+    await loadStories({ showLoading: false });
+  };
+
+  const openStories = stories.filter((story) => String(story.status || "Open") === "Open");
+
+  return (
+    <div style={appShellStyle}>
+      <div style={pageContainerStyle}>
+        <div style={{ ...sectionCardStyle, background: "linear-gradient(135deg, #17191f 0%, #101216 100%)" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <img src={logo} alt="League Logo" style={{ height: 48 }} />
+              <div>
+                <div style={{ fontSize: 30, fontWeight: 900 }}>Story Inbox</div>
+                <div style={{ opacity: 0.72 }}>Review submitted league stories and mark them complete.</div>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <button onClick={() => loadStories({ showLoading: false })} style={secondaryButtonStyle}>Refresh</button>
+              <button onClick={() => (window.location.pathname = "/admin")} style={secondaryButtonStyle}>Back to Admin</button>
             </div>
           </div>
         </div>
 
-        {!workspaceOpen && <section style={{ background: "#f7f7f5", borderTop: "4px solid #d71920", padding: isAdminMobile ? "22px 4px" : "30px 8px", marginBottom: 28 }}>
-          <div style={{ color: "#d71920", fontSize: 11, fontWeight: 1000, letterSpacing: 2, textTransform: "uppercase" }}>BRL / Operations</div>
-          <h1 style={{ margin: "6px 0", color: "#111216", fontSize: isAdminMobile ? 36 : 52, fontStyle: "italic", textTransform: "uppercase", letterSpacing: -1.5, lineHeight: 1 }}>Race Control</h1>
-          <p style={{ margin: "8px 0 22px", color: "#4b5563", fontWeight: 700 }}>Choose a task. Each shortcut opens the working screen directly.</p>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 18 }}>
+          <div style={statBoxStyle}><div style={{ opacity: 0.65, fontSize: 12 }}>OPEN STORIES</div><div style={{ fontSize: 30, fontWeight: 900 }}>{openStories.length}</div></div>
+          <div style={statBoxStyle}><div style={{ opacity: 0.65, fontSize: 12 }}>TOTAL SUBMITTED</div><div style={{ fontSize: 30, fontWeight: 900 }}>{stories.length}</div></div>
+        </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "repeat(2, minmax(0, 1fr))" : "repeat(4, minmax(0, 1fr))", borderTop: "2px solid #111216" }}>
-            {[
-              ["Add Driver", "New roster entry", () => { closeWorkspace(); setQuickAddDriverOpen(true); }],
-              ["Join Requests", `${pendingHrRequestCount} pending`, () => { openHrDepartment("drivers"); requestAnimationFrame(() => setTimeout(() => document.getElementById("admin-join-requests")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50)); }],
-              ["Access Codes", "Drivers & owners", () => openHrDepartment("access")],
-              ["Appeals", `${openAppealCount || 0} open`, () => openHrDepartment("appeals")],
-              ["Race Input", selectedRace || "Select race", () => openRaceOperations("input")],
-              ["Saved Drafts", `${(raceDrafts || []).length} drafts`, () => openRaceOperations("drafts")],
-              ["Tracks", `${(tracks || []).length} tracks`, () => openRaceOperations("tracks")],
-              ["Race History", `${raceHistory.length} posted`, () => openRaceOperations("history")],
-              ["Contracts", "Review offers", () => openFinanceDepartment("contracts")],
-              ["Pay Paint Scheme", "Record payout", () => openFinanceDepartment("paint")],
-              ["Transactions", "Payments & fines", () => openFinanceDepartment("transactions")],
-              ["Ticker", "Publish updates", () => openPublicRelations("ticker")],
-              ["Winner Spotlight", "Feature winner", () => openPublicRelations("winner")],
-              ["Interviews", "Review & post", () => openPublicRelations("interviews")],
-              ["Messages", `${adminUnreadCount} unread`, openAdminMessages],
-              ["Settings", "Seasons & backups", openSettings],
-            ].map(([label, detail, action]) => (
-              <button key={label} type="button" onClick={action} style={{ minWidth: 0, minHeight: 92, padding: "16px 12px", textAlign: "left", cursor: "pointer", background: "transparent", border: 0, borderBottom: "1px solid #cfd0d2", borderRight: "1px solid #cfd0d2", color: "#111216", fontFamily: "inherit" }}>
-                <strong style={{ display: "block", fontSize: isAdminMobile ? 15 : 18, lineHeight: 1.1, textTransform: "uppercase" }}>{label} <span style={{ color: "#d71920" }}>↗</span></strong>
-                <span style={{ display: "block", marginTop: 8, fontSize: 12, color: "#666970", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{detail}</span>
-              </button>
-            ))}
-          </div>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 20 }}>
-            {[
-              ["Teams & Logos", () => openHrDepartment("owners")],
-              ["Start & Park", () => openHrDepartment("startpark")],
-              ["Voting", () => openRaceOperations("voting")],
-              ["Issues", () => (window.location.pathname = "/admin/issues")],
-              ["Permissions", () => (window.location.pathname = "/admin/permissions")],
-              ["Stories", () => openPublicRelations("stories")],
-            ].map(([label, action]) => <button key={label} type="button" onClick={action} style={{ ...adminSecondaryButtonStyle, borderRadius: 2 }}>{label} ↗</button>)}
-          </div>
-        </section>}
-
-        {workspaceOpen && <button type="button" onClick={closeWorkspace} style={{ ...adminSecondaryButtonStyle, borderRadius: 2, marginBottom: 18 }}>← Admin Home</button>}
-
-        {quickAddDriverOpen && <section style={{ borderTop: "4px solid #d71920", padding: "24px 0", maxWidth: 900 }}>
-          <div style={{ color: "#d71920", fontSize: 11, fontWeight: 1000, letterSpacing: 2, textTransform: "uppercase" }}>Human Resources / Roster</div>
-          <h2 style={{ margin: "6px 0 18px", fontSize: isAdminMobile ? 32 : 44, fontStyle: "italic", textTransform: "uppercase" }}>Add Driver</h2>
-          <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(2, minmax(0, 1fr))", gap: 16 }}>
-            <label>Driver Name<input style={adminInputStyle} value={newDriverName} onChange={(event) => setNewDriverName(event.target.value)} placeholder="Enter driver name" /></label>
-            <label>Car Number<input style={adminInputStyle} value={newDriverNumber} onChange={(event) => setNewDriverNumber(event.target.value)} placeholder="Car number" /></label>
-            <label>Manufacturer<select style={adminInputStyle} value={newDriverManufacturer} onChange={(event) => setNewDriverManufacturer(event.target.value)}><option value="">Select manufacturer</option><option value="Chevrolet">Chevrolet</option><option value="Ford">Ford</option><option value="Toyota">Toyota</option><option value="Other">Other</option></select></label>
-            <label>Team<input style={adminInputStyle} value={newDriverTeam} onChange={(event) => setNewDriverTeam(event.target.value)} placeholder="B2J, 19XI, BXM..." /></label>
-          </div>
-          <button type="button" onClick={addDriver} style={{ ...adminPrimaryButtonStyle, borderRadius: 2, marginTop: 20 }}>Add Driver</button>
-          <button type="button" onClick={() => openHrDepartment("drivers")} style={{ ...adminSecondaryButtonStyle, borderRadius: 2, margin: "20px 0 0 10px" }}>View Driver Roster ↗</button>
-        </section>}
-
-        {publicRelationsOpen && (
-          <div style={financeOverlayStyle}>
-            <div style={prDepartmentShellStyle}>
-              <div style={prDepartmentHeaderStyle}>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.8, textTransform: "uppercase", color: "#6b7280" }}>Board Workspace</div>
-                  <h1 style={prTitleStyle}>Public Relations</h1>
-                  <p style={{ margin: "6px 0 0", color: "#4b5563", fontWeight: 750, maxWidth: 760 }}>Board posting center for ticker promos, previous race winner spotlights, featured media, Ones to Watch, stories, and interviews.</p>
-                </div>
-                <button type="button" onClick={() => setPublicRelationsOpen(false)} style={{ flex: "0 0 auto", border: 0, borderRadius: 999, background: "#ffffff", color: "#111827", width: isAdminMobile ? 42 : 46, height: isAdminMobile ? 42 : 46, fontSize: 23, fontWeight: 1000, cursor: "pointer", boxShadow: "0 8px 20px rgba(15,23,42,0.12)" }}>×</button>
-              </div>
-
-
-              <div style={prTabBarStyle}>
-                {[
-                  ["overview", "PR Home"],
-                  ["ticker", "Ticker"],
-                  ["winner", "Race Winner"],
-                  ["media", "Featured Media"],
-                  ["carGallery", "Car Gallery"],
-                  ["watch", "Ones to Watch"],
-                  ["stories", "Stories"],
-                  ["interviews", "Interviews"],
-                ].map(([key, label]) => (
-                  <button key={key} type="button" onClick={() => setPublicRelationsTab(key)} style={{ ...financeSegmentButtonStyle(publicRelationsTab === key), flex: "0 0 auto" }}>{label}</button>
-                ))}
-              </div>
-
-              {publicRelationsTab === "overview" && (
-                <div>
-                  <div style={prHeroCardStyle}>
-                    <div style={{ position: "absolute", right: -40, top: -40, width: 150, height: 150, borderRadius: 999, background: "rgba(255,255,255,0.12)" }} />
-                    <div>
-                      <div style={{ opacity: 0.78, fontWeight: 1000, letterSpacing: 1.7, textTransform: "uppercase", fontSize: 12 }}>Board PR Department</div>
-                      <div style={{ fontSize: isAdminMobile ? 28 : 36, fontWeight: 1000, letterSpacing: -1.2, marginTop: 10 }}>Create. Review. Publish.</div>
-                    </div>
-                    <div style={{ opacity: 0.88, fontWeight: 850 }}>Internal board tools for every public-facing league post</div>
-                  </div>
-
-                  <div style={prOverviewGridStyle}>
-                    {[
-                      ["📣", "Ticker Promotions", `${tickerMessages?.filter?.((m) => m.active !== false)?.length || 0} active messages`, "ticker"],
-                      ["🏆", "Race Winner", latestWinner ? `Latest: #${latestWinner.number || ""} ${latestWinner.name || latestWinner.driver || "Winner"}` : "Manage winner spotlight", "winner"],
-                      ["✨", "Featured Media", featuredVideo ? (featuredVideo.title || "Featured media live") : "Post a photo or video", "media"],
-                      ["🎨", "Car Gallery", "Manage paint schemes and public car media", "carGallery"],
-                      ["🔥", "Ones to Watch", `${manualWatchPicks?.filter?.((p) => p.active !== false)?.length || 0} active picks`, "watch"],
-                      ["📰", "Stories", `${openStoryCount || 0} open stories`, "stories"],
-                      ["🎤", "Interviews", "Pre-race and post-race media", "interviews"],
-                    ].map(([icon, title, text, tab]) => (
-                      <button key={title} type="button" onClick={() => setPublicRelationsTab(tab)} style={{ ...prCardStyle, textAlign: "left", cursor: "pointer" }}>
-                        <div style={prIconStyle}>{icon}</div>
-                        <div style={{ fontSize: 20, fontWeight: 1000, marginTop: 14, letterSpacing: -0.4 }}>{title}</div>
-                        <div style={{ color: "#6b7280", fontWeight: 750, marginTop: 6, lineHeight: 1.45 }}>{text}</div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {publicRelationsTab === "ticker" && (
-                <div style={prCardStyle}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap", marginBottom: 14 }}>
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Ticker Promotions</div>
-                      <h2 style={{ margin: "3px 0 0", fontSize: 28, letterSpacing: -0.7 }}>Board Ticker Posts</h2>
-                      <p style={{ margin: "6px 0 0", color: "#4b5563", fontWeight: 700 }}>Create and manage the ticker posts that the board wants displayed across the league app.</p>
-                    </div>
-                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                      <button type="button" onClick={loadTickerMessages} style={adminSecondaryButtonStyle}>Refresh</button>
-                      <button type="button" onClick={seedWeeklyTickerMessages} style={adminPrimaryButtonStyle}>Add Weekly Headlines</button>
-                    </div>
-                  </div>
-
-                  <form onSubmit={saveTickerMessage} style={{ background: "#f5f5f7", border: "1px solid #e5e7eb", borderRadius: 22, padding: 16, marginBottom: 16 }}>
-                    <div style={prMobileStackStyle}>
-                      <label style={{ fontWeight: 900 }}>Category
-                        <select style={{ ...adminInputStyle, marginTop: 6 }} value={tickerForm.category} onChange={(event) => setTickerForm((current) => ({ ...current, category: event.target.value }))}>
-                          <option value="BREAKING">BREAKING</option><option value="NEWS">NEWS</option><option value="TRANSACTION">TRANSACTION</option><option value="TEAM UPDATE">TEAM UPDATE</option><option value="RACE CONTROL">RACE CONTROL</option><option value="RESULTS">RESULTS</option><option value="APP UPDATE">APP UPDATE</option><option value="NEXT EVENT">NEXT EVENT</option><option value="SPONSOR">SPONSOR</option>
-                        </select>
-                      </label>
-                      <label style={{ fontWeight: 900 }}>Page
-                        <select style={{ ...adminInputStyle, marginTop: 6 }} value={tickerForm.page} onChange={(event) => setTickerForm((current) => ({ ...current, page: event.target.value }))}>
-                          <option value="standings">/standings only</option><option value="all">All pages using ticker</option>
-                        </select>
-                      </label>
-                      <label style={{ fontWeight: 900 }}>Sort Order
-                        <input type="number" style={{ ...adminInputStyle, marginTop: 6 }} value={tickerForm.sort_order} onChange={(event) => setTickerForm((current) => ({ ...current, sort_order: event.target.value }))} />
-                      </label>
-                      <label style={{ fontWeight: 900 }}>Auto-Expire
-                        <input type="datetime-local" style={{ ...adminInputStyle, marginTop: 6 }} value={tickerForm.expires_at} onChange={(event) => setTickerForm((current) => ({ ...current, expires_at: event.target.value }))} />
-                      </label>
-                    </div>
-                    <label style={{ display: "block", fontWeight: 900, marginTop: 12 }}>Ticker Message
-                      <input style={{ ...adminInputStyle, marginTop: 6 }} value={tickerForm.message} onChange={(event) => setTickerForm((current) => ({ ...current, message: event.target.value }))} placeholder="Example: Las Vegas race week is live • Playoff pressure is building" />
-                    </label>
-                    <div style={{ display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap", marginTop: 14 }}>
-                      <label style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 900 }}><input type="checkbox" checked={tickerForm.active} onChange={(event) => setTickerForm((current) => ({ ...current, active: event.target.checked }))} />Active</label>
-                      <label style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 900 }}><input type="checkbox" checked={tickerForm.pinned} onChange={(event) => setTickerForm((current) => ({ ...current, pinned: event.target.checked }))} />Pin First</label>
-                      <button type="submit" style={adminPrimaryButtonStyle}>{editingTickerId ? "Save Ticker Message" : "Add Ticker Message"}</button>
-                      {editingTickerId && <button type="button" onClick={resetTickerForm} style={adminSecondaryButtonStyle}>Cancel Edit</button>}
-                    </div>
-                    {tickerStatus && <div style={{ color: "#047857", marginTop: 12, fontWeight: 900 }}>{tickerStatus}</div>}
-                    {tickerError && <div style={{ color: "#b42318", marginTop: 12, fontWeight: 900 }}>{tickerError}</div>}
-                  </form>
-
-                  <div style={{ maxHeight: 460, overflowY: "auto" }}>
-                    {(tickerMessages || []).length === 0 ? (
-                      <div style={{ color: "#6b7280", fontWeight: 800, padding: 16 }}>No ticker messages saved yet.</div>
-                    ) : tickerMessages.map((item) => (
-                      <div key={item.id} style={prListRowStyle}>
-                        <div style={{ ...prIconStyle, background: item.active === false ? "linear-gradient(135deg, #8e8e93, #636366)" : "linear-gradient(135deg, #34c759, #30d158)" }}>{item.pinned ? "📌" : "📣"}</div>
-                        <div style={{ minWidth: 0 }}>
-                          <div style={{ fontWeight: 1000, color: "#111827" }}>{item.category || "NEWS"}</div>
-                          <div style={{ color: "#4b5563", fontWeight: 750, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.message}</div>
-                        </div>
-                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
-                          <button type="button" onClick={() => editTickerMessage(item)} style={adminSecondaryButtonStyle}>Edit</button>
-                          <button type="button" onClick={() => toggleTickerActive(item)} style={adminSecondaryButtonStyle}>{item.active === false ? "Activate" : "Disable"}</button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {publicRelationsTab === "winner" && (
-                <div style={prCardStyle}>
-                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Board Winner Spotlight</div>
-                  <h2 style={{ margin: "3px 0 14px", fontSize: 28, letterSpacing: -0.7 }}>Previous Race Winner Post</h2>
-                  <PreviousRaceWinnerAdminPanel
-                    drivers={visibleDrivers}
-                    raceHistory={raceHistory}
-                    supabase={supabase}
-                    activeSeason={activeSeason}
-                    activeSeasonId={activeSeasonId}
-                    latestWinner={latestWinner}
-                  />
-                </div>
-              )}
-
-              {publicRelationsTab === "media" && (
-                <div style={prCardStyle}>
-                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Featured Media</div>
-                  <h2 style={{ margin: "3px 0 6px", fontSize: 28, letterSpacing: -0.7 }}>Photos & Videos</h2>
-                  <p style={{ margin: "0 0 16px", color: "#4b5563", fontWeight: 700 }}>Post the media the board wants featured: race hype videos, winner photos, paint scheme images, promo graphics, and recap clips.</p>
-                  {featuredVideo && (
-                    <div style={{ background: "#f5f5f7", border: "1px solid #e5e7eb", borderRadius: 28, padding: 18, marginBottom: 18, boxShadow: "0 18px 45px rgba(15, 23, 42, 0.08)" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
-                        <div>
-                          <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.3, textTransform: "uppercase", color: "#6b7280" }}>Currently Featured {featuredVideo.series === "arca" ? "— ARCA" : "— Cup"}</div>
-                          <div style={{ fontSize: 22, fontWeight: 1000, letterSpacing: -0.5 }}>{featuredVideo.title || "Untitled Media"}</div>
-                          {featuredVideo.description && <div style={{ color: "#6b7280", fontWeight: 700, marginTop: 3 }}>{featuredVideo.description}</div>}
-                        </div>
-                        <button style={adminDangerButtonStyle} onClick={async () => { if (!window.confirm("Remove the featured media?")) return; if (featuredVideo.file_path) await supabase.storage.from("car-uploads").remove([featuredVideo.file_path]); await supabase.from("featured_video").delete().eq("id", featuredVideo.id); setFeaturedVideo(null); }}>Remove</button>
-                      </div>
-                      {String(featuredVideo.file_path || featuredVideo.video_url || "").match(/\.(png|jpg|jpeg|gif|webp|avif)$/i) ? (
-                        <img alt={featuredVideo.title || "Featured media"} src={featuredVideo.video_url} style={{ width: "100%", maxHeight: 360, objectFit: "cover", borderRadius: 22, background: "#111" }} />
-                      ) : (
-                        <video controls crossOrigin="anonymous" style={{ width: "100%", maxHeight: 360, borderRadius: 22, background: "#000" }} src={featuredVideo.video_url} />
-                      )}
-                    </div>
-                  )}
-                  <div style={{ ...prMobileStackStyle, marginBottom: 14 }}>
-                    <div>
-                      <div style={{ marginBottom: 6, fontWeight: 900 }}>Title</div>
-                      <input style={{ ...adminInputStyle, marginTop: 6 }} value={videoTitle} onChange={e => setVideoTitle(e.target.value)} placeholder="e.g. Las Vegas Winner Photo" />
-                    </div>
-                    <div>
-                      <div style={{ marginBottom: 6, fontWeight: 900 }}>Description</div>
-                      <input style={{ ...adminInputStyle, marginTop: 6 }} value={videoDescription} onChange={e => setVideoDescription(e.target.value)} placeholder="e.g. Race recap, promo, photo, or playoff preview" />
-                    </div>
-                    <div>
-                      <div style={{ marginBottom: 6, fontWeight: 900 }}>Series</div>
-                      <select style={{ ...adminInputStyle, marginTop: 6 }} value={videoSeries} onChange={e => setVideoSeries(e.target.value)}>
-                        <option value="cup">NASCAR Cup Series</option>
-                        <option value="arca">ARCA Menards Series</option>
-                      </select>
-                    </div>
-                  </div>
-                  <input
-                    ref={videoFileInputRef}
-                    type="file"
-                    accept="image/png,image/jpeg,image/jpg,image/webp,image/gif,video/mp4,video/mov,video/quicktime,video/avi,video/webm"
-                    style={{ display: "none" }}
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      setVideoUploading(true);
-                      try {
-                        const fileExt = file.name.split(".").pop();
-                        const isImage = file.type?.startsWith("image/");
-                        const fileName = `featured-media-${Date.now()}.${fileExt}`;
-                        const filePath = `featured/${fileName}`;
-                        const { error: storageError } = await supabase.storage.from("car-uploads").upload(filePath, file, {
-                          cacheControl: "3600",
-                          upsert: false,
-                          contentType: file.type || (isImage ? "image/jpeg" : "video/mp4"),
-                        });
-                        if (storageError) throw storageError;
-                        const { data: urlData } = supabase.storage.from("car-uploads").getPublicUrl(filePath);
-                        if (featuredVideo) {
-                          if (featuredVideo.file_path) await supabase.storage.from("car-uploads").remove([featuredVideo.file_path]);
-                          await supabase.from("featured_video").delete().eq("id", featuredVideo.id);
-                        }
-                        const { data: saved, error: dbError } = await supabase.from("featured_video").insert({
-                          video_url: urlData.publicUrl,
-                          file_path: filePath,
-                          title: videoTitle.trim() || (isImage ? "Featured Photo" : "Featured Video"),
-                          description: videoDescription.trim() || null,
-                          series: videoSeries,
-                          uploaded_at: new Date().toISOString(),
-                        }).select().single();
-                        if (dbError) throw dbError;
-                        setFeaturedVideo(saved);
-                        setVideoTitle("");
-                        setVideoDescription("");
-                        setVideoSeries("cup");
-                        alert(`✅ ${isImage ? "Photo" : "Video"} posted to Featured Media.`);
-                      } catch (err) {
-                        console.error("Featured media upload error:", err);
-                        alert(`Upload failed: ${err.message}`);
-                      }
-                      setVideoUploading(false);
-                      if (videoFileInputRef.current) videoFileInputRef.current.value = "";
-                    }}
-                  />
-                  <button type="button" disabled={videoUploading} onClick={() => videoFileInputRef.current?.click()} style={{ ...adminPrimaryButtonStyle, opacity: videoUploading ? 0.65 : 1 }}>{videoUploading ? "Uploading..." : "Post Photo or Video"}</button>
-                </div>
-              )}
-
-              {publicRelationsTab === "carGallery" && (
-                <div style={prCardStyle}>
-                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Car Gallery</div>
-                  <h2 style={{ margin: "3px 0 6px", fontSize: 28, letterSpacing: -0.7 }}>Public Car Gallery</h2>
-                  <p style={{ color: "#4b5563", fontWeight: 750 }}>Manage the league car gallery from Public Relations. Public viewers can still see media on the public pages, but the board controls the gallery here.</p>
-                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 14 }}>
-                    <button type="button" onClick={() => (window.location.pathname = "/admin/car-gallery")} style={adminPrimaryButtonStyle}>Open Car Gallery</button>
-                    <button type="button" onClick={() => (window.location.pathname = "/admin/arca-car-gallery")} style={{ ...adminPrimaryButtonStyle, background: "#006341" }}>Open ARCA Car Gallery</button>
-                    <button type="button" onClick={() => setPublicRelationsTab("media")} style={adminSecondaryButtonStyle}>Featured Media</button>
-                  </div>
-                </div>
-              )}
-
-              {publicRelationsTab === "watch" && (
-                <div style={prCardStyle}>
-                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Ones to Watch</div>
-                  <h2 style={{ margin: "3px 0 6px", fontSize: 28, letterSpacing: -0.7 }}>Race Weekend Storylines</h2>
-                  <p style={{ margin: "0 0 16px", color: "#4b5563", fontWeight: 700 }}>Choose the drivers the board wants promoted on the standings page. Manual picks override the automatic watch list.</p>
-                  <div style={{ ...prMobileStackStyle, marginBottom: 14 }}>
-                    <div>
-                      <div style={{ marginBottom: 6, fontWeight: 900 }}>Driver</div>
-                      <select style={adminInputStyle} value={watchDriverId} onChange={(e) => setWatchDriverId(e.target.value)}>
-                        <option value="">Select driver...</option>
-                        {visibleDrivers.map((d) => <option key={d.id} value={d.id}>#{d.number} {d.name}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <div style={{ marginBottom: 6, fontWeight: 900 }}>Badge</div>
-                      <select style={adminInputStyle} value={watchBadge} onChange={(e) => setWatchBadge(e.target.value)}>
-                        <option value="DIRECTOR PICK">DIRECTOR PICK</option>
-                        <option value="HOT SEAT">HOT SEAT</option>
-                        <option value="MOMENTUM">MOMENTUM</option>
-                        <option value="UNDERDOG">UNDERDOG</option>
-                        <option value="REBOUND WATCH">REBOUND WATCH</option>
-                        <option value="TITLE THREAT">TITLE THREAT</option>
-                      </select>
-                    </div>
-                    <div>
-                      <div style={{ marginBottom: 6, fontWeight: 900 }}>Display Order</div>
-                      <input style={adminInputStyle} type="number" min="1" value={watchDisplayOrder} onChange={(e) => setWatchDisplayOrder(e.target.value)} />
-                    </div>
-                  </div>
-                  <div style={{ marginBottom: 14 }}>
-                    <div style={{ marginBottom: 6, fontWeight: 900 }}>Reason / Storyline</div>
-                    <input style={adminInputStyle} value={watchReason} onChange={(e) => setWatchReason(e.target.value)} placeholder="Example: Coming off a podium and showing long-run speed" />
-                  </div>
-                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 18 }}>
-                    <button onClick={addManualWatchPick} disabled={watchSaving} style={{ ...adminPrimaryButtonStyle, opacity: watchSaving ? 0.6 : 1 }}>{watchSaving ? "Saving..." : "Add to Ones to Watch"}</button>
-                    <button onClick={loadManualWatchPicks} style={adminSecondaryButtonStyle}>Refresh Picks</button>
-                    <button onClick={() => { setWatchDriverId(""); setWatchReason(""); setWatchBadge("DIRECTOR PICK"); setWatchDisplayOrder("1"); }} style={adminSecondaryButtonStyle}>Clear Form</button>
-                  </div>
-                  <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(auto-fit, minmax(260px, 1fr))", gap: 12 }}>
-                    {manualWatchPicks.length === 0 ? (
-                      <div style={{ padding: 18, borderRadius: 22, background: "#f5f5f7", color: "#6b7280", fontWeight: 800 }}>No manual picks yet. The standings page will use the automatic watch list.</div>
-                    ) : manualWatchPicks.map((pick) => {
-                      const driver = drivers.find((d) => Number(d.id) === Number(pick.driver_id));
-                      return (
-                        <div key={pick.id} style={{ padding: 18, borderRadius: 26, background: pick.active ? "linear-gradient(135deg, #ffffff, #f5f5f7)" : "#f5f5f7", border: "1px solid #e5e7eb", boxShadow: pick.active ? "0 16px 40px rgba(15, 23, 42, 0.08)" : "none" }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
-                            <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.2, color: pick.active ? "#34c759" : "#8e8e93" }}>{pick.active ? "ACTIVE" : "OFF"}</div>
-                            <div style={{ fontSize: 12, fontWeight: 1000, color: "#6b7280" }}>#{pick.display_order || "—"}</div>
-                          </div>
-                          <div style={{ fontSize: 22, fontWeight: 1000, letterSpacing: -0.4, marginTop: 8 }}>{driver ? `#${driver.number} ${driver.name}` : `Driver ID ${pick.driver_id}`}</div>
-                          <div style={{ display: "inline-flex", padding: "6px 10px", borderRadius: 999, background: "#111827", color: "#fff", fontSize: 11, fontWeight: 1000, marginTop: 10 }}>{pick.badge || "DIRECTOR PICK"}</div>
-                          <p style={{ color: "#4b5563", fontWeight: 700, lineHeight: 1.45 }}>{pick.reason || "No storyline added."}</p>
-                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                            <button onClick={() => toggleManualWatchPick(pick)} style={adminSecondaryButtonStyle}>{pick.active ? "Turn Off" : "Activate"}</button>
-                            <button onClick={() => deleteManualWatchPick(pick.id)} style={adminDangerButtonStyle}>Delete</button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {publicRelationsTab === "stories" && (
-                <div style={prCardStyle}>
-                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Stories</div>
-                  <h2 style={{ margin: "3px 0 6px", fontSize: 28, letterSpacing: -0.7 }}>Board Story Desk</h2>
-                  <p style={{ color: "#4b5563", fontWeight: 750 }}>Review, write, and publish stories from the board workspace.</p>
-                  <button type="button" onClick={() => (window.location.pathname = "/admin/stories")} style={adminPrimaryButtonStyle}>Open Stories Manager ({openStoryCount || 0})</button>
-                </div>
-              )}
-
-              {publicRelationsTab === "interviews" && (
-                <div style={prCardStyle}>
-                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Interviews</div>
-                  <h2 style={{ margin: "3px 0 6px", fontSize: 28, letterSpacing: -0.7 }}>Board Interview Desk</h2>
-                  <p style={{ color: "#4b5563", fontWeight: 750 }}>Review interview submissions and prepare the media content the board wants posted.</p>
-                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                    <button type="button" onClick={() => (window.location.pathname = "/admin/interviews")} style={adminPrimaryButtonStyle}>Open Interview Admin</button>
-                    <button type="button" onClick={() => openFinanceDepartment("interview")} style={adminSecondaryButtonStyle}>Pay Interviews in Finance</button>
-                  </div>
-                </div>
-              )}
-            </div>
+        {storyLoadError && (
+          <div style={{ ...sectionCardStyle, borderColor: "#7f1d1d", color: "#f87171", fontWeight: 900 }}>
+            {storyLoadError}
           </div>
         )}
 
-
-        {raceOperationsOpen && (
-          <RaceOperations
-            {...{
-              activeDrivers,
-              activeSeason,
-              addTrack,
-              adminDangerButtonStyle,
-              adminInputStyle,
-              adminPrimaryButtonStyle,
-              adminReadableCardStyle,
-              adminSecondaryButtonStyle,
-              adminTableStyle,
-              adminTdStyle,
-              adminThStyle,
-              clearInputs,
-              deleteResultsDraft,
-              dnfMap,
-              dnfReasons,
-              downloadRaceHistoryCsv,
-              editingRaceName,
-              fastestLapMap,
-              financeOverlayStyle,
-              financeShellStyle,
-              getOffensePenaltyPoints,
-              getStagePoints,
-              getTeamFullName,
-              handleDeleteRace,
-              handleDnfChange,
-              handleEditRace,
-              handleFastestLapChange,
-              handleManualPenaltyChange,
-              handleOffenseChange,
-              handlePositionChange,
-              handleResultNoteChange,
-              handleStage1Change,
-              handleStage2Change,
-              handleStage3Change,
-              handleStartParkChange,
-              inputStyle,
-              isAdminMobile,
-              loadResultsDraft,
-              moveDriverFinishPosition,
-              newTrackName,
-              newTrackStageCount,
-              offenseLog,
-              offenseMap,
-              patchActiveSeason,
-              penaltyMap,
-              pointsTable,
-              positions,
-              postResultsDraft,
-              raceDrafts,
-              raceHistory,
-              raceNotesInputStyle,
-              raceOperationsTab,
-              racePenaltyInputStyle,
-              racePositionInputStyle,
-              removeTrack,
-              resetSeason,
-              restoreDefaultTracks,
-              resultNotesMap,
-              saveResultsDraft,
-              seasonOffenseCounts,
-              seasons,
-              secondaryButtonStyle,
-              selectedRace,
-              setDnfReasons,
-              setNewTrackName,
-              setNewTrackStageCount,
-              setRaceOperationsOpen,
-              setRaceOperationsTab,
-              stage1,
-              stage2,
-              stage3,
-              stageCount,
-              startParkMap,
-              submitResults,
-              tdStyle,
-              tracks,
-              updateTrackStageCount
-            }}
-          />
+        {loading ? (
+          <div style={sectionCardStyle}>Loading stories...</div>
+        ) : stories.length === 0 ? (
+          <div style={sectionCardStyle}>No stories submitted yet.</div>
+        ) : (
+          stories.map((story) => (
+            <div key={story.id} style={{ ...sectionCardStyle, borderColor: String(story.status || "Open") === "Open" ? "#d4af37" : "#2c3440" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 14, flexWrap: "wrap", marginBottom: 10 }}>
+                <div>
+                  <div style={{ fontSize: 22, fontWeight: 900 }}>{story.title || "Untitled Story"}</div>
+                  <div style={{ opacity: 0.68, fontSize: 13, marginTop: 4 }}>
+                    Submitted by {story.author_name || "Unknown"}{story.driver_name ? ` • ${story.driver_name}` : ""}{story.created_at ? ` • ${new Date(story.created_at).toLocaleString()}` : ""}
+                  </div>
+                </div>
+                <div style={{ background: String(story.status || "Open") === "Open" ? "rgba(212,175,55,0.16)" : "rgba(34,197,94,0.12)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 999, padding: "8px 12px", fontWeight: 900, height: "fit-content" }}>
+                  {story.status || "Open"}
+                </div>
+              </div>
+              <div style={{ background: "#0f1319", border: "1px solid #2a3240", borderRadius: 14, padding: 14, whiteSpace: "pre-wrap", lineHeight: 1.5, marginBottom: 12 }}>
+                {story.story}
+              </div>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <button onClick={() => updateStoryStatus(story.id, "Open")} style={secondaryButtonStyle}>Mark Open</button>
+                <button onClick={() => updateStoryStatus(story.id, "Reviewed")} style={primaryButtonStyle}>Mark Reviewed</button>
+                <button onClick={() => updateStoryStatus(story.id, "Archived")} style={dangerButtonStyle}>Archive</button>
+              </div>
+            </div>
+          ))
         )}
-
-        {hrDepartmentOpen && (
-          <div style={financeOverlayStyle}>
-            <div style={financeShellStyle}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, flexWrap: "wrap", marginBottom: 18 }}>
-                <div>
-                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.8, textTransform: "uppercase", color: "#6b7280" }}>Admin Menu</div>
-                  <h1 style={{ margin: "2px 0 0", fontSize: isAdminMobile ? 34 : 42, letterSpacing: -1.6 }}>Human Resources</h1>
-                  <p style={{ margin: "6px 0 0", color: "#4b5563", fontWeight: 750 }}>People operations for drivers, owners, assignments, access, appeals, and contracts.</p>
-                </div>
-                <button type="button" onClick={() => setHrDepartmentOpen(false)} style={{ border: 0, borderRadius: 999, background: "#ffffff", color: "#111827", width: 46, height: 46, fontSize: 23, fontWeight: 1000, cursor: "pointer", boxShadow: "0 8px 20px rgba(15,23,42,0.12)" }}>×</button>
-              </div>
-
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 18 }}>
-                {[
-                  ["overview", "HR Home"],
-                  ["drivers", "Driver Assignments"],
-                  ["owners", "Owner Assignments"],
-                  ["access", "Access Codes"],
-                  ["appeals", "Appeals"],
-                  ["issues", "Issues & Feedback"],
-                  ["contracts", "Contracts"],
-                  ["startpark", "Start & Park"],
-                ].map(([key, label]) => (
-                  <button key={key} type="button" onClick={() => setHrTab(key)} style={financeSegmentButtonStyle(hrTab === key)}>{label}</button>
-                ))}
-              </div>
-
-              {hrTab === "overview" && (
-                <div>
-                  <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(5, minmax(150px, 1fr))", gap: 14, marginBottom: 18 }}>
-                    {[
-                      ["Active Drivers", visibleDrivers?.length || drivers?.length || 0],
-                      ["Team Owners", ownerPortalTeams?.length || 0],
-                      ["Open Appeals", openAppealCount || 0],
-                      ["Pending Issues", 0],
-                      ["Contracts", financeContracts?.length || 0],
-                      ["Start & Park", (startParkRequests || []).filter((request) => String(request.status || "pending").toLowerCase() === "pending").length],
-                      ["Join Requests", pendingHrRequestCount],
-                    ].map(([label, value]) => (
-                      <div key={label} style={{ ...walletLightCardStyle, padding: 18 }}>
-                        <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.2, textTransform: "uppercase", color: "#6b7280" }}>{label}</div>
-                        <div style={{ fontSize: 34, fontWeight: 1000, letterSpacing: -1, marginTop: 8 }}>{value}</div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(3, minmax(240px, 1fr))", gap: 14 }}>
-                    {[
-                      ["👤", "Driver Assignments", "Assign drivers to teams, edit numbers, manufacturers, and active status.", "drivers"],
-                      ["🏢", "Team Owner Assignments", "Manage owner access and team-owner responsibility.", "owners"],
-                      ["🔐", "Access & Security", "Driver passwords, owner codes, account access, and security controls.", "access"],
-                      ["⚖️", "Appeals", "Review open appeals and move them through the board workflow.", "appeals"],
-                      ["🐛", "Issues & Feedback", "Track driver-submitted issues and solutions from creation to completion.", "issues"],
-                      ["📑", "Contracts", "View driver contracts, statuses, salary records, and team obligations.", "contracts"],
-                      ["🟨", "Start & Park", "Approve, decline, and apply Start & Park requests from drivers and owners.", "startpark"],
-                      ["➕", "Add / Approve Drivers", "Add new drivers and approve pending signup requests directly inside HR.", "drivers"],
-                    ].map(([icon, title, text, tab]) => (
-                      <button key={title} type="button" onClick={() => setHrTab(tab)} style={{ ...prCardStyle, textAlign: "left", cursor: "pointer" }}>
-                        <div style={prIconStyle}>{icon}</div>
-                        <div style={{ fontSize: 21, fontWeight: 1000, marginTop: 14, letterSpacing: -0.4 }}>{title}</div>
-                        <div style={{ color: "#6b7280", fontWeight: 750, marginTop: 6, lineHeight: 1.45 }}>{text}</div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {hrTab === "drivers" && (
-                <div style={walletLightCardStyle}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Driver Assignments</div>
-                      <h2 style={{ margin: "3px 0 0", fontSize: 26, letterSpacing: -0.6 }}>Driver Roster</h2>
-                      <p style={{ margin: "6px 0 0", color: "#4b5563", fontWeight: 700 }}>Quick view of each driver, team, number, and manufacturer.</p>
-                    </div>
-                  </div>
-
-                  <div style={{ borderRadius: 24, background: "#ffffff", border: "1px solid #e5e7eb", padding: 16, marginBottom: 14 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
-                      <div>
-                        <h3 style={{ margin: "0 0 4px", fontSize: 21, letterSpacing: -0.4 }}>Team Prestige</h3>
-                        <p style={{ margin: 0, color: "#6b7280", fontWeight: 750, fontSize: 13 }}>Ranked within each manufacturer by driver performance (heaviest weight), with interviews and car uploads as tiebreakers.</p>
-                      </div>
-                      <button type="button" onClick={recalculateTeamPrestige} disabled={teamPrestigeSaving} style={{ ...adminPrimaryButtonStyle, opacity: teamPrestigeSaving ? 0.6 : 1 }}>
-                        {teamPrestigeSaving ? "Recalculating..." : "Recalculate & Save"}
-                      </button>
-                    </div>
-                    {teamPrestigeStatus && (
-                      <div style={{ marginBottom: 12, fontSize: 13, fontWeight: 750, color: "#374151" }}>{teamPrestigeStatus}</div>
-                    )}
-                    <div style={{ display: "grid", gap: 10 }}>
-                      {(teamPrestigeRows || []).length === 0 ? (
-                        <div style={{ borderRadius: 20, padding: 16, background: "#f5f5f7", color: "#6b7280", fontWeight: 850 }}>No Cup teams to score yet.</div>
-                      ) : (
-                        (teamPrestigeRows || []).map((row) => {
-                          const tierColors = {
-                            Elite: { bg: "#fff7ed", color: "#c2410c" },
-                            Prestigious: { bg: "#eff6ff", color: "#1d4ed8" },
-                            Good: { bg: "#f0fdf4", color: "#15803d" },
-                            Developing: { bg: "#f5f5f7", color: "#6b7280" },
-                          };
-                          const tierStyle = tierColors[row.tier] || tierColors.Developing;
-                          return (
-                            <div key={row.team} style={{ ...walletTransactionRowStyle, alignItems: isAdminMobile ? "flex-start" : "center", flexDirection: isAdminMobile ? "column" : "row" }}>
-                              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                                <div style={{ fontSize: 11, fontWeight: 1000, letterSpacing: 1, textTransform: "uppercase", borderRadius: 999, padding: "4px 10px", background: tierStyle.bg, color: tierStyle.color }}>{row.tier}</div>
-                                <div>
-                                  <div style={{ fontWeight: 1000 }}>{row.teamName}</div>
-                                  <div style={{ color: "#6b7280", fontWeight: 750, fontSize: 13 }}>{row.manufacturer} · #{row.manufacturerRank} of manufacturer · {row.driverCount} drivers</div>
-                                </div>
-                              </div>
-                              <div style={{ display: "flex", gap: 16, marginLeft: isAdminMobile ? 0 : "auto", fontSize: 13, color: "#374151", fontWeight: 800 }}>
-                                <span>Score: {row.compositeScore}</span>
-                                <span>Perf: {row.performanceScore}</span>
-                                <span>Interviews: {row.interviewScore}</span>
-                                <span>Uploads: {row.uploadScore}</span>
-                              </div>
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
-                  </div>
-
-                  <div style={{ borderRadius: 24, background: "#ffffff", border: "1px solid #e5e7eb", padding: 16, marginBottom: 14 }}>
-                    <h3 style={{ margin: "0 0 12px", fontSize: 21, letterSpacing: -0.4 }}>Add Driver</h3>
-                    <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(4, minmax(170px, 1fr))", gap: 12, marginBottom: 12 }}>
-                      <div><div style={{ marginBottom: 6, fontWeight: 900, color: "#374151" }}>Driver Name</div><input style={adminInputStyle} value={newDriverName} onChange={(e) => setNewDriverName(e.target.value)} placeholder="Enter driver name" /></div>
-                      <div><div style={{ marginBottom: 6, fontWeight: 900, color: "#374151" }}>Number</div><input style={adminInputStyle} value={newDriverNumber} onChange={(e) => setNewDriverNumber(e.target.value)} placeholder="Car number" /></div>
-                      <div><div style={{ marginBottom: 6, fontWeight: 900, color: "#374151" }}>Manufacturer</div><select style={adminInputStyle} value={newDriverManufacturer} onChange={(e) => setNewDriverManufacturer(e.target.value)}><option value="">Select manufacturer</option><option value="Chevrolet">Chevrolet</option><option value="Ford">Ford</option><option value="Toyota">Toyota</option><option value="Other">Other</option></select></div>
-                      <div><div style={{ marginBottom: 6, fontWeight: 900, color: "#374151" }}>Team</div><input style={adminInputStyle} value={newDriverTeam} onChange={(e) => setNewDriverTeam(e.target.value)} placeholder="B2J, 19XI, BXM..." /></div>
-                    </div>
-                    <button type="button" onClick={addDriver} style={adminPrimaryButtonStyle}>Add Driver</button>
-                  </div>
-
-                  <div id="admin-join-requests" style={{ borderRadius: 24, background: "#ffffff", border: "1px solid #e5e7eb", padding: 16, marginBottom: 14, scrollMarginTop: 24 }}>
-                    <h3 style={{ margin: "0 0 6px", fontSize: 21, letterSpacing: -0.4 }}>Pending Driver Requests ({pendingHrRequestCount})</h3>
-                    <p style={{ margin: "0 0 12px", color: "#6b7280", fontWeight: 750 }}>All league and series request-to-join submissions feed into this HR queue.</p>
-                    {pendingHrRequestCount === 0 ? (
-                      <div style={{ borderRadius: 20, padding: 16, background: "#f5f5f7", color: "#6b7280", fontWeight: 850 }}>No pending league join requests right now.</div>
-                    ) : (
-                      <div style={{ display: "grid", gap: 10 }}>
-                        {(pendingDrivers || []).map((d) => (
-                          <div key={d.id} style={{ ...walletTransactionRowStyle, alignItems: isAdminMobile ? "flex-start" : "center", flexDirection: isAdminMobile ? "column" : "row" }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                              <div style={walletIconStyle}>#{d.car_number || "?"}</div>
-                              <div>
-                                <div style={{ fontWeight: 1000 }}>{d.driver_name || "Pending Driver"}</div>
-                                <div style={{ color: "#6b7280", fontWeight: 750, fontSize: 13 }}>{d.series_name || "League"} · {d.manufacturer || "Manufacturer TBD"} · {d.team_name || "Team TBD"}</div>
-                              </div>
-                            </div>
-                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginLeft: isAdminMobile ? 0 : "auto" }}>
-                              <button onClick={() => approvePendingDriver(d)} style={{ ...primaryButtonStyle, padding: "8px 12px", fontSize: 12 }}>Approve</button>
-                              <button onClick={() => rejectPendingDriver(d)} style={{ ...dangerButtonStyle, padding: "8px 12px", fontSize: 12 }}>Reject</button>
-                            </div>
-                          </div>
-                        ))}
-                        {pendingSeriesJoinRequests.map((request) => (
-                          <div key={request.id} style={{ ...walletTransactionRowStyle, alignItems: isAdminMobile ? "flex-start" : "center", flexDirection: isAdminMobile ? "column" : "row" }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                              <div style={walletIconStyle}>#{request.preferredNumber || "?"}</div>
-                              <div>
-                                <div style={{ fontWeight: 1000 }}>{request.username || request.gamertag || "Pending League Request"}</div>
-                                <div style={{ color: "#6b7280", fontWeight: 750, fontSize: 13 }}>{request.seriesName || request.seriesId || "Series TBD"} · {request.preferredTeam || "Team TBD"} · {request.role || "Driver"}</div>
-                                {request.notes && <div style={{ color: "#4b5563", fontWeight: 700, fontSize: 13, marginTop: 4 }}>{request.notes}</div>}
-                              </div>
-                            </div>
-                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginLeft: isAdminMobile ? 0 : "auto" }}>
-                              <button onClick={() => updateSeriesJoinRequestStatus(request.id, "approved")} style={{ ...primaryButtonStyle, padding: "8px 12px", fontSize: 12 }}>Approve</button>
-                              <button onClick={() => updateSeriesJoinRequestStatus(request.id, "denied")} style={{ ...dangerButtonStyle, padding: "8px 12px", fontSize: 12 }}>Deny</button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {editingDriverId && (
-                    <div style={{ borderRadius: 24, background: "#ffffff", border: "1px solid #e5e7eb", padding: 16, marginBottom: 14 }}>
-                      <h3 style={{ margin: "0 0 12px", fontSize: 21, letterSpacing: -0.4 }}>Edit Driver</h3>
-                      <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(4, minmax(170px, 1fr))", gap: 12, marginBottom: 12 }}>
-                        <div><div style={{ marginBottom: 6, fontWeight: 900, color: "#374151" }}>Driver Name</div><input style={adminInputStyle} value={editDriverForm.name} onChange={(e) => setEditDriverForm({ ...editDriverForm, name: e.target.value })} /></div>
-                        <div><div style={{ marginBottom: 6, fontWeight: 900, color: "#374151" }}>Number</div><input style={adminInputStyle} value={editDriverForm.number} onChange={(e) => setEditDriverForm({ ...editDriverForm, number: e.target.value })} /></div>
-                        <div><div style={{ marginBottom: 6, fontWeight: 900, color: "#374151" }}>Manufacturer</div><select style={adminInputStyle} value={editDriverForm.manufacturer} onChange={(e) => setEditDriverForm({ ...editDriverForm, manufacturer: e.target.value })}><option value="">Select manufacturer</option><option value="Chevrolet">Chevrolet</option><option value="Ford">Ford</option><option value="Toyota">Toyota</option><option value="Other">Other</option></select></div>
-                        <div><div style={{ marginBottom: 6, fontWeight: 900, color: "#374151" }}>Team</div><input style={adminInputStyle} value={editDriverForm.team} onChange={(e) => setEditDriverForm({ ...editDriverForm, team: e.target.value })} /></div>
-                      </div>
-                      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}><button onClick={saveDriverEdit} style={adminPrimaryButtonStyle}>Save Changes</button><button onClick={cancelEditDriver} style={adminSecondaryButtonStyle}>Cancel</button></div>
-                    </div>
-                  )}
-
-                  <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(auto-fit, minmax(245px, 1fr))", gap: 12, maxHeight: 520, overflowY: "auto" }}>
-                    {(visibleDrivers || drivers || []).map((driver) => (
-                      <div key={driver.id || driver.number} style={{ borderRadius: 24, padding: 16, background: "#ffffff", border: "1px solid #e5e7eb", boxShadow: "0 12px 30px rgba(15,23,42,0.07)" }}>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-                          <div style={{ width: 48, height: 48, borderRadius: 16, background: "#111827", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 1000 }}>#{driver.number}</div>
-                          <div style={{ fontSize: 12, fontWeight: 1000, color: driver.retired ? "#ff3b30" : "#34c759" }}>{driver.retired ? "INACTIVE" : "ACTIVE"}</div>
-                        </div>
-                        <div style={{ fontSize: 20, fontWeight: 1000, marginTop: 12, letterSpacing: -0.4 }}>{driver.name}</div>
-                        <div style={{ color: "#6b7280", fontWeight: 800, marginTop: 4 }}>{getTeamFullName(driver.team)} · {driver.manufacturer || "Manufacturer TBD"}</div>
-                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
-                          <button onClick={() => openEditDriver(driver)} style={{ ...adminSecondaryButtonStyle, padding: "8px 12px", fontSize: 12 }}>Edit</button>
-                          {driver.retired ? (<button onClick={() => unretireDriver(driver.id)} style={{ ...adminSecondaryButtonStyle, padding: "8px 12px", fontSize: 12 }}>Unretire</button>) : (<button onClick={() => retireDriver(driver.id)} style={{ ...adminSecondaryButtonStyle, padding: "8px 12px", fontSize: 12 }}>Retire</button>)}
-                          <button onClick={() => removeDriver(driver.id)} style={{ ...adminDangerButtonStyle, padding: "8px 12px", fontSize: 12 }}>Remove</button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {hrTab === "owners" && (
-                <div style={walletLightCardStyle}>
-                  <section style={{ borderTop: "3px solid #d71920", padding: "20px 0", marginBottom: 18 }}>
-                    <h2 style={{ margin: "0 0 6px" }}>Team Rebranding</h2>
-                    <p style={{ margin: "0 0 16px", color: "#4b5563" }}>Change the public name, colors, and logo. The internal team key stays the same so roster, results, finances, and owner access remain connected.</p>
-                    <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(2, minmax(0, 1fr))", gap: 12, alignItems: "end" }}>
-                      <label>Team<select value={logoTeam} onChange={(event) => { const team = event.target.value; const brand = getTeamBranding(team); setLogoTeam(team); setRebrandName(team ? getTeamFullName(team) : ""); setRebrandAccent(brand.accent || "#d71920"); setRebrandDark(brand.dark || "#111216"); setLogoFile(null); setLogoStatus(""); }} style={adminInputStyle}><option value="">Select team</option>{(ownerPortalTeams || []).map((team) => <option key={team} value={team}>{getTeamFullName(team)} ({team})</option>)}</select></label>
-                      <label>Public team name<input value={rebrandName} onChange={(event) => setRebrandName(event.target.value)} maxLength={80} disabled={!logoTeam} style={adminInputStyle} placeholder="New team name" /></label>
-                      <label>Logo image (optional)<input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => { setLogoFile(event.target.files?.[0] || null); setLogoStatus(""); }} style={{ ...adminInputStyle, padding: 8 }} /></label>
-                      <div style={{ display: "flex", gap: 12 }}>
-                        <label style={{ flex: 1 }}>Team color<input type="color" value={rebrandAccent} onChange={(event) => setRebrandAccent(event.target.value)} style={{ ...adminInputStyle, height: 46, padding: 4 }} /></label>
-                        <label style={{ flex: 1 }}>Dark color<input type="color" value={rebrandDark} onChange={(event) => setRebrandDark(event.target.value)} style={{ ...adminInputStyle, height: 46, padding: 4 }} /></label>
-                      </div>
-                    </div>
-                    <button type="button" disabled={logoSaving || !logoTeam || !rebrandName.trim() || typeof onSaveTeamBranding !== "function"} onClick={async () => { setLogoSaving(true); setLogoStatus(""); try { await onSaveTeamBranding(logoTeam, { fullName: rebrandName, file: logoFile, accent: rebrandAccent, dark: rebrandDark }); setLogoStatus(`Branding saved for ${rebrandName.trim()}.`); setLogoFile(null); } catch (error) { console.error("Team rebrand failed:", error); setLogoStatus(error?.message || "Could not save team branding."); } finally { setLogoSaving(false); } }} style={{ ...adminPrimaryButtonStyle, borderRadius: 2, marginTop: 16, opacity: logoSaving || !logoTeam || !rebrandName.trim() || typeof onSaveTeamBranding !== "function" ? 0.5 : 1 }}>{logoSaving ? "Saving…" : "Save Team Branding"}</button>
-                    {typeof onSaveTeamBranding !== "function" && <p role="alert" style={{ color: "#a31820", fontWeight: 800 }}>Update src/App.jsx from the same ZIP to enable team rebranding.</p>}
-                    {logoTeam && <div style={{ marginTop: 16, borderTop: "1px solid #d6d7d9", paddingTop: 14 }}>
-                      <div style={{ fontSize: 12, fontWeight: 900, textTransform: "uppercase", marginBottom: 10 }}>Current brand · {getTeamFullName(logoTeam)}</div>
-                      {(customTeamBranding[logoTeam]?.logoUrl || teamLogos[logoTeam] || teamLogos[getTeamFullName(logoTeam)])
-                        ? <img src={customTeamBranding[logoTeam]?.logoUrl || teamLogos[logoTeam] || teamLogos[getTeamFullName(logoTeam)]} alt={`${getTeamFullName(logoTeam)} current logo`} style={{ maxWidth: 180, maxHeight: 110, objectFit: "contain" }} />
-                        : <div style={{ color: "#6b7280" }}>No logo yet. Upload one above.</div>}
-                    </div>}
-                    {logoStatus && <p role="status" style={{ fontWeight: 800 }}>{logoStatus}</p>}
-                  </section>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Team Owner Assignments</div>
-                      <h2 style={{ margin: "3px 0 0", fontSize: 26, letterSpacing: -0.6 }}>Owner Assignment Center</h2>
-                      <p style={{ margin: "6px 0 0", color: "#4b5563", fontWeight: 700 }}>Assign which driver owns each team. The assigned driver password unlocks that owner portal.</p>
-                    </div>
-                  </div>
-
-                  <div style={{ borderRadius: 26, background: "#ffffff", border: "1px solid #e5e7eb", padding: 16, marginBottom: 16, boxShadow: "0 14px 34px rgba(15,23,42,0.07)" }}>
-                    <h3 style={{ margin: "0 0 12px", fontSize: 21, letterSpacing: -0.4 }}>Assign Team Owner</h3>
-                    <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(3, minmax(190px, 1fr))", gap: 12, alignItems: "end" }}>
-                      <div>
-                        <label style={{ display: "block", fontSize: 12, fontWeight: 900, color: "#6b7280", marginBottom: 8 }}>TEAM</label>
-                        <select value={selectedOwnerTeam} onChange={(event) => setSelectedOwnerTeam(event.target.value)} style={adminInputStyle}>
-                          <option value="">Select team</option>
-                          {(teamStandings || [])
-                            .filter((team) => team.team !== "Independent" && team.team !== "IND")
-                            .map((team) => (
-                              <option key={team.team} value={team.team}>{getTeamFullName(team.team)}</option>
-                            ))}
-                        </select>
-                      </div>
-
-                      <div>
-                        <label style={{ display: "block", fontSize: 12, fontWeight: 900, color: "#6b7280", marginBottom: 8 }}>OWNER DRIVER</label>
-                        <select value={selectedOwnerDriverNumber} onChange={(event) => setSelectedOwnerDriverNumber(event.target.value)} style={adminInputStyle}>
-                          <option value="">Select owner driver</option>
-                          {(visibleDrivers || [])
-                            .filter((driver) => !driver.retired && !isInactivePlaceholderDriver(driver))
-                            .sort((a, b) => Number(a.number || 9999) - Number(b.number || 9999))
-                            .map((driver) => (
-                              <option key={driver.id || driver.number} value={driver.number}>#{driver.number} — {driver.name}</option>
-                            ))}
-                        </select>
-                      </div>
-
-                      <button type="button" onClick={saveOwnerAssignment} style={adminPrimaryButtonStyle}>Save Owner Assignment</button>
-                    </div>
-                    {ownerAssignmentMessage && <div style={{ color: "#047857", marginTop: 12, fontWeight: 900 }}>{ownerAssignmentMessage}</div>}
-                    {ownerAssignmentError && <div style={{ color: "#b42318", marginTop: 12, fontWeight: 900 }}>{ownerAssignmentError}</div>}
-                  </div>
-
-                  <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(auto-fit, minmax(250px, 1fr))", gap: 12 }}>
-                    {(ownerPortalTeams || []).map((team) => {
-                      const teamDrivers = (visibleDrivers || []).filter((driver) => driver.team === team);
-                      const assignment = (ownerAssignments || []).find((item) => String(item.team) === String(team));
-                      return (
-                        <div key={team} style={{ borderRadius: 26, padding: 18, color: "white", background: "linear-gradient(135deg, #1c1c1e, #3a3a3c)", boxShadow: "0 16px 38px rgba(15,23,42,0.16)" }}>
-                          <div style={{ fontSize: 12, fontWeight: 1000, opacity: 0.75, letterSpacing: 1.3 }}>{team}</div>
-                          <div style={{ fontSize: 22, fontWeight: 1000, marginTop: 8 }}>{getTeamFullName(team)}</div>
-                          <div style={{ marginTop: 10, borderRadius: 18, padding: "10px 12px", background: "rgba(255,255,255,0.13)", fontWeight: 900 }}>
-                            Owner: {assignment?.owner_driver_name ? `#${assignment.owner_driver_number} ${assignment.owner_driver_name}` : "Not assigned"}
-                          </div>
-                          <div style={{ opacity: 0.82, fontWeight: 800, marginTop: 10 }}>{teamDrivers.length} team drivers</div>
-                          <div style={{ marginTop: 10, fontSize: 13, opacity: 0.82 }}>{teamDrivers.map((driver) => `#${driver.number} ${driver.name}`).join(" · ") || "No drivers assigned"}</div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {hrTab === "access" && (
-                <div style={walletLightCardStyle}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Access & Security</div>
-                      <h2 style={{ margin: "3px 0 0", fontSize: 26, letterSpacing: -0.6 }}>Access Codes</h2>
-                      <p style={{ margin: "6px 0 0", color: "#4b5563", fontWeight: 700 }}>Driver codes and owner portal codes live here for quick HR review.</p>
-                    </div>
-                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                      <button type="button" onClick={loadDriverAccessCodes} style={adminSecondaryButtonStyle}>Refresh Driver Codes</button>
-                      <button type="button" onClick={generateAllOwnerCodes} style={adminPrimaryButtonStyle}>Generate Owner Codes</button>
-                    </div>
-                  </div>
-                  {hrAccessStatus ? (
-                    <div style={{ marginBottom: 12, padding: "10px 12px", borderRadius: 16, background: "#ecfdf5", color: "#065f46", fontWeight: 900 }}>{hrAccessStatus}</div>
-                  ) : null}
-                  {hrAccessError ? (
-                    <div style={{ marginBottom: 12, padding: "10px 12px", borderRadius: 16, background: "#fef2f2", color: "#991b1b", fontWeight: 900 }}>{hrAccessError}</div>
-                  ) : null}
-                  <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "1.35fr 0.65fr", gap: 14 }}>
-                    <div style={{ borderRadius: 30, background: "#ffffff", border: "1px solid #e5e7eb", overflow: "hidden", boxShadow: "0 18px 45px rgba(15,23,42,0.08)" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap", padding: 16, borderBottom: "1px solid #eef2f7", background: "linear-gradient(180deg, #ffffff, #f8fafc)" }}>
-                        <div>
-                          <h3 style={{ margin: 0, letterSpacing: -0.25 }}>Driver Contract Access</h3>
-                          <div style={{ marginTop: 4, color: "#6b7280", fontSize: 13, fontWeight: 750 }}>Apple Contacts-style access list. Click a driver to manage their contract password.</div>
-                        </div>
-                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                          <button type="button" onClick={resetAllDriverAccessCodes} style={adminPrimaryButtonStyle}>Reset All</button>
-                          <button type="button" onClick={clearAllDriverAccessCodes} style={dangerButtonStyle}>Clear All</button>
-                        </div>
-                      </div>
-
-                      <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "320px 1fr", minHeight: 520 }}>
-                        <div style={{ borderRight: isAdminMobile ? "none" : "1px solid #eef2f7", borderBottom: isAdminMobile ? "1px solid #eef2f7" : "none", background: "#f9fafb", maxHeight: isAdminMobile ? 320 : 560, overflowY: "auto" }}>
-                          {(accessDrivers || []).map((driver) => {
-                            const codeRow = (driverAccessCodes || []).find((row) => String(row.driver_number) === String(driver.number) && row.active !== false);
-                            const isSelected = selectedAccessDriver && String(selectedAccessDriver.number) === String(driver.number);
-                            const initials = String(driver.name || "?").split(/\s|_/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "D";
-                            return (
-                              <button
-                                key={driver.id || driver.number}
-                                type="button"
-                                onClick={() => {
-                                  setSelectedAccessDriverNumber(String(driver.number));
-                                  setAccessCodeModalDriverNumber(String(driver.number));
-                                  setShowAccessCodePassword(false);
-                                }}
-                                style={{
-                                  width: "100%",
-                                  border: "none",
-                                  borderBottom: "1px solid #eef2f7",
-                                  background: isSelected ? "#e8f1ff" : "transparent",
-                                  padding: "12px 14px",
-                                  display: "grid",
-                                  gridTemplateColumns: "46px 1fr auto",
-                                  gap: 12,
-                                  alignItems: "center",
-                                  textAlign: "left",
-                                  cursor: "pointer"
-                                }}
-                              >
-                                <div style={{ width: 46, height: 46, borderRadius: 16, background: isSelected ? "linear-gradient(135deg, #007aff, #5ac8fa)" : "linear-gradient(135deg, #d1d5db, #f3f4f6)", color: isSelected ? "white" : "#111827", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 1000 }}>
-                                  {initials}
-                                </div>
-                                <div style={{ minWidth: 0 }}>
-                                  <div style={{ fontWeight: 1000, color: "#111827", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>#{driver.number} {driver.name}</div>
-                                  <div style={{ color: "#6b7280", fontSize: 12, fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{getTeamFullName(driver.team)} · {driver.manufacturer || "Manufacturer TBD"}</div>
-                                </div>
-                                <div style={{ width: 10, height: 10, borderRadius: 999, background: codeRow?.code ? "#34c759" : "#ff3b30" }} title={codeRow?.code ? "Code active" : "No code"} />
-                              </button>
-                            );
-                          })}
-                          {!accessDrivers.length && (
-                            <div style={{ padding: 18, color: "#6b7280", fontWeight: 800 }}>No active drivers found.</div>
-                          )}
-                        </div>
-
-                        <div style={{ padding: isAdminMobile ? 14 : 18, background: "#ffffff" }}>
-                          <div style={{ borderRadius: 28, background: "linear-gradient(180deg, #f9fafb, #ffffff)", border: "1px solid #eef2f7", padding: 18 }}>
-                            <h3 style={{ margin: "0 0 8px", letterSpacing: -0.25 }}>Select a Driver</h3>
-                            <p style={{ margin: 0, color: "#6b7280", fontWeight: 800, lineHeight: 1.45 }}>Click a name from the list to open their contract access card.</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                  {accessCodeModalDriver ? (
-                    <div style={{ position: "fixed", inset: 0, zIndex: 10050, background: "rgba(0,0,0,0.38)", backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 18 }} onClick={() => { setAccessCodeModalDriverNumber(""); setShowAccessCodePassword(false); }}>
-                      <div style={{ width: "min(560px, 100%)", borderRadius: 34, background: "#f5f5f7", border: "1px solid rgba(255,255,255,0.9)", boxShadow: "0 34px 110px rgba(0,0,0,0.35)", overflow: "hidden" }} onClick={(event) => event.stopPropagation()}>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "16px 18px", borderBottom: "1px solid #e5e7eb", background: "rgba(255,255,255,0.82)" }}>
-                          <div>
-                            <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.2, textTransform: "uppercase", color: "#6b7280" }}>Contract Access</div>
-                            <div style={{ fontSize: 22, fontWeight: 1000, letterSpacing: -0.4 }}>#{accessCodeModalDriver.number} {accessCodeModalDriver.name}</div>
-                          </div>
-                          <button type="button" onClick={() => { setAccessCodeModalDriverNumber(""); setShowAccessCodePassword(false); }} aria-label="Close access card" style={{ width: 38, height: 38, borderRadius: 999, border: "1px solid #d1d5db", background: "#ffffff", color: "#111827", fontWeight: 1000, fontSize: 18, cursor: "pointer" }}>×</button>
-                        </div>
-                        <div style={{ padding: 18 }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16 }}>
-                            <div style={{ width: 72, height: 72, borderRadius: 25, background: "linear-gradient(135deg, #007aff, #5ac8fa)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 1000, fontSize: 22 }}>#{accessCodeModalDriver.number}</div>
-                            <div>
-                              <div style={{ color: "#111827", fontWeight: 1000, fontSize: 18 }}>{getTeamFullName(accessCodeModalDriver.team)}</div>
-                              <div style={{ color: "#6b7280", fontWeight: 850, marginTop: 4 }}>{accessCodeModalDriver.manufacturer || "Manufacturer TBD"}</div>
-                            </div>
-                          </div>
-                          <div style={{ borderRadius: 24, background: "#ffffff", border: "1px solid #e5e7eb", overflow: "hidden" }}>
-                            <div style={{ padding: "15px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, borderBottom: "1px solid #eef2f7" }}>
-                              <div>
-                                <div style={{ color: "#6b7280", fontSize: 12, fontWeight: 1000, letterSpacing: 1.1, textTransform: "uppercase" }}>Password</div>
-                                <div style={{ marginTop: 6, fontFamily: "monospace", fontSize: 24, fontWeight: 1000, color: accessCodeModalCode ? "#111827" : "#ef4444", letterSpacing: accessCodeModalCode && !showAccessCodePassword ? 2 : 0 }}>{accessCodeModalCode ? (showAccessCodePassword ? accessCodeModalCode : "••••••••••••") : "Not generated"}</div>
-                              </div>
-                              <div style={{ padding: "6px 10px", borderRadius: 999, background: accessCodeModalCode ? "#ecfdf5" : "#fef2f2", color: accessCodeModalCode ? "#047857" : "#b42318", fontWeight: 1000, fontSize: 12 }}>{accessCodeModalCode ? "ACTIVE" : "MISSING"}</div>
-                            </div>
-                            <div style={{ padding: 16, display: "grid", gap: 10 }}>
-                              <button type="button" onClick={() => setShowAccessCodePassword((value) => !value)} disabled={!accessCodeModalCode} style={{ ...secondaryButtonStyle, width: "100%", justifyContent: "center", opacity: accessCodeModalCode ? 1 : 0.45 }}>{showAccessCodePassword ? "Hide Password" : "Reveal Password"}</button>
-                              <button type="button" onClick={() => { setShowAccessCodePassword(false); resetSingleDriverAccessCode(accessCodeModalDriver); }} style={{ ...adminPrimaryButtonStyle, width: "100%", justifyContent: "center" }}>{accessCodeModalCode ? "Reset Code" : "Generate Code"}</button>
-                              <button type="button" onClick={() => copyDriverAccessCode(accessCodeModalDriver, accessCodeModalCode)} disabled={!accessCodeModalCode} style={{ ...secondaryButtonStyle, width: "100%", justifyContent: "center", opacity: accessCodeModalCode ? 1 : 0.45 }}>Copy Code</button>
-                              <button type="button" onClick={() => { setShowAccessCodePassword(false); clearDriverAccessCode(accessCodeModalDriver); }} disabled={!accessCodeModalCode} style={{ ...dangerButtonStyle, width: "100%", justifyContent: "center", opacity: accessCodeModalCode ? 1 : 0.45 }}>Disable Access</button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ) : null}
-                    <div style={{ borderRadius: 24, background: "#ffffff", border: "1px solid #e5e7eb", padding: 16 }}>
-                      <h3 style={{ marginTop: 0 }}>Owner Portal Access</h3>
-                      <p style={{ marginTop: -4, color: "#6b7280", fontSize: 13, fontWeight: 750 }}>Owners use their driver password as their owner password. Legacy owner codes are shown here only for review.</p>
-                      <div style={{ display: "grid", gap: 8, maxHeight: 420, overflowY: "auto" }}>
-                        {(ownerPortalTeams || []).map((team) => (
-                          <div key={team} style={walletTransactionRowStyle}>
-                            <div style={walletIconStyle}>🏢</div>
-                            <div><div style={{ fontWeight: 1000 }}>{getTeamFullName(team)}</div><div style={{ color: "#6b7280", fontWeight: 750, fontSize: 13 }}>{team}</div></div>
-                            <div style={{ fontFamily: "monospace", fontWeight: 1000 }}>{ownerAccessCodes[team] || "Driver Code"}</div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {hrTab === "appeals" && (
-                <div style={walletLightCardStyle}>
-                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Appeals</div>
-                  <h2 style={{ margin: "3px 0 0", fontSize: 26, letterSpacing: -0.6 }}>Board Appeal Queue</h2>
-                  <p style={{ color: "#4b5563", fontWeight: 750 }}>Open appeals remain managed by the appeals page, but HR now owns the people/discipline view.</p>
-                  <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", marginTop: 16 }}>
-                    <div style={{ padding: "14px 18px", borderRadius: 20, background: "#ffffff", border: "1px solid #e5e7eb", fontWeight: 1000 }}>{openAppealCount || 0} open appeals</div>
-                    <button type="button" onClick={() => (window.location.pathname = "/appeals")} style={adminPrimaryButtonStyle}>Open Appeals</button>
-                  </div>
-                </div>
-              )}
-
-              {hrTab === "issues" && (
-                <div style={walletLightCardStyle}>
-                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Issues & Feedback</div>
-                  <h2 style={{ margin: "3px 0 0", fontSize: 26, letterSpacing: -0.6 }}>Driver Issues Tracker</h2>
-                  <p style={{ color: "#4b5563", fontWeight: 750 }}>Review and resolve driver-reported bugs, feature requests, and feedback.</p>
-                  <div style={{ marginTop: 16 }}>
-                    {/* <IssuesRollup /> */}
-                    {/* TODO: Uncomment once IssuesRollup.jsx is in repo */}
-                    <p style={{ color: "#6b7280", fontStyle: "italic" }}>Issues widget will appear once IssuesRollup.jsx is added to the repo.</p>
-                  </div>
-                </div>
-              )}
-
-              {hrTab === "startpark" && (
-                <div style={walletLightCardStyle}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Start & Park</div>
-                      <h2 style={{ margin: "3px 0 0", fontSize: 26, letterSpacing: -0.6 }}>Start & Park Requests</h2>
-                      <p style={{ margin: "6px 0 0", color: "#4b5563", fontWeight: 700 }}>HR manages driver availability requests, owner requests, approvals, denials, and race application.</p>
-                    </div>
-                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                      <button type="button" onClick={loadStartParkRequests} style={adminSecondaryButtonStyle}>{startParkRequestsLoading ? "Loading..." : "Refresh"}</button>
-                      <button type="button" onClick={applyApprovedStartParkRequestsToRace} style={adminPrimaryButtonStyle}>Apply Approved</button>
-                    </div>
-                  </div>
-
-                  {startParkRequestError && <div style={{ marginBottom: 12, color: "#b42318", fontWeight: 900 }}>{startParkRequestError}</div>}
-                  {startParkRequestStatus && <div style={{ marginBottom: 12, color: "#047857", fontWeight: 900 }}>{startParkRequestStatus}</div>}
-
-                  <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(auto-fit, minmax(280px, 1fr))", gap: 12 }}>
-                    {(startParkRequests || []).filter((request) => !selectedRace || String(request.race_name || "") === String(selectedRace)).map((request, index) => {
-                      const status = String(request.status || "pending").toLowerCase();
-                      const statusColor = status === "approved" ? "#34c759" : status === "declined" ? "#ff3b30" : status === "applied" ? "#007aff" : "#ff9f0a";
-                      return (
-                        <div key={request.id || `${request.driver_number}-${request.created_at}`} style={{ borderRadius: 28, background: "#ffffff", border: "1px solid #e5e7eb", padding: 18, boxShadow: "0 14px 34px rgba(15,23,42,0.08)" }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
-                            <div style={{ width: 54, height: 54, borderRadius: 18, background: "linear-gradient(135deg, #111827, #374151)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 1000 }}>#{request.driver_number || "?"}</div>
-                            <div style={{ padding: "6px 10px", borderRadius: 999, background: `${statusColor}20`, color: statusColor, fontWeight: 1000, fontSize: 12 }}>{status.toUpperCase()}</div>
-                          </div>
-                          <div style={{ fontSize: 21, fontWeight: 1000, marginTop: 14 }}>{request.driver_name || "Driver"}</div>
-                          <div style={{ color: "#6b7280", fontWeight: 800, marginTop: 4 }}>{request.race_name || selectedRace || "Race TBD"}</div>
-                          <div style={{ marginTop: 10, color: "#374151", fontWeight: 750, lineHeight: 1.45 }}>{request.reason || "No reason provided."}</div>
-                          <div style={{ marginTop: 12, fontSize: 13, color: "#6b7280", fontWeight: 750 }}>Requested by {request.requested_by_type || "—"} · {request.requested_by_name || request.requested_by_team || "—"}</div>
-                          {request.created_at && <div style={{ marginTop: 4, fontSize: 12, color: "#9ca3af", fontWeight: 800 }}>Received {new Date(request.created_at).toLocaleString()}</div>}
-                          {status === "pending" && (
-                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
-                              <button onClick={() => updateStartParkRequestStatus(request, "approved")} style={{ ...primaryButtonStyle, padding: "8px 12px", fontSize: 12 }}>Approve</button>
-                              <button onClick={() => updateStartParkRequestStatus(request, "declined")} style={{ ...dangerButtonStyle, padding: "8px 12px", fontSize: 12 }}>Decline</button>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {!(startParkRequests || []).filter((request) => !selectedRace || String(request.race_name || "") === String(selectedRace)).length && (
-                    <div style={{ borderRadius: 22, background: "#ffffff", border: "1px solid #e5e7eb", padding: 18, color: "#6b7280", fontWeight: 800 }}>No Start & Park requests for the selected race.</div>
-                  )}
-                </div>
-              )}
-
-              {hrTab === "contracts" && (
-                <div style={walletLightCardStyle}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Contracts</div>
-                      <h2 style={{ margin: "3px 0 0", fontSize: 26, letterSpacing: -0.6 }}>Contract Records</h2>
-                      <p style={{ margin: "6px 0 0", color: "#4b5563", fontWeight: 700 }}>HR owns contract status. Finance still handles payments and money movement.</p>
-                    </div>
-                    <button type="button" onClick={loadFinanceContracts} style={adminSecondaryButtonStyle}>Refresh Contracts</button>
-                  </div>
-                  {financeContractsLoading ? (
-                    <div style={{ color: "#6b7280", fontWeight: 800 }}>Loading contracts...</div>
-                  ) : (financeContracts || []).length === 0 ? (
-                    <div style={{ color: "#6b7280", fontWeight: 800 }}>No contract records found yet.</div>
-                  ) : (
-                    <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(auto-fit, minmax(260px, 1fr))", gap: 12 }}>
-                      {financeContracts.map((contract, index) => (
-                        <div key={contract.id || index} style={{ borderRadius: 24, background: "#ffffff", border: "1px solid #e5e7eb", padding: 16, boxShadow: "0 12px 30px rgba(15,23,42,0.07)" }}>
-                          <div style={{ fontSize: 12, fontWeight: 1000, color: "#6b7280", letterSpacing: 1.2 }}>{contract.status || "STATUS UNKNOWN"}</div>
-                          <div style={{ fontSize: 20, fontWeight: 1000, marginTop: 8 }}>{contract.driver_name || contract.driver || contract.driver_number || "Contract Offer"}</div>
-                          <div style={{ color: "#6b7280", fontWeight: 800, marginTop: 4 }}>{contract.team || contract.team_abbr || "Team"}</div>
-                          <div style={{ fontSize: 24, fontWeight: 1000, marginTop: 12 }}>{money(Number(contract.salary || contract.amount || contract.value || contract.signing_bonus || 0) || 0)}</div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {financeDepartmentOpen && (
-          <div style={financeOverlayStyle}>
-            <div style={financeShellStyle}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, flexWrap: "wrap", marginBottom: 18 }}>
-                <div>
-                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.8, textTransform: "uppercase", color: "#6b7280" }}>Admin Menu</div>
-                  <h1 style={{ margin: "2px 0 0", fontSize: 42, letterSpacing: -1.6 }}>Finance Department</h1>
-                  <p style={{ margin: "6px 0 0", color: "#4b5563", fontWeight: 750 }}>Apple Wallet-style control center for fines, payouts, contracts, team wallets, and money history.</p>
-                </div>
-                <button type="button" onClick={() => setFinanceDepartmentOpen(false)} style={{ border: 0, borderRadius: 999, background: "#ffffff", color: "#111827", width: 46, height: 46, fontSize: 23, fontWeight: 1000, cursor: "pointer", boxShadow: "0 8px 20px rgba(15,23,42,0.12)" }}>×</button>
-              </div>
-
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 18 }}>
-                {[
-                  ["overview", "Wallets"],
-                  ["fine", "Fine Driver"],
-                  ["interview", "Pay Interviews"],
-                  ["paint", "Pay Paint Schemes"],
-                  ["contracts", "Contracts"],
-                  ["compliance", "Team Compliance"],
-                  ["transactions", "Transactions"],
-                ].map(([key, label]) => (
-                  <button key={key} type="button" onClick={() => setFinanceAction(key)} style={financeSegmentButtonStyle(financeAction === key)}>{label}</button>
-                ))}
-              </div>
-
-              <div id="admin-finance-department" style={walletDepartmentStyle}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, flexWrap: "wrap", marginBottom: 20 }}>
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.8, textTransform: "uppercase", color: "#6b7280" }}>Finance Department</div>
-              <h2 style={{ margin: "4px 0 0", fontSize: 34, letterSpacing: -1 }}>Apple Wallet-style League Money Center</h2>
-              <p style={{ margin: "8px 0 0", color: "#4b5563", fontWeight: 650, maxWidth: 850 }}>
-                All money controls live here: team wallets, payouts, paint scheme awards, penalties, contract money, transaction history, and finance audits. This replaces sending admins to Team HQ for money items.
-              </p>
-            </div>
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <button type="button" onClick={loadFinanceDepartment} style={adminSecondaryButtonStyle}>{financeLoading ? "Refreshing..." : "Refresh Finance"}</button>
-              <button type="button" onClick={() => setFinanceAction("paint")} style={adminPrimaryButtonStyle}>Paint Payouts</button>
-            </div>
-          </div>
-
-          {financeAction !== "overview" && financeAction !== "transactions" && financeAction !== "compliance" && (
-            <div style={{ ...financeActionCardStyle, marginBottom: 20 }}>
-              {financeAction === "contracts" ? (
-                <div>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Contracts</div>
-                      <h3 style={{ margin: "3px 0 0", fontSize: 25, letterSpacing: -0.5 }}>Driver Contract Money</h3>
-                    </div>
-                    <button type="button" onClick={loadFinanceContracts} style={adminSecondaryButtonStyle}>{financeContractsLoading ? "Refreshing..." : "Refresh Contracts"}</button>
-                  </div>
-                  {financeContractsLoading ? (
-                    <div style={{ color: "#6b7280", fontWeight: 800 }}>Loading contracts...</div>
-                  ) : financeContracts.length === 0 ? (
-                    <div style={{ color: "#6b7280", fontWeight: 800 }}>No contract records found. This will show contract offers once contract data exists in Supabase.</div>
-                  ) : (
-                    <div style={{ display: "grid", gap: 10, maxHeight: 420, overflowY: "auto" }}>
-                      {financeContracts.map((contract, index) => (
-                        <div key={contract.id || index} style={walletTransactionRowStyle}>
-                          <div style={{ ...walletIconStyle, background: "#111827" }}>✍︎</div>
-                          <div style={{ minWidth: 0 }}>
-                            <div style={{ fontWeight: 1000 }}>{contract.driver_name || contract.driver || contract.driver_number || "Contract Offer"}</div>
-                            <div style={{ color: "#6b7280", fontWeight: 750, fontSize: 13 }}>{contract.team || contract.team_abbr || "Team"} · {contract.status || "status unknown"}</div>
-                          </div>
-                          <div style={{ fontWeight: 1000 }}>{money(Number(contract.salary || contract.amount || contract.value || contract.signing_bonus || 0) || 0)}</div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div>
-                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Finance Action</div>
-                  <h3 style={{ margin: "3px 0 12px", fontSize: 25, letterSpacing: -0.5 }}>
-                    {financeAction === "fine" ? "Fine Driver" : financeAction === "interview" ? "Pay Interview" : "Pay Paint Scheme"}
-                  </h3>
-                  <div style={prMobileStackStyle}>
-                    <label style={{ fontWeight: 900 }}>
-                      Driver
-                      <select value={financeForm.driverId} onChange={(event) => updateFinanceForm("driverId", event.target.value)} style={{ ...adminInputStyle, marginTop: 6 }}>
-                        <option value="">Select driver</option>
-                        {(visibleDrivers || drivers || []).map((driver) => (
-                          <option key={driver.id} value={driver.id}>#{driver.number} {driver.name}</option>
-                        ))}
-                      </select>
-                    </label>
-                    <label style={{ fontWeight: 900 }}>
-                      Amount
-                      <input type="number" min="0" value={financeForm.amount || (financeAction === "paint" ? "10000" : "")} onChange={(event) => updateFinanceForm("amount", event.target.value)} placeholder={financeAction === "paint" ? "10000" : "Amount"} style={{ ...adminInputStyle, marginTop: 6 }} />
-                    </label>
-                    <label style={{ fontWeight: 900 }}>
-                      Reason
-                      <input value={financeForm.reason} onChange={(event) => updateFinanceForm("reason", event.target.value)} placeholder={financeAction === "fine" ? "Penalty / conduct / no-show" : financeAction === "interview" ? "Pre-race / post-race interview" : "Paint scheme payout"} style={{ ...adminInputStyle, marginTop: 6 }} />
-                    </label>
-                  </div>
-                  <label style={{ display: "block", fontWeight: 900, marginTop: 12 }}>
-                    Notes
-                    <textarea value={financeForm.note} onChange={(event) => updateFinanceForm("note", event.target.value)} placeholder="Optional finance note" style={{ ...adminInputStyle, minHeight: 82, marginTop: 6 }} />
-                  </label>
-                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 14 }}>
-                    {financeAction === "fine" ? (
-                      <button type="button" onClick={() => recordFinanceTransaction("Driver Fine", -1)} style={adminDangerButtonStyle}>Apply Fine</button>
-                    ) : financeAction === "interview" ? (
-                      <button type="button" onClick={() => recordFinanceTransaction("Interview Payout", 1)} style={adminPrimaryButtonStyle}>Pay Interview</button>
-                    ) : (
-                      <button type="button" onClick={() => recordFinanceTransaction("Paint Scheme Payout", 1)} style={adminPrimaryButtonStyle}>Pay Paint Scheme</button>
-                    )}
-                    <button type="button" onClick={() => setFinanceForm({ driverId: "", team: "", amount: "", reason: "", note: "" })} style={adminSecondaryButtonStyle}>Clear</button>
-                  </div>
-                  {financeActionStatus && <div style={{ color: "#047857", fontWeight: 900, marginTop: 12 }}>{financeActionStatus}</div>}
-                  {financeActionError && <div style={{ color: "#b42318", fontWeight: 900, marginTop: 12 }}>{financeActionError}</div>}
-                </div>
-              )}
-            </div>
-          )}
-
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16, marginBottom: 20 }}>
-            <div style={{ ...walletCardStyle, background: "linear-gradient(135deg, #111827, #374151)" }}>
-              <div style={{ position: "absolute", right: -35, top: -35, width: 120, height: 120, borderRadius: 999, background: "rgba(255,255,255,0.10)" }} />
-              <div>
-                <div style={{ opacity: 0.72, fontWeight: 900, letterSpacing: 1.5, textTransform: "uppercase", fontSize: 12 }}>League Wallet</div>
-                <div style={{ fontSize: 34, fontWeight: 1000, letterSpacing: -1, marginTop: 10 }}>{money(financeTransactionTotal)}</div>
-              </div>
-              <div style={{ opacity: 0.8, fontWeight: 800 }}>Recent transaction net</div>
-            </div>
-
-            <div style={{ ...walletCardStyle, background: "linear-gradient(135deg, #007aff, #5e5ce6)" }}>
-              <div>
-                <div style={{ opacity: 0.78, fontWeight: 900, letterSpacing: 1.5, textTransform: "uppercase", fontSize: 12 }}>Paint Program</div>
-                <div style={{ fontSize: 32, fontWeight: 1000, letterSpacing: -1, marginTop: 10 }}>$10,000</div>
-              </div>
-              <div style={{ opacity: 0.86, fontWeight: 800 }}>$250,000 season max per driver</div>
-            </div>
-
-            <div style={{ ...walletCardStyle, background: "linear-gradient(135deg, #34c759, #0a7f3f)" }}>
-              <div>
-                <div style={{ opacity: 0.78, fontWeight: 900, letterSpacing: 1.5, textTransform: "uppercase", fontSize: 12 }}>Team Wallets</div>
-                <div style={{ fontSize: 34, fontWeight: 1000, letterSpacing: -1, marginTop: 10 }}>{financeTeamWallets.length}</div>
-              </div>
-              <div style={{ opacity: 0.86, fontWeight: 800 }}>Active organization accounts</div>
-            </div>
-          </div>
-
-          {financeError && <div style={{ background: "#fff1f2", color: "#b42318", borderRadius: 16, padding: 14, fontWeight: 900, marginBottom: 16 }}>{financeError}</div>}
-
-          {financeAction === "compliance" && (
-            <div style={{ ...walletLightCardStyle, marginBottom: 16 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
-                <div>
-                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Team Payment Compliance</div>
-                  <h3 style={{ margin: "3px 0 0", fontSize: 25, letterSpacing: -0.5 }}>Owner / Team Money Checklist</h3>
-                  <p style={{ margin: "6px 0 0", color: "#4b5563", fontWeight: 700 }}>All payment compliance now lives inside the Finance Department instead of the admin home screen.</p>
-                </div>
-                <button type="button" onClick={loadFinanceDepartment} style={adminSecondaryButtonStyle}>Refresh Finance</button>
-              </div>
-              <PaymentCompliancePanel mode="admin" />
-            </div>
-          )}
-
-          <div style={{ display: "grid", gridTemplateColumns: "minmax(280px, 0.9fr) minmax(320px, 1.1fr)", gap: 16 }}>
-            <div style={walletLightCardStyle}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                <div>
-                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Team Cards</div>
-                  <h3 style={{ margin: "3px 0 0", fontSize: 24, letterSpacing: -0.5 }}>Wallet Stack</h3>
-                </div>
-                <span style={{ background: "#f2f2f7", borderRadius: 999, padding: "8px 10px", fontSize: 12, fontWeight: 1000 }}>{financeTeamWallets.length} teams</span>
-              </div>
-              <div style={{ display: "grid", gap: 10, maxHeight: 390, overflowY: "auto", paddingRight: 4 }}>
-                {financeTeamWallets.length === 0 ? (
-                  <div style={{ color: "#6b7280", fontWeight: 750, padding: 14 }}>No team wallet data found yet.</div>
-                ) : financeTeamWallets.map((wallet, index) => (
-                  <div key={wallet.team} style={{ borderRadius: 20, padding: 16, color: "white", background: index % 3 === 0 ? "linear-gradient(135deg, #1c1c1e, #3a3a3c)" : index % 3 === 1 ? "linear-gradient(135deg, #007aff, #64d2ff)" : "linear-gradient(135deg, #af52de, #ff2d55)", boxShadow: "0 12px 26px rgba(15,23,42,0.13)" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-                      <div>
-                        <div style={{ fontWeight: 1000, fontSize: 18 }}>{wallet.name}</div>
-                        <div style={{ opacity: 0.78, fontSize: 12, fontWeight: 850, marginTop: 3 }}>{wallet.team}</div>
-                      </div>
-                      <div style={{ textAlign: "right", fontWeight: 1000 }}>{money(wallet.balance)}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div style={walletLightCardStyle}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                <div>
-                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Recent Money Activity</div>
-                  <h3 style={{ margin: "3px 0 0", fontSize: 24, letterSpacing: -0.5 }}>Transactions</h3>
-                </div>
-                <span style={{ background: "#f2f2f7", borderRadius: 999, padding: "8px 10px", fontSize: 12, fontWeight: 1000 }}>{financeTransactions.length} loaded</span>
-              </div>
-
-              {financeLoading ? (
-                <div style={{ color: "#6b7280", fontWeight: 800, padding: 18 }}>Loading finance activity...</div>
-              ) : financeRecentPayouts.length === 0 ? (
-                <div style={{ color: "#6b7280", fontWeight: 750, padding: 14 }}>No recent finance transactions found yet.</div>
-              ) : (
-                <div style={{ maxHeight: 390, overflowY: "auto", paddingRight: 4 }}>
-                  {financeRecentPayouts.map((item, index) => {
-                    const amount = getFinanceAmount(item);
-                    const date = getFinanceDate(item);
-                    return (
-                      <div key={item.id || `${getFinanceType(item)}-${index}`} style={walletTransactionRowStyle}>
-                        <div style={walletIconStyle}>$</div>
-                        <div style={{ minWidth: 0 }}>
-                          <div style={{ fontWeight: 1000, color: "#111827", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{getFinanceType(item)}</div>
-                          <div style={{ color: "#6b7280", fontWeight: 700, fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{getFinanceTeam(item)} · {getFinanceNote(item)}</div>
-                          {date && <div style={{ color: "#9ca3af", fontWeight: 750, fontSize: 12, marginTop: 2 }}>{new Date(date).toLocaleString()}</div>}
-                        </div>
-                        <div style={{ fontWeight: 1000, color: amount < 0 ? "#ff3b30" : "#34c759", whiteSpace: "nowrap" }}>{money(amount)}</div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div id="admin-media-center" />
-
-        {settingsOpen && (
-          <div style={financeOverlayStyle}>
-            <div style={financeShellStyle}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, flexWrap: "wrap", marginBottom: 18 }}>
-                <div>
-                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.8, textTransform: "uppercase", color: "#6b7280" }}>Admin Menu</div>
-                  <h1 style={{ margin: "2px 0 0", fontSize: isAdminMobile ? 34 : 42, letterSpacing: -1.6 }}>Settings</h1>
-                  <p style={{ margin: "6px 0 0", color: "#4b5563", fontWeight: 750 }}>Season Manager, backup controls, export tools, and data upload/restore live here.</p>
-                </div>
-                <button type="button" onClick={() => setSettingsOpen(false)} style={{ border: 0, borderRadius: 999, background: "#ffffff", color: "#111827", width: 46, height: 46, fontSize: 23, fontWeight: 1000, cursor: "pointer", boxShadow: "0 8px 20px rgba(15,23,42,0.12)" }}>×</button>
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "minmax(320px, 0.9fr) minmax(420px, 1.2fr)", gap: 16, alignItems: "start" }}>
-                <div style={{ ...adminReadableCardStyle, padding: 22, borderRadius: 32, background: "linear-gradient(135deg, rgba(175,82,222,0.14), rgba(255,255,255,0.94))", border: "1px solid rgba(175,82,222,0.20)", boxShadow: "0 18px 44px rgba(15,23,42,0.10)" }}>
-                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#7e22ce" }}>League Settings</div>
-                  <h2 style={{ margin: "4px 0 8px", fontSize: 30, letterSpacing: -0.9 }}>Season Manager</h2>
-                  <p style={{ margin: 0, color: "#6b7280", fontWeight: 800, lineHeight: 1.45 }}>Create, rename, switch, or delete league seasons from Settings instead of the Operations Center homepage.</p>
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 16 }}>
-                    <span style={{ background: "#eaf2ff", color: "#1d4ed8", borderRadius: 999, padding: "8px 11px", fontSize: 12, fontWeight: 1000 }}>{seasons.length} Seasons</span>
-                    <span style={{ background: "#e8f7ee", color: "#137333", borderRadius: 999, padding: "8px 11px", fontSize: 12, fontWeight: 1000 }}>{raceHistory.length} Races</span>
-                    <span style={{ background: "#fff4e6", color: "#c2410c", borderRadius: 999, padding: "8px 11px", fontSize: 12, fontWeight: 1000 }}>{drivers.length} Drivers</span>
-                  </div>
-                </div>
-
-                <div style={{ ...adminReadableCardStyle, padding: 22, borderRadius: 32, background: "linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.92))", border: "1px solid rgba(229,231,235,0.90)", boxShadow: "0 18px 44px rgba(15,23,42,0.08)" }}>
-                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280", marginBottom: 12 }}>Season Controls</div>
-                  <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "1fr 1fr", gap: 12 }}>
-                    <div>
-                      <div style={{ marginBottom: 6, fontWeight: 900, color: "#374151" }}>Active Season</div>
-                      <select style={{ ...adminInputStyle, borderRadius: 16, minHeight: 46, fontWeight: 850 }} value={activeSeasonId} onChange={(e) => switchSeason(e.target.value)}>
-                        {seasons.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <div style={{ marginBottom: 6, fontWeight: 900, color: "#374151" }}>Create New Season</div>
-                      <input style={{ ...adminInputStyle, borderRadius: 16, minHeight: 46, fontWeight: 850 }} value={newSeasonName} onChange={(e) => setNewSeasonName(e.target.value)} placeholder="Example: 2026 Regular Season" />
-                    </div>
-                    <div style={{ gridColumn: isAdminMobile ? "auto" : "1 / -1" }}>
-                      <div style={{ marginBottom: 6, fontWeight: 900, color: "#374151" }}>Rename Active Season</div>
-                      <input style={{ ...adminInputStyle, borderRadius: 16, minHeight: 46, fontWeight: 850 }} value={renameSeasonName} onChange={(e) => setRenameSeasonName(e.target.value)} placeholder="Rename current season" />
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 14 }}>
-                    <button onClick={createSeason} style={{ ...adminPrimaryButtonStyle, borderRadius: 18 }}>Create Season</button>
-                    <button onClick={renameActiveSeason} style={{ ...adminSecondaryButtonStyle, borderRadius: 18 }}>Save Season Name</button>
-                    <button onClick={deleteActiveSeason} style={{ ...adminDangerButtonStyle, borderRadius: 18 }}>Delete Active Season</button>
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(2, minmax(280px, 1fr))", gap: 16 }}>
-                <div style={{ ...adminReadableCardStyle, padding: 22, borderRadius: 32, background: "linear-gradient(135deg, rgba(0,122,255,0.12), rgba(255,255,255,0.94))", border: "1px solid rgba(0,122,255,0.18)", boxShadow: "0 18px 44px rgba(15,23,42,0.08)" }}>
-                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#1d4ed8" }}>Backup Data</div>
-                  <h2 style={{ margin: "4px 0 8px", fontSize: 28, letterSpacing: -0.8 }}>Download League Data</h2>
-                  <p style={{ margin: "0 0 16px", color: "#6b7280", fontWeight: 800, lineHeight: 1.45 }}>Export a full league backup before major edits or download app data for safekeeping.</p>
-                  <div style={{ display: "grid", gap: 10 }}>
-                    <button type="button" onClick={handleDownloadLeagueBackup} style={{ ...adminPrimaryButtonStyle, borderRadius: 18 }}>Download League Backup</button>
-                    <button type="button" onClick={exportAppDataJson} style={{ ...adminSecondaryButtonStyle, borderRadius: 18 }}>Export App Data JSON</button>
-                    <button type="button" onClick={exportAllSeasonsBackup} style={{ ...adminSecondaryButtonStyle, borderRadius: 18 }}>Export All Seasons Backup</button>
-                  </div>
-                </div>
-
-                <div style={{ ...adminReadableCardStyle, padding: 22, borderRadius: 32, background: "linear-gradient(135deg, rgba(255,149,0,0.14), rgba(255,255,255,0.94))", border: "1px solid rgba(255,149,0,0.20)", boxShadow: "0 18px 44px rgba(15,23,42,0.08)" }}>
-                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#c2410c" }}>Upload Data</div>
-                  <h2 style={{ margin: "4px 0 8px", fontSize: 28, letterSpacing: -0.8 }}>Restore / Import</h2>
-                  <p style={{ margin: "0 0 16px", color: "#6b7280", fontWeight: 800, lineHeight: 1.45 }}>Upload a saved JSON backup to restore or import league data.</p>
-                  <div style={{ display: "grid", gap: 10 }}>
-                    <button type="button" onClick={() => backupFileInputRef.current?.click()} style={{ ...adminPrimaryButtonStyle, borderRadius: 18 }}>Upload League Backup</button>
-                    <button type="button" onClick={() => importFileRef.current?.click()} style={{ ...adminSecondaryButtonStyle, borderRadius: 18 }}>Upload App Data JSON</button>
-                    <input ref={backupFileInputRef} type="file" accept="application/json" onChange={handleRestoreLeagueBackup} style={{ display: "none" }} />
-                    <input ref={importFileRef} type="file" accept="application/json" onChange={handleImportBackup} style={{ display: "none" }} />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {adminMessagesOpen && (
-          <div style={appleMessagesOverlayStyle}>
-            <div style={appleMessagesShellStyle}>
-              <aside style={appleMessagesSidebarStyle}>
-                <div style={appleMessagesTitleRowStyle}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <button type="button" aria-label="Close messages" onClick={() => setAdminMessagesOpen(false)} style={{ ...appleMessagesTrafficButtonStyle, background: "#ff5f57" }} />
-                    <span style={{ ...appleMessagesTrafficButtonStyle, background: "#ffbd2e" }} />
-                    <span style={{ ...appleMessagesTrafficButtonStyle, background: "#28c840" }} />
-                  </div>
-                  <button type="button" onClick={loadAdminUnreadMessages} style={{ border: 0, background: "transparent", color: "#007aff", fontWeight: 1000, cursor: "pointer" }}>
-                    {adminMessagesLoading ? "Refreshing" : "Refresh"}
-                  </button>
-                </div>
-
-                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-                  <div style={{ ...adminMessageIconButtonStyle, width: 52, height: 52, borderRadius: 15, cursor: "default", fontSize: 25 }}>💬</div>
-                  <div>
-                    <div style={{ fontSize: 30, fontWeight: 1000, letterSpacing: -1 }}>Messages</div>
-                    <div style={{ color: "#6b7280", fontWeight: 800, fontSize: 13 }}>{adminUnreadCount} unread</div>
-                  </div>
-                </div>
-
-                <button type="button" onClick={() => setAdminComposerOpen(true)} style={appleComposeButtonStyle}>＋ New Message</button>
-
-                <div style={appleMessagesSegmentStyle}>
-                  <button type="button" onClick={() => setAdminComposerOpen(false)} style={appleMessagesSegmentButtonStyle(!adminComposerOpen)}>Unread</button>
-                  <button type="button" onClick={() => setAdminComposerOpen(true)} style={appleMessagesSegmentButtonStyle(adminComposerOpen)}>Compose</button>
-                </div>
-
-                {adminMessagesError && <div style={{ color: "#b42318", fontWeight: 900, marginBottom: 12, background: "#fff1f2", borderRadius: 14, padding: 12 }}>{adminMessagesError}</div>}
-
-                {adminMessagesLoading ? (
-                  <div style={{ color: "#6b7280", fontWeight: 900, padding: 12 }}>Loading unread messages...</div>
-                ) : adminUnreadMessages.length === 0 ? (
-                  <div style={{ background: "#ffffff", borderRadius: 18, padding: 16, color: "#6b7280", fontWeight: 850, boxShadow: "0 8px 20px rgba(15,23,42,0.06)" }}>
-                    No unread messages right now.
-                  </div>
-                ) : (
-                  <div>
-                    {adminUnreadMessages.map((message) => (
-                      <button key={message.id} type="button" style={appleMessageThreadStyle} onClick={() => setAdminComposerOpen(false)}>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-                          <div style={{ fontWeight: 1000, fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{message.subject || "No subject"}</div>
-                          <span style={{ width: 10, height: 10, borderRadius: 999, background: "#007aff", flex: "0 0 auto" }} />
-                        </div>
-                        <div style={{ color: "#6b7280", fontSize: 12, fontWeight: 850, marginTop: 5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {message.sender_name || message.sender_type || "League"} → {getAdminMessageRecipientLabel(message)}
-                        </div>
-                        <div style={{ color: "#8a8a8e", fontSize: 12, fontWeight: 700, marginTop: 4 }}>{message.created_at ? new Date(message.created_at).toLocaleString() : ""}</div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </aside>
-
-              <main style={appleMessagesMainStyle}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, borderBottom: "1px solid #e5e7eb", paddingBottom: 16 }}>
-                  <div>
-                    <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#8a8a8e" }}>Admin Communication</div>
-                    <h2 style={{ margin: "2px 0 0", fontSize: 32, letterSpacing: -1 }}>{adminComposerOpen ? "Create Message" : "Unread Inbox"}</h2>
-                  </div>
-                  <button type="button" onClick={() => setAdminMessagesOpen(false)} style={{ border: 0, borderRadius: 999, background: "#f2f2f7", color: "#111827", width: 42, height: 42, fontSize: 20, fontWeight: 1000, cursor: "pointer" }}>×</button>
-                </div>
-
-                {adminComposerOpen ? (
-                  <div style={{ background: "#f5f5f7", borderRadius: 26, padding: 18, border: "1px solid #e5e7eb" }}>
-                    <AdminLeagueMessageComposer drivers={visibleDrivers} teams={teamStandings} />
-                  </div>
-                ) : adminUnreadMessages.length === 0 ? (
-                  <div style={{ flex: 1, display: "grid", placeItems: "center", textAlign: "center", color: "#6b7280" }}>
-                    <div>
-                      <div style={{ fontSize: 58, marginBottom: 10 }}>💬</div>
-                      <div style={{ fontSize: 24, fontWeight: 1000, color: "#111827" }}>All caught up</div>
-                      <div style={{ fontWeight: 800, marginTop: 6 }}>Unread admin messages will appear here.</div>
-                    </div>
-                  </div>
-                ) : (
-                  <div style={{ display: "grid", gap: 18 }}>
-                    {adminUnreadMessages.map((message) => (
-                      <div key={message.id} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14 }}>
-                          <div>
-                            <div style={{ fontSize: 22, fontWeight: 1000, letterSpacing: -0.4 }}>{message.subject || "No subject"}</div>
-                            <div style={{ color: "#6b7280", fontSize: 13, fontWeight: 850, marginTop: 4 }}>
-                              From {message.sender_name || message.sender_type || "League"} · To {getAdminMessageRecipientLabel(message)}
-                            </div>
-                            <div style={{ color: "#8a8a8e", fontSize: 12, fontWeight: 700, marginTop: 3 }}>{message.created_at ? new Date(message.created_at).toLocaleString() : ""}</div>
-                          </div>
-                          <button type="button" onClick={() => markAdminMessageRead(message.id)} style={{ border: 0, borderRadius: 999, padding: "10px 14px", background: "#007aff", color: "white", fontWeight: 1000, cursor: "pointer" }}>Mark Read</button>
-                        </div>
-                        <div style={appleMessageBubbleStyle}>{message.message || "No message body."}</div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </main>
-            </div>
-          </div>
-        )}
-
-        {/* ARCA SERIES OPERATIONS */}
-        {arcaOperationsOpen && (
-          <div style={financeOverlayStyle}>
-            <div style={{ maxWidth: 1240, margin: "0 auto", background: "#f5f5f7", border: "1px solid rgba(17,24,39,0.10)", borderRadius: 34, boxShadow: "0 30px 90px rgba(15,23,42,0.22)", padding: 22 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, flexWrap: "wrap", marginBottom: 18 }}>
-                <div>
-                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.8, textTransform: "uppercase", color: "#6b7280" }}>Admin Menu</div>
-                  <h1 style={{ margin: "2px 0 0", fontSize: isAdminMobile ? 34 : 42, letterSpacing: -1.6 }}>ARCA Series</h1>
-                  <p style={{ margin: "6px 0 0", color: "#4b5563", fontWeight: 750 }}>Manage ARCA race schedule, drivers, tracks, and results.</p>
-                </div>
-                <button type="button" onClick={() => setArcaOperationsOpen(false)} style={{ border: 0, borderRadius: 999, background: "#ffffff", color: "#111827", width: 46, height: 46, fontSize: 23, fontWeight: 1000, cursor: "pointer", boxShadow: "0 8px 20px rgba(15,23,42,0.12)" }}>×</button>
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(3, minmax(180px, 1fr))", gap: 14, marginBottom: 18 }}>
-                {[
-                  ["races", "Race Schedule", "🏁", `${(arcaRaces || []).length} Races`, "Season calendar", "Manage ARCA race schedule and enter results.", "linear-gradient(135deg, #006341 0%, #00b386 45%, #00e5a0 100%)"],
-                  ["drivers", "Driver Roster", "👥", `${(arcaDrivers || []).length} Drivers`, "Team lineup", "Update driver roster and profiles.", "linear-gradient(135deg, #007aff 0%, #5ac8fa 45%, #5856d6 100%)"],
-                  ["results", "Results Archive", "📚", "Season races", "Download history", "View and download race results and standings.", "linear-gradient(135deg, #ff9500 0%, #ffcc00 48%, #ff3b30 100%)"],
-                ].map(([key, label, icon, value, meta, description, gradient]) => (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => setArcaOperationsTab(key)}
-                    style={{
-                      padding: 18,
-                      minHeight: 156,
-                      textAlign: "left",
-                      cursor: "pointer",
-                      borderRadius: 30,
-                      border: arcaOperationsTab === key ? "2px solid rgba(255,255,255,0.95)" : "1px solid rgba(255,255,255,0.38)",
-                      background: gradient,
-                      color: "#ffffff",
-                      boxShadow: arcaOperationsTab === key ? "0 22px 46px rgba(15,23,42,0.28)" : "0 16px 34px rgba(15,23,42,0.18)",
-                      transform: arcaOperationsTab === key ? "translateY(-2px)" : "translateY(0)",
-                      transition: "transform 160ms ease, box-shadow 160ms ease, border 160ms ease",
-                      overflow: "hidden",
-                      position: "relative",
-                    }}
-                  >
-                    <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at top right, rgba(255,255,255,0.38), transparent 36%)", pointerEvents: "none" }} />
-                    <div style={{ position: "relative", zIndex: 1, minHeight: 118, display: "flex", flexDirection: "column" }}>
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-                        <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.2, textTransform: "uppercase", color: "rgba(255,255,255,0.82)" }}>{label}</div>
-                        <div style={{ width: 36, height: 36, borderRadius: 14, background: "rgba(255,255,255,0.18)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, boxShadow: "inset 0 1px 0 rgba(255,255,255,0.28)" }}>{icon}</div>
-                      </div>
-                      <div style={{ fontSize: 30, fontWeight: 1000, letterSpacing: -1, marginTop: 12, color: "#ffffff" }}>{value}</div>
-                      <div style={{ marginTop: 2, color: "rgba(255,255,255,0.76)", fontSize: 12, fontWeight: 1000 }}>{meta}</div>
-                      <div style={{ marginTop: "auto", paddingTop: 10, color: "rgba(255,255,255,0.88)", fontSize: 13, fontWeight: 800, lineHeight: 1.35 }}>{description}</div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-
-              {arcaOperationsTab === "overview" && (
-                <div style={{ padding: isAdminMobile ? 18 : 26, borderRadius: 34, background: "linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.92))", boxShadow: "0 22px 60px rgba(15,23,42,0.12)", border: "1px solid rgba(255,255,255,0.75)" }}>
-                  <h2 style={{ marginTop: 0 }}>ARCA Series Hub</h2>
-                  <div style={{ opacity: 0.78 }}>Choose a tile above to manage ARCA race schedule, drivers, and tracks.</div>
-                </div>
-              )}
-
-              {arcaOperationsTab === "races" && (
-                <div style={{ padding: isAdminMobile ? 18 : 26, borderRadius: 34, background: "linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.92))", boxShadow: "0 22px 60px rgba(15,23,42,0.12)", border: "1px solid rgba(255,255,255,0.75)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap", marginBottom: 20 }}>
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.6, textTransform: "uppercase", color: "#006341" }}>ARCA Series</div>
-                      <h2 style={{ margin: "3px 0 6px", fontSize: isAdminMobile ? 30 : 38, letterSpacing: -1.35 }}>Race Schedule</h2>
-                      <div style={{ color: "#6b7280", fontWeight: 750, maxWidth: 720 }}>Enter race results including finish positions, DNFs, penalties, and fastest lap.</div>
-                    </div>
-                    <div style={{ width: 58, height: 58, borderRadius: 20, background: "linear-gradient(135deg, #006341, #00e5a0)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, boxShadow: "0 14px 28px rgba(0,99,65,0.24)" }}>🏁</div>
-                  </div>
-
-                  <div style={{ marginBottom: 20 }}>
-                    <label style={{ display: "block", fontWeight: 900, marginBottom: 8, color: "#111827" }}>Select Race</label>
-                    <select 
-                      style={{ 
-                        width: "100%", 
-                        padding: "12px 14px", 
-                        borderRadius: 12, 
-                        border: "1px solid rgba(0,0,0,0.1)", 
-                        fontSize: 14,
-                        fontWeight: 700,
-                        background: "rgba(255,255,255,0.9)",
-                        cursor: "pointer"
-                      }}
-                      value={arcaSelectedRace?.id || ""}
-                      onChange={(e) => {
-                        const race = arcaRaces?.find(r => r.id === e.target.value);
-                        setArcaSelectedRace(race || null);
-                      }}
-                    >
-                      <option value="">-- Select a race --</option>
-                      {(arcaRaces || []).map((race) => (
-                        <option key={race.id} value={race.id}>
-                          {race.name} - {race.date}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {!arcaSelectedRace ? (
-                    <div style={{ padding: 40, textAlign: "center", background: "rgba(0,99,65,0.04)", borderRadius: 12, border: "1px dashed rgba(0,99,65,0.2)" }}>
-                      <div style={{ fontSize: 28, marginBottom: 10 }}>📋</div>
-                      <div style={{ fontWeight: 900, color: "#111827", marginBottom: 6 }}>Select a race above</div>
-                      <div style={{ color: "#6b7280", fontSize: 14 }}>Choose a race to enter results</div>
-                    </div>
-                  ) : (
-                    <div>
-                      <div style={{ marginBottom: 16, padding: 14, background: "rgba(0,99,65,0.08)", borderRadius: 12, border: "1px solid rgba(0,99,65,0.16)" }}>
-                        <div style={{ fontWeight: 900, color: "#006341" }}>{arcaSelectedRace.name}</div>
-                        <div style={{ color: "#6b7280", fontSize: 13, marginTop: 4 }}>Date: {arcaSelectedRace.date}</div>
-                      </div>
-
-                      <div style={{ marginBottom: 16, display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(auto-fit, minmax(150px, 1fr))", gap: 10 }}>
-                        <button 
-                          style={{ 
-                            padding: "10px 16px", 
-                            background: "#006341", 
-                            color: "white", 
-                            border: "none", 
-                            borderRadius: 8, 
-                            fontWeight: 900,
-                            cursor: "pointer"
-                          }}
-                          onClick={() => submitArcaResults()}
-                        >
-                          Post Results
-                        </button>
-                        <button 
-                          style={{ 
-                            padding: "10px 16px", 
-                            background: "rgba(0,153,102,0.15)", 
-                            color: "#006341", 
-                            border: "1px solid rgba(0,99,65,0.3)", 
-                            borderRadius: 8, 
-                            fontWeight: 900,
-                            cursor: "pointer"
-                          }}
-                          onClick={() => saveArcaResultsDraft()}
-                        >
-                          Save Draft
-                        </button>
-                        <button 
-                          style={{ 
-                            padding: "10px 16px", 
-                            background: "rgba(0,99,65,0.1)", 
-                            color: "#006341", 
-                            border: "1px solid rgba(0,99,65,0.3)", 
-                            borderRadius: 8, 
-                            fontWeight: 900,
-                            cursor: "pointer"
-                          }}
-                          onClick={() => setArcaSelectedRace(null)}
-                        >
-                          Cancel
-                        </button>
-                      </div>
-
-                      <div style={{ display: "grid", gap: 10 }}>
-                        {(arcaDrivers || []).map((driver, idx) => (
-                          <div 
-                            key={driver.id || idx}
-                            style={{ 
-                              padding: 14, 
-                              background: "rgba(255,255,255,0.8)", 
-                              border: "1px solid rgba(0,0,0,0.08)", 
-                              borderRadius: 10,
-                              display: "grid",
-                              gridTemplateColumns: isAdminMobile ? "50px 1fr" : "50px 1fr 100px 100px 60px",
-                              gap: 12,
-                              alignItems: "center"
-                            }}
-                          >
-                            <div style={{ 
-                              width: 44, 
-                              height: 44, 
-                              borderRadius: "50%", 
-                              background: "linear-gradient(145deg, #006341, #003d26)", 
-                              display: "flex", 
-                              alignItems: "center", 
-                              justifyContent: "center", 
-                              fontWeight: 1000, 
-                              fontSize: 14, 
-                              color: "#fff"
-                            }}>
-                              #{driver.number}
-                            </div>
-                            <div>
-                              <div style={{ fontWeight: 900, color: "#111827" }}>{driver.name}</div>
-                              <div style={{ fontSize: 12, color: "#6b7280" }}>{driver.team}</div>
-                            </div>
-                            {!isAdminMobile && (
-                              <>
-                                <input 
-                                  type="number" 
-                                  min="1" 
-                                  max="40" 
-                                  placeholder="Finish pos." 
-                                  value={activeSeason?.arcaPositions?.[driver.id] || ""}
-                                  onChange={(e) => patchActiveSeason({ arcaPositions: { ...activeSeason?.arcaPositions, [driver.id]: e.target.value } })}
-                                  style={{ 
-                                    padding: "8px 10px", 
-                                    borderRadius: 8, 
-                                    border: "1px solid rgba(0,0,0,0.1)",
-                                    fontSize: 14
-                                  }}
-                                />
-                                <select 
-                                  value={activeSeason?.arcaDnfMap?.[driver.id] ? "dnf" : "running"}
-                                  onChange={(e) => patchActiveSeason({ arcaDnfMap: { ...activeSeason?.arcaDnfMap, [driver.id]: e.target.value === "dnf" } })}
-                                  style={{ 
-                                    padding: "8px 10px", 
-                                    borderRadius: 8, 
-                                    border: "1px solid rgba(0,0,0,0.1)",
-                                    fontSize: 14
-                                  }}
-                                >
-                                  <option value="running">Running</option>
-                                  <option value="dnf">DNF</option>
-                                </select>
-                                <input 
-                                  type="checkbox"
-                                  checked={activeSeason?.arcaFastestLapMap?.[driver.id] || false}
-                                  onChange={(e) => patchActiveSeason({ arcaFastestLapMap: { ...activeSeason?.arcaFastestLapMap, [driver.id]: e.target.checked } })}
-                                  title="Fastest Lap"
-                                  style={{ 
-                                    width: 18,
-                                    height: 18,
-                                    cursor: "pointer"
-                                  }}
-                                />
-                              </>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-
-                      <div style={{ marginTop: 20, display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(auto-fit, minmax(150px, 1fr))", gap: 10 }}>
-                        <button 
-                          style={{ 
-                            padding: "10px 16px", 
-                            background: "#006341", 
-                            color: "white", 
-                            border: "none", 
-                            borderRadius: 8, 
-                            fontWeight: 900,
-                            cursor: "pointer"
-                          }}
-                          onClick={() => submitArcaResults()}
-                        >
-                          Post Results
-                        </button>
-                        <button 
-                          style={{ 
-                            padding: "10px 16px", 
-                            background: "rgba(0,153,102,0.15)", 
-                            color: "#006341", 
-                            border: "1px solid rgba(0,99,65,0.3)", 
-                            borderRadius: 8, 
-                            fontWeight: 900,
-                            cursor: "pointer"
-                          }}
-                          onClick={() => saveArcaResultsDraft()}
-                        >
-                          Save Draft
-                        </button>
-                        <button 
-                          style={{ 
-                            padding: "10px 16px", 
-                            background: "rgba(0,99,65,0.1)", 
-                            color: "#006341", 
-                            border: "1px solid rgba(0,99,65,0.3)", 
-                            borderRadius: 8, 
-                            fontWeight: 900,
-                            cursor: "pointer"
-                          }}
-                          onClick={() => setArcaSelectedRace(null)}
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Posted ARCA Race Results */}
-                  {activeSeason?.arcaRaceHistory && activeSeason.arcaRaceHistory.length > 0 && (
-                    <div style={{ marginTop: 32, paddingTop: 24, borderTop: "2px solid rgba(0,99,65,0.15)" }}>
-                      <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.6, textTransform: "uppercase", color: "#006341", marginBottom: 12 }}>Posted Results</div>
-                      <div style={{ display: "grid", gap: 2 }}>
-                        {activeSeason.arcaRaceHistory.map((race, raceIndex) => {
-                          const results = race.results || [];
-                          const winner = results.find((r) => Number(r.finishPos) === 1) || results[0];
-                          const dnfCount = results.filter((r) => r.dnf).length;
-                          return (
-                            <details key={race.raceName || raceIndex} style={{ borderTop: "1px solid rgba(229,231,235,0.75)", background: "rgba(255,255,255,0.72)" }}>
-                              <summary style={{ listStyle: "none", cursor: "pointer", display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "1.2fr 0.7fr 0.7fr 0.9fr", gap: 10, alignItems: "center", padding: "14px 16px" }}>
-                                <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
-                                  <div style={{ width: 42, height: 42, borderRadius: 16, background: "linear-gradient(135deg, #006341, #00e5a0)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 1000, boxShadow: "0 10px 20px rgba(0,99,65,0.24)" }}>{raceIndex + 1}</div>
-                                  <div style={{ minWidth: 0 }}>
-                                    <div style={{ fontWeight: 1000, color: "#111827", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{race.raceName}</div>
-                                    {isAdminMobile && <div style={{ marginTop: 5, color: "#6b7280", fontSize: 12, fontWeight: 800 }}>{winner ? `Winner #${winner.number} ${winner.name}` : "No winner listed"} • {results.length} entries</div>}
-                                  </div>
-                                </div>
-
-                                <div style={{ display: isAdminMobile ? "none" : "block", color: "#111827", fontWeight: 900, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{winner ? `#${winner.number} ${winner.name}` : "—"}</div>
-
-                                <div style={{ display: isAdminMobile ? "none" : "block" }}>
-                                  <span style={{ display: "inline-flex", alignItems: "center", padding: "8px 11px", borderRadius: 999, background: "rgba(0,99,65,0.10)", color: "#006341", fontWeight: 1000, fontSize: 12 }}>{results.length} Drivers</span>
-                                </div>
-
-                                <div style={{ display: "flex", justifyContent: isAdminMobile ? "flex-start" : "flex-end", gap: 8, flexWrap: "wrap", marginTop: isAdminMobile ? 12 : 0 }}>
-                                  <button type="button" onClick={(e) => { e.preventDefault(); handleEditArcaRace(race); }} style={{ ...adminSecondaryButtonStyle, borderRadius: 16, padding: "9px 12px" }}>Edit</button>
-                                  <button type="button" onClick={(e) => { e.preventDefault(); handleDeleteArcaRace(race.raceName); }} style={{ ...adminDangerButtonStyle, borderRadius: 16, padding: "9px 12px" }}>Remove</button>
-                                </div>
-                              </summary>
-
-                              <div style={{ padding: "0 16px 16px" }}>
-                                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
-                                  <span style={{ display: "inline-flex", alignItems: "center", padding: "8px 11px", borderRadius: 999, background: dnfCount ? "rgba(255,59,48,0.12)" : "rgba(142,142,147,0.12)", color: dnfCount ? "#b42318" : "#6b7280", fontWeight: 1000, fontSize: 12 }}>{dnfCount} DNF</span>
-                                </div>
-
-                                <div style={{ overflowX: "auto", borderRadius: 12, border: "1px solid rgba(229,231,235,0.92)", background: "rgba(248,250,252,0.88)" }}>
-                                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-                                    <thead>
-                                      <tr style={{ background: "rgba(248,250,252,0.88)" }}>
-                                        <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: 900, color: "#111827", borderBottom: "1px solid rgba(229,231,235,0.92)" }}>Finish</th>
-                                        <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: 900, color: "#111827", borderBottom: "1px solid rgba(229,231,235,0.92)" }}>#</th>
-                                        <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: 900, color: "#111827", borderBottom: "1px solid rgba(229,231,235,0.92)" }}>Driver</th>
-                                        <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: 900, color: "#111827", borderBottom: "1px solid rgba(229,231,235,0.92)" }}>Team</th>
-                                        <th style={{ padding: "10px 12px", textAlign: "center", fontWeight: 900, color: "#111827", borderBottom: "1px solid rgba(229,231,235,0.92)" }}>Pts</th>
-                                        <th style={{ padding: "10px 12px", textAlign: "center", fontWeight: 900, color: "#111827", borderBottom: "1px solid rgba(229,231,235,0.92)" }}>FL</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {results.map((r, idx) => (
-                                        <tr key={`${race.raceName}-${r.driverId}-${idx}`} style={{ borderBottom: "1px solid rgba(229,231,235,0.5)", background: idx % 2 === 0 ? "rgba(255,255,255,0.6)" : "rgba(248,250,252,0.6)" }}>
-                                          <td style={{ padding: "10px 12px" }}>{r.dnf ? "DNF" : r.finishPos || "—"}</td>
-                                          <td style={{ padding: "10px 12px", fontWeight: 900 }}>{r.number}</td>
-                                          <td style={{ padding: "10px 12px", fontWeight: 800 }}>{r.name}</td>
-                                          <td style={{ padding: "10px 12px", color: "#6b7280" }}>{r.team}</td>
-                                          <td style={{ padding: "10px 12px", textAlign: "center", fontWeight: 900 }}>{r.finishPoints || 0}</td>
-                                          <td style={{ padding: "10px 12px", textAlign: "center", color: r.fastestLap ? "#d4af37" : "#6b7280", fontWeight: 900 }}>{r.fastestLap ? "✓" : "—"}</td>
-                                        </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
-                                </div>
-                              </div>
-                            </details>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {arcaOperationsTab === "drivers" && (
-                <div style={{ padding: isAdminMobile ? 18 : 26, borderRadius: 34, background: "linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.92))", boxShadow: "0 22px 60px rgba(15,23,42,0.12)", border: "1px solid rgba(255,255,255,0.75)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap" }}>
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.6, textTransform: "uppercase", color: "#007aff" }}>ARCA Series</div>
-                      <h2 style={{ margin: "3px 0 6px", fontSize: isAdminMobile ? 30 : 38, letterSpacing: -1.35 }}>Driver Roster</h2>
-                      <div style={{ color: "#6b7280", fontWeight: 750, maxWidth: 720 }}>Manage ARCA driver roster, numbers, and assignments.</div>
-                    </div>
-                    <div style={{ width: 58, height: 58, borderRadius: 20, background: "linear-gradient(135deg, #007aff, #5ac8fa)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, boxShadow: "0 14px 28px rgba(0,122,255,0.24)" }}>👥</div>
-                  </div>
-                </div>
-              )}
-
-              {arcaOperationsTab === "tracks" && (
-                <div style={{ padding: isAdminMobile ? 18 : 26, borderRadius: 34, background: "linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.92))", boxShadow: "0 22px 60px rgba(15,23,42,0.12)", border: "1px solid rgba(255,255,255,0.75)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap" }}>
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.6, textTransform: "uppercase", color: "#ff9500" }}>ARCA Series</div>
-                      <h2 style={{ margin: "3px 0 6px", fontSize: isAdminMobile ? 30 : 38, letterSpacing: -1.35 }}>Track List</h2>
-                      <div style={{ color: "#6b7280", fontWeight: 750, maxWidth: 720 }}>Manage ARCA track information, banking, and specifications.</div>
-                    </div>
-                    <div style={{ width: 58, height: 58, borderRadius: 20, background: "linear-gradient(135deg, #ff9500, #ffcc00)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, boxShadow: "0 14px 28px rgba(255,149,0,0.24)" }}>🏎️</div>
-                  </div>
-                </div>
-              )}
-
-              {arcaOperationsTab === "results" && (
-                <div style={{ padding: isAdminMobile ? 18 : 26, borderRadius: 34, background: "linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.92))", boxShadow: "0 22px 60px rgba(15,23,42,0.12)", border: "1px solid rgba(255,255,255,0.75)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap", marginBottom: 20 }}>
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.6, textTransform: "uppercase", color: "#ff9500" }}>ARCA Series</div>
-                      <h2 style={{ margin: "3px 0 6px", fontSize: isAdminMobile ? 30 : 38, letterSpacing: -1.35 }}>Results Archive</h2>
-                      <div style={{ color: "#6b7280", fontWeight: 750, maxWidth: 720 }}>View completed races and download results as CSV.</div>
-                    </div>
-                    <div style={{ width: 58, height: 58, borderRadius: 20, background: "linear-gradient(135deg, #ff9500, #ff3b30)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, boxShadow: "0 14px 28px rgba(255,59,48,0.24)" }}>📚</div>
-                  </div>
-
-                  <div style={{ marginBottom: 16, display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(2, 1fr)", gap: 10 }}>
-                    <button 
-                      style={{ 
-                        padding: "12px 16px", 
-                        background: "#ff9500", 
-                        color: "white", 
-                        border: "none", 
-                        borderRadius: 8, 
-                        fontWeight: 900,
-                        cursor: "pointer"
-                      }}
-                      onClick={() => alert("Download Full Season CSV - Feature coming soon")}
-                    >
-                      Download Full Season
-                    </button>
-                    <button 
-                      style={{ 
-                        padding: "12px 16px", 
-                        background: "rgba(255,149,0,0.1)", 
-                        color: "#ff9500", 
-                        border: "1px solid rgba(255,149,0,0.3)", 
-                        borderRadius: 8, 
-                        fontWeight: 900,
-                        cursor: "pointer"
-                      }}
-                      onClick={() => alert("Download Standings - Feature coming soon")}
-                    >
-                      Download Standings
-                    </button>
-                  </div>
-
-                  <div style={{ display: "grid", gap: 10 }}>
-                    <div style={{ padding: 16, background: "rgba(255,255,255,0.8)", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 10 }}>
-                      <div style={{ fontWeight: 900, color: "#111827", marginBottom: 8 }}>Race Results by Event</div>
-                      {(arcaRaces || []).length === 0 ? (
-                        <div style={{ color: "#6b7280", fontSize: 13 }}>No races completed yet</div>
-                      ) : (
-                        <div style={{ display: "grid", gap: 8 }}>
-                          {(arcaRaces || []).map((race) => (
-                            <div 
-                              key={race.id}
-                              style={{ 
-                                display: "flex", 
-                                justifyContent: "space-between", 
-                                alignItems: "center",
-                                padding: 10,
-                                background: "rgba(255,255,255,0.6)",
-                                borderRadius: 8,
-                                border: "1px solid rgba(0,0,0,0.05)"
-                              }}
-                            >
-                              <div>
-                                <div style={{ fontWeight: 900, color: "#111827" }}>{race.name}</div>
-                                <div style={{ fontSize: 12, color: "#6b7280" }}>{race.date}</div>
-                              </div>
-                              <button 
-                                style={{ 
-                                  padding: "6px 12px", 
-                                  background: "#ff9500", 
-                                  color: "white", 
-                                  border: "none", 
-                                  borderRadius: 6, 
-                                  fontWeight: 700,
-                                  fontSize: 12,
-                                  cursor: "pointer"
-                                }}
-                                onClick={() => alert(`Download ${race.name} - Feature coming soon`)}
-                              >
-                                Download
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div style={{ marginTop: 20, padding: 16, background: "rgba(0,122,255,0.06)", borderRadius: 10, border: "1px solid rgba(0,122,255,0.2)" }}>
-                    <div style={{ fontWeight: 900, color: "#007aff", fontSize: 13 }}>ℹ️ Coming Soon</div>
-                    <div style={{ color: "#6b7280", fontSize: 13, marginTop: 6 }}>Full CSV export functionality with results, standings, and statistics.</div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Team Owner Assignments moved into Human Resources > Owner Assignments. */}
-
-        {/* League Ticker Manager moved into Public Relations > Ticker. */}
-
-        {/* Discord Settings removed from Admin Portal. Discord remains public/homepage only. */}
-        {/* Season Manager moved into the Operations Center. */}
-        {/* Duplicate bottom stat boxes removed. Executive status now lives at the top of Admin Home. */}
-        {/* Owner Portal Access moved into Human Resources > Access Codes. */}
-
-        {/* Driver Contract Access moved into Human Resources > Access Codes. */}
-
-        {/* Human Resources controls removed from Admin Home. Use the Human Resources menu item. */}
-
-        {/* Race Operations moved out of Admin Home. Use the Race Operations menu item. */}
       </div>
     </div>
   );
-
 }
+
+
+const DEFAULT_DISCORD_INVITE_URL = "https://discord.gg/mwQ6DYuXB2";
+const DEFAULT_DISCORD_RULES = [
+  "Use your real league driver name or a recognizable nickname.",
+  "Race control channels are for official league communication only during events.",
+  "Keep driver media active, competitive, and sponsor-friendly.",
+  "No harassment, hate speech, or personal attacks. Keep the trash talk racing-focused.",
+  "Team channels are for team operations, practice notes, strategy, and owner communication.",
+  "Appeals and incidents should go through the app or the proper Discord channel, not public arguments.",
+];
+
+function getDiscordSettings() {
+  try {
+    const saved = JSON.parse(localStorage.getItem("bcl-discord-settings") || "{}");
+    const savedInviteUrl = String(saved.inviteUrl || "").trim();
+    const inviteUrl = !savedInviteUrl || savedInviteUrl.includes("YOUR-LINK-HERE")
+      ? DEFAULT_DISCORD_INVITE_URL
+      : savedInviteUrl;
+    return {
+      inviteUrl,
+      rulesText: saved.rulesText || DEFAULT_DISCORD_RULES.join("\n"),
+      announcement: saved.announcement || "Join the Budweiser Cup League Discord for race control, media, team rooms, and league updates.",
+    };
+  } catch {
+    return {
+      inviteUrl: DEFAULT_DISCORD_INVITE_URL,
+      rulesText: DEFAULT_DISCORD_RULES.join("\n"),
+      announcement: "Join the Budweiser Cup League Discord for race control, media, team rooms, and league updates.",
+    };
+  }
+}
+
+function DiscordPage() {
+  const settings = getDiscordSettings();
+  const rules = String(settings.rulesText || "").split("\n").map((rule) => rule.trim()).filter(Boolean);
+  const voiceChannels = [
+    "🏁 Race Control",
+    "🎙️ Driver Interviews",
+    "📡 Broadcast Booth",
+    "🔧 Garage / Practice",
+    "🚗 Team Owner Meetings",
+    "⚖️ Appeals Review Waiting Room",
+    "🍻 League Hangout",
+  ];
+
+  return (
+    <div style={{ minHeight: "100vh", background: "radial-gradient(circle at top, #1d2430 0%, #0d1117 42%, #090c11 100%)", color: "white", fontFamily: "Arial, sans-serif" }}>
+      <div style={{ maxWidth: 1180, margin: "0 auto", padding: 24 }}>
+        <div style={{ ...sectionCardStyle, background: "linear-gradient(135deg, #5865f2 0%, #20233a 52%, #10141b 100%)", border: "1px solid rgba(255,255,255,0.18)", borderRadius: 24, padding: 28 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 18, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+              <img src={logo} alt="League Logo" style={{ height: 64, filter: "drop-shadow(0 8px 18px rgba(0,0,0,0.35))" }} />
+              <div>
+                <div style={{ fontSize: 40, fontWeight: 900, lineHeight: 1 }}>BCL DISCORD HUB</div>
+                <div style={{ opacity: 0.82, marginTop: 8, fontSize: 16 }}>{settings.announcement}</div>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <button onClick={() => window.open(settings.inviteUrl, "_blank", "noopener,noreferrer")} style={{ background: "#ffffff", color: "#111827", border: "none", borderRadius: 12, padding: "13px 18px", fontWeight: 900, cursor: "pointer" }}>💬 Join Discord</button>
+              <button onClick={() => (window.location.pathname = "/standings")} style={{ background: "rgba(0,0,0,0.28)", color: "white", border: "1px solid rgba(255,255,255,0.24)", borderRadius: 12, padding: "13px 18px", fontWeight: 800, cursor: "pointer" }}>Back to Standings</button>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 18 }}>
+          <div style={sectionCardStyle}>
+            <h2 style={{ marginTop: 0 }}>League Discord Rules</h2>
+            <div style={{ display: "grid", gap: 10 }}>
+              {rules.map((rule, index) => (
+                <div key={`${rule}-${index}`} style={{ background: "#10141b", border: "1px solid #2a3240", borderRadius: 12, padding: 12, lineHeight: 1.45 }}>
+                  <strong style={{ color: "#d4af37" }}>#{index + 1}</strong> {rule}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div style={sectionCardStyle}>
+            <h2 style={{ marginTop: 0 }}>Suggested Voice Channels</h2>
+            <div style={{ display: "grid", gap: 10 }}>
+              {voiceChannels.map((channel) => (
+                <div key={channel} style={{ background: "#10141b", border: "1px solid #2a3240", borderRadius: 12, padding: 12, fontWeight: 800 }}>{channel}</div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+const PAYMENT_COMPLIANCE_OVERRIDE_KEY = "bclPaymentComplianceOverrides";
+
+function getPaymentTimestamp(row) {
+  if (!row || typeof row !== "object") return null;
+  return (
+    row.submitted_at ||
+    row.submittedAt ||
+    row.completed_at ||
+    row.completedAt ||
+    row.uploaded_at ||
+    row.uploadedAt ||
+    row.created_at ||
+    row.createdAt ||
+    row.updated_at ||
+    row.updatedAt ||
+    row.timestamp ||
+    row.date ||
+    row.inserted_at ||
+    row.insertedAt ||
+    row.published_at ||
+    row.publishedAt ||
+    null
+  );
+}
+
+function formatPaymentTimestamp(value) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZoneName: "short",
+  }).format(date);
+}
+
+function makeEasternIso(dateKey, time = "23:59") {
+  // The 2026 league schedule is during Eastern daylight time, so -04:00 keeps the deadline aligned to ET.
+  return `${dateKey}T${time}:00-04:00`;
+}
+
+function addDaysToDateKey(dateKey, days) {
+  if (!dateKey) return "";
+  const date = new Date(`${String(dateKey).slice(0, 10)}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function getWednesdayBeforeRaceDate(dateKey) {
+  if (!dateKey) return "";
+  const date = new Date(`${String(dateKey).slice(0, 10)}T12:00:00Z`);
+  const day = date.getUTCDay();
+  const daysBack = (day - 3 + 7) % 7;
+  date.setUTCDate(date.getUTCDate() - daysBack);
+  return date.toISOString().slice(0, 10);
+}
+
+function getRecordRaceName(row = {}) {
+  row = row || {};
+  return String(row.race_name || row.raceName || row.track_name || row.track || row.race || row.event_name || row.event || "").trim();
+}
+
+function getRecordDriverNumber(row = {}) {
+  row = row || {};
+  return String(row.driver_number || row.driverNumber || row.number || row.car_number || row.carNumber || row.driver_num || "").trim();
+}
+
+function getRecordDriverName(row = {}) {
+  row = row || {};
+  return String(row.driver_name || row.driverName || row.name || row.uploader_name || row.submitted_by || row.author_name || "").trim().toLowerCase();
+}
+
+function getRecordTeam(row = {}) {
+  row = row || {};
+  return String(row.team || row.team_key || row.team_abbr || row.team_name || "").trim();
+}
+
+function getInterviewKind(row = {}) {
+  row = row || {};
+  const raw = String(row.interview_type || row.type || row.category || row.kind || row.phase || row.title || row.prompt_type || "").toLowerCase();
+  if (raw.includes("pre")) return "pre";
+  if (raw.includes("post")) return "post";
+  return "";
+}
+
+function interviewLooksAnswered(row = {}) {
+  row = row || {};
+  if (row.completed === true || row.submitted === true) return true;
+  const status = String(row.status || "").toLowerCase();
+  if (["answered", "complete", "completed", "submitted", "posted"].includes(status)) return true;
+  const answerFields = [row.answer, row.answers, row.response, row.responses, row.body, row.notes, row.content];
+  return answerFields.some((value) => {
+    if (Array.isArray(value)) return value.length > 0;
+    if (value && typeof value === "object") return Object.keys(value).length > 0;
+    return String(value || "").trim().length > 0;
+  });
+}
+
+function recordMatchesDriver(row = {}, driver = {}) {
+  const number = getRecordDriverNumber(row);
+  const name = getRecordDriverName(row);
+  const team = getRecordTeam(row);
+  return (
+    (number && String(driver.number) === number) ||
+    (name && String(driver.name || "").trim().toLowerCase() === name) ||
+    (team && String(driver.team || "") === team && !number && !name)
+  );
+}
+
+function recordMatchesRace(row = {}, raceName = "") {
+  const rowRace = getRecordRaceName(row).toLowerCase();
+  const wanted = String(raceName || "").trim().toLowerCase();
+  if (!wanted) return true;
+  if (!rowRace) return true;
+  return rowRace === wanted;
+}
+
+function getTeamPaymentOverride(overrides = [], teamKey = "", periodKey = "") {
+  return (overrides || []).find((item) => String(item.team_key || item.team || "") === String(teamKey) && String(item.period_key || item.periodKey || "") === String(periodKey));
+}
+
+function buildPaymentComplianceRows({ teams = [], drivers = [], interviews = [], carUploads = [], overrides = [], previousRace = null, upcomingRace = null }) {
+  interviews = (Array.isArray(interviews) ? interviews : []).filter((row) => row && typeof row === "object");
+  carUploads = (Array.isArray(carUploads) ? carUploads : []).filter((row) => row && typeof row === "object");
+  overrides = (Array.isArray(overrides) ? overrides : []).filter((row) => row && typeof row === "object");
+  const previousRaceDate = previousRace?.date || "";
+  const upcomingRaceDate = upcomingRace?.date || "";
+  const previousRaceName = previousRace?.name || "";
+  const upcomingRaceName = upcomingRace?.name || "";
+  const paymentPeriodKey = `${previousRaceName || "no-previous"}__${upcomingRaceName || "no-upcoming"}`;
+  const paintDeadlineIso = upcomingRaceDate ? makeEasternIso(getWednesdayBeforeRaceDate(upcomingRaceDate), "23:59") : "";
+  const postDeadlineIso = previousRaceDate ? makeEasternIso(addDaysToDateKey(previousRaceDate, 4), "23:59") : "";
+  const preDeadlineIso = upcomingRaceDate ? makeEasternIso(String(upcomingRaceDate).slice(0, 10), "20:30") : "";
+
+  const eligibleTeams = (teams || [])
+    .filter((team) => team?.team && team.team !== "Independent" && team.team !== "IND")
+    .sort((a, b) => getTeamFullName(a.team).localeCompare(getTeamFullName(b.team)));
+
+  return eligibleTeams.map((team) => {
+    const teamDrivers = (drivers || [])
+      .filter((driver) => !driver.retired && !isInactivePlaceholderDriver(driver) && String(driver.team || "") === String(team.team))
+      .sort((a, b) => Number(a.number || 9999) - Number(b.number || 9999));
+
+    const driverChecks = teamDrivers.map((driver) => {
+      const paintRecord = (carUploads || [])
+        .filter((row) => recordMatchesDriver(row, driver) && recordMatchesRace(row, upcomingRaceName))
+        .sort((a, b) => new Date(getPaymentTimestamp(b) || 0) - new Date(getPaymentTimestamp(a) || 0))[0] || null;
+      const postRecord = (interviews || [])
+        .filter((row) => getInterviewKind(row) === "post" && interviewLooksAnswered(row) && recordMatchesDriver(row, driver) && recordMatchesRace(row, previousRaceName))
+        .sort((a, b) => new Date(getPaymentTimestamp(b) || 0) - new Date(getPaymentTimestamp(a) || 0))[0] || null;
+      const preRecord = (interviews || [])
+        .filter((row) => getInterviewKind(row) === "pre" && interviewLooksAnswered(row) && recordMatchesDriver(row, driver) && recordMatchesRace(row, upcomingRaceName))
+        .sort((a, b) => new Date(getPaymentTimestamp(b) || 0) - new Date(getPaymentTimestamp(a) || 0))[0] || null;
+
+      const paintAt = getPaymentTimestamp(paintRecord);
+      const postAt = getPaymentTimestamp(postRecord);
+      const preAt = getPaymentTimestamp(preRecord);
+
+      return {
+        driver,
+        paintAt,
+        postAt,
+        preAt,
+        paintMet: !!paintAt && (!paintDeadlineIso || new Date(paintAt) <= new Date(paintDeadlineIso)),
+        postMet: !!postAt && (!postDeadlineIso || new Date(postAt) <= new Date(postDeadlineIso)),
+        preMet: !!preAt && (!preDeadlineIso || new Date(preAt) <= new Date(preDeadlineIso)),
+      };
+    });
+
+    const baseMet = teamDrivers.length > 0 && driverChecks.every((check) => check.paintMet && check.postMet && check.preMet);
+    const override = getTeamPaymentOverride(overrides, team.team, paymentPeriodKey);
+    const overrideStatus = override?.override_status || override?.status || "";
+    const finalEligible = overrideStatus === "approved" ? true : overrideStatus === "denied" ? false : baseMet;
+
+    return {
+      teamKey: team.team,
+      teamName: getTeamFullName(team.team),
+      driverCount: teamDrivers.length,
+      driverChecks,
+      previousRaceName,
+      upcomingRaceName,
+      paymentPeriodKey,
+      paintDeadlineIso,
+      postDeadlineIso,
+      preDeadlineIso,
+      baseMet,
+      finalEligible,
+      override,
+      overrideStatus,
+    };
+  });
+}
+
+function buildTeamPrestigeRows({ teams = [], drivers = [], interviews = [], carUploads = [], seasonRaceNames = null }) {
+  interviews = (Array.isArray(interviews) ? interviews : []).filter((row) => row && typeof row === "object");
+  carUploads = (Array.isArray(carUploads) ? carUploads : []).filter((row) => row && typeof row === "object");
+
+  // Scope interviews/car uploads to the current season's races only, so these
+  // tiebreaker scores reset each season instead of accumulating all-time.
+  // Neither table has a season_id column, so we match by race name against the
+  // active season's own race history instead.
+  if (Array.isArray(seasonRaceNames)) {
+    const seasonRaceSet = new Set(seasonRaceNames.map((name) => String(name || "").trim().toLowerCase()).filter(Boolean));
+    if (seasonRaceSet.size > 0) {
+      interviews = interviews.filter((row) => seasonRaceSet.has(getRecordRaceName(row).toLowerCase()));
+      carUploads = carUploads.filter((row) => seasonRaceSet.has(getRecordRaceName(row).toLowerCase()));
+    } else {
+      // No races posted yet this season — no interviews/uploads should count.
+      interviews = [];
+      carUploads = [];
+    }
+  }
+
+  const eligibleTeams = (teams || []).filter((team) => team?.team && team.team !== "Independent" && team.team !== "IND");
+
+  const rows = eligibleTeams.map((team) => {
+    const teamDrivers = (drivers || [])
+      .filter((driver) => !driver.retired && !isInactivePlaceholderDriver(driver) && String(driver.team || "") === String(team.team));
+
+    // Manufacturer: most common among this team's active drivers.
+    const manufacturerCounts = {};
+    teamDrivers.forEach((driver) => {
+      if (driver.manufacturer) manufacturerCounts[driver.manufacturer] = (manufacturerCounts[driver.manufacturer] || 0) + 1;
+    });
+    const manufacturer = Object.entries(manufacturerCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "Unknown";
+
+    // Driver performance — heaviest-weighted component. Pulled from the team's
+    // current Cup standings (points/wins/top5/top3), same fields used elsewhere
+    // in the app (e.g. the Team Standings table).
+    const points = Number(team.points || 0);
+    const wins = Number(team.wins || 0);
+    const top5 = Number(team.top5 || 0);
+    const top3 = Number(team.top3 || 0);
+    const performanceRaw = points + wins * 25 + top5 * 8 + top3 * 4;
+
+    // Interviews — light tiebreaker. Count of answered interviews across the team's drivers.
+    const interviewCount = teamDrivers.reduce(
+      (sum, driver) => sum + interviews.filter((row) => interviewLooksAnswered(row) && recordMatchesDriver(row, driver)).length,
+      0
+    );
+
+    // Car uploads — light tiebreaker. Count of paint scheme/car uploads across the team's drivers.
+    const uploadCount = teamDrivers.reduce(
+      (sum, driver) => sum + carUploads.filter((row) => recordMatchesDriver(row, driver)).length,
+      0
+    );
+
+    return {
+      team: team.team,
+      teamName: getTeamFullName(team.team),
+      manufacturer,
+      driverCount: teamDrivers.length,
+      performanceRaw,
+      interviewCount,
+      uploadCount,
+    };
+  });
+
+  // Normalize each component to a 0-100 scale across all Cup teams, then combine
+  // with performance weighted heaviest and interviews/uploads as light tiebreakers.
+  const maxPerf = Math.max(1, ...rows.map((r) => r.performanceRaw));
+  const maxInterviews = Math.max(1, ...rows.map((r) => r.interviewCount));
+  const maxUploads = Math.max(1, ...rows.map((r) => r.uploadCount));
+
+  rows.forEach((r) => {
+    r.performanceScore = Math.round((r.performanceRaw / maxPerf) * 100);
+    r.interviewScore = Math.round((r.interviewCount / maxInterviews) * 100);
+    r.uploadScore = Math.round((r.uploadCount / maxUploads) * 100);
+    r.compositeScore = Math.round(r.performanceScore * 0.8 + r.interviewScore * 0.1 + r.uploadScore * 0.1);
+  });
+
+  // Tier assignment is relative to each manufacturer's own team set, not global:
+  // within each manufacturer, rank by composite score and assign Elite -> Prestigious
+  // -> Good -> Developing by rank. A manufacturer with fewer than 4 teams simply
+  // won't use the lower tiers yet.
+  const tierNames = ["Elite", "Prestigious", "Good", "Developing"];
+  const byManufacturer = {};
+  rows.forEach((r) => {
+    (byManufacturer[r.manufacturer] = byManufacturer[r.manufacturer] || []).push(r);
+  });
+
+  Object.values(byManufacturer).forEach((group) => {
+    group.sort((a, b) => b.compositeScore - a.compositeScore);
+    group.forEach((r, idx) => {
+      r.tier = tierNames[Math.min(idx, tierNames.length - 1)];
+      r.manufacturerRank = idx + 1;
+    });
+  });
+
+  return rows.sort((a, b) => b.compositeScore - a.compositeScore);
+}
+
+function DriverVoteReminderStrip({ driverNumber = "" }) {
+  const [openVoteCount, setOpenVoteCount] = useState(0);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadOpenVoteReminders() {
+      const nowIso = new Date().toISOString();
+      const { data, error } = await supabase
+        .from("league_votes")
+        .select("id,title,deadline,active")
+        .eq("active", true)
+        .gt("deadline", nowIso);
+      if (!isMounted || error) return;
+      setOpenVoteCount((data || []).length);
+    }
+    loadOpenVoteReminders();
+    const interval = setInterval(loadOpenVoteReminders, 60000);
+    return () => { isMounted = false; clearInterval(interval); };
+  }, [driverNumber]);
+
+  if (!openVoteCount) return null;
+
+  return (
+    <div style={{ minHeight: 0, background: "#0c0f14", padding: "0 20px 12px" }}>
+      <div style={{ maxWidth: 1400, margin: "0 auto" }}>
+        <div style={{ background: "linear-gradient(90deg, #d4af37 0%, #f59e0b 100%)", color: "#111", borderRadius: 14, padding: "12px 16px", fontWeight: 1000, display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+          <span>🔔 {openVoteCount} league vote{openVoteCount === 1 ? "" : "s"} open — driver login required before the deadline.</span>
+          <button type="button" onClick={() => (window.location.pathname = "/vote")} style={{ background: "#111827", color: "white", border: "none", borderRadius: 10, padding: "8px 12px", fontWeight: 900, cursor: "pointer" }}>Vote Now</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+function normalizeStreamUrl(value = "") {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  if (/^https?:\/\//i.test(raw)) return raw;
+  if (raw.includes("twitch.tv") || raw.includes("youtube.com") || raw.includes("youtu.be")) return `https://${raw}`;
+  return raw;
+}
+
+function getStreamDriverLabel(stream = {}) {
+  return stream.driver_name || stream.driver || stream.name || stream.streamer_name || stream.title || "League Stream";
+}
+
+function getStreamDriverNumber(stream = {}) {
+  return stream.driver_number || stream.number || stream.car_number || stream.carNumber || "";
+}
+
+function getStreamTwitchUrl(stream = {}) {
+  return normalizeStreamUrl(stream.twitch_url || stream.twitch || stream.twitch_link || stream.stream_url || stream.url || "");
+}
+
+function getStreamYoutubeUrl(stream = {}) {
+  return normalizeStreamUrl(stream.youtube_url || stream.youtube || stream.youtube_link || stream.yt_url || "");
+}
+
+
+function MobilePaintSchemeVotesHub({ drivers = [], tracks = [], go, session = null }) {
+  const [uploads, setUploads] = useState([]);
+  const [votes, setVotes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [selectedTrack, setSelectedTrack] = useState("");
+  const [driverNumber, setDriverNumber] = useState("");
+  const [password, setPassword] = useState("");
+  const [loggedInDriver, setLoggedInDriver] = useState(null);
+  const [selectedUploadId, setSelectedUploadId] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const activeDrivers = useMemo(() => {
+    return dedupeDriversByNumber(drivers || [])
+      .filter((driver) => !driver.retired && !isInactivePlaceholderDriver(driver))
+      .sort((a, b) => Number(a.number || 9999) - Number(b.number || 9999));
+  }, [drivers]);
+
+  useEffect(() => {
+    if (session?.mode !== "driver") return;
+    const number = String(session.driverNumber || "").trim();
+    if (!number) return;
+    const rosterDriver = activeDrivers.find((driver) => String(driver.number) === number) || {};
+    setLoggedInDriver({
+      ...rosterDriver,
+      number,
+      driver_number: number,
+      name: session.driverName || rosterDriver.name || `#${number}`,
+      team: session.team || rosterDriver.team || "",
+      manufacturer: session.manufacturer || rosterDriver.manufacturer || "",
+    });
+    setDriverNumber(number);
+  }, [session, activeDrivers]);
+
+  async function loadPaintData() {
+    setLoading(true);
+    setError("");
+    const [{ data: uploadRows, error: uploadError }, { data: voteRows, error: voteError }] = await Promise.all([
+      supabase.from("car_uploads").select("*").order("uploaded_at", { ascending: false }),
+      supabase.from("paint_scheme_votes").select("*").order("created_at", { ascending: false }),
+    ]);
+
+    if (uploadError || voteError) {
+      console.error("Could not load mobile paint scheme voting data:", uploadError || voteError);
+      setError("Could not load paint schemes. Check car_uploads, paint_scheme_votes, and RLS policies.");
+      setUploads([]);
+      setVotes([]);
+    } else {
+      setUploads(uploadRows || []);
+      setVotes(voteRows || []);
+    }
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    loadPaintData();
+  }, []);
+
+  const normalizeTrack = (value) => String(value || "").trim().toLowerCase();
+  const uploadTrackName = (upload) => getPaintUploadRaceForStandings(upload) || upload.race_name || upload.race || upload.track_name || upload.track || "Current Week";
+  const uploadImageUrl = (upload) => upload.image_url || upload.file_url || upload.secure_url || upload.url || upload.photo_url || "";
+  const uploadDriverNumber = (upload, rosterDriver) => String(rosterDriver?.number || upload.driver_number || upload.car_number || upload.number || "").trim();
+
+  const paintEntries = useMemo(() => {
+    const voteCounts = new Map();
+    (votes || []).forEach((vote) => {
+      const key = String(vote.upload_id || vote.voted_upload_id || vote.paint_scheme_id || vote.car_upload_id || "").trim();
+      if (!key) return;
+      voteCounts.set(key, (voteCounts.get(key) || 0) + 1);
+    });
+
+    return (uploads || [])
+      .filter((upload) => isPaintImageUploadForStandings(upload))
+      .map((upload) => {
+        const rosterDriver = activeDrivers.find((driver) => String(driver.id) === String(upload.driver_id) || String(driver.number) === String(upload.driver_number || upload.car_number || upload.number));
+        const imageUrl = uploadImageUrl(upload);
+        const driverNumberValue = uploadDriverNumber(upload, rosterDriver);
+        const driverName = rosterDriver?.name || upload.driver_name || upload.uploader_name || upload.name || (driverNumberValue ? `#${driverNumberValue}` : "Unknown Driver");
+        return {
+          ...upload,
+          imageUrl,
+          trackName: uploadTrackName(upload),
+          driverNumberValue,
+          driverName,
+          driverLabel: driverNumberValue ? `#${driverNumberValue} ${driverName}` : driverName,
+          teamLabel: getTeamFullName(rosterDriver?.team || upload.team || upload.team_key || "Independent"),
+          manufacturerLabel: rosterDriver?.manufacturer || upload.manufacturer || "",
+          voteCount: voteCounts.get(String(upload.id)) || 0,
+          uploadedAt: upload.uploaded_at || upload.created_at || "",
+        };
+      })
+      .filter((entry) => entry.imageUrl)
+      .sort((a, b) => Number(b.voteCount || 0) - Number(a.voteCount || 0) || new Date(b.uploadedAt || 0) - new Date(a.uploadedAt || 0));
+  }, [uploads, votes, activeDrivers]);
+
+  const trackOptions = useMemo(() => {
+    const seen = new Set();
+    const options = [];
+    const add = (name) => {
+      const clean = String(name || "").trim();
+      if (!clean) return;
+      const key = normalizeTrack(clean);
+      if (seen.has(key)) return;
+      seen.add(key);
+      options.push(clean);
+    };
+    (tracks || []).forEach((track) => add(track?.name));
+    (paintEntries || []).forEach((entry) => add(entry.trackName));
+    return options;
+  }, [tracks, paintEntries]);
+
+  useEffect(() => {
+    if (selectedTrack || !trackOptions.length) return;
+    const spotlightRace = getPaintWinnerRaceForCurrentWeek(tracks);
+    const preferred = trackOptions.find((option) => normalizeTrack(option) === normalizeTrack(spotlightRace?.name));
+    setSelectedTrack(preferred || trackOptions[0]);
+  }, [trackOptions, selectedTrack, tracks]);
+
+  const visibleEntries = useMemo(() => {
+    return (paintEntries || []).filter((entry) => !selectedTrack || normalizeTrack(entry.trackName) === normalizeTrack(selectedTrack));
+  }, [paintEntries, selectedTrack]);
+
+  const selectedEntry = visibleEntries.find((entry) => String(entry.id) === String(selectedUploadId)) || null;
+
+  const existingPaintVote = useMemo(() => {
+    if (!loggedInDriver || !selectedTrack) return null;
+    const number = String(loggedInDriver.number || loggedInDriver.driver_number || "").trim();
+    return (votes || []).find((vote) => {
+      const voteDriverNumber = String(vote.driver_number || vote.voter_driver_number || vote.car_number || "").trim();
+      const voteRace = vote.race_name || vote.race || vote.track_name || vote.track || "";
+      return voteDriverNumber === number && normalizeTrack(voteRace) === normalizeTrack(selectedTrack);
+    }) || null;
+  }, [loggedInDriver, selectedTrack, votes]);
+
+  const existingVoteUploadId = existingPaintVote
+    ? String(existingPaintVote.upload_id || existingPaintVote.voted_upload_id || existingPaintVote.paint_scheme_id || existingPaintVote.car_upload_id || "").trim()
+    : "";
+  const driverAlreadyVoted = Boolean(existingPaintVote);
+  const selectedIsCurrentVote = selectedEntry && existingVoteUploadId && String(selectedEntry.id) === existingVoteUploadId;
+  const isPaintVoteAdmin = Boolean(loggedInDriver?.isAdmin || session?.mode === "admin" || session?.isAdmin);
+
+  function isOwnPaintScheme(entry) {
+    if (!loggedInDriver || !entry) return false;
+    const voterNumber = String(loggedInDriver.number || loggedInDriver.driver_number || "").trim();
+    const paintNumber = String(entry.driverNumberValue || entry.driver_number || entry.car_number || entry.number || "").trim();
+    return Boolean(voterNumber && paintNumber && voterNumber === paintNumber);
+  }
+
+  const selectedIsOwnPaintScheme = selectedEntry ? isOwnPaintScheme(selectedEntry) : false;
+
+  const voteAuditRows = useMemo(() => {
+    const entriesById = new Map((paintEntries || []).map((entry) => [String(entry.id), entry]));
+    return (votes || [])
+      .filter((vote) => normalizeTrack(vote.race_name || vote.race || vote.track_name || vote.track) === normalizeTrack(selectedTrack))
+      .map((vote) => {
+        const votedId = String(vote.upload_id || vote.voted_upload_id || vote.paint_scheme_id || vote.car_upload_id || "").trim();
+        const entry = entriesById.get(votedId) || {};
+        return {
+          id: vote.id || `${vote.driver_number || vote.voter_driver_number || "voter"}-${votedId}`,
+          voterNumber: String(vote.driver_number || vote.voter_driver_number || vote.car_number || "").trim(),
+          voterName: vote.driver_name || vote.voter_driver_name || "Unknown voter",
+          selectedNumber: entry.driverNumberValue || vote.selected_driver_number || "",
+          selectedName: entry.driverName || vote.selected_driver_name || "Unknown scheme",
+          team: entry.teamLabel || "",
+          createdAt: vote.updated_at || vote.created_at || "",
+          selfVote: String(vote.driver_number || vote.voter_driver_number || "").trim() && String(entry.driverNumberValue || vote.selected_driver_number || "").trim() && String(vote.driver_number || vote.voter_driver_number || "").trim() === String(entry.driverNumberValue || vote.selected_driver_number || "").trim(),
+        };
+      })
+      .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+  }, [votes, selectedTrack, paintEntries]);
+
+  async function handleLogin(event) {
+    event.preventDefault();
+    setError("");
+    setMessage("");
+
+    const number = String(driverNumber || "").trim();
+    const code = String(password || "").trim();
+    if (!number || !code) {
+      setError("Select your driver and enter your driver password.");
+      return;
+    }
+
+    const { data, error: accessError } = await supabase
+      .from("driver_access_codes")
+      .select("*")
+      .eq("driver_number", number)
+      .limit(10);
+
+    if (accessError) {
+      console.error("Could not verify paint vote login:", accessError);
+      setError("Could not verify access. Check driver_access_codes select policy and columns.");
+      return;
+    }
+
+    const enteredCode = code.toUpperCase();
+    const match = (data || []).find((row) => {
+      const rowNumber = String(row.driver_number ?? row.car_number ?? "").trim();
+      const possibleCodes = [row.code, row.access_code, row.password, row.driver_password]
+        .map((value) => String(value ?? "").trim().toUpperCase())
+        .filter(Boolean);
+      return rowNumber === number && possibleCodes.includes(enteredCode) && row.active !== false;
+    });
+
+    const adminMatch = enteredCode === "BCLADMINPASSWORD2026";
+    if (!match && !adminMatch) {
+      setError("Invalid car number or driver password.");
+      return;
+    }
+
+    const rosterDriver = activeDrivers.find((driver) => String(driver.number) === number) || {};
+    const authRow = match || {};
+    setLoggedInDriver({
+      ...authRow,
+      ...rosterDriver,
+      number,
+      driver_number: number,
+      name: rosterDriver.name || authRow.driver_name || authRow.name || `#${number}`,
+      team: rosterDriver.team || authRow.team || "",
+      manufacturer: rosterDriver.manufacturer || authRow.manufacturer || "",
+      isAdmin: adminMatch,
+    });
+    setMessage(adminMatch ? `Admin QC mode unlocked as #${number}.` : `Logged in as #${number}. Select a paint scheme and cast your vote.`);
+  }
+
+  async function castVote(entry) {
+    setError("");
+    setMessage("");
+    if (session?.mode === "guest") return setError("Guest access is view-only. Log in as a driver to vote.");
+    if (!loggedInDriver) return setError("Log in before casting a vote.");
+    if (!entry) return setError("Select a paint scheme before voting.");
+    if (isOwnPaintScheme(entry)) return setError("You cannot vote for your own paint scheme.");
+
+    const currentVoteId = existingVoteUploadId;
+    if (currentVoteId && String(currentVoteId) === String(entry.id)) {
+      return setMessage(`Your current vote is already ${entry.driverLabel}.`);
+    }
+
+    setSubmitting(true);
+    const driverNum = String(loggedInDriver.number || loggedInDriver.driver_number || "").trim();
+    const driverName = loggedInDriver.name || loggedInDriver.driver_name || `#${driverNum}`;
+    const raceName = selectedTrack || entry.trackName || "Current Week";
+
+    const payload = {
+      voter_id: `${driverNum}-${raceName}`,
+      upload_id: String(entry.id || ""),
+      race_name: raceName,
+      voter_driver_number: driverNum,
+      voter_driver_name: driverName,
+      voted_driver_number: String(entry.driverNumberValue || entry.driverNumber || ""),
+      voted_driver_name: entry.driverName || entry.driverLabel || "",
+      voted_team: entry.team || entry.teamName || entry.displayTeam || "Independent",
+    };
+
+    const { error: voteError } = existingPaintVote?.id
+      ? await supabase.from("paint_scheme_votes").update(payload).eq("id", existingPaintVote.id)
+      : await supabase.from("paint_scheme_votes").insert(payload);
+
+    setSubmitting(false);
+
+    if (voteError) {
+      console.error("Could not submit/change paint scheme vote:", voteError);
+      setError(`Could not submit vote: ${voteError?.message || "Check paint_scheme_votes columns and RLS policies."}`);
+      return;
+    }
+
+    setSelectedUploadId("");
+    setMessage(`${existingPaintVote?.id ? "Vote changed" : "Vote submitted"} for ${entry.driverLabel}.`);
+    await loadPaintData();
+  }
+
+  const selectInputStyle = {
+    width: "100%",
+    minHeight: 48,
+    background: "#020617",
+    color: "#fff",
+    border: "1px solid #334155",
+    borderRadius: 14,
+    padding: "12px 13px",
+    fontSize: 15,
+    fontWeight: 900,
+    boxSizing: "border-box",
+  };
+
+  return (
+    <div style={{ paddingBottom: 92 }}>
+      <MobileHero
+        kicker="Paint Scheme Vote"
+        title="Scheme of the Week"
+        subtitle={session?.mode === "guest" ? "Guest mode can view schemes and results. Log in as a driver to cast or change a vote." : "Pick a track, then tap a paint scheme to cast or change your vote."}
+      />
+
+      <MobileCard>
+        <div style={mobileKickerStyle}>Driver Login</div>
+        {session?.mode === "guest" ? (
+          <div style={{ marginTop: 10, background: "#07111f", border: "1px solid #263244", borderRadius: 16, padding: 14 }}>
+            <div style={{ color: "#fbbf24", fontSize: 11, fontWeight: 1000, textTransform: "uppercase" }}>Guest View Only</div>
+            <div style={{ color: "#6e6e73", fontSize: 13, marginTop: 6, lineHeight: 1.45 }}>You can view paint schemes and results, but you must log in as a driver to cast or change a vote.</div>
+            <button type="button" onClick={() => { clearBclMobileSession(); window.location.reload(); }} style={{ ...mobileActionStyle, marginTop: 12, background: "#d4af37", color: "#111", borderColor: "#d4af37" }}>Driver Login</button>
+          </div>
+        ) : !loggedInDriver ? (
+          <form onSubmit={handleLogin} style={{ display: "grid", gap: 12, marginTop: 10 }}>
+            <select value={driverNumber} onChange={(event) => setDriverNumber(event.target.value)} style={selectInputStyle}>
+              <option value="">Select Your Driver</option>
+              {activeDrivers.map((driver) => (
+                <option key={driver.id || driver.number} value={String(driver.number)}>
+                  #{driver.number} — {driver.name} ({getTeamFullName(driver.team)})
+                </option>
+              ))}
+            </select>
+            <input
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="Enter driver password"
+              style={selectInputStyle}
+            />
+            <button type="submit" style={{ ...mobileActionStyle, background: "#d4af37", color: "#111", borderColor: "#d4af37" }}>
+              Log In To Vote
+            </button>
+          </form>
+        ) : (
+          <div style={{ marginTop: 10, background: "#07111f", border: "1px solid #263244", borderRadius: 16, padding: 14 }}>
+            <div style={{ color: "#4ade80", fontSize: 11, fontWeight: 1000, textTransform: "uppercase" }}>{isPaintVoteAdmin ? "Signed In • Vote QC" : "Signed In"}</div>
+            <div style={{ fontSize: 22, fontWeight: 1000, marginTop: 4 }}>#{loggedInDriver.number} {loggedInDriver.name}</div>
+            <div style={{ color: "#6e6e73", fontSize: 13, marginTop: 3 }}>{getTeamFullName(loggedInDriver.team || "Independent")} • {loggedInDriver.manufacturer || ""}</div>
+            <button type="button" onClick={() => { setLoggedInDriver(null); setPassword(""); setMessage("Logged out."); }} style={{ ...mobileActionStyle, marginTop: 12, background: "#111827", color: "#fff", borderColor: "#263244" }}>Log Out</button>
+          </div>
+        )}
+        {message && <div style={{ color: "#4ade80", fontWeight: 900, marginTop: 12, lineHeight: 1.35 }}>{message}</div>}
+        {error && <div style={{ color: "#f87171", fontWeight: 900, marginTop: 12, lineHeight: 1.35 }}>{error}</div>}
+      </MobileCard>
+
+      <MobileCard>
+        <div style={mobileKickerStyle}>Track</div>
+        <select value={selectedTrack} onChange={(event) => { setSelectedTrack(event.target.value); setSelectedUploadId(""); }} style={{ ...selectInputStyle, marginTop: 10 }}>
+          {trackOptions.length === 0 && <option value="">Current Week</option>}
+          {trackOptions.map((track) => <option key={track} value={track}>{track}</option>)}
+        </select>
+      </MobileCard>
+
+      <MobileStatGrid items={[
+        ["Track", selectedTrack || "—"],
+        ["Entries", visibleEntries.length],
+        ["Votes", (votes || []).filter((vote) => normalizeTrack(vote.race_name || vote.race || vote.track_name || vote.track) === normalizeTrack(selectedTrack)).length],
+        ["Status", driverAlreadyVoted ? "Vote Can Be Changed" : "Open"],
+      ]} />
+
+      {isPaintVoteAdmin && (
+        <MobileCard>
+          <div style={mobileKickerStyle}>Vote QC</div>
+          <div style={{ color: "#6e6e73", fontSize: 13, lineHeight: 1.4, marginTop: 6 }}>
+            Shows who voted and which paint scheme they picked for the selected track. Self-votes are blocked going forward.
+          </div>
+          <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
+            {voteAuditRows.length === 0 ? (
+              <div style={{ color: "#94a3b8", fontSize: 13 }}>No votes found for this track yet.</div>
+            ) : voteAuditRows.map((row) => (
+              <div key={row.id} style={{ background: row.selfVote ? "rgba(185,28,28,0.22)" : "#07111f", border: row.selfVote ? "1px solid #ef4444" : "1px solid #263244", borderRadius: 14, padding: 12 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
+                  <div>
+                    <div style={{ color: "#fff", fontWeight: 1000 }}>#{row.voterNumber || "—"} {row.voterName}</div>
+                    <div style={{ color: "#6e6e73", fontSize: 12, marginTop: 3 }}>voted for #{row.selectedNumber || "—"} {row.selectedName}</div>
+                    {row.team && <div style={{ color: "#64748b", fontSize: 11, marginTop: 3 }}>{row.team}</div>}
+                  </div>
+                  <div style={{ color: row.selfVote ? "#fca5a5" : "#facc15", fontSize: 11, fontWeight: 1000, textTransform: "uppercase", textAlign: "right" }}>
+                    {row.selfVote ? "Self Vote" : "OK"}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </MobileCard>
+      )}
+
+      {loading && <MobileCard>Loading paint schemes...</MobileCard>}
+      {!loading && !visibleEntries.length && <MobileCard>No paint schemes found for this track yet.</MobileCard>}
+
+      <MobileSectionTitle>Choose Paint Scheme</MobileSectionTitle>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {visibleEntries.map((entry) => {
+          const selected = String(entry.id) === String(selectedUploadId);
+          const ownScheme = isOwnPaintScheme(entry);
+          return (
+            <article key={entry.id} style={{ background: selected ? "#18213a" : "#111827", border: selected ? "2px solid #d4af37" : "1px solid #263244", borderRadius: 20, overflow: "hidden", boxShadow: "0 12px 26px rgba(0,0,0,0.24)", opacity: ownScheme ? 0.72 : 1 }}>
+              <button
+                type="button"
+                onClick={() => setSelectedUploadId(entry.id)}
+                style={{ width: "100%", border: "none", background: "transparent", color: "#fff", padding: 0, textAlign: "left" }}
+              >
+                <img src={entry.imageUrl} alt={entry.driverLabel} style={{ width: "100%", maxHeight: 250, objectFit: "cover", display: "block" }} />
+                <div style={{ padding: 14 }}>
+                  <div style={{ color: "#d4af37", fontSize: 11, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 1 }}>{entry.trackName}</div>
+                  <div style={{ fontSize: 21, fontWeight: 1000, marginTop: 5 }}>{entry.driverLabel}</div>
+                  <div style={{ color: "#6e6e73", fontSize: 12, marginTop: 4 }}>{entry.teamLabel} • {entry.manufacturerLabel || "—"}</div>
+                  <div style={{ color: "#facc15", fontWeight: 1000, marginTop: 8 }}>{entry.voteCount} votes</div>
+                  {ownScheme && <div style={{ color: "#f87171", fontSize: 12, fontWeight: 1000, marginTop: 6 }}>Own paint scheme — voting disabled</div>}
+                </div>
+              </button>
+              {loggedInDriver && selected && (
+                <div style={{ padding: "0 14px 14px" }}>
+                  <button
+                    type="button"
+                    disabled={submitting || selectedIsCurrentVote || ownScheme}
+                    onClick={() => castVote(entry)}
+                    style={{
+                      ...mobileActionStyle,
+                      background: selectedIsCurrentVote || ownScheme ? "#334155" : "#d4af37",
+                      color: selectedIsCurrentVote || ownScheme ? "#cbd5e1" : "#111",
+                      borderColor: selectedIsCurrentVote || ownScheme ? "#475569" : "#d4af37",
+                      opacity: submitting ? 0.7 : 1,
+                    }}
+                  >
+                    {ownScheme
+                      ? "Cannot Vote For Own Scheme"
+                      : selectedIsCurrentVote
+                        ? "Current Vote"
+                        : submitting
+                          ? "Submitting..."
+                          : driverAlreadyVoted
+                            ? `Change Vote to ${entry.driverLabel}`
+                            : `Cast Vote for ${entry.driverLabel}`}
+                  </button>
+                </div>
+              )}
+            </article>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function MobileStreamsPage({ drivers = [], teams = [], manufacturerStandings = [], activeRace = null, selectedTrack = null }) {
+  const [streams, setStreams] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState("all");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadStreams() {
+      setLoading(true);
+      setError("");
+      try {
+        const { data, error } = await supabase
+          .from("streams")
+          .select("*")
+          .order("sort_order", { ascending: true })
+          .order("driver_number", { ascending: true });
+
+        if (!isMounted) return;
+        if (error) {
+          console.error("Could not load streams:", error);
+          setError("Could not load stream links. Check the streams table and RLS policies.");
+          setStreams([]);
+        } else {
+          setStreams(Array.isArray(data) ? data : []);
+        }
+      } catch (caughtError) {
+        if (!isMounted) return;
+        console.error("Stream page crashed:", caughtError);
+        setError("Could not load stream links.");
+        setStreams([]);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    }
+    loadStreams();
+    const interval = setInterval(loadStreams, 60000);
+    return () => { isMounted = false; clearInterval(interval); };
+  }, []);
+
+  const fallbackStreams = useMemo(() => {
+    return (drivers || [])
+      .filter((driver) => driver && !driver.retired && !isInactivePlaceholderDriver(driver))
+      .map((driver) => ({
+        id: `driver-${driver.id || driver.number}`,
+        driver_name: driver.name,
+        driver_number: driver.number,
+        team: driver.team,
+        manufacturer: driver.manufacturer,
+        twitch_url: driver.twitch_url || driver.twitch || "",
+        youtube_url: driver.youtube_url || driver.youtube || "",
+        is_live: false,
+      }))
+      .filter((stream) => getStreamTwitchUrl(stream) || getStreamYoutubeUrl(stream));
+  }, [drivers]);
+
+  const sourceStreams = streams.length ? streams : fallbackStreams;
+  const cleanStreams = sourceStreams
+    .map((stream) => {
+      const twitchUrl = getStreamTwitchUrl(stream);
+      const youtubeUrl = getStreamYoutubeUrl(stream);
+      const driverNumber = getStreamDriverNumber(stream);
+      const driverName = getStreamDriverLabel(stream);
+      const rosterDriver = (drivers || []).find((driver) => String(driver.number) === String(driverNumber) || String(driver.name || "").toLowerCase() === String(driverName || "").toLowerCase());
+      return {
+        ...stream,
+        twitchUrl,
+        youtubeUrl,
+        driverNumber: driverNumber || rosterDriver?.number || "",
+        driverName: driverName || rosterDriver?.name || "League Stream",
+        team: stream.team || rosterDriver?.team || "",
+        manufacturer: stream.manufacturer || rosterDriver?.manufacturer || "",
+        isLive: Boolean(stream.is_live || stream.live || stream.status === "live"),
+        isWatchParty: Boolean(stream.watch_party || stream.is_watch_party || stream.featured),
+      };
+    })
+    .filter((stream) => stream.twitchUrl || stream.youtubeUrl);
+
+  const filteredStreams = cleanStreams.filter((stream) => {
+    if (filter === "live") return stream.isLive;
+    if (filter === "twitch") return !!stream.twitchUrl;
+    if (filter === "youtube") return !!stream.youtubeUrl;
+    return true;
+  });
+
+  const watchParty = cleanStreams.find((stream) => stream.isWatchParty) || cleanStreams.find((stream) => stream.isLive) || cleanStreams[0];
+
+  function openStream(url) {
+    if (!url) return;
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+
+  return (
+    <>
+      <MobileHero
+        kicker="Broadcast Center"
+        title="League Streams"
+        subtitle={activeRace ? `${activeRace.name || activeRace.track || "Race Night"} • Qualifying 9:15 PM • Race 9:30 PM ET` : "Twitch, YouTube, watch party, and driver streams."}
+      />
+
+      {watchParty && (
+        <section style={mobileStreamHeroCardStyle}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
+            <div style={mobileKickerStyle}>{watchParty.isLive ? "Live Now" : "Featured Stream"}</div>
+            {watchParty.isLive && <span style={mobileLivePillStyle}>● LIVE</span>}
+          </div>
+          <h2 style={{ margin: "8px 0 6px", fontSize: 26, lineHeight: 1.02 }}>#{watchParty.driverNumber || "BCL"} {watchParty.driverName}</h2>
+          <p style={{ margin: "0 0 14px", color: "#6e6e73", lineHeight: 1.4 }}>{watchParty.team ? getTeamFullName(watchParty.team) : "Budweiser Cup League"}{watchParty.manufacturer ? ` • ${watchParty.manufacturer}` : ""}</p>
+          <div style={mobileStreamButtonGridStyle}>
+            {watchParty.twitchUrl && <button type="button" onClick={() => openStream(watchParty.twitchUrl)} style={mobileTwitchButtonStyle}>Watch Twitch</button>}
+            {watchParty.youtubeUrl && <button type="button" onClick={() => openStream(watchParty.youtubeUrl)} style={mobileYoutubeButtonStyle}>Watch YouTube</button>}
+          </div>
+        </section>
+      )}
+
+      <div style={mobileStreamFilterBarStyle}>
+        {[
+          ["all", "All"],
+          ["live", "Live"],
+          ["twitch", "Twitch"],
+          ["youtube", "YouTube"],
+        ].map(([key, label]) => (
+          <button
+            type="button"
+            key={key}
+            onClick={() => setFilter(key)}
+            style={{ ...mobileStreamFilterChipStyle, background: filter === key ? "#d4af37" : "#121a26", color: filter === key ? "#111" : "#fff", borderColor: filter === key ? "#d4af37" : "#263244" }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {loading && <MobileCard><p style={{ margin: 0, color: "#6e6e73" }}>Loading stream cards...</p></MobileCard>}
+      {!loading && error && <MobileCard><p style={{ margin: 0, color: "#fca5a5", lineHeight: 1.4 }}>{error}</p></MobileCard>}
+      {!loading && !filteredStreams.length && (
+        <MobileCard>
+          <div style={mobileKickerStyle}>No Streams Found</div>
+          <p style={{ margin: "8px 0 0", color: "#6e6e73", lineHeight: 1.45 }}>No stream links are available for this filter yet. Add Twitch or YouTube links from the full stream manager.</p>
+        </MobileCard>
+      )}
+
+      <div style={mobileStreamListStyle}>
+        {filteredStreams.map((stream, index) => (
+          <article key={stream.id || `${stream.driverNumber}-${stream.driverName}-${index}`} style={mobileStreamCardStyle}>
+            <div style={mobileStreamNumberStyle}>{stream.driverNumber ? `#${stream.driverNumber}` : "BCL"}</div>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <h3 style={{ margin: 0, fontSize: 18, lineHeight: 1.08 }}>{stream.driverName}</h3>
+                {stream.isLive && <span style={mobileLivePillSmallStyle}>LIVE</span>}
+              </div>
+              <p style={{ margin: "5px 0 0", color: "#9ca8ba", fontSize: 12, lineHeight: 1.35 }}>{stream.team ? getTeamFullName(stream.team) : "League Stream"}{stream.manufacturer ? ` • ${stream.manufacturer}` : ""}</p>
+              <div style={mobileStreamLinksStyle}>
+                {stream.twitchUrl && <button type="button" onClick={() => openStream(stream.twitchUrl)} style={mobileMiniTwitchButtonStyle}>Twitch</button>}
+                {stream.youtubeUrl && <button type="button" onClick={() => openStream(stream.youtubeUrl)} style={mobileMiniYoutubeButtonStyle}>YouTube</button>}
+              </div>
+            </div>
+          </article>
+        ))}
+      </div>
+
+      <MobileCard>
+        <div style={mobileKickerStyle}>Stream Manager</div>
+        <p style={{ margin: "8px 0 12px", color: "#6e6e73", lineHeight: 1.45 }}>Need to add or edit links? Open the full stream manager in desktop mode.</p>
+        <MobileAction label="Open Full Stream Manager" onClick={() => {
+          if (typeof document !== "undefined") document.cookie = "bcl-force-desktop=1; path=/; max-age=2592000";
+          window.location.href = "/streams";
+        }} />
+      </MobileCard>
+    </>
+  );
+}
+
+
+function getBclRoleFlagsForDriver(driver = {}, enteredAdminCode = false) {
+  const possibleNames = [
+    driver.name,
+    driver.driver_name,
+    driver.driverName,
+    driver.display_name,
+    driver.displayName,
+    driver.username,
+    driver.handle,
+  ].map(normalizeBclName).filter(Boolean);
+
+  const isNamedAdmin = possibleNames.some((name) => BCL_ADMIN_NAMES.has(name));
+  const isNamedOwner = possibleNames.some((name) => BCL_OWNER_NAMES.has(name));
+
+  const team = driver.team || "";
+  const manufacturer = driver.manufacturer || "";
+
+  return {
+    role: enteredAdminCode || isNamedAdmin ? "admin" : (isNamedOwner ? "owner" : "driver"),
+    isAdmin: enteredAdminCode || isNamedAdmin,
+    isOwner: isNamedOwner,
+    isDriver: true,
+    team,
+    manufacturer,
+  };
+}
+
+function readBclMobileSession() {
+  try {
+    const raw = localStorage.getItem(BCL_MOBILE_SESSION_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || !parsed.mode) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+
+function useMobileViewport(maxWidth = 768) {
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.innerWidth <= maxWidth;
+  });
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const check = () => setIsMobile(window.innerWidth <= maxWidth);
+    check();
+    window.addEventListener("resize", check);
+    window.addEventListener("orientationchange", check);
+    return () => {
+      window.removeEventListener("resize", check);
+      window.removeEventListener("orientationchange", check);
+    };
+  }, [maxWidth]);
+
+  return isMobile;
+}
+
+
+const BCL_ADMIN_NAMES = new Set(["bowhunter6758", "bowhunter", "h0lden", "h0ld3n", "holden", "holden2dx4ev3r"]);
+const BCL_OWNER_NAMES = new Set(["highlander", "highlander713", "bowhunter", "bowhunter6758", "rookie", "rookievet99", "jpc_racing", "cajun", "cajunthrottle28", "orly", "orly_revo23", "kevdinho", "kevdinho7"]);
+
+function normalizeBclName(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+const BCL_MOBILE_SESSION_KEY = "bcl-mobile-session-v1";
+
+function saveBclMobileSession(session) {
+  try {
+    localStorage.setItem(BCL_MOBILE_SESSION_KEY, JSON.stringify({ ...session, savedAt: new Date().toISOString() }));
+  } catch {
+    // localStorage can be unavailable in private browsing; session still works in memory.
+  }
+}
+
+function clearBclMobileSession() {
+  try {
+    localStorage.removeItem(BCL_MOBILE_SESSION_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+function MobileAccessGate({ drivers = [], onSession }) {
+  const [driverNumber, setDriverNumber] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const activeDrivers = useMemo(() => {
+    return dedupeDriversByNumber(drivers || [])
+      .filter((driver) => !driver.retired && !isInactivePlaceholderDriver(driver))
+      .sort((a, b) => Number(a.number || 9999) - Number(b.number || 9999));
+  }, [drivers]);
+
+  async function loginDriver(event) {
+    event.preventDefault();
+    setError("");
+    const number = String(driverNumber || "").trim();
+    const code = String(password || "").trim();
+    if (!number || !code) {
+      setError("Select your driver and enter your password.");
+      return;
+    }
+
+    setLoading(true);
+    const { data, error: accessError } = await supabase
+      .from("driver_access_codes")
+      .select("*")
+      .eq("driver_number", number)
+      .limit(10);
+
+    if (accessError) {
+      console.error("Could not verify mobile driver login:", accessError);
+      setLoading(false);
+      setError("Could not verify access. Check driver_access_codes select policy and columns.");
+      return;
+    }
+
+    const leagueResult = await loginToLeague({
+      driverNumber: number,
+      password: code,
+      driverAccessCodes: data || [],
+      drivers: activeDrivers,
+      teams: [],
+      supabase,
+    });
+
+    if (!leagueResult.success) {
+      setLoading(false);
+      setError(leagueResult.error || "Invalid car number or driver password.");
+      return;
+    }
+
+    const adminMatch = code.toUpperCase() === "BCLADMINPASSWORD2026";
+    const rosterDriver = activeDrivers.find((driver) => String(driver.number) === number) || {};
+    const driverForRoles = {
+      ...rosterDriver,
+      name: rosterDriver.name || leagueResult.session?.driverName || `#${number}`,
+      team: rosterDriver.team || leagueResult.session?.team || "",
+      manufacturer: rosterDriver.manufacturer || "",
+    };
+    const roleFlags = getBclRoleFlagsForDriver(driverForRoles, Boolean(adminMatch));
+    const session = {
+      mode: "driver",
+      role: roleFlags.role,
+      driverId: rosterDriver.id || null,
+      driverNumber: number,
+      driverName: driverForRoles.name,
+      team: driverForRoles.team,
+      manufacturer: driverForRoles.manufacturer,
+      isAdmin: roleFlags.isAdmin,
+      isOwner: roleFlags.isOwner,
+      isDriver: true,
+    };
+
+    saveBclMobileSession(session);
+    setLoading(false);
+    onSession(session);
+  }
+
+  function continueAsGuest() {
+    const session = { mode: "guest", displayName: "Guest" };
+    saveBclMobileSession(session);
+    onSession(session);
+  }
+
+  const selectInputStyle = {
+    width: "100%",
+    minHeight: 48,
+    background: "#020617",
+    color: "#fff",
+    border: "1px solid #334155",
+    borderRadius: 14,
+    padding: "12px 13px",
+    fontSize: 15,
+    fontWeight: 900,
+    boxSizing: "border-box",
+  };
+
+  return (
+    <div style={mobileAppStyle}>
+      <main style={{ ...mobileContentStyle, paddingTop: 28 }}>
+        <MobileHero
+          kicker="Budweiser Cup League"
+          title="Choose Access"
+          subtitle="Drivers can stay signed in on this device. Guests can view the app but cannot submit votes, interviews, appeals, messages, or other changes."
+        />
+
+        <MobileCard>
+          <div style={mobileKickerStyle}>Driver Login</div>
+          <form onSubmit={loginDriver} style={{ display: "grid", gap: 12, marginTop: 10 }}>
+            <select value={driverNumber} onChange={(event) => setDriverNumber(event.target.value)} style={selectInputStyle}>
+              <option value="">Select Your Driver</option>
+              {activeDrivers.map((driver) => (
+                <option key={driver.id || driver.number} value={String(driver.number)}>
+                  #{driver.number} — {driver.name} ({getTeamFullName(driver.team)})
+                </option>
+              ))}
+            </select>
+            <input
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="Enter driver password"
+              style={selectInputStyle}
+            />
+            {error && <div style={{ color: "#f87171", fontWeight: 900, lineHeight: 1.35 }}>{error}</div>}
+            <button disabled={loading} type="submit" style={{ ...mobileActionStyle, background: "#d4af37", color: "#111", borderColor: "#d4af37" }}>
+              {loading ? "Checking..." : "Log In & Stay Signed In"}
+            </button>
+          </form>
+        </MobileCard>
+
+        <MobileCard>
+          <div style={mobileKickerStyle}>Guest Access</div>
+          <h2 style={{ margin: "5px 0 8px" }}>View Only</h2>
+          <p style={{ color: "#6e6e73", lineHeight: 1.5, marginTop: 0 }}>
+            Guests can view standings, news, streams, driver profiles, teams, and race information. Voting, interviews, appeals, messages, and owner tools stay locked.
+          </p>
+          <button type="button" onClick={continueAsGuest} style={{ ...mobileActionStyle, background: "#111827", color: "#ffffff", borderColor: "#334155" }}>
+            Continue as Guest
+          </button>
+        </MobileCard>
+      </main>
+    </div>
+  );
+}
+
+function MobileLoginModal({ drivers = [], onClose, onSuccess }) {
+  const [authView, setAuthView] = useState("login");
+  const [driverNumber, setDriverNumber] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const activeDrivers = useMemo(() => {
+    return dedupeDriversByNumber(drivers || [])
+      .filter((driver) => !driver.retired && !isInactivePlaceholderDriver(driver))
+      .sort((a, b) => Number(a.number || 9999) - Number(b.number || 9999));
+  }, [drivers]);
+
+  async function loginDriver(event) {
+    event.preventDefault();
+    setError("");
+    const number = String(driverNumber || "").trim();
+    const code = String(password || "").trim();
+    if (!number || !code) {
+      setError("Select your driver and enter your password.");
+      return;
+    }
+
+    setLoading(true);
+    const { data, error: accessError } = await supabase
+      .from("driver_access_codes")
+      .select("*")
+      .eq("driver_number", number)
+      .limit(10);
+
+    if (accessError) {
+      console.error("Could not verify mobile driver login:", accessError);
+      setLoading(false);
+      setError("Could not verify access. Check driver_access_codes select policy and columns.");
+      return;
+    }
+
+    const leagueResult = await loginToLeague({
+      driverNumber: number,
+      password: code,
+      driverAccessCodes: data || [],
+      drivers: activeDrivers,
+      teams: [],
+      supabase,
+    });
+
+    if (!leagueResult.success) {
+      setLoading(false);
+      setError(leagueResult.error || "Invalid car number or driver password.");
+      return;
+    }
+
+    const adminMatch = code.toUpperCase() === "BCLADMINPASSWORD2026";
+    const rosterDriver = activeDrivers.find((driver) => String(driver.number) === number) || {};
+    const driverForRoles = {
+      ...rosterDriver,
+      name: rosterDriver.name || leagueResult.session?.driverName || `#${number}`,
+      team: rosterDriver.team || leagueResult.session?.team || "",
+      manufacturer: rosterDriver.manufacturer || "",
+    };
+    const roleFlags = getBclRoleFlagsForDriver(driverForRoles, Boolean(adminMatch));
+    const session = {
+      mode: "driver",
+      role: roleFlags.role,
+      driverId: rosterDriver.id || null,
+      driverNumber: number,
+      driverName: driverForRoles.name,
+      team: driverForRoles.team,
+      manufacturer: driverForRoles.manufacturer,
+      isAdmin: roleFlags.isAdmin,
+      isOwner: roleFlags.isOwner,
+      isDriver: true,
+    };
+
+    saveBclMobileSession(session);
+    setLoading(false);
+    onSuccess(session);
+  }
+
+  const modalInputStyle = {
+    width: "100%",
+    minHeight: 48,
+    background: "rgba(255,255,255,0.72)",
+    color: "#1d1d1f",
+    border: "1px solid rgba(0,0,0,0.08)",
+    borderRadius: 14,
+    padding: "12px 13px",
+    fontSize: 15,
+    fontWeight: 900,
+    boxSizing: "border-box",
+    fontFamily: mobileAppFont,
+  };
+
+  return createPortal(
+    <div style={{ position: "fixed", inset: 0, background: "rgba(29,29,31,0.42)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", zIndex: 1300, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+      <div style={{ width: "100%", maxWidth: 480, background: "linear-gradient(180deg, rgba(255,255,255,0.97), rgba(248,250,252,0.95))", borderTop: "1px solid rgba(255,255,255,0.8)", borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: "20px 18px 28px", maxHeight: "88vh", overflowY: "auto", boxShadow: "0 -20px 60px rgba(0,0,0,0.20)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+          <div>
+            <div style={mobileKickerStyle}>Driver Access</div>
+            <h2 style={{ margin: "4px 0 0", fontSize: 20, color: "#1d1d1f", fontWeight: 950 }}>Login / Register</h2>
+          </div>
+          <button type="button" onClick={onClose} style={{ background: "rgba(0,0,0,0.05)", border: "none", borderRadius: 999, width: 34, height: 34, color: "#1d1d1f", fontSize: 18, cursor: "pointer" }}>×</button>
+        </div>
+
+        <div role="tablist" aria-label="Account access" style={{ display: "flex", borderBottom: "1px solid #d6d7d9", marginBottom: 16 }}>
+          {[["login", "Login"], ["register", "Register"]].map(([key, label]) => <button key={key} role="tab" aria-selected={authView === key} type="button" onClick={() => setAuthView(key)} style={{ flex: 1, border: 0, borderBottom: authView === key ? "3px solid #d71920" : "3px solid transparent", padding: 12, background: "transparent", fontWeight: 900 }}>{label}</button>)}
+        </div>
+        {authView === "register" ? <><p style={{ color: "#4b5563", fontSize: 13 }}>Request to join the league. An admin will review your driver details before login is available.</p><JoinRequestForm /></> : <form onSubmit={loginDriver} style={{ display: "grid", gap: 12 }}>
+          <select value={driverNumber} onChange={(event) => setDriverNumber(event.target.value)} style={modalInputStyle}>
+            <option value="">Select Your Driver</option>
+            {activeDrivers.map((driver) => (
+              <option key={driver.id || driver.number} value={String(driver.number)}>
+                #{driver.number} — {driver.name} ({getTeamFullName(driver.team)})
+              </option>
+            ))}
+          </select>
+          <input
+            type="password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            placeholder="Enter driver password"
+            style={modalInputStyle}
+          />
+          {error && <div style={{ color: "#c62d24", fontWeight: 900, lineHeight: 1.35 }}>{error}</div>}
+          <button disabled={loading} type="submit" style={{ ...mobileActionStyle, background: "linear-gradient(180deg, #ffd60a 0%, #ff9f0a 100%)", color: "#1d1d1f", borderColor: "transparent" }}>
+            {loading ? "Checking..." : "Log In & Stay Signed In"}
+          </button>
+        </form>}
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+function MobileGuestLockedCard({ title = "Driver Login Required", go }) {
+  return (
+    <MobileCard>
+      <div style={mobileKickerStyle}>Guest Mode</div>
+      <h2 style={{ margin: "5px 0 8px" }}>{title}</h2>
+      <p style={{ color: "#6e6e73", lineHeight: 1.5, fontWeight: 600 }}>
+        Guest access is view-only. Log in as a driver to submit votes, interviews, appeals, messages, or other changes.
+      </p>
+      <button
+        type="button"
+        onClick={() => {
+          clearBclMobileSession();
+          window.location.reload();
+        }}
+        style={{ ...mobileActionStyle, background: "linear-gradient(180deg, #ffd60a 0%, #ff9f0a 100%)", color: "#1d1d1f", borderColor: "transparent" }}
+      >
+        Driver Login
+      </button>
+    </MobileCard>
+  );
+}
+
+
+
+function MobileMyInterviewsPage({ session }) {
+  const driverNumber = String(session?.driverNumber || session?.number || "").trim();
+  const driverName = session?.driverName || session?.displayName || "Driver";
+  const [interviews, setInterviews] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+
+  async function loadMyInterviews() {
+    if (!driverNumber) {
+      setInterviews([]);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setLoadError("");
+    const { data, error } = await supabase
+      .from("interviews")
+      .select("*")
+      .eq("driver_number", driverNumber)
+      .eq("series", session?.series || "cup")
+      .order("generated_at", { ascending: false });
+
+    if (error) {
+      console.error("Could not load driver interviews:", error);
+      setLoadError("Your interviews could not be loaded. Please try again.");
+      setInterviews([]);
+    } else {
+      setInterviews(data || []);
+    }
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    loadMyInterviews();
+  }, [driverNumber, session?.series]);
+
+  const openCount = interviews.filter((item) => !item.answered).length;
+  const completedCount = interviews.filter((item) => item.answered).length;
+
+  return (
+    <div style={{ display: "grid", gap: 16, paddingBottom: 8, fontFamily: mobileAppFont }}>
+      <section style={{
+        borderRadius: 28,
+        padding: "24px 20px",
+        background: "linear-gradient(145deg, rgba(255,255,255,0.98), rgba(246,248,252,0.86))",
+        border: "1px solid rgba(255,255,255,0.9)",
+        boxShadow: "0 20px 50px rgba(15,23,42,0.10)",
+        backdropFilter: "blur(24px)",
+        WebkitBackdropFilter: "blur(24px)",
+      }}>
+        <div style={{
+          width: 54,
+          height: 54,
+          borderRadius: 18,
+          display: "grid",
+          placeItems: "center",
+          fontSize: 27,
+          background: "linear-gradient(145deg, #0a84ff, #5856d6)",
+          color: "white",
+          boxShadow: "0 12px 28px rgba(10,132,255,0.28)",
+          marginBottom: 16,
+        }}>🎤</div>
+        <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: "0.08em", textTransform: "uppercase", color: "#6e6e73" }}>
+          Driver Interview Center
+        </div>
+        <h1 style={{ margin: "6px 0 8px", fontSize: 30, lineHeight: 1.04, letterSpacing: "-0.035em", color: "#1d1d1f", fontWeight: 950 }}>
+          My Interviews
+        </h1>
+        <p style={{ margin: 0, color: "#6e6e73", lineHeight: 1.5, fontSize: 15, fontWeight: 600 }}>
+          Logged in as #{driverNumber} {driverName}. Complete each assigned interview below.
+        </p>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 18 }}>
+          <div style={{ borderRadius: 18, padding: 14, background: "rgba(10,132,255,0.08)", border: "1px solid rgba(10,132,255,0.12)" }}>
+            <div style={{ fontSize: 26, fontWeight: 950, color: "#007aff", letterSpacing: "-0.03em" }}>{openCount}</div>
+            <div style={{ fontSize: 12, color: "#6e6e73", fontWeight: 800 }}>Needs attention</div>
+          </div>
+          <div style={{ borderRadius: 18, padding: 14, background: "rgba(52,199,89,0.09)", border: "1px solid rgba(52,199,89,0.14)" }}>
+            <div style={{ fontSize: 26, fontWeight: 950, color: "#248a3d", letterSpacing: "-0.03em" }}>{completedCount}</div>
+            <div style={{ fontSize: 12, color: "#6e6e73", fontWeight: 800 }}>Submitted</div>
+          </div>
+        </div>
+      </section>
+
+      {loading ? (
+        <section style={{ borderRadius: 24, padding: 28, background: "rgba(255,255,255,0.9)", textAlign: "center", color: "#6e6e73", boxShadow: "0 14px 36px rgba(15,23,42,0.08)" }}>
+          Loading your interviews…
+        </section>
+      ) : loadError ? (
+        <section style={{ borderRadius: 24, padding: 22, background: "rgba(255,255,255,0.94)", border: "1px solid rgba(255,59,48,0.16)", boxShadow: "0 14px 36px rgba(15,23,42,0.08)" }}>
+          <div style={{ color: "#c62d24", fontWeight: 850, lineHeight: 1.45 }}>{loadError}</div>
+          <button type="button" onClick={loadMyInterviews} style={{ marginTop: 14, width: "100%", minHeight: 50, border: 0, borderRadius: 999, background: "#007aff", color: "white", fontWeight: 900, fontSize: 15 }}>Try Again</button>
+        </section>
+      ) : interviews.length === 0 ? (
+        <section style={{ borderRadius: 24, padding: "30px 22px", background: "rgba(255,255,255,0.92)", border: "1px solid rgba(255,255,255,0.95)", boxShadow: "0 14px 36px rgba(15,23,42,0.08)", textAlign: "center" }}>
+          <div style={{ fontSize: 34, marginBottom: 10 }}>✅</div>
+          <h2 style={{ margin: "0 0 7px", fontSize: 21, color: "#1d1d1f" }}>You're all caught up</h2>
+          <p style={{ margin: 0, color: "#6e6e73", lineHeight: 1.5 }}>No interview assignments are waiting for you.</p>
+        </section>
+      ) : (
+        interviews.map((interview) => (
+          <MobileAppleInterviewCard
+            key={interview.id}
+            interview={interview}
+            onSubmitted={(updated) => setInterviews((current) => current.map((item) => item.id === updated.id ? updated : item))}
+          />
+        ))
+      )}
+    </div>
+  );
+}
+
+function MobileAppleInterviewCard({ interview, onSubmitted }) {
+  const qa = Array.isArray(interview?.questions_and_answers) ? interview.questions_and_answers : [];
+  const [answers, setAnswers] = useState(() => qa.map((item) => item.answer || ""));
+  const [submitting, setSubmitting] = useState(false);
+  const [message, setMessage] = useState("");
+  const submitted = Boolean(interview?.answered);
+  const isPre = interview?.type === "pre";
+  const accent = isPre ? "#007aff" : "#34c759";
+  const accentSoft = isPre ? "rgba(0,122,255,0.10)" : "rgba(52,199,89,0.11)";
+  const deadlineValue = interview?.deadline_at || interview?.due_at || interview?.deadlineAt || null;
+  const deadline = deadlineValue ? new Date(deadlineValue) : null;
+  const deadlineLabel = deadline && !Number.isNaN(deadline.getTime())
+    ? deadline.toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })
+    : "No deadline set";
+
+  async function submitAnswers() {
+    const missing = qa.some((item, index) => item.question && !String(answers[index] || "").trim());
+    if (missing) {
+      setMessage("Please answer every question before submitting.");
+      return;
+    }
+
+    setSubmitting(true);
+    setMessage("");
+    const nowIso = new Date().toISOString();
+    const late = deadline && !Number.isNaN(deadline.getTime()) && new Date(nowIso).getTime() > deadline.getTime();
+    const updatedQa = qa.map((item, index) => ({ ...item, answer: String(answers[index] || "").trim() }));
+
+    const { data, error } = await supabase
+      .from("interviews")
+      .update({
+        questions_and_answers: updatedQa,
+        answered: true,
+        submitted_at: nowIso,
+        status: late ? "late" : "submitted",
+        payment_status: "unpaid",
+      })
+      .eq("id", interview.id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Could not submit interview:", error);
+      setMessage("Your interview was not submitted. Please try again.");
+    } else {
+      setMessage("Interview submitted successfully.");
+      onSubmitted(data);
+    }
+    setSubmitting(false);
+  }
+
+  return (
+    <section style={{
+      borderRadius: 28,
+      overflow: "hidden",
+      background: "rgba(255,255,255,0.94)",
+      border: "1px solid rgba(255,255,255,0.96)",
+      boxShadow: "0 18px 46px rgba(15,23,42,0.10)",
+      backdropFilter: "blur(24px)",
+      WebkitBackdropFilter: "blur(24px)",
+    }}>
+      <div style={{ padding: "20px 19px 16px", background: `linear-gradient(145deg, ${accentSoft}, rgba(255,255,255,0.5))` }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
+          <div>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 7, borderRadius: 999, padding: "7px 11px", background: accentSoft, color: accent, fontSize: 11, fontWeight: 950, letterSpacing: "0.04em", textTransform: "uppercase" }}>
+              <span style={{ width: 7, height: 7, borderRadius: "50%", background: accent }} />
+              {isPre ? "Pre-Race" : "Post-Race"}
+            </div>
+            <h2 style={{ margin: "12px 0 5px", color: "#1d1d1f", fontSize: 23, lineHeight: 1.12, letterSpacing: "-0.025em", fontWeight: 950 }}>
+              {interview?.race_name || "Race Interview"}
+            </h2>
+            <div style={{ color: "#6e6e73", fontSize: 13, fontWeight: 700 }}>Due {deadlineLabel}</div>
+          </div>
+          <div style={{ borderRadius: 999, padding: "7px 10px", background: submitted ? "rgba(52,199,89,0.12)" : "rgba(255,159,10,0.12)", color: submitted ? "#248a3d" : "#b05c00", fontSize: 11, fontWeight: 900, whiteSpace: "nowrap" }}>
+            {submitted ? "Submitted" : "Open"}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ padding: "18px 18px 20px", display: "grid", gap: 14 }}>
+        {qa.map((item, index) => (
+          <div key={`${interview.id}-${index}`} style={{ borderRadius: 22, padding: 16, background: "#f5f5f7", border: "1px solid rgba(0,0,0,0.045)" }}>
+            <div style={{ color: accent, fontSize: 11, fontWeight: 950, letterSpacing: "0.07em", textTransform: "uppercase", marginBottom: 7 }}>
+              Question {index + 1}
+            </div>
+            <div style={{ color: "#1d1d1f", fontSize: 16, fontWeight: 850, lineHeight: 1.4, marginBottom: 12 }}>
+              {item.question}
+            </div>
+            <textarea
+              value={answers[index] || ""}
+              onChange={(event) => setAnswers((current) => current.map((answer, answerIndex) => answerIndex === index ? event.target.value : answer))}
+              disabled={submitted}
+              rows={4}
+              placeholder="Type your answer…"
+              style={{
+                width: "100%",
+                minHeight: 116,
+                resize: "vertical",
+                boxSizing: "border-box",
+                borderRadius: 18,
+                border: "1px solid rgba(60,60,67,0.16)",
+                background: submitted ? "rgba(255,255,255,0.58)" : "white",
+                color: "#1d1d1f",
+                padding: "14px 15px",
+                fontFamily: mobileAppFont,
+                fontSize: 16,
+                lineHeight: 1.45,
+                outline: "none",
+                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.7)",
+                WebkitTextFillColor: "#1d1d1f",
+                opacity: 1,
+              }}
+            />
+          </div>
+        ))}
+
+        {message && (
+          <div style={{ borderRadius: 16, padding: "12px 14px", background: message.includes("successfully") ? "rgba(52,199,89,0.10)" : "rgba(255,59,48,0.09)", color: message.includes("successfully") ? "#248a3d" : "#c62d24", fontSize: 13, fontWeight: 800, lineHeight: 1.4 }}>
+            {message}
+          </div>
+        )}
+
+        {!submitted && (
+          <button
+            type="button"
+            onClick={submitAnswers}
+            disabled={submitting}
+            style={{
+              width: "100%",
+              minHeight: 54,
+              border: 0,
+              borderRadius: 999,
+              background: submitting ? "#a7a7ab" : "linear-gradient(180deg, #0a84ff 0%, #007aff 100%)",
+              color: "white",
+              fontFamily: mobileAppFont,
+              fontSize: 16,
+              fontWeight: 950,
+              cursor: submitting ? "default" : "pointer",
+              boxShadow: submitting ? "none" : "0 12px 26px rgba(0,122,255,0.28)",
+            }}
+          >
+            {submitting ? "Submitting…" : "Submit Interview"}
+          </button>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function MobileInterviewsHub({ session, go }) {
+  const isGuest = session?.mode === "guest";
+  const driverNumber = session?.driverNumber || session?.number || "";
+  const driverName = session?.driverName || session?.displayName || "Driver";
+
+  return (
+    <>
+      <MobileCard>
+        <div style={mobileKickerStyle}>{isGuest ? "Guest View" : "Driver Interview Center"}</div>
+        <h2 style={{ margin: "5px 0 8px" }}>
+          {isGuest ? "Public Interviews" : `Logged in as #${driverNumber} ${driverName}`}
+        </h2>
+        <p style={{ color: "#6e6e73", lineHeight: 1.5, marginTop: 0 }}>
+          {isGuest
+            ? "Guests can read public interviews, but cannot submit pre-race or post-race interviews."
+            : "Open your driver profile to submit pre-race and post-race interviews using the same form and logic as desktop."}
+        </p>
+
+        {isGuest ? (
+          <button
+            type="button"
+            onClick={() => {
+              clearBclMobileSession();
+              window.location.reload();
+            }}
+            style={{ ...mobileActionStyle, background: "#d4af37", color: "#111", borderColor: "#d4af37" }}
+          >
+            Driver Login to Submit Interview
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => go(`/driver/${driverNumber}`)}
+            style={{ ...mobileActionStyle, background: "#d4af37", color: "#111", borderColor: "#d4af37" }}
+          >
+            Open My Interview Form
+          </button>
+        )}
+      </MobileCard>
+
+      <MobileCard>
+        <div style={mobileKickerStyle}>Interview Archive</div>
+        <p style={{ color: "#6e6e73", lineHeight: 1.45, margin: "5px 0 12px" }}>
+          Latest public interviews are shown below.
+        </p>
+      </MobileCard>
+
+      <MobileDataFrame>
+        <PublicInterviewsPage />
+      </MobileDataFrame>
+    </>
+  );
+}
+
+function MobileLeagueApp({
+  path,
+  rawPath,
+  drivers = [],
+  teams = [],
+  manufacturerStandings = [],
+  seasonName = "",
+  tracks = [],
+  raceHistory = [],
+  seasons = [],
+  activeSeason = null,
+  activeSeasonId = "",
+  arcaDrivers = [],
+  arcaTracks = [],
+  paymentCompliance = null,
+  onApplyTeamTransaction = () => {},
+}) {
+  const go = (to) => { window.location.href = to; };
+  const sortedDrivers = [...drivers].sort((a, b) => (b.points || 0) - (a.points || 0) || (b.wins || 0) - (a.wins || 0));
+  const sortedTeams = [...teams].sort((a, b) => (b.points || 0) - (a.points || 0));
+  const sortedManufacturers = [...manufacturerStandings].sort((a, b) => (b.points || 0) - (a.points || 0));
+  const upcomingRace = getUpcomingRaceByDate(tracks || []);
+  const leader = sortedDrivers[0];
+  const [mobileSession, setMobileSession] = useState(() => readBclMobileSession() || { mode: "guest", displayName: "Guest" });
+  const isGuestSession = mobileSession?.mode === "guest";
+  const [showMobileLoginModal, setShowMobileLoginModal] = useState(false);
+  const [mobileStandingsTab, setMobileStandingsTab] = useState("drivers");
+
+  function handleMobileLogout() {
+    clearBclMobileSession();
+    setMobileSession({ mode: "guest", displayName: "Guest" });
+  }
+
+  function handleMobileLoginSuccess(session) {
+    setMobileSession(session);
+    setShowMobileLoginModal(false);
+    // Logging in doesn't change which URL you're on — if you were viewing
+    // someone else's fixed /driver/:number page, that page would keep
+    // showing that same driver regardless of who just logged in. Sending
+    // everyone to "/" (Home) after login ensures you land on your own
+    // profile rather than staying stuck on whichever driver's page you
+    // happened to be testing from.
+    if (path !== "/") {
+      window.location.href = "/";
+    }
+  }
+
+  function getTrackOverview(race) {
+    if (!race) return null;
+    return trackOverviewData[race.name] || trackOverviewData[race.track] || null;
+  }
+
+  function frame(title, active, children) {
+    return (
+      <MobileLayout title={title} go={go} active={active} session={mobileSession} onLogout={handleMobileLogout} onLoginClick={() => setShowMobileLoginModal(true)} showLoginModal={showMobileLoginModal} onCloseLoginModal={() => setShowMobileLoginModal(false)} onLoginSuccess={handleMobileLoginSuccess} drivers={drivers}>
+        {children}
+        <LeagueStatusWidget tracks={tracks} seasonName={seasonName} mobile />
+      </MobileLayout>
+    );
+  }
+
+  function dataFrame(title, active, children) {
+    return frame(title, active, <MobileDataFrame>{children}</MobileDataFrame>);
+  }
+
+  if (path === "/files") return dataFrame("Files", "more", <FilesPage />);
+  if (path === "/welcome") return dataFrame("Welcome", "home", <WelcomePage />);
+  if (path === "/submit-appeal") return dataFrame("Submit Appeal", "more", isGuestSession ? <MobileGuestLockedCard title="Appeals Require Driver Login" go={go} /> : <SubmitAppealPage />);
+  if (path === "/submit-story") return dataFrame("Submit Story", "more", isGuestSession ? <MobileGuestLockedCard title="Story Submissions Require Driver Login" go={go} /> : <SubmitStoryPage />);
+  if (path === "/appeals") return dataFrame("Appeals", "more", <AppealsPage />);
+  if (path === "/issues") return dataFrame("Issues & Feedback", "more", <IssuesRollupPage />);
+  if (path === "/news") return frame("News", "news", <NewsPage />);
+  if (path === "/paint-scheme-vote") return frame("Paint Scheme Votes", "votes", <PaintSchemeVotePage drivers={drivers} tracks={tracks} />);
+  if (path === "/vote" || path === "/league-vote" || path === "/voting") return dataFrame("League Vote", "more", <LeagueVotingPage drivers={drivers} />);
+  if (path === "/notifications") return dataFrame("Notifications", "more", <NotificationsPage />);
+  if (path === "/public-interviews") return frame("Public Interviews", "more", <PublicInterviewsPage seriesId="cup" />);
+  if (path === "/interviews") {
+    if (isGuestSession || !mobileSession?.driverNumber) {
+      return frame(
+        "My Interviews",
+        "interviews",
+        <MobileGuestLockedCard title="Interviews Require Driver Login" go={go} />
+      );
+    }
+
+    return frame(
+      "My Interviews",
+      "interviews",
+      <MobileMyInterviewsPage session={mobileSession} />
+    );
+  }
+  if (path === "/contracts") return dataFrame("Contracts", "more", <ContractsPage drivers={drivers} />);
+  if (path === "/driver-market" || path === "/transfer-portal" || path === "/silly-season") return dataFrame("Driver Market", "more", <DriverMarketPage drivers={drivers || []} raceHistory={raceHistory || []} startParkRequests={[]} paintSchemePayouts={[]} supabase={supabase} />);
+  if (path === "/development-requests" || path === "/developmental-requests" || path === "/dev-requests") return dataFrame("Development Requests", "more", (
+    <DevelopmentRequestsPage
+      leagueState={{ drivers: drivers || [], teams: teams || [] }}
+      currentUser={mobileSession}
+      isAdmin={Boolean(mobileSession?.isAdmin || mobileSession?.role === "admin" || mobileSession?.mode === "admin")}
+      supabase={supabase}
+      go={go}
+    />
+  ));
+  if (path === "/memorial-day") return dataFrame("Memorial", "more", <MemorialDayPage drivers={drivers} />);
+  if (path === "/tracks" || path === "/schedule" || path === "/season-schedule") {
+    const sortedTracks = getSortedTracksByDate(tracks || []);
+    const upcomingRace = getUpcomingRaceByDate(tracks || []);
+    return frame("Season Tracks", "standings", (
+      <>
+        <MobileHero
+          kicker="Season Schedule"
+          title="Track List"
+          subtitle="Tap a track card to view details and race information."
+        />
+
+        <MobileSectionTitle>Upcoming</MobileSectionTitle>
+        {upcomingRace ? (
+          <MobileCard>
+            <div style={mobileKickerStyle}>Next Race</div>
+            <h2 style={{ margin: "5px 0 6px", fontSize: 24 }}>{upcomingRace.name}</h2>
+            <div style={{ color: "#6e6e73", fontSize: 13 }}>
+              {upcomingRace.date || "Date TBD"} {upcomingRace.time ? `• ${upcomingRace.time}` : ""}
+            </div>
+          </MobileCard>
+        ) : (
+          <MobileCard>No upcoming race found.</MobileCard>
+        )}
+
+        <MobileSectionTitle>Full Season</MobileSectionTitle>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, paddingBottom: 90 }}>
+          {sortedTracks.map((track, index) => {
+            const overview = trackOverviewData[track.name] || trackOverviewData[track.track] || {};
+            const isNext = upcomingRace && String(upcomingRace.name) === String(track.name);
+            return (
+              <button
+                type="button"
+                key={`${track.name}-${track.date || index}`}
+                onClick={() => go(`/tracks?selected=${encodeURIComponent(track.name || "")}`)}
+                style={{
+                  width: "100%",
+                  textAlign: "left",
+                  background: isNext ? "linear-gradient(135deg, rgba(212,175,55,0.24), #111827)" : "#111827",
+                  color: "white",
+                  border: isNext ? "1px solid #d4af37" : "1px solid #263244",
+                  borderRadius: 16,
+                  padding: 14,
+                  cursor: "pointer",
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
+                  <div>
+                    <div style={{ color: "#d4af37", fontSize: 11, fontWeight: 1000, textTransform: "uppercase" }}>
+                      Race {index + 1}{isNext ? " • Upcoming" : ""}
+                    </div>
+                    <div style={{ fontSize: 19, fontWeight: 1000, marginTop: 3 }}>{track.name}</div>
+                    <div style={{ color: "#6e6e73", fontSize: 13, marginTop: 4 }}>
+                      {track.date || "Date TBD"} {track.time ? `• ${track.time}` : ""}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: "right", color: "#cbd5e1", fontSize: 12 }}>
+                    <div>{overview.length || overview.trackLength || ""}</div>
+                    <div>{overview.banking || ""}</div>
+                  </div>
+                </div>
+
+                {(overview.type || overview.pitSpeed || overview.restartZone) && (
+                  <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    {overview.type && <span style={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 999, padding: "5px 8px", fontSize: 11 }}>{overview.type}</span>}
+                    {overview.pitSpeed && <span style={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 999, padding: "5px 8px", fontSize: 11 }}>Pit {overview.pitSpeed}</span>}
+                    {overview.restartZone && <span style={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 999, padding: "5px 8px", fontSize: 11 }}>Restart {overview.restartZone}</span>}
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </>
+    ));
+  }
+  if (path === "/tournament" || path === "/in-season-tournament" || path === "/in-season-bracket" || path === "/bracket") {
+    return dataFrame("Tournament", "standings", <InSeasonTournamentPage drivers={drivers} raceHistory={raceHistory} />);
+  }
+  if (path === "/chat") return dataFrame("League Chat", "more", isGuestSession ? <MobileGuestLockedCard title="League Chat Requires Driver Login" go={go} /> : <LeagueChatPage drivers={drivers} />);
+  if (path === "/message-center") return frame("Messages", "more", <LeagueMessageCenter drivers={drivers} session={mobileSession} mobile go={go} />);
+  if (path === "/discord") return dataFrame("Discord", "more", <DiscordPage />);
+  if (path === "/stories") return dataFrame("Story Admin", "more", <StoriesAdminPage />);
+  if (path === "/more" || path === "/menu") {
+    return frame("More", "more", (
+      <MobileFeatureHub
+        go={go}
+        drivers={drivers}
+        teams={teams}
+        manufacturerStandings={manufacturerStandings}
+      />
+    ));
+  }
+
+  if (path === "/streams" || path === "/stream") {
+    return frame("Streams", "more", (
+      <StreamPage
+        drivers={drivers}
+        teams={teams}
+        manufacturers={manufacturerStandings}
+        activeRace={upcomingRace}
+        selectedTrack={getTrackOverview(upcomingRace)}
+      />
+    ));
+  }
+
+  if (["/owner", "/owners"].includes(path)) {
+    return dataFrame("Owner Login", "more", (
+      <>
+        <MobileHero
+          kicker="Owner Portal"
+          title="Owner Login"
+          subtitle="Full Team HQ access with the same password/login and controls as desktop."
+        />
+        <OwnersPage
+          drivers={drivers}
+          teams={teams}
+          teamBudgets={teamBudgets}
+          raceHistory={raceHistory}
+          seasonName={seasonName}
+          tracks={tracks}
+          paymentCompliance={paymentCompliance}
+          onApplyTeamTransaction={onApplyTeamTransaction}
+        />
+      </>
+    ));
+  }
+
+  if (["/team-hq", "/hq", "/teamhq"].includes(path)) {
+    return frame("Team HQ", "more", <OwnerHQPage drivers={drivers} teams={teams} seasonName={seasonName} tracks={tracks} go={go} supabase={supabase} />);
+  }
+
+  if (path.startsWith("/race/")) {
+    const raceName = decodeURIComponent(rawPath.replace(/^\/race\//i, "").split("/")[0]);
+    const matchedRace = (raceHistory || []).find((r) => String(r.raceName || "") === raceName) || null;
+    return dataFrame("Race Recap", "standings", <MobileRaceRecapPage race={matchedRace} go={go} />);
+  }
+
+  if (path.startsWith("/team/")) {
+    const abbr = decodeURIComponent(rawPath.replace(/^\/team\//i, "").split("/")[0]);
+    const normalizedTeam = String(abbr || "").toLowerCase();
+    const selectedTeamDrivers = drivers.filter((d) => String(d.team || "").toLowerCase() === normalizedTeam);
+    const selectedTeamStanding = teams.find((t) => String(t.team || "").toLowerCase() === normalizedTeam) || null;
+    return dataFrame("Team", "standings", (
+      <TeamDetailPage
+        key={`mobile-team-${abbr}-${activeSeasonId}-${raceHistory.length}-${selectedTeamStanding?.points || 0}`}
+        drivers={drivers}
+        teamDrivers={selectedTeamDrivers}
+        teams={teams}
+        teamStandings={teams}
+        standings={teams}
+        selectedStanding={selectedTeamStanding}
+        team={selectedTeamStanding}
+        raceHistory={raceHistory}
+        seasonName={seasonName}
+        initialTeam={abbr}
+        selectedTeam={abbr}
+      />
+    ));
+  }
+
+  if (path.startsWith("/manufacturer/")) {
+    const mfrName = decodeURIComponent(rawPath.replace(/^\/manufacturer\//i, "").split("/")[0]);
+    const normalizedManufacturer = String(mfrName || "").toLowerCase();
+    const selectedManufacturerDrivers = drivers.filter((d) => String(d.manufacturer || "").toLowerCase() === normalizedManufacturer);
+    const selectedManufacturerStanding = manufacturerStandings.find((m) => String(m.manufacturer || "").toLowerCase() === normalizedManufacturer) || null;
+    return dataFrame("Manufacturer", "standings", (
+      <ManufacturerDetailPage
+        key={`mobile-manufacturer-${mfrName}-${activeSeasonId}-${raceHistory.length}-${selectedManufacturerStanding?.points || 0}`}
+        drivers={drivers}
+        manufacturerDrivers={selectedManufacturerDrivers}
+        manufacturers={manufacturerStandings}
+        manufacturerStandings={manufacturerStandings}
+        standings={manufacturerStandings}
+        selectedStanding={selectedManufacturerStanding}
+        manufacturer={selectedManufacturerStanding}
+        raceHistory={raceHistory}
+        seasonName={seasonName}
+        initialManufacturer={mfrName}
+        selectedManufacturer={mfrName}
+      />
+    ));
+  }
+
+  if (path.startsWith("/driver/")) {
+    const requestedDriverNumber = decodeURIComponent(rawPath.replace(/^\/driver\//i, "").split("/")[0]);
+    const isInterviewRoute = /\/interviews\/?$/i.test(rawPath);
+    const leagueSession = getLeagueSession();
+    const isAdminViewing = typeof window !== "undefined" && sessionStorage.getItem("bcl-admin-auth") === "true";
+    const isOwnProfile = leagueSession && String(leagueSession.driverNumber) === String(requestedDriverNumber);
+
+    if (!isAdminViewing && !isOwnProfile) {
+      return <DriverProfileSignInGate driverNumber={requestedDriverNumber} />;
+    }
+
+    return dataFrame(isInterviewRoute ? "My Interviews" : "Driver Profile", isInterviewRoute ? "interviews" : "home", (
+      <>
+        <DriverVoteReminderStrip driverNumber={requestedDriverNumber} />
+        <DriverProfilePage seasons={seasons} activeSeason={activeSeason} tracks={tracks} arcaDrivers={arcaDrivers} arcaTracks={arcaTracks} />
+      </>
+    ));
+  }
+
+  if (path === "/driver-feedback") {
+    return frame("Driver Feedback", "more", (
+      <MobileCard>
+        <h2 style={{ marginTop: 0 }}>Driver Feedback Moved</h2>
+        <p style={{ color: "#6e6e73", lineHeight: 1.5 }}>
+          Driver feedback now lives inside each protected driver profile so only the driver can submit morale ratings.
+        </p>
+        <MobileAction label="Back to Standings" onClick={() => go("/standings")} />
+      </MobileCard>
+    ));
+  }
+
+  if (path === "/my-dashboard") {
+    const leagueSession = getLeagueSession();
+    const isAdminViewing = typeof window !== "undefined" && sessionStorage.getItem("bcl-admin-auth") === "true";
+
+    if (!leagueSession?.driverNumber && !isAdminViewing) {
+      return (
+        <div style={{
+          minHeight: "100vh",
+          background: "radial-gradient(circle at top left, rgba(255,255,255,0.95), rgba(245,245,247,0.94) 36%, rgba(229,229,234,0.98) 100%)",
+          color: "#1d1d1f",
+          fontFamily: mobileAppFont,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 20,
+        }}>
+          <div style={{
+            maxWidth: 400,
+            width: "100%",
+            borderRadius: 30,
+            padding: "clamp(26px, 5vw, 36px)",
+            background: "linear-gradient(180deg, rgba(255,255,255,0.90), rgba(255,255,255,0.62))",
+            border: "1px solid rgba(255,255,255,0.78)",
+            boxShadow: "0 30px 90px rgba(0,0,0,0.14)",
+            backdropFilter: "blur(22px)",
+            WebkitBackdropFilter: "blur(22px)",
+            textAlign: "center",
+          }}>
+            <div style={{
+              width: 56, height: 56, borderRadius: "50%", background: "#f5f5f7",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 26, border: "1px solid #e8e8ed", margin: "0 auto 18px",
+            }}>
+              👤
+            </div>
+            <h1 style={{ margin: "0 0 8px", fontSize: 22, fontWeight: 1000, letterSpacing: "-0.02em" }}>Welcome</h1>
+            <p style={{ margin: "0 0 24px", fontSize: 14, color: "#6e6e73", fontWeight: 700, lineHeight: 1.5 }}>
+              Log in with your driver number and password to see your profile here.
+            </p>
+            <button
+              type="button"
+              onClick={() => (window.location.href = `/standings?login=1&redirect=${encodeURIComponent("/my-dashboard")}`)}
+              style={{
+                width: "100%",
+                minHeight: 50,
+                borderRadius: 999,
+                border: "none",
+                background: "linear-gradient(180deg, #d4af37 0%, #b8912c 100%)",
+                color: "#fff",
+                fontWeight: 900,
+                fontSize: 15,
+                cursor: "pointer",
+                fontFamily: mobileAppFont,
+              }}
+            >
+              Driver Login
+            </button>
+            <div style={{ marginTop: 18 }}>
+              <MobileNavButton active={false} icon="🏆" label="View Standings" onClick={() => go("/standings")} />
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (!seasons || seasons.length === 0) {
+      return (
+        <div style={{
+          minHeight: "100vh",
+          background: "radial-gradient(circle at top left, rgba(255,255,255,0.95), rgba(245,245,247,0.94) 36%, rgba(229,229,234,0.98) 100%)",
+          color: "#1d1d1f",
+          fontFamily: mobileAppFont,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 20,
+        }}>
+          <div style={{
+            maxWidth: 400,
+            width: "100%",
+            borderRadius: 30,
+            padding: "clamp(26px, 5vw, 36px)",
+            background: "linear-gradient(180deg, rgba(255,255,255,0.90), rgba(255,255,255,0.62))",
+            border: "1px solid rgba(255,255,255,0.78)",
+            boxShadow: "0 30px 90px rgba(0,0,0,0.14)",
+            backdropFilter: "blur(22px)",
+            WebkitBackdropFilter: "blur(22px)",
+            textAlign: "center",
+          }}>
+            <div style={{
+              width: 56, height: 56, borderRadius: "50%", background: "#f5f5f7",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 26, border: "1px solid #e8e8ed", margin: "0 auto 18px",
+            }}>
+              ⏳
+            </div>
+            <h1 style={{ margin: "0 0 8px", fontSize: 22, fontWeight: 1000, letterSpacing: "-0.02em" }}>Still Loading Season Data</h1>
+            <p style={{ margin: "0 0 24px", fontSize: 14, color: "#6e6e73", fontWeight: 700, lineHeight: 1.5 }}>
+              This can happen briefly on a first visit. If it doesn't clear after a retry, league season data may not be reachable right now.
+            </p>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              style={{
+                width: "100%",
+                minHeight: 50,
+                borderRadius: 999,
+                border: "none",
+                background: "linear-gradient(180deg, #d4af37 0%, #b8912c 100%)",
+                color: "#fff",
+                fontWeight: 900,
+                fontSize: 15,
+                cursor: "pointer",
+                fontFamily: mobileAppFont,
+              }}
+            >
+              Retry
+            </button>
+            <div style={{ marginTop: 18 }}>
+              <MobileNavButton active={false} icon="🏆" label="View Standings" onClick={() => go("/standings")} />
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return dataFrame("My Profile", "home", (
+      <>
+        <DriverVoteReminderStrip driverNumber={leagueSession?.driverNumber || ""} />
+        <DriverProfilePage
+          seasons={seasons}
+          activeSeason={activeSeason}
+          tracks={tracks}
+          arcaDrivers={arcaDrivers}
+          arcaTracks={arcaTracks}
+          driverNumberOverride={leagueSession?.driverNumber || ""}
+          driverSeriesOverride={leagueSession?.series || "cup"}
+        />
+      </>
+    ));
+  }
+
+  if (path === "/" || path === "/standings") {
+    return (
+      <MobileLayout title="Budweiser Cup" go={go} active="standings" session={mobileSession} onLogout={handleMobileLogout} onLoginClick={() => setShowMobileLoginModal(true)} showLoginModal={showMobileLoginModal} onCloseLoginModal={() => setShowMobileLoginModal(false)} onLoginSuccess={handleMobileLoginSuccess} drivers={drivers}>
+        <MobileHero
+          kicker={seasonName || "Current Season"}
+          title="Cup Standings"
+          subtitle={upcomingRace ? `Next race: ${upcomingRace.name || upcomingRace.track || "TBA"} • 9:30 PM ET` : "Results, race news, and the championship picture."}
+        />
+        <LeagueTicker page="standings" />
+        <MobileWeekendRecap raceHistory={raceHistory} tracks={tracks} drivers={drivers} go={go} />
+        <button
+          type="button"
+          onClick={() => go("/tracks")}
+          style={{
+            width: "100%",
+            textAlign: "left",
+            background: "transparent",
+            border: "none",
+            padding: 0,
+            margin: 0,
+            cursor: "pointer",
+          }}
+        >
+          <MobileUpcomingRaceCard race={upcomingRace} selectedTrack={getTrackOverview(upcomingRace)} go={go} />
+          <div style={{ color: "#9a5a00", fontSize: 12, fontWeight: 1000, margin: "-4px 0 12px 4px" }}>
+            Tap upcoming track to view full season track list →
+          </div>
+        </button>
+
+        <MobileCard>
+          <div style={mobileKickerStyle}>Silly Season</div>
+          <h2 style={{ margin: "5px 0 6px", fontSize: 24 }}>🔥 Driver Market</h2>
+          <p style={{ color: "#6e6e73", lineHeight: 1.45, margin: "0 0 12px" }}>
+            Scout drivers, track re-sign interest, and follow the market before signing day.
+          </p>
+          <button
+            type="button"
+            onClick={() => go("/driver-market")}
+            style={{
+              width: "100%",
+              minHeight: 48,
+              borderRadius: 2,
+              border: "none",
+              background: "#111216",
+              color: "#ffffff",
+              fontWeight: 1000,
+              cursor: "pointer",
+              fontFamily: mobileAppFont,
+              boxShadow: "none",
+            }}
+          >
+            Enter Driver Market
+          </button>
+        </MobileCard>
+        <MobileTimelineSpotlightPanel tracks={tracks} drivers={drivers} go={go} seasonName={seasonName} />
+        <MobileLatestNewsPreview go={go} />
+        <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "20px 2px 12px" }}>
+          <div style={{ width: 32, height: 32, borderRadius: 2, background: "#d71920", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, flexShrink: 0 }}>🏆</div>
+          <h2 style={{ margin: 0, fontSize: 20, color: "#1d1d1f", fontWeight: 950 }}>Standings</h2>
+        </div>
+        <div style={{ display: "flex", gap: 12, marginBottom: 12, borderBottom: "1px solid #d6d7d9", overflowX: "auto" }}>
+          {[
+            ["drivers", "Drivers"],
+            ["teams", "Teams"],
+            ["manufacturers", "Manufacturers"],
+          ].map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setMobileStandingsTab(key)}
+              style={{
+                flex: "1 1 auto",
+                border: 0,
+                borderRadius: 0,
+                borderBottom: mobileStandingsTab === key ? "3px solid #d71920" : "3px solid transparent",
+                padding: "12px 2px",
+                fontWeight: 900,
+                fontSize: 12.5,
+                fontFamily: mobileAppFont,
+                cursor: "pointer",
+                background: "transparent",
+                color: mobileStandingsTab === key ? "#1d1d1f" : "#6e6e73",
+                boxShadow: "none",
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {mobileStandingsTab === "drivers" && (
+          <>
+            {leader && <MobileLeaderCard leader={leader} go={go} />}
+            <MobileStandingsList drivers={sortedDrivers} go={go} />
+          </>
+        )}
+
+        {mobileStandingsTab === "teams" && (
+          sortedTeams.map((team, index) => <MobileTeamRow key={`${team.team}-${index}`} team={team} index={index} />)
+        )}
+
+        {mobileStandingsTab === "manufacturers" && (
+          sortedManufacturers.map((manufacturer, index) => <MobileManufacturerRow key={`${manufacturer.manufacturer}-${index}`} manufacturer={manufacturer} index={index} />)
+        )}
+
+        {raceHistory?.length > 0 && <MobileSectionTitle>Recent Race Results</MobileSectionTitle>}
+        {(raceHistory || []).slice(-3).reverse().map((race) => <MobileRaceResultCard key={race.raceName} race={race} go={go} />)}
+        <LeagueStatusWidget tracks={tracks} seasonName={seasonName} mobile />
+      </MobileLayout>
+    );
+  }
+
+  return dataFrame("Budweiser Cup", "standings", <StandingsPage drivers={drivers} teams={teams} manufacturerStandings={manufacturerStandings} seasonName={seasonName} tracks={tracks} raceHistory={raceHistory} supabase={supabase} />);
+}
+
+
+function MobileTimelineSpotlightPanel({ tracks = [], drivers = [], go, seasonName = "" }) {
+  const upcomingRace = getPaintWinnerRaceForCurrentWeek(tracks || []);
+  const bracketDrivers = useMemo(() => {
+    return [...(drivers || [])]
+      .filter((driver) => driver && !isRemovedLeagueDriver(driver))
+      .filter((driver) => String(driver?.name || "").trim().toLowerCase() !== "orly_revo23")
+      .filter((driver) => String(driver?.number || "").trim() !== "23")
+      .sort((a, b) => (Number(b.points || 0) - Number(a.points || 0)) || (Number(b.wins || 0) - Number(a.wins || 0)))
+      .slice(0, 20);
+  }, [drivers]);
+
+  const topSeed = bracketDrivers[0];
+  const lastSeed = bracketDrivers[bracketDrivers.length - 1];
+
+  return (
+    <>
+      <MobileSectionTitle>Race Week Spotlight</MobileSectionTitle>
+      <MobileCard>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
+          <div>
+            <div style={mobileKickerStyle}>Paint Winner Window</div>
+            <h2 style={{ margin: "4px 0 6px", fontSize: 20 }}>🎨 {upcomingRace?.name || "Upcoming Race"}</h2>
+            <p style={{ margin: 0, color: "#6e6e73", lineHeight: 1.45, fontSize: 13 }}>
+              Shows the upcoming race paint winner after Wednesday voting closes. If voting ties, all tied winners are shown.
+            </p>
+          </div>
+          <button type="button" onClick={() => go("/paint-scheme-vote")} style={{ ...mobileActionStyle, width: "auto", padding: "9px 11px", fontSize: 12 }}>
+            Vote
+          </button>
+        </div>
+      </MobileCard>
+      <div style={{ marginTop: 10 }}>
+        <PaintSchemeWinnerStandingsCard tracks={tracks} drivers={drivers} />
+      </div>
+
+      <MobileSectionTitle>In-Season Tournament</MobileSectionTitle>
+      <MobileCard>
+        <div style={mobileKickerStyle}>{seasonName || "Season 1"} • Top 20</div>
+        <h2 style={{ margin: "4px 0 6px", fontSize: 20 }}>🏆 Bracket Hub</h2>
+        <p style={{ margin: 0, color: "#6e6e73", lineHeight: 1.45, fontSize: 13 }}>
+          Mobile now links directly to the in-season bracket. Orly is excluded from the bracket field.
+        </p>
+        {topSeed && lastSeed && (
+          <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 8, alignItems: "center", fontSize: 12 }}>
+            <div style={{ background: "#0f1319", border: "1px solid #263244", borderRadius: 12, padding: 10 }}>
+              <strong>#{topSeed.number}</strong><br />{topSeed.name}
+            </div>
+            <strong style={{ color: "#d4af37" }}>vs</strong>
+            <div style={{ background: "#0f1319", border: "1px solid #263244", borderRadius: 12, padding: 10 }}>
+              <strong>#{lastSeed.number}</strong><br />{lastSeed.name}
+            </div>
+          </div>
+        )}
+        <MobileAction label="Open Bracket" onClick={() => go("/bracket")} />
+      </MobileCard>
+    </>
+  );
+}
+
+function MobileLeaderCard({ leader, go }) {
+  if (!leader) return null;
+  return (
+    <button
+      type="button"
+      onClick={() => go(`/driver/${leader.number}`)}
+      style={{ ...mobileCardStyle, width: "100%", textAlign: "left", color: "#111216", cursor: "pointer", display: "flex", alignItems: "center", gap: 14, marginBottom: 10 }}
+    >
+      <div style={{ width: 60, height: 60, borderRadius: 2, background: "#111216", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, fontWeight: 1000 }}>#{leader.number}</div>
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <div style={mobileKickerStyle}>Points Leader</div>
+        <strong style={{ display: "block", fontSize: 20, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{leader.name}</strong>
+        <span style={{ color: "#6e6e73", fontSize: 12 }}>{leader.team || "Independent"} • {leader.manufacturer || ""}</span>
+      </div>
+      <div style={{ textAlign: "right" }}>
+        <div style={{ fontSize: 26, fontWeight: 1000 }}>{leader.points || 0}</div>
+        <div style={{ color: "#6e6e73", fontSize: 10, fontWeight: 900 }}>PTS</div>
+      </div>
+    </button>
+  );
+}
+
+function MobileUpcomingRaceCard({ race, selectedTrack, go }) {
+  if (!race) return null;
+  const trackName = race.name || race.track || "Next Race";
+  const dateLabel = race.date ? new Date(`${String(race.date).slice(0, 10)}T12:00:00`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }) : "Date TBA";
+  const details = [
+    selectedTrack?.length ? `${selectedTrack.length} mi` : null,
+    selectedTrack?.banking ? selectedTrack.banking : null,
+    selectedTrack?.pitSpeed ? `Pit ${selectedTrack.pitSpeed}` : null,
+  ].filter(Boolean);
+
+  return (
+    <MobileCard>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
+        <div>
+          <div style={mobileKickerStyle}>Upcoming Race</div>
+          <h2 style={{ margin: "4px 0 6px", fontSize: 22, lineHeight: 1.08 }}>{trackName}</h2>
+          <p style={{ margin: 0, color: "#6e6e73", fontSize: 13 }}>{dateLabel} • Qualifying 9:15 PM ET • Race 9:30 PM ET</p>
+        </div>
+        <div style={{ borderLeft: "3px solid #d71920", padding: "8px 10px", fontSize: 12, fontWeight: 1000 }}>🏁</div>
+      </div>
+      {selectedTrack?.imageUrl && (
+        <div style={{ marginTop: 14, borderRadius: 2, overflow: "hidden", background: "#111216" }}>
+          <img
+            src={selectedTrack.imageUrl}
+            alt={trackName}
+            style={{ width: "100%", height: 190, objectFit: "cover", display: "block" }}
+            loading="lazy"
+          />
+        </div>
+      )}
+      {details.length > 0 && <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>{details.map((item) => <span key={item} style={{ borderBottom: "2px solid #d71920", padding: "6px 0", color: "#111216", fontSize: 11, fontWeight: 800 }}>{item}</span>)}</div>}
+    </MobileCard>
+  );
+}
+
+function MobileLatestNewsPreview({ go }) {
+  const [articles, setArticles] = useState([]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function normalizeAndLoad(tableName) {
+      const { data, error } = await supabase
+        .from(tableName)
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(6);
+      if (error) return [];
+      return (data || []).map((item) => ({
+        id: `${tableName}-${item.id || item.title}`,
+        title: item.title || item.headline || item.subject || "League News",
+        category: item.category || item.type || "News",
+        createdAt: item.created_at || item.published_at || item.submitted_at || item.updated_at || "",
+        imageUrl: item.image_url || item.featured_image_url || item.media_url || item.photo_url || "",
+      })).filter((item) => item.title);
+    }
+
+    async function loadPreview() {
+      const tables = ["news", "story_submissions", "news_articles", "league_news", "published_news", "news_posts"];
+      const results = await Promise.all(tables.map(normalizeAndLoad));
+      if (!isMounted) return;
+      const byTitle = new Map();
+      results.flat().forEach((item) => {
+        const key = String(item.title || "").trim().toLowerCase();
+        if (key && !byTitle.has(key)) byTitle.set(key, item);
+      });
+      setArticles(Array.from(byTitle.values()).sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)).slice(0, 3));
+    }
+
+    loadPreview();
+    return () => { isMounted = false; };
+  }, []);
+
+  if (!articles.length) return null;
+
+  return (
+    <MobileCard>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginBottom: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ width: 32, height: 32, borderRadius: 11, background: "rgba(255,149,0,0.14)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, flexShrink: 0 }}>📰</div>
+          <div>
+            <div style={mobileKickerStyle}>Latest News</div>
+            <h2 style={{ margin: "2px 0 0", fontSize: 20, color: "#1d1d1f", fontWeight: 950 }}>Top Stories</h2>
+          </div>
+        </div>
+        <button type="button" onClick={() => go("/news")} style={{ background: "rgba(0,122,255,0.10)", color: "#0057d9", border: "1px solid rgba(0,122,255,0.22)", borderRadius: 999, padding: "8px 12px", fontSize: 12, fontWeight: 900, fontFamily: mobileAppFont }}>View All</button>
+      </div>
+      <div style={{ display: "grid", gap: 10 }}>
+        {articles.map((article) => (
+          <button key={article.id} type="button" onClick={() => go("/news")} style={{ background: "rgba(255,255,255,0.9)", color: "#1d1d1f", border: "1px solid rgba(0,0,0,0.06)", borderRadius: 16, padding: 10, display: "grid", gridTemplateColumns: article.imageUrl ? "74px 1fr" : "1fr", gap: 10, textAlign: "left", cursor: "pointer", boxShadow: "0 10px 24px rgba(15,23,42,0.05)", fontFamily: mobileAppFont }}>
+            {article.imageUrl && <img src={article.imageUrl} alt="" style={{ width: 74, height: 58, objectFit: "cover", borderRadius: 12, border: "1px solid rgba(0,0,0,0.06)" }} />}
+            <div style={{ minWidth: 0 }}>
+              <div style={{ color: "#9a5a00", fontSize: 10, fontWeight: 1000, textTransform: "uppercase", marginBottom: 4 }}>{article.category}</div>
+              <strong style={{ display: "block", fontSize: 14, lineHeight: 1.2, color: "#1d1d1f", fontWeight: 900 }}>{article.title}</strong>
+            </div>
+          </button>
+        ))}
+      </div>
+    </MobileCard>
+  );
+}
+
+function MobileLiveStreamsBanner({ go }) {
+  const [streams, setStreams] = useState([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadStreams() {
+      const { data, error } = await supabase
+        .from("streams")
+        .select("*")
+        .order("is_live", { ascending: false })
+        .order("sort_order", { ascending: true })
+        .limit(4);
+      if (!isMounted) return;
+      if (error) {
+        setStreams([]);
+        return;
+      }
+      setStreams((data || []).filter((stream) => stream.active !== false));
+    }
+    loadStreams();
+    return () => { isMounted = false; };
+  }, []);
+
+  if (!streams.length) return null;
+  const liveCount = streams.filter((stream) => stream.is_live || stream.live).length;
+
+  return (
+    <MobileCard>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+        <div>
+          <div style={mobileKickerStyle}>Streams</div>
+          <h2 style={{ margin: "2px 0 4px", fontSize: 20 }}>{liveCount ? `${liveCount} Live Now` : "Driver Streams"}</h2>
+          <p style={{ margin: 0, color: "#6e6e73", fontSize: 12 }}>{streams.slice(0, 3).map((stream) => stream.driver_name || stream.channel_name).filter(Boolean).join(" • ")}</p>
+        </div>
+        <button type="button" onClick={() => go("/streams")} style={{ background: liveCount ? "#dc2626" : "#111827", color: "white", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 999, padding: "10px 12px", fontWeight: 1000, cursor: "pointer" }}>{liveCount ? "Watch" : "Open"}</button>
+      </div>
+    </MobileCard>
+  );
+}
+
+function MobileWeekendRecap({ raceHistory = [], tracks = [], drivers = [], go }) {
+  const [paintWinner, setPaintWinner] = useState(null);
+  const [paintLoading, setPaintLoading] = useState(true);
+  const [savedRaceWinner, setSavedRaceWinner] = useState(null);
+  const showRaceWinnerWindow = shouldShowPreviousRaceWinnerSpotlight();
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadSavedRaceWinner() {
+      const { data, error } = await supabase
+        .from("previous_race_winner")
+        .select("*")
+        .eq("id", 1)
+        .maybeSingle();
+
+      if (!isMounted) return;
+
+      if (error) {
+        console.error("Could not load mobile previous race winner media:", error);
+        setSavedRaceWinner(null);
+        return;
+      }
+
+      setSavedRaceWinner(data || null);
+    }
+
+    loadSavedRaceWinner();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const lastRace = useMemo(() => {
+    const history = Array.isArray(raceHistory) ? raceHistory.filter((race) => Array.isArray(race?.results) && race.results.length > 0) : [];
+    return history.length ? history[history.length - 1] : null;
+  }, [raceHistory]);
+
+  const lastRaceWinner = useMemo(() => {
+    const results = Array.isArray(lastRace?.results) ? lastRace.results : [];
+    if (!results.length) return null;
+    return results.find((result) => result?.isWin) ||
+      results.find((result) => Number(result?.finishPos) === 1) ||
+      [...results].sort((a, b) => Number(a?.finishPos || 999) - Number(b?.finishPos || 999))[0] ||
+      null;
+  }, [lastRace]);
+
+  const paintRaceName = useMemo(() => {
+    return getPreviousCompletedRaceForPaintWinner(tracks)?.name || lastRace?.raceName || lastRace?.name || "";
+  }, [tracks, lastRace]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadMobilePaintWinner() {
+      setPaintLoading(true);
+
+      const [{ data: uploadData, error: uploadError }, { data: voteData, error: voteError }] = await Promise.all([
+        supabase.from("car_uploads").select("*").order("uploaded_at", { ascending: false }),
+        supabase.from("paint_scheme_votes").select("*").order("created_at", { ascending: false }),
+      ]);
+
+      if (!isMounted) return;
+
+      if (uploadError || voteError) {
+        console.error("Could not load mobile paint scheme winner:", uploadError || voteError);
+        setPaintWinner(null);
+        setPaintLoading(false);
+        return;
+      }
+
+      const uploads = (uploadData || [])
+        .filter((upload) => isPaintImageUploadForStandings(upload))
+        .filter((upload) => {
+          const uploadRace = getPaintUploadRaceForStandings(upload);
+          return paintRaceName ? uploadRace === paintRaceName : true;
+        });
+
+      const counts = new Map();
+      (voteData || []).forEach((vote) => {
+        if (paintRaceName && vote.race_name && vote.race_name !== paintRaceName) return;
+        const key = String(vote.upload_id || vote.voted_upload_id || "");
+        if (!key) return;
+        counts.set(key, (counts.get(key) || 0) + 1);
+      });
+
+      const ranked = uploads
+        .map((upload) => ({
+          ...upload,
+          voteCount: counts.get(String(upload.id)) || 0,
+          imageUrl: upload.image_url || upload.file_url || "",
+        }))
+        .sort((a, b) => {
+          const voteDiff = Number(b.voteCount || 0) - Number(a.voteCount || 0);
+          if (voteDiff !== 0) return voteDiff;
+          return new Date(b.uploaded_at || b.created_at || 0) - new Date(a.uploaded_at || a.created_at || 0);
+        });
+
+      const winningUpload = ranked[0] || null;
+      if (!winningUpload) {
+        setPaintWinner(null);
+        setPaintLoading(false);
+        return;
+      }
+
+      const driver = (drivers || []).find((item) => String(item.id) === String(winningUpload.driver_id));
+      setPaintWinner({
+        ...winningUpload,
+        driverLabel: driver ? `#${driver.number} ${driver.name}` : winningUpload.driver_name || winningUpload.uploader_name || "Unknown Driver",
+        teamLabel: driver?.team || winningUpload.team || winningUpload.team_key || "—",
+        manufacturerLabel: driver?.manufacturer || winningUpload.manufacturer || "",
+      });
+      setPaintLoading(false);
+    }
+
+    loadMobilePaintWinner();
+    return () => {
+      isMounted = false;
+    };
+  }, [paintRaceName, JSON.stringify((drivers || []).map((driver) => ({ id: driver?.id, number: driver?.number, name: driver?.name, team: driver?.team, manufacturer: driver?.manufacturer })))]);
+
+  // Once the paint scheme winner posts Wednesday night, the previous race winner should disappear.
+  // The Bristol/upcoming race paint winner card below owns the home-page spotlight until race start.
+  if (!showRaceWinnerWindow) return null;
+
+  if (!lastRaceWinner && !savedRaceWinner && !paintWinner && !paintLoading) return null;
+
+  const savedWinnerMediaUrl = savedRaceWinner?.media_url || savedRaceWinner?.mediaUrl || "";
+  const savedWinnerMediaType = savedRaceWinner?.media_type || savedRaceWinner?.mediaType || "";
+  const savedWinnerRaceName = savedRaceWinner?.race_name || savedRaceWinner?.raceName || "";
+  const lastRaceName = savedWinnerRaceName || lastRace?.raceName || lastRace?.name || "Last Race";
+  const winnerNumber = savedRaceWinner?.driver_number || savedRaceWinner?.number || lastRaceWinner?.number || lastRaceWinner?.driver_number || "";
+  const winnerName = savedRaceWinner?.driver_name || savedRaceWinner?.name || lastRaceWinner?.name || lastRaceWinner?.driver_name || "Winner TBA";
+  const winnerTeam = savedRaceWinner?.team || lastRaceWinner?.team || "—";
+  const winnerManufacturer = savedRaceWinner?.manufacturer || lastRaceWinner?.manufacturer || "—";
+  const winnerPoints = Number(savedRaceWinner?.points ?? lastRaceWinner?.totalRacePoints ?? lastRaceWinner?.points ?? 0);
+
+  return (
+    <section style={{ margin: "14px 0 18px" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, margin: "0 2px 10px" }}>
+        <div>
+          <div style={mobileKickerStyle}>Weekend Recap</div>
+          <h2 style={{ margin: "2px 0 0", fontSize: 20, lineHeight: 1.1 }}>Race Winners</h2>
+        </div>
+        <button
+          type="button"
+          onClick={() => go("/news")}
+          style={{ background: "#111827", color: "#facc15", border: "1px solid rgba(212,175,55,0.35)", borderRadius: 999, padding: "8px 10px", fontSize: 12, fontWeight: 900 }}
+        >
+          News
+        </button>
+      </div>
+
+      <div style={{ display: "grid", gap: 12 }}>
+        <article style={{ ...mobileCardStyle, marginBottom: 0, padding: 0, overflow: "hidden" }}>
+          <div style={{ background: "linear-gradient(135deg, rgba(34,197,94,0.25), rgba(15,23,42,0.96))", padding: 14, borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+            <div style={{ color: "#86efac", fontSize: 11, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase" }}>🏁 Last Race Winner</div>
+            <h3 style={{ margin: "6px 0 2px", fontSize: 24, lineHeight: 1.05 }}>{lastRaceName}</h3>
+            <p style={{ margin: 0, color: "rgba(255,255,255,0.68)", fontSize: 12 }}>Official most recent completed race result</p>
+          </div>
+          {savedWinnerMediaUrl && (
+            <div style={{ background: "#070a0f", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+              {savedWinnerMediaType === "video" ? (
+                <video controls src={savedWinnerMediaUrl} style={{ width: "100%", maxHeight: 240, objectFit: "cover", display: "block" }} />
+              ) : (
+                <img src={savedWinnerMediaUrl} alt={`${winnerName} race winner`} style={{ width: "100%", maxHeight: 240, objectFit: "cover", display: "block" }} />
+              )}
+            </div>
+          )}
+
+          {(lastRaceWinner || savedRaceWinner) ? (
+            <button
+              type="button"
+              onClick={() => winnerNumber && go(`/driver/${winnerNumber}`)}
+              style={{ width: "100%", textAlign: "left", background: "transparent", color: "white", border: "none", padding: 14, display: "flex", alignItems: "center", gap: 12 }}
+            >
+              <div style={{ width: 58, height: 58, borderRadius: 14, background: "linear-gradient(135deg, #22c55e, #0f172a)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, fontWeight: 1000, border: "1px solid rgba(255,255,255,0.14)" }}>#{winnerNumber}</div>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <strong style={{ display: "block", fontSize: 18, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{winnerName}</strong>
+                <span style={{ display: "block", color: "#6e6e73", fontSize: 12 }}>{winnerTeam} • {winnerManufacturer}</span>
+                <span style={{ display: "block", color: "#86efac", fontSize: 12, fontWeight: 900, marginTop: 4 }}>{winnerPoints} race points</span>
+              </div>
+            </button>
+          ) : (
+            <div style={{ padding: 14, color: "#6e6e73" }}>No completed race winner found yet.</div>
+          )}
+        </article>
+      </div>
+    </section>
+  );
+}
+
+function MobileFeatureHub({ go, drivers = [], teams = [], manufacturerStandings = [] }) {
+  const featureGroups = [
+    {
+      title: "League",
+      items: [
+        { icon: "💬", label: "League Messages", desc: "Announcements, race control, owner messages, and direct messages", path: "/message-center" },
+        { icon: "🗳", label: "League Voting", desc: "League polls and owner/driver votes", path: "/voting" },
+        { icon: "📡", label: "Streams", desc: "Twitch, YouTube, watch party, and stream cards", path: "/streams" },
+        { icon: "🔔", label: "Notifications", desc: "Driver and league reminders", path: "/notifications" },
+        { icon: "💬", label: "League Chat", desc: "Mobile chat access", path: "/chat" },
+        { icon: "🎮", label: "Discord", desc: "League Discord page", path: "/discord" },
+      ],
+    },
+    {
+      title: "Owner / Driver Tools",
+      items: [
+        { icon: "🔐", label: "Owner Login", desc: "Open the full owner portal", path: "/owner" },
+        { icon: "🏢", label: "Team HQ", desc: "Owner login and full team controls", path: "/hq" },
+        { icon: "📑", label: "Contracts", desc: "Contracts, offers, and driver agreements", path: "/contracts" },
+        { icon: "⚖️", label: "Appeals", desc: "View league appeals page", path: "/appeals" },
+      ],
+    },
+    {
+      title: "Submissions / Admin Access",
+      items: [
+        { icon: "📝", label: "Submit Story", desc: "Send a story to league media", path: "/submit-story" },
+        { icon: "⚖️", label: "Submit Appeal", desc: "File an appeal from mobile", path: "/submit-appeal" },
+        { icon: "📁", label: "Files", desc: "League files and uploads", path: "/files" },
+        { icon: "🛠", label: "Admin Portal", desc: "Opens the protected desktop admin portal", path: "/admin-login", desktop: true },
+      ],
+    },
+  ];
+
+  function openFeature(item) {
+    if (item.desktop && typeof document !== "undefined") {
+      document.cookie = "bcl-force-desktop=1; path=/; max-age=2592000";
+    }
+    go(item.path);
+  }
+
+  return (
+    <>
+      <MobileHero
+        kicker="League Garage"
+        title="More"
+        subtitle="League messages, league voting, owner tools, streams, contracts, appeals, and admin access."
+      />
+
+      <MobileStatGrid
+        items={[
+          ["Drivers", drivers.length],
+          ["Teams", teams.length],
+          ["MFRs", manufacturerStandings.length],
+        ]}
+      />
+
+      {featureGroups.map((group) => (
+        <section key={group.title} style={mobileFeatureGroupStyle}>
+          <MobileSectionTitle>{group.title}</MobileSectionTitle>
+          <div style={mobileFeatureGridStyle}>
+            {group.items.map((item) => (
+              <button
+                key={item.path}
+                type="button"
+                onClick={() => openFeature(item)}
+                style={mobileFeatureButtonStyle}
+              >
+                <span style={mobileFeatureIconStyle}>{item.icon}</span>
+                <span style={{ minWidth: 0 }}>
+                  <strong style={mobileFeatureLabelStyle}>{item.label}</strong>
+                  <small style={mobileFeatureDescStyle}>{item.desc}</small>
+                </span>
+              </button>
+            ))}
+          </div>
+        </section>
+      ))}
+    </>
+  );
+}
+
+
+function MobileNewsFeed({ go, desktopArchive = null }) {
+  const [articles, setArticles] = useState([]);
+  const [selectedArticle, setSelectedArticle] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    function normalizeArticle(item = {}, source = "story_submissions") {
+      const title = item.title || item.headline || item.story_title || item.subject || item.name || "League News Update";
+      const body = item.story || item.story_text || item.body || item.content || item.article || item.message || item.description || item.summary || "";
+      const createdAt = item.published_at || item.created_at || item.submitted_at || item.updated_at || item.date || item.timestamp || "";
+      const author = item.author_name || item.author || item.submitted_by || item.created_by || item.writer || "BCL Media";
+      const driver = item.driver_name || item.driver || item.driver_number || item.team || "";
+      const status = item.status || item.state || (source === "story_submissions" ? "Submitted" : "Posted");
+      const category = item.category || item.type || item.tag || "League News";
+      const mainImage =
+        item.image_url ||
+        item.imageUrl ||
+        item.photo_url ||
+        item.thumbnail_url ||
+        item.featured_image ||
+        item.featured_image_url ||
+        item.hero_image ||
+        item.hero_image_url ||
+        item.car_image_url ||
+        item.media_url ||
+        item.mediaUrl ||
+        item.picture_url ||
+        item.cover_url ||
+        "";
+
+      const extraImages = [
+        mainImage,
+        item.image_2_url,
+        item.image2_url,
+        item.second_image_url,
+        item.photo_2_url,
+        item.gallery_image_url,
+      ].filter(Boolean);
+
+      return {
+        id: `${source}-${item.id || item.slug || title}-${createdAt}`,
+        title: String(title || "League News Update").trim(),
+        body: String(body || "").trim(),
+        author: String(author || "BCL Media").trim(),
+        driver: String(driver || "").trim(),
+        status: String(status || "Posted").trim(),
+        category: String(category || "League News").trim(),
+        createdAt,
+        source,
+        imageUrl: mainImage,
+        images: Array.from(new Set(extraImages)),
+      };
+    }
+
+    function keepArticle(item = {}) {
+      const status = String(item.status || item.state || "posted").trim().toLowerCase();
+      if (["rejected", "declined", "hidden", "deleted"].includes(status)) return false;
+      return Boolean(item.title || item.body);
+    }
+
+    async function loadTable(tableName) {
+      const { data, error } = await supabase
+        .from(tableName)
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(30);
+
+      if (error) {
+        console.warn(`Mobile news could not load ${tableName}:`, error);
+        return [];
+      }
+
+      return (data || [])
+        .map((item) => normalizeArticle(item, tableName))
+        .filter(keepArticle);
+    }
+
+    async function loadMobileNews() {
+      setLoading(true);
+      setError("");
+
+      const newsTables = [
+        "news",
+        "story_submissions",
+        "news_articles",
+        "league_news",
+        "published_news",
+        "news_posts",
+      ];
+
+      const results = await Promise.all(newsTables.map(loadTable));
+      if (!isMounted) return;
+
+      const byKey = new Map();
+      results.flat().forEach((article) => {
+        const key = `${String(article.title || "").trim().toLowerCase()}|${String(article.createdAt || "").slice(0, 10)}`;
+        if (!byKey.has(key)) byKey.set(key, article);
+      });
+
+      const cleanArticles = Array.from(byKey.values()).sort((a, b) => {
+        const bTime = new Date(b.createdAt || 0).getTime() || 0;
+        const aTime = new Date(a.createdAt || 0).getTime() || 0;
+        return bTime - aTime;
+      });
+
+      const latestFiveArticles = cleanArticles.slice(0, 5);
+      setArticles(latestFiveArticles);
+      setSelectedArticle(null);
+      setLoading(false);
+      if (!latestFiveArticles.length) {
+        setError("No mobile news rows were found in the news tables. Showing the full News archive below.");
+      }
+    }
+
+    loadMobileNews();
+    return () => { isMounted = false; };
+  }, []);
+
+  function formatMobileDate(value) {
+    if (!value) return "Recently";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "Recently";
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  }
+
+  function makeExcerpt(body = "", max = 125) {
+    const clean = String(body || "").replace(/\s+/g, " ").trim();
+    if (clean.length <= max) return clean;
+    return `${clean.slice(0, max).trim()}…`;
+  }
+
+  function renderArticleMedia(article) {
+    const images = Array.isArray(article?.images) && article.images.length ? article.images : (article?.imageUrl ? [article.imageUrl] : []);
+    if (!images.length) return <div style={mobileNewsDetailImageFallbackStyle}>🏁</div>;
+    return (
+      <div style={{ display: "grid", gap: 10 }}>
+        {images.map((url, index) => (
+          <img key={`${url}-${index}`} src={url} alt={article.title} style={mobileNewsDetailImageStyle} />
+        ))}
+      </div>
+    );
+  }
+
+  if (selectedArticle) {
+    return (
+      <>
+        <button type="button" onClick={() => setSelectedArticle(null)} style={mobileNewsBackButtonStyle}>← Back to latest stories</button>
+        <article style={mobileNewsDetailCardStyle}>
+          <div style={mobileNewsMetaRowStyle}>
+            <span style={mobileNewsCategoryPillStyle}>{selectedArticle.category || "League News"}</span>
+            <span>{formatMobileDate(selectedArticle.createdAt)}</span>
+          </div>
+          <h1 style={mobileNewsDetailTitleStyle}>{selectedArticle.title}</h1>
+          {(selectedArticle.author || selectedArticle.driver) && (
+            <div style={mobileNewsBylineStyle}>{selectedArticle.author}{selectedArticle.driver ? ` • ${selectedArticle.driver}` : ""}</div>
+          )}
+          <div style={{ margin: "14px 0" }}>{renderArticleMedia(selectedArticle)}</div>
+          <div style={mobileNewsDetailBodyStyle}>{selectedArticle.body || "No story text was provided for this article."}</div>
+        </article>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <section style={mobileNewsMastheadStyle}>
+        <div style={mobileNewsMastheadKickerStyle}>BCL NEWSROOM</div>
+        <h1 style={mobileNewsMastheadTitleStyle}>Latest League News</h1>
+        <p style={mobileNewsMastheadSubStyle}>The five most recent BCL stories. Tap a headline to read the full article and view photos.</p>
+        <div style={mobileNewsMastheadActionsStyle}>
+          <button type="button" onClick={() => go("/submit-story")} style={mobileNewsPrimaryButtonStyle}>Submit Story</button>
+          <button type="button" onClick={() => window.location.reload()} style={mobileNewsGhostButtonStyle}>Refresh</button>
+        </div>
+      </section>
+
+      <LeagueTicker page="news" />
+
+      {loading && <MobileCard><strong>Loading news...</strong></MobileCard>}
+      {error && !loading && <MobileCard><p style={{ margin: 0, color: "#fbbf24", fontWeight: 900 }}>{error}</p></MobileCard>}
+
+      {!loading && articles.length > 0 && (
+        <div style={{ margin: "4px 2px 12px", color: "#6e6e73", fontSize: 12, fontWeight: 900, letterSpacing: 0.7, textTransform: "uppercase" }}>
+          Showing latest {articles.length} stories
+        </div>
+      )}
+
+      <div style={mobileNewsHeadlineListStyle}>
+        {articles.map((article, index) => (
+          <button
+            type="button"
+            key={article.id || `${article.title}-${index}`}
+            onClick={() => setSelectedArticle(article)}
+            style={index === 0 ? mobileNewsHeadlineLeadButtonStyle : mobileNewsHeadlineButtonStyle}
+          >
+            {article.imageUrl && index === 0 && <img src={article.imageUrl} alt={article.title} style={mobileNewsHeadlineLeadImageStyle} />}
+            <div style={{ minWidth: 0, textAlign: "left" }}>
+              <div style={mobileNewsMetaRowStyle}>
+                <span style={mobileNewsCategoryPillStyle}>{article.category || "League News"}</span>
+                <span>{formatMobileDate(article.createdAt)}</span>
+              </div>
+              <h2 style={index === 0 ? mobileNewsHeadlineLeadTitleStyle : mobileNewsHeadlineTitleStyle}>{article.title}</h2>
+              {article.body && <p style={mobileNewsHeadlineExcerptStyle}>{makeExcerpt(article.body, index === 0 ? 160 : 105)}</p>}
+              <div style={mobileNewsReadMoreStyle}>Tap to read story →</div>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {!articles.length && desktopArchive && !loading && (
+        <div style={{ marginTop: 18 }}>
+          <MobileSectionTitle>Full News Archive</MobileSectionTitle>
+          <div style={mobileNewsArchiveShellStyle}>{desktopArchive}</div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function MobileDataFrame({ children }) {
+  return (
+    <div className="bcl-mobile-data-frame" style={mobileDataFrameStyle}>
+      <style>{mobileDataFrameCss}</style>
+      {children}
+    </div>
+  );
+}
+
+function MobileRaceResultCard({ race, go }) {
+  const winner = race?.results?.find((r) => Number(r.finishPos) === 1);
+  const topFive = [...(race?.results || [])]
+    .filter((r) => r.finishPos)
+    .sort((a, b) => Number(a.finishPos) - Number(b.finishPos))
+    .slice(0, 5);
+  return (
+    <button
+      type="button"
+      onClick={() => go && go(`/race/${encodeURIComponent(race.raceName)}`)}
+      style={{ ...mobileCardStyle, width: "100%", textAlign: "left", border: mobileCardStyle.border, cursor: go ? "pointer" : "default", fontFamily: mobileAppFont }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={mobileKickerStyle}>Race Results</div>
+          <h2 style={{ margin: "4px 0 8px", color: "#1d1d1f", fontSize: 19, fontWeight: 950 }}>{race.raceName}</h2>
+          {winner && <p style={{ margin: "0 0 10px", color: "#6e6e73", fontWeight: 700 }}>Winner: #{winner.number} {winner.name}</p>}
+        </div>
+        {go && <div style={{ color: "#c7c7cc", fontSize: 20, fontWeight: 900, flexShrink: 0 }}>›</div>}
+      </div>
+      <div style={{ display: "grid", gap: 8 }}>
+        {topFive.map((r) => (
+          <div key={`${race.raceName}-${r.driverId}`} style={mobileSmallRowStyle}>
+            <strong style={{ color: "#1d1d1f" }}>{r.finishPos}. #{r.number} {r.name}</strong>
+            <span style={{ color: "#1d1d1f", fontWeight: 800 }}>{r.totalRacePoints || 0} pts</span>
+          </div>
+        ))}
+      </div>
+    </button>
+  );
+}
+
+function MobileRaceRecapPage({ race, go }) {
+  if (!race) {
+    return (
+      <MobileCard>
+        <h2 style={{ margin: "4px 0 8px", color: "#1d1d1f" }}>Race not found</h2>
+        <p style={{ color: "#6e6e73", fontWeight: 600 }}>This race doesn't have results on file yet.</p>
+        <button type="button" onClick={() => go("/")} style={{ ...mobileActionStyle, background: "linear-gradient(180deg, #ffd60a 0%, #ff9f0a 100%)", color: "#1d1d1f", borderColor: "transparent" }}>← Back to Race Hub</button>
+      </MobileCard>
+    );
+  }
+
+  const sortedResults = [...(race.results || [])].sort((a, b) => {
+    const posA = Number(a.finishPos) || 999;
+    const posB = Number(b.finishPos) || 999;
+    return posA - posB;
+  });
+  const winner = sortedResults.find((r) => Number(r.finishPos) === 1);
+  const fastestLapDriver = sortedResults.find((r) => r.fastestLap);
+  const dnfCount = sortedResults.filter((r) => r.dnf).length;
+
+  return (
+    <>
+      <button type="button" onClick={() => go("/")} style={{ ...mobileActionStyle, background: "rgba(255,255,255,0.72)", color: "#1d1d1f", border: "1px solid rgba(0,0,0,0.10)", width: "auto", padding: "10px 16px", minHeight: 0 }}>← Race Hub</button>
+
+      <MobileHero kicker="Race Recap" title={race.raceName} subtitle={winner ? `Winner: #${winner.number} ${winner.name}` : "Full results"} />
+
+      <div style={mobileStatGridStyle}>
+        <div style={mobileStatCardStyle}>
+          <div style={{ fontSize: 11, color: "#6e6e73", fontWeight: 900, marginBottom: 4, letterSpacing: 0.4 }}>WINNER</div>
+          <div style={{ fontSize: 16, fontWeight: 950, color: "#1d1d1f" }}>{winner ? `#${winner.number} ${winner.name}` : "—"}</div>
+        </div>
+        <div style={mobileStatCardStyle}>
+          <div style={{ fontSize: 11, color: "#6e6e73", fontWeight: 900, marginBottom: 4, letterSpacing: 0.4 }}>FASTEST LAP</div>
+          <div style={{ fontSize: 16, fontWeight: 950, color: "#1d1d1f" }}>{fastestLapDriver ? `#${fastestLapDriver.number} ${fastestLapDriver.name}` : "—"}</div>
+        </div>
+        <div style={mobileStatCardStyle}>
+          <div style={{ fontSize: 11, color: "#6e6e73", fontWeight: 900, marginBottom: 4, letterSpacing: 0.4 }}>FINISHERS</div>
+          <div style={{ fontSize: 22, fontWeight: 950, color: "#1d1d1f" }}>{sortedResults.length - dnfCount}</div>
+        </div>
+        <div style={mobileStatCardStyle}>
+          <div style={{ fontSize: 11, color: "#6e6e73", fontWeight: 900, marginBottom: 4, letterSpacing: 0.4 }}>DNFs</div>
+          <div style={{ fontSize: 22, fontWeight: 950, color: "#1d1d1f" }}>{dnfCount}</div>
+        </div>
+      </div>
+
+      <MobileSectionTitle>Full Results</MobileSectionTitle>
+      <div style={{ display: "grid", gap: 8 }}>
+        {sortedResults.map((r) => (
+          <div key={`${race.raceName}-${r.driverId}`} style={{ ...mobileCardStyle, marginBottom: 0, padding: 12 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                <div style={{
+                  width: 30,
+                  height: 30,
+                  borderRadius: 999,
+                  background: r.finishPos === 1 ? "linear-gradient(180deg, #ffd60a 0%, #ff9f0a 100%)" : "rgba(0,0,0,0.05)",
+                  color: r.finishPos === 1 ? "#1d1d1f" : "#6e6e73",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontWeight: 950,
+                  fontSize: 13,
+                  flexShrink: 0,
+                }}>
+                  {r.finishPos || "—"}
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 900, color: "#1d1d1f", fontSize: 14, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>#{r.number} {r.name}</div>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 3 }}>
+                    {r.fastestLap && <span style={{ background: "rgba(0,122,255,0.10)", color: "#0057d9", borderRadius: 999, padding: "2px 7px", fontSize: 10, fontWeight: 900 }}>FASTEST LAP</span>}
+                    {r.dnf && <span style={{ background: "rgba(255,59,48,0.10)", color: "#c62d24", borderRadius: 999, padding: "2px 7px", fontSize: 10, fontWeight: 900 }}>DNF{r.dnfReason ? `: ${r.dnfReason}` : ""}</span>}
+                    {r.startPark && <span style={{ background: "rgba(255,149,0,0.12)", color: "#9a5a00", borderRadius: 999, padding: "2px 7px", fontSize: 10, fontWeight: 900 }}>START & PARK</span>}
+                    {r.offense && <span style={{ background: "rgba(255,59,48,0.10)", color: "#c62d24", borderRadius: 999, padding: "2px 7px", fontSize: 10, fontWeight: 900 }}>PENALTY</span>}
+                  </div>
+                </div>
+              </div>
+              <div style={{ textAlign: "right", flexShrink: 0 }}>
+                <div style={{ fontWeight: 950, color: "#1d1d1f", fontSize: 16 }}>{r.totalRacePoints || 0}</div>
+                <div style={{ fontSize: 10, color: "#86868b", fontWeight: 700 }}>pts</div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
+function MobileLayout({ title, children, go, active, session = null, onLogout = () => {}, onLoginClick = () => {}, showLoginModal = false, onCloseLoginModal = () => {}, onLoginSuccess = () => {}, drivers = [] }) {
+  const [showMoreSheet, setShowMoreSheet] = useState(false);
+
+  function openDesktopVersion() {
+    if (typeof document !== "undefined") {
+      document.cookie = "bcl-force-desktop=1; path=/; max-age=2592000";
+    }
+    window.location.reload();
+  }
+
+  const leagueSession = getLeagueSession();
+  const driverNumber = leagueSession?.driverNumber || "";
+  const isOwner = Boolean(leagueSession?.isOwner);
+
+  const moreMenuItems = [
+    ...(driverNumber ? [
+      { icon: "👤", label: "My Driver Profile", href: "/my-dashboard" },
+      { icon: "📄", label: "Contracts", href: `/driver/${driverNumber}/contracts` },
+      { icon: "🏎️", label: "Developmental Ride", href: `/driver/${driverNumber}/development` },
+      { icon: "📷", label: "Uploads", href: `/driver/${driverNumber}/upload` },
+      { icon: "📋", label: "Appeals", href: `/driver/${driverNumber}/appeals` },
+      { icon: "🎯", label: "Assignments", href: `/driver/${driverNumber}/assignments` },
+      { icon: "😊", label: "Driver Feedback", href: `/driver/${driverNumber}/feedback` },
+      { icon: "🤝", label: "Team Interest", href: `/driver/${driverNumber}/team-interest` },
+      { icon: "🏁", label: "Start & Park", href: `/driver/${driverNumber}/start-park` },
+      { icon: "🔄", label: "Transfer Portal", href: `/driver/${driverNumber}/portal` },
+      { icon: "⚙️", label: "Settings", href: `/driver/${driverNumber}/settings` },
+    ] : []),
+    { icon: "🏁", label: "Cup Standings", href: "/" },
+    { icon: "📅", label: "Season Schedule", href: "/schedule" },
+    { icon: "🏢", label: "Teams & Owners", href: "/owners" },
+    { icon: "🔥", label: "Driver Market", href: "/driver-market" },
+    { icon: "📺", label: "Streams", href: "/streams" },
+    { icon: "✉️", label: "Messages", href: "/message-center" },
+    { icon: "🔔", label: "Notifications", href: "/notifications" },
+    { icon: "🎙️", label: "Public Interviews", href: "/public-interviews" },
+    { icon: "🏆", label: "In-Season Bracket", href: "/bracket" },
+    { icon: "🗳️", label: "League Vote", href: "/vote" },
+    { icon: "✍️", label: "Add Story", href: "/submit-story" },
+    ...(isOwner ? [{ icon: "🏢", label: "Team HQ", href: "/team-hq" }] : []),
+    { icon: "💬", label: "League Chat", href: "/chat" },
+    { icon: "🖼️", label: "Files", href: "/files" },
+  ];
+
+  return (
+    <div style={mobileAppStyle}>
+      <header style={mobileTopbarStyle}>
+        <button type="button" onClick={() => go("/")} style={mobileLogoButtonStyle}>🏁</button>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <strong style={{ fontSize: 17, display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", color: "#fff", fontStyle: "italic", textTransform: "uppercase", letterSpacing: "-.03em" }}>{title}</strong>
+          {session && (
+            <span style={{ display: "block", color: "#b8b9bd", fontSize: 10, fontWeight: 900, textTransform: "uppercase", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {session.mode === "guest" ? "Guest View Only" : `#${session.driverNumber} ${session.driverName}`}
+            </span>
+          )}
+        </div>
+        <button type="button" onClick={() => go("/notifications")} style={mobileBellStyle} aria-label="Notifications">🔔</button>
+        {session?.mode === "guest" && (
+          <button type="button" onClick={onLoginClick} style={{ ...mobileBellStyle, background: "#d71920", color: "#fff", border: "1px solid #d71920" }} aria-label="Log in">🔑</button>
+        )}
+      </header>
+      <main style={mobileContentStyle}>
+        {session && (
+          <div style={{ background: "transparent", borderBottom: "1px solid #d6d7d9", padding: "14px 0", marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ color: "#d71920", fontSize: 10, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 1.3 }}>
+                {session.mode === "guest" ? "Guest Access" : "Driver Signed In"}
+              </div>
+              <div style={{ fontSize: 13, fontWeight: 900, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", color: "#1d1d1f" }}>
+                {session.mode === "guest" ? "View-only mode" : `#${session.driverNumber} ${session.driverName}`}
+              </div>
+            </div>
+            {session.mode === "guest" ? (
+              <button type="button" onClick={onLoginClick} style={{ background: "#111216", color: "#fff", border: "1px solid #111216", borderRadius: 2, padding: "8px 14px", fontSize: 12, fontWeight: 900 }}>
+                Log In
+              </button>
+            ) : (
+              <button type="button" onClick={onLogout} style={{ background: "transparent", color: "#111216", border: "1px solid #111216", borderRadius: 2, padding: "8px 10px", fontSize: 12, fontWeight: 900 }}>
+                Log Out
+              </button>
+            )}
+          </div>
+        )}
+        {children}
+        <div style={mobileDesktopSwitchCardStyle}>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 1000, color: "#9a5a00", letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 4 }}>Display Mode</div>
+            <div style={{ fontSize: 15, fontWeight: 900, color: "#1d1d1f" }}>Mobile Version</div>
+            <div style={{ fontSize: 12, color: "#6e6e73", marginTop: 3 }}>Optimized for phones</div>
+          </div>
+          <button type="button" onClick={openDesktopVersion} style={mobileDesktopSwitchButtonStyle}>
+            🖥 View Desktop
+          </button>
+        </div>
+      </main>
+      <nav style={mobileBottomNavStyle}>
+        <MobileNavButton active={active === "standings" || active === "home"} icon="🏁" label="Home" onClick={() => go("/")} />
+        <MobileNavButton active={active === "news"} icon="📰" label="News" onClick={() => go("/news")} />
+        <MobileNavButton active={active === "votes"} icon="🎨" label="Votes" onClick={() => go("/paint-scheme-vote")} />
+        <MobileNavButton
+          active={active === "interviews"}
+          icon="🎤"
+          label="My Interviews"
+          onClick={() => go(driverNumber ? `/driver/${driverNumber}/interviews` : "/interviews")}
+        />
+        <MobileNavButton active={active === "more" || showMoreSheet} icon="☰" label="More" onClick={() => setShowMoreSheet(true)} />
+      </nav>
+      {showMoreSheet && (
+        <>
+          <button
+            type="button"
+            aria-label="Close menu"
+            onClick={() => setShowMoreSheet(false)}
+            style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.32)", border: "none", zIndex: 99998 }}
+          />
+          <div
+            style={{
+              position: "fixed",
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 99999,
+              background: "#f7f7f5",
+              borderTop: "4px solid #d71920",
+              boxShadow: "0 -12px 32px rgba(0,0,0,0.22)",
+              padding: "10px 10px calc(env(safe-area-inset-bottom, 0px) + 14px)",
+              maxHeight: "72vh",
+              overflowY: "auto",
+            }}
+          >
+            <div style={{ width: 40, height: 5, borderRadius: 999, background: "rgba(0,0,0,0.15)", margin: "6px auto 12px" }} />
+            {moreMenuItems.map((item) => (
+              <button
+                key={item.label}
+                type="button"
+                onClick={() => { setShowMoreSheet(false); go(item.href); }}
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 14,
+                  textAlign: "left",
+                  background: "transparent",
+                  color: "#1d1d1f",
+                  border: "none",
+                  borderBottom: "1px solid #d6d7d9",
+                  borderRadius: 0,
+                  padding: "13px 12px",
+                  cursor: "pointer",
+                  fontFamily: mobileAppFont,
+                  fontSize: 15,
+                  fontWeight: 700,
+                }}
+              >
+                <span style={{ fontSize: 19, width: 24, textAlign: "center" }}>{item.icon}</span>
+                <span style={{ flex: 1 }}>{item.label}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+      {showLoginModal && (
+        <MobileLoginModal
+          drivers={drivers}
+          onClose={onCloseLoginModal}
+          onSuccess={onLoginSuccess}
+        />
+      )}
+    </div>
+  );
+}
+function MobileNavButton({ icon, label, onClick, active }) { return <button type="button" onClick={onClick} style={{ ...mobileNavButtonStyle, color: active ? "#ffffff" : "#a7a9af" }}><span style={{ fontSize: 20 }}>{icon}</span><span style={{ fontSize: 10 }}>{label}</span></button>; }
+function MobileHero({ kicker, title, subtitle }) { return <section style={mobileHeroStyle}><div style={mobileKickerStyle}>{kicker}</div><h1 style={{ margin: "4px 0", fontSize: 38, lineHeight: .95, color: "#111216", fontStyle: "italic", textTransform: "uppercase", fontWeight: 1000, letterSpacing: "-0.02em" }}>{title}</h1>{subtitle && <p style={{ margin: "8px 0 0", color: "#3a3a3c", lineHeight: 1.4, fontWeight: 600 }}>{subtitle}</p>}</section>; }
+function MobileCard({ children }) { return <section style={mobileCardStyle}>{children}</section>; }
+function MobileAction({ label, onClick, secondary = false }) { return <button type="button" onClick={onClick} style={{ ...mobileActionStyle, background: secondary ? "#111827" : "#d4af37", color: secondary ? "#ffffff" : "#111111", borderColor: secondary ? "#263244" : "#d4af37" }}>{label}</button>; }
+function MobileStatGrid({ items }) { return <div style={mobileStatGridStyle}>{items.map(([label, value]) => <div key={label} style={mobileStatCardStyle}><div style={{ color: "#6e6e73", fontSize: 11, fontWeight: 900, textTransform: "uppercase" }}>{label}</div><strong style={{ fontSize: 20 }}>{value}</strong></div>)}</div>; }
+function MobileStandingsList({ drivers, go }) { return <div>{drivers.map((driver, index) => <button type="button" key={`${driver.number}-${driver.name}`} onClick={() => go(`/driver/${driver.number}`)} style={mobileDriverCardStyle}><div style={mobileRankStyle}>{index + 1}</div><div style={{ minWidth: 0 }}><strong style={{ display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>#{driver.number} {driver.name}</strong><span style={{ color: "#6e6e73", fontSize: 12 }}>{getTeamIdentifier(driver.team || "Independent")} • {driver.manufacturer || ""}</span></div><div style={mobilePointsStyle}>{driver.points || 0}<span style={{ display: "block", fontSize: 10, color: "#6e6e73" }}>PTS</span></div></button>)}</div>; }
+function MobileSectionTitle({ children }) { return <h2 style={{ fontSize: 16, margin: "20px 2px 10px", color: "#1d1d1f", fontWeight: 950 }}>{children}</h2>; }
+
+
+function MobileDriverProfilePolished({ driver, driverNumber, raceHistory = [], tracks = [], seasons, activeSeason, go }) {
+  const safeDriver = driver || { number: driverNumber, name: `Driver #${driverNumber}`, team: "", manufacturer: "" };
+  const teamName = getTeamFullName(safeDriver.team || "Independent");
+  const manufacturerLogo = manufacturerLogos[safeDriver.manufacturer] || safeDriver.manufacturerLogo || null;
+  const teamLogo = teamLogos[safeDriver.team] || teamLogos[teamName] || null;
+
+  const driverResults = (raceHistory || [])
+    .map((race) => {
+      const result = (race.results || []).find((entry) => {
+        return String(entry.driverId) === String(safeDriver.id) || String(entry.number) === String(safeDriver.number);
+      });
+      if (!result) return null;
+      return { race, result };
+    })
+    .filter(Boolean)
+    .reverse()
+    .slice(0, 5);
+
+  const bestFinish = driverResults.length
+    ? Math.min(...driverResults.map(({ result }) => Number(result.finishPos || result.finish || 999)))
+    : null;
+
+  const statCards = [
+    { label: "Points", value: safeDriver.points || 0 },
+    { label: "Wins", value: safeDriver.wins || 0 },
+    { label: "Top 3", value: safeDriver.top3 || 0 },
+    { label: "Top 5", value: safeDriver.top5 || 0 },
+    { label: "DNFs", value: safeDriver.dnfs || 0 },
+    { label: "Best Finish", value: bestFinish && bestFinish !== 999 ? bestFinish : "—" },
+  ];
+
+  return (
+    <div style={{ paddingBottom: 90 }}>
+      <AppUpdateBanner page="driver" />
+      <DriverVoteReminderStrip driverNumber={driverNumber} />
+
+      <section
+        style={{
+          position: "relative",
+          overflow: "hidden",
+          borderRadius: 24,
+          border: "1px solid rgba(212,175,55,0.32)",
+          background: "radial-gradient(circle at top left, rgba(212,175,55,0.25), transparent 34%), linear-gradient(135deg, #171b22 0%, #080b10 100%)",
+          boxShadow: "0 20px 44px rgba(0,0,0,0.42)",
+          padding: 18,
+          marginBottom: 16,
+        }}
+      >
+        <div style={{ position: "absolute", right: -18, top: -28, fontSize: 118, fontWeight: 1000, color: "rgba(255,255,255,0.055)", lineHeight: 1 }}>
+          {safeDriver.number}
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 14, position: "relative", zIndex: 1 }}>
+          <div
+            style={{
+              width: 84,
+              height: 84,
+              borderRadius: 22,
+              background: "linear-gradient(135deg, #d4af37 0%, #111827 70%)",
+              color: "#111",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 34,
+              fontWeight: 1000,
+              border: "2px solid rgba(255,255,255,0.16)",
+              boxShadow: "0 12px 28px rgba(0,0,0,0.35)",
+            }}
+          >
+            #{safeDriver.number}
+          </div>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ color: "#d4af37", fontSize: 11, fontWeight: 1000, letterSpacing: 1.1, textTransform: "uppercase" }}>
+              Driver Profile
+            </div>
+            <h1 style={{ margin: "5px 0 6px", fontSize: 27, lineHeight: 1.02, fontWeight: 1000, wordBreak: "break-word" }}>
+              {safeDriver.name}
+            </h1>
+            <div style={{ color: "#c6ceda", fontSize: 13, fontWeight: 800 }}>
+              {teamName} • {safeDriver.manufacturer || "Manufacturer TBA"}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", gap: 10, marginTop: 16, position: "relative", zIndex: 1 }}>
+          {teamLogo && <img src={teamLogo} alt={teamName} style={{ width: 46, height: 46, borderRadius: 14, objectFit: "cover", background: "#111" }} />}
+          {manufacturerLogo && <img src={manufacturerLogo} alt={safeDriver.manufacturer} style={{ width: 46, height: 46, borderRadius: 14, objectFit: "contain", background: "#ffffff", padding: 6, boxSizing: "border-box" }} />}
+          <button type="button" onClick={() => go(`/team/${safeDriver.team || "Independent"}`)} style={{ marginLeft: "auto", background: "rgba(255,255,255,0.08)", color: "white", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 14, padding: "10px 12px", fontWeight: 900 }}>
+            Team Page
+          </button>
+        </div>
+      </section>
+
+      <MobileSectionTitle>Season Stats</MobileSectionTitle>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }}>
+        {statCards.map((stat) => (
+          <div key={stat.label} style={{ background: "#111827", border: "1px solid #263244", borderRadius: 18, padding: 14 }}>
+            <div style={{ color: "#d4af37", fontSize: 24, fontWeight: 1000, lineHeight: 1 }}>{stat.value}</div>
+            <div style={{ color: "#6e6e73", fontSize: 11, fontWeight: 900, textTransform: "uppercase", marginTop: 6 }}>{stat.label}</div>
+          </div>
+        ))}
+      </div>
+
+      <MobileSectionTitle>Quick Actions</MobileSectionTitle>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }}>
+        <MobileAction label="🎤 Interviews" onClick={() => go("/interviews")} />
+        <MobileAction label="🎨 Paint Vote" onClick={() => go("/paint-scheme-vote")} />
+        <MobileAction label="💬 Messages" onClick={() => go("/message-center")} secondary />
+        <MobileAction label="📺 Streams" onClick={() => go("/streams")} secondary />
+      </div>
+
+      <MobileSectionTitle>Recent Results</MobileSectionTitle>
+      {driverResults.length === 0 ? (
+        <MobileCard>
+          <div style={{ color: "#6e6e73" }}>No recent results found for this driver yet.</div>
+        </MobileCard>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {driverResults.map(({ race, result }) => (
+            <div key={`${race.raceName}-${result.driverId}-${result.number}`} style={{ background: "#111827", border: "1px solid #263244", borderRadius: 18, padding: 14, display: "grid", gridTemplateColumns: "1fr auto", gap: 10, alignItems: "center" }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontWeight: 1000, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{race.raceName || race.name || "Race"}</div>
+                <div style={{ color: "#6e6e73", fontSize: 12, marginTop: 4 }}>
+                  {Number(result.totalRacePoints || 0)} pts{result.fastestLap ? " • Fastest Lap" : ""}{result.dnf ? " • DNF" : ""}
+                </div>
+              </div>
+              <div style={{ background: "#d4af37", color: "#111", borderRadius: 14, minWidth: 54, padding: "9px 10px", textAlign: "center", fontWeight: 1000 }}>
+                P{result.finishPos || result.finish || "—"}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <MobileSectionTitle>Driver Portal</MobileSectionTitle>
+      <MobileCard>
+        <div style={{ color: "#6e6e73", fontSize: 13, lineHeight: 1.45, marginBottom: 12 }}>
+          Full profile tools are below. Driver password requirements and existing desktop functionality are unchanged.
+        </div>
+        <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", paddingBottom: 4 }}>
+          <div style={{ minWidth: 360 }}>
+            <DriverProfilePage seasons={seasons} activeSeason={activeSeason} tracks={tracks} arcaDrivers={activeSeason?.arcaDrivers || arcaDrivers} arcaTracks={arcaTracks} />
+          </div>
+        </div>
+      </MobileCard>
+    </div>
+  );
+}
+function MobileTeamRow({ team, index }) { return <div style={mobileSmallRowStyle}><strong>{index + 1}. {getTeamIdentifier(team.team || team.name)}</strong><span>{team.points || 0} pts</span></div>; }
+function MobileManufacturerRow({ manufacturer, index }) { return <div style={mobileSmallRowStyle}><strong>{index + 1}. {manufacturer.manufacturer || manufacturer.name}</strong><span>{manufacturer.points || 0} pts</span></div>; }
+function MobileRaceCard({ race }) { return <MobileCard><div style={mobileKickerStyle}>Next Race</div><h2 style={{ margin: "4px 0" }}>{race.name || race.track || "Race"}</h2><p style={{ color: "#6e6e73", margin: 0 }}>{race.date || "Date TBA"} • Qualifying 9:15 PM • Race 9:30 PM</p></MobileCard>; }
+
+
+
+const mobileStreamHeroCardStyle = { background: "linear-gradient(135deg, #111827 0%, #070b10 100%)", border: "1px solid rgba(212,175,55,0.38)", borderRadius: 24, padding: 18, marginBottom: 14, boxShadow: "0 18px 42px rgba(0,0,0,0.36)" };
+const mobileLivePillStyle = { background: "#dc2626", color: "white", borderRadius: 999, padding: "6px 9px", fontSize: 11, fontWeight: 1000, letterSpacing: 0.7 };
+const mobileLivePillSmallStyle = { background: "#dc2626", color: "white", borderRadius: 999, padding: "4px 7px", fontSize: 10, fontWeight: 1000, letterSpacing: 0.5 };
+const mobileStreamButtonGridStyle = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 };
+const mobileTwitchButtonStyle = { background: "#9146ff", color: "white", border: "none", borderRadius: 14, padding: "13px 12px", fontWeight: 1000, cursor: "pointer" };
+const mobileYoutubeButtonStyle = { background: "#ff0033", color: "white", border: "none", borderRadius: 14, padding: "13px 12px", fontWeight: 1000, cursor: "pointer" };
+const mobileStreamFilterBarStyle = { display: "flex", gap: 8, overflowX: "auto", WebkitOverflowScrolling: "touch", padding: "2px 2px 12px", marginBottom: 4 };
+const mobileStreamFilterChipStyle = { flex: "0 0 auto", border: "1px solid #263244", borderRadius: 999, padding: "10px 13px", fontSize: 13, fontWeight: 1000, cursor: "pointer" };
+const mobileStreamListStyle = { display: "grid", gap: 12, marginBottom: 14 };
+const mobileStreamCardStyle = { background: "#101722", border: "1px solid #263244", borderRadius: 20, padding: 14, display: "flex", gap: 13, alignItems: "center", boxShadow: "0 12px 30px rgba(0,0,0,0.24)" };
+const mobileStreamNumberStyle = { width: 54, height: 54, borderRadius: 18, background: "linear-gradient(135deg, #d4af37, #7c5f12)", color: "#111", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 1000, flex: "0 0 auto", fontSize: 15, boxShadow: "0 10px 20px rgba(212,175,55,0.12)" };
+const mobileStreamLinksStyle = { display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" };
+const mobileMiniTwitchButtonStyle = { background: "rgba(145,70,255,0.18)", color: "#d8c7ff", border: "1px solid rgba(145,70,255,0.48)", borderRadius: 999, padding: "8px 11px", fontSize: 12, fontWeight: 1000, cursor: "pointer" };
+const mobileMiniYoutubeButtonStyle = { background: "rgba(255,0,51,0.16)", color: "#fecdd3", border: "1px solid rgba(255,0,51,0.45)", borderRadius: 999, padding: "8px 11px", fontSize: 12, fontWeight: 1000, cursor: "pointer" };
+
+const mobileFeatureGroupStyle = { marginTop: 12 };
+const mobileFeatureGridStyle = { display: "grid", gridTemplateColumns: "1fr", gap: 10 };
+const mobileFeatureButtonStyle = { width: "100%", background: "linear-gradient(135deg, #101827 0%, #0c111a 100%)", color: "#ffffff", border: "1px solid #263244", borderRadius: 18, padding: "14px 14px", display: "grid", gridTemplateColumns: "42px 1fr", gap: 12, alignItems: "center", textAlign: "left", cursor: "pointer", boxShadow: "0 12px 30px rgba(0,0,0,0.22)" };
+const mobileFeatureIconStyle = { width: 42, height: 42, borderRadius: 14, background: "rgba(212,175,55,0.14)", border: "1px solid rgba(212,175,55,0.24)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 21 };
+const mobileFeatureLabelStyle = { display: "block", fontSize: 15, fontWeight: 1000, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" };
+const mobileFeatureDescStyle = { display: "block", marginTop: 3, color: "#9ca8ba", fontSize: 12, lineHeight: 1.35 };
+const mobileNewsMastheadStyle = { background: "linear-gradient(180deg, rgba(255,255,255,0.90), rgba(255,255,255,0.62))", border: "1px solid rgba(255,255,255,0.78)", borderRadius: 24, padding: "22px 18px", marginBottom: 14, boxShadow: "0 20px 55px rgba(15,23,42,0.10)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)" };
+const mobileNewsMastheadKickerStyle = { color: "#9a5a00", fontSize: 11, fontWeight: 1000, letterSpacing: 1.8, textTransform: "uppercase", marginBottom: 8 };
+const mobileNewsMastheadTitleStyle = { margin: 0, fontSize: 32, lineHeight: 0.95, fontWeight: 1000, letterSpacing: -1.2, color: "#1d1d1f" };
+const mobileNewsMastheadSubStyle = { margin: "10px 0 0", color: "#6e6e73", fontSize: 14, lineHeight: 1.45, fontWeight: 600 };
+const mobileNewsMastheadActionsStyle = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 16 };
+const mobileNewsPrimaryButtonStyle = { background: "linear-gradient(135deg, #007aff 0%, #5856d6 100%)", color: "#ffffff", border: "none", borderRadius: 999, padding: "12px 14px", fontWeight: 1000, fontSize: 14, cursor: "pointer", fontFamily: mobileAppFont, boxShadow: "0 12px 26px rgba(0,122,255,0.24)" };
+const mobileNewsGhostButtonStyle = { background: "rgba(255,255,255,0.72)", color: "#1d1d1f", border: "1px solid rgba(0,0,0,0.10)", borderRadius: 999, padding: "12px 14px", fontWeight: 1000, fontSize: 14, cursor: "pointer", fontFamily: mobileAppFont };
+const mobileNewsFeedStyle = { display: "flex", flexDirection: "column", gap: 14, paddingBottom: 18 };
+const mobileNewsLeadCardStyle = { background: "linear-gradient(180deg, rgba(255,255,255,0.90), rgba(255,255,255,0.62))", border: "1px solid rgba(255,255,255,0.78)", borderRadius: 24, overflow: "hidden", marginBottom: 18, boxShadow: "0 20px 55px rgba(15,23,42,0.10)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)" };
+const mobileNewsLeadImageStyle = { width: "100%", height: 220, objectFit: "cover", display: "block", background: "rgba(0,0,0,0.04)" };
+const mobileNewsLeadImageFallbackStyle = { height: 135, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 48, background: "linear-gradient(135deg, rgba(255,159,10,0.14), rgba(255,255,255,0.6))" };
+const mobileNewsLeadContentStyle = { padding: "16px 16px 18px" };
+const mobileNewsLeadTitleStyle = { margin: "8px 0 10px", fontSize: 27, lineHeight: 1.02, fontWeight: 1000, letterSpacing: -0.8, color: "#1d1d1f" };
+const mobileNewsLeadExcerptStyle = { margin: "0 0 12px", color: "#3a3a3c", fontSize: 15, lineHeight: 1.5, fontWeight: 600 };
+const mobileNewsArticleStyle = { background: "rgba(255,255,255,0.88)", border: "1px solid rgba(0,0,0,0.06)", borderRadius: 20, overflow: "hidden", boxShadow: "0 14px 34px rgba(15,23,42,0.08)" };
+const mobileNewsCardImageStyle = { width: "100%", height: 150, objectFit: "cover", display: "block", background: "rgba(0,0,0,0.04)" };
+const mobileNewsStoryContentStyle = { padding: "15px 15px 16px" };
+const mobileNewsMetaRowStyle = { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, color: "#6e6e73", fontSize: 12, fontWeight: 900, marginBottom: 8 };
+const mobileNewsCategoryPillStyle = { background: "rgba(255,149,0,0.12)", border: "1px solid rgba(255,149,0,0.30)", color: "#9a5a00", borderRadius: 999, padding: "5px 9px", textTransform: "uppercase", letterSpacing: 0.75, fontSize: 10, fontWeight: 1000, maxWidth: "58%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" };
+const mobileNewsTitleStyle = { margin: "0 0 7px", fontSize: 20, lineHeight: 1.12, fontWeight: 1000, letterSpacing: -0.35, color: "#1d1d1f" };
+const mobileNewsBylineStyle = { color: "#9a5a00", fontSize: 11, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 0.75, marginBottom: 9 };
+const mobileNewsExcerptStyle = { margin: 0, color: "#3a3a3c", fontSize: 14, lineHeight: 1.48, fontWeight: 600 };
+const mobileNewsArchiveShellStyle = { overflowX: "auto", WebkitOverflowScrolling: "touch", borderRadius: 18, border: "1px solid rgba(0,0,0,0.06)", background: "rgba(255,255,255,0.88)" };
+
+const mobileAppStyle = { minHeight: "100vh", background: "#f7f7f5", color: "#111216", paddingBottom: 88, fontFamily: mobileAppFont };
+const mobileTopbarStyle = { position: "sticky", top: 0, zIndex: 20, background: "#111216", color: "#fff", borderBottom: "3px solid #d71920", padding: "10px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 };
+const mobileLogoButtonStyle = { width: 40, height: 40, borderRadius: 2, border: "none", background: "transparent", color: "#fff", fontSize: 20 };
+const mobileBellStyle = { width: 40, height: 40, borderRadius: 2, border: "1px solid rgba(255,255,255,.35)", background: "transparent", color: "#fff", fontSize: 18 };
+const mobileContentStyle = { padding: "0 16px 36px" };
+const mobileHeroStyle = { background: "#f7f7f5", borderRadius: 0, padding: "32px 0 28px", marginBottom: 22, border: 0, borderBottom: "2px solid #111216", boxShadow: "none" };
+const mobileKickerStyle = { color: "#d71920", fontSize: 10, fontWeight: 950, textTransform: "uppercase", letterSpacing: 2 };
+const mobileCardStyle = { background: "transparent", border: 0, borderTop: "1px solid #d6d7d9", borderRadius: 0, padding: "20px 0", marginBottom: 8, boxShadow: "none" };
+const mobileDriverCardStyle = { width: "100%", background: "transparent", color: "#111216", border: 0, borderBottom: "1px solid #d6d7d9", borderRadius: 0, padding: "15px 0", marginBottom: 0, display: "grid", gridTemplateColumns: "38px 1fr auto", alignItems: "center", gap: 10, textAlign: "left", boxShadow: "none" };
+const mobileRankStyle = { width: 34, height: 34, background: "#111216", color: "#fff", borderRadius: 2, display: "grid", placeItems: "center", fontWeight: 1000 };
+const mobilePointsStyle = { fontWeight: 1000, fontSize: 19, textAlign: "right", color: "#111216" };
+const mobileBottomNavStyle = { position: "fixed", left: 0, right: 0, bottom: 0, background: "#111216", borderTop: "2px solid #d71920", display: "grid", gridTemplateColumns: "repeat(5, 1fr)", padding: "7px 4px calc(7px + env(safe-area-inset-bottom, 0px))", zIndex: 30 };
+const mobileDesktopSwitchCardStyle = { marginTop: 35, marginBottom: 84, background: "transparent", border: 0, borderTop: "1px solid #d6d7d9", borderRadius: 0, padding: "20px 0", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, boxShadow: "none" };
+const mobileDesktopSwitchButtonStyle = { border: "1px solid #111216", borderRadius: 2, padding: "11px 13px", background: "transparent", color: "#111216", fontWeight: 900, fontSize: 11, whiteSpace: "nowrap", cursor: "pointer" };
+const mobileNavButtonStyle = { background: "transparent", border: "none", display: "flex", flexDirection: "column", alignItems: "center", gap: 2, minHeight: 50, fontWeight: 850, color: "#b8b9bd" };
+const mobileActionStyle = { width: "100%", minHeight: 48, borderRadius: 2, border: "1px solid #111216", padding: "12px 14px", fontWeight: 900, marginBottom: 10, fontFamily: mobileAppFont };
+const mobileStatGridStyle = { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 0, marginBottom: 16, borderTop: "1px solid #d6d7d9" };
+const mobileStatCardStyle = { background: "transparent", border: 0, borderBottom: "1px solid #d6d7d9", borderRadius: 0, padding: "16px 10px", boxShadow: "none" };
+const mobileSmallRowStyle = { background: "transparent", border: 0, borderBottom: "1px solid #d6d7d9", borderRadius: 0, padding: "14px 0", marginBottom: 0, display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", boxShadow: "none" };
+
+const mobileDataFrameStyle = { width: "100%", maxWidth: "100%", overflowX: "hidden", borderRadius: 18 };
+const mobileDataFrameCss = `
+  .bcl-mobile-data-frame, .bcl-mobile-data-frame * { box-sizing: border-box; }
+  .bcl-mobile-data-frame { width: 100%; max-width: 100%; overflow-x: hidden; }
+  .bcl-mobile-data-frame > div { max-width: 100% !important; width: 100% !important; }
+  .bcl-mobile-data-frame table { width: 100% !important; min-width: 680px; }
+  .bcl-mobile-data-frame input,
+  .bcl-mobile-data-frame select,
+  .bcl-mobile-data-frame textarea,
+  .bcl-mobile-data-frame button { min-height: 44px; font-size: 16px; }
+  .bcl-mobile-data-frame img, .bcl-mobile-data-frame video, .bcl-mobile-data-frame iframe { max-width: 100%; }
+  .bcl-mobile-data-frame [style*="max-width: 1400px"],
+  .bcl-mobile-data-frame [style*="max-width:1400px"] { max-width: 100% !important; }
+  .bcl-mobile-data-frame [style*="padding: 20px"],
+  .bcl-mobile-data-frame [style*="padding:20px"] { padding: 12px !important; }
+  .bcl-mobile-data-frame [style*="overflow-x: auto"],
+  .bcl-mobile-data-frame [style*="overflow-x:auto"] { -webkit-overflow-scrolling: touch; }
+  @media (max-width: 768px) {
+    .bcl-mobile-data-frame h1 { font-size: 28px !important; line-height: 1.05 !important; }
+    .bcl-mobile-data-frame h2 { font-size: 22px !important; }
+    .bcl-mobile-data-frame h3 { font-size: 18px !important; }
+    .bcl-mobile-data-frame p, .bcl-mobile-data-frame div, .bcl-mobile-data-frame td, .bcl-mobile-data-frame th { line-height: 1.35; }
+  }
+`;
+
+
+const mobileNewsHeadlineListStyle = { display: "grid", gap: 12, paddingBottom: 14 };
+const mobileNewsHeadlineButtonStyle = { width: "100%", textAlign: "left", background: "rgba(255,255,255,0.88)", color: "#1d1d1f", border: "1px solid rgba(0,0,0,0.06)", borderRadius: 18, padding: 14, cursor: "pointer", boxShadow: "0 14px 34px rgba(15,23,42,0.08)", fontFamily: mobileAppFont };
+const mobileNewsHeadlineLeadButtonStyle = { ...mobileNewsHeadlineButtonStyle, padding: 0, overflow: "hidden", borderColor: "rgba(255,159,10,0.30)", background: "linear-gradient(180deg, rgba(255,255,255,0.92), rgba(255,255,255,0.66))" };
+const mobileNewsHeadlineLeadImageStyle = { width: "100%", height: 190, objectFit: "cover", display: "block", borderBottom: "1px solid rgba(0,0,0,0.06)" };
+const mobileNewsHeadlineLeadTitleStyle = { margin: "10px 14px 6px", fontSize: 24, lineHeight: 1.05, fontWeight: 1000, letterSpacing: -0.4, color: "#1d1d1f" };
+const mobileNewsHeadlineTitleStyle = { margin: "8px 0 6px", fontSize: 18, lineHeight: 1.12, fontWeight: 1000, letterSpacing: -0.2, color: "#1d1d1f" };
+const mobileNewsHeadlineExcerptStyle = { margin: "0 0 8px", color: "#6e6e73", fontSize: 13, lineHeight: 1.45, fontWeight: 600 };
+const mobileNewsReadMoreStyle = { color: "#0057d9", fontSize: 12, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 0.6 };
+const mobileNewsBackButtonStyle = { width: "100%", background: "rgba(255,255,255,0.8)", color: "#1d1d1f", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 999, padding: "12px 14px", fontWeight: 1000, marginBottom: 12, cursor: "pointer", textAlign: "left", fontFamily: mobileAppFont };
+const mobileNewsDetailCardStyle = { background: "linear-gradient(180deg, rgba(255,255,255,0.90), rgba(255,255,255,0.62))", border: "1px solid rgba(255,255,255,0.78)", borderRadius: 22, padding: 16, boxShadow: "0 20px 55px rgba(15,23,42,0.10)", marginBottom: 22, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)" };
+const mobileNewsDetailTitleStyle = { margin: "10px 0 8px", fontSize: 28, lineHeight: 1.05, fontWeight: 1000, letterSpacing: -0.5, color: "#1d1d1f" };
+const mobileNewsDetailImageStyle = { width: "100%", borderRadius: 18, border: "1px solid rgba(0,0,0,0.06)", objectFit: "cover", maxHeight: 360 };
+const mobileNewsDetailImageFallbackStyle = { height: 190, borderRadius: 18, background: "linear-gradient(135deg, rgba(255,159,10,0.14), rgba(255,255,255,0.7))", border: "1px solid rgba(0,0,0,0.06)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 54 };
+const mobileNewsDetailBodyStyle = { whiteSpace: "pre-wrap", color: "#3a3a3c", fontSize: 16, lineHeight: 1.65, fontWeight: 600 };
+
+
+const NASCAR26_RELEASE_DATE = "2026-09-15T00:00:00-04:00";
+
+function getCountdownParts(targetDate, now = new Date()) {
+  const target = targetDate instanceof Date ? targetDate : new Date(targetDate);
+  const diffMs = target.getTime() - now.getTime();
+  if (!Number.isFinite(diffMs)) return null;
+  if (diffMs <= 0) return { expired: true, days: 0, hours: 0 };
+  const totalHours = Math.floor(diffMs / (1000 * 60 * 60));
+  return {
+    expired: false,
+    days: Math.floor(totalHours / 24),
+    hours: totalHours % 24,
+  };
+}
+
+function formatMiniCountdown(parts) {
+  if (!parts) return "—";
+  if (parts.expired) return "AVAILABLE";
+  if (parts.days > 0) return `${parts.days}d ${parts.hours}h`;
+  return `${parts.hours}h`;
+}
+
+function LeagueStatusWidget({ tracks = [], seasonName = "", mobile = false }) {
+  const [now, setNow] = useState(() => new Date());
+  const [expanded, setExpanded] = useState(false);
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const upcomingRace = getUpcomingRaceByDate(tracks || []);
+  const raceTarget = upcomingRace?.date ? `${String(upcomingRace.date).slice(0, 10)}T21:30:00-04:00` : null;
+  const nascar26 = getCountdownParts(NASCAR26_RELEASE_DATE, now);
+  const raceCountdown = raceTarget ? getCountdownParts(raceTarget, now) : null;
+  const releasePlusTwoDays = new Date(new Date(NASCAR26_RELEASE_DATE).getTime() + 48 * 60 * 60 * 1000);
+  const showNascar26 = now < releasePlusTwoDays;
+
+  if (!showNascar26 && !upcomingRace) return null;
+
+  const widgetStyle = {
+    position: "fixed",
+    right: mobile ? 10 : 12,
+    bottom: mobile ? 78 : 12,
+    zIndex: 99999,
+    width: expanded ? (mobile ? 205 : 230) : (mobile ? 148 : 172),
+    background: "rgba(10, 14, 20, 0.92)",
+    border: "1px solid rgba(212,175,55,0.32)",
+    borderRadius: 14,
+    padding: expanded ? (mobile ? "10px 11px" : "12px 13px") : (mobile ? "7px 8px" : "9px 10px"),
+    color: "white",
+    boxShadow: "0 14px 34px rgba(0,0,0,0.35)",
+    backdropFilter: "blur(8px)",
+    cursor: "pointer",
+    fontFamily: "Arial, sans-serif",
+    fontSize: mobile ? 10.5 : 12,
+    opacity: 0.88,
+  };
+
+  const rowStyle = { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, lineHeight: 1.25 };
+  const labelStyle = { opacity: 0.78, fontWeight: 800, whiteSpace: "nowrap" };
+  const valueStyle = { color: "#d4af37", fontWeight: 1000, whiteSpace: "nowrap" };
+
+  return (
+    <div
+      style={widgetStyle}
+      onClick={() => setExpanded((value) => !value)}
+      title="League status"
+      role="button"
+      tabIndex={0}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") setExpanded((value) => !value);
+      }}
+    >
+      {showNascar26 && (
+        <div style={rowStyle}>
+          <span style={labelStyle}>🏁 NASCAR 26</span>
+          <span style={valueStyle}>{formatMiniCountdown(nascar26)}</span>
+        </div>
+      )}
+      {upcomingRace && (
+        <div style={{ ...rowStyle, marginTop: showNascar26 ? 6 : 0 }}>
+          <span style={labelStyle}>🏎️ {upcomingRace.name}</span>
+          <span style={valueStyle}>{formatMiniCountdown(raceCountdown)}</span>
+        </div>
+      )}
+      {expanded && (
+        <div style={{ marginTop: 10, paddingTop: 9, borderTop: "1px solid rgba(255,255,255,0.12)", opacity: 0.86, lineHeight: 1.45 }}>
+          <div>Release target: September 2026</div>
+          {seasonName && <div>Season: {seasonName}</div>}
+          {upcomingRace && <div>Race start: Saturday 9:30 PM ET</div>}
+          <div style={{ marginTop: 4, fontSize: 11, opacity: 0.68 }}>Tap to collapse</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+function AppleSeriesPortalLanding() {
+  const [isReportingIssue, setIsReportingIssue] = useState(false);
+  const [installPromptEvent, setInstallPromptEvent] = useState(null);
+  const [isStandaloneApp, setIsStandaloneApp] = useState(false);
+  const [isIOSDevice, setIsIOSDevice] = useState(false);
+  const [showIOSInstallSteps, setShowIOSInstallSteps] = useState(false);
+  const [selectedInstallPlatform, setSelectedInstallPlatform] = useState(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    setIsStandaloneApp(
+      window.matchMedia?.("(display-mode: standalone)")?.matches ||
+      window.navigator?.standalone === true
+    );
+    setIsIOSDevice(/iphone|ipad|ipod/i.test(window.navigator.userAgent) && !window.MSStream);
+
+    function handleBeforeInstallPrompt(event) {
+      event.preventDefault();
+      setInstallPromptEvent(event);
+    }
+
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    return () => window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+  }, []);
+
+  async function handleInstallAppClick() {
+    if (installPromptEvent) {
+      installPromptEvent.prompt();
+      try {
+        await installPromptEvent.userChoice;
+      } finally {
+        setInstallPromptEvent(null);
+      }
+      return;
+    }
+    // iOS Safari (and any browser without native install support) can't be
+    // prompted programmatically — ask which platform they're on and show
+    // the matching manual steps.
+    setSelectedInstallPlatform(null);
+    setShowIOSInstallSteps(true);
+  }
+
+  const allLeagueDrivers = [
+    ...(defaultDrivers || []).map((driver) => ({
+      key: `cup-${driver.id || driver.number}`,
+      number: driver.number || "",
+      name: driver.name || "Unknown Driver",
+      seriesLabel: "Cup / Xfinity / Truck Rosters",
+    })),
+    ...(defaultArcaDrivers || []).map((driver) => ({
+      key: `arca-${driver.id || driver.number}`,
+      number: driver.number || "",
+      name: driver.name || "Unknown Driver",
+      seriesLabel: "ARCA Series",
+    })),
+  ];
+
+  const seriesCards = [
+    {
+      id: "cup",
+      title: "Cup Series",
+      eyebrow: "Premier Division",
+      route: "/standings",
+      image: ncsLogo,
+      accent: "#007aff",
+      gradient: "linear-gradient(135deg, rgba(0,122,255,0.92), rgba(10,132,255,0.55), rgba(0,0,0,0.82))",
+      status: "Live Season",
+      meta: "Standings • Teams • Race Center",
+    },
+    {
+      id: "xfinity",
+      title: "Xfinity Series",
+      eyebrow: "Development Division",
+      route: "/series/xfinity",
+      image: nxsLogo,
+      accent: "#a855f7",
+      gradient: "linear-gradient(135deg, rgba(168,85,247,0.92), rgba(236,72,153,0.48), rgba(0,0,0,0.82))",
+      status: "Series Portal",
+      meta: "Drivers • Teams • Join Requests",
+    },
+    {
+      id: "truck",
+      title: "Truck Series",
+      eyebrow: "Short Track Division",
+      route: "/series/truck",
+      image: ctsLogo,
+      accent: "#ff9500",
+      gradient: "linear-gradient(135deg, rgba(255,149,0,0.92), rgba(255,204,0,0.45), rgba(0,0,0,0.82))",
+      status: "Series Portal",
+      meta: "Schedule • Rosters • Media",
+    },
+    {
+      id: "arca",
+      title: "ARCA Series",
+      eyebrow: "Entry Division",
+      route: "/series/arca/standings",
+      image: amsLogo,
+      accent: "#ff3b30",
+      gradient: "linear-gradient(135deg, rgba(255,59,48,0.92), rgba(255,149,0,0.46), rgba(0,0,0,0.82))",
+      status: "Standings",
+      meta: "Drivers • Teams • Results",
+    },
+  ];
+
+  const openSeries = (route) => {
+    window.location.pathname = route;
+  };
+
+  return (
+    <div style={{
+      minHeight: "100vh",
+      background: "radial-gradient(circle at top left, rgba(255,255,255,0.95), rgba(245,245,247,0.94) 36%, rgba(229,229,234,0.98) 100%)",
+      color: "#1d1d1f",
+      padding: "clamp(18px, 4vw, 42px)",
+      boxSizing: "border-box",
+      fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif",
+    }}>
+      <div style={{ maxWidth: 1180, margin: "0 auto" }}>
+        <header style={{ marginBottom: 24 }}>
+          <div style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            gap: 10,
+            flexWrap: "wrap",
+            marginBottom: 22,
+          }}>
+            {!isStandaloneApp && (
+              <button
+                type="button"
+                onClick={handleInstallAppClick}
+                style={{
+                  border: "1px solid rgba(0,122,255,0.28)",
+                  borderRadius: 999,
+                  padding: "12px 16px",
+                  background: "rgba(0,122,255,0.10)",
+                  backdropFilter: "blur(16px)",
+                  WebkitBackdropFilter: "blur(16px)",
+                  color: "#0057d9",
+                  fontWeight: 900,
+                  cursor: "pointer",
+                  boxShadow: "0 14px 32px rgba(0,0,0,0.06)",
+                }}
+              >
+                📲 Download App
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => (window.location.pathname = "/issues")}
+              style={{
+                border: "1px solid rgba(255,59,48,0.22)",
+                borderRadius: 999,
+                padding: "12px 16px",
+                background: "rgba(255,59,48,0.10)",
+                backdropFilter: "blur(16px)",
+                WebkitBackdropFilter: "blur(16px)",
+                color: "#c62d24",
+                fontWeight: 900,
+                cursor: "pointer",
+                boxShadow: "0 14px 32px rgba(0,0,0,0.06)",
+              }}
+            >
+              🐛 Report Issue
+            </button>
+            <button
+              type="button"
+              onClick={() => (window.location.pathname = "/admin-login")}
+              style={{
+                border: "1px solid rgba(0,0,0,0.08)",
+                borderRadius: 999,
+                padding: "12px 16px",
+                background: "rgba(255,255,255,0.72)",
+                backdropFilter: "blur(16px)",
+                WebkitBackdropFilter: "blur(16px)",
+                color: "#1d1d1f",
+                fontWeight: 900,
+                cursor: "pointer",
+                boxShadow: "0 14px 32px rgba(0,0,0,0.08)",
+              }}
+            >
+              Admin Portal
+            </button>
+          </div>
+
+          <div style={{ textAlign: "center", padding: "10px 0 8px" }}>
+            <img
+              src={logo}
+              alt="Budweiser Racing League"
+              style={{
+                width: "min(620px, 88vw)",
+                maxHeight: 260,
+                objectFit: "contain",
+                display: "block",
+                margin: "0 auto",
+                filter: "drop-shadow(0 22px 38px rgba(0,0,0,0.16))",
+              }}
+            />
+            <h1 style={{
+              margin: "18px 0 4px",
+              fontSize: "clamp(34px, 6vw, 68px)",
+              lineHeight: 0.98,
+              letterSpacing: "-0.055em",
+              color: "#1d1d1f",
+            }}>
+              Choose Your Series
+            </h1>
+            <p style={{
+              margin: "10px auto 0",
+              color: "rgba(29,29,31,0.60)",
+              fontSize: "clamp(13px, 2vw, 16px)",
+              fontWeight: 800,
+              letterSpacing: "0.04em",
+              textTransform: "uppercase",
+            }}>
+              Budweiser Racing League
+            </p>
+          </div>
+        </header>
+
+        <div style={{
+          borderRadius: 30,
+          padding: "18px",
+          background: "rgba(255,255,255,0.52)",
+          border: "1px solid rgba(255,255,255,0.72)",
+          boxShadow: "0 24px 70px rgba(0,0,0,0.10)",
+          backdropFilter: "blur(22px)",
+          WebkitBackdropFilter: "blur(22px)",
+        }}>
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
+            gap: 16,
+          }}>
+            {seriesCards.map((series) => (
+              <button
+                key={series.id}
+                type="button"
+                onClick={() => openSeries(series.route)}
+                aria-label={`Open ${series.title}`}
+                style={{
+                  minHeight: 260,
+                  border: 0,
+                  borderRadius: 28,
+                  padding: 0,
+                  overflow: "hidden",
+                  position: "relative",
+                  cursor: "pointer",
+                  background: "transparent",
+                  boxShadow: "0 18px 42px rgba(0,0,0,0.10)",
+                  transform: "translateZ(0)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <img
+                  src={series.image}
+                  alt={series.title}
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    display: "block",
+                    objectFit: "contain",
+                    background: "transparent",
+                  }}
+                />
+                <span style={{
+                  position: "absolute",
+                  inset: 0,
+                  borderRadius: 28,
+                  boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.30), inset 0 1px 0 rgba(255,255,255,0.45)",
+                  pointerEvents: "none",
+                }} />
+              </button>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => openSeries("/community-events")}
+            aria-label="Open Community Events"
+            style={{
+              width: "100%",
+              marginTop: 16,
+              minHeight: 92,
+              border: 0,
+              borderRadius: 24,
+              padding: "18px 24px",
+              cursor: "pointer",
+              background: "linear-gradient(135deg, #1d1d1f 0%, #3a3a3c 60%, #c8102e 140%)",
+              color: "white",
+              boxShadow: "0 18px 42px rgba(0,0,0,0.16)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 14,
+              fontSize: "clamp(20px, 3vw, 30px)",
+              fontWeight: 1000,
+              letterSpacing: "-0.025em",
+            }}
+          >
+            <span style={{ fontSize: "1.15em" }}>🏁</span>
+            Community Events
+          </button>
+        </div>
+      </div>
+
+      <ReportIssueModal
+        isOpen={isReportingIssue}
+        onClose={() => setIsReportingIssue(false)}
+        driverNumber=""
+        driverName="Guest User"
+        series="cup"
+        drivers={allLeagueDrivers}
+      />
+
+      {showIOSInstallSteps && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(29,29,31,0.42)",
+            backdropFilter: "blur(6px)",
+            WebkitBackdropFilter: "blur(6px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+            padding: 20,
+          }}
+        >
+          <div
+            style={{
+              background: "linear-gradient(180deg, rgba(255,255,255,0.94), rgba(248,250,252,0.92))",
+              border: "1px solid rgba(255,255,255,0.8)",
+              borderRadius: 26,
+              padding: "clamp(20px, 4vw, 28px)",
+              maxWidth: 420,
+              width: "100%",
+              boxShadow: "0 30px 90px rgba(0,0,0,0.28)",
+              color: "#1d1d1f",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <div style={{ fontSize: 19, fontWeight: 900 }}>📲 Add to Home Screen</div>
+              <button
+                type="button"
+                onClick={() => { setShowIOSInstallSteps(false); setSelectedInstallPlatform(null); }}
+                style={{ background: "rgba(0,0,0,0.05)", border: "none", borderRadius: 999, width: 32, height: 32, color: "#1d1d1f", fontSize: 18, cursor: "pointer" }}
+              >
+                ×
+              </button>
+            </div>
+
+            {!selectedInstallPlatform ? (
+              <>
+                <div style={{ color: "#6e6e73", fontWeight: 700, marginBottom: 16, fontSize: 14 }}>
+                  Which phone are you using?
+                </div>
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedInstallPlatform("ios")}
+                    style={{
+                      flex: 1,
+                      padding: "16px 12px",
+                      borderRadius: 16,
+                      border: isIOSDevice ? "2px solid #007aff" : "1px solid rgba(0,0,0,0.1)",
+                      background: isIOSDevice ? "rgba(0,122,255,0.08)" : "rgba(0,0,0,0.03)",
+                      color: "#1d1d1f",
+                      fontWeight: 800,
+                      cursor: "pointer",
+                      textAlign: "center",
+                    }}
+                  >
+                    <div style={{ fontSize: 26, marginBottom: 6 }}>📱</div>
+                    iPhone (iOS)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedInstallPlatform("android")}
+                    style={{
+                      flex: 1,
+                      padding: "16px 12px",
+                      borderRadius: 16,
+                      border: !isIOSDevice ? "2px solid #007aff" : "1px solid rgba(0,0,0,0.1)",
+                      background: !isIOSDevice ? "rgba(0,122,255,0.08)" : "rgba(0,0,0,0.03)",
+                      color: "#1d1d1f",
+                      fontWeight: 800,
+                      cursor: "pointer",
+                      textAlign: "center",
+                    }}
+                  >
+                    <div style={{ fontSize: 26, marginBottom: 6 }}>🤖</div>
+                    Android
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setSelectedInstallPlatform(null)}
+                  style={{ background: "none", border: "none", color: "#0057d9", fontWeight: 800, fontSize: 13, cursor: "pointer", padding: 0, marginBottom: 14 }}
+                >
+                  ← Choose a different device
+                </button>
+                {selectedInstallPlatform === "ios" ? (
+                  <div style={{ lineHeight: 1.7, color: "#3a3a3c" }}>
+                    1. Tap the <strong>Share</strong> button <span style={{ color: "#6e6e73" }}>(the square with an arrow, in Safari's toolbar)</span><br />
+                    2. Scroll down and tap <strong>Add to Home Screen</strong><br />
+                    3. Tap <strong>Add</strong> in the top right
+                  </div>
+                ) : (
+                  <div style={{ lineHeight: 1.7, color: "#3a3a3c" }}>
+                    1. Tap the <strong>⋮</strong> menu button <span style={{ color: "#6e6e73" }}>(three dots, top right of Chrome)</span><br />
+                    2. Tap <strong>Install app</strong> or <strong>Add to Home screen</strong><br />
+                    3. Tap <strong>Install</strong> (or <strong>Add</strong>) to confirm
+                    <div style={{ marginTop: 10, fontSize: 12.5, color: "#6e6e73" }}>
+                      Using a different Android browser? Look for the same option under its menu — it may be called "Install app," "Add to Home screen," or "Add shortcut to Home screen."
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function App() {
+  useEffect(() => {
+    const session = getLeagueSession();
+    const teamName = session?.team || session?.teamName || "";
+    const brand = getTeamBranding(teamName);
+    const accent = brand?.accent || "#d71920";
+    const dark = brand?.dark || "#3b0b0d";
+    const hex = String(accent).replace("#", "");
+    const fullHex = hex.length === 3 ? hex.split("").map((c) => c + c).join("") : hex;
+    const rgb = /^[0-9a-fA-F]{6}$/.test(fullHex)
+      ? [0, 2, 4].map((i) => parseInt(fullHex.slice(i, i + 2), 16)).join(",")
+      : "215,25,32";
+    document.documentElement.style.setProperty("--brl-team", accent);
+    document.documentElement.style.setProperty("--brl-team-dark", dark);
+    document.documentElement.style.setProperty("--brl-team-rgb", rgb);
+    document.body.dataset.brlTeam = brand?.logo || teamName || "BRL";
+    return () => { delete document.body.dataset.brlTeam; };
+  }, []);
+  useEffect(() => {
+    // syncCruiserNumberAndNumberOwnership();
+  }, []);
+
+  const [seasons, setSeasons] = useState([]);
+  const [customTeamBranding, setCustomTeamBranding] = useState({});
+  const [openAppealCount, setOpenAppealCount] = useState(0);
+  const [openStoryCount, setOpenStoryCount] = useState(0);
+  const [activeSeasonId, setActiveSeasonId] = useState("");
+  const [tracks, setTracks] = useState(defaultRaces);
+  const [arcaSeasons, setArcaSeasons] = useState([]);
+  const [arcaRaces, setArcaRaces] = useState(defaultArcaRaces);
+  const [arcaTracks, setArcaTracks] = useState(defaultArcaTracks);
+  const [arcaDrivers, setArcaDrivers] = useState(defaultArcaDrivers);
+  const [arcaSelectedRace, setArcaSelectedRace] = useState(null);
+  const backupFileInputRef = useRef(null);
+  const [isHydrated, setIsHydrated] = useState(false);
+  const loadedStateSignatureRef = useRef("");
+  const saveInFlightRef = useRef(false);
+  const [viewMode, setViewMode] = useState("admin");
+  const [editingRaceName, setEditingRaceName] = useState(null);
+  const [newSeasonName, setNewSeasonName] = useState("");
+  const [renameSeasonName, setRenameSeasonName] = useState("");
+  const [newDriverName, setNewDriverName] = useState("");
+  const [newDriverNumber, setNewDriverNumber] = useState("");
+  const [newDriverManufacturer, setNewDriverManufacturer] = useState("");
+  const [newDriverTeam, setNewDriverTeam] = useState("");
+  const [editingDriverId, setEditingDriverId] = useState(null);
+  const [editDriverForm, setEditDriverForm] = useState({ name: "", number: "", manufacturer: "", team: "" });
+  const [dnfReasons, setDnfReasons] = useState({});
+  const [newTrackName, setNewTrackName] = useState("");
+  const [newTrackStageCount, setNewTrackStageCount] = useState(2);
+  const [pendingDrivers, setPendingDrivers] = useState([]);
+  const [featuredVideo, setFeaturedVideo] = useState(null);
+  const [manualWatchPicks, setManualWatchPicks] = useState([]);
+  const [ownerAssignments, setOwnerAssignments] = useState([]);
+  const [selectedOwnerTeam, setSelectedOwnerTeam] = useState("");
+  const [selectedOwnerDriverNumber, setSelectedOwnerDriverNumber] = useState("");
+  const [ownerAssignmentMessage, setOwnerAssignmentMessage] = useState("");
+  const [ownerAssignmentError, setOwnerAssignmentError] = useState("");
+  const [watchDriverId, setWatchDriverId] = useState("");
+  const [watchReason, setWatchReason] = useState("");
+  const [watchBadge, setWatchBadge] = useState("DIRECTOR PICK");
+  const [watchDisplayOrder, setWatchDisplayOrder] = useState("1");
+  const [watchSaving, setWatchSaving] = useState(false);
+  const [videoTitle, setVideoTitle] = useState("");
+  const [videoDescription, setVideoDescription] = useState("");
+  const [videoUploading, setVideoUploading] = useState(false);
+  const [driverAccessCodes, setDriverAccessCodes] = useState([]);
+  const [driverRecruitingInterest, setDriverRecruitingInterest] = useState([]);
+  const [tickerMessages, setTickerMessages] = useState([]);
+  const [tickerForm, setTickerForm] = useState({
+    message: "",
+    category: "NEWS",
+    page: "standings",
+    sort_order: "0",
+    active: true,
+    pinned: false,
+    expires_at: "",
+  });
+  const [editingTickerId, setEditingTickerId] = useState(null);
+  const [tickerStatus, setTickerStatus] = useState("");
+  const [tickerError, setTickerError] = useState("");
+  const [paintPayoutRace, setPaintPayoutRace] = useState("");
+  const [paintPayoutRows, setPaintPayoutRows] = useState([]);
+  const [paintPayoutStatus, setPaintPayoutStatus] = useState("");
+  const [paintPayoutError, setPaintPayoutError] = useState("");
+  const [paintPayoutLoading, setPaintPayoutLoading] = useState(false);
+  const [paymentComplianceRows, setPaymentComplianceRows] = useState([]);
+  const [paymentComplianceInterviews, setPaymentComplianceInterviews] = useState([]);
+  const [paymentComplianceUploads, setPaymentComplianceUploads] = useState([]);
+  const [paymentComplianceOverrides, setPaymentComplianceOverrides] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(PAYMENT_COMPLIANCE_OVERRIDE_KEY) || "[]"); }
+    catch { return []; }
+  });
+  const [paymentComplianceLoading, setPaymentComplianceLoading] = useState(false);
+  const [paymentComplianceStatus, setPaymentComplianceStatus] = useState("");
+  const [paymentComplianceError, setPaymentComplianceError] = useState("");
+  const [ownerAccessCodes, setOwnerAccessCodes] = useState(() => {
+    try {
+      const saved = localStorage.getItem("ownerPortalAccessCodes");
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+  const [discordInviteUrl, setDiscordInviteUrl] = useState(() => getDiscordSettings().inviteUrl);
+  const [discordAnnouncement, setDiscordAnnouncement] = useState(() => getDiscordSettings().announcement);
+  const [discordRulesText, setDiscordRulesText] = useState(() => getDiscordSettings().rulesText);
+  const videoFileInputRef = useRef(null);
+  const importFileRef = useRef(null);
+  const rawPath = window.location.pathname;
+  const path = rawPath.toLowerCase();
+  const isMobileViewport = useMobileViewport(768);
+  const forceDesktop = typeof document !== "undefined" && document.cookie.includes("bcl-force-desktop=1");
+
+  useEffect(() => {
+    if (typeof document === "undefined") return undefined;
+    const existing = document.getElementById("bcl-return-mobile-button");
+    if (!isMobileViewport || !forceDesktop) {
+      if (existing) existing.remove();
+      return undefined;
+    }
+
+    const button = existing || document.createElement("button");
+    button.id = "bcl-return-mobile-button";
+    button.type = "button";
+    button.textContent = "📱 Return to Mobile Version";
+    button.style.position = "fixed";
+    button.style.right = "12px";
+    button.style.bottom = "12px";
+    button.style.zIndex = "999999";
+    button.style.border = "1px solid rgba(212,175,55,0.7)";
+    button.style.borderRadius = "999px";
+    button.style.padding = "11px 14px";
+    button.style.background = "linear-gradient(135deg, #d4af37, #facc15)";
+    button.style.color = "#111";
+    button.style.fontWeight = "1000";
+    button.style.boxShadow = "0 12px 28px rgba(0,0,0,0.35)";
+    button.style.cursor = "pointer";
+    button.onclick = () => {
+      document.cookie = "bcl-force-desktop=; path=/; max-age=0";
+      window.location.reload();
+    };
+    if (!existing) document.body.appendChild(button);
+
+    return () => {
+      const cleanupButton = document.getElementById("bcl-return-mobile-button");
+      if (cleanupButton) cleanupButton.remove();
+    };
+  }, [isMobileViewport, forceDesktop]);
+
+  // ─── Computed values (must be before all hooks) ───────────────────────────
+  const activeSeason = seasons.find((s) => s.id === activeSeasonId) || seasons[0] || null;
+  const withUniversalShell = (page, themedTeam = "") => {
+    const session = getLeagueSession();
+    const teamName = themedTeam || session?.team || session?.teamName || "";
+    const brand = getTeamBranding(teamName);
+    return (
+      <AppShell
+        currentUser={session ? {
+          displayName: session.driverName || session.name || `Driver ${session.driverNumber || ""}`,
+          roleLabel: session.isOwner ? `${brand?.fullName || teamName} • Owner` : (brand?.fullName || teamName || "Driver"),
+          driverNumber: session.driverNumber,
+        } : null}
+        currentPath={path}
+        teamIdentity={themedTeam ? { name: brand?.fullName || teamName, logo: teamLogos[teamName] || teamLogos[brand?.fullName] } : null}
+        teamTheme={{
+          "--team-primary": brand?.accent || "#d71920",
+          "--team-secondary": brand?.dark || "#3b0b0d",
+          "--team-glow": `rgba(var(--brl-team-rgb),.38)`,
+          "--team-soft": `rgba(var(--brl-team-rgb),.12)`,
+        }}
+      >
+        <div className="brl-migrated-page">{page}</div>
+      </AppShell>
+    );
+  };
+
+  const withLeagueStatusWidget = (page) => withUniversalShell(<> {page} <LeagueStatusWidget tracks={tracks} seasonName={activeSeason?.name || ""} /> </>);
+  const drivers = realignLeagueDrivers(activeSeason?.drivers || []);
+  const visibleDrivers = drivers.filter((d) => !isInactivePlaceholderDriver(d));
+  const activeDrivers = visibleDrivers.filter((d) => !d.retired);
+  const ownerPortalTeams = useMemo(() => {
+    const fixedTeams = ["B2J", "19XI", "BXM", "MER", "NLM", "BWR", "MMS"];
+    const liveTeams = visibleDrivers
+      .map((driver) => driver.team || "Independent")
+      .filter((team) => team !== "Independent" && team !== "IND");
+    return Array.from(new Set([...fixedTeams, ...liveTeams]))
+      .filter(Boolean)
+      .sort((a, b) => getTeamFullName(a).localeCompare(getTeamFullName(b)));
+  }, [visibleDrivers]);
+  const selectedRace = activeSeason?.selectedRace || "";
+  const positions = activeSeason?.positions || {};
+  const stage1 = activeSeason?.stage1 || {};
+  const stage2 = activeSeason?.stage2 || {};
+  const stage3 = activeSeason?.stage3 || {};
+  const dnfMap = activeSeason?.dnfMap || {};
+  const startParkMap = activeSeason?.startParkMap || {};
+  const [startParkRequests, setStartParkRequests] = useState([]);
+  const [startParkRequestStatus, setStartParkRequestStatus] = useState("");
+  const [startParkRequestError, setStartParkRequestError] = useState("");
+  const [startParkRequestsLoading, setStartParkRequestsLoading] = useState(false);
+  const offenseMap = activeSeason?.offenseMap || {};
+  const fastestLapMap = activeSeason?.fastestLapMap || {};
+  const penaltyMap = activeSeason?.penaltyMap || {};
+  const resultNotesMap = activeSeason?.resultNotesMap || {};
+  const raceDrafts = activeSeason?.raceDrafts || [];
+  const raceHistory = activeSeason?.raceHistory || [];
+  const selectedRaceData = tracks.find((r) => r.name === selectedRace);
+  const stageCount = selectedRaceData ? selectedRaceData.stageCount : 2;
+  // ─── ALL 
+  async function loadOwnerAssignments() {
+    const { data, error } = await supabase
+      .from("team_owner_assignments")
+      .select("*")
+      .order("team", { ascending: true });
+
+    if (error) {
+      console.error("Could not load team owner assignments:", error);
+      setOwnerAssignmentError("Could not load owner assignments. Check the team_owner_assignments table and RLS select policy.");
+      return;
+    }
+
+    setOwnerAssignments(data || []);
+  }
+
+  async function saveOwnerAssignment() {
+    setOwnerAssignmentMessage("");
+    setOwnerAssignmentError("");
+
+    if (!selectedOwnerTeam || !selectedOwnerDriverNumber) {
+      setOwnerAssignmentError("Select a team and an owner driver first.");
+      return;
+    }
+
+    const ownerDriver = visibleDrivers.find((driver) => String(driver.number) === String(selectedOwnerDriverNumber));
+
+    if (!ownerDriver) {
+      setOwnerAssignmentError("Could not find that driver in the active roster.");
+      return;
+    }
+
+    const payload = {
+      team: selectedOwnerTeam,
+      owner_driver_number: String(ownerDriver.number),
+      owner_driver_name: ownerDriver.name || "",
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error } = await supabase
+      .from("team_owner_assignments")
+      .upsert(payload, { onConflict: "team" });
+
+    if (error) {
+      console.error("Could not save team owner assignment:", error);
+      setOwnerAssignmentError("Could not save owner assignment. Check the team_owner_assignments table and RLS upsert policy.");
+      return;
+    }
+
+    setOwnerAssignmentMessage(`${ownerDriver.name} is now assigned as owner of ${getTeamFullName(selectedOwnerTeam)}.`);
+    await loadOwnerAssignments();
+  }
+
+  async function saveTeamBranding(team, { fullName, identifier, file, accent, dark }) {
+    const teamKey = String(team || "").trim();
+    const displayName = String(fullName || "").trim();
+    if (!teamKey || !displayName) throw new Error("Select a team and enter its public name.");
+    if (displayName.length > 80) throw new Error("Team name must be 80 characters or fewer.");
+    const publicCode = String(identifier || "").trim().toUpperCase();
+    if (!/^[A-Z0-9]{2,5}$/.test(publicCode)) throw new Error("Team identifier must be 2–5 letters or numbers.");
+    if (ownerPortalTeams.some((other) => other !== teamKey && getTeamIdentifier(other).toUpperCase() === publicCode)) throw new Error("That team identifier is already in use.");
+    let logoUrl = customTeamBranding[teamKey]?.logoUrl || "";
+    if (file) {
+      if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) throw new Error("Choose a PNG, JPG, or WebP image.");
+      if (file.size > 5 * 1024 * 1024) throw new Error("Logo must be under 5 MB.");
+      const extension = (file.name.split(".").pop() || "png").toLowerCase().replace(/[^a-z0-9]/g, "");
+      const path = `team-logos/${encodeURIComponent(teamKey)}/${Date.now()}.${extension}`;
+      const { error: uploadError } = await supabase.storage.from("car-uploads").upload(path, file, { contentType: file.type, upsert: false });
+      if (uploadError) throw uploadError;
+      const { data } = supabase.storage.from("car-uploads").getPublicUrl(path);
+      logoUrl = data?.publicUrl;
+      if (!logoUrl) throw new Error("Could not create a public URL for the logo.");
+    }
+    const updated = { ...customTeamBranding, [teamKey]: { ...customTeamBranding[teamKey], fullName: displayName, identifier: publicCode, logoUrl, accent, dark } };
+    const nextState = { seasons, activeSeasonId, tracks, customTeamBranding: updated };
+    await saveLeagueState(nextState);
+    applyCustomTeamBranding(updated);
+    loadedStateSignatureRef.current = makeLeagueStateSignature(nextState);
+    setCustomTeamBranding(updated);
+  }
+
+
+  async function loadTickerMessages() {
+    setTickerError("");
+    const { data, error } = await supabase
+      .from("ticker_messages")
+      .select("*")
+      .order("pinned", { ascending: false })
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Could not load ticker messages:", error);
+      setTickerError("Could not load ticker messages. Create the ticker_messages table and check RLS policies.");
+      return;
+    }
+
+    setTickerMessages(data || []);
+  }
+
+  function resetTickerForm() {
+    setEditingTickerId(null);
+    setTickerForm({
+      message: "",
+      category: "NEWS",
+      page: "standings",
+      sort_order: "0",
+      active: true,
+      pinned: false,
+      expires_at: "",
+    });
+  }
+
+  function editTickerMessage(item) {
+    setEditingTickerId(item.id);
+    setTickerForm({
+      message: item.message || "",
+      category: item.category || "NEWS",
+      page: item.page || "standings",
+      sort_order: String(item.sort_order ?? 0),
+      active: item.active !== false,
+      pinned: Boolean(item.pinned),
+      expires_at: item.expires_at ? String(item.expires_at).slice(0, 16) : "",
+    });
+    setTickerStatus("");
+    setTickerError("");
+  }
+
+  async function saveTickerMessage(event) {
+    event?.preventDefault?.();
+    setTickerStatus("");
+    setTickerError("");
+
+    if (!tickerForm.message.trim()) {
+      setTickerError("Ticker message cannot be blank.");
+      return;
+    }
+
+    const payload = {
+      message: tickerForm.message.trim(),
+      category: (tickerForm.category || "NEWS").trim().toUpperCase(),
+      page: tickerForm.page || "standings",
+      sort_order: Number(tickerForm.sort_order || 0),
+      active: Boolean(tickerForm.active),
+      pinned: Boolean(tickerForm.pinned),
+      expires_at: tickerForm.expires_at ? new Date(tickerForm.expires_at).toISOString() : null,
+      updated_at: new Date().toISOString(),
+    };
+
+    let result;
+    if (editingTickerId) {
+      result = await supabase.from("ticker_messages").update(payload).eq("id", editingTickerId);
+    } else {
+      result = await supabase.from("ticker_messages").insert([{ ...payload, created_at: new Date().toISOString() }]);
+    }
+
+    if (result.error) {
+      console.error("Could not save ticker message:", result.error);
+      setTickerError("Could not save ticker message. Check ticker_messages insert/update RLS policies.");
+      return;
+    }
+
+    setTickerStatus(editingTickerId ? "Ticker message updated." : "Ticker message added.");
+    resetTickerForm();
+    await loadTickerMessages();
+  }
+
+  async function deleteTickerMessage(id) {
+    if (!window.confirm("Delete this ticker message?")) return;
+    setTickerStatus("");
+    setTickerError("");
+
+    const { error } = await supabase.from("ticker_messages").delete().eq("id", id);
+
+    if (error) {
+      console.error("Could not delete ticker message:", error);
+      setTickerError("Could not delete ticker message. Check ticker_messages delete RLS policy.");
+      return;
+    }
+
+    setTickerStatus("Ticker message deleted.");
+    await loadTickerMessages();
+  }
+
+  async function toggleTickerActive(item) {
+    setTickerStatus("");
+    setTickerError("");
+
+    const { error } = await supabase
+      .from("ticker_messages")
+      .update({ active: item.active === false, updated_at: new Date().toISOString() })
+      .eq("id", item.id);
+
+    if (error) {
+      console.error("Could not update ticker active state:", error);
+      setTickerError("Could not update ticker message. Check ticker_messages update RLS policy.");
+      return;
+    }
+
+    await loadTickerMessages();
+  }
+
+  async function toggleTickerPinned(item) {
+    setTickerStatus("");
+    setTickerError("");
+
+    const { error } = await supabase
+      .from("ticker_messages")
+      .update({ pinned: !item.pinned, updated_at: new Date().toISOString() })
+      .eq("id", item.id);
+
+    if (error) {
+      console.error("Could not update ticker pinned state:", error);
+      setTickerError("Could not update ticker pin. Check ticker_messages update RLS policy.");
+      return;
+    }
+
+    await loadTickerMessages();
+  }
+
+  async function seedWeeklyTickerMessages() {
+    setTickerStatus("");
+    setTickerError("");
+
+    const seedItems = [
+      { category: "TEAM UPDATE", message: "Current team roster cleaned up for the active season", page: "standings", sort_order: 1, active: true, pinned: true },
+      { category: "TRANSACTION", message: "BigDiehl21 signs with ME Racing and moves to the No. 39 Chevrolet", page: "standings", sort_order: 2, active: true, pinned: true },
+      { category: "TRANSACTION", message: "BayouX Motorsports updates KnightTrain41 to the No. 41 Ford", page: "standings", sort_order: 3, active: true, pinned: false },
+      { category: "TEAM UPDATE", message: "CaJunThrottle28 moves to the No. 48 Chevrolet for BXM", page: "standings", sort_order: 4, active: true, pinned: false },
+      { category: "RESULTS", message: "TheCruiser54 moves to the No. 8 BXM Chevrolet", page: "standings", sort_order: 5, active: true, pinned: false },
+      { category: "RACE CONTROL", message: "Race Control Center, editable results, and penalty tools are in development", page: "standings", sort_order: 6, active: true, pinned: false },
+      { category: "APP UPDATE", message: "Driver password reset support and interview sync improvements are now active", page: "standings", sort_order: 7, active: true, pinned: false },
+      { category: "NEXT EVENT", message: "Pocono Raceway is up next for the Budweiser Cup League", page: "standings", sort_order: 8, active: true, pinned: false },
+    ].map((item) => ({ ...item, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }));
+
+    const { error } = await supabase.from("ticker_messages").insert(seedItems);
+
+    if (error) {
+      console.error("Could not seed ticker messages:", error);
+      setTickerError("Could not seed ticker messages. Check ticker_messages table and insert RLS policy.");
+      return;
+    }
+
+    setTickerStatus("Weekly ticker messages added.");
+    await loadTickerMessages();
+  }
+
+// useEffect hooks (must be before any early returns) ───────────────
+  useEffect(() => {
+    let isMounted = true;
+
+    async function hydrateFromSupabase() {
+      try {
+        const savedState = await loadLeagueState();
+        if (!isMounted) return;
+
+        const normalizedState = normalizeLoadedLeagueState(savedState, patchMissingDrivers);
+
+        if (normalizedState) {
+          applyCustomTeamBranding(normalizedState.customTeamBranding);
+          setCustomTeamBranding(normalizedState.customTeamBranding);
+          setSeasons(normalizedState.seasons);
+          setActiveSeasonId(normalizedState.activeSeasonId);
+          setTracks(normalizedState.tracks);
+          loadedStateSignatureRef.current = makeLeagueStateSignature(normalizedState);
+        } else {
+          // Emergency only: this keeps the app usable if Supabase is empty or unreachable,
+          // but it does NOT automatically write defaults back over the real saved points.
+          const fallbackState = loadInitialLeagueState();
+          setSeasons(fallbackState.seasons || []);
+          setActiveSeasonId(fallbackState.activeSeasonId || "");
+          setTracks(fallbackState.tracks || defaultRaces);
+          loadedStateSignatureRef.current = makeLeagueStateSignature(fallbackState);
+        }
+      } catch (error) {
+        console.error("Supabase load failed. Defaults were NOT saved over league points:", error);
+        if (!isMounted) return;
+        const fallbackState = loadInitialLeagueState();
+        setSeasons(fallbackState.seasons || []);
+        setActiveSeasonId(fallbackState.activeSeasonId || "");
+        setTracks(fallbackState.tracks || defaultRaces);
+        loadedStateSignatureRef.current = makeLeagueStateSignature(fallbackState);
+      } finally {
+        if (isMounted) setIsHydrated(true);
+      }
+    }
+
+    hydrateFromSupabase();
+    return () => { isMounted = false; };
+  }, []);
+  useEffect(() => {
+    async function loadOpenAppeals() {
+      const { count, error } = await supabase
+        .from("appeals")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "Open");
+      if (!error) setOpenAppealCount(count || 0);
+    }
+    loadOpenAppeals();
+  }, []);
+  useEffect(() => {
+    async function loadOpenStories() {
+      const { count, error } = await supabase
+        .from("story_submissions")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "Open");
+      if (!error) setOpenStoryCount(count || 0);
+    }
+    loadOpenStories();
+    const interval = setInterval(loadOpenStories, 5000);
+    return () => clearInterval(interval);
+  }, []);
+  useEffect(() => {
+    const normalizeSeriesJoinRequests = () => {
+      try {
+        const saved = JSON.parse(localStorage.getItem("series_join_requests") || "[]");
+        return (Array.isArray(saved) ? saved : [])
+          .filter((request) => String(request.status || "pending").toLowerCase() === "pending")
+          .map((request) => ({
+            ...request,
+            id: `series-${request.id}`,
+            original_id: request.id,
+            request_source: "series_join_requests",
+            driver_name: request.username || request.gamertag || "Pending Driver",
+            car_number: request.preferredNumber || request.preferred_number || "",
+            team_name: request.preferredTeam || request.preferred_team || "Independent",
+            manufacturer: request.manufacturer || "",
+            created_at: request.submittedAt || request.submitted_at || new Date().toISOString(),
+            series_name: request.seriesName || request.series_name || request.seriesId || "League",
+            notes: request.notes || "",
+          }));
+      } catch {
+        return [];
+      }
+    };
+
+    async function loadPendingDrivers() {
+      const localRequests = normalizeSeriesJoinRequests();
+      const { data, error } = await supabase
+        .from("pending_drivers")
+        .select("*")
+        .eq("status", "pending")
+        .order("created_at", { ascending: false });
+      if (!error && data) {
+        setPendingDrivers([...localRequests, ...data]);
+      } else {
+        setPendingDrivers(localRequests);
+      }
+    }
+    loadPendingDrivers();
+    const interval = setInterval(loadPendingDrivers, 5000);
+    return () => clearInterval(interval);
+  }, []);
+  useEffect(() => {
+    loadTickerMessages();
+    loadPaymentComplianceData();
+    loadOwnerAssignments();
+  }, []);
+
+  useEffect(() => {
+    if (!isHydrated) return;
+    const cleanTracks = sanitizeTracks(tracks);
+    const needsTrackMigration = JSON.stringify(cleanTracks) !== JSON.stringify(tracks);
+    if (needsTrackMigration && cleanTracks && cleanTracks.length > 0) {
+      setTracks(cleanTracks);
+    }
+  }, [tracks, isHydrated]);
+
+  useEffect(() => {
+    if (!isHydrated) return;
+    if (!Array.isArray(seasons) || seasons.length === 0 || !activeSeasonId) return;
+
+    const nextState = { seasons, activeSeasonId, tracks, customTeamBranding };
+    const nextSignature = makeLeagueStateSignature(nextState);
+
+    // This is the lock that prevents page load, refresh, failed Supabase loads,
+    // or default/localStorage hydration from wiping the permanent points table.
+    if (!loadedStateSignatureRef.current || nextSignature === loadedStateSignatureRef.current) return;
+
+    const timeout = setTimeout(async () => {
+      if (saveInFlightRef.current) return;
+      saveInFlightRef.current = true;
+      try {
+        await saveLeagueState(nextState);
+        loadedStateSignatureRef.current = nextSignature;
+      } catch (e) {
+        console.error("Supabase save failed. Existing points were not cleared:", e);
+      } finally {
+        saveInFlightRef.current = false;
+      }
+    }, 250);
+
+    return () => clearTimeout(timeout);
+  }, [seasons, activeSeasonId, tracks, customTeamBranding, isHydrated]);
+  useEffect(() => {
+    async function loadFeaturedVideo() {
+      const { data } = await supabase
+        .from("featured_video")
+        .select("*")
+        .order("uploaded_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      setFeaturedVideo(data || null);
+    }
+    loadFeaturedVideo();
+  }, []);
+
+  useEffect(() => {
+    loadOwnerAccessCodes();
+    loadDriverAccessCodes();
+    loadDriverRecruitingInterest();
+  }, []);
+
+  const loadManualWatchPicks = async () => {
+    const { data, error } = await supabase
+      .from("ones_to_watch")
+      .select("*")
+      .order("active", { ascending: false })
+      .order("display_order", { ascending: true })
+      .order("created_at", { ascending: false });
+    if (error) {
+      console.error("Failed to load ones_to_watch:", error);
+      return;
+    }
+    setManualWatchPicks(data || []);
+  };
+
+  useEffect(() => {
+    loadManualWatchPicks();
+  }, []);
+
+  useEffect(() => {
+    const nextReasons = {};
+    (activeSeason?.drivers || []).forEach((d) => { nextReasons[d.id] = ""; });
+    setDnfReasons(nextReasons);
+  }, [selectedRace, activeSeasonId]); // eslint-disable-line react-hooks/exhaustive-deps
+  const replaceActiveSeason = (next) => setSeasons((prev) => prev.map((s) => (s.id === activeSeasonId ? next : s)));
+  const patchActiveSeason = (patch) => setSeasons((prev) => prev.map((s) => (s.id === activeSeasonId ? { ...s, ...patch } : s)));
+
+  function applyOwnerPortalTeamTransaction(action = {}) {
+    if (!action || !action.type) return;
+
+    setSeasons((prev) => prev.map((season) => {
+      if (season.id !== activeSeasonId) return season;
+
+      const nextDrivers = (season.drivers || []).map((driver) => {
+        const matchesDriver =
+          String(driver.id || "") === String(action.driver_id || action.assign_to_driver_id || "") ||
+          String(driver.number || "") === String(action.driver_number || "") ||
+          String(driver.name || "").toLowerCase() === String(action.driver_name || "").toLowerCase();
+
+        if (action.type === "driver_buyout" && matchesDriver) {
+          return {
+            ...driver,
+            team: action.new_team || driver.team,
+            manufacturer: action.new_manufacturer || driver.manufacturer,
+            number: action.new_number ? Number(action.new_number) : driver.number,
+            retired: false,
+          };
+        }
+
+        if (action.type === "number_transfer" && String(driver.id || driver.number || "") === String(action.assign_to_driver_id || "")) {
+          return {
+            ...driver,
+            team: action.to_team || driver.team,
+            number: Number(action.number || driver.number),
+            retired: false,
+          };
+        }
+
+        return driver;
+      });
+
+      return { ...season, drivers: nextDrivers };
+    }));
+  }
+  async function loadPaintSchemePayoutPreview(raceNameOverride = paintPayoutRace) {
+    const raceName = raceNameOverride || getPreviousCompletedRaceForPaintWinner(tracks)?.name || selectedRace || "";
+    setPaintPayoutRace(raceName);
+    setPaintPayoutStatus("");
+    setPaintPayoutError("");
+    setPaintPayoutRows([]);
+
+    if (!raceName) {
+      setPaintPayoutError("Select a race first.");
+      return [];
+    }
+
+    setPaintPayoutLoading(true);
+    const [{ data: uploadData, error: uploadError }, { data: voteData, error: voteError }] = await Promise.all([
+      supabase.from("car_uploads").select("*").order("uploaded_at", { ascending: false }),
+      supabase.from("paint_scheme_votes").select("*").eq("race_name", raceName).order("created_at", { ascending: false }),
+    ]);
+    setPaintPayoutLoading(false);
+
+    if (uploadError || voteError) {
+      console.error("Could not load paint scheme payout preview:", uploadError || voteError);
+      setPaintPayoutError("Could not load paint scheme uploads/votes. Check car_uploads, paint_scheme_votes, and RLS policies.");
+      return [];
+    }
+
+    const raceUploads = (uploadData || [])
+      .filter((upload) => isPaintImageUploadForStandings(upload))
+      .filter((upload) => getPaintUploadRaceForStandings(upload) === raceName);
+
+    const counts = new Map();
+    (voteData || []).forEach((vote) => {
+      const key = String(vote.upload_id || vote.voted_upload_id || "");
+      counts.set(key, (counts.get(key) || 0) + 1);
+    });
+
+    const deadline = getNextFridayMidnightDeadline(new Date());
+    const rankedUploads = raceUploads
+      .map((upload) => ({ ...upload, voteCount: counts.get(String(upload.id)) || 0 }))
+      .sort((a, b) => {
+        const voteDiff = Number(b.voteCount || 0) - Number(a.voteCount || 0);
+        if (voteDiff !== 0) return voteDiff;
+        return new Date(getPaintUploadUpdatedAt(b) || 0) - new Date(getPaintUploadUpdatedAt(a) || 0);
+      });
+
+    const ineligibleCount = rankedUploads.filter((upload) => !isPaintUploadEligibleForPayout(upload, deadline)).length;
+    const rows = buildPaintSchemePayoutRows(rankedUploads, visibleDrivers, deadline, activeSeason?.paintSchemePayouts || []);
+    setPaintPayoutRows(rows);
+    if (!rows.length) setPaintPayoutStatus(`No eligible paint scheme uploads found for ${raceName}. Uploads must be updated by Friday at 12:00 AM ET.`);
+    else if (ineligibleCount > 0) setPaintPayoutStatus(`${ineligibleCount} paint scheme upload(s) missed the Friday 12:00 AM ET deadline and were excluded from payout.`);
+    return rows;
+  }
+
+  async function awardPaintSchemePayouts() {
+    const raceName = paintPayoutRace || getPreviousCompletedRaceForPaintWinner(tracks)?.name || selectedRace || "";
+    setPaintPayoutStatus("");
+    setPaintPayoutError("");
+
+    if (!raceName) {
+      setPaintPayoutError("Select a race first.");
+      return;
+    }
+
+    const alreadyPaid = (activeSeason?.paintSchemePayouts || []).some((payout) => payout.raceName === raceName);
+    if (alreadyPaid) {
+      setPaintPayoutError(`${raceName} has already been awarded. Remove the payout record before awarding again.`);
+      return;
+    }
+
+    const rows = paintPayoutRows.length ? paintPayoutRows : await loadPaintSchemePayoutPreview(raceName);
+    if (!rows.length) {
+      setPaintPayoutError("No payout rows available.");
+      return;
+    }
+
+    const totalTeam = rows.reduce((sum, row) => sum + Number(row.teamPayout || 0), 0);
+    const totalDriver = rows.reduce((sum, row) => sum + Number(row.driverPayout || 0), 0);
+    const confirmed = window.confirm(
+      `Award paint scheme payouts for ${raceName}?\n\nDriver payouts: ${money(totalDriver)}\nRows: ${rows.length}`
+    );
+    if (!confirmed) return;
+
+    const nextDrivers = (drivers || []).map((driver) => {
+      const row = rows.find((item) =>
+        String(item.driverId) === String(driver.id) ||
+        String(item.driverNumber) === String(driver.number) ||
+        String(item.driverName || '').trim().toLowerCase() === String(driver.name || '').trim().toLowerCase()
+      );
+      if (!row) return driver;
+      return {
+        ...driver,
+        paintSchemeVotesReceived: Number(driver.paintSchemeVotesReceived || 0) + Number(row.votes || 0),
+        paintSchemeSeasonVotes: Number(driver.paintSchemeSeasonVotes || 0) + Number(row.votes || 0),
+        paintSchemeDriverEarnings: Number(driver.paintSchemeDriverEarnings || 0) + Number(row.driverPayout || 0),
+        paintSchemeTeamEarnings: Number(driver.paintSchemeTeamEarnings || 0) + Number(row.teamPayout || 0),
+        paintSchemeWins: Number(driver.paintSchemeWins || 0) + (row.rank === 1 ? 1 : 0),
+        paintSchemeTop5s: Number(driver.paintSchemeTop5s || 0) + (row.rank <= 5 ? 1 : 0),
+        paintSchemeTop10s: Number(driver.paintSchemeTop10s || 0) + (row.rank <= 10 ? 1 : 0),
+        paintSchemeLastAwardedRace: raceName,
+      };
+    });
+
+    const payoutRecord = {
+      id: `paint-${Date.now()}`,
+      raceName,
+      awardedAt: new Date().toISOString(),
+      rows,
+      totalTeamPayout: totalTeam,
+      totalDriverPayout: totalDriver,
+      weeklyDriverPayout: PAINT_SCHEME_WEEKLY_DRIVER_PAYOUT,
+      seasonDriverPayoutCap: PAINT_SCHEME_SEASON_DRIVER_PAYOUT_CAP,
+      deadlineRule: "Friday 12:00 AM ET. Uploads not updated by then are not eligible for payout.",
+    };
+
+    patchActiveSeason({
+      drivers: nextDrivers,
+      paintSchemePayouts: [...(activeSeason?.paintSchemePayouts || []), payoutRecord],
+    });
+
+    const auditRows = rows.map((row) => ({
+      race_name: raceName,
+      rank: row.rank,
+      upload_id: row.uploadId,
+      driver_id: row.driverId,
+      driver_number: String(row.driverNumber || ""),
+      driver_name: row.driverName,
+      team: row.team,
+      votes: row.votes,
+      team_payout: row.teamPayout,
+      original_team_payout: row.originalTeamPayout,
+      team_cap_applied: row.teamCapApplied,
+      team_weekly_cap_applied: row.teamWeeklyCapApplied,
+      team_season_cap_applied: row.teamSeasonCapApplied,
+      team_season_paid_before_award: row.teamSeasonPaidBeforeAward,
+      driver_payout: row.driverPayout,
+      updated_at_deadline: row.deadline,
+      upload_updated_at: row.updatedAt,
+      awarded_at: new Date().toISOString(),
+    }));
+
+    const { error } = await supabase.from("paint_scheme_payouts").insert(auditRows);
+    if (error) {
+      console.error("Paint scheme payout audit insert failed:", error);
+      setPaintPayoutStatus(`Payout applied to league state, but audit table insert failed. Check paint_scheme_payouts RLS/table.`);
+      return;
+    }
+
+    setPaintPayoutStatus(`Paint scheme payouts awarded for ${raceName}. Driver total ${money(totalDriver)}.`);
+  }
+
+  const clearInputs = () => {
+    patchActiveSeason({ selectedRace: "", positions: {}, stage1: {}, stage2: {}, stage3: {}, dnfMap: {}, startParkMap: {}, offenseMap: {}, fastestLapMap: {}, penaltyMap: {}, resultNotesMap: {} });
+    setEditingRaceName(null);
+  };
+  const handleDownloadLeagueBackup = () => {
+    const backupPayload = makeLeagueBackupPayload({
+      tracks,
+      seasons,
+      activeSeasonId,
+      reason: "manual-admin-backup",
+      raceSnapshot: null,
+    });
+
+    downloadLeagueBackupFile(backupPayload, "manual-backup");
+  };
+
+  const handleRestoreLeagueBackup = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const backup = JSON.parse(text);
+
+      if (!isValidLeagueBackup(backup)) {
+        alert("This backup file is missing seasons or activeSeasonId.");
+        return;
+      }
+
+      const cleanTracks = sanitizeTracks(backup.tracks) || tracks;
+      const cleanSeasons = backup.seasons.map((season, index) => sanitizeSeason(season, `Season ${index + 1}`));
+      const activeExists = cleanSeasons.some((season) => season.id === backup.activeSeasonId);
+      const nextActiveSeasonId = activeExists ? backup.activeSeasonId : cleanSeasons[0].id;
+
+      setTracks(cleanTracks);
+      setSeasons(cleanSeasons);
+      setActiveSeasonId(nextActiveSeasonId);
+
+      localStorage.setItem("bcl-last-good-tracks", JSON.stringify(cleanTracks));
+      localStorage.setItem("bcl-last-good-seasons", JSON.stringify(cleanSeasons));
+      localStorage.setItem("bcl-last-good-activeSeasonId", nextActiveSeasonId);
+
+      const restoredState = {
+        tracks: cleanTracks,
+        seasons: cleanSeasons,
+        activeSeasonId: nextActiveSeasonId,
+      };
+
+      await saveLeagueState(restoredState);
+      loadedStateSignatureRef.current = makeLeagueStateSignature(restoredState);
+
+      const ledgerSyncResult = await syncAllRaceResultsLedger({
+        seasons: cleanSeasons,
+        tracks: cleanTracks,
+      });
+
+      if (!ledgerSyncResult.ok) {
+        alert("Backup restored, but the race_results table did not fully sync. Check the race_results table/RLS.");
+      } else {
+        alert("Backup restored successfully and race_results table synced. Refresh the page if the standings do not update immediately.");
+      }
+    } catch (error) {
+      console.error("Could not restore league backup:", error);
+      alert("Could not restore this backup file. Make sure it is a Budweiser Cup League JSON backup.");
+    } finally {
+      event.target.value = "";
+    }
+  };
+
+  const resetEditorStates = () => { setEditingRaceName(null); setEditingDriverId(null); setEditDriverForm({ name: "", number: "", team: "" }); };
+  const downloadBackupObject = (payload, filePrefix = "pcl-backup") => {
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${filePrefix}-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  };
+  const exportBackup = () => { if (!activeSeason) return; downloadBackupObject({ app: "Budweiser Cup League", version: 2, exportedAt: new Date().toISOString(), type: "single-season-backup", season: activeSeason }, `pcl-${activeSeason.name.replace(/\s+/g, "-").toLowerCase()}`); };
+  const exportAllSeasonsBackup = () => downloadBackupObject({ app: "Budweiser Cup League", version: 2, exportedAt: new Date().toISOString(), type: "full-league-backup", activeSeasonId, seasons, tracks }, "pcl-all-seasons-backup");
+  const createSeason = () => {
+    const trimmedName = newSeasonName.trim();
+    if (!trimmedName) { alert("Please enter a season name."); return; }
+    if (seasons.some((s) => s.name.toLowerCase() === trimmedName.toLowerCase())) { alert("A season with that name already exists."); return; }
+    const rosterOnly = drivers.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer || "", team: d.team, startingPoints: 0, manualWins: 0, retired: d.retired || false }));
+    const season = createEmptySeason(trimmedName, rosterOnly);
+    setSeasons((prev) => [...prev, season]);
+    setActiveSeasonId(season.id); setNewSeasonName(""); setRenameSeasonName(trimmedName); resetEditorStates();
+  };
+  const renameActiveSeason = () => {
+    if (!activeSeason) return;
+    const trimmedName = renameSeasonName.trim();
+    if (!trimmedName) { alert("Please enter a season name."); return; }
+    if (seasons.some((s) => s.id !== activeSeason.id && s.name.toLowerCase() === trimmedName.toLowerCase())) { alert("Another season already has that name."); return; }
+    patchActiveSeason({ name: trimmedName });
+  };
+  const switchSeason = (seasonId) => { setActiveSeasonId(seasonId); resetEditorStates(); };
+  const deleteActiveSeason = () => {
+    if (!activeSeason || seasons.length <= 1) { alert("You must keep at least one season."); return; }
+    if (!window.confirm(`Delete season "${activeSeason.name}"? This cannot be undone.`)) return;
+    const remaining = seasons.filter((s) => s.id !== activeSeason.id);
+    setSeasons(remaining); setActiveSeasonId(remaining[0].id); setRenameSeasonName(remaining[0].name); resetEditorStates();
+  };
+  const handleImportBackup = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const parsed = JSON.parse(e.target.result);
+        if (Array.isArray(parsed?.seasons)) {
+          if (!window.confirm("Importing this backup will replace all current seasons. Continue?")) return;
+          const cleanSeasons = parsed.seasons.map((s, i) => sanitizeSeason(s, `Season ${i + 1}`));
+          if (cleanSeasons.length === 0) throw new Error("No seasons in backup.");
+          const nextId = cleanSeasons.some((s) => s.id === parsed.activeSeasonId) ? parsed.activeSeasonId : cleanSeasons[0].id;
+          setSeasons(cleanSeasons); setActiveSeasonId(nextId);
+          const cleanTracks = sanitizeTracks(parsed.tracks);
+          if (cleanTracks && cleanTracks.length > 0) setTracks(cleanTracks);
+          setRenameSeasonName(cleanSeasons.find((s) => s.id === nextId)?.name || cleanSeasons[0].name);
+          resetEditorStates();
+          syncAllRaceResultsLedger({ seasons: cleanSeasons, tracks: cleanTracks && cleanTracks.length > 0 ? cleanTracks : tracks })
+            .then((result) => {
+              if (!result.ok) alert("Full league backup imported, but race_results table did not fully sync.");
+              else alert("Full league backup imported and race_results table synced.");
+            });
+        } else if (parsed?.season) {
+          const imported = sanitizeSeason(parsed.season, "Imported Season");
+          if (!window.confirm(`Import season "${imported.name}"?`)) return;
+          setSeasons((prev) => { const exists = prev.some((s) => s.id === imported.id); return exists ? prev.map((s) => s.id === imported.id ? imported : s) : [...prev, imported]; });
+          setActiveSeasonId(imported.id); setRenameSeasonName(imported.name); resetEditorStates();
+          syncAllRaceResultsLedger({ seasons: [imported], tracks })
+            .then((result) => {
+              if (!result.ok) alert("Season backup imported, but race_results table did not fully sync.");
+              else alert("Season backup imported and race_results table synced.");
+            });
+        } else throw new Error("Invalid backup file.");
+      } catch (err) { console.error("Import failed:", err); alert("Could not import that backup file."); }
+      finally { if (event.target) event.target.value = ""; }
+    };
+    reader.readAsText(file);
+  };
+  const addManualWatchPick = async () => {
+    if (!watchDriverId) { alert("Select a driver for Ones to Watch."); return; }
+    const selectedDriver = drivers.find((d) => Number(d.id) === Number(watchDriverId));
+    if (!selectedDriver) { alert("That driver could not be found."); return; }
+    setWatchSaving(true);
+    const payload = {
+      driver_id: Number(watchDriverId),
+      reason: watchReason.trim() || "League director watch pick",
+      badge: watchBadge.trim() || "DIRECTOR PICK",
+      display_order: Number(watchDisplayOrder) || 1,
+      active: true,
+    };
+    const { error } = await supabase.from("ones_to_watch").insert(payload);
+    setWatchSaving(false);
+    if (error) { console.error("Failed to add Ones to Watch pick:", error); alert("Could not save the Ones to Watch pick. Make sure the Supabase table exists."); return; }
+    setWatchDriverId("");
+    setWatchReason("");
+    setWatchBadge("DIRECTOR PICK");
+    setWatchDisplayOrder(String((manualWatchPicks?.length || 0) + 2));
+    await loadManualWatchPicks();
+  };
+
+  const toggleManualWatchPick = async (pick) => {
+    const { error } = await supabase.from("ones_to_watch").update({ active: !pick.active }).eq("id", pick.id);
+    if (error) { console.error("Failed to update Ones to Watch pick:", error); alert("Could not update this pick."); return; }
+    await loadManualWatchPicks();
+  };
+
+  const deleteManualWatchPick = async (pickId) => {
+    if (!window.confirm("Delete this Ones to Watch pick?")) return;
+    const { error } = await supabase.from("ones_to_watch").delete().eq("id", pickId);
+    if (error) { console.error("Failed to delete Ones to Watch pick:", error); alert("Could not delete this pick."); return; }
+    await loadManualWatchPicks();
+  };
+
+  const resetSeason = () => {
+    if (!activeSeason) return;
+    if (!window.confirm(`Archive and reset "${activeSeason.name}"? A backup will download first.`)) return;
+    downloadBackupObject({ app: "Budweiser Cup League", version: 2, archiveType: "season-reset-archive", archivedAt: new Date().toISOString(), season: activeSeason }, `pcl-${activeSeason.name.replace(/\s+/g, "-").toLowerCase()}-archive`);
+    const resetDrivers = activeSeason.drivers.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer || "", team: d.team, startingPoints: 0, manualWins: 0, points: 0, wins: 0, top3: 0, top5: 0, dnfs: 0 }));
+    replaceActiveSeason({ ...activeSeason, drivers: resetDrivers, raceHistory: [], selectedRace: "", positions: {}, stage1: {}, stage2: {}, stage3: {}, dnfMap: {}, startParkMap: {}, offenseMap: {}, fastestLapMap: {} });
+    resetEditorStates();
+  };
+  const teamStandings = useMemo(() => {
+    const teams = {};
+    for (const d of visibleDrivers) {
+      if (!teams[d.team]) teams[d.team] = { team: d.team, points: 0, wins: 0, top3: 0, top5: 0, drivers: 0, budget: getTeamBudget(d.team) };
+      teams[d.team].budget = getTeamBudget(d.team);
+      teams[d.team].points += d.points || 0; teams[d.team].wins += d.wins || 0;
+      teams[d.team].top3 += d.top3 || 0; teams[d.team].top5 += d.top5 || 0; teams[d.team].drivers += 1;
+    }
+    return Object.values(teams).sort((a, b) => b.points - a.points || b.wins - a.wins || b.top3 - a.top3 || a.team.localeCompare(b.team));
+  }, [visibleDrivers]);
+  const manufacturerStandings = useMemo(() => {
+    const mfrs = {};
+    for (const d of visibleDrivers) {
+      const mfr = d.manufacturer || "Unknown";
+      if (!mfrs[mfr]) mfrs[mfr] = { manufacturer: mfr, points: 0, wins: 0, top3: 0, top5: 0, drivers: 0 };
+      mfrs[mfr].points += d.points || 0; mfrs[mfr].wins += d.wins || 0;
+      mfrs[mfr].top3 += d.top3 || 0; mfrs[mfr].top5 += d.top5 || 0; mfrs[mfr].drivers += 1;
+    }
+    return Object.values(mfrs).sort((a, b) => b.points - a.points || b.wins - a.wins || b.top3 - a.top3 || a.manufacturer.localeCompare(b.manufacturer));
+  }, [visibleDrivers]);
+  const sortedDrivers = [...visibleDrivers].sort((a, b) => b.points - a.points || b.wins - a.wins || b.top3 - a.top3 || a.name.localeCompare(b.name));
+  const currentLeader = sortedDrivers[0] || null;
+  const latestRace = raceHistory.length > 0 ? raceHistory[raceHistory.length - 1] : null;
+  const latestWinner = latestRace?.results?.find((r) => r.finishPos === 1) || null;
+
+  const previousRaceForPayment = useMemo(() => {
+    const lastPostedRace = raceHistory.length > 0 ? raceHistory[raceHistory.length - 1] : null;
+    if (!lastPostedRace) return null;
+    const track = tracks.find((item) => item.name === lastPostedRace.raceName) || {};
+    return { name: lastPostedRace.raceName, date: track.date || lastPostedRace.raceDate || lastPostedRace.date || lastPostedRace.postedAt || lastPostedRace.savedAt || "" };
+  }, [raceHistory, tracks]);
+  const upcomingRaceForPayment = useMemo(() => getUpcomingRaceByDate(tracks) || tracks[0] || null, [tracks]);
+  const paymentComplianceSummary = useMemo(() => buildPaymentComplianceRows({
+    teams: teamStandings,
+    drivers: visibleDrivers,
+    interviews: paymentComplianceInterviews,
+    carUploads: paymentComplianceUploads,
+    overrides: paymentComplianceOverrides,
+    previousRace: previousRaceForPayment,
+    upcomingRace: upcomingRaceForPayment,
+  }), [teamStandings, visibleDrivers, paymentComplianceInterviews, paymentComplianceUploads, paymentComplianceOverrides, previousRaceForPayment, upcomingRaceForPayment]);
+
+  // Cup series team prestige: driver performance weighted heaviest, interviews
+  // and car uploads as light tiebreakers, tiered relative to each manufacturer's
+  // own set of teams (Elite/Prestigious/Good/Developing by rank within manufacturer).
+  const teamPrestigeRows = useMemo(() => buildTeamPrestigeRows({
+    teams: teamStandings,
+    drivers: visibleDrivers,
+    interviews: paymentComplianceInterviews,
+    carUploads: paymentComplianceUploads,
+    seasonRaceNames: (raceHistory || []).map((r) => r.raceName),
+  }), [teamStandings, visibleDrivers, paymentComplianceInterviews, paymentComplianceUploads, raceHistory]);
+
+  const [teamPrestigeStatus, setTeamPrestigeStatus] = useState("");
+  const [teamPrestigeSaving, setTeamPrestigeSaving] = useState(false);
+
+  const recalculateTeamPrestige = async () => {
+    setTeamPrestigeSaving(true);
+    setTeamPrestigeStatus("Recalculating team prestige...");
+    const result = await saveTeamPrestige(teamPrestigeRows);
+    setTeamPrestigeSaving(false);
+    if (!result.ok) {
+      setTeamPrestigeStatus("Could not save team prestige. Check team_prestige table/RLS and console for details.");
+      return;
+    }
+    setTeamPrestigeStatus(`Team prestige recalculated for ${teamPrestigeRows.length} teams.`);
+  };
+
+  const saveOwnerAccessCodes = (nextCodes) => {
+    setOwnerAccessCodes(nextCodes);
+    localStorage.setItem("ownerPortalAccessCodes", JSON.stringify(nextCodes));
+  };
+  const loadOwnerAccessCodes = async () => {
+    const { data, error } = await supabase
+      .from("owner_access_codes")
+      .select("team, code, active")
+      .eq("active", true);
+    if (error) {
+      console.error("Failed to load owner access codes:", error);
+      return;
+    }
+    const nextCodes = {};
+    (data || []).forEach((row) => { if (row.team && row.code) nextCodes[row.team] = row.code; });
+    saveOwnerAccessCodes(nextCodes);
+  };
+  const createOwnerCode = (team) => {
+    const prefix = String(team || "TEAM").replace(/[^A-Z0-9]/gi, "").toUpperCase() || "TEAM";
+    const randomPart = Math.random().toString(36).slice(2, 8).toUpperCase();
+    return `${prefix}-${randomPart}`;
+  };
+  const generateOwnerCode = async (team) => {
+    const newCode = createOwnerCode(team);
+    const nextCodes = { ...ownerAccessCodes, [team]: newCode };
+    saveOwnerAccessCodes(nextCodes);
+    const { error } = await supabase.from("owner_access_codes").upsert(
+      { team, code: newCode, active: true, updated_at: new Date().toISOString() },
+      { onConflict: "team" }
+    );
+    if (error) {
+      console.error("Owner code Supabase save failed:", error);
+      alert("Code generated on this admin browser, but Supabase save failed. Make sure the owner_access_codes table exists.");
+    } else {
+      alert(`Owner code generated for ${getTeamFullName(team)}: ${newCode}`);
+    }
+  };
+  const generateAllOwnerCodes = async () => {
+    const nextCodes = { ...ownerAccessCodes };
+    const rows = ownerPortalTeams.map((team) => {
+      const code = createOwnerCode(team);
+      nextCodes[team] = code;
+      return { team, code, active: true, updated_at: new Date().toISOString() };
+    });
+    saveOwnerAccessCodes(nextCodes);
+    const { error } = await supabase.from("owner_access_codes").upsert(rows, { onConflict: "team" });
+    if (error) {
+      console.error("Owner codes Supabase save failed:", error);
+      alert("Codes generated on this admin browser, but Supabase save failed. Make sure the owner_access_codes table exists.");
+    } else {
+      alert("Owner codes generated for all teams.");
+    }
+  };
+  const clearOwnerCode = async (team) => {
+    const nextCodes = { ...ownerAccessCodes };
+    delete nextCodes[team];
+    saveOwnerAccessCodes(nextCodes);
+    const { error } = await supabase
+      .from("owner_access_codes")
+      .update({ active: false, updated_at: new Date().toISOString() })
+      .eq("team", team);
+    if (error) console.error("Failed to clear owner code:", error);
+  };
+  const copyOwnerCode = async (team) => {
+    const code = ownerAccessCodes[team];
+    if (!code) return;
+    const message = `${getTeamFullName(team)} owner portal: go to /team-hq, select ${getTeamFullName(team)}, and use code ${code}`;
+    try {
+      await navigator.clipboard.writeText(message);
+      alert("Owner code copied.");
+    } catch {
+      alert(message);
+    }
+  };
+
+  const loadDriverAccessCodes = async () => {
+    const { data, error } = await supabase
+      .from("driver_access_codes")
+      .select("*")
+      .eq("active", true)
+      .order("created_at", { ascending: false });
+    if (error) {
+      console.error("Failed to load driver access codes:", error);
+      return;
+    }
+    setDriverAccessCodes(data || []);
+  };
+
+  const loadDriverRecruitingInterest = async () => {
+    const { data, error } = await supabase
+      .from("driver_recruiting_interest")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) {
+      console.error("Failed to load driver recruiting interest:", error);
+      return;
+    }
+    setDriverRecruitingInterest(data || []);
+  };
+
+  const createDriverAccessCode = (driver) => {
+    const cleanName = String(driver?.name || "DRIVER").replace(/[^A-Z0-9]/gi, "").toUpperCase().slice(0, 10) || "DRIVER";
+    const randomPart = Math.random().toString(36).slice(2, 8).toUpperCase();
+    return `${cleanName}-${randomPart}`;
+  };
+
+  const generateDriverAccessCode = async (driver) => {
+    if (!driver) return;
+    const code = createDriverAccessCode(driver);
+    const { error } = await supabase.from("driver_access_codes").upsert(
+      {
+        driver_number: String(driver.number),
+        driver_name: driver.name,
+        code,
+        active: true,
+        created_at: new Date().toISOString(),
+      },
+      { onConflict: "driver_number" }
+    );
+    if (error) {
+      console.error("Driver access code save failed:", error);
+      alert("Failed to generate driver code. Make sure driver_access_codes exists and has a unique driver_number constraint.");
+      return;
+    }
+    await loadDriverAccessCodes();
+    alert(`Driver access code generated for #${driver.number} ${driver.name}: ${code}`);
+  };
+
+  const clearDriverAccessCode = async (driver) => {
+    if (!driver) return;
+    const { error } = await supabase
+      .from("driver_access_codes")
+      .update({ active: false })
+      .eq("driver_number", String(driver.number));
+    if (error) {
+      console.error("Failed to clear driver access code:", error);
+      alert("Failed to clear driver code.");
+      return;
+    }
+    await loadDriverAccessCodes();
+  };
+
+  const copyDriverAccessCode = async (driver, code) => {
+    if (!driver || !code) return;
+    const message = `Driver portal: go to /driver/${driver.number} and use code ${code}`;
+    try {
+      await navigator.clipboard.writeText(message);
+      alert("Driver code copied.");
+    } catch {
+      alert(message);
+    }
+  };
+  const handlePositionChange = (id, v) => patchActiveSeason({ positions: { ...positions, [id]: v === "" ? "" : Number(v) } });
+  const handleStage1Change = (id, v) => patchActiveSeason({ stage1: { ...stage1, [id]: v === "" ? "" : Number(v) } });
+  const handleStage2Change = (id, v) => patchActiveSeason({ stage2: { ...stage2, [id]: v === "" ? "" : Number(v) } });
+  const handleStage3Change = (id, v) => patchActiveSeason({ stage3: { ...stage3, [id]: v === "" ? "" : Number(v) } });
+  const handleDnfChange = (id, checked) => patchActiveSeason({ dnfMap: { ...dnfMap, [id]: checked } });
+  const handleStartParkChange = (id, checked) => patchActiveSeason({ startParkMap: { ...startParkMap, [id]: checked } });
+
+  async function loadStartParkRequests() {
+    setStartParkRequestsLoading(true);
+    const { data, error } = await supabase
+      .from("start_park_requests")
+      .select("*")
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      console.error("Could not load Start & Park requests:", error);
+      setStartParkRequestError("Could not load Start & Park requests. Run the start_park_requests SQL and check RLS select policy.");
+      setStartParkRequests([]);
+      setStartParkRequestsLoading(false);
+      return;
+    }
+
+    setStartParkRequests(data || []);
+    setStartParkRequestsLoading(false);
+  }
+
+  useEffect(() => {
+    if (!isHydrated) return;
+    loadStartParkRequests();
+    const interval = setInterval(loadStartParkRequests, 30000);
+    return () => clearInterval(interval);
+  }, [isHydrated]);
+
+  async function updateStartParkRequestStatus(request, status) {
+    setStartParkRequestStatus("");
+    setStartParkRequestError("");
+    if (status === "approved" && !wasStartParkRequestBeforeCutoff(request)) {
+      setStartParkRequestError("This request was submitted after the Saturday 9:00 PM ET cutoff and cannot be approved.");
+      return;
+    }
+    const patch = {
+      status,
+      updated_at: new Date().toISOString(),
+    };
+    if (status === "approved") patch.approved_at = new Date().toISOString();
+    if (status === "declined") patch.declined_at = new Date().toISOString();
+
+    const { error } = await supabase
+      .from("start_park_requests")
+      .update(patch)
+      .eq("id", request.id);
+
+    if (error) {
+      console.error("Could not update Start & Park request:", error);
+      setStartParkRequestError("Could not update request. Check start_park_requests update policy.");
+      return;
+    }
+
+    setStartParkRequestStatus(`Start & Park request ${status}.`);
+    await loadStartParkRequests();
+  }
+
+  async function applyApprovedStartParkRequestsToRace() {
+    setStartParkRequestStatus("");
+    setStartParkRequestError("");
+
+    if (!selectedRace) {
+      setStartParkRequestError("Select a race before applying Start & Park requests.");
+      return;
+    }
+
+    const approved = (startParkRequests || [])
+      .filter((request) => String(request.status || "").toLowerCase() === "approved")
+      .filter((request) => String(request.race_name || "") === String(selectedRace))
+      .filter((request) => wasStartParkRequestBeforeCutoff(request))
+      .sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
+
+    if (!approved.length) {
+      setStartParkRequestError("No approved Start & Park requests are waiting for this race.");
+      return;
+    }
+
+    const nextPositions = { ...positions };
+    const nextStartParkMap = { ...startParkMap };
+    const nextStage1 = { ...stage1 };
+    const nextStage2 = { ...stage2 };
+    const nextStage3 = { ...stage3 };
+    const nextNotes = { ...resultNotesMap };
+    const totalStarters = activeDrivers.length || 0;
+
+    approved.forEach((request, index) => {
+      const driver = activeDrivers.find((item) => String(item.id) === String(request.driver_id) || String(item.number) === String(request.driver_number));
+      if (!driver) return;
+      const rearPosition = Math.max(1, totalStarters - approved.length + index + 1);
+      nextPositions[driver.id] = rearPosition;
+      nextStartParkMap[driver.id] = true;
+      nextStage1[driver.id] = "";
+      nextStage2[driver.id] = "";
+      nextStage3[driver.id] = "";
+      const note = `Start & Park approved by Race Control. Rear order ${index + 1} of ${approved.length} by request receipt.`;
+      nextNotes[driver.id] = nextNotes[driver.id] ? `${nextNotes[driver.id]} | ${note}` : note;
+    });
+
+    patchActiveSeason({
+      positions: nextPositions,
+      startParkMap: nextStartParkMap,
+      stage1: nextStage1,
+      stage2: nextStage2,
+      stage3: nextStage3,
+      resultNotesMap: nextNotes,
+    });
+
+    const ids = approved.map((request) => request.id).filter(Boolean);
+    if (ids.length) {
+      await supabase
+        .from("start_park_requests")
+        .update({ status: "applied", applied_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+        .in("id", ids);
+    }
+
+    setStartParkRequestStatus(`${approved.length} Start & Park request${approved.length === 1 ? "" : "s"} placed at the rear in order of receipt.`);
+    await loadStartParkRequests();
+  }
+
+  const handleOffenseChange = (id, checked) => patchActiveSeason({ offenseMap: { ...offenseMap, [id]: checked } });
+  const handleManualPenaltyChange = (id, value) => patchActiveSeason({ penaltyMap: { ...penaltyMap, [id]: value === "" ? "" : Number(value) } });
+  const handleResultNoteChange = (id, value) => patchActiveSeason({ resultNotesMap: { ...resultNotesMap, [id]: value } });
+  const handleFastestLapChange = (id) => patchActiveSeason({ fastestLapMap: fastestLapMap[id] ? {} : { [id]: true } });
+  const moveDriverFinishPosition = (driverId, direction) => {
+    const current = Number(positions[driverId] || 0);
+    if (!current) return;
+    const next = Math.max(1, Math.min(activeDrivers.length || 40, current + direction));
+    const swappedDriver = activeDrivers.find((driver) => Number(positions[driver.id]) === next);
+    const nextPositions = { ...positions, [driverId]: next };
+    if (swappedDriver) nextPositions[swappedDriver.id] = current;
+    patchActiveSeason({ positions: nextPositions });
+  };
+  const retireDriver = (driverId) => {
+    if (!activeSeason) return;
+    const driver = drivers.find((d) => d.id === driverId);
+    if (!driver) return;
+    if (!window.confirm(`Retire ${driver.name}? They will be hidden from race entry but their stats will be preserved.`)) return;
+    const updatedDrivers = drivers.map((d) => d.id === driverId ? { ...d, retired: true } : d);
+    patchActiveSeason({ drivers: updatedDrivers });
+    if (editingDriverId === driverId) cancelEditDriver();
+  };
+  const unretireDriver = (driverId) => {
+    if (!activeSeason) return;
+    const updatedDrivers = drivers.map((d) => d.id === driverId ? { ...d, retired: false } : d);
+    patchActiveSeason({ drivers: updatedDrivers });
+  };
+  const addDriver = () => {
+    const trimmedName = newDriverName.trim(), trimmedTeam = newDriverTeam.trim(), trimmedManufacturer = newDriverManufacturer.trim(), driverNumber = String(newDriverNumber).trim();
+    if (!trimmedName || !trimmedTeam || !trimmedManufacturer || !driverNumber) { alert("Please enter driver name, number, manufacturer, and team."); return; }
+    if (drivers.some((d) => d.name.toLowerCase() === trimmedName.toLowerCase())) { alert("A driver with that name already exists."); return; }
+    if (drivers.some((d) => String(d.number) === driverNumber)) { alert("A driver with that number already exists."); return; }
+    const rosterDriver = { id: Date.now(), number: Number(driverNumber), name: trimmedName, manufacturer: trimmedManufacturer, manufacturerLogo: manufacturerLogos[trimmedManufacturer] || null, team: trimmedTeam, startingPoints: 0, manualWins: 0 };
+    const newRoster = [...drivers.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer, manufacturerLogo: d.manufacturerLogo || null, team: d.team, startingPoints: 0, manualWins: 0 })), rosterDriver];
+    patchActiveSeason({ drivers: rebuildDriversFromHistory(raceHistory, newRoster) });
+    setNewDriverName(""); setNewDriverNumber(""); setNewDriverManufacturer(""); setNewDriverTeam("");
+  };
+  const openEditDriver = (driver) => { setEditingDriverId(driver.id); setEditDriverForm({ name: driver.name, number: driver.number, manufacturer: driver.manufacturer || "", team: driver.team }); };
+  const cancelEditDriver = () => { setEditingDriverId(null); setEditDriverForm({ name: "", number: "", manufacturer: "", team: "" }); };
+  const saveDriverEdit = () => {
+    if (!editingDriverId || !activeSeason) return;
+    const name = editDriverForm.name.trim(), number = String(editDriverForm.number).trim(), manufacturer = editDriverForm.manufacturer.trim(), team = editDriverForm.team.trim();
+    if (!name || !number || !manufacturer || !team) { alert("Please enter driver name, number, manufacturer, and team."); return; }
+    if (drivers.some((d) => d.id !== editingDriverId && d.name.toLowerCase() === name.toLowerCase())) { alert("A driver with that name already exists."); return; }
+    if (drivers.some((d) => d.id !== editingDriverId && String(d.number) === number)) { alert("A driver with that number already exists."); return; }
+    const updatedRoster = drivers.map((d) => d.id === editingDriverId ? { ...d, name, number: Number(number), manufacturer, manufacturerLogo: manufacturerLogos[manufacturer] || null, team, startingPoints: 0, manualWins: 0 } : d);
+    const updatedHistory = raceHistory.map((race) => ({ ...race, results: (race.results || []).map((r) => r.driverId === editingDriverId ? { ...r, name, number: Number(number), manufacturer, team } : r) }));
+    const rosterOnly = updatedRoster.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer, manufacturerLogo: d.manufacturerLogo || null, team: d.team, startingPoints: 0, manualWins: 0 }));
+    replaceActiveSeason({ ...activeSeason, drivers: rebuildDriversFromHistory(updatedHistory, rosterOnly), raceHistory: updatedHistory });
+    cancelEditDriver();
+  };
+  const removeDriver = (driverId) => {
+    if (!activeSeason) return;
+    const driver = drivers.find((d) => d.id === driverId);
+    if (!driver || !window.confirm(`Remove ${driver.name}? This will also remove their results from race history.`)) return;
+    const newRoster = drivers.filter((d) => d.id !== driverId).map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer || "", team: d.team, startingPoints: 0, manualWins: 0 }));
+    const newHistory = raceHistory.map((race) => ({ ...race, results: (race.results || []).filter((r) => r.driverId !== driverId) }));
+    const np = { ...positions }, ns1 = { ...stage1 }, ns2 = { ...stage2 }, ns3 = { ...stage3 }, nd = { ...dnfMap }, no = { ...offenseMap }, nf = { ...fastestLapMap };
+    delete np[driverId]; delete ns1[driverId]; delete ns2[driverId]; delete ns3[driverId]; delete nd[driverId]; delete no[driverId]; delete nf[driverId];
+    replaceActiveSeason({ ...activeSeason, drivers: rebuildDriversFromHistory(newHistory, newRoster), raceHistory: newHistory, positions: np, stage1: ns1, stage2: ns2, stage3: ns3, dnfMap: nd, offenseMap: no, fastestLapMap: nf });
+    if (editingDriverId === driverId) cancelEditDriver();
+  };
+  const addTrack = () => {
+    const name = newTrackName.trim();
+    const stageCount = Number(newTrackStageCount);
+    if (!name) { alert("Please enter a track name."); return; }
+    if (![1, 2, 3].includes(stageCount)) { alert("Stage count must be 1, 2, or 3."); return; }
+    if (tracks.some((t) => t.name.toLowerCase() === name.toLowerCase())) { alert("A track with that name already exists."); return; }
+    setTracks((prev) => [...prev, { name, stageCount }]);
+    setNewTrackName("");
+    setNewTrackStageCount(2);
+  };
+  const removeTrack = (trackName) => {
+    const usedInHistory = seasons.some((s) => (s.raceHistory || []).some((r) => r.raceName === trackName));
+    const warning = usedInHistory
+      ? `Remove "${trackName}" from the track list? It already has race history in one or more seasons — that history will be preserved, but the track won't appear in the dropdown anymore.`
+      : `Remove "${trackName}" from the track list?`;
+    if (!window.confirm(warning)) return;
+    setTracks((prev) => prev.filter((t) => t.name !== trackName));
+    if (selectedRace === trackName) {
+      patchActiveSeason({ selectedRace: "", positions: {}, stage1: {}, stage2: {}, stage3: {}, dnfMap: {}, startParkMap: {}, offenseMap: {}, fastestLapMap: {}, penaltyMap: {}, resultNotesMap: {} });
+      setEditingRaceName(null);
+    }
+  };
+  const approvePendingDriver = async (pendingDriver) => {
+    if (!activeSeason || !pendingDriver) return;
+    if (!window.confirm(`Add ${pendingDriver.driver_name} (#${pendingDriver.car_number}) to the league?`)) return;
+    try {
+      // Add to active season
+      const newDriver = {
+        id: Date.now(),
+        number: pendingDriver.car_number,
+        name: pendingDriver.driver_name,
+        manufacturer: pendingDriver.manufacturer || "",
+        manufacturerLogo: manufacturerLogos[pendingDriver.manufacturer] || null,
+        team: pendingDriver.team_name,
+        startingPoints: 0,
+        manualWins: 0,
+        retired: false,
+      };
+      const newRoster = [...drivers.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer || "", manufacturerLogo: d.manufacturerLogo || null, team: d.team, startingPoints: 0, manualWins: 0 })), newDriver];
+      patchActiveSeason({ drivers: rebuildDriversFromHistory(raceHistory, newRoster) });
+      // Update pending driver status to approved
+      if (pendingDriver.request_source === "series_join_requests") {
+        const saved = JSON.parse(localStorage.getItem("series_join_requests") || "[]");
+        const updated = saved.map((request) => String(request.id) === String(pendingDriver.original_id) ? { ...request, status: "approved", reviewedAt: new Date().toISOString() } : request);
+        localStorage.setItem("series_join_requests", JSON.stringify(updated));
+      } else {
+        await supabase
+          .from("pending_drivers")
+          .update({ status: "approved" })
+          .eq("id", pendingDriver.id);
+      }
+      setPendingDrivers((prev) => prev.filter((d) => d.id !== pendingDriver.id));
+      alert(`${pendingDriver.driver_name} has been added to the league!`);
+    } catch (err) {
+      console.error("Error approving driver:", err);
+      alert("Failed to approve driver. Please try again.");
+    }
+  };
+  const rejectPendingDriver = async (pendingDriver) => {
+    if (!window.confirm(`Reject ${pendingDriver.driver_name}?`)) return;
+    try {
+      if (pendingDriver.request_source === "series_join_requests") {
+        const saved = JSON.parse(localStorage.getItem("series_join_requests") || "[]");
+        const updated = saved.map((request) => String(request.id) === String(pendingDriver.original_id) ? { ...request, status: "rejected", reviewedAt: new Date().toISOString() } : request);
+        localStorage.setItem("series_join_requests", JSON.stringify(updated));
+      } else {
+        await supabase
+          .from("pending_drivers")
+          .update({ status: "rejected" })
+          .eq("id", pendingDriver.id);
+      }
+      setPendingDrivers((prev) => prev.filter((d) => d.id !== pendingDriver.id));
+    } catch (err) {
+      console.error("Error rejecting driver:", err);
+    }
+  };
+  const updateTrackStageCount = (trackName, newCount) => {
+    const stages = Number(newCount);
+    if (![1, 2, 3].includes(stages)) return;
+    setTracks((prev) => prev.map((t) => t.name === trackName ? { ...t, stageCount: stages } : t));
+  };
+  const restoreDefaultTracks = () => {
+    if (!window.confirm("Restore the default 17-track schedule? Any custom tracks you've added will be removed (race history is preserved).")) return;
+    setTracks(defaultRaces);
+  };
+  const seasonOffenseCounts = useMemo(() => {
+    const counts = {};
+    drivers.forEach((d) => { counts[d.id] = countPriorOffenses(raceHistory, d.id, editingRaceName); });
+    return counts;
+  }, [raceHistory, drivers, editingRaceName]);
+  const buildRaceResultsFromCurrentInputs = () => {
+    return drivers.map((driver) => {
+      const finishPos = positions[driver.id];
+      const stage1Pos = stage1[driver.id], stage2Pos = stage2[driver.id], stage3Pos = stage3[driver.id];
+      const dnf = !!dnfMap[driver.id];
+      const startPark = !!startParkMap[driver.id];
+      const fastestLap = !!fastestLapMap[driver.id];
+      const offense = !!offenseMap[driver.id];
+      const manualPenaltyPoints = Number(penaltyMap[driver.id] || 0);
+      const finishPoints = finishPos && finishPos >= 1 && finishPos <= pointsTable.length ? pointsTable[finishPos - 1] : 0;
+      const stage1Points = startPark ? 0 : getStagePoints(stage1Pos), stage2Points = startPark ? 0 : getStagePoints(stage2Pos);
+      const stage3Points = startPark ? 0 : (stageCount === 3 ? getStagePoints(stage3Pos) : 0);
+      const fastestLapPoints = fastestLap ? 1 : 0;
+      const priorOffenses = countPriorOffenses(raceHistory, driver.id, editingRaceName);
+      const offenseNumber = offense ? priorOffenses + 1 : 0;
+      const offensePenalty = offense ? getOffensePenaltyPoints(offenseNumber) : 0;
+      const penaltyPoints = offensePenalty + manualPenaltyPoints;
+      const totalRacePoints = finishPoints + stage1Points + stage2Points + stage3Points + fastestLapPoints - penaltyPoints;
+      return {
+        driverId: driver.id, name: driver.name, number: driver.number, team: driver.team, manufacturer: driver.manufacturer || "",
+        finishPos: finishPos || null, stage1Pos: stage1Pos || null, stage2Pos: stage2Pos || null, stage3Pos: stageCount === 3 ? stage3Pos || null : null,
+        finishPoints, stage1Points, stage2Points, stage3Points, fastestLap, fastestLapPoints,
+        offense, offenseNumber, offensePenalty, manualPenaltyPoints, penaltyPoints, totalRacePoints,
+        isWin: finishPos === 1, isTop3: finishPos >= 1 && finishPos <= 3, isTop5: finishPos >= 1 && finishPos <= 5,
+        dnf, startPark, dnfReason: dnf ? (dnfReasons[driver.id] || "Unknown") : null,
+        notes: resultNotesMap[driver.id] || "",
+      };
+    }).sort((a, b) => { if (a.finishPos === null) return 1; if (b.finishPos === null) return -1; return a.finishPos - b.finishPos; });
+  };
+
+  const buildRaceFromCurrentInputs = () => ({
+    raceName: selectedRace,
+    stageCount,
+    results: buildRaceResultsFromCurrentInputs(),
+    savedAt: new Date().toISOString(),
+  });
+
+  const saveResultsDraft = () => {
+    if (!activeSeason) return;
+    if (!selectedRace.trim()) { alert("Please select a race before saving a draft."); return; }
+    const draft = {
+      ...buildRaceFromCurrentInputs(),
+      id: `draft-${selectedRace.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-${Date.now()}`,
+      status: "Draft",
+      draftSavedAt: new Date().toISOString(),
+      posted: false,
+    };
+    const nextDrafts = [draft, ...(raceDrafts || []).filter((item) => item.raceName !== selectedRace)];
+    patchActiveSeason({ raceDrafts: nextDrafts });
+    alert("Admin-only results draft saved. Standings were not updated.");
+  };
+
+  const loadResultsDraft = (draft) => {
+    const np = {}, ns1 = {}, ns2 = {}, ns3 = {}, nd = {}, spm = {}, no = {}, nf = {}, nr = {}, pm = {}, notes = {};
+    (draft.results || []).forEach((r) => {
+      np[r.driverId] = r.finishPos || ""; ns1[r.driverId] = r.stage1Pos || ""; ns2[r.driverId] = r.stage2Pos || ""; ns3[r.driverId] = r.stage3Pos || "";
+      nd[r.driverId] = !!r.dnf; spm[r.driverId] = !!r.startPark; no[r.driverId] = !!r.offense;
+      if (r.fastestLap) nf[r.driverId] = true;
+      if (r.dnfReason) nr[r.driverId] = r.dnfReason;
+      if (r.manualPenaltyPoints) pm[r.driverId] = r.manualPenaltyPoints;
+      if (r.notes) notes[r.driverId] = r.notes;
+    });
+    setDnfReasons(nr);
+    patchActiveSeason({ selectedRace: draft.raceName, positions: np, stage1: ns1, stage2: ns2, stage3: ns3, dnfMap: nd, startParkMap: spm, offenseMap: no, fastestLapMap: nf, penaltyMap: pm, resultNotesMap: notes });
+    setEditingRaceName(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const deleteResultsDraft = (draftId) => {
+    if (!activeSeason || !window.confirm("Delete this admin-only results draft?")) return;
+    patchActiveSeason({ raceDrafts: (raceDrafts || []).filter((draft) => draft.id !== draftId) });
+  };
+
+  const postResultsDraft = async (draft) => {
+    if (!draft) return;
+    loadResultsDraft(draft);
+    setTimeout(() => submitResults(draft), 0);
+  };
+
+  const submitResults = async (draftOverride = null) => {
+    if (!activeSeason) return;
+    const raceToPost = draftOverride || buildRaceFromCurrentInputs();
+    if (!raceToPost.raceName.trim()) { alert("Please select a race."); return; }
+    if (raceHistory.some((r) => r.raceName === raceToPost.raceName && editingRaceName !== raceToPost.raceName)) { alert("That race has already been entered."); return; }
+    const updatedRace = {
+      ...raceToPost,
+      status: "Posted",
+      postedAt: new Date().toISOString(),
+      savedAt: new Date().toISOString(),
+    };
+    const newHistory = editingRaceName ? raceHistory.map((r) => r.raceName === editingRaceName ? updatedRace : r) : [...raceHistory, updatedRace];
+    const rosterOnly = drivers.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer || "", team: d.team, startingPoints: 0, manualWins: 0, retired: d.retired || false }));
+    const rebuiltDrivers = rebuildDriversFromHistory(newHistory, rosterOnly);
+    const updatedSeason = {
+      ...activeSeason,
+      raceHistory: newHistory,
+      raceDrafts: (raceDrafts || []).filter((draft) => draft.id !== draftOverride?.id && draft.raceName !== updatedRace.raceName),
+      drivers: rebuiltDrivers,
+      selectedRace: "",
+      positions: {},
+      stage1: {},
+      stage2: {},
+      stage3: {},
+      dnfMap: {},
+      offenseMap: {},
+      fastestLapMap: {},
+      penaltyMap: {},
+      resultNotesMap: {},
+    };
+
+    const updatedSeasons = seasons.map((season) => (season.id === activeSeasonId ? updatedSeason : season));
+
+    replaceActiveSeason(updatedSeason);
+
+    const automaticBackupPayload = makeLeagueBackupPayload({
+      tracks,
+      seasons: updatedSeasons,
+      activeSeasonId,
+      reason: editingRaceName ? "automatic-edit-race-results" : "automatic-post-race-results",
+      raceSnapshot: updatedRace,
+    });
+
+    downloadLeagueBackupFile(automaticBackupPayload, editingRaceName ? "auto-edit-race-results" : "auto-post-race-results");
+
+    const backupResult = await createRaceDataBackup({
+      seasonSnapshot: updatedSeason,
+      raceSnapshot: updatedRace,
+      backupType: editingRaceName ? "edit-race-save-points" : "post-points-to-standings",
+    });
+
+    const ledgerResult = await saveRaceResultsLedger({
+      season: updatedSeason,
+      race: updatedRace,
+      tracks,
+    });
+
+    if (!backupResult.ok && !ledgerResult.ok) {
+      alert("Race points posted locally and a JSON backup downloaded, but Supabase backup AND race_results ledger failed. Check race_data_backups and race_results tables/RLS.");
+    } else if (!backupResult.ok) {
+      alert("Race points posted and race_results ledger updated, but the Supabase JSON backup failed. Check race_data_backups table/RLS.");
+    } else if (!ledgerResult.ok) {
+      alert("Race points posted and a JSON backup downloaded, but race_results ledger failed. Check race_results table/RLS.");
+    } else {
+      alert("Race results posted to standings.");
+    }
+
+    setEditingRaceName(null);
+  };
+
+  // ===== ARCA SERIES RESULTS FUNCTIONS (Mirror of Cup) =====
+
+  const buildArcaRaceFromCurrentInputs = () => ({
+    raceName: activeSeason?.arcaSelectedRace?.name || "",
+    stageCount: 0,
+    results: buildArcaRaceResultsFromCurrentInputs(),
+    savedAt: new Date().toISOString(),
+  });
+
+  const buildArcaRaceResultsFromCurrentInputs = () => {
+    return (arcaDrivers || [])
+      .filter(d => !isInactivePlaceholderDriver(d))
+      .map((driver) => {
+        const pos = activeSeason?.arcaPositions?.[driver.id];
+        if (!pos) return null;
+        
+        const finishPos = Number(pos);
+        const basePoints = (finishPos >= 1 && finishPos <= pointsTable.length) ? pointsTable[finishPos - 1] : 0;
+        const fastestLap = activeSeason?.arcaFastestLapMap?.[driver.id] ? 1 : 0;
+        const penaltyPts = Number(activeSeason?.arcaPenaltyMap?.[driver.id] || 0);
+        const isDnf = activeSeason?.arcaDnfMap?.[driver.id] || false;
+        
+        return {
+          driverId: driver.id,
+          number: driver.number,
+          name: driver.name,
+          team: driver.team,
+          manufacturer: driver.manufacturer,
+          finishPos: !isDnf ? finishPos : null,
+          finishPoints: !isDnf ? basePoints : 0,
+          fastestLap,
+          dnf: isDnf,
+          dnfReason: activeSeason?.arcaDnfReasons?.[driver.id] || "",
+          offense: activeSeason?.arcaOffenseMap?.[driver.id] || false,
+          offenseNumber: 0,
+          penaltyPoints: penaltyPts,
+          totalRacePoints: (!isDnf ? basePoints : 0) + fastestLap - penaltyPts,
+        };
+      })
+      .filter(Boolean);
+  };
+
+  const saveArcaResultsDraft = () => {
+    if (!activeSeason) return;
+    if (!activeSeason.arcaSelectedRace?.trim()) { 
+      alert("Please select an ARCA race before saving a draft."); 
+      return; 
+    }
+    const draft = {
+      ...buildArcaRaceFromCurrentInputs(),
+      id: `arca-draft-${activeSeason.arcaSelectedRace.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-${Date.now()}`,
+      status: "Draft",
+      draftSavedAt: new Date().toISOString(),
+      posted: false,
+    };
+    const nextDrafts = [draft, ...(activeSeason?.arcaRaceDrafts || []).filter((item) => item.raceName !== activeSeason.arcaSelectedRace)];
+    patchActiveSeason({ arcaRaceDrafts: nextDrafts });
+    alert("ARCA results draft saved. Standings were not updated.");
+  };
+
+  const submitArcaResults = async (draftOverride = null) => {
+    if (!activeSeason) return;
+    
+    const raceToPost = draftOverride || buildArcaRaceFromCurrentInputs();
+    if (!raceToPost.raceName?.trim()) { 
+      alert("Please select an ARCA race."); 
+      return; 
+    }
+    
+    if ((activeSeason?.arcaRaceHistory || []).some(r => r.raceName === raceToPost.raceName)) {
+      alert("That ARCA race has already been entered.");
+      return;
+    }
+    
+    const updatedRace = {
+      ...raceToPost,
+      status: "Posted",
+      postedAt: new Date().toISOString(),
+      savedAt: new Date().toISOString(),
+    };
+    
+    const newArcaHistory = [...(activeSeason?.arcaRaceHistory || []), updatedRace];
+    const updatedArcaDrivers = rebuildArcaDriversFromHistory(newArcaHistory, arcaDrivers || []);
+    
+    const updatedSeason = {
+      ...activeSeason,
+      arcaRaceHistory: newArcaHistory,
+      arcaDrivers: updatedArcaDrivers,
+      arcaRaceDrafts: (activeSeason?.arcaRaceDrafts || []).filter(draft => draft.raceName !== updatedRace.raceName),
+      arcaSelectedRace: null,
+      arcaPositions: {},
+      arcaDnfMap: {},
+      arcaFastestLapMap: {},
+      arcaPenaltyMap: {},
+      arcaDnfReasons: {},
+      arcaOffenseMap: {},
+      arcaResultNotesMap: {},
+    };
+
+    replaceActiveSeason(updatedSeason);
+
+    const ledgerResult = await saveArcaRaceResultsLedger({
+      season: updatedSeason,
+      race: updatedRace,
+      tracks: arcaTracks || [],
+    });
+
+    // NOTE: saveArcaStandings() is intentionally NOT called here.
+    // saveArcaRaceResultsLedger() already rebuilds arca_standings internally
+    // (via rebuildArcaStandingsFromResults, reading fresh from arca_results),
+    // matching the Cup series pattern (saveRaceResultsLedger). Calling
+    // saveArcaStandings afterward with the client-side roster overwrote that
+    // correct rebuild with stale/zeroed local values. saveArcaStandings is
+    // still available for other flows (e.g. manual roster resets) — it's
+    // just no longer auto-run after every race post.
+
+    if (!ledgerResult.ok) {
+      alert("ARCA race results posted locally but Supabase sync failed. Check arca_results/arca_standings tables and RLS.");
+    } else {
+      alert("ARCA race results posted to standings.");
+    }
+  };
+
+  const rebuildArcaDriversFromHistory = (arcaRaceHistory = [], roster = []) => {
+    const stats = new Map();
+    
+    (roster || []).forEach(driver => {
+      stats.set(driver.id, {
+        id: driver.id,
+        number: driver.number,
+        name: driver.name,
+        team: driver.team,
+        manufacturer: driver.manufacturer,
+        points: 0,
+        wins: 0,
+        top5: 0,
+        top10: 0,
+        dnfs: 0,
+        starts: 0,
+      });
+    });
+    
+    (arcaRaceHistory || []).forEach(race => {
+      (race.results || []).forEach(result => {
+        const stat = stats.get(result.driverId);
+        if (stat) {
+          stat.points += result.totalRacePoints || 0;
+          stat.starts++;
+          if (result.finishPos === 1) stat.wins++;
+          if (result.finishPos && result.finishPos <= 5) stat.top5++;
+          if (result.finishPos && result.finishPos <= 10) stat.top10++;
+          if (result.dnf) stat.dnfs++;
+        }
+      });
+    });
+    
+    return Array.from(stats.values()).sort((a, b) => b.points - a.points);
+  };
+
+  const handleEditArcaRace = (race) => {
+    const np = {}, nd = {}, nf = {}, nr = {}, pm = {}, no = {}, notes = {};
+    (race.results || []).forEach((r) => {
+      np[r.driverId] = r.finishPos || "";
+      nd[r.driverId] = !!r.dnf;
+      if (r.fastestLap) nf[r.driverId] = true;
+      if (r.dnfReason) nr[r.driverId] = r.dnfReason;
+      if (r.penaltyPoints) pm[r.driverId] = r.penaltyPoints;
+      if (r.offense) no[r.driverId] = true;
+      if (r.notes) notes[r.driverId] = r.notes;
+    });
+    patchActiveSeason({ 
+      arcaSelectedRace: race.raceName, 
+      arcaPositions: np, 
+      arcaDnfMap: nd, 
+      arcaFastestLapMap: nf, 
+      arcaDnfReasons: nr, 
+      arcaPenaltyMap: pm, 
+      arcaOffenseMap: no, 
+      arcaResultNotesMap: notes 
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleDeleteArcaRace = (raceName) => {
+    if (!activeSeason || !window.confirm(`Delete ${raceName}? This will recalculate ARCA standings.`)) return;
+    const newArcaHistory = (activeSeason?.arcaRaceHistory || []).filter((r) => r.raceName !== raceName);
+    const updatedArcaDrivers = rebuildArcaDriversFromHistory(newArcaHistory, arcaDrivers || []);
+    replaceActiveSeason({ 
+      ...activeSeason, 
+      arcaRaceHistory: newArcaHistory, 
+      arcaDrivers: updatedArcaDrivers 
+    });
+  };
+  // ===== END ARCA FUNCTIONS =====
+
+  // Memoized drivers list for the ARCA /series/arca standings page.
+  // Previously this was computed inline at the render call site with
+  // rebuildArcaDriversFromHistory(...), which returns a brand-new array
+  // reference on every single App render. StandingsPage's data-loading
+  // effect depends on the `drivers` prop, so a fresh reference every render
+  // retriggered it constantly, causing the team logos/rows to flicker as it
+  // repeatedly refetched and re-rendered. Memoizing it so it only recomputes
+  // when the actual underlying data changes fixes that.
+  const arcaStandingsPageDrivers = useMemo(() => {
+    if (activeSeason?.arcaDrivers && activeSeason.arcaDrivers.length > 0) {
+      return activeSeason.arcaDrivers;
+    }
+    return rebuildArcaDriversFromHistory(activeSeason?.arcaRaceHistory || [], arcaDrivers || []);
+  }, [activeSeason?.arcaDrivers, activeSeason?.arcaRaceHistory, arcaDrivers]);
+
+  const handleEditRace = (race) => {
+    const np = {}, ns1 = {}, ns2 = {}, ns3 = {}, nd = {}, spm = {}, no = {}, nf = {}, nr = {}, pm = {}, notes = {};
+    race.results.forEach((r) => {
+      np[r.driverId] = r.finishPos || ""; ns1[r.driverId] = r.stage1Pos || ""; ns2[r.driverId] = r.stage2Pos || ""; ns3[r.driverId] = r.stage3Pos || "";
+      nd[r.driverId] = !!r.dnf; spm[r.driverId] = !!r.startPark; no[r.driverId] = !!r.offense;
+      if (r.fastestLap) nf[r.driverId] = true;
+      if (r.dnfReason) nr[r.driverId] = r.dnfReason;
+      if (r.manualPenaltyPoints) pm[r.driverId] = r.manualPenaltyPoints;
+      if (r.notes) notes[r.driverId] = r.notes;
+    });
+    setDnfReasons(nr);
+    patchActiveSeason({ selectedRace: race.raceName, positions: np, stage1: ns1, stage2: ns2, stage3: ns3, dnfMap: nd, startParkMap: spm, offenseMap: no, fastestLapMap: nf, penaltyMap: pm, resultNotesMap: notes });
+    setEditingRaceName(race.raceName);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+  const handleDeleteRace = (raceName) => {
+    if (!activeSeason || !window.confirm(`Delete ${raceName}? This will recalculate the standings.`)) return;
+    const newHistory = raceHistory.filter((r) => r.raceName !== raceName);
+    const rosterOnly = drivers.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer || "", team: d.team, startingPoints: 0, manualWins: 0, retired: d.retired || false }));
+    replaceActiveSeason({ ...activeSeason, raceHistory: newHistory, drivers: rebuildDriversFromHistory(newHistory, rosterOnly) });
+    if (editingRaceName === raceName) clearInputs();
+  };
+  const offenseLog = raceHistory.flatMap((race) =>
+    race.results.filter((r) => r.offense).map((r) => ({ raceName: race.raceName, number: r.number, name: r.name, offenseNumber: r.offenseNumber, penaltyPoints: r.penaltyPoints }))
+  );
+  const saveDiscordSettings = () => {
+    const cleanUrl = discordInviteUrl.trim() || DEFAULT_DISCORD_INVITE_URL;
+    const settings = {
+      inviteUrl: cleanUrl,
+      announcement: discordAnnouncement.trim() || "Join the Budweiser Cup League Discord for race control, media, team rooms, and league updates.",
+      rulesText: discordRulesText.trim() || DEFAULT_DISCORD_RULES.join("\n"),
+    };
+    localStorage.setItem("bcl-discord-settings", JSON.stringify(settings));
+    setDiscordInviteUrl(settings.inviteUrl);
+    setDiscordAnnouncement(settings.announcement);
+    setDiscordRulesText(settings.rulesText);
+    alert("Discord settings saved.");
+  };
+
+  async function exportAppDataJson() {
+    const tablesToExport = [
+      "league_state",
+      "race_results",
+      "race_data_backups",
+      "interviews",
+      "driver_access_codes",
+      "team_owner_assignments",
+      "team_finances",
+      "contract_offers",
+      "technical_alliances",
+      "owner_tasks",
+      "driver_tasks",
+      "paint_scheme_votes",
+      "start_park_requests",
+      "streams",
+      "ticker_messages",
+      "app_update_banners",
+      "league_messages",
+      "appeals",
+      "story_submissions",
+      "memorial_day_tributes",
+    ];
+
+    const exportPayload = {
+      exportVersion: 1,
+      appVersion: APP_VERSION,
+      appName: "Budweiser Cup League",
+      exportedAt: new Date().toISOString(),
+      purpose: "Accurate interview, media, standings, and league storyline context",
+      activeSeasonId,
+      activeSeasonName: activeSeason?.name || "",
+      localState: {
+        tracks,
+        seasons,
+        activeSeasonId,
+        activeSeason,
+        drivers: visibleDrivers,
+        teamStandings,
+        manufacturerStandings,
+        raceHistory,
+        selectedRace,
+        ownerAssignments,
+      },
+      supabaseTables: {},
+    };
+
+    for (const table of tablesToExport) {
+      try {
+        const { data, error } = await supabase.from(table).select("*");
+
+        if (error) {
+          exportPayload.supabaseTables[table] = {
+            ok: false,
+            error: error.message,
+            rows: [],
+          };
+        } else {
+          exportPayload.supabaseTables[table] = {
+            ok: true,
+            count: Array.isArray(data) ? data.length : 0,
+            rows: data || [],
+          };
+        }
+      } catch (error) {
+        exportPayload.supabaseTables[table] = {
+          ok: false,
+          error: error?.message || String(error),
+          rows: [],
+        };
+      }
+    }
+
+    const dateStamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const blob = new Blob([JSON.stringify(exportPayload, null, 2)], {
+      type: "application/json;charset=utf-8;",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = `budweiser-cup-app-export-${dateStamp}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+
+  async function loadPaymentComplianceData() {
+    setPaymentComplianceLoading(true);
+    setPaymentComplianceError("");
+    setPaymentComplianceStatus("");
+
+    // Do not order in Supabase here because some league tables use submitted_at instead of created_at.
+    // We pull rows first, then sort in the browser using every supported timestamp field.
+    const [{ data: interviewsData, error: interviewsError }, { data: uploadData, error: uploadError }, { data: overrideData, error: overrideError }] = await Promise.all([
+      supabase.from("interviews").select("*"),
+      supabase.from("car_uploads").select("*"),
+      supabase.from("team_payment_overrides").select("*"),
+    ]);
+
+    if (interviewsError || uploadError) {
+      console.error("Could not load payment compliance data:", interviewsError || uploadError);
+      setPaymentComplianceError("Could not load interviews or paint uploads. Check interviews/car_uploads select policies.");
+    }
+
+    if (overrideError) {
+      console.warn("Could not load team_payment_overrides; using local browser overrides instead.", overrideError);
+    } else {
+      setPaymentComplianceOverrides(overrideData || []);
+      localStorage.setItem(PAYMENT_COMPLIANCE_OVERRIDE_KEY, JSON.stringify(overrideData || []));
+    }
+
+    const sortNewest = (rows = []) => (Array.isArray(rows) ? rows : [])
+      .filter((row) => row && typeof row === "object")
+      .sort((a, b) => new Date(getPaymentTimestamp(b) || 0) - new Date(getPaymentTimestamp(a) || 0));
+
+    setPaymentComplianceInterviews(sortNewest(interviewsData));
+    setPaymentComplianceUploads(sortNewest(uploadData));
+    setPaymentComplianceLoading(false);
+    setPaymentComplianceStatus("Payment compliance tracker refreshed.");
+  }
+
+  async function savePaymentComplianceOverride(row, status) {
+    const cleanStatus = status === "approved" || status === "denied" ? status : "";
+    const payload = {
+      team_key: row.teamKey,
+      team_name: row.teamName,
+      period_key: row.paymentPeriodKey,
+      previous_race: row.previousRaceName || null,
+      upcoming_race: row.upcomingRaceName || null,
+      override_status: cleanStatus,
+      override_reason: cleanStatus ? `Admin ${cleanStatus} payment override` : "Override cleared",
+      updated_at: new Date().toISOString(),
+    };
+
+    const nextLocal = [payload, ...(paymentComplianceOverrides || []).filter((item) => !(String(item.team_key || item.team) === String(row.teamKey) && String(item.period_key || item.periodKey) === String(row.paymentPeriodKey)))].filter((item) => item.override_status);
+    setPaymentComplianceOverrides(nextLocal);
+    localStorage.setItem(PAYMENT_COMPLIANCE_OVERRIDE_KEY, JSON.stringify(nextLocal));
+
+    if (!cleanStatus) {
+      const { error } = await supabase
+        .from("team_payment_overrides")
+        .delete()
+        .eq("team_key", row.teamKey)
+        .eq("period_key", row.paymentPeriodKey);
+      if (error) console.warn("Could not clear override from Supabase; local override was cleared.", error);
+      setPaymentComplianceStatus(`Payment override cleared for ${row.teamName}.`);
+      return;
+    }
+
+    const { error } = await supabase
+      .from("team_payment_overrides")
+      .upsert(payload, { onConflict: "team_key,period_key" });
+
+    if (error) {
+      console.warn("Could not save override to Supabase; saved locally in this browser.", error);
+      setPaymentComplianceStatus(`Payment override saved locally for ${row.teamName}. Create/check team_payment_overrides to sync it.`);
+      return;
+    }
+
+    setPaymentComplianceStatus(`Payment override saved for ${row.teamName}.`);
+  }
+
+  function PaymentCompliancePanel({ mode = "admin" }) {
+    const rows = paymentComplianceSummary || [];
+    const allMet = rows.length > 0 && rows.every((row) => row.finalEligible);
+    const isAdminMode = mode === "admin";
+    const qualifiedCount = rows.filter((row) => row.finalEligible).length;
+    const needsReviewCount = Math.max(rows.length - qualifiedCount, 0);
+
+    const applePanelStyle = {
+      background: "linear-gradient(180deg, #f5f5f7 0%, #ffffff 72%)",
+      border: "1px solid rgba(0,0,0,0.08)",
+      borderRadius: 30,
+      padding: 22,
+      color: "#1d1d1f",
+      boxShadow: "0 22px 55px rgba(15, 23, 42, 0.10)",
+    };
+
+    const appleMetricStyle = {
+      background: "rgba(255,255,255,0.88)",
+      border: "1px solid rgba(0,0,0,0.07)",
+      borderRadius: 22,
+      padding: 16,
+      boxShadow: "0 10px 24px rgba(15,23,42,0.06)",
+    };
+
+    const applePill = (active, label) => (
+      <span style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 7,
+        padding: "7px 11px",
+        borderRadius: 999,
+        fontSize: 12,
+        fontWeight: 1000,
+        letterSpacing: 0.2,
+        color: active ? "#0f6b2f" : "#9f1239",
+        background: active ? "rgba(52,199,89,0.16)" : "rgba(255,59,48,0.12)",
+        border: active ? "1px solid rgba(52,199,89,0.28)" : "1px solid rgba(255,59,48,0.22)",
+      }}>
+        <span style={{ width: 8, height: 8, borderRadius: 999, background: active ? "#34c759" : "#ff3b30" }} />
+        {label}
+      </span>
+    );
+
+    const deadlineChip = (label, value) => (
+      <div style={{
+        background: "#f2f2f7",
+        border: "1px solid rgba(0,0,0,0.06)",
+        borderRadius: 16,
+        padding: "10px 12px",
+        minWidth: 145,
+      }}>
+        <div style={{ fontSize: 11, fontWeight: 1000, color: "#6e6e73", textTransform: "uppercase", letterSpacing: 0.7 }}>{label}</div>
+        <div style={{ marginTop: 4, fontSize: 13, fontWeight: 850, color: "#1d1d1f" }}>{formatPaymentTimestamp(value)}</div>
+      </div>
+    );
+
+    const checkLine = (label, met, timestamp) => (
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", padding: "7px 0", borderTop: "1px solid rgba(0,0,0,0.06)" }}>
+        <div style={{ color: "#6e6e73", fontSize: 12, fontWeight: 900 }}>{label}</div>
+        <div style={{ textAlign: "right" }}>
+          <div style={{ color: met ? "#0f6b2f" : "#b42318", fontSize: 12, fontWeight: 1000 }}>{met ? "MET" : "MISSED"}</div>
+          <div style={{ color: "#6e6e73", fontSize: 11, fontWeight: 750 }}>{formatPaymentTimestamp(timestamp)}</div>
+        </div>
+      </div>
+    );
+
+    return (
+      <div style={applePanelStyle}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, flexWrap: "wrap" }}>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 1000, color: "#6e6e73", letterSpacing: 1.4, textTransform: "uppercase" }}>Finance Department</div>
+            <h2 style={{ margin: "4px 0 0", fontSize: 30, letterSpacing: -1.1, color: "#1d1d1f" }}>Team Payment Compliance</h2>
+            <p style={{ margin: "8px 0 0", color: "#6e6e73", lineHeight: 1.5, fontWeight: 750, maxWidth: 820 }}>
+              Apple Wallet-style compliance cards for team payouts. Paint schemes and previous-race post interviews are due Wednesday at 11:59 PM ET. Upcoming-race pre interviews are due Saturday at 8:30 PM ET.
+            </p>
+          </div>
+          <button type="button" onClick={loadPaymentComplianceData} style={{
+            border: 0,
+            borderRadius: 999,
+            padding: "12px 16px",
+            background: "#007aff",
+            color: "white",
+            fontWeight: 1000,
+            boxShadow: "0 10px 22px rgba(0,122,255,0.24)",
+            cursor: "pointer",
+          }} disabled={paymentComplianceLoading}>
+            {paymentComplianceLoading ? "Refreshing..." : "Refresh"}
+          </button>
+        </div>
+
+        <div style={{ marginTop: 18, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 12 }}>
+          <div style={appleMetricStyle}>
+            <div style={{ color: "#6e6e73", fontSize: 12, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 0.9 }}>Previous Race</div>
+            <div style={{ marginTop: 7, fontSize: 19, fontWeight: 1000, color: "#1d1d1f" }}>{previousRaceForPayment?.name || "—"}</div>
+          </div>
+          <div style={appleMetricStyle}>
+            <div style={{ color: "#6e6e73", fontSize: 12, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 0.9 }}>Upcoming Race</div>
+            <div style={{ marginTop: 7, fontSize: 19, fontWeight: 1000, color: "#1d1d1f" }}>{upcomingRaceForPayment?.name || "—"}</div>
+          </div>
+          <div style={appleMetricStyle}>
+            <div style={{ color: "#6e6e73", fontSize: 12, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 0.9 }}>Qualified Teams</div>
+            <div style={{ marginTop: 7, fontSize: 24, fontWeight: 1000, color: allMet ? "#0f6b2f" : "#1d1d1f" }}>{qualifiedCount} / {rows.length}</div>
+          </div>
+          <div style={appleMetricStyle}>
+            <div style={{ color: "#6e6e73", fontSize: 12, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 0.9 }}>Needs Review</div>
+            <div style={{ marginTop: 7, fontSize: 24, fontWeight: 1000, color: needsReviewCount ? "#b42318" : "#0f6b2f" }}>{needsReviewCount}</div>
+          </div>
+        </div>
+
+        {paymentComplianceStatus && <div style={{ background: "rgba(52,199,89,0.13)", color: "#0f6b2f", borderRadius: 16, padding: 12, marginTop: 14, fontWeight: 900 }}>{paymentComplianceStatus}</div>}
+        {paymentComplianceError && <div style={{ background: "rgba(255,59,48,0.11)", color: "#b42318", borderRadius: 16, padding: 12, marginTop: 14, fontWeight: 900 }}>{paymentComplianceError}</div>}
+
+        <div style={{ marginTop: 18, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 16 }}>
+          {rows.length === 0 ? (
+            <div style={{ ...appleMetricStyle, gridColumn: "1 / -1", color: "#6e6e73", fontWeight: 850 }}>
+              No team compliance data loaded yet. Click Refresh.
+            </div>
+          ) : rows.map((row, index) => (
+            <div key={row.teamKey} style={{
+              background: "rgba(255,255,255,0.95)",
+              border: "1px solid rgba(0,0,0,0.08)",
+              borderRadius: 28,
+              overflow: "hidden",
+              boxShadow: "0 18px 38px rgba(15,23,42,0.08)",
+            }}>
+              <div style={{
+                minHeight: 118,
+                padding: 18,
+                color: "white",
+                background: row.finalEligible
+                  ? "linear-gradient(135deg, #1c1c1e, #34c759)"
+                  : index % 2 === 0
+                    ? "linear-gradient(135deg, #1c1c1e, #ff3b30)"
+                    : "linear-gradient(135deg, #2c2c2e, #ff9500)",
+                position: "relative",
+              }}>
+                <div style={{ position: "absolute", right: -35, top: -35, width: 125, height: 125, borderRadius: 999, background: "rgba(255,255,255,0.13)" }} />
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, position: "relative" }}>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 1000, opacity: 0.78, letterSpacing: 1.2, textTransform: "uppercase" }}>Team Wallet</div>
+                    <div style={{ marginTop: 5, fontSize: 22, fontWeight: 1000, letterSpacing: -0.4 }}>{row.teamName}</div>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontSize: 12, fontWeight: 1000, opacity: 0.8 }}>Final Status</div>
+                    <div style={{ marginTop: 5, fontSize: 14, fontWeight: 1000 }}>{row.finalEligible ? "QUALIFIED" : "NOT QUALIFIED"}</div>
+                  </div>
+                </div>
+                {row.overrideStatus && (
+                  <div style={{ marginTop: 15, display: "inline-flex", borderRadius: 999, background: "rgba(255,255,255,0.18)", padding: "7px 10px", fontSize: 12, fontWeight: 1000, position: "relative" }}>
+                    Admin Override: {row.overrideStatus.toUpperCase()}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ padding: 16 }}>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+                  {applePill(row.finalEligible, row.finalEligible ? "Pay Approved" : "Payment Hold")}
+                  {applePill(row.driverChecks?.every((check) => check.paintMet), "Paint")}
+                  {applePill(row.driverChecks?.every((check) => check.postMet), "Post")}
+                  {applePill(row.driverChecks?.every((check) => check.preMet), "Pre")}
+                </div>
+
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 13 }}>
+                  {deadlineChip("Paint Due", row.paintDeadlineIso)}
+                  {deadlineChip("Post Due", row.postDeadlineIso)}
+                  {deadlineChip("Pre Due", row.preDeadlineIso)}
+                </div>
+
+                <div style={{ display: "grid", gap: 10 }}>
+                  {(row.driverChecks || []).map((check) => (
+                    <details key={check.driver.id} style={{
+                      background: "#f5f5f7",
+                      border: "1px solid rgba(0,0,0,0.06)",
+                      borderRadius: 18,
+                      padding: "10px 12px",
+                    }}>
+                      <summary style={{ cursor: "pointer", fontWeight: 1000, color: "#1d1d1f" }}>#{check.driver.number} {check.driver.name}</summary>
+                      <div style={{ marginTop: 8 }}>
+                        {checkLine("Paint Scheme", check.paintMet, check.paintAt)}
+                        {checkLine("Post Interview", check.postMet, check.postAt)}
+                        {checkLine("Pre Interview", check.preMet, check.preAt)}
+                      </div>
+                    </details>
+                  ))}
+                </div>
+
+                {isAdminMode && (
+                  <div style={{ display: "flex", gap: 9, flexWrap: "wrap", marginTop: 14 }}>
+                    <button type="button" onClick={() => savePaymentComplianceOverride(row, "approved")} style={{ border: 0, borderRadius: 999, padding: "10px 13px", background: "#34c759", color: "white", fontWeight: 1000, cursor: "pointer" }}>Approve Pay</button>
+                    <button type="button" onClick={() => savePaymentComplianceOverride(row, "denied")} style={{ border: 0, borderRadius: 999, padding: "10px 13px", background: "#ff3b30", color: "white", fontWeight: 1000, cursor: "pointer" }}>Deny Pay</button>
+                    <button type="button" onClick={() => savePaymentComplianceOverride(row, "")} style={{ border: "1px solid rgba(0,0,0,0.10)", borderRadius: 999, padding: "10px 13px", background: "white", color: "#1d1d1f", fontWeight: 1000, cursor: "pointer" }}>Clear</button>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  const adminProtectedPaths = new Set(["/admin", "/admin/permissions", "/appeals", "/admin/stories", "/stories", "/admin/live-control", "/admin/car-gallery", "/admin/arca-car-gallery", "/admin/interviews", "/admin/votes"]);
+  const isAdminProtectedPath = adminProtectedPaths.has(path);
+  const isAdminAuthenticated = sessionStorage.getItem("bcl-admin-auth") === "true";
+  const logoutAdmin = () => {
+    sessionStorage.removeItem("bcl-admin-auth");
+    sessionStorage.removeItem("bcl-admin-auth-time");
+    localStorage.removeItem("bcl-admin-auth");
+    localStorage.removeItem("bcl-admin-auth-time");
+    window.location.pathname = "/standings";
+  };
+
+  if (path === "/admin-login") {
+    if (isAdminAuthenticated) {
+      window.history.replaceState({}, "", "/admin");
+      return null;
+    }
+    return <AdminLoginPage drivers={drivers} />;
+  }
+  if (isAdminProtectedPath && !isAdminAuthenticated) return <AdminLoginPage drivers={drivers} />;
+
+  // Mobile experience gate — phones use the app shell (with a real Driver
+  // Profile home) for all non-admin / non-overlay / non-series routes.
+  // Desktop routes below stay unchanged. Mobile routes render real app data
+  // in a phone-friendly shell. This check must run before the "/" → Series
+  // Portal redirect below, since on mobile "/" is the Driver Profile home,
+  // not the series picker.
+  const mobileExcludedPaths = path.startsWith("/admin") || path.startsWith("/overlay") || path.startsWith("/series");
+  if (isMobileViewport && !forceDesktop && !mobileExcludedPaths) {
+    if (!isHydrated) {
+      return <div style={appShellStyle}><div style={pageContainerStyle}><div style={sectionCardStyle}>Loading mobile league data...</div></div></div>;
+    }
+
+    return (
+      <MobileLeagueApp
+        path={path}
+        rawPath={rawPath}
+        drivers={visibleDrivers}
+        teams={teamStandings}
+        manufacturerStandings={manufacturerStandings}
+        seasonName={activeSeason?.name || ""}
+        tracks={tracks}
+        raceHistory={raceHistory}
+        seasons={seasons}
+        activeSeason={activeSeason}
+        activeSeasonId={activeSeasonId}
+        arcaDrivers={arcaDrivers}
+        arcaTracks={arcaTracks}
+        paymentCompliance={paymentComplianceSummary}
+        onApplyTeamTransaction={applyOwnerPortalTeamTransaction}
+      />
+    );
+  }
+
+  // Retire the public series landing until additional series launch.
+  if (path === "/series") {
+    window.location.replace("/");
+    return null;
+  }
+
+  // Phase 1 universal shell preview — isolated from live league business logic.
+  if (path === "/foundation-preview") return <FoundationPreviewPage />;
+
+  // Static desktop pages
+  if (path === "/files") return <FilesPage />;
+  if (path === "/welcome") return <WelcomePage />;
+  if (path === "/submit-appeal") return <SubmitAppealPage />;
+  if (path === "/submit-story") return <SubmitStoryPage />;
+  if (path === "/appeals") return <AppealsPage />;
+  if (path === "/issues") return <IssuesRollupPage />;
+  if (path === "/admin/issues") return <IssuesPage isAdmin={true} />;
+  if (path === "/admin/permissions") {
+    return (
+      <PermissionsCenter
+        supabase={supabase}
+        drivers={drivers}
+        teams={teamStandings}
+        currentSession={getLeagueSession()}
+      />
+    );
+  }
+  if (path === "/admin/stories" || path === "/stories") return <StoriesAdminPage />;
+  if (path === "/admin/live-control") {
+  return <LiveControlPanel />;
+}
+  if (path === "/streams" || path === "/stream") {
+  // Build next race from the schedule date and roll after 10:00 PM Eastern on race day.
+  const sortedTracks = getSortedTracksByDate(tracks || []);
+  const nextRace = getUpcomingRaceByDate(sortedTracks);
+
+  // Track helper (uses your existing trackOverviewData)
+  function getTrackOverview(race) {
+    if (!race) return null;
+    return trackOverviewData[race.name] || trackOverviewData[race.track] || null;
+  }
+
+  return (
+    <StreamPage
+      drivers={drivers}
+      teams={teamStandings}
+      manufacturers={manufacturerStandings}
+      activeRace={nextRace}
+      selectedTrack={getTrackOverview(nextRace)}
+    />
+  );
+}
+  if (path === "/schedule" || path === "/tracks" || path === "/season-schedule") return withLeagueStatusWidget(<SchedulePage tracks={tracks} raceHistory={raceHistory} />);
+  if (path === "/news") return withLeagueStatusWidget(<NewsPage />);
+  if (path === "/paint-scheme-vote") return withLeagueStatusWidget(<PaintSchemeVotePage drivers={visibleDrivers} tracks={tracks} />);
+  if (path === "/vote" || path === "/league-vote" || path === "/voting") return <LeagueVotingPage drivers={visibleDrivers} />;
+  if (path === "/notifications") return withLeagueStatusWidget(<NotificationsPage />);
+  if ((!isMobileViewport || forceDesktop) && path === "/discord") return <DiscordPage />;
+  if ((!isMobileViewport || forceDesktop) && (path === "/interviews" || path === "/public-interviews")) return withUniversalShell(<PublicInterviewsPage seriesId="cup" />);
+  if ((!isMobileViewport || forceDesktop) && path === "/driver-feedback") {
+    return (
+      <div style={appShellStyle}>
+        <div style={pageContainerStyle}>
+          <div style={sectionCardStyle}>
+            <h2 style={{ marginTop: 0 }}>Driver Feedback Moved</h2>
+            <div style={{ opacity: 0.75, lineHeight: 1.6 }}>
+              Driver feedback now lives inside each protected driver profile so only the driver can submit morale ratings.
+            </div>
+            <button onClick={() => (window.location.pathname = "/standings")} style={{ ...primaryButtonStyle, marginTop: 16 }}>
+              Back to Standings
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  // Loading gate — all routes below this need Supabase data
+  if (!isHydrated) return <div style={appShellStyle}><div style={pageContainerStyle}><div style={sectionCardStyle}>Loading league data...</div></div></div>;
+
+  // Development series pages. These do not remove any existing Cup routes.
+  // ARCA interviews
+  if (path === "/series/arca/interviews") {
+    return <PublicInterviewsPage seriesId="arca" />;
+  }
+  // ARCA driver profiles - uses combined DriverProfilePage
+  if (path.startsWith("/series/arca/driver/")) {
+    return (
+      <>
+        <div style={{ minHeight: 0, background: "#0c0f14", padding: "20px 20px 0" }}>
+          <div style={{ maxWidth: 1400, margin: "0 auto" }}>
+            <AppUpdateBanner page="driver" />
+          </div>
+        </div>
+        <DriverProfilePage seasons={seasons} activeSeason={activeSeason} tracks={tracks} arcaDrivers={activeSeason?.arcaDrivers || arcaDrivers} arcaTracks={arcaTracks} />
+      </>
+    );
+  }
+
+  if (path.startsWith("/series/")) {
+    const seriesId = decodeURIComponent(rawPath.split("/")[2] || "cup").toLowerCase();
+    return (
+      <StandingsPage
+        seriesId={seriesId}
+        drivers={seriesId === "arca" ? arcaStandingsPageDrivers : visibleDrivers}
+        teams={seriesId === "arca" ? [] : teamStandings}
+        tracks={seriesId === "arca" ? arcaTracks : tracks}
+        raceHistory={seriesId === "arca" ? (activeSeason?.arcaRaceHistory || []) : raceHistory}
+        driverAccessCodes={driverAccessCodes}
+        arcaDrivers={activeSeason?.arcaDrivers}
+        arcaRaceHistory={activeSeason?.arcaRaceHistory}
+        supabase={supabase}
+      />
+    );
+  }
+
+  if (path === "/admin/car-gallery") {
+    return (
+      <CarGalleryPage
+        drivers={drivers}
+        tracks={tracks}
+        seriesId="cup"
+        enableDownload={true}
+      />
+    );
+  }
+  if (path === "/admin/arca-car-gallery") {
+    return (
+      <CarGalleryPage
+        drivers={activeSeason?.arcaDrivers || arcaDrivers}
+        tracks={arcaTracks}
+        seriesId="arca"
+        enableDownload={true}
+      />
+    );
+  }
+  if (path === "/admin/interviews") return <InterviewsPage drivers={drivers} arcaDrivers={activeSeason?.arcaDrivers || arcaDrivers} tracks={tracks} arcaTracks={arcaTracks} seasons={seasons} activeSeasonId={activeSeasonId} />;
+  if (path === "/admin/votes") return <AdminVotingPage drivers={visibleDrivers} />;
+  // Team detail page
+  if (path.startsWith("/team/")) {
+    const abbr = decodeURIComponent(rawPath.replace(/^\/team\//i, "").split("/")[0]);
+    const normalizedTeam = String(abbr || "").toLowerCase();
+    const selectedTeamDrivers = visibleDrivers.filter(
+      (d) => String(d.team || "").toLowerCase() === normalizedTeam
+    );
+    const selectedTeamStanding = teamStandings.find(
+      (t) => String(t.team || "").toLowerCase() === normalizedTeam
+    ) || null;
+
+    return withUniversalShell(
+      <TeamDetailPage
+        key={`team-${abbr}-${activeSeasonId}-${raceHistory.length}-${selectedTeamStanding?.points || 0}`}
+        drivers={visibleDrivers}
+        teamDrivers={selectedTeamDrivers}
+        teams={teamStandings}
+        teamStandings={teamStandings}
+        standings={teamStandings}
+        selectedStanding={selectedTeamStanding}
+        team={selectedTeamStanding}
+        raceHistory={raceHistory}
+        seasonName={activeSeason?.name || ""}
+        initialTeam={abbr}
+        selectedTeam={abbr}
+      />,
+      abbr
+    );
+  }
+
+  // Manufacturer detail page
+  if (path.startsWith("/manufacturer/")) {
+    const mfrName = decodeURIComponent(
+      rawPath.replace(/^\/manufacturer\//i, "").split("/")[0]
+    );
+    const normalizedManufacturer = String(mfrName || "").toLowerCase();
+    const selectedManufacturerDrivers = visibleDrivers.filter(
+      (d) => String(d.manufacturer || "").toLowerCase() === normalizedManufacturer
+    );
+    const selectedManufacturerStanding = manufacturerStandings.find(
+      (m) => String(m.manufacturer || "").toLowerCase() === normalizedManufacturer
+    ) || null;
+
+    return withUniversalShell(
+      <ManufacturerDetailPage
+        key={`manufacturer-${mfrName}-${activeSeasonId}-${raceHistory.length}-${selectedManufacturerStanding?.points || 0}`}
+        drivers={visibleDrivers}
+        manufacturerDrivers={selectedManufacturerDrivers}
+        manufacturers={manufacturerStandings}
+        manufacturerStandings={manufacturerStandings}
+        standings={manufacturerStandings}
+        selectedStanding={selectedManufacturerStanding}
+        manufacturer={selectedManufacturerStanding}
+        raceHistory={raceHistory}
+        seasonName={activeSeason?.name || ""}
+        initialManufacturer={mfrName}
+        selectedManufacturer={mfrName}
+      />
+    );
+  }
+  if (path.startsWith("/driver/")) {
+    const requestedDriverNumber = decodeURIComponent(rawPath.replace(/^\/driver\//i, "").split("/")[0]);
+    const leagueSession = getLeagueSession();
+    const isAdminViewing = typeof window !== "undefined" && sessionStorage.getItem("bcl-admin-auth") === "true";
+    const isOwnProfile = leagueSession && String(leagueSession.driverNumber) === String(requestedDriverNumber);
+
+    if (!isAdminViewing && !isOwnProfile) {
+      return <DriverProfileSignInGate driverNumber={requestedDriverNumber} />;
+    }
+
+    return withUniversalShell(
+      <>
+        <div className="brl-inline-banner"><AppUpdateBanner page="driver" /></div>
+        <DriverVoteReminderStrip driverNumber={requestedDriverNumber} />
+        <DriverProfilePage seasons={seasons} activeSeason={activeSeason} tracks={tracks} arcaDrivers={activeSeason?.arcaDrivers || arcaDrivers} arcaTracks={arcaTracks} />
+      </>,
+      visibleDrivers.find(d => String(d.number) === String(requestedDriverNumber))?.team || leagueSession?.team || "Independent"
+    );
+  }
+  if (["/owners", "/owner", "/team-hq", "/hq", "/teamhq"].includes(path)) return withUniversalShell(
+    <>
+      <OwnersPage
+        drivers={visibleDrivers}
+        teams={teamStandings}
+        teamBudgets={teamBudgets}
+        raceHistory={raceHistory}
+        seasonName={activeSeason?.name || ""}
+        tracks={tracks}
+        paymentCompliance={paymentComplianceSummary}
+        onApplyTeamTransaction={applyOwnerPortalTeamTransaction}
+      />
+      <div style={{ ...appShellStyle, padding: "0 20px 20px" }}>
+        <div style={{ maxWidth: 1400, margin: "0 auto" }}>
+          <PaymentCompliancePanel mode="team" />
+        </div>
+      </div>
+    </>
+  );
+  if (path === "/contracts") return withLeagueStatusWidget(<ContractsPage drivers={visibleDrivers} />);
+  if (path === "/memorial-day") return withLeagueStatusWidget(<MemorialDayPage drivers={visibleDrivers} />);
+
+  if (path === "/chat") return withLeagueStatusWidget(<LeagueChatPage drivers={visibleDrivers} />);
+  if (path === "/message-center") return withLeagueStatusWidget(<LeagueMessageCenter drivers={visibleDrivers} />);
+  if (path === "/driver-market" || path === "/transfer-portal" || path === "/silly-season") return withLeagueStatusWidget(<DriverMarketPage drivers={visibleDrivers || []} raceHistory={raceHistory || []} startParkRequests={startParkRequests || []} paintSchemePayouts={[]} interestRows={driverRecruitingInterest} supabase={supabase} />);
+  if (path === "/development-requests" || path === "/developmental-requests" || path === "/dev-requests") return withLeagueStatusWidget(
+    <DevelopmentRequestsPage
+      leagueState={{ drivers: visibleDrivers || [], teams: teamStandings || [] }}
+      currentUser={{
+        role: isAdminAuthenticated ? "admin" : "guest",
+        isAdmin: isAdminAuthenticated,
+        series: isAdminAuthenticated ? "cup" : "guest",
+      }}
+      isAdmin={isAdminAuthenticated}
+      supabase={supabase}
+      go={(to) => { window.location.href = to; }}
+    />
+  );
+  if (path === "/tournament" || path === "/in-season-tournament" || path === "/in-season-bracket" || path === "/bracket") {
+    return withLeagueStatusWidget(
+      <InSeasonTournamentPage drivers={visibleDrivers} raceHistory={raceHistory} />
+    );
+  }
+  if (path === "/" || path === "/standings") return withLeagueStatusWidget(<StandingsPage drivers={visibleDrivers} teams={teamStandings} manufacturerStandings={manufacturerStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} supabase={supabase} driverAccessCodes={driverAccessCodes} />);
+  if (path === "/overlay/ticker" || viewMode === "overlay-ticker") return <TickerOverlay drivers={visibleDrivers} teams={teamStandings} raceHistory={raceHistory} preview={viewMode === "overlay-ticker"} seasonName={activeSeason?.name || ""} />;
+  if (path !== "/admin") {
+    return withLeagueStatusWidget(<StandingsPage drivers={visibleDrivers} teams={teamStandings} manufacturerStandings={manufacturerStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} supabase={supabase} driverAccessCodes={driverAccessCodes} />);
+  }
+  return (
+    <AdminPortal
+      customTeamBranding={customTeamBranding}
+      onSaveTeamBranding={saveTeamBranding}
+      teamPrestigeRows={teamPrestigeRows}
+      teamPrestigeStatus={teamPrestigeStatus}
+      teamPrestigeSaving={teamPrestigeSaving}
+      recalculateTeamPrestige={recalculateTeamPrestige}
+      AdminLeagueMessageComposer={AdminLeagueMessageComposer}
+      AdminLeagueMessageDashboard={AdminLeagueMessageDashboard}
+      PaymentCompliancePanel={PaymentCompliancePanel}
+      PreviousRaceWinnerAdminPanel={PreviousRaceWinnerAdminPanel}
+      activeDrivers={activeDrivers}
+      activeHeaderButtonStyle={activeHeaderButtonStyle}
+      activeSeason={activeSeason}
+      activeSeasonId={activeSeasonId}
+      addDriver={addDriver}
+      addManualWatchPick={addManualWatchPick}
+      addTrack={addTrack}
+      appShellStyle={appShellStyle}
+      applyApprovedStartParkRequestsToRace={applyApprovedStartParkRequestsToRace}
+      approvePendingDriver={approvePendingDriver}
+      awardPaintSchemePayouts={awardPaintSchemePayouts}
+      backupFileInputRef={backupFileInputRef}
+      cancelEditDriver={cancelEditDriver}
+      clearDriverAccessCode={clearDriverAccessCode}
+      clearInputs={clearInputs}
+      clearOwnerCode={clearOwnerCode}
+      copyDriverAccessCode={copyDriverAccessCode}
+      copyOwnerCode={copyOwnerCode}
+      createSeason={createSeason}
+      currentLeader={currentLeader}
+      dangerButtonStyle={dangerButtonStyle}
+      deleteActiveSeason={deleteActiveSeason}
+      deleteManualWatchPick={deleteManualWatchPick}
+      deleteResultsDraft={deleteResultsDraft}
+      deleteTickerMessage={deleteTickerMessage}
+      discordAnnouncement={discordAnnouncement}
+      discordInviteUrl={discordInviteUrl}
+      discordRulesText={discordRulesText}
+      dnfMap={dnfMap}
+      dnfReasons={dnfReasons}
+      downloadRaceHistoryCsv={downloadRaceHistoryCsv}
+      driverAccessCodes={driverAccessCodes}
+      drivers={drivers}
+      editDriverForm={editDriverForm}
+      editTickerMessage={editTickerMessage}
+      editingDriverId={editingDriverId}
+      editingRaceName={editingRaceName}
+      editingTickerId={editingTickerId}
+      exportAllSeasonsBackup={exportAllSeasonsBackup}
+      exportAppDataJson={exportAppDataJson}
+      exportBackup={exportBackup}
+      fastestLapMap={fastestLapMap}
+      featuredVideo={featuredVideo}
+      generateAllOwnerCodes={generateAllOwnerCodes}
+      generateDriverAccessCode={generateDriverAccessCode}
+      generateOwnerCode={generateOwnerCode}
+      getOffensePenaltyPoints={getOffensePenaltyPoints}
+      getStagePoints={getStagePoints}
+      getTeamFullName={getTeamFullName}
+      handleDeleteRace={handleDeleteRace}
+      handleDeleteArcaRace={handleDeleteArcaRace}
+      handleDnfChange={handleDnfChange}
+      handleDownloadLeagueBackup={handleDownloadLeagueBackup}
+      handleEditRace={handleEditRace}
+      handleEditArcaRace={handleEditArcaRace}
+      handleFastestLapChange={handleFastestLapChange}
+      handleImportBackup={handleImportBackup}
+      handleManualPenaltyChange={handleManualPenaltyChange}
+      handleOffenseChange={handleOffenseChange}
+      handlePositionChange={handlePositionChange}
+      handleRestoreLeagueBackup={handleRestoreLeagueBackup}
+      handleResultNoteChange={handleResultNoteChange}
+      handleStage1Change={handleStage1Change}
+      handleStage2Change={handleStage2Change}
+      handleStage3Change={handleStage3Change}
+      handleStartParkChange={handleStartParkChange}
+      headerButtonStyle={headerButtonStyle}
+      importFileRef={importFileRef}
+      inputStyle={inputStyle}
+      isInactivePlaceholderDriver={isInactivePlaceholderDriver}
+      latestWinner={latestWinner}
+      loadDriverAccessCodes={loadDriverAccessCodes}
+      loadManualWatchPicks={loadManualWatchPicks}
+      loadPaintSchemePayoutPreview={loadPaintSchemePayoutPreview}
+      loadResultsDraft={loadResultsDraft}
+      loadStartParkRequests={loadStartParkRequests}
+      loadTickerMessages={loadTickerMessages}
+      logo={logo}
+      logoutAdmin={logoutAdmin}
+      manualWatchPicks={manualWatchPicks}
+      manufacturerStandings={manufacturerStandings}
+      money={money}
+      moveDriverFinishPosition={moveDriverFinishPosition}
+      newDriverManufacturer={newDriverManufacturer}
+      newDriverName={newDriverName}
+      newDriverNumber={newDriverNumber}
+      newDriverTeam={newDriverTeam}
+      newSeasonName={newSeasonName}
+      newTrackName={newTrackName}
+      newTrackStageCount={newTrackStageCount}
+      offenseLog={offenseLog}
+      offenseMap={offenseMap}
+      openAppealCount={openAppealCount}
+      openEditDriver={openEditDriver}
+      openStoryCount={openStoryCount}
+      ownerAccessCodes={ownerAccessCodes}
+      ownerAssignmentError={ownerAssignmentError}
+      ownerAssignmentMessage={ownerAssignmentMessage}
+      ownerAssignments={ownerAssignments}
+      ownerPortalTeams={ownerPortalTeams}
+      pageContainerStyle={pageContainerStyle}
+      paintPayoutError={paintPayoutError}
+      paintPayoutLoading={paintPayoutLoading}
+      paintPayoutRace={paintPayoutRace}
+      paintPayoutRows={paintPayoutRows}
+      paintPayoutStatus={paintPayoutStatus}
+      patchActiveSeason={patchActiveSeason}
+      penaltyMap={penaltyMap}
+      pendingDrivers={pendingDrivers}
+      pointsTable={pointsTable}
+      positions={positions}
+      postResultsDraft={postResultsDraft}
+      primaryButtonStyle={primaryButtonStyle}
+      raceDrafts={raceDrafts}
+      raceEntryTdStyle={raceEntryTdStyle}
+      raceEntryThStyle={raceEntryThStyle}
+      raceHistory={raceHistory}
+      raceNotesInputStyle={raceNotesInputStyle}
+      racePenaltyInputStyle={racePenaltyInputStyle}
+      racePositionInputStyle={racePositionInputStyle}
+      rejectPendingDriver={rejectPendingDriver}
+      removeDriver={removeDriver}
+      removeTrack={removeTrack}
+      renameActiveSeason={renameActiveSeason}
+      renameSeasonName={renameSeasonName}
+      resetSeason={resetSeason}
+      resetTickerForm={resetTickerForm}
+      restoreDefaultTracks={restoreDefaultTracks}
+      resultNotesMap={resultNotesMap}
+      retireDriver={retireDriver}
+      saveDiscordSettings={saveDiscordSettings}
+      saveDriverEdit={saveDriverEdit}
+      saveOwnerAssignment={saveOwnerAssignment}
+      saveResultsDraft={saveResultsDraft}
+      saveArcaResultsDraft={saveArcaResultsDraft}
+      saveTickerMessage={saveTickerMessage}
+      seasonOffenseCounts={seasonOffenseCounts}
+      seasons={seasons}
+      secondaryButtonStyle={secondaryButtonStyle}
+      sectionCardStyle={sectionCardStyle}
+      seedWeeklyTickerMessages={seedWeeklyTickerMessages}
+      selectedOwnerDriverNumber={selectedOwnerDriverNumber}
+      selectedOwnerTeam={selectedOwnerTeam}
+      selectedRace={selectedRace}
+      setDiscordAnnouncement={setDiscordAnnouncement}
+      setDiscordInviteUrl={setDiscordInviteUrl}
+      setDiscordRulesText={setDiscordRulesText}
+      setDnfReasons={setDnfReasons}
+      setEditDriverForm={setEditDriverForm}
+      setFeaturedVideo={setFeaturedVideo}
+      setNewDriverManufacturer={setNewDriverManufacturer}
+      setNewDriverName={setNewDriverName}
+      setNewDriverNumber={setNewDriverNumber}
+      setNewDriverTeam={setNewDriverTeam}
+      setNewSeasonName={setNewSeasonName}
+      setNewTrackName={setNewTrackName}
+      setNewTrackStageCount={setNewTrackStageCount}
+      setPaintPayoutRace={setPaintPayoutRace}
+      setRenameSeasonName={setRenameSeasonName}
+      setSelectedOwnerDriverNumber={setSelectedOwnerDriverNumber}
+      setSelectedOwnerTeam={setSelectedOwnerTeam}
+      setTickerForm={setTickerForm}
+      setVideoDescription={setVideoDescription}
+      setVideoTitle={setVideoTitle}
+      setVideoUploading={setVideoUploading}
+      setViewMode={setViewMode}
+      setWatchBadge={setWatchBadge}
+      setWatchDisplayOrder={setWatchDisplayOrder}
+      setWatchDriverId={setWatchDriverId}
+      setWatchReason={setWatchReason}
+      sortedDrivers={sortedDrivers}
+      stage1={stage1}
+      stage2={stage2}
+      stage3={stage3}
+      stageCount={stageCount}
+      startParkMap={startParkMap}
+      startParkRequestError={startParkRequestError}
+      startParkRequestStatus={startParkRequestStatus}
+      startParkRequests={startParkRequests}
+      startParkRequestsLoading={startParkRequestsLoading}
+      statBoxStyle={statBoxStyle}
+      submitResults={submitResults}
+      submitArcaResults={submitArcaResults}
+      supabase={supabase}
+      switchSeason={switchSeason}
+      tableStyle={tableStyle}
+      tdStyle={tdStyle}
+      teamStandings={teamStandings}
+      thStyle={thStyle}
+      tickerError={tickerError}
+      tickerForm={tickerForm}
+      tickerMessages={tickerMessages}
+      tickerStatus={tickerStatus}
+      toggleManualWatchPick={toggleManualWatchPick}
+      toggleTickerActive={toggleTickerActive}
+      toggleTickerPinned={toggleTickerPinned}
+      tracks={tracks}
+      unretireDriver={unretireDriver}
+      updateStartParkRequestStatus={updateStartParkRequestStatus}
+      updateTrackStageCount={updateTrackStageCount}
+      videoDescription={videoDescription}
+      videoFileInputRef={videoFileInputRef}
+      videoTitle={videoTitle}
+      videoUploading={videoUploading}
+      viewMode={viewMode}
+      visibleDrivers={visibleDrivers}
+      watchBadge={watchBadge}
+      watchDisplayOrder={watchDisplayOrder}
+      watchDriverId={watchDriverId}
+      watchReason={watchReason}
+      watchSaving={watchSaving}
+      arcaSeasons={arcaSeasons}
+      setArcaSeasons={setArcaSeasons}
+      arcaRaces={arcaRaces}
+      setArcaRaces={setArcaRaces}
+      arcaTracks={arcaTracks}
+      setArcaTracks={setArcaTracks}
+      arcaDrivers={arcaDrivers}
+      setArcaDrivers={setArcaDrivers}
+      arcaSelectedRace={activeSeason?.arcaSelectedRace}
+      setArcaSelectedRace={(race) => patchActiveSeason({ arcaSelectedRace: race || null })}
+    />
+  );}
