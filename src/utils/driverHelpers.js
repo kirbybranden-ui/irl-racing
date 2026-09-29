@@ -45,18 +45,12 @@ export function realignLeagueDriver(driver) {
     return {
       ...driver,
       number: 14,
-      team: "MER",
-      manufacturer: "Chevrolet",
-      manufacturerLogo: manufacturerLogos.Chevrolet || driver.manufacturerLogo,
     };
   }
 
   if (id === 7 || id === 46 || nameKey === "kevdinho7" || nameKey === "bigdiehl21") {
     return {
       ...driver,
-      team: "MER",
-      manufacturer: "Chevrolet",
-      manufacturerLogo: manufacturerLogos.Chevrolet || driver.manufacturerLogo,
     };
   }
 
@@ -64,9 +58,6 @@ export function realignLeagueDriver(driver) {
     return {
       ...driver,
       number: 3,
-      team: "19XI",
-      manufacturer: "Toyota",
-      manufacturerLogo: manufacturerLogos.Toyota || driver.manufacturerLogo,
     };
   }
 
@@ -74,9 +65,6 @@ export function realignLeagueDriver(driver) {
     return {
       ...driver,
       number: 86,
-      team: "MER",
-      manufacturer: "Chevrolet",
-      manufacturerLogo: manufacturerLogos.Chevrolet || driver.manufacturerLogo,
     };
   }
 
@@ -85,9 +73,6 @@ export function realignLeagueDriver(driver) {
       ...driver,
       number: 48,
       driver_number: driver.driver_number !== undefined ? 48 : driver.driver_number,
-      team: "BXM",
-      manufacturer: "Chevrolet",
-      manufacturerLogo: manufacturerLogos.Chevrolet || driver.manufacturerLogo,
     };
   }
 
@@ -98,18 +83,12 @@ export function realignLeagueDriver(driver) {
       number: 8,
       driver_number: driver.driver_number !== undefined ? 8 : driver.driver_number,
       name: "TheCruiser54",
-      team: "BXM",
-      manufacturer: "Chevrolet",
-      manufacturerLogo: manufacturerLogos.Chevrolet || driver.manufacturerLogo,
     };
   }
 
   if (id === 35 || id === 102 || ["knighttrain41", "ghostracer388"].includes(nameKey)) {
     return {
       ...driver,
-      team: "BXM",
-      manufacturer: "Chevrolet",
-      manufacturerLogo: manufacturerLogos.Chevrolet || driver.manufacturerLogo,
     };
   }
 
@@ -260,26 +239,15 @@ export function apply2026DriverNumberAdjustments(roster = [], history = []) {
 
     if (nameKey === "cajunthrottle28") {
       driver.number = 48;
-      driver.manufacturer = "Chevrolet";
-      driver.team = "BXM";
     }
 
     if (nameKey === "knighttrain41") {
       driver.number = 41;
-      driver.manufacturer = "Chevrolet";
-      driver.team = "BXM";
-    }
-
-    if (nameKey === "mare951") {
-      driver.manufacturer = "Ford";
-      driver.team = "BWR";
     }
 
     if (nameKey === "thecruiser54" || Number(driver?.id) === 54) {
       driver.id = 54;
       driver.number = 8;
-      driver.manufacturer = "Chevrolet";
-      driver.team = "BXM";
     }
   });
 
@@ -290,15 +258,11 @@ export function apply2026DriverNumberAdjustments(roster = [], history = []) {
           const resultName = String(result?.name || "").trim().toLowerCase();
 
           if (resultName === "cajunthrottle28") {
-            return { ...result, number: 48, manufacturer: "Chevrolet", team: "BXM" };
+            return { ...result, number: 48 };
           }
 
           if (resultName === "knighttrain41") {
-            return { ...result, number: 41, manufacturer: "Chevrolet", team: "BXM" };
-          }
-
-          if (resultName === "mare951") {
-            return { ...result, manufacturer: "Ford", team: "BWR" };
+            return { ...result, number: 41 };
           }
 
           if (resultName === "thecruiser54" || Number(result?.driverId) === 54) {
@@ -307,8 +271,6 @@ export function apply2026DriverNumberAdjustments(roster = [], history = []) {
               driverId: 54,
               number: 8,
               name: "TheCruiser54",
-              manufacturer: "Chevrolet",
-              team: "BXM",
             };
           }
 
