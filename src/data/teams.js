@@ -123,7 +123,7 @@ export function applyCustomTeamBranding(entries = {}) {
     const key = String(team || "").trim();
     if (!key || !details || typeof details !== "object") continue;
     const fullName = String(details.fullName || key).trim();
-    const identifier = String(details.identifier || key).trim().toUpperCase();
+    const identifier = String(key === "B2J" && fullName.toLowerCase() === "ja motorsports" && (!details.identifier || String(details.identifier).toUpperCase() === "B2J") ? "JAM" : (details.identifier || key)).trim().toUpperCase();
     const logoUrl = String(details.logoUrl || "").trim();
     if (logoUrl) { teamLogos[key] = logoUrl; teamLogos[fullName] = logoUrl; teamLogos[identifier] = logoUrl; }
     teamFullNames[key] = fullName;
