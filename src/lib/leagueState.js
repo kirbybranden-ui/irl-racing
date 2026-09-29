@@ -20,7 +20,7 @@ export async function loadLeagueState() {
 }
 
 export async function saveLeagueState(state) {
-  if (!supabase) return;
+  if (!supabase) throw new Error("Supabase is unavailable.");
 
   const { error } = await supabase
     .from("league_state")
@@ -32,5 +32,6 @@ export async function saveLeagueState(state) {
 
   if (error) {
     console.error("Save error:", error);
+    throw error;
   }
 }
