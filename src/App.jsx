@@ -56,6 +56,7 @@ import {
   manufacturerLogos,
   teamBudgets,
   getTeamFullName,
+  getTeamIdentifier,
   getTeamBudget,
   getTeamBranding,
   applyCustomTeamBranding,
@@ -6070,7 +6071,7 @@ function MobileHero({ kicker, title, subtitle }) { return <section style={mobile
 function MobileCard({ children }) { return <section style={mobileCardStyle}>{children}</section>; }
 function MobileAction({ label, onClick, secondary = false }) { return <button type="button" onClick={onClick} style={{ ...mobileActionStyle, background: secondary ? "#111827" : "#d4af37", color: secondary ? "#ffffff" : "#111111", borderColor: secondary ? "#263244" : "#d4af37" }}>{label}</button>; }
 function MobileStatGrid({ items }) { return <div style={mobileStatGridStyle}>{items.map(([label, value]) => <div key={label} style={mobileStatCardStyle}><div style={{ color: "#6e6e73", fontSize: 11, fontWeight: 900, textTransform: "uppercase" }}>{label}</div><strong style={{ fontSize: 20 }}>{value}</strong></div>)}</div>; }
-function MobileStandingsList({ drivers, go }) { return <div>{drivers.map((driver, index) => <button type="button" key={`${driver.number}-${driver.name}`} onClick={() => go(`/driver/${driver.number}`)} style={mobileDriverCardStyle}><div style={mobileRankStyle}>{index + 1}</div><div style={{ minWidth: 0 }}><strong style={{ display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>#{driver.number} {driver.name}</strong><span style={{ color: "#6e6e73", fontSize: 12 }}>{driver.team || "Independent"} • {driver.manufacturer || ""}</span></div><div style={mobilePointsStyle}>{driver.points || 0}<span style={{ display: "block", fontSize: 10, color: "#6e6e73" }}>PTS</span></div></button>)}</div>; }
+function MobileStandingsList({ drivers, go }) { return <div>{drivers.map((driver, index) => <button type="button" key={`${driver.number}-${driver.name}`} onClick={() => go(`/driver/${driver.number}`)} style={mobileDriverCardStyle}><div style={mobileRankStyle}>{index + 1}</div><div style={{ minWidth: 0 }}><strong style={{ display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>#{driver.number} {driver.name}</strong><span style={{ color: "#6e6e73", fontSize: 12 }}>{getTeamIdentifier(driver.team || "Independent")} • {driver.manufacturer || ""}</span></div><div style={mobilePointsStyle}>{driver.points || 0}<span style={{ display: "block", fontSize: 10, color: "#6e6e73" }}>PTS</span></div></button>)}</div>; }
 function MobileSectionTitle({ children }) { return <h2 style={{ fontSize: 16, margin: "20px 2px 10px", color: "#1d1d1f", fontWeight: 950 }}>{children}</h2>; }
 
 
@@ -6222,7 +6223,7 @@ function MobileDriverProfilePolished({ driver, driverNumber, raceHistory = [], t
     </div>
   );
 }
-function MobileTeamRow({ team, index }) { return <div style={mobileSmallRowStyle}><strong>{index + 1}. {team.team || team.name}</strong><span>{team.points || 0} pts</span></div>; }
+function MobileTeamRow({ team, index }) { return <div style={mobileSmallRowStyle}><strong>{index + 1}. {getTeamIdentifier(team.team || team.name)}</strong><span>{team.points || 0} pts</span></div>; }
 function MobileManufacturerRow({ manufacturer, index }) { return <div style={mobileSmallRowStyle}><strong>{index + 1}. {manufacturer.manufacturer || manufacturer.name}</strong><span>{manufacturer.points || 0} pts</span></div>; }
 function MobileRaceCard({ race }) { return <MobileCard><div style={mobileKickerStyle}>Next Race</div><h2 style={{ margin: "4px 0" }}>{race.name || race.track || "Race"}</h2><p style={{ color: "#6e6e73", margin: 0 }}>{race.date || "Date TBA"} • Qualifying 9:15 PM • Race 9:30 PM</p></MobileCard>; }
 
@@ -6891,6 +6892,7 @@ export default function App() {
 
   const [seasons, setSeasons] = useState([]);
   const [customTeamBranding, setCustomTeamBranding] = useState({});
+  const [registeredTeams, setRegisteredTeams] = useState({});
   const [openAppealCount, setOpenAppealCount] = useState(0);
   const [openStoryCount, setOpenStoryCount] = useState(0);
   const [activeSeasonId, setActiveSeasonId] = useState("");
@@ -7053,10 +7055,10 @@ export default function App() {
     const liveTeams = visibleDrivers
       .map((driver) => driver.team || "Independent")
       .filter((team) => team !== "Independent" && team !== "IND");
-    return Array.from(new Set([...fixedTeams, ...liveTeams]))
+    return Array.from(new Set([...fixedTeams, ...Object.keys(registeredTeams), ...liveTeams]))
       .filter(Boolean)
       .sort((a, b) => getTeamFullName(a).localeCompare(getTeamFullName(b)));
-  }, [visibleDrivers]);
+  }, [visibleDrivers, registeredTeams]);
   const selectedRace = activeSeason?.selectedRace || "";
   const positions = activeSeason?.positions || {};
   const stage1 = activeSeason?.stage1 || {};
@@ -7129,11 +7131,14 @@ export default function App() {
     await loadOwnerAssignments();
   }
 
-  async function saveTeamBranding(team, { fullName, file, accent, dark }) {
+  async function saveTeamBranding(team, { fullName, identifier, file, accent, dark }) {
     const teamKey = String(team || "").trim();
     const displayName = String(fullName || "").trim();
     if (!teamKey || !displayName) throw new Error("Select a team and enter its public name.");
     if (displayName.length > 80) throw new Error("Team name must be 80 characters or fewer.");
+    const publicCode = String(identifier || "").trim().toUpperCase();
+    if (!/^[A-Z0-9]{2,5}$/.test(publicCode)) throw new Error("Team identifier must be 2–5 letters or numbers.");
+    if (ownerPortalTeams.some((other) => other !== teamKey && getTeamIdentifier(other).toUpperCase() === publicCode)) throw new Error("That team identifier is already in use.");
     let logoUrl = customTeamBranding[teamKey]?.logoUrl || "";
     if (file) {
       if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) throw new Error("Choose a PNG, JPG, or WebP image.");
@@ -7146,12 +7151,38 @@ export default function App() {
       logoUrl = data?.publicUrl;
       if (!logoUrl) throw new Error("Could not create a public URL for the logo.");
     }
-    const updated = { ...customTeamBranding, [teamKey]: { ...customTeamBranding[teamKey], fullName: displayName, logoUrl, accent, dark } };
-    const nextState = { seasons, activeSeasonId, tracks, customTeamBranding: updated };
+    const updated = { ...customTeamBranding, [teamKey]: { ...customTeamBranding[teamKey], fullName: displayName, identifier: publicCode, logoUrl, accent, dark } };
+    const nextState = { seasons, activeSeasonId, tracks, customTeamBranding: updated, registeredTeams };
     await saveLeagueState(nextState);
     applyCustomTeamBranding(updated);
     loadedStateSignatureRef.current = makeLeagueStateSignature(nextState);
     setCustomTeamBranding(updated);
+  }
+
+  async function createLeagueTeam({ identifier, fullName, manufacturer, ownerDriverNumber }) {
+    const code = String(identifier || "").trim().toUpperCase();
+    const name = String(fullName || "").trim();
+    if (!/^[A-Z0-9]{2,5}$/.test(code) || !name || name.length > 80 || !["Chevrolet", "Ford", "Toyota", "Other"].includes(manufacturer)) {
+      throw new Error("Enter a 2–5 character identifier, team name, and manufacturer.");
+    }
+    if (ownerPortalTeams.some((team) => team.toUpperCase() === code || getTeamIdentifier(team).toUpperCase() === code)) {
+      throw new Error("That team identifier is already in use.");
+    }
+    const owner = ownerDriverNumber ? visibleDrivers.find((driver) => String(driver.number) === String(ownerDriverNumber)) : null;
+    if (ownerDriverNumber && !owner) throw new Error("Select an active roster driver as owner.");
+    const nextTeams = { ...registeredTeams, [code]: { identifier: code, fullName: name, manufacturer, createdAt: new Date().toISOString() } };
+    const nextBranding = { ...customTeamBranding, [code]: { identifier: code, fullName: name, accent: "#d71920", dark: "#111216", logoUrl: "" } };
+    const nextState = { seasons, activeSeasonId, tracks, customTeamBranding: nextBranding, registeredTeams: nextTeams };
+    await saveLeagueState(nextState);
+    applyCustomTeamBranding(nextBranding);
+    loadedStateSignatureRef.current = makeLeagueStateSignature(nextState);
+    setCustomTeamBranding(nextBranding);
+    setRegisteredTeams(nextTeams);
+    if (owner) {
+      const { error } = await supabase.from("team_owner_assignments").upsert({ team: code, owner_driver_number: String(owner.number), owner_driver_name: owner.name || "", updated_at: new Date().toISOString() }, { onConflict: "team" });
+      if (error) throw new Error(`Team created, but owner assignment failed: ${error.message}`);
+      await loadOwnerAssignments();
+    }
   }
 
 
@@ -7334,6 +7365,7 @@ export default function App() {
         if (normalizedState) {
           applyCustomTeamBranding(normalizedState.customTeamBranding);
           setCustomTeamBranding(normalizedState.customTeamBranding);
+          setRegisteredTeams(normalizedState.registeredTeams);
           setSeasons(normalizedState.seasons);
           setActiveSeasonId(normalizedState.activeSeasonId);
           setTracks(normalizedState.tracks);
@@ -7445,7 +7477,7 @@ export default function App() {
     if (!isHydrated) return;
     if (!Array.isArray(seasons) || seasons.length === 0 || !activeSeasonId) return;
 
-    const nextState = { seasons, activeSeasonId, tracks, customTeamBranding };
+    const nextState = { seasons, activeSeasonId, tracks, customTeamBranding, registeredTeams };
     const nextSignature = makeLeagueStateSignature(nextState);
 
     // This is the lock that prevents page load, refresh, failed Supabase loads,
@@ -7466,7 +7498,7 @@ export default function App() {
     }, 250);
 
     return () => clearTimeout(timeout);
-  }, [seasons, activeSeasonId, tracks, customTeamBranding, isHydrated]);
+  }, [seasons, activeSeasonId, tracks, customTeamBranding, registeredTeams, isHydrated]);
   useEffect(() => {
     async function loadFeaturedVideo() {
       const { data } = await supabase
@@ -7885,6 +7917,9 @@ export default function App() {
   };
   const teamStandings = useMemo(() => {
     const teams = {};
+    for (const team of Object.keys(registeredTeams)) {
+      teams[team] = { team, points: 0, wins: 0, top3: 0, top5: 0, drivers: 0, budget: getTeamBudget(team), manufacturer: registeredTeams[team]?.manufacturer || "" };
+    }
     for (const d of visibleDrivers) {
       if (!teams[d.team]) teams[d.team] = { team: d.team, points: 0, wins: 0, top3: 0, top5: 0, drivers: 0, budget: getTeamBudget(d.team) };
       teams[d.team].budget = getTeamBudget(d.team);
@@ -7892,7 +7927,7 @@ export default function App() {
       teams[d.team].top3 += d.top3 || 0; teams[d.team].top5 += d.top5 || 0; teams[d.team].drivers += 1;
     }
     return Object.values(teams).sort((a, b) => b.points - a.points || b.wins - a.wins || b.top3 - a.top3 || a.team.localeCompare(b.team));
-  }, [visibleDrivers]);
+  }, [visibleDrivers, registeredTeams]);
   const manufacturerStandings = useMemo(() => {
     const mfrs = {};
     for (const d of visibleDrivers) {
@@ -9462,6 +9497,7 @@ export default function App() {
   return (
     <AdminPortal
       customTeamBranding={customTeamBranding}
+      onCreateTeam={createLeagueTeam}
       onSaveTeamBranding={saveTeamBranding}
       teamPrestigeRows={teamPrestigeRows}
       teamPrestigeStatus={teamPrestigeStatus}
