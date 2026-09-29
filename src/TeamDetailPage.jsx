@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { getTeamFullName, getTeamIdentifier } from "./data/teams";
 
 const pageStyle = {
   minHeight: "100vh",
@@ -70,26 +71,6 @@ function realignLeagueDrivers(drivers = []) {
   return (Array.isArray(drivers) ? drivers : []).map(realignLeagueDriver).filter(Boolean);
 }
 
-
-function getTeamFullName(team) {
-  const names = {
-    B2J: "B2J Motorsports",
-    MER: "ME Racing",
-        MMS: "Mayhem Motorsports",
-    NLM: "Nine Line Motorsports",
-    BOM: "Blue Oval Motorsports",
-        BWR: "Big Wheel Racing",
-    KDM: "ME Racing",
-    BMX: "BayouX Motorsports",
-    "BayouX Motorsports": "BayouX Motorsports",
-    "19XI": "19XI Racing",
-    "19XI Racing": "19XI Racing",
-    IND: "Independent",
-    Independent: "Independent",
-  };
-
-  return names[team] || team || "Unknown Team";
-}
 
 function getTrend(currentRank, previousRank) {
   if (!currentRank || !previousRank) return { label: "NEW", color: "#94a3b8" };
@@ -254,6 +235,7 @@ export default function TeamDetailPage({
           <div style={{ fontSize: 38, fontWeight: 900 }}>
             {getTeamFullName(selectedTeam || initialTeam)}
           </div>
+          <div style={{ fontSize: 14, fontWeight: 900, color: "#d71920", letterSpacing: 2 }}>{getTeamIdentifier(selectedTeam || initialTeam)}</div>
 
           <div style={{ fontSize: 15, opacity: 0.72, marginTop: 6 }}>
             Live Team Analytics • Race Data • Trend Tracking • Driver Comparison
