@@ -1,3 +1,4 @@
+import ScheduleEditor from "../ScheduleEditor";
 import React from "react";
 
 /**
@@ -81,6 +82,8 @@ export default function RaceOperations({
   submitResults,
   tdStyle,
   tracks,
+  onSaveSchedule,
+  supabase,
   updateTrackStageCount,
 }) {
   return (
@@ -126,92 +129,7 @@ export default function RaceOperations({
           </div>
         )}
 
-            {/* Track Management */}
-            {raceOperationsTab === "tracks" && <div style={{ ...adminReadableCardStyle, padding: isAdminMobile ? 18 : 26, borderRadius: 34, background: "linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.92))", boxShadow: "0 22px 60px rgba(15,23,42,0.12)", border: "1px solid rgba(255,255,255,0.75)" }}>
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap", marginBottom: 18 }}>
-      <div>
-        <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.6, textTransform: "uppercase", color: "#34c759" }}>Race Operations</div>
-        <h2 style={{ margin: "3px 0 6px", fontSize: isAdminMobile ? 30 : 38, letterSpacing: -1.35 }}>Track Management</h2>
-        <div style={{ color: "#6b7280", fontWeight: 750, maxWidth: 720 }}>Update the race schedule only when needed. Stage counts feed race input and scoring setup.</div>
-      </div>
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-        <div style={{ padding: "10px 14px", borderRadius: 999, background: "rgba(52,199,89,0.12)", color: "#166534", fontWeight: 1000, fontSize: 13 }}>{tracks.length} Tracks</div>
-        <div style={{ padding: "10px 14px", borderRadius: 999, background: "rgba(0,122,255,0.10)", color: "#1d4ed8", fontWeight: 1000, fontSize: 13 }}>{tracks.filter((t) => Number(t.stageCount) === 3).length} 3-Stage</div>
-      </div>
-    </div>
-
-    <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "minmax(280px, 0.85fr) minmax(420px, 1.45fr)", gap: 16, alignItems: "start" }}>
-      <div style={{ borderRadius: 30, padding: 18, background: "linear-gradient(135deg, rgba(52,199,89,0.16), rgba(255,255,255,0.92))", border: "1px solid rgba(52,199,89,0.22)", boxShadow: "0 14px 35px rgba(15,23,42,0.08)" }}>
-        <div style={{ fontSize: 13, fontWeight: 1000, color: "#166534", letterSpacing: 0.4 }}>Add Track</div>
-        <div style={{ marginTop: 12 }}>
-          <div style={{ marginBottom: 6, fontWeight: 900, color: "#374151" }}>Track Name</div>
-          <input style={{ ...adminInputStyle, borderRadius: 18, background: "rgba(255,255,255,0.88)" }} value={newTrackName} onChange={(e) => setNewTrackName(e.target.value)} placeholder="Example: Bristol Night Race" />
-        </div>
-        <div style={{ marginTop: 12 }}>
-          <div style={{ marginBottom: 6, fontWeight: 900, color: "#374151" }}>Stage Count</div>
-          <select style={{ ...adminInputStyle, borderRadius: 18, background: "rgba(255,255,255,0.88)" }} value={newTrackStageCount} onChange={(e) => setNewTrackStageCount(Number(e.target.value))}>
-            <option value={1}>1 stage</option>
-            <option value={2}>2 stages</option>
-            <option value={3}>3 stages</option>
-          </select>
-        </div>
-        <button onClick={addTrack} style={{ ...adminPrimaryButtonStyle, width: "100%", marginTop: 14, borderRadius: 18 }}>Add Track</button>
-        <button onClick={restoreDefaultTracks} style={{ ...adminSecondaryButtonStyle, width: "100%", marginTop: 10, borderRadius: 18 }}>Restore Default Schedule</button>
-        <div style={{ marginTop: 12, color: "#6b7280", fontSize: 12, fontWeight: 750, lineHeight: 1.35 }}>Tip: keep this tucked away unless the league schedule or stage format changes.</div>
-      </div>
-
-      <div style={{ borderRadius: 30, overflow: "hidden", background: "rgba(255,255,255,0.86)", border: "1px solid rgba(229,231,235,0.95)", boxShadow: "0 14px 35px rgba(15,23,42,0.07)" }}>
-        <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "1.2fr 0.6fr 0.7fr 0.7fr", gap: 10, padding: "12px 16px", background: "rgba(243,244,246,0.72)", color: "#6b7280", fontSize: 12, fontWeight: 1000, letterSpacing: 0.8, textTransform: "uppercase" }}>
-          <div>Track</div>
-          {!isAdminMobile && <div>Stages</div>}
-          {!isAdminMobile && <div>History</div>}
-          {!isAdminMobile && <div style={{ textAlign: "right" }}>Action</div>}
-        </div>
-
-        <div style={{ display: "grid" }}>
-          {tracks.length === 0 ? (
-            <div style={{ padding: 18, color: "#6b7280", fontWeight: 750 }}>No tracks defined. Add one on the left or restore the default schedule.</div>
-          ) : tracks.map((t) => {
-            const usedInHistory = seasons.some((s) => (s.raceHistory || []).some((r) => r.raceName === t.name));
-            return (
-              <div key={t.name} style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "1.2fr 0.6fr 0.7fr 0.7fr", gap: 10, alignItems: "center", padding: "14px 16px", borderTop: "1px solid rgba(229,231,235,0.75)" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
-                  <div style={{ width: 42, height: 42, borderRadius: 16, background: "linear-gradient(135deg, #34c759, #30d158)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 1000, boxShadow: "0 10px 20px rgba(52,199,89,0.24)" }}>🏁</div>
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontWeight: 1000, color: "#111827", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.name}</div>
-                    {isAdminMobile && <div style={{ marginTop: 5, color: "#6b7280", fontSize: 12, fontWeight: 800 }}>{t.stageCount} stage{Number(t.stageCount) === 1 ? "" : "s"} • {usedInHistory ? "Used in history" : "Not used yet"}</div>}
-                  </div>
-                </div>
-
-                <div style={{ display: isAdminMobile ? "none" : "block" }}>
-                  <select style={{ ...adminInputStyle, maxWidth: 150, borderRadius: 16, padding: "9px 11px" }} value={t.stageCount} onChange={(e) => updateTrackStageCount(t.name, e.target.value)}>
-                    <option value={1}>1 stage</option>
-                    <option value={2}>2 stages</option>
-                    <option value={3}>3 stages</option>
-                  </select>
-                </div>
-
-                <div style={{ display: isAdminMobile ? "none" : "block" }}>
-                  <span style={{ display: "inline-flex", alignItems: "center", padding: "8px 11px", borderRadius: 999, background: usedInHistory ? "rgba(255,149,0,0.14)" : "rgba(142,142,147,0.12)", color: usedInHistory ? "#b45309" : "#6b7280", fontWeight: 1000, fontSize: 12 }}>{usedInHistory ? "Used" : "Unused"}</span>
-                </div>
-
-                <div style={{ display: "flex", justifyContent: isAdminMobile ? "flex-start" : "flex-end", gap: 8, flexWrap: "wrap" }}>
-                  {isAdminMobile && (
-                    <select style={{ ...adminInputStyle, maxWidth: 150, borderRadius: 16, padding: "9px 11px" }} value={t.stageCount} onChange={(e) => updateTrackStageCount(t.name, e.target.value)}>
-                      <option value={1}>1 stage</option>
-                      <option value={2}>2 stages</option>
-                      <option value={3}>3 stages</option>
-                    </select>
-                  )}
-                  <button onClick={() => removeTrack(t.name)} style={{ ...adminDangerButtonStyle, borderRadius: 16, padding: "9px 12px" }}>Remove</button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-            </div>}
+            {raceOperationsTab === "tracks" && <ScheduleEditor tracks={tracks} activeSeason={activeSeason} onSaveSchedule={onSaveSchedule} supabase={supabase}/>}
             {/* Start & Park Requests moved into Human Resources > Start & Park. */}
 
             {/* Enter Race Results */}
@@ -255,7 +173,7 @@ export default function RaceOperations({
         const prior = seasonOffenseCounts[driver.id] || 0;
         const thisOffense = offenseMap[driver.id] ? prior + 1 : null;
         const fp = positions[driver.id] ? pointsTable[(Number(positions[driver.id]) || 1) - 1] || 0 : 0;
-        const sp = startParkMap[driver.id] ? 0 : getStagePoints(stage1[driver.id]) + getStagePoints(stage2[driver.id]) + (stageCount === 3 ? getStagePoints(stage3[driver.id]) : 0);
+        const sp = getStagePoints(stage1[driver.id]) + getStagePoints(stage2[driver.id]) + (stageCount === 3 ? getStagePoints(stage3[driver.id]) : 0);
         const fl = fastestLapMap[driver.id] ? 1 : 0;
         const op = thisOffense ? getOffensePenaltyPoints(thisOffense) : 0;
         const mp = Number(penaltyMap[driver.id] || 0);
@@ -305,7 +223,6 @@ export default function RaceOperations({
                   )}
                 </div>
                 <div style={{ borderRadius: 20, padding: 13, background: "rgba(255,255,255,0.9)", border: "1px solid rgba(226,232,240,0.9)" }}>
-                  <label style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 900 }}><input type="checkbox" checked={!!startParkMap[driver.id]} onChange={(e) => handleStartParkChange(driver.id, e.target.checked)} />Start & Park</label>
                   <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 700, marginTop: 8 }}>Finish points only; stage points zeroed.</div>
                 </div>
                 <div style={{ borderRadius: 20, padding: 13, background: "rgba(255,255,255,0.9)", border: "1px solid rgba(226,232,240,0.9)" }}>
@@ -512,7 +429,7 @@ export default function RaceOperations({
                           {race.stageCount >= 1 && <th style={adminThStyle}>S1</th>}
                           {race.stageCount >= 2 && <th style={adminThStyle}>S2</th>}
                           {race.stageCount === 3 && <th style={adminThStyle}>S3</th>}
-                          <th style={adminThStyle}>FL</th><th style={adminThStyle}>DNF</th><th style={adminThStyle}>Start & Park</th>
+                          <th style={adminThStyle}>FL</th><th style={adminThStyle}>DNF</th>
                           <th style={adminThStyle}>Offense</th><th style={adminThStyle}>Penalty</th><th style={adminThStyle}>Total</th>
                         </tr>
                       </thead>
@@ -529,7 +446,7 @@ export default function RaceOperations({
                             {race.stageCount === 3 && <td style={adminTdStyle}>{r.stage3Points}</td>}
                             <td style={adminTdStyle}>{r.fastestLap ? "+1" : "—"}</td>
                             <td style={adminTdStyle}>{r.dnf ? (r.dnfReason ? `DNF (${r.dnfReason})` : "DNF") : "—"}</td>
-                            <td style={adminTdStyle}>{r.startPark ? "Yes" : "—"}</td>
+                            
                             <td style={adminTdStyle}>{r.offense ? `#${r.offenseNumber}` : "—"}</td>
                             <td style={{ ...tdStyle, color: r.penaltyPoints > 0 ? "#dc2626" : "inherit", fontWeight: 900 }}>{r.penaltyPoints > 0 ? `-${r.penaltyPoints}` : "0"}</td>
                             <td style={{ ...tdStyle, fontWeight: 1000 }}>{r.totalRacePoints}</td>
