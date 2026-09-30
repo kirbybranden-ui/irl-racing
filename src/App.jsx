@@ -4507,80 +4507,9 @@ function MobileLeagueApp({
   ));
   if (path === "/memorial-day") return dataFrame("Memorial", "more", <MemorialDayPage drivers={drivers} />);
   if (path === "/tracks" || path === "/schedule" || path === "/season-schedule") {
-    const sortedTracks = getSortedTracksByDate(tracks || []);
-    const upcomingRace = getUpcomingRaceByDate(tracks || []);
-    return frame("Season Tracks", "standings", (
-      <>
-        <MobileHero
-          kicker="Season Schedule"
-          title="Track List"
-          subtitle="Tap a track card to view details and race information."
-        />
-
-        <MobileSectionTitle>Upcoming</MobileSectionTitle>
-        {upcomingRace ? (
-          <MobileCard>
-            <div style={mobileKickerStyle}>Next Race</div>
-            <h2 style={{ margin: "5px 0 6px", fontSize: 24 }}>{upcomingRace.name}</h2>
-            <div style={{ color: "#6e6e73", fontSize: 13 }}>
-              {upcomingRace.date || "Date TBD"} {upcomingRace.time ? `• ${upcomingRace.time}` : ""}
-            </div>
-          </MobileCard>
-        ) : (
-          <MobileCard>No upcoming race found.</MobileCard>
-        )}
-
-        <MobileSectionTitle>Full Season</MobileSectionTitle>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10, paddingBottom: 90 }}>
-          {sortedTracks.map((track, index) => {
-            const overview = trackOverviewData[track.name] || trackOverviewData[track.track] || {};
-            const isNext = upcomingRace && String(upcomingRace.name) === String(track.name);
-            return (
-              <button
-                type="button"
-                key={`${track.name}-${track.date || index}`}
-                onClick={() => go(`/tracks?selected=${encodeURIComponent(track.name || "")}`)}
-                style={{
-                  width: "100%",
-                  textAlign: "left",
-                  background: isNext ? "linear-gradient(135deg, rgba(212,175,55,0.24), #111827)" : "#111827",
-                  color: "white",
-                  border: isNext ? "1px solid #d4af37" : "1px solid #263244",
-                  borderRadius: 16,
-                  padding: 14,
-                  cursor: "pointer",
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
-                  <div>
-                    <div style={{ color: "#d4af37", fontSize: 11, fontWeight: 1000, textTransform: "uppercase" }}>
-                      Race {index + 1}{isNext ? " • Upcoming" : ""}
-                    </div>
-                    <div style={{ fontSize: 19, fontWeight: 1000, marginTop: 3 }}>{track.name}</div>
-                    <div style={{ color: "#6e6e73", fontSize: 13, marginTop: 4 }}>
-                      {track.date || "Date TBD"} {track.time ? `• ${track.time}` : ""}
-                    </div>
-                  </div>
-                  <div style={{ textAlign: "right", color: "#cbd5e1", fontSize: 12 }}>
-                    <div>{overview.length || overview.trackLength || ""}</div>
-                    <div>{overview.banking || ""}</div>
-                  </div>
-                </div>
-
-                {(overview.type || overview.pitSpeed || overview.restartZone) && (
-                  <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    {overview.type && <span style={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 999, padding: "5px 8px", fontSize: 11 }}>{overview.type}</span>}
-                    {overview.pitSpeed && <span style={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 999, padding: "5px 8px", fontSize: 11 }}>Pit {overview.pitSpeed}</span>}
-                    {overview.restartZone && <span style={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 999, padding: "5px 8px", fontSize: 11 }}>Restart {overview.restartZone}</span>}
-                  </div>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </>
-    ));
+    return frame("Season schedule", "standings", <SchedulePage tracks={tracks} raceHistory={raceHistory} seasons={seasons} activeSeasonId={activeSeasonId}/>);
   }
+
   if (path === "/tournament" || path === "/in-season-tournament" || path === "/in-season-bracket" || path === "/bracket") {
     return dataFrame("Tournament", "standings", <InSeasonTournamentPage drivers={drivers} raceHistory={raceHistory} />);
   }
@@ -5851,7 +5780,6 @@ function MobileLayout({ title, children, go, active, session = null, onLogout = 
       { icon: "🎯", label: "Assignments", href: `/driver/${driverNumber}/assignments` },
       { icon: "😊", label: "Driver Feedback", href: `/driver/${driverNumber}/feedback` },
       { icon: "🤝", label: "Team Interest", href: `/driver/${driverNumber}/team-interest` },
-      { icon: "🏁", label: "Start & Park", href: `/driver/${driverNumber}/start-park` },
       { icon: "🔄", label: "Transfer Portal", href: `/driver/${driverNumber}/portal` },
       { icon: "⚙️", label: "Settings", href: `/driver/${driverNumber}/settings` },
     ] : []),
@@ -8120,125 +8048,6 @@ export default function App() {
   const handleStage2Change = (id, v) => patchActiveSeason({ stage2: { ...stage2, [id]: v === "" ? "" : Number(v) } });
   const handleStage3Change = (id, v) => patchActiveSeason({ stage3: { ...stage3, [id]: v === "" ? "" : Number(v) } });
   const handleDnfChange = (id, checked) => patchActiveSeason({ dnfMap: { ...dnfMap, [id]: checked } });
-  const handleStartParkChange = (id, checked) => patchActiveSeason({ startParkMap: { ...startParkMap, [id]: checked } });
-
-  async function loadStartParkRequests() {
-    setStartParkRequestsLoading(true);
-    const { data, error } = await supabase
-      .from("start_park_requests")
-      .select("*")
-      .order("created_at", { ascending: true });
-
-    if (error) {
-      console.error("Could not load Start & Park requests:", error);
-      setStartParkRequestError("Could not load Start & Park requests. Run the start_park_requests SQL and check RLS select policy.");
-      setStartParkRequests([]);
-      setStartParkRequestsLoading(false);
-      return;
-    }
-
-    setStartParkRequests(data || []);
-    setStartParkRequestsLoading(false);
-  }
-
-  useEffect(() => {
-    if (!isHydrated) return;
-    loadStartParkRequests();
-    const interval = setInterval(loadStartParkRequests, 30000);
-    return () => clearInterval(interval);
-  }, [isHydrated]);
-
-  async function updateStartParkRequestStatus(request, status) {
-    setStartParkRequestStatus("");
-    setStartParkRequestError("");
-    if (status === "approved" && !wasStartParkRequestBeforeCutoff(request)) {
-      setStartParkRequestError("This request was submitted after the Saturday 9:00 PM ET cutoff and cannot be approved.");
-      return;
-    }
-    const patch = {
-      status,
-      updated_at: new Date().toISOString(),
-    };
-    if (status === "approved") patch.approved_at = new Date().toISOString();
-    if (status === "declined") patch.declined_at = new Date().toISOString();
-
-    const { error } = await supabase
-      .from("start_park_requests")
-      .update(patch)
-      .eq("id", request.id);
-
-    if (error) {
-      console.error("Could not update Start & Park request:", error);
-      setStartParkRequestError("Could not update request. Check start_park_requests update policy.");
-      return;
-    }
-
-    setStartParkRequestStatus(`Start & Park request ${status}.`);
-    await loadStartParkRequests();
-  }
-
-  async function applyApprovedStartParkRequestsToRace() {
-    setStartParkRequestStatus("");
-    setStartParkRequestError("");
-
-    if (!selectedRace) {
-      setStartParkRequestError("Select a race before applying Start & Park requests.");
-      return;
-    }
-
-    const approved = (startParkRequests || [])
-      .filter((request) => String(request.status || "").toLowerCase() === "approved")
-      .filter((request) => String(request.race_name || "") === String(selectedRace))
-      .filter((request) => wasStartParkRequestBeforeCutoff(request))
-      .sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
-
-    if (!approved.length) {
-      setStartParkRequestError("No approved Start & Park requests are waiting for this race.");
-      return;
-    }
-
-    const nextPositions = { ...positions };
-    const nextStartParkMap = { ...startParkMap };
-    const nextStage1 = { ...stage1 };
-    const nextStage2 = { ...stage2 };
-    const nextStage3 = { ...stage3 };
-    const nextNotes = { ...resultNotesMap };
-    const totalStarters = activeDrivers.length || 0;
-
-    approved.forEach((request, index) => {
-      const driver = activeDrivers.find((item) => String(item.id) === String(request.driver_id) || String(item.number) === String(request.driver_number));
-      if (!driver) return;
-      const rearPosition = Math.max(1, totalStarters - approved.length + index + 1);
-      nextPositions[driver.id] = rearPosition;
-      nextStartParkMap[driver.id] = true;
-      nextStage1[driver.id] = "";
-      nextStage2[driver.id] = "";
-      nextStage3[driver.id] = "";
-      const note = `Start & Park approved by Race Control. Rear order ${index + 1} of ${approved.length} by request receipt.`;
-      nextNotes[driver.id] = nextNotes[driver.id] ? `${nextNotes[driver.id]} | ${note}` : note;
-    });
-
-    patchActiveSeason({
-      positions: nextPositions,
-      startParkMap: nextStartParkMap,
-      stage1: nextStage1,
-      stage2: nextStage2,
-      stage3: nextStage3,
-      resultNotesMap: nextNotes,
-    });
-
-    const ids = approved.map((request) => request.id).filter(Boolean);
-    if (ids.length) {
-      await supabase
-        .from("start_park_requests")
-        .update({ status: "applied", applied_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-        .in("id", ids);
-    }
-
-    setStartParkRequestStatus(`${approved.length} Start & Park request${approved.length === 1 ? "" : "s"} placed at the rear in order of receipt.`);
-    await loadStartParkRequests();
-  }
-
   const handleOffenseChange = (id, checked) => patchActiveSeason({ offenseMap: { ...offenseMap, [id]: checked } });
   const handleManualPenaltyChange = (id, value) => patchActiveSeason({ penaltyMap: { ...penaltyMap, [id]: value === "" ? "" : Number(value) } });
   const handleResultNoteChange = (id, value) => patchActiveSeason({ resultNotesMap: { ...resultNotesMap, [id]: value } });
@@ -8480,7 +8289,7 @@ export default function App() {
       const finishPos = positions[driver.id];
       const stage1Pos = stage1[driver.id], stage2Pos = stage2[driver.id], stage3Pos = stage3[driver.id];
       const dnf = !!dnfMap[driver.id];
-      const startPark = !!startParkMap[driver.id];
+      const startPark = false;
       const fastestLap = !!fastestLapMap[driver.id];
       const offense = !!offenseMap[driver.id];
       const manualPenaltyPoints = Number(penaltyMap[driver.id] || 0);
@@ -9370,7 +9179,7 @@ export default function App() {
     />
   );
 }
-  if (path === "/schedule" || path === "/tracks" || path === "/season-schedule") return withLeagueStatusWidget(<SchedulePage tracks={tracks} raceHistory={raceHistory} />);
+  if (path === "/schedule" || path === "/tracks" || path === "/season-schedule") return withLeagueStatusWidget(<SchedulePage tracks={tracks} raceHistory={raceHistory} seasons={seasons} activeSeasonId={activeSeasonId} />);
   if (path === "/news") return withLeagueStatusWidget(<NewsPage />);
   if (path === "/paint-scheme-vote") return withLeagueStatusWidget(<PaintSchemeVotePage drivers={visibleDrivers} tracks={tracks} />);
   if (path === "/vote" || path === "/league-vote" || path === "/voting") return <LeagueVotingPage drivers={visibleDrivers} />;
@@ -9609,7 +9418,6 @@ export default function App() {
       addManualWatchPick={addManualWatchPick}
       addTrack={addTrack}
       appShellStyle={appShellStyle}
-      applyApprovedStartParkRequestsToRace={applyApprovedStartParkRequestsToRace}
       approvePendingDriver={approvePendingDriver}
       awardPaintSchemePayouts={awardPaintSchemePayouts}
       backupFileInputRef={backupFileInputRef}
@@ -9668,7 +9476,6 @@ export default function App() {
       handleStage1Change={handleStage1Change}
       handleStage2Change={handleStage2Change}
       handleStage3Change={handleStage3Change}
-      handleStartParkChange={handleStartParkChange}
       headerButtonStyle={headerButtonStyle}
       importFileRef={importFileRef}
       inputStyle={inputStyle}
@@ -9678,7 +9485,6 @@ export default function App() {
       loadManualWatchPicks={loadManualWatchPicks}
       loadPaintSchemePayoutPreview={loadPaintSchemePayoutPreview}
       loadResultsDraft={loadResultsDraft}
-      loadStartParkRequests={loadStartParkRequests}
       loadTickerMessages={loadTickerMessages}
       logo={logo}
       logoutAdmin={logoutAdmin}
@@ -9801,7 +9607,6 @@ export default function App() {
       toggleTickerPinned={toggleTickerPinned}
       tracks={tracks}
       unretireDriver={unretireDriver}
-      updateStartParkRequestStatus={updateStartParkRequestStatus}
       updateTrackStageCount={updateTrackStageCount}
       videoDescription={videoDescription}
       videoFileInputRef={videoFileInputRef}
