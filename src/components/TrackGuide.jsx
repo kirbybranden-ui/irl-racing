@@ -1,16 +1,16 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { trackGuides } from '../data/trackGuides';
+import { getTrackOverview } from '../data/trackOverview';
 import { trackKey, estimateHalfDistance, calculateStrategy, conditionAdvice } from '../utils/trackStrategy';
 import '../styles/trackGuide.css';
 const number=(v)=>v===null||v===undefined?'—':Number(v).toFixed(1).replace(/\.0$/,'');
 export default function TrackGuide({track}) {
-  const guide=trackGuides[trackKey(track.name)];
-  if(!guide)return <div className="brl-track-guide"><a href="/schedule">← Schedule</a><h1>{track.name}</h1><p>Track research is not available yet.</p></div>;
+  const guide=getTrackOverview(track);
+  if(!guide.preferredLine)return <div className="brl-track-guide"><a href="/schedule">← Schedule</a><h1>{track.name}</h1><p>Track research is not available yet.</p></div>;
   return <GuideContent key={trackKey(track.name)} guide={guide} track={track}/>;
 }
 function GuideContent({guide,track}) {
   const key=`brl-track-practice-v1:${guide.name}`;
-  const defaults={raceLaps:estimateHalfDistance(guide.referenceFullLaps),startLap:0,rangeBasis:'3x',fuelRange:'',tireRange:'',fuelSaving:0,tireGain:0,paceLoss:'',pitLoss:'',temperature:'hot',rubber:'green',notes:''};
+  const defaults={raceLaps:guide.actualRaceLaps || estimateHalfDistance(guide.referenceFullLaps),startLap:0,rangeBasis:'3x',fuelRange:'',tireRange:'',fuelSaving:0,tireGain:0,paceLoss:'',pitLoss:'',temperature:'hot',rubber:'green',notes:''};
   const [plan,setPlan]=useState(()=>{try{const saved=JSON.parse(localStorage.getItem(key)||'null');return {...defaults,...saved};}catch{return defaults;}});
   const [storageNotice,setStorageNotice]=useState('');
   useEffect(()=>{try{localStorage.setItem(key,JSON.stringify(plan));setStorageNotice('Practice inputs saved on this device.');}catch{setStorageNotice('Practice inputs cannot be saved in this browser.');}},[key,plan]);
@@ -20,8 +20,10 @@ function GuideContent({guide,track}) {
   return <div className="brl-track-guide">
     <a className="brl-primary-action" href="/schedule">← Season schedule</a>
     <header className="brl-route-hero"><span className="brl-flow-kicker">{track.phase||'Race preparation'} · {track.date}</span><h1>{guide.name}</h1><p className="brl-guide-settings">50% race distance · 3× tire wear · 3× fuel consumption</p><p>{track.eventLabel||'Race preparation and strategy'} · {track.stageCount||2} scoring stages</p></header>
-    <section className="brl-guide-facts" aria-label="Track facts"><div><small>Track length</small><strong>{guide.lengthMiles} miles</strong></div><div><small>Surface</small><strong>{guide.surface}</strong></div><div><small>Real-world pit limit</small><strong>{guide.pitSpeed}</strong></div><div><small>50% lap estimate</small><strong>{estimateHalfDistance(guide.referenceFullLaps)} laps</strong></div></section>
-    <p className="brl-guide-note">{guide.referenceNote} Real-world pit limits are reference values; follow the in-game limits. Stage-ending laps require the league’s actual settings.</p>
+    {guide.imageUrl && <img src={guide.imageUrl} alt={`${guide.name} track`} className="brl-track-photo" onError={e=>{e.currentTarget.style.display="none";}}/>}
+    <section className="brl-guide-facts" aria-label="Track facts"><div><small>Track length</small><strong>{guide.lengthMiles ? `${guide.lengthMiles} miles` : "Not set"}</strong></div><div><small>Surface</small><strong>{guide.surface}</strong></div><div><small>Pit limit</small><strong>{guide.pitSpeed || "Not set"}</strong></div><div><small>{guide.actualRaceLaps ? "Published 50% laps" : "50% lap estimate"}</small><strong>{(guide.actualRaceLaps || estimateHalfDistance(guide.referenceFullLaps)) ? `${guide.actualRaceLaps || estimateHalfDistance(guide.referenceFullLaps)} laps` : "Set in admin"}</strong></div></section>
+    {guide.banking && <p><strong>Banking:</strong> {guide.banking}</p>}{guide.restartZone && <p><strong>Restart zone:</strong> {guide.restartZone}</p>}
+    <p className="brl-guide-note">{guide.referenceNote} Initial pit limits use real-world references; follow admin-confirmed in-game limits. Stage-ending laps require the league’s actual settings.</p>
     <section className="brl-flow-section"><span className="brl-flow-kicker">Read the surface</span><h2>Conditions and racing lines</h2><p>Choose a scenario to adapt the advice. These are planning scenarios, not live game telemetry.</p><div className="brl-guide-fields"><label className="brl-guide-field"><span>Grip scenario</span><select value={plan.temperature} onChange={update('temperature')}><option value="hot">Hot / slick</option><option value="cool">Cool / grippy</option></select></label><label className="brl-guide-field"><span>Rubber buildup</span><select value={plan.rubber} onChange={update('rubber')}><option value="green">Low rubber / early run</option><option value="rubbered">Rubbered in / later run</option></select></label></div><h3>Grooves to compare</h3><p>{guide.preferredLine}</p><ul>{conditionAdvice(guide,plan.temperature,plan.rubber).map(text=><li key={text}>{text}</li>)}</ul></section>
     <section className="brl-flow-section"><span className="brl-flow-kicker">50% / 3× / 3×</span><h2>Push or save?</h2><p>{guide.savingGuidance}</p><p><strong>Watch for:</strong> {guide.watchFor}</p><p>At half distance with triple consumption, fuel demand is roughly 1.5 times a full-distance 1× run if per-lap use is unchanged. Plan the pit cycle instead of halving the number of stops.</p>
       <details className="brl-guide-calculator"><summary>Optional pit-window and pace calculator</summary><div className="brl-guide-fields">{field('Actual 50% race laps','raceLaps')}{field('Plan from lap (0 = before race)','startLap')}<label className="brl-guide-field"><span>Range inputs measured at</span><select value={plan.rangeBasis} onChange={update('rangeBasis')}><option value="3x">3× fuel and tire settings</option><option value="1x">1× reference (divide by 3)</option></select></label>{field('Full-tank range (laps)','fuelRange',.1)}{field('Useful tire life (laps)','tireRange',.1)}{field('Fuel use reduced by saving (%)','fuelSaving',.1)}{field('Tire-life gain from saving (%)','tireGain',.1)}{field('Saving pace loss (seconds / lap)','paceLoss',.01)}{field('Pit stop total time loss (seconds)','pitLoss',.1)}</div>
