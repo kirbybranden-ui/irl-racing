@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useLeagueAccess, canManageTeam } from "./lib/roleAccess";
 import { getLeagueSession } from "./lib/leagueAuth";
 import logo from "./assets/logo1.png";
 import teamLogoB2J from "./assets/teams/B2J.png";
@@ -582,12 +583,14 @@ function buildTeamFinancialRow(team, drivers, teams, raceHistory, technicalAllia
 }
 
 export default function OwnersPage({ drivers = [], teams = [], raceHistory = [], seasonName = "", onApplyTeamTransaction = null }) {
-  const availableTeams = useMemo(() => {
+  const { access: verifiedAccess, loading: roleLoading } = useLeagueAccess();
+  const comparisonTeams = useMemo(() => {
     const teamSet = new Set(drivers.map((driver) => driver.team || "Independent"));
     return Array.from(teamSet)
       .filter((team) => team !== "Independent" && team !== "IND")
       .sort((a, b) => getTeamFullName(a).localeCompare(getTeamFullName(b)));
   }, [drivers]);
+  const availableTeams = comparisonTeams.filter((team) => canManageTeam(verifiedAccess, team));
 
   const [selectedTeam, setSelectedTeam] = useState(() => localStorage.getItem("ownerPortalTeam") || availableTeams[0] || "B2J");
   const [accessCode, setAccessCode] = useState("");
@@ -716,9 +719,9 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
     };
   }, []);
 
-  const safeSelectedTeam = availableTeams.includes(selectedTeam) ? selectedTeam : availableTeams[0] || selectedTeam;
+  const safeSelectedTeam = availableTeams.includes(selectedTeam) ? selectedTeam : availableTeams[0] || "";
   const selected = useMemo(() => buildTeamFinancialRow(safeSelectedTeam, drivers, teams, raceHistory, technicalAlliances, independentDriverPayments), [safeSelectedTeam, drivers, teams, raceHistory, technicalAlliances, independentDriverPayments]);
-  const isAuthorized = authorizedTeam === safeSelectedTeam;
+  const isAuthorized = Boolean(verifiedAccess?.userId && safeSelectedTeam) && canManageTeam(verifiedAccess, safeSelectedTeam);
 
   useEffect(() => {
     if (isAuthorized || !safeSelectedTeam) return;
@@ -787,7 +790,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
     return () => clearInterval(interval);
   }, [isAuthorized, safeSelectedTeam, ownerTeamName]);
   const pendingOfferCount = contractOffers.filter((offer) => offer.status === "Pending").length;
-  const availableAlliancePartners = availableTeams.filter((team) => team !== safeSelectedTeam);
+  const availableAlliancePartners = comparisonTeams.filter((team) => team !== safeSelectedTeam);
   const pendingAllianceCount = technicalAlliances.filter((alliance) => alliance.status === "Pending").length;
 
   const latestFeedbackByDriverNumber = useMemo(() => {
@@ -1371,83 +1374,13 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
 
   async function signPortalDriver(entry) {
     setTransferPortalMessage("");
-    const driverContract = (activeContracts || []).find((c) => String(c.driver_number) === String(entry.driver_number));
-    const cost = driverContract ? calculateContractTerminationCost(driverContract) : { remainingSalary: 0, buyout: 0, total: 0 };
-
-    const confirmed = window.confirm(
-      `Sign #${entry.driver_number} ${entry.driver_name} to ${getTeamFullName(safeSelectedTeam)}?\n\n` +
-      (driverContract
-        ? `Buyout owed to ${getTeamFullName(entry.current_team)}: ${money(cost.buyout)}\nThis will be deducted from your team funds and paid directly to their current team.`
-        : `This driver has no active contract on file — signing is free.`)
-    );
-    if (!confirmed) return;
-
     setSigningBusyId(entry.id);
-
-    if (driverContract && cost.buyout > 0) {
-      const gainingFinance = teamFinance?.id ? teamFinance : await ensureTeamFinanceRow();
-      if (!gainingFinance?.id) {
-        setTransferPortalMessage("Could not load your team's finances. Try again.");
-        setSigningBusyId("");
-        return;
-      }
-
-      const { error: gainErr } = await supabase.from("team_finances").update({
-        balance: Number(gainingFinance.balance || 0) - cost.buyout,
-        buyout_spent: Number(gainingFinance.buyout_spent || 0) + cost.buyout,
-        updated_at: new Date().toISOString(),
-      }).eq("id", gainingFinance.id);
-
-      if (gainErr) {
-        console.error("Could not deduct buyout from gaining team:", gainErr);
-        setTransferPortalMessage("Could not deduct the buyout from your team's funds. Signing cancelled.");
-        setSigningBusyId("");
-        return;
-      }
-
-      const { data: losingFinanceData } = await supabase
-        .from("team_finances")
-        .select("*")
-        .eq("team", entry.current_team)
-        .limit(1);
-      const losingFinance = Array.isArray(losingFinanceData) && losingFinanceData.length ? losingFinanceData[0] : null;
-
-      if (losingFinance?.id) {
-        const { error: loseErr } = await supabase.from("team_finances").update({
-          balance: Number(losingFinance.balance || 0) + cost.buyout,
-          updated_at: new Date().toISOString(),
-        }).eq("id", losingFinance.id);
-        if (loseErr) console.error("Buyout deducted from gaining team, but could not credit the losing team:", loseErr);
-      } else {
-        console.error("Could not find a team_finances row for the losing team:", entry.current_team);
-      }
-
-      const { error: contractErr } = await supabase.from("contract_offers").update({
-        status: "Terminated - Transfer Portal",
-        termination_type: "Transfer Portal Buyout",
-        termination_buyout: cost.buyout,
-        terminated_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }).eq("id", driverContract.id);
-      if (contractErr) console.error("Could not mark old contract terminated:", contractErr);
-    }
-
-    const { error: assignErr } = await supabase.from("driver_team_assignments").upsert({
-      driver_number: String(entry.driver_number),
-      driver_name: entry.driver_name,
-      team: safeSelectedTeam,
-      active: true,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: "driver_number" });
-    if (assignErr) console.error("Buyout processed, but driver_team_assignments was not updated:", assignErr);
-
-    const { error: portalErr } = await supabase.from("driver_portal_entries").update({
-      status: "signed",
-      signed_by_team: safeSelectedTeam,
-      signed_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }).eq("id", entry.id);
-    if (portalErr) console.error("Could not close portal entry:", portalErr);
+    const { data: buyout, error: quoteError } = await supabase.rpc("brl_portal_sign", { entry_id: String(entry.id), new_team: safeSelectedTeam, commit_signing: false });
+    if (quoteError) { setTransferPortalMessage(quoteError.message); setSigningBusyId(""); return; }
+    const cost = { buyout: Number(buyout || 0) };
+    if (!window.confirm(`Sign #${entry.driver_number} ${entry.driver_name} to ${getTeamFullName(safeSelectedTeam)}? Buyout: ${money(cost.buyout)}.`)) { setSigningBusyId(""); return; }
+    const { error: signingError } = await supabase.rpc("brl_portal_sign", { entry_id: String(entry.id), new_team: safeSelectedTeam, commit_signing: true });
+    if (signingError) { setTransferPortalMessage(signingError.message); setSigningBusyId(""); return; }
 
     const { error: msgErr } = await supabase.from("league_messages").insert([{
       message_type: "contract",
@@ -2419,41 +2352,8 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
     const roundedAmount = Math.round(Number(amount || 0));
     const timestamp = new Date().toISOString();
 
-    const fromFinanceRow = await ensureFinanceRowForTeam(fromTeam);
-    if (!fromFinanceRow?.id) {
-      return { ok: false, message: "Could not find or create your team finance row. Check team_finances insert/select policies." };
-    }
-
-    const fromBalance = Number(fromFinanceRow.balance || 0);
-    if (fromBalance < roundedAmount) {
-      return { ok: false, message: `Not enough funds. Available balance is ${money(fromBalance)}.` };
-    }
-
-    const toFinanceRow = await ensureFinanceRowForTeam(toTeam);
-    if (!toFinanceRow?.id) {
-      return { ok: false, message: "Could not find or create the receiving team's finance row. Check team_finances insert/select policies." };
-    }
-
-    const { error: debitError } = await supabase
-      .from("team_finances")
-      .update({ balance: fromBalance - roundedAmount, updated_at: timestamp })
-      .eq("id", fromFinanceRow.id);
-
-    if (debitError) {
-      console.error("Could not deduct team transfer funds:", debitError);
-      return { ok: false, message: "Could not deduct funds from your team. Check team_finances update policy." };
-    }
-
-    const { error: creditError } = await supabase
-      .from("team_finances")
-      .update({ balance: Number(toFinanceRow.balance || 0) + roundedAmount, updated_at: timestamp })
-      .eq("id", toFinanceRow.id);
-
-    if (creditError) {
-      console.error("Could not credit receiving team:", creditError);
-      await supabase.from("team_finances").update({ balance: fromBalance, updated_at: new Date().toISOString() }).eq("id", fromFinanceRow.id);
-      return { ok: false, message: "Receiving team credit failed. Your deduction was rolled back." };
-    }
+    const { error: transferError } = await supabase.rpc("brl_team_transfer", { from_team: fromTeam, to_team: toTeam, transfer_amount: roundedAmount });
+    if (transferError) return { ok: false, message: transferError.message };
 
     const followOnPayload = buildFollowOnPayload({ dealType, payerTeam: fromTeam, receiverTeam: toTeam, request });
 
@@ -3603,75 +3503,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
   }
 
   async function unlockTeam() {
-    const enteredCode = normalizeAccessCode(accessCode);
-
-    if (!enteredCode) {
-      setError("Enter your owner driver password, temporary password, or master admin password.");
-      return;
-    }
-
-    const latestOwnerCodes = await loadRemoteOwnerAccessCodes();
-    const latestDriverCodes = await loadRemoteOwnerDriverAccessCodes();
-    const teamOwnerAssignments = await loadTeamOwnerAssignments();
-    setOwnerAccessCodes(latestOwnerCodes);
-
-    const assignedOwner = getAssignedOwnerForTeam(safeSelectedTeam, teamOwnerAssignments);
-    const assignedOwnerNumber = assignedOwner?.owner_driver_number ? String(assignedOwner.owner_driver_number).trim() : "";
-    const assignedOwnerName = assignedOwner?.owner_driver_name ? String(assignedOwner.owner_driver_name).trim().toLowerCase() : "";
-
-    const manualOwnerKeys = OWNER_DRIVER_KEYS[safeSelectedTeam] || OWNER_DRIVER_KEYS[getTeamFullName(safeSelectedTeam)] || [];
-    const allOwnerKeys = [
-      assignedOwnerNumber,
-      assignedOwnerName,
-      ...manualOwnerKeys,
-    ]
-      .filter(Boolean)
-      .map((value) => String(value).trim());
-
-    const driverCodeValues = [];
-    allOwnerKeys.forEach((key) => {
-      const cleanKey = String(key).trim();
-      const lowerKey = cleanKey.toLowerCase();
-      if (latestDriverCodes[cleanKey]) driverCodeValues.push(latestDriverCodes[cleanKey]);
-      if (latestDriverCodes[lowerKey]) driverCodeValues.push(latestDriverCodes[lowerKey]);
-      if (latestDriverCodes[cleanKey.toUpperCase()]) driverCodeValues.push(latestDriverCodes[cleanKey.toUpperCase()]);
-    });
-
-    const expectedOwnerCode = normalizeAccessCode(
-      latestOwnerCodes[safeSelectedTeam] ||
-      latestOwnerCodes[getTeamFullName(safeSelectedTeam)] ||
-      ownerAccessCodes[safeSelectedTeam] ||
-      ownerAccessCodes[getTeamFullName(safeSelectedTeam)] ||
-      ""
-    );
-
-    const hardFallbackCode = normalizeAccessCode(
-      OWNER_DRIVER_FALLBACK_CODES[safeSelectedTeam] ||
-      OWNER_DRIVER_FALLBACK_CODES[getTeamFullName(safeSelectedTeam)] ||
-      ""
-    );
-
-    const allowedCodes = [
-      normalizeAccessCode(MASTER_ACCESS_CODE),
-      expectedOwnerCode,
-      hardFallbackCode,
-      ...driverCodeValues.map(normalizeAccessCode),
-      ...getOwnerDriverCodesForTeam(safeSelectedTeam, latestDriverCodes),
-    ].filter(Boolean);
-
-    if (!allowedCodes.includes(enteredCode)) {
-      const ownerNameForMessage =
-        assignedOwner?.owner_driver_name ||
-        (safeSelectedTeam === "B2J" ? "RookieVet99" : "the assigned owner driver");
-
-      setError(`Incorrect code for this team. Use ${ownerNameForMessage}'s driver profile password, a temp password, or the master admin password.`);
-      return;
-    }
-
-    localStorage.setItem("ownerPortalTeam", safeSelectedTeam);
-    localStorage.setItem("ownerPortalAuthorizedTeam", safeSelectedTeam);
-    setAuthorizedTeam(safeSelectedTeam);
-    setError("");
+    window.location.href = "/login?next=/team-hq";
   }
 
   function switchTeam(team) {
@@ -3688,6 +3520,9 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
     setAuthorizedTeam("");
     setAccessCode("");
   }
+
+  if (roleLoading) return <p>Checking team access…</p>;
+  if (!availableTeams.length) return <p>No team is assigned to your Owner role. Ask an admin to assign your team in HR. <a href="/owners">Compare teams</a></p>;
 
   return (
     <div style={appShellStyle}>
@@ -3711,7 +3546,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
         <div style={{ ...sectionCardStyle, borderColor: isAuthorized ? "#d4af37" : "#3d4859" }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16, alignItems: "end" }}>
             <div>
-              <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>TEAM HQ</div>
+              <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>TEAM HQ · <a href="/compare">Compare teams & drivers</a></div>
               <select value={safeSelectedTeam} onChange={(event) => switchTeam(event.target.value)} style={inputStyle}>
                 {availableTeams.map((team) => <option key={team} value={team}>{getTeamFullName(team)}</option>)}
               </select>
