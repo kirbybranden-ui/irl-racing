@@ -13,6 +13,12 @@ import TeamDetailPage from "./TeamDetailPage";
 import ManufacturerDetailPage from "./ManufacturerDetailPage";
 import WelcomePage from "./WelcomePage";
 import JoinRequestForm from "./components/auth/JoinRequestForm";
+import RoleLogin from "./components/auth/RoleLogin";
+import RoleManagement from "./pages/RoleManagement";
+import RaceRecorderPage from "./pages/RaceRecorderPage";
+import LeagueComparisonPage from "./pages/LeagueComparisonPage";
+import { useLeagueAccess, hasLeagueRole, canSeeRoute } from "./lib/roleAccess";
+import { buildSubmissionRace } from "./utils/raceSubmissionHelpers";
 import FoundationPreviewPage from "./pages/FoundationPreviewPage";
 import { AppShell } from "./components/layout/AppShell";
 import SchedulePage from "./pages/SchedulePage";
@@ -3863,23 +3869,10 @@ function MobileAccessGate({ drivers = [], onSession }) {
     }
 
     setLoading(true);
-    const { data, error: accessError } = await supabase
-      .from("driver_access_codes")
-      .select("*")
-      .eq("driver_number", number)
-      .limit(10);
-
-    if (accessError) {
-      console.error("Could not verify mobile driver login:", accessError);
-      setLoading(false);
-      setError("Could not verify access. Check driver_access_codes select policy and columns.");
-      return;
-    }
-
     const leagueResult = await loginToLeague({
       driverNumber: number,
       password: code,
-      driverAccessCodes: data || [],
+      driverAccessCodes: [],
       drivers: activeDrivers,
       teams: [],
       supabase,
@@ -3891,27 +3884,7 @@ function MobileAccessGate({ drivers = [], onSession }) {
       return;
     }
 
-    const adminMatch = code.toUpperCase() === "BCLADMINPASSWORD2026";
-    const rosterDriver = activeDrivers.find((driver) => String(driver.number) === number) || {};
-    const driverForRoles = {
-      ...rosterDriver,
-      name: rosterDriver.name || leagueResult.session?.driverName || `#${number}`,
-      team: rosterDriver.team || leagueResult.session?.team || "",
-      manufacturer: rosterDriver.manufacturer || "",
-    };
-    const roleFlags = getBclRoleFlagsForDriver(driverForRoles, Boolean(adminMatch));
-    const session = {
-      mode: "driver",
-      role: roleFlags.role,
-      driverId: rosterDriver.id || null,
-      driverNumber: number,
-      driverName: driverForRoles.name,
-      team: driverForRoles.team,
-      manufacturer: driverForRoles.manufacturer,
-      isAdmin: roleFlags.isAdmin,
-      isOwner: roleFlags.isOwner,
-      isDriver: true,
-    };
+    const session = leagueResult.session;
 
     saveBclMobileSession(session);
     setLoading(false);
@@ -4010,23 +3983,10 @@ function MobileLoginModal({ drivers = [], onClose, onSuccess }) {
     }
 
     setLoading(true);
-    const { data, error: accessError } = await supabase
-      .from("driver_access_codes")
-      .select("*")
-      .eq("driver_number", number)
-      .limit(10);
-
-    if (accessError) {
-      console.error("Could not verify mobile driver login:", accessError);
-      setLoading(false);
-      setError("Could not verify access. Check driver_access_codes select policy and columns.");
-      return;
-    }
-
     const leagueResult = await loginToLeague({
       driverNumber: number,
       password: code,
-      driverAccessCodes: data || [],
+      driverAccessCodes: [],
       drivers: activeDrivers,
       teams: [],
       supabase,
@@ -4038,27 +3998,7 @@ function MobileLoginModal({ drivers = [], onClose, onSuccess }) {
       return;
     }
 
-    const adminMatch = code.toUpperCase() === "BCLADMINPASSWORD2026";
-    const rosterDriver = activeDrivers.find((driver) => String(driver.number) === number) || {};
-    const driverForRoles = {
-      ...rosterDriver,
-      name: rosterDriver.name || leagueResult.session?.driverName || `#${number}`,
-      team: rosterDriver.team || leagueResult.session?.team || "",
-      manufacturer: rosterDriver.manufacturer || "",
-    };
-    const roleFlags = getBclRoleFlagsForDriver(driverForRoles, Boolean(adminMatch));
-    const session = {
-      mode: "driver",
-      role: roleFlags.role,
-      driverId: rosterDriver.id || null,
-      driverNumber: number,
-      driverName: driverForRoles.name,
-      team: driverForRoles.team,
-      manufacturer: driverForRoles.manufacturer,
-      isAdmin: roleFlags.isAdmin,
-      isOwner: roleFlags.isOwner,
-      isDriver: true,
-    };
+    const session = leagueResult.session;
 
     saveBclMobileSession(session);
     setLoading(false);
@@ -4483,12 +4423,15 @@ function MobileLeagueApp({
   const sortedManufacturers = [...manufacturerStandings].sort((a, b) => (b.points || 0) - (a.points || 0));
   const upcomingRace = getUpcomingRaceByDate(tracks || []);
   const leader = sortedDrivers[0];
+  const { access: mobileAccess } = useLeagueAccess();
   const [mobileSession, setMobileSession] = useState(() => readBclMobileSession() || { mode: "guest", displayName: "Guest" });
+  useEffect(() => { setMobileSession(mobileAccess || { mode: "guest", displayName: "Guest" }); }, [mobileAccess]);
   const isGuestSession = mobileSession?.mode === "guest";
   const [showMobileLoginModal, setShowMobileLoginModal] = useState(false);
   const [mobileStandingsTab, setMobileStandingsTab] = useState("drivers");
 
   function handleMobileLogout() {
+    logoutOfLeague();
     clearBclMobileSession();
     setMobileSession({ mode: "guest", displayName: "Guest" });
   }
@@ -5187,7 +5130,7 @@ function MobileLatestNewsPreview({ go }) {
 
     loadPreview();
     return () => { isMounted = false; };
-  }, []);
+  }, [accessLoading, verifiedAccess?.userId, verifiedAccess?.roles?.includes("full_admin")]);
 
   if (!articles.length) return null;
 
@@ -5451,6 +5394,7 @@ function MobileWeekendRecap({ raceHistory = [], tracks = [], drivers = [], go })
 }
 
 function MobileFeatureHub({ go, drivers = [], teams = [], manufacturerStandings = [] }) {
+  const { access } = useLeagueAccess();
   const featureGroups = [
     {
       title: "League",
@@ -5466,6 +5410,7 @@ function MobileFeatureHub({ go, drivers = [], teams = [], manufacturerStandings 
     {
       title: "Owner / Driver Tools",
       items: [
+        { icon: "🏁", label: "Race Recorder", desc: "Enter results for full admin review", path: "/race-recorder" },
         { icon: "🔐", label: "Owner Login", desc: "Open the full owner portal", path: "/owner" },
         { icon: "🏢", label: "Team HQ", desc: "Owner login and full team controls", path: "/hq" },
         { icon: "📑", label: "Contracts", desc: "Contracts, offers, and driver agreements", path: "/contracts" },
@@ -5510,7 +5455,7 @@ function MobileFeatureHub({ go, drivers = [], teams = [], manufacturerStandings 
         <section key={group.title} style={mobileFeatureGroupStyle}>
           <MobileSectionTitle>{group.title}</MobileSectionTitle>
           <div style={mobileFeatureGridStyle}>
-            {group.items.map((item) => (
+            {group.items.filter((item) => canSeeRoute(access,item.path)).map((item) => (
               <button
                 key={item.path}
                 type="button"
@@ -6856,6 +6801,7 @@ function AppleSeriesPortalLanding() {
 }
 
 export default function App() {
+  const { access: verifiedAccess, loading: accessLoading, error: accessError } = useLeagueAccess();
   useEffect(() => {
     const session = getLeagueSession();
     const teamName = session?.team || session?.teamName || "";
@@ -6893,8 +6839,12 @@ export default function App() {
   const [isHydrated, setIsHydrated] = useState(false);
   const loadedStateSignatureRef = useRef("");
   const saveQueueRef = useRef(Promise.resolve());
+  const loadedRevisionRef = useRef(null);
+  const remoteLoadedRef = useRef(false);
   const queueLeagueSave = (state) => {
-    const queued = saveQueueRef.current.catch(() => {}).then(() => saveLeagueState(state));
+    if (!hasLeagueRole(verifiedAccess, "full_admin")) return Promise.reject(new Error("Full admin approval is required to update league data."));
+    if (!remoteLoadedRef.current) return Promise.reject(new Error("League data did not load from Supabase. Reload before saving."));
+    const queued = saveQueueRef.current.catch(() => {}).then(async () => { const revision = await saveLeagueState(state); loadedRevisionRef.current = revision; });
     saveQueueRef.current = queued;
     return queued;
   };
@@ -7111,6 +7061,7 @@ export default function App() {
 
     const payload = {
       team: selectedOwnerTeam,
+      owner_driver_id: String(ownerDriver.id),
       owner_driver_number: String(ownerDriver.number),
       owner_driver_name: ownerDriver.name || "",
       updated_at: new Date().toISOString(),
@@ -7155,7 +7106,7 @@ export default function App() {
     const nextTeams = { ...registeredTeams, [teamKey]: { ...registeredTeams[teamKey], identifier: publicCode, fullName: displayName, manufacturer } };
     const nextSeasons = seasons.map((season) => season.id === activeSeasonId ? { ...season, drivers: (season.drivers || []).map((driver) => driver.team === teamKey ? { ...driver, manufacturer, manufacturerLogo: manufacturerLogos[manufacturer] || null } : driver) } : season);
     const nextState = { seasons: nextSeasons, activeSeasonId, tracks, customTeamBranding: updated, registeredTeams: nextTeams };
-    await saveLeagueState(nextState);
+    await queueLeagueSave(nextState);
     applyCustomTeamBranding(updated);
     loadedStateSignatureRef.current = makeLeagueStateSignature(nextState);
     setSeasons(nextSeasons);
@@ -7177,7 +7128,7 @@ export default function App() {
     const nextTeams = { ...registeredTeams, [code]: { identifier: code, fullName: name, manufacturer, createdAt: new Date().toISOString() } };
     const nextBranding = { ...customTeamBranding, [code]: { identifier: code, fullName: name, accent: "#d71920", dark: "#111216", logoUrl: "" } };
     const nextState = { seasons, activeSeasonId, tracks, customTeamBranding: nextBranding, registeredTeams: nextTeams };
-    await saveLeagueState(nextState);
+    await queueLeagueSave(nextState);
     applyCustomTeamBranding(nextBranding);
     loadedStateSignatureRef.current = makeLeagueStateSignature(nextState);
     setCustomTeamBranding(nextBranding);
@@ -7198,7 +7149,7 @@ export default function App() {
     const nextBranding = { ...customTeamBranding };
     delete nextBranding[key];
     const nextState = { seasons, activeSeasonId, tracks, customTeamBranding: nextBranding, registeredTeams: nextTeams };
-    await saveLeagueState(nextState);
+    await queueLeagueSave(nextState);
     const { error } = await supabase.from("team_owner_assignments").delete().eq("team", key);
     if (error) throw new Error(`Team removed from roster, but owner access could not be cleared: ${error.message}`);
     applyCustomTeamBranding(nextBranding);
@@ -7377,7 +7328,10 @@ export default function App() {
 
 // useEffect hooks (must be before any early returns) ───────────────
   useEffect(() => {
+    if (accessLoading) return;
     let isMounted = true;
+    setIsHydrated(false);
+    remoteLoadedRef.current = false;
 
     async function hydrateFromSupabase() {
       try {
@@ -7387,6 +7341,8 @@ export default function App() {
         const normalizedState = normalizeLoadedLeagueState(savedState);
 
         if (normalizedState) {
+          loadedRevisionRef.current = savedState?._revision || null;
+          remoteLoadedRef.current = true;
           applyCustomTeamBranding(normalizedState.customTeamBranding);
           setCustomTeamBranding(normalizedState.customTeamBranding);
           setRegisteredTeams(normalizedState.registeredTeams);
@@ -7500,6 +7456,7 @@ export default function App() {
   useEffect(() => {
     if (!isHydrated) return;
     if (!Array.isArray(seasons) || seasons.length === 0 || !activeSeasonId) return;
+    if (!hasLeagueRole(verifiedAccess, "full_admin") || !remoteLoadedRef.current) return;
 
     const nextState = { seasons, activeSeasonId, tracks, customTeamBranding, registeredTeams };
     const nextSignature = makeLeagueStateSignature(nextState);
@@ -7518,7 +7475,7 @@ export default function App() {
     }, 250);
 
     return () => clearTimeout(timeout);
-  }, [seasons, activeSeasonId, tracks, customTeamBranding, registeredTeams, isHydrated]);
+  }, [seasons, activeSeasonId, tracks, customTeamBranding, registeredTeams, isHydrated, verifiedAccess]);
   useEffect(() => {
     async function loadFeaturedVideo() {
       const { data } = await supabase
@@ -7798,7 +7755,7 @@ export default function App() {
         activeSeasonId: nextActiveSeasonId,
       };
 
-      await saveLeagueState(restoredState);
+      await queueLeagueSave(restoredState);
       loadedStateSignatureRef.current = makeLeagueStateSignature(restoredState);
 
       const ledgerSyncResult = await syncAllRaceResultsLedger({
@@ -8464,7 +8421,7 @@ export default function App() {
         const nextSeason = { ...activeSeason, drivers: rebuildDriversFromHistory(raceHistory, newRoster) };
         const nextSeasons = seasons.map((season) => season.id === activeSeasonId ? nextSeason : season);
         const nextState = { seasons: nextSeasons, activeSeasonId, tracks, customTeamBranding, registeredTeams };
-        await saveLeagueState(nextState);
+        await queueLeagueSave(nextState);
         loadedStateSignatureRef.current = makeLeagueStateSignature(nextState);
         setSeasons(nextSeasons);
       }
@@ -8598,18 +8555,20 @@ export default function App() {
     setTimeout(() => submitResults(draft), 0);
   };
 
-  const submitResults = async (draftOverride = null) => {
+  const submitResults = async (draftOverride = null, approvalId = null) => {
+    const raceEditingName = approvalId ? null : editingRaceName;
+    if (!hasLeagueRole(verifiedAccess, "full_admin")) throw new Error("Full admin approval is required.");
     if (!activeSeason) return;
     const raceToPost = draftOverride || buildRaceFromCurrentInputs();
     if (!raceToPost.raceName.trim()) { alert("Please select a race."); return; }
-    if (raceHistory.some((r) => r.raceName === raceToPost.raceName && editingRaceName !== raceToPost.raceName)) { alert("That race has already been entered."); return; }
+    if (raceHistory.some((r) => r.raceName === raceToPost.raceName && raceEditingName !== raceToPost.raceName)) { alert("That race has already been entered."); return; }
     const updatedRace = {
       ...raceToPost,
       status: "Posted",
       postedAt: new Date().toISOString(),
       savedAt: new Date().toISOString(),
     };
-    const newHistory = editingRaceName ? raceHistory.map((r) => r.raceName === editingRaceName ? updatedRace : r) : [...raceHistory, updatedRace];
+    const newHistory = raceEditingName ? raceHistory.map((r) => r.raceName === raceEditingName ? updatedRace : r) : [...raceHistory, updatedRace];
     const rosterOnly = drivers.map((d) => ({ id: d.id, number: d.number, name: d.name, manufacturer: d.manufacturer || "", team: d.team, startingPoints: 0, manualWins: 0, retired: d.retired || false }));
     const rebuiltDrivers = rebuildDriversFromHistory(newHistory, rosterOnly);
     const updatedSeason = {
@@ -8631,22 +8590,30 @@ export default function App() {
 
     const updatedSeasons = seasons.map((season) => (season.id === activeSeasonId ? updatedSeason : season));
 
-    replaceActiveSeason(updatedSeason);
+    const publishedState = { seasons: updatedSeasons, activeSeasonId, tracks, customTeamBranding, registeredTeams };
+    if (approvalId) {
+      const expectedState = { seasons, activeSeasonId, tracks, customTeamBranding, registeredTeams };
+      const { data: revision, error } = await supabase.rpc("brl_publish_review", { submission_id: approvalId, expected_state: expectedState, expected_revision: loadedRevisionRef.current, next_state: publishedState });
+      if (error) throw error;
+      loadedRevisionRef.current = revision;
+    } else await queueLeagueSave(publishedState);
+    loadedStateSignatureRef.current = makeLeagueStateSignature(publishedState);
+    setSeasons(updatedSeasons);
 
     const automaticBackupPayload = makeLeagueBackupPayload({
       tracks,
       seasons: updatedSeasons,
       activeSeasonId,
-      reason: editingRaceName ? "automatic-edit-race-results" : "automatic-post-race-results",
+      reason: raceEditingName ? "automatic-edit-race-results" : "automatic-post-race-results",
       raceSnapshot: updatedRace,
     });
 
-    downloadLeagueBackupFile(automaticBackupPayload, editingRaceName ? "auto-edit-race-results" : "auto-post-race-results");
+    downloadLeagueBackupFile(automaticBackupPayload, raceEditingName ? "auto-edit-race-results" : "auto-post-race-results");
 
     const backupResult = await createRaceDataBackup({
       seasonSnapshot: updatedSeason,
       raceSnapshot: updatedRace,
-      backupType: editingRaceName ? "edit-race-save-points" : "post-points-to-standings",
+      backupType: raceEditingName ? "edit-race-save-points" : "post-points-to-standings",
     });
 
     const ledgerResult = await saveRaceResultsLedger({
@@ -8666,6 +8633,20 @@ export default function App() {
     }
 
     setEditingRaceName(null);
+    return true;
+  };
+  const approveRaceSubmission = async (submission) => {
+    if (!hasLeagueRole(verifiedAccess, "full_admin")) throw new Error("Full admin required.");
+    if (String(submission.season_id) !== String(activeSeasonId)) throw new Error("Switch to the submitted season before approving.");
+    if (raceHistory.some((race) => race.raceName === submission.race_name)) throw new Error("This race is already published. Review it in Race Operations.");
+    const { data: latest, error: checkError } = await supabase.from("brl_race_submissions").select("status").eq("id", submission.id).single();
+    if (checkError) throw checkError;
+    if (latest.status !== "pending") throw new Error("This submission has already been reviewed.");
+    const stageCount = Number(tracks.find((track) => track.name === submission.race_name)?.stageCount || 2);
+    const race = buildSubmissionRace(submission, drivers, stageCount, raceHistory);
+    const posted = await submitResults(race, submission.id);
+    if (!posted) throw new Error("Race was not published.");
+
   };
 
   // ===== ARCA SERIES RESULTS FUNCTIONS (Mirror of Cup) =====
@@ -9283,9 +9264,10 @@ export default function App() {
   }
 
   const adminProtectedPaths = new Set(["/admin", "/admin/permissions", "/appeals", "/admin/stories", "/stories", "/admin/live-control", "/admin/car-gallery", "/admin/arca-car-gallery", "/admin/interviews", "/admin/votes"]);
-  const isAdminProtectedPath = adminProtectedPaths.has(path);
-  const isAdminAuthenticated = sessionStorage.getItem("bcl-admin-auth") === "true";
+  const isAdminProtectedPath = adminProtectedPaths.has(path) || (path.startsWith("/admin") && path !== "/admin-login");
+  const isAdminAuthenticated = hasLeagueRole(verifiedAccess, "full_admin");
   const logoutAdmin = () => {
+    supabase.auth.signOut();
     sessionStorage.removeItem("bcl-admin-auth");
     sessionStorage.removeItem("bcl-admin-auth-time");
     localStorage.removeItem("bcl-admin-auth");
@@ -9298,9 +9280,18 @@ export default function App() {
       window.history.replaceState({}, "", "/admin");
       return null;
     }
-    return <AdminLoginPage drivers={drivers} />;
+    return <RoleLogin next="/admin" />;
   }
-  if (isAdminProtectedPath && !isAdminAuthenticated) return <AdminLoginPage drivers={drivers} />;
+  if (path === "/login") return <RoleLogin next={new URLSearchParams(window.location.search).get("next") || "/standings"} />;
+  if (accessLoading && (!canSeeRoute(null,path) || isAdminProtectedPath || ["/race-recorder","/team-hq","/owner","/hq","/teamhq"].includes(path))) return <p>Checking access…</p>;
+  if (!isHydrated && ["/admin","/race-recorder","/owners","/compare"].includes(path)) return <p>Loading league data…</p>;
+  if (path === "/admin" && hasLeagueRole(verifiedAccess, "race_recorder") && !isAdminAuthenticated) return <RaceRecorderPage access={verifiedAccess} drivers={visibleDrivers} tracks={tracks} activeSeasonId={activeSeasonId} />;
+  if (["/appeals","/stories"].includes(path) && !isAdminAuthenticated) return <p>Full admin access is required.</p>;
+  if (isAdminProtectedPath && !isAdminAuthenticated) return verifiedAccess?.userId ? <p>Full admin access is required.</p> : <RoleLogin next={path} />;
+  if (path === "/race-recorder") return canSeeRoute(verifiedAccess,path) ? <RaceRecorderPage access={verifiedAccess} drivers={visibleDrivers} tracks={tracks} activeSeasonId={activeSeasonId} /> : <p>Race Recorder access is required.</p>;
+  if (!canSeeRoute(verifiedAccess,path)) return verifiedAccess?.userId ? <p>Your roles do not include access to this page.</p> : <RoleLogin next={path} />;
+  if (["/owners","/compare"].includes(path)) return withUniversalShell(<LeagueComparisonPage drivers={visibleDrivers} teams={teamStandings} />);
+  if (["/team-hq","/owner","/hq","/teamhq"].includes(path) && !canSeeRoute(verifiedAccess,"/team-hq")) return <p>Owner access is required. <a href="/owners">Compare teams and drivers</a></p>;
 
   // Mobile experience gate — phones use the app shell (with a real Driver
   // Profile home) for all non-admin / non-overlay / non-series routes.
@@ -9353,14 +9344,7 @@ export default function App() {
   if (path === "/issues") return <IssuesRollupPage />;
   if (path === "/admin/issues") return <IssuesPage isAdmin={true} />;
   if (path === "/admin/permissions") {
-    return (
-      <PermissionsCenter
-        supabase={supabase}
-        drivers={drivers}
-        teams={teamStandings}
-        currentSession={getLeagueSession()}
-      />
-    );
+    return <RoleManagement />;
   }
   if (path === "/admin/stories" || path === "/stories") return <StoriesAdminPage />;
   if (path === "/admin/live-control") {
@@ -9535,12 +9519,10 @@ export default function App() {
   if (path.startsWith("/driver/")) {
     const requestedDriverNumber = decodeURIComponent(rawPath.replace(/^\/driver\//i, "").split("/")[0]);
     const leagueSession = getLeagueSession();
-    const isAdminViewing = typeof window !== "undefined" && sessionStorage.getItem("bcl-admin-auth") === "true";
+    const isAdminViewing = isAdminAuthenticated;
     const isOwnProfile = leagueSession && String(leagueSession.driverNumber) === String(requestedDriverNumber);
 
-    if (!isAdminViewing && !isOwnProfile) {
-      return <DriverProfileSignInGate driverNumber={requestedDriverNumber} />;
-    }
+    // Public driver statistics remain available; private sections enforce own-driver access.
 
     return withUniversalShell(
       <>
@@ -9605,6 +9587,8 @@ export default function App() {
       onCreateTeam={createLeagueTeam}
       onDeleteTeam={deleteLeagueTeam}
       onMoveDriver={moveLeagueDriver}
+      approveRaceSubmission={approveRaceSubmission}
+      currentSession={verifiedAccess}
       onSaveTeamBranding={saveTeamBranding}
       registeredTeams={registeredTeams}
       teamPrestigeRows={teamPrestigeRows}
