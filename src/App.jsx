@@ -52,7 +52,7 @@ import { defaultRaces } from "./data/races";
 import { defaultArcaRaces } from "./data/arca/races";
 import { defaultArcaTracks } from "./data/arca/tracks";
 import { defaultArcaDrivers } from "./data/arca/drivers";
-import { trackOverviewData } from "./data/trackOverview";
+import { trackOverviewData, getTrackOverview as resolveTrackOverview } from "./data/trackOverview";
 import SeriesPortal from "./pages/series/SeriesPortal";
 import SeriesLandingPage from "./pages/series/SeriesLandingPage";
 import SeriesJoinPage from "./pages/series/SeriesJoinPage";
@@ -4452,7 +4452,7 @@ function MobileLeagueApp({
 
   function getTrackOverview(race) {
     if (!race) return null;
-    return trackOverviewData[race.name] || trackOverviewData[race.track] || null;
+    return resolveTrackOverview(race);
   }
 
   function frame(title, active, children) {
@@ -4993,7 +4993,7 @@ function MobileUpcomingRaceCard({ race, selectedTrack, go }) {
   const trackName = race.name || race.track || "Next Race";
   const dateLabel = race.date ? new Date(`${String(race.date).slice(0, 10)}T12:00:00`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }) : "Date TBA";
   const details = [
-    selectedTrack?.length ? `${selectedTrack.length} mi` : null,
+    selectedTrack?.length || null,
     selectedTrack?.banking ? selectedTrack.banking : null,
     selectedTrack?.pitSpeed ? `Pit ${selectedTrack.pitSpeed}` : null,
   ].filter(Boolean);
@@ -6775,6 +6775,20 @@ export default function App() {
     const queued = saveQueueRef.current.catch(() => {}).then(async () => { const revision = await saveLeagueState(state); loadedRevisionRef.current = revision; });
     saveQueueRef.current = queued;
     return queued;
+  };
+  const saveScheduleFromAdmin = async (nextTracks) => {
+    if (!hasLeagueRole(verifiedAccess, "full_admin")) throw new Error("Full admin access required.");
+    if (!remoteLoadedRef.current) throw new Error("Reload league data before saving.");
+    const queued = saveQueueRef.current.catch(() => {}).then(async () => {
+      const { data: revision, error } = await supabase.rpc("brl_save_schedule", { next_tracks: nextTracks, expected_revision: loadedRevisionRef.current });
+      if (error) throw error;
+      loadedRevisionRef.current = revision;
+    });
+    saveQueueRef.current = queued;
+    await queued;
+    const nextState = { seasons, activeSeasonId, tracks: nextTracks, customTeamBranding, registeredTeams };
+    loadedStateSignatureRef.current = makeLeagueStateSignature(nextState);
+    setTracks(nextTracks);
   };
   const [viewMode, setViewMode] = useState("admin");
   const [editingRaceName, setEditingRaceName] = useState(null);
@@ -9166,7 +9180,7 @@ export default function App() {
   // Track helper (uses your existing trackOverviewData)
   function getTrackOverview(race) {
     if (!race) return null;
-    return trackOverviewData[race.name] || trackOverviewData[race.track] || null;
+    return resolveTrackOverview(race);
   }
 
   return (
@@ -9398,6 +9412,7 @@ export default function App() {
       approveRaceSubmission={approveRaceSubmission}
       currentSession={verifiedAccess}
       onSaveTeamBranding={saveTeamBranding}
+      onSaveSchedule={saveScheduleFromAdmin}
       registeredTeams={registeredTeams}
       teamPrestigeRows={teamPrestigeRows}
       teamPrestigeStatus={teamPrestigeStatus}
