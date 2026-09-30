@@ -669,8 +669,8 @@ function StandingsPage({ seriesId = "cup", drivers = [], teams = [], manufacture
   const isMobile = viewportWidth < 760;
   const isTablet = viewportWidth >= 760 && viewportWidth < 1040;
 
-  function handleLeagueLogout() {
-    logoutOfLeague();
+  async function handleLeagueLogout() {
+    await logoutOfLeague();
     setLeagueSession(null);
     window.dispatchEvent(new Event("brl:session-changed"));
   }
