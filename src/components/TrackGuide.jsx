@@ -1,0 +1,39 @@
+import React, { useEffect, useMemo, useState } from 'react';
+import { trackGuides } from '../data/trackGuides';
+import { trackKey, estimateHalfDistance, calculateStrategy, conditionAdvice } from '../utils/trackStrategy';
+import '../styles/trackGuide.css';
+const number=(v)=>v===null||v===undefined?'—':Number(v).toFixed(1).replace(/\.0$/,'');
+export default function TrackGuide({track}) {
+  const guide=trackGuides[trackKey(track.name)];
+  if(!guide)return <div className="brl-track-guide"><a href="/schedule">← Schedule</a><h1>{track.name}</h1><p>Track research is not available yet.</p></div>;
+  return <GuideContent key={trackKey(track.name)} guide={guide} track={track}/>;
+}
+function GuideContent({guide,track}) {
+  const key=`brl-track-practice-v1:${guide.name}`;
+  const defaults={raceLaps:estimateHalfDistance(guide.referenceFullLaps),startLap:0,rangeBasis:'3x',fuelRange:'',tireRange:'',fuelSaving:0,tireGain:0,paceLoss:'',pitLoss:'',temperature:'hot',rubber:'green',notes:''};
+  const [plan,setPlan]=useState(()=>{try{const saved=JSON.parse(localStorage.getItem(key)||'null');return {...defaults,...saved};}catch{return defaults;}});
+  const [storageNotice,setStorageNotice]=useState('');
+  useEffect(()=>{try{localStorage.setItem(key,JSON.stringify(plan));setStorageNotice('Practice inputs saved on this device.');}catch{setStorageNotice('Practice inputs cannot be saved in this browser.');}},[key,plan]);
+  const result=useMemo(()=>calculateStrategy(plan),[plan]);
+  const update=(field)=>(event)=>setPlan(p=>({...p,[field]:event.target.value}));
+  const field=(label,name,step=1)=> <label className="brl-guide-field" key={name}><span>{label}</span><input type="number" min="0" step={step} value={plan[name]} onChange={update(name)}/></label>;
+  return <div className="brl-track-guide">
+    <a className="brl-primary-action" href="/schedule">← Season schedule</a>
+    <header className="brl-route-hero"><span className="brl-flow-kicker">{track.phase||'Race preparation'} · {track.date}</span><h1>{guide.name}</h1><p className="brl-guide-settings">50% race distance · 3× tire wear · 3× fuel consumption</p><p>{track.eventLabel||'Race preparation and strategy'} · {track.stageCount||2} scoring stages</p></header>
+    <section className="brl-guide-facts" aria-label="Track facts"><div><small>Track length</small><strong>{guide.lengthMiles} miles</strong></div><div><small>Surface</small><strong>{guide.surface}</strong></div><div><small>Real-world pit limit</small><strong>{guide.pitSpeed}</strong></div><div><small>50% lap estimate</small><strong>{estimateHalfDistance(guide.referenceFullLaps)} laps</strong></div></section>
+    <p className="brl-guide-note">{guide.referenceNote} Real-world pit limits are reference values; follow the in-game limits. Stage-ending laps require the league’s actual settings.</p>
+    <section className="brl-flow-section"><span className="brl-flow-kicker">Read the surface</span><h2>Conditions and racing lines</h2><p>Choose a scenario to adapt the advice. These are planning scenarios, not live game telemetry.</p><div className="brl-guide-fields"><label className="brl-guide-field"><span>Grip scenario</span><select value={plan.temperature} onChange={update('temperature')}><option value="hot">Hot / slick</option><option value="cool">Cool / grippy</option></select></label><label className="brl-guide-field"><span>Rubber buildup</span><select value={plan.rubber} onChange={update('rubber')}><option value="green">Low rubber / early run</option><option value="rubbered">Rubbered in / later run</option></select></label></div><h3>Grooves to compare</h3><p>{guide.preferredLine}</p><ul>{conditionAdvice(guide,plan.temperature,plan.rubber).map(text=><li key={text}>{text}</li>)}</ul></section>
+    <section className="brl-flow-section"><span className="brl-flow-kicker">50% / 3× / 3×</span><h2>Push or save?</h2><p>{guide.savingGuidance}</p><p><strong>Watch for:</strong> {guide.watchFor}</p><p>At half distance with triple consumption, fuel demand is roughly 1.5 times a full-distance 1× run if per-lap use is unchanged. Plan the pit cycle instead of halving the number of stops.</p>
+      <details className="brl-guide-calculator"><summary>Optional pit-window and pace calculator</summary><div className="brl-guide-fields">{field('Actual 50% race laps','raceLaps')}{field('Plan from lap (0 = before race)','startLap')}<label className="brl-guide-field"><span>Range inputs measured at</span><select value={plan.rangeBasis} onChange={update('rangeBasis')}><option value="3x">3× fuel and tire settings</option><option value="1x">1× reference (divide by 3)</option></select></label>{field('Full-tank range (laps)','fuelRange',.1)}{field('Useful tire life (laps)','tireRange',.1)}{field('Fuel use reduced by saving (%)','fuelSaving',.1)}{field('Tire-life gain from saving (%)','tireGain',.1)}{field('Saving pace loss (seconds / lap)','paceLoss',.01)}{field('Pit stop total time loss (seconds)','pitLoss',.1)}</div>
+      <p className="brl-guide-note">Start this plan with a full tank and fresh tires at the selected lap. Include pit entry, service, and exit in pit loss. A 1× input is scaled by three as a planning approximation; measured 3× ranges are preferable. Tire response is not reliably linear. Saving gains are your assumptions, not guaranteed game performance.</p>
+      {result.error?<p role="alert">{result.error}</p>:<><div className="brl-guide-facts"><div><small>Remaining</small><strong>{result.remaining} laps</strong></div><div><small>3× fuel range</small><strong>{number(result.fuelWindow)} laps</strong></div><div><small>3× tire life</small><strong>{number(result.tireWindow)} laps</strong></div><div><small>First limit</small><strong>{result.limiter}</strong></div></div>
+      <div className="brl-guide-table-wrap"><table><thead><tr><th>Plan</th><th>Planned stint</th><th>Green-flag stops</th></tr></thead><tbody><tr><th>Run hard</th><td>{number(result.pushWindow)} laps</td><td>{number(result.pushStops)}</td></tr><tr><th>Save fuel / tires</th><td>{number(result.saveWindow)} laps</td><td>{number(result.saveStops)}</td></tr></tbody></table></div>
+      <p>Each planned stint holds one lap in reserve. Counts assume full refills and fresh tires at stops, with no cautions, stage breaks, traffic loss, or overtime. Stops at a stage break can change the result.</p>
+      {!result.complete&&<p className="brl-guide-note">Enter both fuel range and useful tire life for a complete pit plan. A missing range is unknown, not unlimited.</p>}
+      {result.pushWindow===0&&<p role="alert">The entered range leaves no full lap after the reserve. Recheck the inputs.</p>}
+      {result.complete&&result.timeDelta!==null?<p className="brl-guide-verdict">{result.timeDelta>0?`Saving projects ${number(result.timeDelta)} seconds gained.`:result.timeDelta<0?`Running hard projects ${number(-result.timeDelta)} seconds gained.`:'The two plans project the same time.'} Compare this estimate with tire falloff and traffic before committing.</p>:<p className="brl-guide-note">Add both ranges, saving pace loss, and pit time loss to compare total time. No exact pit window is claimed without those inputs.</p>}</>}
+      <label className="brl-guide-field brl-guide-notes"><span>Practice notes: lines, tire falloff, stage laps, entry and exit marks</span><textarea value={plan.notes} onChange={update('notes')} rows={3}/></label><small>{storageNotice}</small></details>
+    </section>
+    <section className="brl-flow-section"><h2>Reference sources</h2><p>Track facts use published NASCAR references. Driving recommendations are BRL strategy analysis adapted to the selected scenarios and 50% / 3× / 3× settings.</p><ul>{guide.sources.map(s=><li key={s.url}><a href={s.url} target="_blank" rel="noreferrer">{s.label}</a></li>)}</ul></section>
+  </div>;
+}
