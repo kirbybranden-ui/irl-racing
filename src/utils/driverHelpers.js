@@ -22,14 +22,9 @@ export const removedDriverNames = new Set([
 ]);
 
 export function isRemovedLeagueDriver(driver) {
-  const numberKey = String(driver?.number ?? driver?.driver_number ?? "").trim();
-  const idKey = Number(driver?.id ?? driver?.driver_id);
   const nameKey = String(driver?.name ?? driver?.driver_name ?? "").trim().toLowerCase();
 
-  return (
-    removedDriverIds.has(idKey) ||
-    removedDriverNames.has(nameKey)
-  );
+  return removedDriverNames.has(nameKey);
 }
 
 export function realignLeagueDriver(driver) {
