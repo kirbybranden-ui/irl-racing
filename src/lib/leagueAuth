@@ -41,12 +41,14 @@ export function getLeagueSession() {
   }
 }
 
-export function logoutOfLeague() {
-  authenticatedClient.auth.signOut();
+export async function logoutOfLeague() {
+  const { error } = await authenticatedClient.auth.signOut({ scope: "local" });
+  if (error) throw error;
   if (typeof window !== "undefined") {
     localStorage.removeItem(SESSION_KEY);
     localStorage.removeItem("bcl-mobile-session-v1");
     window.dispatchEvent(new CustomEvent("brl:access-loaded", { detail: null }));
+    window.dispatchEvent(new Event("brl:session-changed"));
   }
 }
 
