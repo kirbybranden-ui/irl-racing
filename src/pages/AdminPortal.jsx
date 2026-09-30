@@ -10,6 +10,7 @@ export default function AdminPortal({
   customTeamBranding = {},
   registeredTeams = {},
   onSaveTeamBranding,
+  onSaveSchedule,
   onCreateTeam,
   onDeleteTeam,
   onMoveDriver,
@@ -1474,7 +1475,6 @@ export default function AdminPortal({
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 20 }}>
             {[
               ["Teams & Logos", () => openHrDepartment("owners")],
-              ["Start & Park", () => openHrDepartment("startpark")],
               ["Voting", () => openRaceOperations("voting")],
               ["Issues", () => (window.location.pathname = "/admin/issues")],
               ["Permissions", () => (window.location.pathname = "/admin/permissions")],
@@ -1910,6 +1910,8 @@ export default function AdminPortal({
               submitResults,
               tdStyle,
               tracks,
+              onSaveSchedule,
+              supabase,
               updateTrackStageCount
             }}
           />
@@ -1936,7 +1938,6 @@ export default function AdminPortal({
                   ["appeals", "Appeals"],
                   ["issues", "Issues & Feedback"],
                   ["contracts", "Contracts"],
-                  ["startpark", "Start & Park"],
                 ].map(([key, label]) => (
                   <button key={key} type="button" onClick={() => setHrTab(key)} style={financeSegmentButtonStyle(hrTab === key)}>{label}</button>
                 ))}
@@ -1951,7 +1952,6 @@ export default function AdminPortal({
                       ["Open Appeals", openAppealCount || 0],
                       ["Pending Issues", 0],
                       ["Contracts", financeContracts?.length || 0],
-                      ["Start & Park", (startParkRequests || []).filter((request) => String(request.status || "pending").toLowerCase() === "pending").length],
                       ["Join Requests", pendingHrRequestCount],
                     ].map(([label, value]) => (
                       <div key={label} style={{ ...walletLightCardStyle, padding: 18 }}>
@@ -1969,7 +1969,6 @@ export default function AdminPortal({
                       ["⚖️", "Appeals", "Review open appeals and move them through the board workflow.", "appeals"],
                       ["🐛", "Issues & Feedback", "Track driver-submitted issues and solutions from creation to completion.", "issues"],
                       ["📑", "Contracts", "View driver contracts, statuses, salary records, and team obligations.", "contracts"],
-                      ["🟨", "Start & Park", "Approve, decline, and apply Start & Park requests from drivers and owners.", "startpark"],
                       ["➕", "Add / Approve Drivers", "Add new drivers and approve pending signup requests directly inside HR.", "drivers"],
                     ].map(([icon, title, text, tab]) => (
                       <button key={title} type="button" onClick={() => setHrTab(tab)} style={{ ...prCardStyle, textAlign: "left", cursor: "pointer" }}>
@@ -2408,55 +2407,6 @@ export default function AdminPortal({
                     {/* TODO: Uncomment once IssuesRollup.jsx is in repo */}
                     <p style={{ color: "#6b7280", fontStyle: "italic" }}>Issues widget will appear once IssuesRollup.jsx is added to the repo.</p>
                   </div>
-                </div>
-              )}
-
-              {hrTab === "startpark" && (
-                <div style={walletLightCardStyle}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Start & Park</div>
-                      <h2 style={{ margin: "3px 0 0", fontSize: 26, letterSpacing: -0.6 }}>Start & Park Requests</h2>
-                      <p style={{ margin: "6px 0 0", color: "#4b5563", fontWeight: 700 }}>HR manages driver availability requests, owner requests, approvals, denials, and race application.</p>
-                    </div>
-                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                      <button type="button" onClick={loadStartParkRequests} style={adminSecondaryButtonStyle}>{startParkRequestsLoading ? "Loading..." : "Refresh"}</button>
-                      <button type="button" onClick={applyApprovedStartParkRequestsToRace} style={adminPrimaryButtonStyle}>Apply Approved</button>
-                    </div>
-                  </div>
-
-                  {startParkRequestError && <div style={{ marginBottom: 12, color: "#b42318", fontWeight: 900 }}>{startParkRequestError}</div>}
-                  {startParkRequestStatus && <div style={{ marginBottom: 12, color: "#047857", fontWeight: 900 }}>{startParkRequestStatus}</div>}
-
-                  <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(auto-fit, minmax(280px, 1fr))", gap: 12 }}>
-                    {(startParkRequests || []).filter((request) => !selectedRace || String(request.race_name || "") === String(selectedRace)).map((request, index) => {
-                      const status = String(request.status || "pending").toLowerCase();
-                      const statusColor = status === "approved" ? "#34c759" : status === "declined" ? "#ff3b30" : status === "applied" ? "#007aff" : "#ff9f0a";
-                      return (
-                        <div key={request.id || `${request.driver_number}-${request.created_at}`} style={{ borderRadius: 28, background: "#ffffff", border: "1px solid #e5e7eb", padding: 18, boxShadow: "0 14px 34px rgba(15,23,42,0.08)" }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
-                            <div style={{ width: 54, height: 54, borderRadius: 18, background: "linear-gradient(135deg, #111827, #374151)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 1000 }}>#{request.driver_number || "?"}</div>
-                            <div style={{ padding: "6px 10px", borderRadius: 999, background: `${statusColor}20`, color: statusColor, fontWeight: 1000, fontSize: 12 }}>{status.toUpperCase()}</div>
-                          </div>
-                          <div style={{ fontSize: 21, fontWeight: 1000, marginTop: 14 }}>{request.driver_name || "Driver"}</div>
-                          <div style={{ color: "#6b7280", fontWeight: 800, marginTop: 4 }}>{request.race_name || selectedRace || "Race TBD"}</div>
-                          <div style={{ marginTop: 10, color: "#374151", fontWeight: 750, lineHeight: 1.45 }}>{request.reason || "No reason provided."}</div>
-                          <div style={{ marginTop: 12, fontSize: 13, color: "#6b7280", fontWeight: 750 }}>Requested by {request.requested_by_type || "—"} · {request.requested_by_name || request.requested_by_team || "—"}</div>
-                          {request.created_at && <div style={{ marginTop: 4, fontSize: 12, color: "#9ca3af", fontWeight: 800 }}>Received {new Date(request.created_at).toLocaleString()}</div>}
-                          {status === "pending" && (
-                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
-                              <button onClick={() => updateStartParkRequestStatus(request, "approved")} style={{ ...primaryButtonStyle, padding: "8px 12px", fontSize: 12 }}>Approve</button>
-                              <button onClick={() => updateStartParkRequestStatus(request, "declined")} style={{ ...dangerButtonStyle, padding: "8px 12px", fontSize: 12 }}>Decline</button>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {!(startParkRequests || []).filter((request) => !selectedRace || String(request.race_name || "") === String(selectedRace)).length && (
-                    <div style={{ borderRadius: 22, background: "#ffffff", border: "1px solid #e5e7eb", padding: 18, color: "#6b7280", fontWeight: 800 }}>No Start & Park requests for the selected race.</div>
-                  )}
                 </div>
               )}
 
