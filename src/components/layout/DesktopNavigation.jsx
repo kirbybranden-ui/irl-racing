@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import logo from "../../assets/logo1.png";
 import { getLeagueSession, logoutOfLeague } from "../../lib/leagueAuth";
+import { canSeeRoute, useLeagueAccess, hasLeagueRole } from "../../lib/roleAccess";
 import "./DesktopNavigation.css";
 
 // Keep this list aligned with the public and protected routes in App.jsx.
@@ -12,6 +13,7 @@ const groups = [
 ];
 
 export default function DesktopNavigation() {
+  const { access } = useLeagueAccess();
   const [open, setOpen] = useState(false);
   const [session, setSession] = useState(() => getLeagueSession());
   const path = window.location.pathname.toLowerCase();
@@ -33,12 +35,13 @@ export default function DesktopNavigation() {
       <nav className="brl-desktop-header__quick" aria-label="Quick links">
         {[["Home", "/"], ["Schedule", "/schedule"], ["News", "/news"], ["Teams", "/owners"]].map(([label, href]) => <a className={path === href ? "active" : ""} href={href} key={href}>{label}</a>)}
       </nav>
-      <a className="brl-desktop-header__message" href="/message-center">Messages</a>
+      {access?.userId && <a className="brl-desktop-header__message" href="/message-center">Messages</a>}
       <a className="brl-desktop-header__profile" href={profile}>{session?.driverNumber ? `#${session.driverNumber} Profile` : "Login / Register"}</a>
       <button className="brl-desktop-header__menu" type="button" aria-expanded={open} aria-controls="brl-all-pages" onClick={() => setOpen(!open)}>{open ? "Close" : "☰  All pages"}</button>
     </div>
     {open && <div id="brl-all-pages" className="brl-desktop-header__panel">
-      {groups.map(group => <section key={group.title}><h2>{group.title}</h2>{group.links.map(([label, href]) => <a key={`${label}-${href}`} href={href} className={path === href ? "active" : ""}>{label}<span aria-hidden="true">↗</span></a>)}</section>)}
+      {groups.map(group => <section key={group.title}><h2>{group.title}</h2>{group.links.filter(([,href]) => canSeeRoute(access,href)).map(([label, href]) => <a key={`${label}-${href}`} href={href} className={path === href ? "active" : ""}>{label}<span aria-hidden="true">↗</span></a>)}</section>)}
+      {(hasLeagueRole(access,"race_recorder") || hasLeagueRole(access,"full_admin")) && <section><h2>Race Operations</h2><a href="/race-recorder">Record Race Data</a></section>}
       <section><h2>Account & team</h2><a href={profile}>{session?.driverNumber ? "Driver profile" : "Login / Register"}<span>↗</span></a>{session?.team && <a href={`/team/${encodeURIComponent(session.team)}`}>{session.team} page<span>↗</span></a>}{session && <button className="brl-desktop-header__signout" type="button" onClick={signOut}>Log out <span>↗</span></button>}</section>
     </div>}
   </header>;
