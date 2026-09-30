@@ -1,24 +1,45 @@
+const trackAliases = {
+  "daytona": "Daytona International Speedway",
+  "north wilkesboro": "North Wilkesboro Speedway",
+  "kansas": "Kansas Speedway",
+  "nashville": "Nashville Superspeedway",
+  "sonoma": "Sonoma Raceway",
+  "dover": "Dover Motor Speedway",
+  "las vegas": "Las Vegas Motor Speedway",
+  "coronado": "Qualcomm Circuit at Naval Base Coronado",
+  "atlanta": "Atlanta - Echopark Speedway",
+  "texas": "Texas Motor Speedway",
+  "phoenix": "Phoenix Raceway",
+  "watkins glenn": "Watkins Glen International",
+  "pocono": "Pocono Raceway",
+  "chicagoland": "Chicagoland Speedway",
+  "richmond": "Richmond Raceway",
+  "indianapolis": "Indianapolis Motor Speedway",
+  "darlington": "Darlington Raceway",
+  "talladega": "Talladega Superspeedway",
+  "circuit of the americas": "Circuit of the Americas",
+  "bristol": "Bristol Motor Speedway",
+  "world wide technology": "World Wide Technology Raceway",
+  "homestead-miami": "Homestead-Miami Speedway",
+  "martinsville": "Martinsville Speedway",
+  "charlotte": "Charlotte Motor Speedway",
+  "watkins glen": "Watkins Glen International",
+  "echopark speedway": "Atlanta - Echopark Speedway",
+  "echpark speedway": "Atlanta - Echopark Speedway",
+  "atlanta motor speedway": "Atlanta - Echopark Speedway",
+  "wwt raceway": "World Wide Technology Raceway",
+  "world wide technology raceway": "World Wide Technology Raceway",
+  "daytona (night)": "Daytona International Speedway",
+  "bristol (night)": "Bristol Motor Speedway",
+  "homestead": "Homestead-Miami Speedway"
+};
+
 export function normalizeTrackName(name) {
   const raw = String(name || "").trim();
-  const key = raw.toLowerCase();
-
-  if (key === "preseason - wwt raceway" || key === "preseason - world wide technology raceway") {
-    return "Preseason - EchoPark Speedway";
-  }
-
-  if (key === "wwt raceway" || key === "world wide technology raceway") {
-    return "EchoPark Speedway";
-  }
-
-  if (key === "preseason - echpark speedway" || key === "preseason - echopark speedway") {
-    return "Preseason - EchoPark Speedway";
-  }
-
-  if (key === "echpark speedway" || key === "echopark speedway") {
-    return "EchoPark Speedway";
-  }
-
-  return raw;
+  const preseason = /^preseason\s*-\s*/i.test(raw);
+  const track = raw.replace(/^preseason\s*-\s*/i, "");
+  const fullName = trackAliases[track.toLowerCase()] || track;
+  return (preseason ? "Preseason - " : "") + fullName;
 }
 
 export function getEasternDateParts(date = new Date()) {
@@ -145,6 +166,9 @@ export function sanitizeTracks(rawTracks) {
         name,
         stageCount: [1, 2, 3].includes(stageCount) ? stageCount : 2,
         date: track?.date || null,
+        phase: track?.phase || (/^Preseason - /i.test(name) ? "Preseason" : "Regular Season"),
+        eventLabel: track?.eventLabel || "",
+        ...(track?.overview && typeof track.overview === "object" && !Array.isArray(track.overview) ? { overview: track.overview } : {}),
       };
     })
     .filter(Boolean);
