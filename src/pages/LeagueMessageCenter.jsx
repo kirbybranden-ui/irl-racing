@@ -1,3 +1,4 @@
+import { loginToLeague } from "../lib/leagueAuth";
 import React, { useEffect, useMemo, useState } from "react";
 import logo from "../assets/logo1.png";
 import { supabase } from "../lib/supabase";
@@ -127,50 +128,9 @@ function LeagueMessageCenterLandingPage({ drivers = [] }) {
       return;
     }
 
-    const { data, error: codeError } = await supabase
-      .from("driver_access_codes")
-      .select("driver_number, driver_name, code, active")
-      .eq("active", true)
-      .or(`driver_number.eq.${String(driver.number)},driver_name.ilike.${driver.name}`)
-      .limit(10);
-
-    if (codeError) {
-      console.error("Could not verify driver access code:", codeError);
-      setError("Could not verify access. Check driver_access_codes select policy.");
-      return;
-    }
-
-    const match = (data || []).some((row) => {
-      const rowDriverNumber = String(row.driver_number || "");
-      const rowDriverName = String(row.driver_name || "").trim().toLowerCase();
-      const rowCode = String(row.code || "").trim().toUpperCase();
-      return (
-        rowCode === enteredCode &&
-        (rowDriverNumber === String(driver.number) || rowDriverName === String(driver.name || "").trim().toLowerCase())
-      );
-    });
-
-    const adminMatch = enteredCode === "BCLADMINPASSWORD2026";
-
-    if (!match && !adminMatch) {
-      setError("Incorrect driver access code.");
-      return;
-    }
-
-    const roleFlags = getBclRoleFlagsForDriver(driver, Boolean(adminMatch));
-    const session = {
-      mode: "driver",
-      role: roleFlags.role,
-      driverId: driver.id || null,
-      driverNumber: String(driver.number),
-      driverName: driver.name,
-      team: driver.team || "",
-      manufacturer: driver.manufacturer || "",
-      isAdmin: roleFlags.isAdmin,
-      isOwner: roleFlags.isOwner,
-      isDriver: true,
-    };
-    saveBclMobileSession(session);
+    const result = await loginToLeague({ driverNumber: selectedDriverNumber, password: driverCode });
+    if (!result.success) { setError(result.error); return; }
+    saveBclMobileSession(result.session);
     window.location.pathname = "/message-center";
   }
 
@@ -310,60 +270,11 @@ export default function LeagueMessageCenter({ drivers = [], session: suppliedSes
     }
 
     setLoading(true);
-    const { data, error: accessError } = await supabase
-      .from("driver_access_codes")
-      .select("*")
-      .eq("driver_number", number)
-      .limit(10);
-
+    const result = await loginToLeague({ driverNumber: number, password: code });
     setLoading(false);
-
-    if (accessError) {
-      console.error("Could not verify message center login:", accessError);
-      setError("Could not verify access. Check driver_access_codes select policy.");
-      return;
-    }
-
-    const match = (data || []).find((row) => {
-      const rowNumber = String(row.driver_number ?? row.car_number ?? "").trim();
-      const possibleCodes = [row.code, row.access_code, row.password, row.driver_password]
-        .map((value) => String(value ?? "").trim().toUpperCase())
-        .filter(Boolean);
-      return rowNumber === number && possibleCodes.includes(code) && row.active !== false;
-    });
-
-    const adminMatch = code === "BCLADMINPASSWORD2026";
-
-    if (!match && !adminMatch) {
-      setError("Invalid driver password.");
-      return;
-    }
-
-    const rosterDriver = activeDrivers.find((driver) => String(driver.number) === number) || {};
-    const authRow = match || {};
-    const driverForRoles = {
-      ...authRow,
-      ...rosterDriver,
-      name: rosterDriver.name || authRow.driver_name || authRow.name || `#${number}`,
-      team: rosterDriver.team || authRow.team || "",
-      manufacturer: rosterDriver.manufacturer || authRow.manufacturer || "",
-    };
-    const roleFlags = getBclRoleFlagsForDriver(driverForRoles, Boolean(adminMatch));
-    const nextSession = {
-      mode: "driver",
-      role: roleFlags.role,
-      driverId: rosterDriver.id || authRow.driver_id || authRow.id || null,
-      driverNumber: number,
-      driverName: driverForRoles.name,
-      team: driverForRoles.team,
-      manufacturer: driverForRoles.manufacturer,
-      isAdmin: roleFlags.isAdmin,
-      isOwner: roleFlags.isOwner,
-      isDriver: true,
-    };
-
-    saveBclMobileSession(nextSession);
-    setSession(nextSession);
+    if (!result.success) { setError(result.error); return; }
+    saveBclMobileSession(result.session);
+    setSession(result.session);
     setPassword("");
     setStatus("Message Center unlocked.");
   }
