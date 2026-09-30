@@ -41,6 +41,13 @@ export function normalizePermissions(user = {}) {
   }
 
   const permissions = new Set();
+  const roleDefaults = {
+    driver: ["driver.*", "stats.compare"],
+    owner: ["driver.*", "team.*", "stats.compare"],
+    race_recorder: ["driver.*", "stats.compare", "race.view", "race.entries", "race.submit"],
+    full_admin: ["*"],
+  };
+  normalizeRoles(user).forEach((role) => (roleDefaults[role.toLowerCase()] || []).forEach((permission) => permissions.add(permission)));
 
   addPermissionValues(permissions, user.permissions);
   addPermissionValues(permissions, user.rolePermissions);
@@ -111,7 +118,6 @@ export function permissionListHasPermission(
 
   if (normalized.has("*")) return true;
   if (normalized.has(requested)) return true;
-  if (normalized.has("admin.*")) return true;
 
   const segments = requested.split(".");
 
