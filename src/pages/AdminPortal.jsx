@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from "react";
 import RaceOperations from "../components/admin/raceOperations/RaceOperations";
+import RaceApprovalQueue from "../components/admin/RaceApprovalQueue";
 import { teamLogos, getTeamBranding, getTeamIdentifier } from "../data/teams";
 // import { IssuesRollup } from "../components/IssuesRollup"; // TODO: Uncomment once IssuesRollup.jsx is in repo
 
 export default function AdminPortal({
   currentSession,
+  approveRaceSubmission,
   customTeamBranding = {},
   registeredTeams = {},
   onSaveTeamBranding,
@@ -1482,6 +1484,7 @@ export default function AdminPortal({
         </section>}
 
         {workspaceOpen && <button type="button" onClick={closeWorkspace} style={{ ...adminSecondaryButtonStyle, borderRadius: 2, marginBottom: 18 }}>← Admin Home</button>}
+        <RaceApprovalQueue drivers={visibleDrivers || drivers || []} tracks={tracks || []} onApprove={approveRaceSubmission} />
 
         {quickAddDriverOpen && <section style={{ borderTop: "4px solid #d71920", padding: "24px 0", maxWidth: 900 }}>
           <div style={{ color: "#d71920", fontSize: 11, fontWeight: 1000, letterSpacing: 2, textTransform: "uppercase" }}>Human Resources / Roster</div>
