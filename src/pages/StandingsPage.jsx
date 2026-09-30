@@ -1,3 +1,4 @@
+import { supabase } from "../lib/supabase";
 import React, { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import JoinRequestForm from "../components/auth/JoinRequestForm";
