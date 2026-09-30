@@ -7374,7 +7374,7 @@ export default function App() {
 
     hydrateFromSupabase();
     return () => { isMounted = false; };
-  }, []);
+  }, [accessLoading, verifiedAccess?.userId]);
   useEffect(() => {
     async function loadOpenAppeals() {
       const { count, error } = await supabase
