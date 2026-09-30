@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
+import { useLeagueAccess, canManageTeam } from "../lib/roleAccess";
 import { getTeamFullName, getTeamBudget } from "../data/teams";
 import { money } from "../utils/formatters";
 import { inputStyle } from "../styles/sharedStyles";
@@ -124,6 +125,7 @@ function requestStatusLabel(request) {
 }
 
 export default function OwnerHQPage({ drivers = [], teams = [], seasonName = "", go }) {
+  const { access: verifiedAccess } = useLeagueAccess();
   const [selectedTeam, setSelectedTeam] = useState(() => {
     const firstTeam = (teams || []).find((team) => team?.team)?.team;
     return firstTeam || (drivers || []).find((driver) => driver?.team)?.team || "B2J";
@@ -136,7 +138,7 @@ export default function OwnerHQPage({ drivers = [], teams = [], seasonName = "",
       const key = String(driver?.team || "").trim();
       if (key && !teamKeys.has(key)) teamKeys.add(key);
     });
-    return Array.from(teamKeys).map((key) => {
+    return Array.from(teamKeys).filter((key) => canManageTeam(verifiedAccess,key)).map((key) => {
       const standing = fromStandings.find((team) => String(team.team) === key) || {};
       const roster = (drivers || []).filter((driver) => String(driver?.team || "") === key);
       return {
@@ -147,7 +149,7 @@ export default function OwnerHQPage({ drivers = [], teams = [], seasonName = "",
         drivers: roster,
       };
     }).sort((a, b) => b.points - a.points || a.name.localeCompare(b.name));
-  }, [drivers, teams]);
+  }, [drivers, teams, verifiedAccess]);
 
   const currentTeam = safeTeams.find((team) => String(team.team) === String(selectedTeam)) || safeTeams[0] || null;
   const roster = currentTeam?.drivers || [];
