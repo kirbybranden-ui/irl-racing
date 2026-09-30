@@ -146,22 +146,10 @@ export default function LeagueVotingPage({ drivers = [] }) {
       return;
     }
 
-    const { data: accessCodes, error: codeError } = await supabase
-      .from("driver_access_codes")
-      .select("*")
-      .eq("driver_number", number)
-      .limit(10);
-
-    if (codeError) {
-      console.error("Could not verify driver vote login:", codeError);
-      setError("Could not verify access. Check driver_access_codes select policy and columns.");
-      return;
-    }
-
     const result = await loginToLeague({
       driverNumber: number,
       password: code,
-      driverAccessCodes: accessCodes || [],
+      driverAccessCodes: [],
       drivers: activeDrivers,
       teams: [],
       supabase,
