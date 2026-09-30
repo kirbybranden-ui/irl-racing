@@ -44,7 +44,7 @@ import DriverMarketPage from "./pages/DriverMarketPage";
 import DevelopmentRequestsPage from "./pages/DevelopmentRequestsPage";
 import IssuesPage from "./pages/IssuesPage";
 import IssuesRollupPage from "./pages/IssuesRollupPage";
-import { getLeagueSession, loginToLeague } from "./lib/leagueAuth";
+import { getLeagueSession, loginToLeague, logoutOfLeague } from "./lib/leagueAuth";
 import LeagueChatPage from "./LeagueChatPage";
 import OwnersPage from "./OwnersPage.jsx";
 import { defaultDrivers } from "./data/drivers";
@@ -4430,8 +4430,8 @@ function MobileLeagueApp({
   const [showMobileLoginModal, setShowMobileLoginModal] = useState(false);
   const [mobileStandingsTab, setMobileStandingsTab] = useState("drivers");
 
-  function handleMobileLogout() {
-    logoutOfLeague();
+  async function handleMobileLogout() {
+    await logoutOfLeague();
     clearBclMobileSession();
     setMobileSession({ mode: "guest", displayName: "Guest" });
   }
@@ -8272,7 +8272,7 @@ export default function App() {
     if (!trimmedName || !trimmedTeam || !trimmedManufacturer || !driverNumber) { alert("Please enter driver name, number, manufacturer, and team."); return; }
     if (drivers.some((d) => d.name.toLowerCase() === trimmedName.toLowerCase())) { alert("A driver with that name already exists."); return; }
     if (drivers.some((d) => String(d.number) === driverNumber)) { alert("A driver with that number already exists."); return; }
-    const rosterDriver = { id: Date.now(), number: Number(driverNumber), name: trimmedName, manufacturer: trimmedManufacturer, manufacturerLogo: manufacturerLogos[trimmedManufacturer] || null, team: trimmedTeam, startingPoints: 0, manualWins: 0 };
+    const rosterDriver = { id: Number(driverNumber), number: Number(driverNumber), name: trimmedName, manufacturer: trimmedManufacturer, manufacturerLogo: manufacturerLogos[trimmedManufacturer] || null, team: trimmedTeam, startingPoints: 0, manualWins: 0 };
     const newRoster = [...drivers.map((d) => ({ ...d, startingPoints: 0, manualWins: 0 })), rosterDriver];
     const nextSeasons = seasons.map((season) => season.id === activeSeasonId ? { ...season, drivers: rebuildDriversFromHistory(raceHistory, newRoster) } : season);
     const nextState = { seasons: nextSeasons, activeSeasonId, tracks, customTeamBranding, registeredTeams };
@@ -8303,8 +8303,7 @@ export default function App() {
     setAddDriverStatus("");
     if (!name || !/^\d{1,3}$/.test(number) || !team || !manufacturer) { setAddDriverStatus("Save failed: This driver needs a number, team, and manufacturer. Use Add Driver to enter them."); return; }
     if (drivers.some((driver) => String(driver.number) === number)) { setAddDriverStatus(`Save failed: #${number} is already assigned. Use Add Driver with an available number.`); return; }
-    const preservedId = seasons.flatMap((season) => season.drivers || []).find((driver) => driver.name?.toLowerCase() === name.toLowerCase())?.id;
-    const id = preservedId && !isRemovedLeagueDriver({ id: preservedId, name, number }) && !drivers.some((driver) => String(driver.id) === String(preservedId)) ? preservedId : Date.now();
+    const id = Number(number);
     const restored = { id, number: Number(number), name, team, manufacturer, manufacturerLogo: manufacturerLogos[manufacturer] || null, startingPoints: 0, manualWins: 0 };
     const nextSeasons = seasons.map((season) => season.id === activeSeasonId ? { ...season, drivers: rebuildDriversFromHistory(raceHistory, [...drivers, restored]) } : season);
     const nextState = { seasons: nextSeasons, activeSeasonId, tracks, customTeamBranding, registeredTeams };
@@ -8413,7 +8412,7 @@ export default function App() {
       }
       if (!existingDriver) {
         const newDriver = {
-          id: Date.now(), number: Number(pendingDriver.car_number), name: pendingDriver.driver_name,
+          id: Number(pendingDriver.car_number), number: Number(pendingDriver.car_number), name: pendingDriver.driver_name,
           manufacturer: pendingDriver.manufacturer || "", manufacturerLogo: manufacturerLogos[pendingDriver.manufacturer] || null,
           team: teamKey || requestedTeam, startingPoints: 0, manualWins: 0, retired: false,
         };
@@ -9266,8 +9265,8 @@ export default function App() {
   const adminProtectedPaths = new Set(["/admin", "/admin/permissions", "/appeals", "/admin/stories", "/stories", "/admin/live-control", "/admin/car-gallery", "/admin/arca-car-gallery", "/admin/interviews", "/admin/votes"]);
   const isAdminProtectedPath = adminProtectedPaths.has(path) || (path.startsWith("/admin") && path !== "/admin-login");
   const isAdminAuthenticated = hasLeagueRole(verifiedAccess, "full_admin");
-  const logoutAdmin = () => {
-    supabase.auth.signOut();
+  const logoutAdmin = async () => {
+    await logoutOfLeague();
     sessionStorage.removeItem("bcl-admin-auth");
     sessionStorage.removeItem("bcl-admin-auth-time");
     localStorage.removeItem("bcl-admin-auth");
