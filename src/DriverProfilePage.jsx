@@ -10,7 +10,8 @@ import teamLogoBWR from "./assets/teams/BWR.png";
 import teamLogoBXM from "./assets/teams/BXM.png";
 import teamLogoTMS from "./assets/teams/TMS.png";
 import { supabase } from "./lib/supabase";
-import { getLeagueSession } from "./lib/leagueAuth";
+import { getLeagueSession, loginToLeague } from "./lib/leagueAuth";
+import { useLeagueAccess, hasLeagueRole } from "./lib/roleAccess";
 import { uploadCarFile, getCarUploads, deleteCarUpload } from "./lib/carUploads";
 // import { ReportIssueModal } from "./components/ReportIssueModal"; // TODO: Uncomment once ReportIssueModal.jsx is in repo
 
@@ -1343,6 +1344,7 @@ function DriverTransferPortalPanel({ driver, driverNumber, teamTheme, standingsR
 }
 
 export default function DriverProfilePage({ seasons, activeSeason, tracks = [], ownerDriverAssignments = [], loadOwnerDriverAssignments, arcaDrivers = [], arcaTracks = [], driverNumberOverride = "", driverSeriesOverride = "" }) {
+  const { access: roleAccess } = useLeagueAccess();
   const pathParts = window.location.pathname.split("/");
   
   // Parse driver number from either /driver/:number or /series/arca/driver/:number
@@ -1505,7 +1507,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
   }
 
   const driverAccessKey = driver ? String(driver.number) : String(driverNumber);
-  const isDriverAuthorized = authorizedDriverNumber === driverAccessKey;
+  const isDriverAuthorized = Boolean(roleAccess?.userId) && (String(roleAccess.driverNumber) === driverAccessKey || hasLeagueRole(roleAccess, "full_admin"));
   const authorizedDriver = sanitizedDrivers.find((item) => String(item.number) === String(authorizedDriverNumber)) || null;
   const messageRecipientOptions = useMemo(() => {
     return sanitizedDrivers
@@ -2680,22 +2682,8 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
   }
 
   async function unlockDriverContracts() {
-    const latestCodes = await loadRemoteDriverAccessCodes();
-    setDriverAccessCodes(latestCodes);
-
-    const expectedByNumber = normalizeAccessCode(latestCodes[driverAccessKey] || driverAccessCodes[driverAccessKey] || "");
-    const expectedByName = normalizeAccessCode(driver?.name ? latestCodes[String(driver.name).toLowerCase()] || driverAccessCodes[String(driver.name).toLowerCase()] || "" : "");
-    const expected = expectedByNumber || expectedByName;
-
-    if (!expected) {
-      setContractError("No driver access code has been generated for this driver yet. Contact league admin.");
-      return;
-    }
-
-    if (normalizeAccessCode(driverAccessCodeInput) !== expected && normalizeAccessCode(driverAccessCodeInput) !== normalizeAccessCode(MASTER_ACCESS_CODE)) {
-      setContractError("Incorrect driver access code.");
-      return;
-    }
+    const result = await loginToLeague({ driverNumber: driverAccessKey, password: driverAccessCodeInput });
+    if (!result.success) { setContractError(result.error); return; }
 
     localStorage.setItem("driverProfileAuthorizedNumber", driverAccessKey);
     setAuthorizedDriverNumber(driverAccessKey);
@@ -2730,10 +2718,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
     }
 
     async function updatePassword(payload) {
-      return await supabase
-        .from("driver_access_codes")
-        .update(payload)
-        .eq("driver_number", String(driver.number));
+      return await supabase.rpc("brl_change_driver_password", { new_password: payload.code });
     }
 
     let { error } = await updatePassword({
@@ -2777,10 +2762,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
   }
 
   async function updateOfferStatus(id, status) {
-    const { error } = await supabase
-      .from("contract_offers")
-      .update({ status, updated_at: new Date().toISOString() })
-      .eq("id", id);
+    const { error } = await supabase.rpc("brl_respond_contract", { offer_id: String(id), response_status: status });
 
     if (error) {
       console.error(error);
@@ -2795,50 +2777,8 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
   async function acceptContractOffer(offer) {
     if (!window.confirm(`Accept contract from ${offer.team} for ${money(offer.salary)} salary and ${money(offer.signing_bonus)} signing bonus?`)) return;
 
-    const totalCost = Number(offer.salary || 0) + Number(offer.signing_bonus || 0);
-    const { data: financeRow, error: financeLoadError } = await supabase
-      .from("team_finances")
-      .select("*")
-      .eq("team", offer.team)
-      .maybeSingle();
-
-    if (financeLoadError) {
-      console.error(financeLoadError);
-      alert("Could not load team finances. Contract was not accepted.");
-      return;
-    }
-
-    if (financeRow && Number(financeRow.balance || 0) < totalCost) {
-      alert("This team does not have enough available balance to fund the accepted contract.");
-      return;
-    }
-
     const accepted = await updateOfferStatus(offer.id, "Accepted");
     if (!accepted) return;
-
-    if (financeRow) {
-      const { error: financeUpdateError } = await supabase
-        .from("team_finances")
-        .update({
-          balance: Number(financeRow.balance || 0) - totalCost,
-          payroll_spent: Number(financeRow.payroll_spent || 0) + Number(offer.salary || 0),
-          signing_bonus_spent: Number(financeRow.signing_bonus_spent || 0) + Number(offer.signing_bonus || 0),
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", financeRow.id);
-
-      if (financeUpdateError) {
-        console.error(financeUpdateError);
-        alert("Contract accepted, but team finances were not updated. Check team_finances RLS update policy.");
-      }
-    }
-
-    await supabase
-      .from("contract_offers")
-      .update({ status: "Declined", updated_at: new Date().toISOString() })
-      .eq("driver_name", driver.name)
-      .eq("status", "Pending")
-      .neq("id", offer.id);
 
     setContractOffers((prev) => prev.map((item) => {
       if (item.id === offer.id) return { ...item, status: "Accepted" };
@@ -4517,7 +4457,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
                     { icon: "🗳️", label: "League Vote", href: "/vote" },
                     { icon: "✍️", label: "Add Story", href: "/submit-story" },
                     { icon: "⚙️", label: "Settings", href: `/driver/${driverNumber}/settings` },
-                  ].map((item) => (
+                  ].filter((item) => !item.href?.startsWith("/driver/") || isDriverAuthorized).map((item) => (
                     <button
                       key={item.label}
                       type="button"
