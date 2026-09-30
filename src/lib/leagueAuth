@@ -4,8 +4,9 @@
 // (per the "persist across visits" requirement), unlike the old per-series
 // sessionStorage sessions in SeriesLandingPage.jsx.
 
+import { supabase as authenticatedClient } from "./supabase";
+import { refreshLeagueAccess } from "./roleAccess";
 const SESSION_KEY = "bcl-league-session";
-const ADMIN_OVERRIDE_CODE = "BCLADMINPASSWORD2026";
 
 export function findDriverByNumber(number, drivers = [], arcaDrivers = []) {
   const target = String(number || "").trim();
@@ -17,97 +18,18 @@ export function findDriverByNumber(number, drivers = [], arcaDrivers = []) {
   );
 }
 
-export function verifyLeaguePassword({ driverNumber, password, driverAccessCodes = [] }) {
-  const number = String(driverNumber || "").trim();
-  const enteredCode = String(password || "").trim().toUpperCase();
-  if (!number || !enteredCode) return false;
-
-  // Admin override, matching the existing per-series login pattern.
-  if (enteredCode === ADMIN_OVERRIDE_CODE) return true;
-
-  return (driverAccessCodes || []).some((row) => {
-    const rowNumber = String(row.driver_number ?? row.car_number ?? row.number ?? "").trim();
-    const possibleCodes = [row.code, row.access_code, row.password, row.driver_password]
-      .map((value) => String(value ?? "").trim().toUpperCase())
-      .filter(Boolean);
-    return rowNumber === number && possibleCodes.includes(enteredCode) && row.active !== false;
-  });
-}
-
-/**
- * Determine whether a driver record should also get owner access, using a
- * fallback guess when no Supabase client is available. Prefer
- * resolveOwnerTeamsFromAssignments() when possible — it checks the real
- * team_owner_assignments table (the same one OwnersPage.jsx uses), which is
- * far more accurate than this guess.
- */
-export function resolveOwnerTeams(driver, teams = []) {
-  if (!driver) return [];
-  const driverNumber = String(driver.number || "").trim();
-  const ownedTeams = (teams || []).filter((team) => {
-    const ownerNumber = String(team.owner_number ?? team.ownerNumber ?? team.owner_driver_number ?? "").trim();
-    return ownerNumber && ownerNumber === driverNumber;
-  });
-  if (ownedTeams.length > 0) return ownedTeams.map((t) => t.team || t.id || t.name);
-  if (driver.is_owner || driver.isOwner) return [driver.team].filter(Boolean);
-  return [];
-}
-
-/**
- * The real source of truth for team ownership — the same team_owner_assignments
- * table OwnersPage.jsx checks (owner_driver_number matched against the driver).
- */
-export async function resolveOwnerTeamsFromAssignments(driverNumber, supabase) {
-  if (!supabase || !driverNumber) return null;
-  try {
-    const { data, error } = await supabase.from("team_owner_assignments").select("team, owner_driver_number");
-    if (error) {
-      console.error("Could not load team_owner_assignments:", error);
-      return null;
-    }
-    const number = String(driverNumber).trim();
-    const owned = (data || [])
-      .filter((row) => String(row.owner_driver_number || "").trim() === number)
-      .map((row) => row.team)
-      .filter(Boolean);
-    return owned;
-  } catch (err) {
-    console.error("Error resolving owner teams from assignments:", err);
-    return null;
-  }
-}
-
-async function buildSessionForDriver(driverNumber, drivers, arcaDrivers, teams, supabase) {
-  const driver = findDriverByNumber(driverNumber, drivers, arcaDrivers);
-
-  // Prefer the real team_owner_assignments table when a Supabase client is
-  // available; fall back to the guess-based check otherwise.
-  const assignedTeams = await resolveOwnerTeamsFromAssignments(driverNumber, supabase);
-  const ownedTeams = assignedTeams !== null ? assignedTeams : resolveOwnerTeams(driver, teams);
-
-  const session = {
-    driverNumber: String(driverNumber).trim(),
-    driverName: driver?.name || "",
-    team: driver?.team || "",
-    series: driver?.series || "cup",
-    isOwner: ownedTeams.length > 0,
-    ownedTeams,
-    loginAt: new Date().toISOString(),
-  };
-
-  if (typeof window !== "undefined") {
-    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-  }
-
-  return session;
-}
+export function verifyLeaguePassword() { return false; }
 
 export async function loginToLeague({ driverNumber, password, driverAccessCodes, drivers, arcaDrivers, teams, supabase }) {
-  const valid = verifyLeaguePassword({ driverNumber, password, driverAccessCodes });
-  if (!valid) return { success: false, error: "Invalid driver number or password." };
-
-  const session = await buildSessionForDriver(driverNumber, drivers, arcaDrivers, teams, supabase);
-  return { success: true, session };
+  try {
+    const { data, error } = await authenticatedClient.functions.invoke("driver-login", { body: { driverNumber, password } });
+    if (error || data?.error || !data?.session) return { success: false, error: data?.error || error?.message || "Driver login is not configured yet." };
+    const { error: sessionError } = await authenticatedClient.auth.setSession(data.session);
+    if (sessionError) throw sessionError;
+    const session = await refreshLeagueAccess();
+    if (!session?.userId) throw new Error("No active driver account was found.");
+    return { success: true, session };
+  } catch (error) { return { success: false, error: error.message }; }
 }
 
 export function getLeagueSession() {
@@ -120,8 +42,11 @@ export function getLeagueSession() {
 }
 
 export function logoutOfLeague() {
+  authenticatedClient.auth.signOut();
   if (typeof window !== "undefined") {
     localStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem("bcl-mobile-session-v1");
+    window.dispatchEvent(new CustomEvent("brl:access-loaded", { detail: null }));
   }
 }
 
@@ -231,7 +156,8 @@ export async function loginWithBiometric({ drivers, arcaDrivers, teams, supabase
   const matched = registry.find((entry) => entry.credentialId === usedCredentialId);
   if (!matched) throw new Error("Could not match this credential to a driver.");
 
-  const session = await buildSessionForDriver(matched.driverNumber, drivers, arcaDrivers, teams, supabase);
+  const session = await refreshLeagueAccess();
+  if (!session?.userId || String(session.driverNumber) !== String(matched.driverNumber)) throw new Error("Use your driver number and password to sign in first.");
   return session;
 }
 
