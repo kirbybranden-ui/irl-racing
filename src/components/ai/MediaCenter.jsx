@@ -19,6 +19,7 @@ export default function MediaCenter({ strategyOnly = false }) {
   const [busy, setBusy] = useState(false);
   const lock = useRef(false);
   const end = useRef(null);
+  const syncUntil = useRef(0);
 
   async function load() {
     if (!access?.driverId) { setLoading(false); return; }
@@ -41,9 +42,37 @@ export default function MediaCenter({ strategyOnly = false }) {
   useEffect(() => { setSelected(null); setSessions([]); load(); }, [access?.driverId]);
   useEffect(() => { end.current?.scrollIntoView({ block: "nearest", behavior: "smooth" }); }, [selected?.version]);
 
+  // A function can finish saving after its browser request has disconnected.
+  // Read saved turns while waiting, without reloading or generating another turn.
+  useEffect(() => {
+    if (!access?.driverId || !state?.activeSeasonId) return;
+    let active = true;
+    let checking = false;
+    async function syncConversation() {
+      if (checking || document.visibilityState === "hidden") return;
+      if (!busy && Date.now() > syncUntil.current) return;
+      checking = true;
+      try {
+        const { data, error: readError } = await supabase.from("brl_ai_sessions").select("*")
+          .eq("driver_id", String(access.driverId)).eq("season_id", state.activeSeasonId)
+          .order("updated_at", { ascending: false });
+        if (readError || !active) return;
+        setSessions(data || []);
+        setSelected(current => {
+          const saved = (data || []).find(s => s.id === current?.id);
+          return saved && saved.version >= current.version ? saved : current;
+        });
+      } catch { /* Keep the transcript visible during temporary network failures. */ }
+      finally { checking = false; }
+    }
+    const timer = window.setInterval(syncConversation, 3000);
+    window.addEventListener("focus", syncConversation);
+    return () => { active = false; window.clearInterval(timer); window.removeEventListener("focus", syncConversation); };
+  }, [access?.driverId, state?.activeSeasonId, busy]);
+
   async function action(type) {
     if (lock.current) return;
-    lock.current = true; setBusy(true); setError("");
+    lock.current = true; syncUntil.current = Date.now() + 120000; setBusy(true); setError("");
     try {
       const result = await callMedia(type === "start" ? { action: type, raceName: race, kind, persona } : { action: type, sessionId: selected.id, version: selected.version, ...(type === "answer" ? { answer } : {}) });
       setSelected(result.session); setAnswer("");
@@ -57,7 +86,7 @@ export default function MediaCenter({ strategyOnly = false }) {
   const selectedSessions = sessions.filter(s => strategyOnly ? s.kind === "strategy" : true);
 
   return <section className="brl-ai-media" aria-label="BRL media conversation">
-    <header><span className="brl-ai-kicker">{strategyOnly ? "The crew-chief desk" : "BRL media desk"}</span><h2>{strategyOnly ? "Talk strategy." : "Your story. Your words."}</h2><p>{strategyOnly ? "50% races. 3× fuel consumption. 3× tire wear. Tell Ray what the car is doing." : "One question at a time. React, explain, celebrate, or speak your mind."}</p></header>
+    <header><span className="brl-ai-kicker">{strategyOnly ? "The crew-chief desk" : "BRL media desk"}</span><h2>{strategyOnly ? "Talk strategy." : "Your story. Your words."}</h2><p>{strategyOnly ? "50% races. 3× fuel consumption. 3× tire wear. Tell the crew-chief AI what the car is doing." : "One question at a time. React, explain, celebrate, or speak your mind."}</p></header>
     {error && <p className="brl-ai-error" role="alert">{error}</p>}
     {accessLoading || loading ? <p>Loading media desk…</p> : !access?.driverId ? <p><a href="/standings?login=1">Log in as a driver</a> to start a conversation.</p> : <>
       {!enabled && <p className="brl-ai-notice">The admin has paused AI media. Your saved conversations remain available.</p>}
@@ -69,8 +98,8 @@ export default function MediaCenter({ strategyOnly = false }) {
         {kind === "post" && !activeSeason?.raceHistory?.some(r => r.raceName === race) && <small>Post-race interviews open after the admin publishes results.</small>}
       </form>
       {selected && <div className="brl-ai-conversation">
-        <div className="brl-ai-conversation-heading"><div><strong>{interviewHost?.[1] || "BRL interviewer"}</strong><small>{selected.race_name} · {selected.kind === "strategy" ? "Strategy" : selected.kind === "pre" ? "Pre-race" : "Post-race"}</small></div><span>{selected.status === "completed" ? "Complete" : selected.status === "review" ? "Awaiting review" : selected.status === "hidden" ? "Closed" : "In conversation"}</span></div>
-        <div className="brl-ai-transcript" aria-live="polite">{selected.messages.map(m => <div className={`brl-ai-turn brl-ai-turn--${m.role}`} key={m.id}><strong>{m.role === "user" ? selected.driver_name : interviewHost?.[1]}</strong><p>{m.text}</p></div>)}{busy && <p role="status">The interviewer is responding…</p>}<div ref={end} /></div>
+        <div className="brl-ai-conversation-heading"><div><strong>{interviewHost?.[1] || "BRL interviewer"} (AI)</strong><small>{selected.race_name} · {selected.kind === "strategy" ? "Strategy" : selected.kind === "pre" ? "Pre-race" : "Post-race"}</small></div><span>{selected.status === "completed" ? "Complete" : selected.status === "review" ? "Awaiting review" : selected.status === "hidden" ? "Closed" : "In conversation"}</span></div>
+        <div className="brl-ai-transcript" aria-live="polite">{selected.messages.map(m => <div className={`brl-ai-turn brl-ai-turn--${m.role}`} key={m.id}><strong>{m.role === "user" ? selected.driver_name : interviewHost?.[1]}{m.role !== "user" && " (AI)"}</strong><p>{m.text}</p></div>)}{busy && <p role="status">The interviewer is responding…</p>}<div ref={end} /></div>
         {selected.status === "active" && enabled && (pending ? <div className="brl-ai-actions"><p>Your answer is saved. Continue to get the next response.</p><button disabled={busy} onClick={() => action("resume")}>Retry interviewer response</button></div> : <form onSubmit={e => { e.preventDefault(); action("answer"); }}><label htmlFor="brl-media-answer">Your reply</label><textarea id="brl-media-answer" value={answer} onChange={e => setAnswer(e.target.value)} maxLength={3000} rows={4} disabled={busy} placeholder="Say it in your own words…" /><div className="brl-ai-actions"><button disabled={busy || !answer.trim()}>Send reply</button><button type="button" className="brl-ai-secondary" disabled={busy || !selected.messages.some(m => m.role === "user")} onClick={() => action("finish")}>Wrap up interview</button><small>{answer.length}/3000</small></div></form>)}
         {selected.status === "completed" && selected.kind !== "strategy" && <p className="brl-ai-notice">Media interview completed. No interview bonus is paid. Your words can appear in league coverage.</p>}
         {selected.status === "review" && <p className="brl-ai-notice">The admin will review this conversation before it is shared publicly.</p>}
@@ -78,6 +107,6 @@ export default function MediaCenter({ strategyOnly = false }) {
       </div>}
       {selectedSessions.length > 0 && <div className="brl-ai-history"><h3>Saved conversations</h3>{selectedSessions.map(s => <button className="brl-ai-history-row" key={s.id} onClick={() => { setSelected(s); setAnswer(""); setError(""); }} disabled={busy}><span>{s.race_name}<small>{s.kind} · {mediaPersonas.find(p => p[0] === s.persona)?.[1]}</small></span><span>{s.status}</span></button>)}</div>}
     </>}
-    <footer>Fictional BRL AI personalities. Driver answers are their own. Media completion is a contract obligation, not a paid bonus.</footer>
+    <footer>AI personas inspired by NASCAR broadcasters; not the real people or endorsed by them. Driver answers are their own. Media completion is a contract obligation, not a paid bonus.</footer>
   </section>;
 }
