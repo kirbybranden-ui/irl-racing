@@ -1,5 +1,4 @@
 import BankingPanel from "../components/banking/BankingPanel";
-import {useBankingEnabled} from "../lib/banking";
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { useLeagueAccess, canManageTeam } from "../lib/roleAccess";
@@ -127,11 +126,12 @@ function requestStatusLabel(request) {
 }
 
 export default function OwnerHQPage({ drivers = [], teams = [], seasonName = "", go }) {
- const bankingEnabled=useBankingEnabled();
+ // Owners can read balances while automatic payments are paused.
+ const showBanking=true;
   const { access: verifiedAccess } = useLeagueAccess();
   const [selectedTeam, setSelectedTeam] = useState(() => {
     const firstTeam = (teams || []).find((team) => team?.team)?.team;
-    return firstTeam || (drivers || []).find((driver) => driver?.team)?.team || "B2J";
+    return firstTeam || (drivers || []).find((driver) => driver?.team)?.team || "JAM";
   });
 
   const safeTeams = useMemo(() => {
@@ -515,7 +515,7 @@ export default function OwnerHQPage({ drivers = [], teams = [], seasonName = "",
               ["Points", currentTeam.points || 0],
               ["Wins", currentTeam.wins || 0],
               ["Drivers", roster.length],
-              ...(!bankingEnabled?[["Budget", money(getTeamBudget(currentTeam.team))]]:[]),
+              ...(!showBanking?[["Budget", money(getTeamBudget(currentTeam.team))]]:[]),
             ]} />
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               <MobileAction label="Open Full HQ" onClick={() => safeGo(go, "/owners?desktop=1")} secondary />
@@ -523,7 +523,7 @@ export default function OwnerHQPage({ drivers = [], teams = [], seasonName = "",
             </div>
           </MobileCard>
 
-          {bankingEnabled && <BankingPanel team={currentTeam.team} />}
+          {showBanking && <BankingPanel team={currentTeam.team} />}
           <MobileSectionTitle>Driver Assignment Center</MobileSectionTitle>
           <MobileCard>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 10 }}>
