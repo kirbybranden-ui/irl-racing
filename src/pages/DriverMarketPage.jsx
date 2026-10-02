@@ -192,12 +192,7 @@ function makeRaceStats(raceHistory = [], drivers = [], startParkRequests = []) {
       const result = results.find((item) => cleanNumber(item.number || item.driverNumber || item.car_number) === number);
       const raceName = String(race.raceName || race.name || "").toLowerCase();
 
-      const approvedStartPark = (startParkRequests || []).some((request) => {
-        const requestNumber = cleanNumber(request.driver_number || request.driverNumber || request.number);
-        const requestRace = String(request.race_name || request.raceName || request.track || "").toLowerCase();
-        const approved = String(request.status || "").toLowerCase() === "approved" || request.approved === true;
-        return requestNumber === number && approved && (!requestRace || raceName.includes(requestRace) || requestRace.includes(raceName));
-      });
+      const approvedStartPark = false;
 
       if (!result) {
         if (!approvedStartPark) {
@@ -518,13 +513,10 @@ function DriverMarketCard({ driver, raceStats, paintStats, interestRows, reSignR
                 <StatBox label="Races Entered" value={raceStats?.racesEntered || 0} />
                 <StatBox label="Races Missed" value={raceStats?.racesMissed || 0} />
                 <StatBox label="DNFs" value={raceStats?.dnfs || 0} />
-                <StatBox label="Start & Parks" value={raceStats?.startParks || 0} />
                 <StatBox label="Penalties" value={raceStats?.penalties || 0} />
                 <StatBox label="Paint Wins" value={paintStats?.paintSchemeWins || 0} />
                 <StatBox label="Sponsor Happy" value={happinessValue(driver, "sponsor")} />
                 <StatBox label="Team Happy" value={happinessValue(driver, "team")} />
-                <StatBox label="Driver Earned" value={money(paintStats?.driverPaintEarnings || driver.driverEarnings || 0)} />
-                <StatBox label="Team Earned" value={money(paintStats?.teamPaintEarnings || driver.teamEarnings || 0)} />
               </div>
             </div>
           </div>
