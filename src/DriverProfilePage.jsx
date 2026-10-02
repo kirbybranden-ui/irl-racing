@@ -1,3 +1,5 @@
+import BankingPanel from "./components/banking/BankingPanel";
+import { useBankingEnabled } from "./lib/banking";
 import MediaCenter from "./components/ai/MediaCenter";
 import { mediaPersonas } from "./lib/aiMedia";
 import { defaultRaces } from "./data/races";
@@ -1330,6 +1332,7 @@ function DriverTransferPortalPanel({ driver, driverNumber, teamTheme, standingsR
 
 export default function DriverProfilePage({ seasons, activeSeason, tracks = [], ownerDriverAssignments = [], loadOwnerDriverAssignments, arcaDrivers = [], arcaTracks = [], driverNumberOverride = "", driverSeriesOverride = "" }) {
   const { access: roleAccess } = useLeagueAccess();
+  const bankingEnabled = useBankingEnabled();
   const pathParts = window.location.pathname.split("/");
   
   // Parse driver number from either /driver/:number or /series/arca/driver/:number
@@ -1435,6 +1438,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
   const [driverAssignmentMessage, setDriverAssignmentMessage] = useState("");
   const [driverAssignmentError, setDriverAssignmentError] = useState("");
   const [unreadMessages, setUnreadMessages] = useState(0);
+  const [bankNotices,setBankNotices]=useState([]);
   const [communityEventNotifications, setCommunityEventNotifications] = useState([]);
   const [driverMessages, setDriverMessages] = useState([]);
   const [messagesLoading, setMessagesLoading] = useState(false);
@@ -1643,8 +1647,9 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
     };
   }, [driverNumber]);
 
+  useEffect(()=>{if(!bankingEnabled||!driver?.id)return;let live=true;const load=async()=>{const {data}=await supabase.from("brl_bank_accounts").select("id").eq("kind","driver").eq("subject",String(driver.id)).maybeSingle();if(data){const {data:account}=await supabase.rpc("brl_bank_read",{account:data.id});if(live)setBankNotices(account?.notices||[]);}};load();const timer=setInterval(load,15000);return()=>{live=false;clearInterval(timer);};},[bankingEnabled,driver?.id]);
   const driverTodoItems = useMemo(() => {
-    const items = [];
+    const items = bankNotices.map(n=>({id:`bank-${n.id}`,icon:"🏦",title:n.title,detail:n.detail,href:`/driver/${driverNumber}/contracts`,priority:n.title.includes("overdue")?0:2}));
     const now = new Date();
     const myInterviews = isArcaDriver ? arcaInterviews : interviews;
 
@@ -1774,7 +1779,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
     });
 
     return items.sort((a, b) => a.priority - b.priority);
-  }, [communityEventNotifications, aiInterviewAssignments, interviews, arcaInterviews, isArcaDriver, driverAssignments, contractOffers, unreadMessages, issueChatTodos, startParkRequests, teamInterestHistory, myAppeals, driverNumber]);
+  }, [bankNotices, communityEventNotifications, aiInterviewAssignments, interviews, arcaInterviews, isArcaDriver, driverAssignments, contractOffers, unreadMessages, issueChatTodos, startParkRequests, teamInterestHistory, myAppeals, driverNumber]);
 
   const driverTodoCount = driverTodoItems.length;
 
@@ -3712,6 +3717,10 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
         </div>
       </div>
     );
+  }
+
+  if (bankingEnabled && subPage === "contracts") {
+    return <div style={pageContainerStyle}><button onClick={() => window.location.pathname = `/driver/${driverNumber}`} style={secondaryButtonStyle}>← Back to Profile</button><BankingPanel driverId={driver.id} initialTab="contracts" /></div>;
   }
 
   if (subPage === "contracts") {
