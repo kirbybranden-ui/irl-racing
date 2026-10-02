@@ -3720,7 +3720,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
     );
   }
 
-  if (bankingEnabled && subPage === "contracts") {
+  if (subPage === "contracts") {
     return <div style={pageContainerStyle}><button onClick={() => window.location.pathname = `/driver/${driverNumber}`} style={secondaryButtonStyle}>← Back to Profile</button><BankingPanel driverId={driver.id} initialTab="contracts" /></div>;
   }
 
@@ -4319,13 +4319,10 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
               <div style={{ width: 36, height: 36, borderRadius: 12, background: `${teamTheme.accent}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>🎨</div>
               <div>
                 <h2 style={{ margin: 0, fontSize: 19, fontWeight: 950 }}>Paint Scheme Profile</h2>
-                <div style={{ fontSize: 12.5, color: "#6e6e73", fontWeight: 700, marginTop: 2 }}>Votes and payouts logged from Paint Scheme of the Week awards.</div>
+                <div style={{ fontSize: 12.5, color: "#6e6e73", fontWeight: 700, marginTop: 2 }}>Paint Scheme of the Week votes and recognition. No automatic cash payouts.</div>
               </div>
             </div>
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 26, fontWeight: 950, color: teamTheme.accent }}>{money(paintSchemeStats.driverEarnings)}</div>
-              <div style={{ fontSize: 12, color: "#6e6e73", fontWeight: 700 }}>Driver paint earnings</div>
-            </div>
+
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(145px, 1fr))", gap: 12 }}>
             {[
@@ -4334,7 +4331,6 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
               ["Wins", paintSchemeStats.wins],
               ["Top 5s", paintSchemeStats.top5s],
               ["Top 10s", paintSchemeStats.top10s],
-              ["Team Earned", money(paintSchemeStats.teamEarnings)],
             ].map(([label, value]) => (
               <div key={label} style={{ background: "rgba(0,0,0,0.03)", border: "1px solid rgba(0,0,0,0.06)", borderRadius: 16, padding: 14 }}>
                 <div style={{ fontSize: 11, color: "#6e6e73", fontWeight: 900, marginBottom: 6 }}>{label}</div>
@@ -4342,7 +4338,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
               </div>
             ))}
           </div>
-          <div style={{ marginTop: 14, fontSize: 12, color: "#6e6e73", fontWeight: 700 }}>Last payout race: {paintSchemeStats.lastAwardedRace}</div>
+          <div style={{ marginTop: 14, fontSize: 12, color: "#6e6e73", fontWeight: 700 }}>Compensation and owner-approved bonuses are shown in your contract account.</div>
         </div>
 
         <div style={{ ...sectionCardStyle, background: `linear-gradient(135deg, rgba(255,255,255,0.92), ${driverSatisfaction.bg})` }}>
