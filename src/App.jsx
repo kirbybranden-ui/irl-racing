@@ -6937,7 +6937,7 @@ export default function App() {
     return Array.from(new Set([...fixedTeams, ...Object.keys(registeredTeams), ...liveTeams]))
       .filter((team) => team && !registeredTeams[team]?.deleted)
       .sort((a, b) => getTeamFullName(a).localeCompare(getTeamFullName(b)));
-  }, [visibleDrivers, registeredTeams, raceHistory]);
+  }, [visibleDrivers, registeredTeams]);
   const selectedRace = activeSeason?.selectedRace || "";
   const positions = activeSeason?.positions || {};
   const stage1 = activeSeason?.stage1 || {};
@@ -7841,7 +7841,7 @@ export default function App() {
       }
     }
     return Object.values(teams).sort((a, b) => b.points - a.points || b.wins - a.wins || b.top3 - a.top3 || a.team.localeCompare(b.team));
-  }, [visibleDrivers, registeredTeams]);
+  }, [visibleDrivers, registeredTeams, raceHistory]);
   const manufacturerStandings = useMemo(() => {
     const mfrs = {};
     for (const d of visibleDrivers) {
