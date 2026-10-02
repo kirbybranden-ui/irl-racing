@@ -1,3 +1,4 @@
+import { getTeamFullName as currentTeamName } from "./data/teams";
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "./lib/supabase";
 import { getLeagueSession, loginToLeague, logoutOfLeague } from "./lib/leagueAuth";
@@ -68,7 +69,7 @@ function normalize(value) {
 
 function getTeamFullName(team) {
   const names = {
-    B2J: "B2J Motorsports",
+    B2J: "JA Motorsports",
     MER: "ME Racing",
     MMS: "Mayhem Motorsports",
     NLM: "Nine Line Motorsports",
@@ -84,7 +85,7 @@ function getTeamFullName(team) {
     Independent: "Independent",
     IND: "Independent",
   };
-  return names[team] || team || "Independent";
+  return currentTeamName(team) !== team ? currentTeamName(team) : names[team] || team || "Independent";
 }
 
 function isPaintImageUpload(upload) {
