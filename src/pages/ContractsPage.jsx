@@ -1,5 +1,4 @@
 import BankingPanel from "../components/banking/BankingPanel";
-import { useBankingEnabled } from "../lib/banking";
 import { useLeagueAccess } from "../lib/roleAccess";
 import React, { useEffect, useMemo, useState } from "react";
 import logo from "../assets/logo1.png";
@@ -409,4 +408,4 @@ function LegacyContractsPage({ drivers = [] }) {
 const PAINT_SCHEME_WEEKLY_TEAM_PAYOUT_CAP = 150000;
 const PAINT_SCHEME_SEASON_TEAM_PAYOUT_CAP = 750000;
 
-export default function ContractsPage(props) { const enabled=useBankingEnabled(); const {access}=useLeagueAccess(); return enabled?<BankingPanel driverId={access?.driverId||access?.driver_id||""} initialTab="contracts" />:<LegacyContractsPage {...props}/>; }
+export default function ContractsPage() { const {access}=useLeagueAccess(); return <BankingPanel driverId={access?.driverId||access?.driver_id||""} initialTab="contracts" />; }
