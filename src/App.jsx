@@ -6759,10 +6759,11 @@ export default function App() {
   const queueLeagueSave = (state) => {
     if (!hasLeagueRole(verifiedAccess, "full_admin")) return Promise.reject(new Error("Full admin approval is required to update league data."));
     if (!remoteLoadedRef.current) return Promise.reject(new Error("League data did not load from Supabase. Reload before saving."));
-    const queued = saveQueueRef.current.catch(() => {}).then(async () => { const revision = await saveLeagueState(state); loadedRevisionRef.current = revision; });
+    const queued = saveQueueRef.current.catch(() => {}).then(async () => { const revision = await saveLeagueState(state,loadedRevisionRef.current); loadedRevisionRef.current = revision; });
     saveQueueRef.current = queued;
     return queued;
   };
+  useEffect(()=>{let live=true;const refresh=async()=>{await saveQueueRef.current.catch(()=>{});const saved=await loadLeagueState();if(!live||!saved)return;const next=normalizeLoadedLeagueState(saved);if(!next)return;loadedRevisionRef.current=saved._revision||null;loadedStateSignatureRef.current=makeLeagueStateSignature(next);setSeasons(next.seasons);setActiveSeasonId(next.activeSeasonId);setTracks(next.tracks);setCustomTeamBranding(next.customTeamBranding);setRegisteredTeams(next.registeredTeams);};window.addEventListener("brl:bank-state-changed",refresh);return()=>{live=false;window.removeEventListener("brl:bank-state-changed",refresh);};},[]);
   const saveScheduleFromAdmin = async (nextTracks) => {
     if (!hasLeagueRole(verifiedAccess, "full_admin")) throw new Error("Full admin access required.");
     if (!remoteLoadedRef.current) throw new Error("Reload league data before saving.");
@@ -6936,7 +6937,7 @@ export default function App() {
     return Array.from(new Set([...fixedTeams, ...Object.keys(registeredTeams), ...liveTeams]))
       .filter((team) => team && !registeredTeams[team]?.deleted)
       .sort((a, b) => getTeamFullName(a).localeCompare(getTeamFullName(b)));
-  }, [visibleDrivers, registeredTeams]);
+  }, [visibleDrivers, registeredTeams, raceHistory]);
   const selectedRace = activeSeason?.selectedRace || "";
   const positions = activeSeason?.positions || {};
   const stage1 = activeSeason?.stage1 || {};
@@ -7832,6 +7833,13 @@ export default function App() {
       teams[d.team].points += d.points || 0; teams[d.team].wins += d.wins || 0;
       teams[d.team].top3 += d.top3 || 0; teams[d.team].top5 += d.top5 || 0; teams[d.team].drivers += 1;
     }
+    if (raceHistory.some(r => r.results?.some(v => v.teamPoints !== undefined))) {
+      for (const t of Object.values(teams)) t.points = 0;
+      for (const race of raceHistory) for (const r of race.results || []) {
+        const team = r.team || visibleDrivers.find(d => String(d.id) === String(r.driverId))?.team;
+        if (teams[team]) teams[team].points += Number(r.dnf ? 0 : (r.teamPoints ?? r.totalRacePoints ?? 0));
+      }
+    }
     return Object.values(teams).sort((a, b) => b.points - a.points || b.wins - a.wins || b.top3 - a.top3 || a.team.localeCompare(b.team));
   }, [visibleDrivers, registeredTeams]);
   const manufacturerStandings = useMemo(() => {
@@ -8302,13 +8310,13 @@ export default function App() {
       const offenseNumber = offense ? priorOffenses + 1 : 0;
       const offensePenalty = offense ? getOffensePenaltyPoints(offenseNumber) : 0;
       const penaltyPoints = offensePenalty + manualPenaltyPoints;
-      const totalRacePoints = finishPoints + stage1Points + stage2Points + stage3Points + fastestLapPoints - penaltyPoints;
+      const totalRacePoints = dnf ? 0 : finishPoints + stage1Points + stage2Points + stage3Points + fastestLapPoints - penaltyPoints;
       return {
         driverId: driver.id, name: driver.name, number: driver.number, team: driver.team, manufacturer: driver.manufacturer || "",
         finishPos: finishPos || null, stage1Pos: stage1Pos || null, stage2Pos: stage2Pos || null, stage3Pos: stageCount === 3 ? stage3Pos || null : null,
         finishPoints, stage1Points, stage2Points, stage3Points, fastestLap, fastestLapPoints,
         offense, offenseNumber, offensePenalty, manualPenaltyPoints, penaltyPoints, totalRacePoints,
-        isWin: finishPos === 1, isTop3: finishPos >= 1 && finishPos <= 3, isTop5: finishPos >= 1 && finishPos <= 5,
+        isWin: !dnf && finishPos === 1, isTop3: !dnf && finishPos >= 1 && finishPos <= 3, isTop5: !dnf && finishPos >= 1 && finishPos <= 5,
         dnf, startPark, dnfReason: dnf ? (dnfReasons[driver.id] || "Unknown") : null,
         notes: resultNotesMap[driver.id] || "",
       };
@@ -8408,6 +8416,7 @@ export default function App() {
     } else await queueLeagueSave(publishedState);
     loadedStateSignatureRef.current = makeLeagueStateSignature(publishedState);
     setSeasons(updatedSeasons);
+    setTimeout(()=>window.dispatchEvent(new Event("brl:bank-state-changed")),50);
 
     const automaticBackupPayload = makeLeagueBackupPayload({
       tracks,
@@ -8494,7 +8503,7 @@ export default function App() {
           offense: activeSeason?.arcaOffenseMap?.[driver.id] || false,
           offenseNumber: 0,
           penaltyPoints: penaltyPts,
-          totalRacePoints: (!isDnf ? basePoints : 0) + fastestLap - penaltyPts,
+          totalRacePoints: isDnf ? 0 : basePoints + fastestLap - penaltyPts,
         };
       })
       .filter(Boolean);
