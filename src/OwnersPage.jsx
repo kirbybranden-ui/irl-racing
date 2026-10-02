@@ -1,5 +1,5 @@
 import BankingPanel from "./components/banking/BankingPanel";
-import { useBankingEnabled } from "./lib/banking";
+import { teamLogos as currentTeamLogos, getTeamFullName as currentTeamName } from "./data/teams";
 import { defaultRaces } from "./data/races";
 import React, { useEffect, useMemo, useState } from "react";
 import { useLeagueAccess, canManageTeam } from "./lib/roleAccess";
@@ -147,7 +147,7 @@ const teamLogos = {
 };
 
 const teamFullNames = {
-  B2J: "B2J Motorsports",
+  B2J: "JA Motorsports",
     MER: "ME Racing",
     MMS: "Mayhem Motorsports",
   NLM: "Nine Line Motorsports",
@@ -480,7 +480,7 @@ function getOwnerDriverCodesForTeam(team, driverCodes = {}) {
 
 
 function getTeamFullName(team) {
-  return teamFullNames[team] || team || "Team";
+  return currentTeamName(team) || teamFullNames[team] || "Team";
 }
 
 function getFinishPay(finishPos, raceName = "") {
@@ -569,7 +569,8 @@ function buildTeamFinancialRow(team, drivers, teams, raceHistory, technicalAllia
 
 export default function OwnersPage({ drivers = [], teams = [], raceHistory = [], seasonName = "", onApplyTeamTransaction = null }) {
   const { access: verifiedAccess, loading: roleLoading } = useLeagueAccess();
-  const bankingEnabled = useBankingEnabled();
+  // Account visibility is independent of automatic payment processing.
+  const showBanking = true;
   const comparisonTeams = useMemo(() => {
     const teamSet = new Set(drivers.map((driver) => driver.team || "Independent"));
     return Array.from(teamSet)
@@ -3465,9 +3466,9 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
             <div style={{ ...sectionCardStyle, background: "linear-gradient(135deg, #171b22 0%, #10141b 100%)", borderColor: "#d4af37" }}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 18, flexWrap: "wrap", alignItems: "center" }}>
                 <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
-                  {teamLogos[selected.team] && (
+                  {(currentTeamLogos[selected.team] || teamLogos[selected.team]) && (
                     <div style={{ width: 92, height: 92, background: "#0f1319", border: "1px solid #2c3440", borderRadius: 16, display: "flex", alignItems: "center", justifyContent: "center", padding: 10 }}>
-                      <img src={teamLogos[selected.team]} alt={selected.team} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
+                      <img src={currentTeamLogos[selected.team] || teamLogos[selected.team]} alt={getTeamFullName(selected.team)} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
                     </div>
                   )}
                   <div>
@@ -3476,14 +3477,16 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
                     <div style={{ opacity: 0.55, fontSize: 12, marginTop: 4 }}>Only this team’s information is shown.</div>
                   </div>
                 </div>
-                {!bankingEnabled && <div style={{ textAlign: "right" }}>
+                {!showBanking && <div style={{ textAlign: "right" }}>
                   <div style={{ fontSize: 11, opacity: 0.65 }}>PROJECTED TEAM BUDGET</div>
                   <div style={{ fontSize: 34, fontWeight: 900, color: selected.projectedBudget >= selected.startingBudget ? "#4ade80" : "#f87171" }}>{money(selected.projectedBudget)}</div>
                 </div>}
               </div>
             </div>
 
-            {!bankingEnabled && <>
+            {showBanking && ["overview","tasks","manufacturer","contracts","transfers","numbers"].includes(activeHqTab) && <BankingPanel team={safeSelectedTeam} initialTab={activeHqTab==="overview"?"ledger":activeHqTab==="tasks"?"manufacturer":activeHqTab} />}
+
+            {!showBanking && <>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 12, marginBottom: 20 }}>
               {[
                 { label: "Starting Budget", value: money(selected.startingBudget) },
@@ -3514,7 +3517,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
               </div>
             </div>
 
-            {!bankingEnabled && activeHqTab === "tasks" && (
+            {!showBanking && activeHqTab === "tasks" && (
               <div style={sectionCardStyle}>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start", marginBottom: 16 }}>
                   <div>
@@ -3779,7 +3782,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
             )}
 
 
-            {!bankingEnabled && activeHqTab === "transfers" && (
+            {!showBanking && activeHqTab === "transfers" && (
               <div style={sectionCardStyle}>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start", marginBottom: 16 }}>
                   <div>
@@ -3985,7 +3988,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
               </div>
             )}
 
-            {!bankingEnabled && activeHqTab === "numbers" && (
+            {!showBanking && activeHqTab === "numbers" && (
               <div style={sectionCardStyle}>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start", marginBottom: 16 }}>
                   <div>
@@ -4304,7 +4307,6 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
               </div>
             )}
 
-            {bankingEnabled && ["overview","tasks","manufacturer","contracts","transfers","numbers"].includes(activeHqTab) && <BankingPanel team={safeSelectedTeam} initialTab={activeHqTab==="overview"?"ledger":activeHqTab==="tasks"?"manufacturer":activeHqTab} />}
             {activeHqTab === "overview" && (
               <div style={{ ...sectionCardStyle, borderColor: "#d4af37" }}>
                 <h2 style={{ marginTop: 0 }}>Team HQ Overview</h2>
@@ -4328,7 +4330,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
               </div>
             )}
 
-            {!bankingEnabled && activeHqTab === "manufacturer" && (
+            {!showBanking && activeHqTab === "manufacturer" && (
               <div style={sectionCardStyle}>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 14, flexWrap: "wrap", alignItems: "flex-start", marginBottom: 16 }}>
                   <div>
@@ -4653,15 +4655,15 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
             {activeHqTab === "rankings" && (
               <div style={sectionCardStyle}>
                 <h2 style={{ marginTop: 0 }}>Owner Power Rankings</h2>
-                <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse" }}><thead><tr><th style={thStyle}>Rank</th><th style={thStyle}>Team</th><th style={thStyle}>Owner Score</th>{!bankingEnabled && <th style={thStyle}>Budget</th>}<th style={thStyle}>Points</th><th style={thStyle}>Wins</th></tr></thead><tbody>
+                <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse" }}><thead><tr><th style={thStyle}>Rank</th><th style={thStyle}>Team</th><th style={thStyle}>Owner Score</th>{!showBanking && <th style={thStyle}>Budget</th>}<th style={thStyle}>Points</th><th style={thStyle}>Wins</th></tr></thead><tbody>
                   {ownerPowerRankings.map((item, index) => (
-                    <tr key={item.team}><td style={tdStyle}>#{index + 1}</td><td style={{ ...tdStyle, fontWeight: 900 }}>{getTeamFullName(item.team)}</td><td style={tdStyle}>{item.score}</td>{!bankingEnabled && <td style={tdStyle}>{money(item.row.projectedBudget)}</td>}<td style={tdStyle}>{item.row.points}</td><td style={tdStyle}>{item.row.wins}</td></tr>
+                    <tr key={item.team}><td style={tdStyle}>#{index + 1}</td><td style={{ ...tdStyle, fontWeight: 900 }}>{getTeamFullName(item.team)}</td><td style={tdStyle}>{item.score}</td>{!showBanking && <td style={tdStyle}>{money(item.row.projectedBudget)}</td>}<td style={tdStyle}>{item.row.points}</td><td style={tdStyle}>{item.row.wins}</td></tr>
                   ))}
                 </tbody></table></div>
               </div>
             )}
 
-            {!bankingEnabled && activeHqTab === "contracts" && (
+            {!showBanking && activeHqTab === "contracts" && (
               <>
             <div style={{ ...sectionCardStyle, borderColor: "#b42318" }}>
               <h2 style={{ marginTop: 0 }}>🚨 Contract Termination / Driver Release</h2>
