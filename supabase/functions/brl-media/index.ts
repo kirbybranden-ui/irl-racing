@@ -68,7 +68,22 @@ async function pastInterviews(session:any) {
 const articleSchema={type:"object",additionalProperties:false,properties:{title:{type:"string"},paragraphs:{type:"array",items:{type:"string"}},quotes:{type:"array",items:{type:"object",additionalProperties:false,properties:{source_id:{type:"string"},text:{type:"string"}},required:["source_id","text"]}},review_reasons:{type:"array",items:{type:"string"}}},required:["title","paragraphs","quotes","review_reasons"]};
 async function league(raceName="") {
   const row=check(await admin.from("league_state").select("data").eq("season_name","irl-league").single());
-  return publicContext(row.data,tracks,raceName);
+  const context:any=publicContext(row.data,tracks,raceName);
+  const {data:goals,error}=await admin.rpc("brl_bank_public_goals");
+  if(!error) context.manufacturerExpectations=goals;
+  return context;
+}
+const manufacturerTaskSchema={type:"object",additionalProperties:false,properties:{title:{type:"string"},description:{type:"string"},metric:{type:"string",enum:["wins","top5","top10"]},target:{type:"integer",enum:[1,2,3,4]},reward:{type:"integer",enum:[5000,10000,15000,20000,25000]}},required:["title","description","metric","target","reward"]};
+async function manufacturerTask() {
+  const {data:candidates,error}=await admin.rpc("brl_bank_task_candidates");
+  if(error) { if(error.code==="PGRST202"||error.code==="42883")return {pendingMigration:true};throw error; }
+  if(!candidates?.length)return {offered:false};
+  const candidate=candidates[0];
+  const context=await league(candidate.race_name);
+  const task=await generate("You are this team's manufacturer representative in the fictional BRL league economy. Offer ONE optional challenge for the upcoming race, based on their current roster results and required manufacturer expectations. Choose a realistic single-race measurable goal: wins, top5 or top10. Target cannot exceed this team's active driver count. New or struggling teams should target one top10 (5000); consistent top-five teams can target one top5 (10000); winners can target a win (15000) or two top5s (20000); reserve 25000 for a truly difficult multi-driver goal. Mention optional acceptance and that declining/failing has no fine. Rewards are team funding, subject to 5% tax. Do not promise salary, invent standings, disclose contract/account data or change required goals. Title <=160 characters; description <=1000 characters. Do not impersonate a real manufacturer employee.",{...context,manufacturerOffer:candidate},manufacturerTaskSchema);
+  if(task.target>context.drivers.filter((d:any)=>d.team===candidate.team).length)throw new Error("Challenge exceeds active roster size.");
+  await rpc("brl_bank_task_offer",{team_value:candidate.team,race_value:candidate.race_name,title_value:task.title,description_value:task.description,metric_value:task.metric,target_value:task.target,reward_value:task.reward,deadline_value:candidate.deadline});
+  return {offered:true,team:candidate.team};
 }
 async function sourcesFor(context:any) {
   const rows=check(await admin.from("brl_ai_sessions").select("id,driver_name,race_name,messages").eq("season_id",context.seasonId).eq("status","completed").in("kind",["pre","post"]).order("updated_at",{ascending:false}).limit(18));
@@ -155,9 +170,14 @@ Deno.serve(async request=>{
     const isWorker=workerSecret.length>=32&&constantEqual(request.headers.get("x-brl-worker")||"",workerSecret);
     if(isWorker) {
       if(body.action!=="worker")return reply(403,{error:"Invalid worker action."});
+      const banking=await admin.rpc("brl_bank_tick");
+      if(banking.error&&!['PGRST202','42883'].includes(banking.error.code))console.error("Banking worker failed",banking.error.message);
       await rpc("brl_ai_queue_calendar",{force_preview:false});
       await rpc("brl_ai_assign_interviews");
-      return reply(200,await processJob());
+      const media=await processJob();
+      let manufacturer:any={offered:false};
+      try { const settings=check(await admin.from("brl_ai_settings").select("enabled").eq("id",true).single()); if(settings.enabled&&openAIKey)manufacturer=await manufacturerTask(); } catch(error) {console.error("Manufacturer task generation deferred",error instanceof Error?error.message:"Unknown error");}
+      return reply(200,{media,banking:banking.data,manufacturer});
     }
     const bearer=request.headers.get("Authorization")?.replace(/^Bearer\s+/i,"")||"";
     const {data:{user},error}=await admin.auth.getUser(bearer);
