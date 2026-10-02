@@ -1,3 +1,4 @@
+import MediaCenter from "./components/ai/MediaCenter";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import logo from "./assets/logo1.png";
@@ -4479,21 +4480,7 @@ function MobileLeagueApp({
   if (path === "/vote" || path === "/league-vote" || path === "/voting") return dataFrame("League Vote", "more", <LeagueVotingPage drivers={drivers} />);
   if (path === "/notifications") return dataFrame("Notifications", "more", <NotificationsPage />);
   if (path === "/public-interviews") return frame("Public Interviews", "more", <PublicInterviewsPage seriesId="cup" />);
-  if (path === "/interviews") {
-    if (isGuestSession || !mobileSession?.driverNumber) {
-      return frame(
-        "My Interviews",
-        "interviews",
-        <MobileGuestLockedCard title="Interviews Require Driver Login" go={go} />
-      );
-    }
-
-    return frame(
-      "My Interviews",
-      "interviews",
-      <MobileMyInterviewsPage session={mobileSession} />
-    );
-  }
+  if (["/interviews","/media","/strategy"].includes(path)) return frame("Media Center", "interviews", <MediaCenter strategyOnly={path === "/strategy"}/>);
   if (path === "/contracts") return dataFrame("Contracts", "more", <ContractsPage drivers={drivers} />);
   if (path === "/driver-market" || path === "/transfer-portal" || path === "/silly-season") return dataFrame("Driver Market", "more", <DriverMarketPage drivers={drivers || []} raceHistory={raceHistory || []} startParkRequests={[]} paintSchemePayouts={[]} supabase={supabase} />);
   if (path === "/development-requests" || path === "/developmental-requests" || path === "/dev-requests") return dataFrame("Development Requests", "more", (
@@ -9194,6 +9181,7 @@ export default function App() {
   );
 }
   if (path === "/schedule" || path === "/tracks" || path === "/season-schedule") return withLeagueStatusWidget(<SchedulePage tracks={tracks} raceHistory={raceHistory} seasons={seasons} activeSeasonId={activeSeasonId} />);
+  if (["/media","/strategy"].includes(path)) return withUniversalShell(<MediaCenter strategyOnly={path === "/strategy"}/>);
   if (path === "/news") return withLeagueStatusWidget(<NewsPage />);
   if (path === "/paint-scheme-vote") return withLeagueStatusWidget(<PaintSchemeVotePage drivers={visibleDrivers} tracks={tracks} />);
   if (path === "/vote" || path === "/league-vote" || path === "/voting") return <LeagueVotingPage drivers={visibleDrivers} />;
