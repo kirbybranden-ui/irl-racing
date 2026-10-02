@@ -1,3 +1,5 @@
+import MediaCenter from "./components/ai/MediaCenter";
+import { defaultRaces } from "./data/races";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import teamLogoB2J from "./assets/teams/B2J.png";
@@ -114,25 +116,7 @@ function getSatisfactionStatus(score) {
 }
 
 
-const DEFAULT_START_PARK_RACES = [
-  { name: "Daytona (Night)", date: "2026-05-16" },
-  { name: "Charlotte", date: "2026-05-23" },
-  { name: "Nashville", date: "2026-05-30" },
-  { name: "Michigan", date: "2026-06-06" },
-  { name: "Pocono", date: "2026-06-13" },
-  { name: "Bristol (Night)", date: "2026-06-20" },
-  { name: "Las Vegas", date: "2026-06-27" },
-  { name: "Talladega", date: "2026-07-11" },
-  { name: "North Wilkesboro", date: "2026-07-18" },
-  { name: "Indianapolis", date: "2026-07-25" },
-  { name: "New Hampshire", date: "2026-08-01" },
-  { name: "Phoenix", date: "2026-08-08" },
-  { name: "Richmond", date: "2026-08-15" },
-  { name: "Kansas", date: "2026-08-22" },
-  { name: "Texas", date: "2026-08-29" },
-  { name: "Iowa", date: "2026-09-05" },
-  { name: "Homestead", date: "2026-09-12" },
-];
+
 
 const DEVELOPMENT_SERIES_OPTIONS = [
   { value: "xfinity", label: "Xfinity Series" },
@@ -1523,19 +1507,10 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
     return teams.sort((a, b) => getTeamFullName(a).localeCompare(getTeamFullName(b)));
   }, [sanitizedDrivers]);
 
-  const startParkRaceOptions = useMemo(() => {
-    const trackRows = Array.isArray(tracks) && tracks.length
-      ? tracks.map((track) => ({ name: track.name, date: track.date })).filter((track) => track.name)
-      : DEFAULT_START_PARK_RACES;
-    return trackRows.filter((track) => track.date && !getStartParkCutoffInfo(track.date).closed);
-  }, [tracks]);
-
-  const selectedStartParkCutoff = getStartParkCutoffInfo(startParkForm.race_date);
-
   const developmentRaceOptions = useMemo(() => {
     const trackRows = Array.isArray(tracks) && tracks.length
       ? tracks.map((track) => ({ name: track.name, date: track.date })).filter((track) => track.name)
-      : DEFAULT_START_PARK_RACES;
+      : defaultRaces;
     return trackRows.map((track) => track.name).filter(Boolean);
   }, [tracks]);
 
@@ -1756,20 +1731,6 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
         href: `/issues?openChat=${item.issueId}`,
         priority: 5,
       });
-    });
-
-    (startParkRequests || []).forEach((request) => {
-      const status = String(request?.status || "pending").toLowerCase();
-      if (["pending", "approved", "rejected"].includes(status)) {
-        items.push({
-          id: `start-park-${request.id || request.race_name || Math.random()}`,
-          icon: status === "pending" ? "🏁" : status === "approved" ? "✅" : "⚠️",
-          title: status === "pending" ? "Start & Park Request Pending" : status === "approved" ? "Start & Park Approved" : "Start & Park Update",
-          detail: `${request.race_name || "Race"} • ${status.toUpperCase()}`,
-          href: `/driver/${driverNumber}/start-park`,
-          priority: status === "pending" ? 6 : 7,
-        });
-      }
     });
 
     (teamInterestHistory || []).forEach((interest) => {
@@ -2438,114 +2399,6 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
     return () => clearInterval(interval);
   }, [driver?.number, isDriverAuthorized]);
 
-
-  useEffect(() => {
-    if (!driver?.number || !isDriverAuthorized) {
-      setStartParkRequests([]);
-      return;
-    }
-
-    async function loadStartParkRequests() {
-      const { data, error } = await supabase
-        .from("start_park_requests")
-        .select("*")
-        .eq("driver_number", String(driver.number))
-        .order("created_at", { ascending: false });
-
-      if (error) {
-        console.error("Could not load Start & Park requests:", error);
-        setStartParkRequests([]);
-        return;
-      }
-
-      setStartParkRequests(data || []);
-    }
-
-    loadStartParkRequests();
-    const interval = setInterval(loadStartParkRequests, 30000);
-    return () => clearInterval(interval);
-  }, [driver?.number, isDriverAuthorized]);
-
-  function updateStartParkRace(value) {
-    const race = startParkRaceOptions.find((item) => item.name === value) || {};
-    setStartParkForm((current) => ({ ...current, race_name: value, race_date: race.date || "" }));
-  }
-
-  async function submitStartParkRequest(event) {
-    event?.preventDefault?.();
-    setStartParkMessage("");
-    setStartParkError("");
-
-    if (!isDriverAuthorized || !driver) {
-      setStartParkError("Unlock driver access before requesting Start & Park.");
-      return;
-    }
-
-    if (!startParkForm.race_name || !startParkForm.race_date) {
-      setStartParkError("Choose the race you are requesting Start & Park for.");
-      return;
-    }
-
-    const cutoff = getStartParkCutoffInfo(startParkForm.race_date);
-    if (cutoff.closed) {
-      setStartParkError("Start & Park requests are closed for this race. Deadline is Saturday at 9:00 PM ET.");
-      return;
-    }
-
-    const duplicate = (startParkRequests || []).find((request) =>
-      String(request.race_name || "") === String(startParkForm.race_name) &&
-      ["pending", "approved", "applied"].includes(String(request.status || "pending").toLowerCase())
-    );
-
-    if (duplicate) {
-      setStartParkError("You already have an active Start & Park request for this race.");
-      return;
-    }
-
-    const payload = {
-      race_name: startParkForm.race_name,
-      race_date: startParkForm.race_date,
-      driver_id: String(driver.id || ""),
-      driver_number: String(driver.number || ""),
-      driver_name: driver.name || "",
-      team: driver.team || "Independent",
-      manufacturer: driver.manufacturer || "",
-      requested_by_type: "driver",
-      requested_by_name: driver.name || `#${driver.number}`,
-      requested_by_team: driver.team || "Independent",
-      reason: String(startParkForm.reason || "").trim(),
-      status: "pending",
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-
-    setStartParkSubmitting(true);
-    const { data, error } = await supabase.from("start_park_requests").insert([payload]).select().single();
-    setStartParkSubmitting(false);
-
-    if (error) {
-      console.error("Could not submit Start & Park request:", error);
-      setStartParkError("Could not submit request. Check start_park_requests insert policy and columns.");
-      return;
-    }
-
-    await supabase.from("league_messages").insert([{
-      message_type: "start_park_request",
-      sender_type: "driver",
-      sender_driver_number: String(driver.number || ""),
-      sender_name: driver.name || `#${driver.number}`,
-      recipient_type: "league",
-      subject: `Start & Park Request: #${driver.number} ${driver.name}`,
-      message: `${driver.name || `#${driver.number}`} requested Start & Park for ${startParkForm.race_name}.`,
-      related_page: "/admin",
-      related_id: data?.id || null,
-      created_at: new Date().toISOString(),
-    }]);
-
-    setStartParkRequests((current) => [data || payload, ...(current || [])]);
-    setStartParkForm({ race_name: "", race_date: "", reason: "" });
-    setStartParkMessage("Start & Park request sent to Race Control. If approved, you will be placed at the rear based on request receipt order.");
-  }
 
   function updateTeamInterestField(field, value) {
     setTeamInterestForm((current) => ({ ...current, [field]: value }));
@@ -3437,63 +3290,6 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
     );
   }
 
-  if (subPage === "start-park") {
-    return (
-      <div style={{ ...appShellStyle, background: `radial-gradient(circle at top, ${teamTheme.glow} 0%, rgba(245,245,247,0.95) 34%, rgba(229,229,234,0.98) 100%)` }}>
-        <div style={pageContainerStyle}>
-          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20, flexWrap: "wrap" }}>
-            <button onClick={() => window.location.pathname = `/driver/${driverNumber}`} style={secondaryButtonStyle}>← Back to Profile</button>
-            <div>
-              <div style={{ fontSize: 22, fontWeight: 900 }}>#{driver.number} {driver.name} — Start & Park Request</div>
-              <div style={{ fontSize: 13, opacity: 0.6, marginTop: 2 }}>Requests close Saturday at 9:00 PM ET. Race Control approves requests and places approved cars at the rear by receipt order.</div>
-            </div>
-            {isDriverAuthorized && <button onClick={lockDriverContracts} style={{ ...secondaryButtonStyle, marginLeft: "auto" }}>Lock Driver Access</button>}
-          </div>
-
-          <form onSubmit={submitStartParkRequest} style={{ ...sectionCardStyle, borderColor: teamTheme.accent }}>
-            <h2 style={{ marginTop: 0 }}>🏁 Request Start & Park</h2>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>RACE</div>
-                <select value={startParkForm.race_name} onChange={(event) => updateStartParkRace(event.target.value)} style={inputStyle}>
-                  <option value="">Select race</option>
-                  {startParkRaceOptions.map((race) => <option key={race.name} value={race.name}>{race.name} — deadline 9:00 PM ET</option>)}
-                </select>
-              </div>
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>STATUS</div>
-                <div style={{ ...inputStyle, color: selectedStartParkCutoff.closed ? "#f87171" : "#4ade80", fontWeight: 900 }}>
-                  {startParkForm.race_name ? (selectedStartParkCutoff.closed ? "Closed" : "Open") : "Choose a race"}
-                </div>
-              </div>
-            </div>
-            <div style={{ marginTop: 12 }}>
-              <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>REASON OPTIONAL</div>
-              <textarea value={startParkForm.reason} onChange={(event) => setStartParkForm((current) => ({ ...current, reason: event.target.value }))} style={{ ...inputStyle, minHeight: 90, resize: "vertical" }} placeholder="Reason for Start & Park request" maxLength={500} />
-            </div>
-            <div style={{ marginTop: 12, opacity: 0.72, fontSize: 13 }}>{startParkForm.race_name ? selectedStartParkCutoff.label : "Requests must be submitted before Saturday 9:00 PM ET."}</div>
-            <button type="submit" disabled={startParkSubmitting || selectedStartParkCutoff.closed} style={{ ...themedPrimaryButtonStyle, marginTop: 14, opacity: startParkSubmitting || selectedStartParkCutoff.closed ? 0.6 : 1 }}>{startParkSubmitting ? "Submitting..." : "Submit Start & Park Request"}</button>
-            {startParkMessage && <div style={{ marginTop: 12, color: "#4ade80", fontWeight: 900 }}>{startParkMessage}</div>}
-            {startParkError && <div style={{ marginTop: 12, color: "#f87171", fontWeight: 900 }}>{startParkError}</div>}
-          </form>
-
-          <div style={sectionCardStyle}>
-            <h2 style={{ marginTop: 0 }}>Request History</h2>
-            <div style={{ overflowX: "auto" }}>
-              <table style={tableStyle}>
-                <thead><tr><th style={thStyle}>Race</th><th style={thStyle}>Requested</th><th style={thStyle}>Status</th><th style={thStyle}>Reason</th></tr></thead>
-                <tbody>
-                  {startParkRequests.map((request) => <tr key={request.id || `${request.race_name}-${request.created_at}`}><td style={tdStyle}>{request.race_name}</td><td style={tdStyle}>{request.created_at ? new Date(request.created_at).toLocaleString() : "—"}</td><td style={{ ...tdStyle, fontWeight: 900 }}>{String(request.status || "pending").toUpperCase()}</td><td style={tdStyle}>{request.reason || "—"}</td></tr>)}
-                  {startParkRequests.length === 0 && <tr><td style={tdStyle} colSpan={4}>No Start & Park requests yet.</td></tr>}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   if (subPage === "settings") {
     return (
       <div style={{ ...appShellStyle, background: `radial-gradient(circle at top, ${teamTheme.glow} 0%, rgba(245,245,247,0.95) 34%, rgba(229,229,234,0.98) 100%)` }}>
@@ -4049,228 +3845,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
     );
   }
 
-  if (subPage === "interviews") {
-    const activeInterviews = isArcaDriver ? arcaInterviews : interviews;
-    const completedInterviews = activeInterviews.filter((item) => item.answered).length;
-    const pendingInterviews = activeInterviews.length - completedInterviews;
-
-    return (
-      <div
-        style={{
-          ...appShellStyle,
-          background:
-            "radial-gradient(circle at 10% -8%, rgba(0,122,255,0.14), transparent 30%), radial-gradient(circle at 100% 0%, rgba(88,86,214,0.10), transparent 28%), linear-gradient(180deg, #f7f7fa 0%, #ececf1 100%)",
-        }}
-      >
-        <div style={{ ...pageContainerStyle, maxWidth: 820, paddingBottom: 120 }}>
-          <header
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              gap: 14,
-              padding: "8px 2px 22px",
-              flexWrap: "wrap",
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => (window.location.pathname = `/driver/${driverNumber}`)}
-              style={{
-                width: 42,
-                height: 42,
-                borderRadius: "50%",
-                border: "1px solid rgba(0,0,0,0.07)",
-                background: "rgba(255,255,255,0.78)",
-                color: "#1d1d1f",
-                fontFamily: appleFont,
-                fontSize: 22,
-                fontWeight: 850,
-                cursor: "pointer",
-                boxShadow: "0 8px 24px rgba(15,23,42,0.07)",
-                backdropFilter: "blur(18px)",
-                WebkitBackdropFilter: "blur(18px)",
-              }}
-              aria-label="Back to driver profile"
-            >
-              ‹
-            </button>
-
-            <div style={{ textAlign: "center", flex: "1 1 220px" }}>
-              <div
-                style={{
-                  color: "#86868b",
-                  fontSize: 11,
-                  fontWeight: 950,
-                  letterSpacing: "0.08em",
-                  textTransform: "uppercase",
-                }}
-              >
-                #{driver.number} {driver.name}
-              </div>
-              <h1
-                style={{
-                  margin: "5px 0 0",
-                  color: "#1d1d1f",
-                  fontSize: "clamp(27px, 7vw, 36px)",
-                  fontWeight: 1000,
-                  letterSpacing: "-0.045em",
-                  lineHeight: 1,
-                }}
-              >
-                My Interviews
-              </h1>
-            </div>
-
-            <div style={{ width: 42, height: 42 }} aria-hidden="true" />
-          </header>
-
-          <section
-            style={{
-              background: "linear-gradient(145deg, rgba(255,255,255,0.96), rgba(250,250,252,0.78))",
-              border: "1px solid rgba(255,255,255,0.95)",
-              borderRadius: 30,
-              padding: "clamp(20px, 5vw, 28px)",
-              marginBottom: 20,
-              boxShadow: "0 24px 70px rgba(15,23,42,0.09)",
-              backdropFilter: "blur(24px)",
-              WebkitBackdropFilter: "blur(24px)",
-            }}
-          >
-            <div
-              style={{
-                width: 52,
-                height: 52,
-                borderRadius: 18,
-                background: "linear-gradient(145deg, #35a0ff, #007aff)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 24,
-                boxShadow: "0 15px 32px rgba(0,122,255,0.28)",
-                marginBottom: 18,
-              }}
-            >
-              🎙️
-            </div>
-
-            <h2
-              style={{
-                margin: 0,
-                color: "#1d1d1f",
-                fontSize: "clamp(24px, 6vw, 31px)",
-                fontWeight: 1000,
-                letterSpacing: "-0.035em",
-              }}
-            >
-              Interview Center
-            </h2>
-
-            <p
-              style={{
-                margin: "8px 0 20px",
-                color: "#6e6e73",
-                fontSize: 14.5,
-                lineHeight: 1.5,
-                fontWeight: 650,
-                maxWidth: 560,
-              }}
-            >
-              Complete your assigned pre-race and post-race interviews. Your responses are sent directly to league administration.
-            </p>
-
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-                gap: 10,
-              }}
-            >
-              <div
-                style={{
-                  background: "rgba(255,149,0,0.09)",
-                  border: "1px solid rgba(255,149,0,0.17)",
-                  borderRadius: 19,
-                  padding: "14px 15px",
-                }}
-              >
-                <div style={{ color: "#9a5a00", fontSize: 23, fontWeight: 1000 }}>{pendingInterviews}</div>
-                <div style={{ color: "#9a5a00", fontSize: 11.5, fontWeight: 900, marginTop: 2 }}>Pending</div>
-              </div>
-
-              <div
-                style={{
-                  background: "rgba(52,199,89,0.09)",
-                  border: "1px solid rgba(52,199,89,0.17)",
-                  borderRadius: 19,
-                  padding: "14px 15px",
-                }}
-              >
-                <div style={{ color: "#147d35", fontSize: 23, fontWeight: 1000 }}>{completedInterviews}</div>
-                <div style={{ color: "#147d35", fontSize: 11.5, fontWeight: 900, marginTop: 2 }}>Completed</div>
-              </div>
-            </div>
-          </section>
-
-          {arcaInterviewsLoading && isArcaDriver ? (
-            <div
-              style={{
-                background: "rgba(255,255,255,0.82)",
-                border: "1px solid rgba(255,255,255,0.95)",
-                borderRadius: 24,
-                padding: 28,
-                color: "#6e6e73",
-                textAlign: "center",
-                fontWeight: 800,
-                boxShadow: "0 18px 50px rgba(15,23,42,0.07)",
-              }}
-            >
-              Loading interviews…
-            </div>
-          ) : activeInterviews.length === 0 ? (
-            <div
-              style={{
-                background: "rgba(255,255,255,0.84)",
-                border: "1px solid rgba(255,255,255,0.95)",
-                borderRadius: 28,
-                padding: "38px 22px",
-                textAlign: "center",
-                boxShadow: "0 20px 55px rgba(15,23,42,0.07)",
-              }}
-            >
-              <div style={{ fontSize: 34, marginBottom: 10 }}>✓</div>
-              <div style={{ color: "#1d1d1f", fontSize: 19, fontWeight: 1000 }}>You're all caught up</div>
-              <div style={{ color: "#86868b", fontSize: 13.5, fontWeight: 650, marginTop: 6 }}>
-                No interviews are assigned right now.
-              </div>
-            </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-              {activeInterviews.map((interview) => (
-                <InterviewAnswerCard
-                  key={interview.id}
-                  interview={interview}
-                  accent={teamTheme.accent}
-                  onAnswered={(updated) => {
-                    if (isArcaDriver) {
-                      setArcaInterviews((current) =>
-                        current.map((item) => (item.id === updated.id ? updated : item))
-                      );
-                    } else {
-                      setInterviews((current) =>
-                        current.map((item) => (item.id === updated.id ? updated : item))
-                      );
-                    }
-                  }}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
+  if (subPage === "interviews") return <div style={{padding:24}}><a href={`/driver/${driverNumber}`}>Back to profile</a><MediaCenter/></div>;
 
   if (subPage === "upload") {
     return (
@@ -4449,7 +4024,6 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
                     { icon: "🎯", label: "Assignments", href: `/driver/${driverNumber}/assignments` },
                     { icon: "😊", label: "Driver Feedback", href: `/driver/${driverNumber}/feedback` },
                     { icon: "🤝", label: "Team Interest", href: `/driver/${driverNumber}/team-interest` },
-                    { icon: "🏁", label: "Start & Park", href: `/driver/${driverNumber}/start-park` },
                     { icon: "🔄", label: "Transfer Portal", href: `/driver/${driverNumber}/portal` },
                     { icon: "🌐", label: "Community Events", href: "/community-events" },
                     { icon: "🎨", label: "Paint Scheme Vote", href: "/paint-scheme-vote" },
