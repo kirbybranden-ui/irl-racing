@@ -54,3 +54,38 @@ export function validateArticle(output: any, sources: any[]) {
   if (!Array.isArray(output.review_reasons) || output.review_reasons.some((r: any) => typeof r !== "string")) throw new Error("Invalid review flags.");
   return { title: output.title, content: [...output.paragraphs, ...quotes.map(q => `“${q.text}” — ${q.driver}`)].join("\n\n"), quotes, reviewReasons: output.review_reasons };
 }
+
+// Keep reporter continuity limited to this driver's cleared race interviews.
+export function reporterMemory(sessions: any[] = []) {
+  return sessions.filter(s => s.status === "completed" && ["pre", "post"].includes(s.kind)).slice(0, 2).map(s => ({
+    race: s.race_name, kind: s.kind,
+    messages: (s.messages || []).filter((m:any) => ["user", "assistant"].includes(m.role)).slice(-7)
+      .map((m:any) => ({role:m.role,text:String(m.text || "").slice(0,700),reporter:m.reporter_id || s.persona})),
+    issues: s.reporter_issues || [],
+  }));
+}
+export function reporterChoices(session: any, userTurns: number) {
+  const current = personalities.find(p => p.id === session.persona) || personalities[0];
+  if (session.kind === "strategy" || userTurns < 1 || userTurns >= 3) return [current];
+  const speakers = new Set((session.messages || []).filter((m:any) => m.role === "assistant").map((m:any) => m.reporter_id || session.persona));
+  if (speakers.size > 1) return [current];
+  const pool = personalities.filter(p => !["crew", "letarte"].includes(p.id));
+  const alternate = current.id === "pit" ? pool.find(p => p.id === "driver")! : pool[(pool.findIndex(p => p.id === current.id) + 1) % pool.length];
+  return [current, alternate];
+}
+export function validateReporterResponse(output:any, session:any, userTurns:number) {
+  const allowed = reporterChoices(session, userTurns);
+  if (!allowed.some(p => p.id === output.reporter_id)) throw new Error("The reporter handoff was invalid. Retry your saved reply.");
+  const quote = output.issue_quote, reporter = output.issue_reporter;
+  if (quote === null && reporter === null) return null;
+  const person = personalities.find(p => p.id === reporter);
+  const answers = (session.messages || []).filter((m:any) => m.role === "user");
+  // A stored grievance must be an exact excerpt from this driver's current answers,
+  // and name the reporter explicitly. The model determines expressed dissatisfaction.
+  if (!person || typeof quote !== "string" || !quote.trim() || quote.length > 700 ||
+      !answers.some((m:any) => String(m.text).includes(quote)) ||
+      !(person.id === "driver" ? /regan|reagan/i.test(quote) : quote.toLowerCase().includes(person.name.split(" ")[0].toLowerCase()))) {
+    throw new Error("The reporter history did not match a real driver answer. Retry your saved reply.");
+  }
+  return {reporter_id:reporter,quote};
+}
