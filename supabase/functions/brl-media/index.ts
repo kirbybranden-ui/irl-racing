@@ -6,7 +6,7 @@ const url = Deno.env.get("SUPABASE_URL")!;
 const service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const openAIKey = Deno.env.get("OPENAI_API_KEY");
 const workerSecret = Deno.env.get("BRL_AI_WORKER_SECRET") || "";
-const model = Deno.env.get("BRL_AI_MODEL") || "gpt-5-mini";
+const model = Deno.env.get("BRL_AI_MODEL") || "gpt-5-mini-2025-08-07";
 const origins = (Deno.env.get("BRL_ALLOWED_ORIGINS") || "https://irl-racing.vercel.app").split(",").map(s => s.trim());
 const admin = createClient(url, service, { auth: { persistSession: false, autoRefreshToken: false } });
 const check = (r: any) => { if (r.error) throw new Error(r.error.message); return r.data; };
@@ -16,6 +16,15 @@ function constantEqual(a: string, b: string) { let diff=a.length^b.length; for(l
 async function aiRequest(path: string, body: any) {
   if (!openAIKey) throw new Error("AI media is not configured. Add OPENAI_API_KEY to Edge Function secrets.");
   if (!await rpc("brl_ai_take_budget")) throw new Error("AI media is paused or its daily request limit has been reached.");
+  if(path==="responses") {
+    if(!["gpt-5-mini","gpt-5-mini-2025-08-07"].includes(body.model))throw new Error("This model is not covered by the $20 monthly budget. Use gpt-5-mini.");
+    // Conservative bound: UTF-8 bytes overestimate text tokens; extra overhead
+    // covers message/schema framing. Reserve the full output cap, including reasoning.
+    // GPT-5 mini: $0.25/M input, $2/M output; add a 25% safety margin.
+    const inputBound=new TextEncoder().encode(JSON.stringify(body)).length+8192;
+    const reserve=Math.ceil((inputBound*0.25+body.max_output_tokens*2)*1.25);
+    if(!await rpc("brl_ai_reserve_monthly",{cost_micro_usd:reserve}))throw new Error("The monthly AI allowance has been reached. AI will resume next month.");
+  }
   const response = await fetch(`https://api.openai.com/v1/${path}`, { method: "POST", headers: { Authorization: `Bearer ${openAIKey}`, "Content-Type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(path === "moderations" ? 15000 : 60000) });
   const result = await response.json();
   if (!response.ok) {
@@ -34,7 +43,7 @@ async function moderate(text: string) {
 }
 async function generate(task: string, context: any, schema: any) {
   const response = await aiRequest("responses", {
-    model, store: false, max_output_tokens: 5000,
+    model, store: false, max_output_tokens: schema===turnSchema ? 2500 : 3500,
     ...(model.startsWith("gpt-5") ? { reasoning: { effort: "low" } } : {}),
     input: [{role:"developer",content:editorialRules+"\n"+task},{role:"user",content:JSON.stringify(context)}],
     text: { format: { type: "json_schema", name: "brl_media", strict: true, schema } },
@@ -56,14 +65,42 @@ async function sourcesFor(context:any) {
 }
 async function processJob() {
   const j=await rpc("brl_ai_claim_job"); if(!j)return {processed:0};
+  let openingReservation:any=null;
   try {
     const context=await league(j.race_name);
     if(String(context.seasonId)!==String(j.season_id)) {
       check(await admin.from("brl_ai_jobs").update({status:"cancelled",error:"Season is no longer active.",lease_until:null}).eq("id",j.id).eq("lease_token",j.lease_token));
       return {processed:0,cancelled:true};
     }
+    if(j.kind==="opening") {
+      const session=check(await admin.from("brl_ai_sessions").select("*").eq("id",j.session_id).single());
+      if(session.status!=="active" || session.messages.length) {
+        check(await admin.from("brl_ai_jobs").update({status:"done",lease_until:null,error:null}).eq("id",j.id).eq("lease_token",j.lease_token));
+        return {processed:1,alreadyOpened:true};
+      }
+      if(!context.track || (session.kind==="post"&&!context.selectedRace))throw new Error("Race is no longer available for this interview.");
+      const driver=context.drivers.find((d:any)=>String(d.id)===String(session.driver_id));
+      if(!driver) {
+        check(await admin.from("brl_ai_jobs").update({status:"cancelled",lease_until:null,error:"Driver is no longer on the active roster."}).eq("id",j.id).eq("lease_token",j.lease_token));
+        return {processed:0,cancelled:true};
+      }
+      const token=crypto.randomUUID();
+      openingReservation=await rpc("brl_ai_reserve_turn",{target:session.id,expected_version:session.version,user_answer:null,token});
+      const persona=personalities.find(p=>p.id===session.persona)||personalities[0];
+      const output=await generate(`Conduct an opening ${session.kind==="pre"?"pre-race":"post-race"} interview as an AI persona inspired by ${persona.name}. ${persona.style} Ask exactly ONE concise, natural question addressed to this driver, grounded in the supplied race facts. For post-race use the driver's actual result; do not confuse drivers. No invented quotes or answers. Do not claim to be the real broadcaster. Set done=false.`,{...context,driver,kind:session.kind},turnSchema);
+      if(typeof output.reply!=="string"||!output.reply.trim()||output.reply.length>700||!Array.isArray(output.review_reasons))throw new Error("Invalid opening question.");
+      const flags=[...new Set([...output.review_reasons,...await moderate(output.reply)])];
+      const latest=await league(j.race_name);
+      if(latest.seasonId!==context.seasonId||!latest.track)throw new Error("Race or season changed during generation.");
+      const settings=check(await admin.from("brl_ai_settings").select("enabled").eq("id",true).single());
+      if(!settings.enabled)throw new Error("Automation was paused before publication.");
+      await rpc("brl_ai_finish_turn",{target:session.id,token,reply_text:output.reply,closed:false,flags});
+      openingReservation=null;
+      check(await admin.from("brl_ai_jobs").update({status:"done",lease_until:null,error:null,updated_at:new Date().toISOString()}).eq("id",j.id).eq("lease_token",j.lease_token));
+      return {processed:1,interviewId:session.id};
+    }
     if(j.kind==="recap"&&!context.selectedRace) throw new Error("Published race results are no longer available.");
-    if(j.kind==="preview"&&!context.track) throw new Error("This race was removed from the schedule.");
+    if(["preview","strategy"].includes(j.kind)&&!context.track) throw new Error("This race was removed from the schedule.");
     if(j.kind==="interview") {
       const s=check(await admin.from("brl_ai_sessions").select("status").eq("id",j.session_id).single());
       if(s.status!=="completed")throw new Error("Interview is not cleared for publication.");
@@ -74,9 +111,9 @@ async function processJob() {
       const own=focused.messages.filter((m:any)=>m.role==="user").map((m:any)=>({id:`${focused.id}:${m.id}`,driver:focused.driver_name,race:focused.race_name,text:m.text}));
       sources=[...own,...sources.filter((s:any)=>!s.id.startsWith(`${focused.id}:`))].slice(0,70);
     }
-    const persona=personalities.find(p=>p.id===(j.kind==="preview"?"crew":j.kind==="recap"?"champion":"story"))!;
+    const persona=personalities.find(p=>p.id===(["preview","strategy"].includes(j.kind)?"crew":j.kind==="recap"?"champion":"story"))!;
     const output=await generate(`Write a vivid 250–500 word ${j.kind} article as ${persona.name}, ${persona.role}. ${persona.style}
-For a preview: track strategy, drivers to watch, standings battles, interview storylines; distinguish predictions from verified performance. For a recap use selectedRace only for that race's finish. For interview coverage prioritize sources beginning with the requested session ID, and use actual answers.
+For strategy coverage: write a public crew-chief briefing with general racing explanations and this track's practical tradeoffs. Cover saving fuel versus running hard, tire falloff, pit timing and car balance at 50% distance and 3x fuel AND tire wear. Explain uncertainty; never expose private driver setup conversations. Use varied topics instead of repeating a checklist. Do not pretend to have measured practice data or invent setup controls. For a preview: track strategy, drivers to watch, standings battles, interview storylines; distinguish predictions from verified performance. For a recap use selectedRace only for that race's finish. For interview coverage prioritize sources beginning with the requested session ID, and use actual answers.
 Narrative paragraphs MUST NOT contain quotation marks, attributed direct speech, or invented quotes. Put up to 4 literal excerpts ONLY in quotes, using exact source IDs and exact substrings. No markdown. Review reasons cover private information and serious unsupported accusations in both source material and output. Ordinary criticism and racing trash talk are allowed.`,{...context,sources,interviewSession:j.session_id||null},articleSchema);
     const article=validateArticle(output,sources);
     const flags=[...article.reviewReasons,...await moderate(article.title+"\n"+article.content)];
@@ -84,11 +121,12 @@ Narrative paragraphs MUST NOT contain quotation marks, attributed direct speech,
     const latest=await league(j.race_name);
     if(String(latest.seasonId)!==String(j.season_id))throw new Error("Active season changed during generation.");
     if(JSON.stringify(latest.selectedRace)!==JSON.stringify(context.selectedRace)||JSON.stringify(latest.track)!==JSON.stringify(context.track))throw new Error("Race data changed during generation. Retrying with current facts.");
-    const id=await rpc("brl_ai_publish_job",{target:j.id,token:j.lease_token,article:{...article,category:j.kind==="preview"?"Race Preview":j.kind==="recap"?"Race Recap":"Paddock Interview",byline:`${persona.name} · BRL AI Media`,image_url:context.track?.facts?.imageUrl||null,status:flags.length?"review":"published",review_reasons:[...new Set(flags)],source_snapshot:{...context,sources}}});
+    const id=await rpc("brl_ai_publish_job",{target:j.id,token:j.lease_token,article:{...article,category:j.kind==="strategy"?"Track Strategy":j.kind==="preview"?"Race Preview":j.kind==="recap"?"Race Recap":"Paddock Interview",byline:`${persona.name} · BRL AI Media`,image_url:context.track?.facts?.imageUrl||null,status:flags.length?"review":"published",review_reasons:[...new Set(flags)],source_snapshot:{...context,sources}}});
     return {processed:1,articleId:id,held:flags.length>0};
   } catch(error) {
+    if(openingReservation)await admin.from("brl_ai_sessions").update({lease_until:null,lease_token:null}).eq("id",openingReservation.id).eq("lease_token",openingReservation.lease_token);
     const message=error instanceof Error?error.message:"Article generation failed.";
-    check(await admin.from("brl_ai_jobs").update({status:message.includes("daily request limit")?"pending":j.attempts>=3?"failed":"pending",attempts:message.includes("daily request limit")?j.attempts-1:j.attempts,error:message,lease_until:null,updated_at:new Date().toISOString()}).eq("id",j.id).eq("lease_token",j.lease_token));
+    check(await admin.from("brl_ai_jobs").update({status:/daily request limit|monthly AI allowance|already responding|Conversation changed/.test(message)?"pending":j.attempts>=3?"failed":"pending",attempts:/daily request limit|monthly AI allowance|already responding|Conversation changed/.test(message)?j.attempts-1:j.attempts,error:message,lease_until:null,updated_at:new Date().toISOString()}).eq("id",j.id).eq("lease_token",j.lease_token));
     throw error;
   }
 }
@@ -107,6 +145,7 @@ Deno.serve(async request=>{
     if(isWorker) {
       if(body.action!=="worker")return reply(403,{error:"Invalid worker action."});
       await rpc("brl_ai_queue_calendar",{force_preview:false});
+      await rpc("brl_ai_assign_interviews");
       return reply(200,await processJob());
     }
     const bearer=request.headers.get("Authorization")?.replace(/^Bearer\s+/i,"")||"";
@@ -127,6 +166,7 @@ Deno.serve(async request=>{
         check(await admin.from("brl_ai_jobs").update({status:"pending",attempts:0,error:null,lease_until:null}).eq("id",body.jobId).eq("status",job.status));
       }
       await rpc("brl_ai_queue_calendar",{force_preview:body.action==="preview"});
+      await rpc("brl_ai_assign_interviews");
       return reply(200,await processJob());
     }
     const allowed=await rpc("brl_login_allowed",{bucket_key:`ai-media:${user.id}`});
@@ -153,6 +193,7 @@ Deno.serve(async request=>{
       if(String(session.driver_id)!==String(account.driver_id))return reply(403,{error:"You can only answer your own interview."});
       if(!Number.isInteger(body.version)||body.version!==session.version)return reply(409,{error:"Conversation changed. Reload before replying."});
     } else return reply(400,{error:"Unknown media action."});
+    if(body.action==="answer" && session.messages.filter((m:any)=>m.role==="user").length>=3)return reply(409,{error:"The three-question limit has been reached. Wrap up this interview."});
     const context=await league(session.race_name);
     if(String(session.season_id)!==String(context.seasonId))return reply(409,{error:"This interview belongs to a previous season."});
     const driver=context.drivers.find((d:any)=>String(d.id)===String(account.driver_id));
@@ -169,13 +210,13 @@ Deno.serve(async request=>{
     let output:any;
     if(flags.length)output={reply:"Let's pause here. This interview needs a league admin to check it before we continue.",done:true,review_reasons:flags};
     else output=await generate(`You are an AI persona inspired by ${persona.name}, serving as a BRL ${persona.role}. You are not the real person and must never claim their identity, endorsement or personal experiences. ${persona.style}
-Have a real conversation. Opening: ONE concise question based on driver and race evidence. After each answer acknowledge something specific and ask at most ONE useful follow-up. No question lists, no repeated canned questions, no answering for the driver. Emotion and racing banter should flow from what the driver actually says. Never pressure a reluctant driver. Conclude naturally when there is no useful follow-up or when driver asks to stop; completed interviews require at least one driver answer. Whenever a pre-race or post-race interview ends, close like a TV pit reporter: thank the driver by their supplied name, briefly acknowledge one specific point from their actual answers when available, and finish with a natural sign-off suited to the race context. Use 1-3 short sentences in your own personality. Do not invent quotes, results, broadcast colleagues, or future events. Do not ask another question or invite another answer in a closing. For a strategy conversation, instead give a brief supportive crew-chief wrap-up based on the discussion. ${body.action==="finish"||userTurns>=12?"Wrap up has been requested. Your entire reply must be the final sign-off described above, with no further question. Set done=true.":""}
-For strategy mode help with practice and handling, asking one clarifying question as needed. Flag private information or unsupported serious accusations in driver answers. Keep reply under 1600 characters.`,{...context,driver,kind:reserved.kind,transcript:reserved.messages.map((m:any)=>({role:m.role,text:m.text}))},turnSchema);
-    if(typeof output.reply!=="string"||!output.reply.trim()||output.reply.length>1600||typeof output.done!=="boolean"||!Array.isArray(output.review_reasons))throw new Error("The interviewer response was invalid. Retry your saved reply.");
+Have a real conversation. Opening: ONE concise question based on driver and race evidence. After each answer acknowledge something specific and ask at most ONE useful follow-up. Interviews have a maximum of THREE driver answers. Ask concise questions in 1-2 sentences; after the third answer, thank the driver and close. No question lists, no repeated canned questions, no answering for the driver. Emotion and racing banter should flow from what the driver actually says. Never pressure a reluctant driver. Conclude naturally when there is no useful follow-up or when driver asks to stop; completed interviews require at least one driver answer. Whenever a pre-race or post-race interview ends, close like a TV pit reporter: thank the driver by their supplied name, briefly acknowledge one specific point from their actual answers when available, and finish with a natural sign-off suited to the race context. Use 1-3 short sentences in your own personality. Do not invent quotes, results, broadcast colleagues, or future events. Do not ask another question or invite another answer in a closing. For a strategy conversation, instead give a brief supportive crew-chief wrap-up based on the discussion. ${body.action==="finish"||userTurns>=3?"Wrap up has been requested. Your entire reply must be the final sign-off described above, with no further question. Set done=true.":""}
+For strategy mode help with practice and handling, asking one clarifying question as needed. Flag private information or unsupported serious accusations in driver answers. Keep reply under 700 characters.`,{...context,driver,kind:reserved.kind,transcript:reserved.messages.map((m:any)=>({role:m.role,text:m.text}))},turnSchema);
+    if(typeof output.reply!=="string"||!output.reply.trim()||output.reply.length>700||typeof output.done!=="boolean"||!Array.isArray(output.review_reasons))throw new Error("The interviewer response was invalid. Retry your saved reply.");
     const outputFlags=await moderate(output.reply);
     const reviewReasons=[...new Set([...flags,...output.review_reasons,...outputFlags])];
     if(!userTurns&&!reviewReasons.length)output.done=false;
-    const result=await rpc("brl_ai_finish_turn",{target:reserved.id,token,reply_text:output.reply,closed:output.done||body.action==="finish"||userTurns>=12,flags:reviewReasons});
+    const result=await rpc("brl_ai_finish_turn",{target:reserved.id,token,reply_text:output.reply,closed:output.done||body.action==="finish"||userTurns>=3,flags:reviewReasons});
     reserved=null;
     return reply(200,{session:result});
   } catch(error) {
