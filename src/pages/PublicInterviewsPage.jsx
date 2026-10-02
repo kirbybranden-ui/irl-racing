@@ -42,8 +42,8 @@ export default function PublicInterviewsPage() {
     {!loading && !error && !items.length && <p>Completed interviews will appear here automatically.</p>}
     {items.map(s => <article key={s.id}><p>{s.kind === "pre" ? "Pre-race" : "Post-race"} · {s.race_name} · {mediaPersonas.find(p => p[0] === s.persona)?.[1] || "BRL Reporter"} (AI)</p>
       <h3>{s.driver_name}</h3><details><summary>Read interview</summary>
-        {interviewPairs(s.messages).map((p, i) => <div key={i}><p><strong>{p.question}</strong></p><p>{p.answer}</p></div>)}
-        {s.messages?.at(-1)?.role === "assistant" && <p><strong>{mediaPersonas.find(p => p[0] === s.persona)?.[1] || "BRL Reporter"} (AI): </strong>{s.messages.at(-1).text}</p>}
+        {interviewPairs(s.messages).map((p, i) => <div key={i}><p><strong>{mediaPersonas.find(r => r[0] === (p.reporterId || s.persona))?.[1]} (AI): {p.question}</strong></p><p>{p.answer}</p></div>)}
+        {s.messages?.at(-1)?.role === "assistant" && <p><strong>{mediaPersonas.find(p => p[0] === (s.messages.at(-1).reporter_id || s.persona))?.[1] || "BRL Reporter"} (AI): </strong>{s.messages.at(-1).text}</p>}
       </details></article>)}
     <p className="brl-ai-notice">AI personas are inspired by NASCAR broadcasters, not the real people or endorsed by them. Driver answers are their own words.</p>
   </main>;
