@@ -29,18 +29,18 @@ function timeAgo(dateString) {
 export default function NewsPage() {
   const [news, setNews] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [expanded,setExpanded]=useState({});
+  const [loadError,setLoadError]=useState("");
 
   useEffect(() => {
     async function loadNews() {
-      const { data, error } = await supabase
-        .from("news")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      console.log("NEWS DATA:", data);
-      console.log("NEWS ERROR:", error);
-
-      if (!error) setNews(data || []);
+      const state = await supabase.rpc("brl_read_league");
+      const [legacy,ai] = await Promise.all([
+        supabase.from("news").select("*").order("created_at",{ascending:false}),
+        supabase.from("brl_ai_articles").select("id,title,content,category,byline,image_url,created_at").eq("status","published").eq("season_id",state.data?.activeSeasonId || "").order("created_at",{ascending:false})
+      ]);
+      if(legacy.error || ai.error || state.error)setLoadError("Some news could not load. Please refresh.");
+      setNews([...(legacy.data || []),...(ai.data || [])].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)));
       setLoading(false);
     }
 
@@ -237,6 +237,8 @@ export default function NewsPage() {
                     fontWeight: 400,
                   }}
                 >
+                  {leadStory.byline && <p><small>{leadStory.byline}</small></p>}
+                  {loadError && <p role="alert">{loadError}</p>}
                   {leadStory.content}
                 </div>
               </div>
@@ -313,13 +315,15 @@ export default function NewsPage() {
                           lineHeight: 1.5,
                           whiteSpace: "pre-line",
                           display: "-webkit-box",
-                          WebkitLineClamp: 2,
+                          WebkitLineClamp: expanded[post.id] ? undefined : 2,
                           WebkitBoxOrient: "vertical",
                           overflow: "hidden",
                         }}
                       >
                         {post.content}
                       </div>
+                      {post.byline && <small>{post.byline}</small>}
+                      <button type="button" onClick={()=>setExpanded({...expanded,[post.id]:!expanded[post.id]})}>{expanded[post.id]?"Show less":"Read full article"}</button>
                     </div>
 
                     {post.image_url && (
