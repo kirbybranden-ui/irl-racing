@@ -99,7 +99,7 @@ export default function TeamDetailPage({
   const latestRace = raceHistory?.[raceHistory.length - 1] || null;
   const latestResults = latestRace?.results || [];
 
-  const points = roster.reduce((s, d) => s + (Number(d.points) || 0), 0);
+  const points = raceHistory?.some(r => r.results?.some(v => v.teamPoints !== undefined)) ? raceHistory.reduce((sum,race)=>sum+(race.results||[]).filter(r=>normalize(r.team||activeDrivers.find(d=>String(d.id)===String(r.driverId))?.team)===teamKey).reduce((s,r)=>s+Number(r.dnf?0:r.teamPoints??r.totalRacePoints??0),0),0) : roster.reduce((s, d) => s + (Number(d.points) || 0), 0);
   const wins = roster.reduce((s, d) => s + (Number(d.wins) || 0), 0);
   const top3 = roster.reduce((s, d) => s + (Number(d.top3) || 0), 0);
   const top5 = roster.reduce((s, d) => s + (Number(d.top5) || 0), 0);
