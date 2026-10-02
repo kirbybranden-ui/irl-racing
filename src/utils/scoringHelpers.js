@@ -98,7 +98,9 @@ export function calculateRacePoints({
   isFastestLap = false,
   penaltyPoints = 0,
   isStartPark = false,
+  isDNF = false,
 }) {
+  if (isDNF) return {finishPoints:0,stage1Points:0,stage2Points:0,stage3Points:0,fastestLapPoints:0,penaltyPoints:Math.max(0,Number(penaltyPoints)||0),pointsBeforePenalty:0,totalPoints:0};
   const finishPoints = pointsForPosition(
     finishPosition,
     FINISH_POINTS
