@@ -1,3 +1,4 @@
+import { getTeamFullName as currentTeamName } from "./data/teams";
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "./lib/supabase";
 
@@ -51,7 +52,7 @@ function money(value) {
 
 function getTeamFullName(team) {
   const names = {
-    B2J: "B2J Motorsports",
+    B2J: "JA Motorsports",
     MER: "ME Racing",
     MMS: "Mayhem Motorsports",
     NLM: "Nine Line Motorsports",
@@ -65,7 +66,7 @@ function getTeamFullName(team) {
     IND: "Independent",
     Independent: "Independent",
   };
-  return names[team] || team || "Unknown Team";
+  return currentTeamName(team) !== team ? currentTeamName(team) : names[team] || team || "Unknown Team";
 }
 
 function normalizeTeams(allTeams = []) {
