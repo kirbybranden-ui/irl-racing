@@ -1,15 +1,21 @@
 import { supabase } from "./supabase";
 
 export const mediaPersonas = [
-  ["pit", "Alex Carter", "Direct pit-road questions"],
-  ["driver", "Ryan Cole", "Driver perspective and racecraft"],
-  ["story", "Morgan Reed", "Team stories and rivalries"],
-  ["grid", "Mick Walker", "Playful grid-walk banter"],
-  ["straight", "Cal Porter", "Blunt, evidence-based analysis"],
-  ["champion", "Dean Mercer", "Championship perspective"],
-  ["banter", "Chase Brooks", "Energetic paddock conversation"],
-  ["fan", "Evan Davis", "Passionate racing discussion"],
-  ["crew", "Ray McCall", "Crew-chief strategy and handling"],
+  ["pit", "Jamie Little", "Direct pit-road questions"],
+  ["driver", "Regan Smith", "Driver perspective and racecraft"],
+  ["story", "Kim Coon", "Team stories and rivalries"],
+  ["grid", "Michael Waltrip", "Playful grid-walk banter"],
+  ["straight", "Kyle Petty", "Blunt, evidence-based analysis"],
+  ["champion", "Dale Jarrett", "Championship perspective"],
+  ["banter", "Clint Bowyer", "Energetic paddock conversation"],
+  ["fan", "Dale Earnhardt Jr.", "Passionate racing discussion"],
+  ["crew", "Larry McReynolds", "Crew-chief strategy and handling"],
+  ["josh", "Josh Sims", "Pit reporter"],
+  ["trevor", "Trevor Bayne", "Driver analyst"],
+  ["snider", "Marty Snider", "Pit reporter"],
+  ["burns", "Dave Burns", "Pit reporter"],
+  ["harvick", "Kevin Harvick", "Driver analyst"],
+  ["letarte", "Steve Letarte", "Crew-chief analyst"],
 ];
 
 export async function callMedia(body) {
