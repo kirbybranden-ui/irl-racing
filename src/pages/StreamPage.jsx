@@ -1,3 +1,4 @@
+import { getTeamFullName as currentTeamName } from "../data/teams";
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
 import teamLogoB2J from "../assets/teams/B2J.png";
@@ -34,7 +35,7 @@ const teamLogos = {
 };
 
 const teamFullNames = {
-  B2J: "B2J Motorsports",
+  B2J: "JA Motorsports",
     MER: "ME Racing",
     NLM: "Nine Line Motorsports",
   MMS: "Mayhem Motorsports",
@@ -88,7 +89,7 @@ function realignLeagueDrivers(drivers = []) {
 
 
 function getTeamFullName(team) {
-  return teamFullNames[team] || team || "Independent";
+  return currentTeamName(team) || "Independent";
 }
 
 function getTeamLogo(team) {
