@@ -30,5 +30,5 @@ export async function callMedia(body) {
 }
 
 export function interviewPairs(messages = []) {
-  return messages.flatMap((m, index) => m.role === "assistant" && messages[index + 1]?.role === "user" ? [{ question: m.text, answer: messages[index + 1].text }] : []);
+  return messages.flatMap((m, index) => m.role === "assistant" && messages[index + 1]?.role === "user" ? [{ question: m.text, answer: messages[index + 1].text, reporterId: m.reporter_id }] : []);
 }
