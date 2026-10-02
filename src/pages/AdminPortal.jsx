@@ -1,3 +1,4 @@
+import AIMediaAdmin from "../components/ai/AIMediaAdmin";
 import React, { useEffect, useState } from "react";
 import RaceOperations from "../components/admin/raceOperations/RaceOperations";
 import RaceApprovalQueue from "../components/admin/RaceApprovalQueue";
@@ -595,6 +596,10 @@ export default function AdminPortal({
   async function recordFinanceTransaction(kind, multiplier = 1) {
     setFinanceActionStatus("");
     setFinanceActionError("");
+    if (/interview/i.test(kind)) {
+      setFinanceActionError("Media interviews are contract obligations and do not receive payments.");
+      return;
+    }
 
     const amount = Math.abs(Number(financeForm.amount || (financeAction === "paint" ? 10000 : 0)));
     if (!amount || amount <= 0) {
@@ -702,7 +707,7 @@ export default function AdminPortal({
       icon: "💳",
       value: money((financeTransactions || []).reduce((sum, item) => sum + (Number(item?.amount ?? item?.value ?? item?.transaction_amount ?? item?.payout ?? 0) || 0), 0)),
       meta: `${(financeTransactions || []).length} ledger items`,
-      text: "Treasury, payouts, fines, paint payments, interviews, and ledgers.",
+      text: "Treasury, payouts, fines, paint payments, and ledgers.",
       action: () => openFinanceDepartment("overview"),
       gradient: "linear-gradient(135deg, #8e8e93 0%, #6366f1 48%, #007aff 100%)",
     },
@@ -1522,7 +1527,7 @@ export default function AdminPortal({
                   ["carGallery", "Car Gallery"],
                   ["watch", "Ones to Watch"],
                   ["stories", "Stories"],
-                  ["interviews", "Interviews"],
+                  ["interviews", "AI Media"],
                 ].map(([key, label]) => (
                   <button key={key} type="button" onClick={() => setPublicRelationsTab(key)} style={{ ...financeSegmentButtonStyle(publicRelationsTab === key), flex: "0 0 auto" }}>{label}</button>
                 ))}
@@ -1815,17 +1820,7 @@ export default function AdminPortal({
                 </div>
               )}
 
-              {publicRelationsTab === "interviews" && (
-                <div style={prCardStyle}>
-                  <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Interviews</div>
-                  <h2 style={{ margin: "3px 0 6px", fontSize: 28, letterSpacing: -0.7 }}>Board Interview Desk</h2>
-                  <p style={{ color: "#4b5563", fontWeight: 750 }}>Review interview submissions and prepare the media content the board wants posted.</p>
-                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                    <button type="button" onClick={() => (window.location.pathname = "/admin/interviews")} style={adminPrimaryButtonStyle}>Open Interview Admin</button>
-                    <button type="button" onClick={() => openFinanceDepartment("interview")} style={adminSecondaryButtonStyle}>Pay Interviews in Finance</button>
-                  </div>
-                </div>
-              )}
+              {publicRelationsTab === "interviews" && <AIMediaAdmin/>}
             </div>
           </div>
         )}
@@ -2458,7 +2453,6 @@ export default function AdminPortal({
                 {[
                   ["overview", "Wallets"],
                   ["fine", "Fine Driver"],
-                  ["interview", "Pay Interviews"],
                   ["paint", "Pay Paint Schemes"],
                   ["contracts", "Contracts"],
                   ["compliance", "Team Compliance"],
@@ -2517,7 +2511,7 @@ export default function AdminPortal({
                 <div>
                   <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Finance Action</div>
                   <h3 style={{ margin: "3px 0 12px", fontSize: 25, letterSpacing: -0.5 }}>
-                    {financeAction === "fine" ? "Fine Driver" : financeAction === "interview" ? "Pay Interview" : "Pay Paint Scheme"}
+                    {financeAction === "fine" ? "Fine Driver" : "Pay Paint Scheme"}
                   </h3>
                   <div style={prMobileStackStyle}>
                     <label style={{ fontWeight: 900 }}>
@@ -2535,7 +2529,7 @@ export default function AdminPortal({
                     </label>
                     <label style={{ fontWeight: 900 }}>
                       Reason
-                      <input value={financeForm.reason} onChange={(event) => updateFinanceForm("reason", event.target.value)} placeholder={financeAction === "fine" ? "Penalty / conduct / no-show" : financeAction === "interview" ? "Pre-race / post-race interview" : "Paint scheme payout"} style={{ ...adminInputStyle, marginTop: 6 }} />
+                      <input value={financeForm.reason} onChange={(event) => updateFinanceForm("reason", event.target.value)} placeholder={financeAction === "fine" ? "Penalty / conduct / no-show" : "Paint scheme payout"} style={{ ...adminInputStyle, marginTop: 6 }} />
                     </label>
                   </div>
                   <label style={{ display: "block", fontWeight: 900, marginTop: 12 }}>
@@ -2545,8 +2539,6 @@ export default function AdminPortal({
                   <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 14 }}>
                     {financeAction === "fine" ? (
                       <button type="button" onClick={() => recordFinanceTransaction("Driver Fine", -1)} style={adminDangerButtonStyle}>Apply Fine</button>
-                    ) : financeAction === "interview" ? (
-                      <button type="button" onClick={() => recordFinanceTransaction("Interview Payout", 1)} style={adminPrimaryButtonStyle}>Pay Interview</button>
                     ) : (
                       <button type="button" onClick={() => recordFinanceTransaction("Paint Scheme Payout", 1)} style={adminPrimaryButtonStyle}>Pay Paint Scheme</button>
                     )}
