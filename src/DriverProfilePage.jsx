@@ -1,4 +1,5 @@
 import MediaCenter from "./components/ai/MediaCenter";
+import { mediaPersonas } from "./lib/aiMedia";
 import { defaultRaces } from "./data/races";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -1395,6 +1396,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
   const [selectedRaceForUpload, setSelectedRaceForUpload] = useState("");
   const carFileInputRef = useRef(null);
   const [interviews, setInterviews] = useState([]);
+  const [aiInterviewAssignments, setAiInterviewAssignments] = useState([]);
   const [arcaInterviews, setArcaInterviews] = useState([]);
   const [arcaInterviewsLoading, setArcaInterviewsLoading] = useState(false);
   const [contractOffers, setContractOffers] = useState([]);
@@ -1665,6 +1667,16 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
       });
     });
 
+    (aiInterviewAssignments || []).forEach((interview) => {
+      const reporter = mediaPersonas.find(p => p[0] === interview.persona)?.[1] || "BRL reporter";
+      items.push({
+        id: `ai-interview-${interview.id}`, icon: "🎤",
+        title: `You have an interview with ${reporter} (AI)`,
+        detail: `${interview.kind === "post" ? "Post-race" : "Pre-race"} • ${interview.race_name}`,
+        href: `/driver/${driverNumber}/interviews?session=${interview.id}`, priority: 2,
+      });
+    });
+
     (myInterviews || []).forEach((interview) => {
       const answered = Boolean(interview?.answered);
       const status = String(interview?.status || "").toLowerCase();
@@ -1762,7 +1774,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
     });
 
     return items.sort((a, b) => a.priority - b.priority);
-  }, [communityEventNotifications, interviews, arcaInterviews, isArcaDriver, driverAssignments, contractOffers, unreadMessages, issueChatTodos, startParkRequests, teamInterestHistory, myAppeals, driverNumber]);
+  }, [communityEventNotifications, aiInterviewAssignments, interviews, arcaInterviews, isArcaDriver, driverAssignments, contractOffers, unreadMessages, issueChatTodos, startParkRequests, teamInterestHistory, myAppeals, driverNumber]);
 
   const driverTodoCount = driverTodoItems.length;
 
@@ -2139,6 +2151,30 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
     const interval = setInterval(loadInterviews, 30000);
     return () => clearInterval(interval);
   }, [driver?.id, isArcaDriver]);
+
+  useEffect(() => {
+    setAiInterviewAssignments([]);
+    if (!driver?.id || !activeSeason?.id || isArcaDriver || !isDriverAuthorized) return;
+    let active = true;
+    let checking = false;
+    async function loadAssignedInterviews() {
+      if (checking || document.visibilityState === "hidden") return;
+      checking = true;
+      try {
+        const { data, error } = await supabase.from("brl_ai_sessions")
+          .select("id,kind,persona,race_name,updated_at")
+          .eq("driver_id", String(driver.id)).eq("season_id", activeSeason.id)
+          .eq("status", "active").in("kind", ["pre", "post"])
+          .order("updated_at", { ascending: false });
+        if (!error && active) setAiInterviewAssignments(data || []);
+      } catch { /* Keep saved assignments visible while the connection recovers. */ }
+      finally { checking = false; }
+    }
+    loadAssignedInterviews();
+    const timer = window.setInterval(loadAssignedInterviews, 15000);
+    window.addEventListener("focus", loadAssignedInterviews);
+    return () => { active = false; window.clearInterval(timer); window.removeEventListener("focus", loadAssignedInterviews); };
+  }, [driver?.id, activeSeason?.id, isArcaDriver, isDriverAuthorized]);
 
   // Load ARCA interviews if this is an ARCA driver
   useEffect(() => {
