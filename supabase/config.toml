@@ -1,0 +1,5 @@
+[functions.driver-login]
+verify_jwt = false
+
+[functions.brl-media]
+verify_jwt = false
