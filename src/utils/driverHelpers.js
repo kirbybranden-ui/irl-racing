@@ -137,10 +137,10 @@ export function rebuildDriversFromHistory(history, driverRoster) {
       const result = race.results?.find((r) => r.driverId === baseDriver.id);
       if (!result) return;
 
-      points += result.totalRacePoints || 0;
-      wins += result.isWin ? 1 : 0;
-      top3 += result.isTop3 ? 1 : 0;
-      top5 += result.isTop5 ? 1 : 0;
+      points += result.dnf ? 0 : result.totalRacePoints || 0;
+      wins += !result.dnf && result.isWin ? 1 : 0;
+      top3 += !result.dnf && result.isTop3 ? 1 : 0;
+      top5 += !result.dnf && result.isTop5 ? 1 : 0;
       dnfs += result.dnf ? 1 : 0;
       fastestLaps += result.fastestLap ? 1 : 0;
       totalPenalties += result.penaltyPoints || 0;
