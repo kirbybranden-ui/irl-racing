@@ -1,3 +1,4 @@
+import { getTeamFullName as currentTeamName } from "./data/teams";
 import BankingPanel from "./components/banking/BankingPanel";
 import { useBankingEnabled } from "./lib/banking";
 import MediaCenter from "./components/ai/MediaCenter";
@@ -41,9 +42,9 @@ const teamLogos = {
 };
 
 const teamFullNames = {
-  B2J: "B2J Motorsports",
+  B2J: "JA Motorsports",
     MER: "ME Racing",
-  "B2J MOTORSPORTS": "B2J Motorsports",
+  "B2J MOTORSPORTS": "JA Motorsports",
   MER: "ME Racing",
   MMS: "Mayhem Motorsports",
   NLM: "Nine Line Motorsports",
@@ -80,7 +81,7 @@ const teamThemes = {
 };
 
 function getTeamFullName(teamAbbr) {
-  return teamFullNames[teamAbbr] || teamAbbr || "Independent";
+  return currentTeamName(teamAbbr) || "Independent";
 }
 
 function getTeamTheme(teamAbbr) {
