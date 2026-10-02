@@ -13,6 +13,8 @@ import manufacturerFord from "../assets/manufacturers/ford.png";
 import manufacturerToyota from "../assets/manufacturers/toyota.png";
 
 export const teamLogos = {
+  JAM: teamLogoB2J,
+  "JA Motorsports": teamLogoB2J,
   B2J: teamLogoB2J,
   "B2J MOTORSPORTS": teamLogoB2J,
   "B2J Motorsports": teamLogoB2J,
@@ -52,9 +54,11 @@ export const manufacturerLogos = {
 };
 
 export const teamFullNames = {
-  B2J: "B2J Motorsports",
-  "B2J MOTORSPORTS": "B2J Motorsports",
-  "B2J Motorsports": "B2J Motorsports",
+  JAM: "JA Motorsports",
+  "JA Motorsports": "JA Motorsports",
+  B2J: "JA Motorsports",
+  "B2J MOTORSPORTS": "JA Motorsports",
+  "B2J Motorsports": "JA Motorsports",
 
   MER: "ME Racing",
   "ME RACING": "ME Racing",
@@ -82,7 +86,7 @@ export const teamFullNames = {
   "Tolbert Motorsports": "Tolbert Motorsports",
 };
 
-const teamIdentifiers = {};
+const teamIdentifiers = { B2J: "JAM", "B2J MOTORSPORTS": "JAM", "B2J Motorsports": "JAM", JAM: "JAM", "JA Motorsports": "JAM" };
 
 export const teamBudgets = {
   B2J: 3500000,
@@ -91,9 +95,11 @@ export const teamBudgets = {
 };
 
 export const teamBranding = {
-  B2J: { logo: "B2J", accent: "#d4af37", dark: "#1b1b1b", fullName: "B2J Motorsports" },
-  "B2J MOTORSPORTS": { logo: "B2J", accent: "#d4af37", dark: "#1b1b1b", fullName: "B2J Motorsports" },
-  "B2J Motorsports": { logo: "B2J", accent: "#d4af37", dark: "#1b1b1b", fullName: "B2J Motorsports" },
+  JAM: { logo: "JAM", accent: "#d4af37", dark: "#1b1b1b", fullName: "JA Motorsports" },
+  "JA Motorsports": { logo: "JAM", accent: "#d4af37", dark: "#1b1b1b", fullName: "JA Motorsports" },
+  B2J: { logo: "JAM", accent: "#d4af37", dark: "#1b1b1b", fullName: "JA Motorsports" },
+  "B2J MOTORSPORTS": { logo: "JAM", accent: "#d4af37", dark: "#1b1b1b", fullName: "JA Motorsports" },
+  "B2J Motorsports": { logo: "JAM", accent: "#d4af37", dark: "#1b1b1b", fullName: "JA Motorsports" },
 
   MER: { logo: "MER", accent: "#dc2626", dark: "#200a0a", fullName: "ME Racing" },
   "ME Racing": { logo: "MER", accent: "#dc2626", dark: "#200a0a", fullName: "ME Racing" },
@@ -122,7 +128,8 @@ export function applyCustomTeamBranding(entries = {}) {
   for (const [team, details] of Object.entries(entries || {})) {
     const key = String(team || "").trim();
     if (!key || !details || typeof details !== "object") continue;
-    const fullName = String(details.fullName || key).trim();
+    const suppliedName = String(details.fullName || getTeamFullName(key)).trim();
+    const fullName = /^b2j(?: motorsports)?$/i.test(suppliedName) ? "JA Motorsports" : suppliedName;
     const identifier = String(key === "B2J" && fullName.toLowerCase() === "ja motorsports" && (!details.identifier || String(details.identifier).toUpperCase() === "B2J") ? "JAM" : (details.identifier || key)).trim().toUpperCase();
     const logoUrl = String(details.logoUrl || "").trim();
     if (logoUrl) { teamLogos[key] = logoUrl; teamLogos[fullName] = logoUrl; teamLogos[identifier] = logoUrl; }
