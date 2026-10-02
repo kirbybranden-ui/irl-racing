@@ -1084,8 +1084,8 @@ function MemorialDayPage({ drivers = [] }) {
 }
 
 
-const PAINT_SCHEME_WEEKLY_DRIVER_PAYOUT = 10000;
-const PAINT_SCHEME_SEASON_DRIVER_PAYOUT_CAP = 250000;
+const PAINT_SCHEME_WEEKLY_DRIVER_PAYOUT = 0;
+const PAINT_SCHEME_SEASON_DRIVER_PAYOUT_CAP = 0;
 
 function getPaintSchemePayout(position) {
   const pos = Number(position);
@@ -2551,7 +2551,7 @@ function SubmitStoryPage() {
             </div>
             <div style={{ marginBottom: 12 }}>
               <div style={{ marginBottom: 6, fontWeight: 800 }}>Story Title</div>
-              <input style={inputStyle} value={storyTitle} onChange={(e) => setStoryTitle(e.target.value)} placeholder="Example: B2J adds a new Toyota to the garage" />
+              <input style={inputStyle} value={storyTitle} onChange={(e) => setStoryTitle(e.target.value)} placeholder="Example: JAM adds a new Toyota to the garage" />
             </div>
             <div style={{ marginBottom: 14 }}>
               <div style={{ marginBottom: 6, fontWeight: 800 }}>Story Details</div>
@@ -7541,100 +7541,7 @@ export default function App() {
   }
 
   async function awardPaintSchemePayouts() {
-    const raceName = paintPayoutRace || getPreviousCompletedRaceForPaintWinner(tracks)?.name || selectedRace || "";
-    setPaintPayoutStatus("");
-    setPaintPayoutError("");
-
-    if (!raceName) {
-      setPaintPayoutError("Select a race first.");
-      return;
-    }
-
-    const alreadyPaid = (activeSeason?.paintSchemePayouts || []).some((payout) => payout.raceName === raceName);
-    if (alreadyPaid) {
-      setPaintPayoutError(`${raceName} has already been awarded. Remove the payout record before awarding again.`);
-      return;
-    }
-
-    const rows = paintPayoutRows.length ? paintPayoutRows : await loadPaintSchemePayoutPreview(raceName);
-    if (!rows.length) {
-      setPaintPayoutError("No payout rows available.");
-      return;
-    }
-
-    const totalTeam = rows.reduce((sum, row) => sum + Number(row.teamPayout || 0), 0);
-    const totalDriver = rows.reduce((sum, row) => sum + Number(row.driverPayout || 0), 0);
-    const confirmed = window.confirm(
-      `Award paint scheme payouts for ${raceName}?\n\nDriver payouts: ${money(totalDriver)}\nRows: ${rows.length}`
-    );
-    if (!confirmed) return;
-
-    const nextDrivers = (drivers || []).map((driver) => {
-      const row = rows.find((item) =>
-        String(item.driverId) === String(driver.id) ||
-        String(item.driverNumber) === String(driver.number) ||
-        String(item.driverName || '').trim().toLowerCase() === String(driver.name || '').trim().toLowerCase()
-      );
-      if (!row) return driver;
-      return {
-        ...driver,
-        paintSchemeVotesReceived: Number(driver.paintSchemeVotesReceived || 0) + Number(row.votes || 0),
-        paintSchemeSeasonVotes: Number(driver.paintSchemeSeasonVotes || 0) + Number(row.votes || 0),
-        paintSchemeDriverEarnings: Number(driver.paintSchemeDriverEarnings || 0) + Number(row.driverPayout || 0),
-        paintSchemeTeamEarnings: Number(driver.paintSchemeTeamEarnings || 0) + Number(row.teamPayout || 0),
-        paintSchemeWins: Number(driver.paintSchemeWins || 0) + (row.rank === 1 ? 1 : 0),
-        paintSchemeTop5s: Number(driver.paintSchemeTop5s || 0) + (row.rank <= 5 ? 1 : 0),
-        paintSchemeTop10s: Number(driver.paintSchemeTop10s || 0) + (row.rank <= 10 ? 1 : 0),
-        paintSchemeLastAwardedRace: raceName,
-      };
-    });
-
-    const payoutRecord = {
-      id: `paint-${Date.now()}`,
-      raceName,
-      awardedAt: new Date().toISOString(),
-      rows,
-      totalTeamPayout: totalTeam,
-      totalDriverPayout: totalDriver,
-      weeklyDriverPayout: PAINT_SCHEME_WEEKLY_DRIVER_PAYOUT,
-      seasonDriverPayoutCap: PAINT_SCHEME_SEASON_DRIVER_PAYOUT_CAP,
-      deadlineRule: "Friday 12:00 AM ET. Uploads not updated by then are not eligible for payout.",
-    };
-
-    patchActiveSeason({
-      drivers: nextDrivers,
-      paintSchemePayouts: [...(activeSeason?.paintSchemePayouts || []), payoutRecord],
-    });
-
-    const auditRows = rows.map((row) => ({
-      race_name: raceName,
-      rank: row.rank,
-      upload_id: row.uploadId,
-      driver_id: row.driverId,
-      driver_number: String(row.driverNumber || ""),
-      driver_name: row.driverName,
-      team: row.team,
-      votes: row.votes,
-      team_payout: row.teamPayout,
-      original_team_payout: row.originalTeamPayout,
-      team_cap_applied: row.teamCapApplied,
-      team_weekly_cap_applied: row.teamWeeklyCapApplied,
-      team_season_cap_applied: row.teamSeasonCapApplied,
-      team_season_paid_before_award: row.teamSeasonPaidBeforeAward,
-      driver_payout: row.driverPayout,
-      updated_at_deadline: row.deadline,
-      upload_updated_at: row.updatedAt,
-      awarded_at: new Date().toISOString(),
-    }));
-
-    const { error } = await supabase.from("paint_scheme_payouts").insert(auditRows);
-    if (error) {
-      console.error("Paint scheme payout audit insert failed:", error);
-      setPaintPayoutStatus(`Payout applied to league state, but audit table insert failed. Check paint_scheme_payouts RLS/table.`);
-      return;
-    }
-
-    setPaintPayoutStatus(`Paint scheme payouts awarded for ${raceName}. Driver total ${money(totalDriver)}.`);
+    setPaintPayoutError("Paint schemes are recognition only. Driver payments require a contract or an owner-approved bonus in Team HQ.");
   }
 
   const clearInputs = () => {
