@@ -1,3 +1,5 @@
+import BankingPanel from "../components/banking/BankingPanel";
+import {useBankingEnabled} from "../lib/banking";
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { useLeagueAccess, canManageTeam } from "../lib/roleAccess";
@@ -125,6 +127,7 @@ function requestStatusLabel(request) {
 }
 
 export default function OwnerHQPage({ drivers = [], teams = [], seasonName = "", go }) {
+ const bankingEnabled=useBankingEnabled();
   const { access: verifiedAccess } = useLeagueAccess();
   const [selectedTeam, setSelectedTeam] = useState(() => {
     const firstTeam = (teams || []).find((team) => team?.team)?.team;
@@ -512,7 +515,7 @@ export default function OwnerHQPage({ drivers = [], teams = [], seasonName = "",
               ["Points", currentTeam.points || 0],
               ["Wins", currentTeam.wins || 0],
               ["Drivers", roster.length],
-              ["Budget", money(getTeamBudget(currentTeam.team))],
+              ...(!bankingEnabled?[["Budget", money(getTeamBudget(currentTeam.team))]]:[]),
             ]} />
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               <MobileAction label="Open Full HQ" onClick={() => safeGo(go, "/owners?desktop=1")} secondary />
@@ -520,6 +523,7 @@ export default function OwnerHQPage({ drivers = [], teams = [], seasonName = "",
             </div>
           </MobileCard>
 
+          {bankingEnabled && <BankingPanel team={currentTeam.team} />}
           <MobileSectionTitle>Driver Assignment Center</MobileSectionTitle>
           <MobileCard>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 10 }}>
@@ -591,7 +595,6 @@ export default function OwnerHQPage({ drivers = [], teams = [], seasonName = "",
                 <option value="substitute">Substitute Driver</option>
                 <option value="emergency_replacement">Emergency Replacement</option>
                 <option value="one_off">One-Off Start</option>
-                <option value="start_and_park">Start & Park Assignment</option>
               </select>
 
               <label style={{ color: "#aab3c2", fontSize: 11, fontWeight: 1000, textTransform: "uppercase" }}>Owner Note</label>
