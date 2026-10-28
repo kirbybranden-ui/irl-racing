@@ -1,3 +1,4 @@
+import { isChallengeRoute, useInSeasonChallenge } from "../lib/inSeasonChallenge";
 import React, { useEffect, useRef, useState } from "react";
 import logo from "../assets/logo1.png";
 import { canSeeRoute, hasLeagueRole, ROLE_LABELS } from "../lib/roleAccess";
@@ -13,6 +14,7 @@ export const mobileMenuGroups = [
 
 // Keep the URL as the source of truth: links survive reloads and browser Back.
 export default function MobileShell({ title = "Budweiser Racing League", children, session = null, onLoginClick, onLogout, menuPage = false }) {
+  const { visible: challengeVisible } = useInSeasonChallenge();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [signingOut, setSigningOut] = useState(false);
@@ -27,7 +29,7 @@ export default function MobileShell({ title = "Budweiser Racing League", childre
   const name = session?.driverName || session?.displayName || "Driver";
   const number = session?.driverNumber;
   const role = (session?.roles || []).map((role) => ROLE_LABELS[role] || role).join(" · ");
-  const groups = mobileMenuGroups.map((group) => ({ ...group, links: group.links.filter(([label, href]) => canSeeRoute(session, href) && (!href.startsWith("/my-") || signedIn) && `${label} ${group.title}`.toLowerCase().includes(query.toLowerCase())) })).filter((group) => group.links.length);
+  const groups = mobileMenuGroups.map((group) => ({ ...group, links: group.links.filter(([label, href]) => canSeeRoute(session, href) && (!isChallengeRoute(href) || challengeVisible) && (!href.startsWith("/my-") || signedIn) && `${label} ${group.title}`.toLowerCase().includes(query.toLowerCase())) })).filter((group) => group.links.length);
   const tabs = [["Home", "/", "⌂"], ["Race", "/schedule", "⚑"], ["Media", "/interviews", "◉"], ["My HQ", signedIn ? "/my-dashboard" : "/login?next=%2Fmy-dashboard", "◎"]];
   const active = (href) => href === "/" ? ["/", "/standings"].includes(path) : href === "/schedule" ? ["/schedule", "/tracks", "/season-schedule"].includes(path) : href === "/interviews" ? ["/interviews", "/media", "/strategy", "/public-interviews", "/news"].includes(path) : path === href || (href === "/my-dashboard" && path.startsWith("/driver/"));
 
