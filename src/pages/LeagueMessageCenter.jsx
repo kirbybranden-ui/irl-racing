@@ -1,4 +1,4 @@
-import { loginToLeague } from "../lib/leagueAuth";
+import { loginToLeague, getLeagueSession, logoutOfLeague } from "../lib/leagueAuth";
 import React, { useEffect, useMemo, useState } from "react";
 import logo from "../assets/logo1.png";
 import { supabase } from "../lib/supabase";
@@ -19,50 +19,17 @@ import {
   secondaryButtonStyle,
   dangerButtonStyle,
   inputStyle,
+  headerButtonStyle,
+  activeHeaderButtonStyle,
 } from "../styles/sharedStyles";
 
 const BCL_MOBILE_SESSION_KEY = "bcl-mobile-session-v1";
 
-function getBclRoleFlagsForDriver(driver = {}, enteredAdminCode = false) {
-  const possibleNames = [
-    driver.name,
-    driver.driver_name,
-    driver.driverName,
-    driver.display_name,
-    driver.displayName,
-    driver.username,
-    driver.handle,
-  ].map(normalizeBclName).filter(Boolean);
-
-  const isNamedAdmin = possibleNames.some((name) => BCL_ADMIN_NAMES.has(name));
-  const isNamedOwner = possibleNames.some((name) => BCL_OWNER_NAMES.has(name));
-
-  const team = driver.team || "";
-  const manufacturer = driver.manufacturer || "";
-
-  return {
-    role: enteredAdminCode || isNamedAdmin ? "admin" : (isNamedOwner ? "owner" : "driver"),
-    isAdmin: enteredAdminCode || isNamedAdmin,
-    isOwner: isNamedOwner,
-    isDriver: true,
-    team,
-    manufacturer,
-  };
-}
-
 function readBclMobileSession() {
-  try {
-    const raw = localStorage.getItem(BCL_MOBILE_SESSION_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (!parsed || !parsed.mode) return null;
-    return parsed;
-  } catch {
-    return null;
-  }
+  return getLeagueSession();
 }
 
-function getMessageCategory(message) {
+export function getMessageCategory(message) {
     const type = String(message?.recipient_type || "").toLowerCase();
     if (type === "owners") return "owners";
     if (type === "team" || message?.recipient_team) return "team";
@@ -130,7 +97,6 @@ function LeagueMessageCenterLandingPage({ drivers = [] }) {
 
     const result = await loginToLeague({ driverNumber: selectedDriverNumber, password: driverCode });
     if (!result.success) { setError(result.error); return; }
-    saveBclMobileSession(result.session);
     window.location.pathname = "/message-center";
   }
 
@@ -262,7 +228,7 @@ export default function LeagueMessageCenter({ drivers = [], session: suppliedSes
     setStatus("");
 
     const number = String(driverNumber || "").trim();
-    const code = String(password || "").trim().toUpperCase();
+    const code = String(password || "").trim();
 
     if (!number || !code) {
       setError("Select your driver and enter your password.");
@@ -273,7 +239,6 @@ export default function LeagueMessageCenter({ drivers = [], session: suppliedSes
     const result = await loginToLeague({ driverNumber: number, password: code });
     setLoading(false);
     if (!result.success) { setError(result.error); return; }
-    saveBclMobileSession(result.session);
     setSession(result.session);
     setPassword("");
     setStatus("Message Center unlocked.");
@@ -364,12 +329,14 @@ export default function LeagueMessageCenter({ drivers = [], session: suppliedSes
     await openMessage(selectedMessage);
   }
 
-  function logout() {
-    clearBclMobileSession();
-    setSession(null);
-    setSelectedMessage(null);
-    setMessages([]);
-    setReplies([]);
+  async function logout() {
+    try {
+      await logoutOfLeague();
+      setSession(null);
+      setSelectedMessage(null);
+      setMessages([]);
+      setReplies([]);
+    } catch (failure) { setError(failure.message || "Could not sign out. Please try again."); }
   }
 
   function getMessageBody(message) {
