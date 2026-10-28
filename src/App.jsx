@@ -1,3 +1,5 @@
+import CareerDashboard from "./pages/career/CareerDashboard";
+import AccountDialog from "./components/auth/AccountDialog";
 import { publishChallengeSetting, useInSeasonChallenge } from "./lib/inSeasonChallenge";
 import MobileShell from "./mobile/MobileShell";
 import MediaCenter from "./components/ai/MediaCenter";
@@ -3964,125 +3966,8 @@ function MobileAccessGate({ drivers = [], onSession }) {
   );
 }
 
-function MobileLoginModal({ drivers = [], onClose, onSuccess }) {
-  const [authView, setAuthView] = useState("login");
-  const [driverNumber, setDriverNumber] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+function MobileLoginModal({ onClose }) { return <AccountDialog onClose={onClose} />; }
 
-  const modalRef = useRef(null);
-  useEffect(() => {
-    const previousFocus = document.activeElement;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const selector = 'button:not([disabled]), input, select, textarea, a[href], [tabindex="0"]';
-    modalRef.current?.querySelector(selector)?.focus();
-    const handleKey = (event) => {
-      if (event.key === "Escape") { event.preventDefault(); onClose(); }
-      if (event.key !== "Tab") return;
-      const items = [...(modalRef.current?.querySelectorAll(selector) || [])];
-      const first = items[0], last = items[items.length - 1];
-      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
-      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
-    };
-    document.addEventListener("keydown", handleKey);
-    return () => { document.body.style.overflow = previousOverflow; document.removeEventListener("keydown", handleKey); previousFocus?.focus(); };
-  }, [onClose]);
-
-  const activeDrivers = useMemo(() => {
-    return dedupeDriversByNumber(drivers || [])
-      .filter((driver) => !driver.retired && !isInactivePlaceholderDriver(driver))
-      .sort((a, b) => Number(a.number || 9999) - Number(b.number || 9999));
-  }, [drivers]);
-
-  async function loginDriver(event) {
-    event.preventDefault();
-    setError("");
-    const number = String(driverNumber || "").trim();
-    const code = String(password || "").trim();
-    if (!number || !code) {
-      setError("Select your driver and enter your password.");
-      return;
-    }
-
-    setLoading(true);
-    const leagueResult = await loginToLeague({
-      driverNumber: number,
-      password: code,
-      driverAccessCodes: [],
-      drivers: activeDrivers,
-      teams: [],
-      supabase,
-    });
-
-    if (!leagueResult.success) {
-      setLoading(false);
-      setError(leagueResult.error || "Invalid car number or driver password.");
-      return;
-    }
-
-    const session = leagueResult.session;
-
-    saveBclMobileSession(session);
-    setLoading(false);
-    onSuccess(session);
-  }
-
-  const modalInputStyle = {
-    width: "100%",
-    minHeight: 48,
-    background: "rgba(255,255,255,0.72)",
-    color: "#1d1d1f",
-    border: "1px solid rgba(0,0,0,0.08)",
-    borderRadius: 14,
-    padding: "12px 13px",
-    fontSize: 15,
-    fontWeight: 900,
-    boxSizing: "border-box",
-    fontFamily: mobileAppFont,
-  };
-
-  return createPortal(
-    <div ref={modalRef} role="dialog" aria-modal="true" aria-label="Driver login" style={{ position: "fixed", inset: 0, background: "rgba(29,29,31,0.42)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", zIndex: 10000, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
-      <div style={{ width: "100%", maxWidth: 480, background: "linear-gradient(180deg, rgba(255,255,255,0.97), rgba(248,250,252,0.95))", borderTop: "1px solid rgba(255,255,255,0.8)", borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: "20px 18px 28px", maxHeight: "88vh", overflowY: "auto", boxShadow: "0 -20px 60px rgba(0,0,0,0.20)" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-          <div>
-            <div style={mobileKickerStyle}>Driver Access</div>
-            <h2 style={{ margin: "4px 0 0", fontSize: 20, color: "#1d1d1f", fontWeight: 950 }}>Login / Register</h2>
-          </div>
-          <button type="button" onClick={onClose} style={{ background: "rgba(0,0,0,0.05)", border: "none", borderRadius: 999, width: 34, height: 34, color: "#1d1d1f", fontSize: 18, cursor: "pointer" }}>×</button>
-        </div>
-
-        <div role="tablist" aria-label="Account access" style={{ display: "flex", borderBottom: "1px solid #d6d7d9", marginBottom: 16 }}>
-          {[["login", "Login"], ["register", "Register"]].map(([key, label]) => <button key={key} role="tab" aria-selected={authView === key} type="button" onClick={() => setAuthView(key)} style={{ flex: 1, border: 0, borderBottom: authView === key ? "3px solid #d71920" : "3px solid transparent", padding: 12, background: "transparent", fontWeight: 900 }}>{label}</button>)}
-        </div>
-        {authView === "register" ? <><p style={{ color: "#4b5563", fontSize: 13 }}>Request to join the league. An admin will review your driver details before login is available.</p><JoinRequestForm /></> : <form onSubmit={loginDriver} style={{ display: "grid", gap: 12 }}>
-          <select aria-label="Driver" autoComplete="username" value={driverNumber} onChange={(event) => setDriverNumber(event.target.value)} style={modalInputStyle}>
-            <option value="">Select Your Driver</option>
-            {activeDrivers.map((driver) => (
-              <option key={driver.id || driver.number} value={String(driver.number)}>
-                #{driver.number} — {driver.name} ({getTeamFullName(driver.team)})
-              </option>
-            ))}
-          </select>
-          <input
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            placeholder="Enter driver password"
-            style={modalInputStyle}
-          />
-          {error && <div style={{ color: "#c62d24", fontWeight: 900, lineHeight: 1.35 }}>{error}</div>}
-          <button disabled={loading} type="submit" style={{ ...mobileActionStyle, background: "linear-gradient(180deg, #ffd60a 0%, #ff9f0a 100%)", color: "#1d1d1f", borderColor: "transparent" }}>
-            {loading ? "Checking..." : "Log In & Stay Signed In"}
-          </button>
-        </form>}
-      </div>
-    </div>,
-    document.body
-  );
-}
 
 function MobileGuestLockedCard({ title = "Driver Login Required", go }) {
   return (
@@ -8860,6 +8745,13 @@ export default function App() {
     return accessPage(<RoleLogin next="/admin" />, "Admin login");
   }
   if (path === "/login") return accessPage(<RoleLogin next={new URLSearchParams(window.location.search).get("next") || "/standings"} />, "Login / Register");
+  const careerAliases = ["/career", "/contracts", "/driver-market", "/transfer-portal", "/silly-season", "/team-hq", "/owner-hq", "/owner", "/hq", "/teamhq"];
+  if (careerAliases.includes(path) || /^\/driver\/[^/]+\/contracts\/?$/.test(path)) {
+    if (accessLoading) return accessPage(<p role="status">Checking account…</p>);
+    if (!verifiedAccess?.userId) return accessPage(<RoleLogin next="/career" />, "Login / Register");
+    return <div className="career-route-shell"><MobileShell title="Applications & Contracts" session={verifiedAccess} onLogout={logoutOfLeague}><CareerDashboard /></MobileShell></div>;
+  }
+
   if (accessLoading && (!canSeeRoute(null,path) || isAdminProtectedPath || ["/race-recorder","/team-hq","/owner","/hq","/teamhq"].includes(path))) return accessPage(<p role="status">Checking access…</p>);
   if (!isHydrated && ["/admin","/race-recorder","/owners","/compare"].includes(path)) return accessPage(<p role="status">Loading league data…</p>);
   if (path === "/admin" && hasLeagueRole(verifiedAccess, "race_recorder") && !isAdminAuthenticated) return accessPage(<RaceRecorderPage access={verifiedAccess} drivers={visibleDrivers} tracks={tracks} activeSeasonId={activeSeasonId} />, "Race Recorder");
