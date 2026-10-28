@@ -1331,7 +1331,9 @@ function DriverTransferPortalPanel({ driver, driverNumber, teamTheme, standingsR
   );
 }
 
-export default function DriverProfilePage({ seasons, activeSeason, tracks = [], ownerDriverAssignments = [], loadOwnerDriverAssignments, arcaDrivers = [], arcaTracks = [], driverNumberOverride = "", driverSeriesOverride = "" }) {
+const EMPTY_OWNER_ASSIGNMENTS = [];
+
+export default function DriverProfilePage({ seasons, activeSeason, tracks = [], ownerDriverAssignments = EMPTY_OWNER_ASSIGNMENTS, loadOwnerDriverAssignments, arcaDrivers = [], arcaTracks = [], driverNumberOverride = "", driverSeriesOverride = "" }) {
   const { access: roleAccess } = useLeagueAccess();
   const bankingEnabled = useBankingEnabled();
   const pathParts = window.location.pathname.split("/");
@@ -1375,8 +1377,8 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
     ? allSeasons.find((s) => s && s.id === activeSeason.id) || activeSeason
     : allSeasons[0] || null;
 
-  const sanitizedDrivers = normalizeDriverProfileRoster(selectedSeason?.drivers || []);
-  const normalizedRaceHistory = normalizeDriverProfileRaceHistory(selectedSeason?.raceHistory || []);
+  const sanitizedDrivers = useMemo(() => normalizeDriverProfileRoster(selectedSeason?.drivers || []), [selectedSeason]);
+  const normalizedRaceHistory = useMemo(() => normalizeDriverProfileRaceHistory(selectedSeason?.raceHistory || []), [selectedSeason]);
 
   let driver = !isArcaDriver ? sanitizedDrivers.find((d) => d && String(d.number) === String(driverNumber)) || null : null;
   
