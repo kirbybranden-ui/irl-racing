@@ -39,7 +39,7 @@ export default function DesktopNavigation() {
       setSigningOut(false);
     }
   };
-  return <header className="brl-desktop-header">
+  return <header className={`brl-desktop-header ${(path.startsWith("/admin") && hasLeagueRole(access, "full_admin")) || path.startsWith("/series/") || document.cookie.includes("bcl-force-desktop=1") ? "brl-desktop-header--tools" : ""}`}>
     <div className="brl-desktop-header__row">
       <a className="brl-desktop-header__brand" href="/" aria-label="BRL home"><img src={logo} alt="" /><span>BRL <small>SEASON 2</small></span></a>
       <nav className="brl-desktop-header__quick" aria-label="Quick links">
