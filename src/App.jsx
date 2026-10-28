@@ -1,3 +1,4 @@
+import { publishChallengeSetting, useInSeasonChallenge } from "./lib/inSeasonChallenge";
 import MobileShell from "./mobile/MobileShell";
 import MediaCenter from "./components/ai/MediaCenter";
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -4893,6 +4894,7 @@ function MobileLeagueApp({
 
 
 function MobileTimelineSpotlightPanel({ tracks = [], drivers = [], go, seasonName = "" }) {
+  const { visible: challengeVisible } = useInSeasonChallenge();
   const upcomingRace = getPaintWinnerRaceForCurrentWeek(tracks || []);
   const bracketDrivers = useMemo(() => {
     return [...(drivers || [])]
@@ -4927,6 +4929,7 @@ function MobileTimelineSpotlightPanel({ tracks = [], drivers = [], go, seasonNam
         <PaintSchemeWinnerStandingsCard tracks={tracks} drivers={drivers} />
       </div>
 
+      {challengeVisible && <>
       <MobileSectionTitle>In-Season Tournament</MobileSectionTitle>
       <MobileCard>
         <div style={mobileKickerStyle}>{seasonName || "Season 1"} • Top 20</div>
@@ -4947,6 +4950,7 @@ function MobileTimelineSpotlightPanel({ tracks = [], drivers = [], go, seasonNam
         )}
         <MobileAction label="Open Bracket" onClick={() => go("/bracket")} />
       </MobileCard>
+      </>}
     </>
   );
 }
@@ -6612,6 +6616,17 @@ export default function App() {
     const nextState = { seasons, activeSeasonId, tracks: nextTracks, customTeamBranding, registeredTeams };
     loadedStateSignatureRef.current = makeLeagueStateSignature(nextState);
     setTracks(nextTracks);
+  };
+  const saveInSeasonChallenge = async (enabled) => {
+    if (typeof enabled !== "boolean") throw new Error("Choose On or Off.");
+    const selected = seasons.find((season) => season.id === activeSeasonId);
+    if (!selected) throw new Error("Select a season before changing the challenge.");
+    const nextSeasons = seasons.map((season) => season.id === activeSeasonId ? { ...season, inSeasonChallengeEnabled: enabled } : season);
+    const nextState = { seasons: nextSeasons, activeSeasonId, tracks, customTeamBranding, registeredTeams };
+    await queueLeagueSave(nextState);
+    loadedStateSignatureRef.current = makeLeagueStateSignature(nextState);
+    setSeasons(nextSeasons);
+    publishChallengeSetting(enabled);
   };
   const [viewMode, setViewMode] = useState("admin");
   const [editingRaceName, setEditingRaceName] = useState(null);
@@ -9148,6 +9163,7 @@ export default function App() {
   }
   return (
     <AdminPortal
+      onSaveInSeasonChallenge={saveInSeasonChallenge}
       customTeamBranding={customTeamBranding}
       onCreateTeam={createLeagueTeam}
       onDeleteTeam={deleteLeagueTeam}
