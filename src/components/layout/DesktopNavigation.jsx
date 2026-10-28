@@ -10,7 +10,7 @@ const groups = [
   { title: "League", links: [["League Home", "/"], ["Cup Standings", "/standings"], ["Race Schedule", "/schedule"], ["Results & Race History", "/standings#results"], ["In Season Tournament", "/tournament"], ["Streams", "/streams"]] },
   { title: "Paddock", links: [["Teams & Owners", "/owners"], ["Driver Market", "/driver-market"], ["Contracts", "/contracts"], ["Development Requests", "/development-requests"], ["Paint Scheme Vote", "/paint-scheme-vote"]] },
   { title: "Media & Community", links: [["News", "/news"], ["Interviews", "/public-interviews"], ["League Voting", "/vote"], ["League Chat", "/chat"], ["Messages", "/message-center"], ["Notifications", "/notifications"], ["Discord", "/discord"]] },
-  { title: "My League", links: [["My Profile", "/welcome"], ["Owner HQ", "/team-hq"], ["Submit Appeal", "/submit-appeal"], ["Submit Story", "/submit-story"], ["Issues & Feedback", "/issues"], ["Files", "/files"], ["Admin Operations", "/admin"], ["Admin Permissions", "/admin/permissions"], ["Admin Car Gallery", "/admin/car-gallery"], ["Admin Interviews", "/admin/interviews"], ["Admin Voting", "/admin/votes"], ["Live Control", "/admin/live-control"]] },
+  { title: "My League", links: [["Applications & Contracts", "/career"],["My Profile", "/welcome"], ["Owner HQ", "/team-hq"], ["Submit Appeal", "/submit-appeal"], ["Submit Story", "/submit-story"], ["Issues & Feedback", "/issues"], ["Files", "/files"], ["Admin Operations", "/admin"], ["Admin Permissions", "/admin/permissions"], ["Admin Car Gallery", "/admin/car-gallery"], ["Admin Interviews", "/admin/interviews"], ["Admin Voting", "/admin/votes"], ["Live Control", "/admin/live-control"]] },
 ];
 
 export default function DesktopNavigation() {
@@ -21,7 +21,7 @@ export default function DesktopNavigation() {
   const [logoutError, setLogoutError] = useState("");
   const [session, setSession] = useState(() => getLeagueSession());
   const path = window.location.pathname.toLowerCase();
-  const profile = session?.driverNumber ? `/driver/${session.driverNumber}` : "/standings?login=1";
+  const profile = session?.userId ? "/career" : "/login";
   useEffect(() => {
     const refresh = () => setSession(getLeagueSession());
     window.addEventListener("brl:session-changed", refresh);
@@ -48,7 +48,7 @@ export default function DesktopNavigation() {
         {[["Home", "/"], ["Schedule", "/schedule"], ["News", "/news"], ["Teams", "/owners"]].map(([label, href]) => <a className={path === href ? "active" : ""} href={href} key={href}>{label}</a>)}
       </nav>
       {access?.userId && <a className="brl-desktop-header__message" href="/message-center">Messages</a>}
-      <a className="brl-desktop-header__profile" href={profile}>{session?.driverNumber ? `#${session.driverNumber} Profile` : "Login / Register"}</a>
+      <a className="brl-desktop-header__profile" href={profile}>{session?.userId ? "My Career / Contracts" : "Login / Register"}</a>
       <button className="brl-desktop-header__menu" type="button" aria-expanded={open} aria-controls="brl-all-pages" onClick={() => setOpen(!open)}>{open ? "Close" : "☰  All pages"}</button>
     </div>
     {open && <div id="brl-all-pages" className="brl-desktop-header__panel">
