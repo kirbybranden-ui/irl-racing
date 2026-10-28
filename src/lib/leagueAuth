@@ -20,14 +20,18 @@ export function findDriverByNumber(number, drivers = [], arcaDrivers = []) {
 
 export function verifyLeaguePassword() { return false; }
 
-export async function loginToLeague({ driverNumber, password, driverAccessCodes, drivers, arcaDrivers, teams, supabase }) {
+export async function loginToLeague({ driverNumber, gamertag, password, driverAccessCodes, drivers, arcaDrivers, teams, supabase }) {
   try {
-    const { data, error } = await authenticatedClient.functions.invoke("driver-login", { body: { driverNumber, password } });
-    if (error || data?.error || !data?.session) return { success: false, error: data?.error || error?.message || "Driver login is not configured yet." };
+    const { data, error } = await authenticatedClient.functions.invoke("driver-login", { body: { driverNumber, gamertag, password } });
+    if (error || data?.error || !data?.session) {
+      let message = data?.error || error?.message || "Driver login is not configured yet.";
+      if (error?.context) { try { const body = await error.context.json(); message = body.error || message; } catch { /* preserve network error */ } }
+      return { success: false, error: message };
+    }
     const { error: sessionError } = await authenticatedClient.auth.setSession(data.session);
     if (sessionError) throw sessionError;
     const session = await refreshLeagueAccess();
-    if (!session?.userId) throw new Error("No active driver account was found.");
+    if (!session?.userId) throw new Error("No eligible league account was found.");
     return { success: true, session };
   } catch (error) { return { success: false, error: error.message }; }
 }
