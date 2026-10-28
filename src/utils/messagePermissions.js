@@ -4,6 +4,7 @@ export function normalizeMessageValue(value) {
 
 export function getCurrentUserFromSession(session = {}) {
   const role = normalizeMessageValue(
+    (session.roles?.includes("full_admin") ? "admin" : session.roles?.includes("owner") ? "owner" : session.roles?.includes("driver") ? "driver" : "") ||
     session.role ||
       session.type ||
       session.userType ||
