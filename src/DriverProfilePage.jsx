@@ -1,3 +1,4 @@
+import { changeCareerPassword } from "./lib/career";
 import { useInSeasonChallenge } from "./lib/inSeasonChallenge";
 import { getTeamFullName as currentTeamName } from "./data/teams";
 import BankingPanel from "./components/banking/BankingPanel";
@@ -2605,6 +2606,12 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
 
     const nextPassword = String(newDriverPassword || "").trim();
     const confirmPassword = String(confirmDriverPassword || "").trim();
+
+    if (roleAccess?.loginKind === "password") {
+      if (String(newDriverPassword || "") !== String(confirmDriverPassword || "")) { setPasswordChangeError("Passwords do not match.");return; }
+      try { await changeCareerPassword(String(newDriverPassword || ""), "password");setNewDriverPassword("");setConfirmDriverPassword("");setPasswordChangeMessage("Gamertag login password updated."); } catch (failure) { setPasswordChangeError(failure.message); }
+      return;
+    }
 
     if (nextPassword.length < 6) {
       setPasswordChangeError("Password must be at least 6 characters.");
