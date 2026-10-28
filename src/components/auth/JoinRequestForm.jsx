@@ -1,50 +1,32 @@
 import React, { useState } from "react";
 import { supabase } from "../../lib/supabase";
-
-const field = { width: "100%", boxSizing: "border-box", minHeight: 46, padding: "11px 12px", border: "1px solid #b7b8bc", borderRadius: 2, background: "#fff", color: "#111216", font: "inherit" };
-
+import { refreshLeagueAccess } from "../../lib/roleAccess";
+import { functionError } from "../../lib/career";
+import "../../styles/career.css";
 export default function JoinRequestForm() {
-  const [form, setForm] = useState({ driverName: "", carNumber: "", manufacturer: "", teamName: "", requestedOwner: false });
-  const [status, setStatus] = useState("");
-  const [error, setError] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const update = (key) => (event) => setForm((previous) => ({ ...previous, [key]: event.target.value }));
-
-  async function submit(event) {
-    event.preventDefault();
-    setStatus("");
-    setError("");
-    const number = Number(form.carNumber);
-    if (!form.driverName.trim() || !Number.isInteger(number) || number < 1 || number > 999 || !form.manufacturer || !form.teamName.trim()) {
-      setError("Enter your driver name, car number, manufacturer, and team.");
-      return;
-    }
-    if (!supabase) { setError("Registration is temporarily unavailable. Please try again later."); return; }
-    setSubmitting(true);
+  const [form, setForm] = useState({ gamertag: "", password: "", confirm: "", kind: "driver", code: "", name: "", manufacturer: "Toyota", tier: "standard" });
+  const [busy, setBusy] = useState(false), [error, setError] = useState(""), [status, setStatus] = useState("");
+  const field = (key, value) => setForm(current => ({ ...current, [key]: value }));
+  return <form className="career-form" onSubmit={async event => {
+    event.preventDefault();setError("");setStatus("");
+    if (form.password !== form.confirm) { setError("Passwords do not match.");return; }
+    setBusy(true);
     try {
-      const { error: saveError } = await supabase.from("pending_drivers").insert({
-        driver_name: form.driverName.trim(), car_number: number,
-        manufacturer: form.manufacturer, team_name: form.teamName.trim(),
-        requested_owner: form.requestedOwner,
-        status: "pending", created_at: new Date().toISOString(),
-      });
-      if (saveError) throw saveError;
-      setStatus("Request submitted. An admin will review it and add you to the driver roster. You can log in after your driver access is set up.");
-      setForm({ driverName: "", carNumber: "", manufacturer: "", teamName: "", requestedOwner: false });
-    } catch (saveError) {
-      console.error("Could not submit join request:", saveError);
-      setError(saveError?.code === "PGRST204" || saveError?.code === "42703" ? "Registration needs the requested_owner database update. Please contact an admin." : "Could not submit your request. Please try again.");
-    } finally { setSubmitting(false); }
-  }
-
-  return <form onSubmit={submit} style={{ display: "grid", gap: 12 }}>
-    <label>Driver name<input style={field} value={form.driverName} onChange={update("driverName")} required maxLength={80} placeholder="Your driver name" /></label>
-    <label>Car number<input style={field} type="number" min="1" max="999" value={form.carNumber} onChange={update("carNumber")} required placeholder="Preferred number" /></label>
-    <label>Manufacturer<select style={field} value={form.manufacturer} onChange={update("manufacturer")} required><option value="">Select manufacturer</option><option>Chevrolet</option><option>Ford</option><option>Toyota</option><option>Other</option></select></label>
-    <label>Team<input style={field} value={form.teamName} onChange={update("teamName")} required maxLength={80} placeholder="Team name or Independent" /></label>
-    <label style={{ display: "flex", gap: 10, alignItems: "center" }}><input type="checkbox" checked={form.requestedOwner} onChange={(event) => setForm((previous) => ({ ...previous, requestedOwner: event.target.checked }))} /><span>Owner</span></label>
-    {error && <p role="alert" style={{ color: "#a31820", margin: 0 }}>{error}</p>}
-    {status && <p role="status" style={{ color: "#176b37", margin: 0 }}>{status}</p>}
-    <button type="submit" disabled={submitting} style={{ width: "100%", padding: 14, border: 0, borderRadius: 2, background: "#d71920", color: "white", fontWeight: 900, cursor: "pointer" }}>{submitting ? "Submitting…" : "Request to Join"}</button>
+      const { data, error: failure } = await supabase.functions.invoke("brl-register", { body: { gamertag: form.gamertag.trim(), password: form.password, kind: form.kind, team: { code: form.code.trim().toUpperCase(), name: form.name.trim(), manufacturer: form.manufacturer, tier: form.kind === "independent" ? "independent" : form.tier } } });
+      if (failure) throw new Error(await functionError(failure, "Registration failed."));
+      if (data?.error) throw new Error(data.error);
+      if (data?.session) { const { error: sessionError } = await supabase.auth.setSession(data.session);if (sessionError) throw sessionError;await refreshLeagueAccess();window.location.assign("/career"); }
+      else setStatus(data?.message || "Registered. Sign in using your gamertag.");
+    } catch (failure) { setError(failure.message); } finally { setBusy(false); }
+  }}>
+    <p className="career-notice">Use your racing-platform <strong>gamertag as your name</strong>, exactly as it appears in the game. It identifies you on applications, the roster, contracts, and signatures. Do not enter your legal name in this field.</p>
+    <label>Gamertag<input required minLength={3} maxLength={80} autoComplete="username" value={form.gamertag} onChange={e => field("gamertag", e.target.value)} /></label>
+    <label>Password<input required minLength={12} maxLength={128} type="password" autoComplete="new-password" value={form.password} onChange={e => field("password", e.target.value)} /></label>
+    <label>Confirm password<input required type="password" autoComplete="new-password" value={form.confirm} onChange={e => field("confirm", e.target.value)} /></label>
+    <label>I am applying as<select value={form.kind} onChange={e => field("kind", e.target.value)}><option value="driver">Driver seeking a team seat</option><option value="owner">Team owner — super-admin approval required</option><option value="independent">Independent owner/driver — super-admin approval required</option></select></label>
+    {form.kind !== "driver" && <><label>Proposed team name<input required minLength={3} maxLength={100} value={form.name} onChange={e => field("name", e.target.value)} /></label><label>Team code<input required minLength={2} maxLength={20} pattern="[A-Za-z0-9_-]{2,20}" value={form.code} onChange={e => field("code", e.target.value)} placeholder="Example: 19XI" /></label><label>Manufacturer<select value={form.manufacturer} onChange={e => field("manufacturer", e.target.value)}><option>Toyota</option><option>Ford</option><option>Chevrolet</option></select></label>{form.kind === "owner" && <label>Requested charter<select value={form.tier} onChange={e => field("tier", e.target.value)}><option value="standard">Standard — up to 3 seats</option><option value="premier">Premier — up to 4 seats</option></select></label>}</>}
+    <p className="career-muted">Registration does not grant an active race seat. Owners need super-admin approval; drivers need a team-owned number and a contract signed by both parties. Car numbers are assigned during contracting.</p>
+    {error && <p role="alert" className="career-error">{error}</p>}{status && <p role="status">{status}</p>}
+    <button type="submit" disabled={busy}>{busy ? "Creating application…" : "Register & submit application"}</button>
   </form>;
 }
