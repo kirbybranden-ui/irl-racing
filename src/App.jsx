@@ -8749,7 +8749,7 @@ export default function App() {
   if (careerAliases.includes(path) || /^\/driver\/[^/]+\/contracts\/?$/.test(path)) {
     if (accessLoading) return accessPage(<p role="status">Checking account…</p>);
     if (!verifiedAccess?.userId) return accessPage(<RoleLogin next="/career" />, "Login / Register");
-    return <div className="career-route-shell"><MobileShell title="Applications & Contracts" session={verifiedAccess} onLogout={logoutOfLeague}><CareerDashboard /></MobileShell></div>;
+    return <div className="career-route-shell"><MobileShell title="My Career" session={verifiedAccess} onLogout={logoutOfLeague}><CareerDashboard /></MobileShell></div>;
   }
 
   if (accessLoading && (!canSeeRoute(null,path) || isAdminProtectedPath || ["/race-recorder","/team-hq","/owner","/hq","/teamhq"].includes(path))) return accessPage(<p role="status">Checking access…</p>);
