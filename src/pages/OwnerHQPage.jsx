@@ -4,17 +4,18 @@ import { supabase } from "../lib/supabase";
 import { useLeagueAccess, canManageTeam } from "../lib/roleAccess";
 import { getTeamFullName, getTeamBudget } from "../data/teams";
 import { money } from "../utils/formatters";
-import { inputStyle } from "../styles/sharedStyles";
+import { inputStyle as sharedInputStyle } from "../styles/sharedStyles";
 
-const mobileHeroStyle = { background: "linear-gradient(135deg, #c8102e, #111827)", borderRadius: 20, padding: 18, marginBottom: 14, border: "1px solid rgba(255,255,255,0.12)", boxShadow: "0 14px 30px rgba(0,0,0,0.25)" };
+const inputStyle = { ...sharedInputStyle, background: "#ffffff", color: "#111216", border: "1px solid #c9cbd1" };
+const mobileHeroStyle = { color: "#ffffff", background: "linear-gradient(135deg, #c8102e, #111827)", borderRadius: 20, padding: 18, marginBottom: 14, border: "1px solid rgba(255,255,255,0.12)", boxShadow: "0 14px 30px rgba(0,0,0,0.25)" };
 const mobileKickerStyle = { color: "#d4af37", fontSize: 11, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 1.3 };
-const mobileCardStyle = { background: "#111827", border: "1px solid #263244", borderRadius: 16, padding: 14, marginBottom: 12 };
+const mobileCardStyle = { color: "#ffffff", background: "#111827", border: "1px solid #263244", borderRadius: 16, padding: 14, marginBottom: 12 };
 const mobileDriverCardStyle = { width: "100%", background: "#111827", color: "white", border: "1px solid #263244", borderRadius: 16, padding: 12, marginBottom: 10, display: "grid", gridTemplateColumns: "38px 1fr auto", alignItems: "center", gap: 10, textAlign: "left" };
-const mobileRankStyle = { width: 34, height: 34, background: "#d4af37", color: "#111", borderRadius: 999, display: "grid", placeItems: "center", fontWeight: 1000 };
+const mobileRankStyle = { whiteSpace: "nowrap", flexShrink: 0, width: 40, height: 34, background: "#d4af37", color: "#111", borderRadius: 999, display: "grid", placeItems: "center", fontWeight: 1000 };
 const mobilePointsStyle = { fontWeight: 1000, fontSize: 19, textAlign: "right" };
 const mobileActionStyle = { width: "100%", minHeight: 48, borderRadius: 14, border: "1px solid", padding: "12px 14px", fontWeight: 1000, marginBottom: 10 };
 const mobileStatGridStyle = { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10, marginBottom: 12 };
-const mobileStatCardStyle = { background: "#111827", border: "1px solid #263244", borderRadius: 16, padding: 12 };
+const mobileStatCardStyle = { color: "#ffffff", background: "#111827", border: "1px solid #263244", borderRadius: 16, padding: 12 };
 
 
 function safeGo(go, path) {
@@ -94,7 +95,7 @@ function MobileStatGrid({ items }) {
 }
 
 function MobileSectionTitle({ children }) {
-  return <h2 style={{ fontSize: 16, margin: "20px 2px 10px", color: "#ffffff" }}>{children}</h2>;
+  return <h2 style={{ fontSize: 16, margin: "20px 2px 10px", color: "#111216" }}>{children}</h2>;
 }
 
 
@@ -473,16 +474,16 @@ export default function OwnerHQPage({ drivers = [], teams = [], seasonName = "",
       <MobileHero
         kicker="Owner Center"
         title="Team HQ"
-        subtitle="Mobile-friendly HQ view using the same live league drivers, standings, and team data."
+        subtitle="Your team, driver assignments, and development rides."
       />
 
       <MobileCard>
         <MobileAction
-          label="🔐 Owner Login"
+          label="Open Full Owner Portal"
           onClick={() => safeGo(go, "/owner")}
         />
         <div style={{ marginTop: 10, color: "#aab3c2", fontSize: 12, lineHeight: 1.45 }}>
-          Opens the full Team HQ owner portal with the same login, password rules, and tools as desktop.
+          Manage contracts, roster, and finances in the full owner portal.
         </div>
       </MobileCard>
 
@@ -518,7 +519,7 @@ export default function OwnerHQPage({ drivers = [], teams = [], seasonName = "",
               ...(!showBanking?[["Budget", money(getTeamBudget(currentTeam.team))]]:[]),
             ]} />
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              <MobileAction label="Open Full HQ" onClick={() => safeGo(go, "/owners?desktop=1")} secondary />
+              <MobileAction label="Open Full HQ" onClick={() => safeGo(go, "/owner")} secondary />
               <MobileAction label="Team Page" onClick={() => safeGo(go, `/team/${encodeURIComponent(currentTeam.team)}`)} />
             </div>
           </MobileCard>
@@ -534,7 +535,7 @@ export default function OwnerHQPage({ drivers = [], teams = [], seasonName = "",
               <button
                 type="button"
                 onClick={loadSubstitutionRequests}
-                style={{ border: "1px solid #263244", background: "#0b1220", color: "#fff", borderRadius: 12, padding: "9px 12px", fontWeight: 900 }}
+                style={{ border: "1px solid #263244", background: "#0b1220", color: "#fff", borderRadius: 12, padding: "9px 12px", fontWeight: 900, flexShrink: 0, whiteSpace: "nowrap" }}
               >
                 Refresh
               </button>
@@ -652,7 +653,7 @@ export default function OwnerHQPage({ drivers = [], teams = [], seasonName = "",
               <button
                 type="button"
                 onClick={loadDevelopmentRequests}
-                style={{ border: "1px solid #263244", background: "#0b1220", color: "#fff", borderRadius: 12, padding: "9px 12px", fontWeight: 900 }}
+                style={{ border: "1px solid #263244", background: "#0b1220", color: "#fff", borderRadius: 12, padding: "9px 12px", fontWeight: 900, flexShrink: 0, whiteSpace: "nowrap" }}
               >
                 Refresh
               </button>
