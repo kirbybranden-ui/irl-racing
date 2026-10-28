@@ -1,3 +1,4 @@
+import InSeasonChallengeControl from "../components/admin/InSeasonChallengeControl";
 import BankingPanel from "../components/banking/BankingPanel";
 import AIMediaAdmin from "../components/ai/AIMediaAdmin";
 import React, { useEffect, useState } from "react";
@@ -8,6 +9,7 @@ import { teamLogos, getTeamBranding, getTeamIdentifier } from "../data/teams";
 
 export default function AdminPortal({
   currentSession,
+  onSaveInSeasonChallenge,
   approveRaceSubmission,
   customTeamBranding = {},
   registeredTeams = {},
@@ -1447,6 +1449,8 @@ export default function AdminPortal({
             </div>
           </div>
         </div>
+
+        {!workspaceOpen && currentSession?.roles?.includes("full_admin") && <InSeasonChallengeControl key={activeSeason?.id} season={activeSeason} onSave={onSaveInSeasonChallenge} />}
 
         {!workspaceOpen && <section style={{ background: "#f7f7f5", borderTop: "4px solid #d71920", padding: isAdminMobile ? "22px 4px" : "30px 8px", marginBottom: 28 }}>
           <div style={{ color: "#d71920", fontSize: 11, fontWeight: 1000, letterSpacing: 2, textTransform: "uppercase" }}>BRL / Operations</div>
