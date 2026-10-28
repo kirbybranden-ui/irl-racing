@@ -1,3 +1,4 @@
+import { isChallengeRoute, useInSeasonChallenge } from "../../lib/inSeasonChallenge";
 import React, { useEffect, useState } from "react";
 import logo from "../../assets/logo1.png";
 import { getLeagueSession, logoutOfLeague } from "../../lib/leagueAuth";
@@ -14,6 +15,7 @@ const groups = [
 
 export default function DesktopNavigation() {
   const { access } = useLeagueAccess();
+  const { visible: challengeVisible } = useInSeasonChallenge();
   const [open, setOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [logoutError, setLogoutError] = useState("");
@@ -50,7 +52,7 @@ export default function DesktopNavigation() {
       <button className="brl-desktop-header__menu" type="button" aria-expanded={open} aria-controls="brl-all-pages" onClick={() => setOpen(!open)}>{open ? "Close" : "☰  All pages"}</button>
     </div>
     {open && <div id="brl-all-pages" className="brl-desktop-header__panel">
-      {groups.map(group => <section key={group.title}><h2>{group.title}</h2>{group.links.filter(([,href]) => canSeeRoute(access,href)).map(([label, href]) => <a key={`${label}-${href}`} href={href} className={path === href ? "active" : ""}>{label}<span aria-hidden="true">↗</span></a>)}</section>)}
+      {groups.map(group => <section key={group.title}><h2>{group.title}</h2>{group.links.filter(([,href]) => canSeeRoute(access,href) && (!isChallengeRoute(href) || challengeVisible)).map(([label, href]) => <a key={`${label}-${href}`} href={href} className={path === href ? "active" : ""}>{label}<span aria-hidden="true">↗</span></a>)}</section>)}
       {(hasLeagueRole(access,"race_recorder") || hasLeagueRole(access,"full_admin")) && <section><h2>Race Operations</h2><a href="/race-recorder">Record Race Data</a></section>}
       <section><h2>Account & team</h2><a href={profile}>{session?.driverNumber ? "Driver profile" : "Login / Register"}<span>↗</span></a>{session?.team && <a href={`/team/${encodeURIComponent(session.team)}`}>{session.team} page<span>↗</span></a>}{session && <button className="brl-desktop-header__signout" type="button" onClick={signOut} disabled={signingOut}>{signingOut ? "Signing out…" : "Log out"} <span>↗</span></button>}</section>
       {logoutError && <p role="alert">{logoutError}</p>}
