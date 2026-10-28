@@ -2,3 +2,6 @@
 .brl-desktop-header__signout{display:flex;justify-content:space-between;width:100%;padding:8px 0;border:0;background:none;color:#fff;text-align:left;font-size:14px;font-weight:750}.brl-desktop-header__signout span{color:#ff565e}.brl-desktop-header__signout:hover{color:#ff565e}
 
 @media(max-width:1000px) and (min-width:769px){.brl-desktop-header__quick{display:none}}
+
+/* Keep a way home on phone-sized admin and series tools. */
+@media(max-width:768px){.brl-desktop-header--tools{display:block}.brl-desktop-header--tools .brl-desktop-header__row{height:auto;min-height:64px;gap:10px;padding:10px 12px;flex-wrap:wrap}.brl-desktop-header--tools .brl-desktop-header__quick,.brl-desktop-header--tools .brl-desktop-header__message{display:none}.brl-desktop-header--tools .brl-desktop-header__brand{margin-right:auto;font-size:20px}.brl-desktop-header--tools .brl-desktop-header__brand img{width:36px;height:36px}.brl-desktop-header--tools .brl-desktop-header__profile{padding:12px 0;font-size:10px}.brl-desktop-header--tools .brl-desktop-header__menu{padding:12px;font-size:11px;min-height:44px}.brl-desktop-header--tools .brl-desktop-header__panel{grid-template-columns:1fr;gap:20px;padding:20px;max-height:80dvh}.brl-desktop-header--tools .brl-desktop-header__panel a{min-height:44px;align-items:center}}
