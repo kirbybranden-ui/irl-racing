@@ -65,13 +65,17 @@ export default function CarGalleryPage({ drivers = [], tracks = [], seriesId = "
   const handleDelete = async (uploadId, filePath) => {
     if (!window.confirm("Delete this upload?")) return;
     try {
-      if (filePath) await supabase.storage.from("car-uploads").remove([filePath]);
-      await supabase.from("car_uploads").delete().eq("id", uploadId);
+      const { error: deleteError } = await supabase.from("car_uploads").delete().eq("id", uploadId);
+      if (deleteError) throw deleteError;
+      if (filePath) {
+        const { error: storageError } = await supabase.storage.from("car-uploads").remove([filePath]);
+        if (storageError) throw storageError;
+      }
       setUploads(uploads.filter(u => u.id !== uploadId));
       alert("Upload deleted!");
     } catch (err) {
       console.error("Error:", err);
-      alert("Error deleting upload");
+      alert(err.message || "Error deleting upload");
     }
   };
 
