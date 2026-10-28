@@ -1450,6 +1450,8 @@ export default function AdminPortal({
           </div>
         </div>
 
+        {!workspaceOpen && <section style={{ padding: "16px 0", marginBottom: 20 }}><a href="/career#approvals" style={{ fontWeight: 900, color: "#b71923" }}>Owner applications, contracts & league funding →</a><p style={{ margin: "8px 0 0", fontSize: 13 }}>Super-admin approvals, signed number purchases, seat applications, negotiations, and payment claims.</p></section>}
+
         {!workspaceOpen && currentSession?.roles?.includes("full_admin") && <InSeasonChallengeControl key={activeSeason?.id} season={activeSeason} onSave={onSaveInSeasonChallenge} />}
 
         {!workspaceOpen && <section style={{ background: "#f7f7f5", borderTop: "4px solid #d71920", padding: isAdminMobile ? "22px 4px" : "30px 8px", marginBottom: 28 }}>
