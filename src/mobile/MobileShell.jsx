@@ -8,7 +8,7 @@ import "./MobileShell.css";
 export const mobileMenuGroups = [
   { title: "Race center", links: [["Cup standings", "/standings"], ["Season schedule", "/schedule"], ["Teams & drivers", "/owners"], ["Driver market", "/driver-market"], ["In-season tournament", "/tournament"], ["Streams", "/streams"]] },
   { title: "Media & community", links: [["News", "/news"], ["Media center & interviews", "/interviews"], ["Public interviews", "/public-interviews"], ["Race strategy", "/strategy"], ["Paint scheme vote", "/paint-scheme-vote"], ["League voting", "/vote"], ["Messages", "/message-center"], ["Notifications", "/notifications"], ["League chat", "/chat"], ["Discord", "/discord"]] },
-  { title: "My league", links: [["Applications & contracts", "/career"],["My dashboard", "/my-dashboard"], ["Team HQ", "/team-hq"], ["Contracts", "/contracts"], ["Development requests", "/development-requests"], ["Submit appeal", "/submit-appeal"], ["Submit story", "/submit-story"], ["Issues & feedback", "/issues"], ["Files", "/files"]] },
+  { title: "My league", links: [["My Career", "/career"],["My dashboard", "/my-dashboard"], ["Team HQ", "/team-hq"], ["Development requests", "/development-requests"], ["Submit appeal", "/submit-appeal"], ["Submit story", "/submit-story"], ["Issues & feedback", "/issues"], ["Files", "/files"]] },
   { title: "League operations", links: [["Admin operations", "/admin"], ["Permissions", "/admin/permissions"], ["Race recorder", "/race-recorder"], ["Car gallery", "/admin/car-gallery"], ["Interview admin", "/admin/interviews"], ["Voting admin", "/admin/votes"], ["Live control", "/admin/live-control"]] },
 ];
 
