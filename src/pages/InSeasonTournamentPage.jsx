@@ -1,3 +1,4 @@
+import { useInSeasonChallenge } from "../lib/inSeasonChallenge";
 import React, { useMemo } from "react";
 import {
   appShellStyle,
@@ -347,7 +348,17 @@ function MatchupCard({ driverA, driverB, winner, entryA, entryB }) {
   );
 }
 
-function InSeasonTournamentPage({ drivers = [], raceHistory = [] }) {
+function InSeasonTournamentPage(props) {
+  const { enabled, loading, error } = useInSeasonChallenge();
+  if (loading || error || !enabled) return <section style={{ padding: "30px 16px", maxWidth: 900, margin: "auto" }}>
+    <h1 style={{ fontSize: 30 }}>In-Season Challenge</h1>
+    <p role={error ? "alert" : "status"}>{loading ? "Loading challenge settings…" : error || "The In-Season Challenge is currently turned off for this season."}</p>
+    <a href="/standings">Back to standings</a>
+  </section>;
+  return <TournamentBracket {...props} />;
+}
+
+function TournamentBracket({ drivers = [], raceHistory = [] }) {
   const seeds = useMemo(() => makeSeeds(drivers), [drivers]);
 
   const bySeed = useMemo(() => {
