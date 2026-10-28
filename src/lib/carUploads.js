@@ -102,19 +102,20 @@ export async function getCarUploads(driverId = null, raceId = null, series = nul
  
 export async function deleteCarUpload(uploadId, filePath) {
   try {
-    const { error: storageError } = await supabase.storage
-      .from("car-uploads")
-      .remove([filePath]);
- 
-    if (storageError) throw storageError;
- 
+    // Delete metadata first so contractual evidence protections can reject the
+    // request before its image is removed from Storage.
     const { error: dbError } = await supabase
       .from("car_uploads")
       .delete()
       .eq("id", uploadId);
- 
     if (dbError) throw dbError;
- 
+    if (filePath) {
+      const { error: storageError } = await supabase.storage
+        .from("car-uploads")
+        .remove([filePath]);
+      if (storageError) throw storageError;
+    }
+
     return { success: true };
   } catch (error) {
     console.error("Delete error:", error);
