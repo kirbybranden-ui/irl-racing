@@ -5,6 +5,10 @@ export const ROLE_LABELS = { driver: "Driver", owner: "Owner", race_recorder: "R
 export function hasLeagueRole(access, role) { return access?.roles?.includes(role) === true; }
 export function canManageTeam(access, team) { return hasLeagueRole(access, "full_admin") || (hasLeagueRole(access, "owner") && access?.ownedTeams?.includes(team)); }
 export function canSeeRoute(access, path) {
+  if (path === "/career") return Boolean(access?.userId);
+  const applicant = access?.userId && !access.isDriver && !access.isOwner && !access.isAdmin;
+  if (applicant && ["/media", "/strategy", "/interviews", "/welcome", "/message-center", "/notifications", "/submit-appeal", "/chat", "/vote", "/league-vote", "/voting", "/paint-scheme-vote", "/submit-story", "/development-requests", "/developmental-requests", "/dev-requests"].includes(path)) return false;
+
   if (path.startsWith("/admin") || ["/appeals","/stories"].includes(path)) return hasLeagueRole(access, "full_admin") || (path === "/admin" && hasLeagueRole(access, "race_recorder"));
   if (path === "/race-recorder") return hasLeagueRole(access, "race_recorder") || hasLeagueRole(access, "full_admin");
   if (["/team-hq", "/owner-hq", "/owner", "/hq", "/teamhq"].includes(path)) return hasLeagueRole(access, "owner") || hasLeagueRole(access, "full_admin");
