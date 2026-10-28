@@ -8,7 +8,7 @@ import "./MobileShell.css";
 export const mobileMenuGroups = [
   { title: "Race center", links: [["Cup standings", "/standings"], ["Season schedule", "/schedule"], ["Teams & drivers", "/owners"], ["Driver market", "/driver-market"], ["In-season tournament", "/tournament"], ["Streams", "/streams"]] },
   { title: "Media & community", links: [["News", "/news"], ["Media center & interviews", "/interviews"], ["Public interviews", "/public-interviews"], ["Race strategy", "/strategy"], ["Paint scheme vote", "/paint-scheme-vote"], ["League voting", "/vote"], ["Messages", "/message-center"], ["Notifications", "/notifications"], ["League chat", "/chat"], ["Discord", "/discord"]] },
-  { title: "My league", links: [["My dashboard", "/my-dashboard"], ["Team HQ", "/team-hq"], ["Contracts", "/contracts"], ["Development requests", "/development-requests"], ["Submit appeal", "/submit-appeal"], ["Submit story", "/submit-story"], ["Issues & feedback", "/issues"], ["Files", "/files"]] },
+  { title: "My league", links: [["Applications & contracts", "/career"],["My dashboard", "/my-dashboard"], ["Team HQ", "/team-hq"], ["Contracts", "/contracts"], ["Development requests", "/development-requests"], ["Submit appeal", "/submit-appeal"], ["Submit story", "/submit-story"], ["Issues & feedback", "/issues"], ["Files", "/files"]] },
   { title: "League operations", links: [["Admin operations", "/admin"], ["Permissions", "/admin/permissions"], ["Race recorder", "/race-recorder"], ["Car gallery", "/admin/car-gallery"], ["Interview admin", "/admin/interviews"], ["Voting admin", "/admin/votes"], ["Live control", "/admin/live-control"]] },
 ];
 
@@ -30,8 +30,8 @@ export default function MobileShell({ title = "Budweiser Racing League", childre
   const number = session?.driverNumber;
   const role = (session?.roles || []).map((role) => ROLE_LABELS[role] || role).join(" · ");
   const groups = mobileMenuGroups.map((group) => ({ ...group, links: group.links.filter(([label, href]) => canSeeRoute(session, href) && (!isChallengeRoute(href) || challengeVisible) && (!href.startsWith("/my-") || signedIn) && `${label} ${group.title}`.toLowerCase().includes(query.toLowerCase())) })).filter((group) => group.links.length);
-  const tabs = [["Home", "/", "⌂"], ["Race", "/schedule", "⚑"], ["Media", "/interviews", "◉"], ["My HQ", signedIn ? "/my-dashboard" : "/login?next=%2Fmy-dashboard", "◎"]];
-  const active = (href) => href === "/" ? ["/", "/standings"].includes(path) : href === "/schedule" ? ["/schedule", "/tracks", "/season-schedule"].includes(path) : href === "/interviews" ? ["/interviews", "/media", "/strategy", "/public-interviews", "/news"].includes(path) : path === href || (href === "/my-dashboard" && path.startsWith("/driver/"));
+  const tabs = [["Home", "/", "⌂"], ["Race", "/schedule", "⚑"], ["Media", "/interviews", "◉"], ["My HQ", signedIn ? "/career" : "/login?next=%2Fcareer", "◎"]];
+  const active = (href) => href === "/" ? ["/", "/standings"].includes(path) : href === "/schedule" ? ["/schedule", "/tracks", "/season-schedule"].includes(path) : href === "/interviews" ? ["/interviews", "/media", "/strategy", "/public-interviews", "/news"].includes(path) : path === href || (href === "/career" && path.startsWith("/driver/"));
 
   useEffect(() => {
     if (!open) return;
@@ -50,11 +50,11 @@ export default function MobileShell({ title = "Budweiser Racing League", childre
 
   return <div className="brl-mobile" style={{ "--mobile-accent": (team && brand?.accent) || "#d71920" }}>
     <a className="brl-mobile__skip" href="#mobile-content">Skip to content</a>
-    <header className="brl-mobile__header"><a href="/" className="brl-mobile__brand" aria-label="BRL home"><img src={logo} alt="" /><span>BRL<small>RACING LEAGUE</small></span></a><div className="brl-mobile__header-actions">{signedIn && <a href="/notifications" aria-label="Notifications">🔔</a>}{signedIn ? <a className="brl-mobile__profile" href="/my-dashboard" aria-label="My dashboard">{number ? `#${number}` : "HQ"}</a> : <button type="button" onClick={() => onLoginClick ? onLoginClick() : window.location.assign(`/login?next=${encodeURIComponent(window.location.pathname)}`)}>Log in</button>}</div></header>
+    <header className="brl-mobile__header"><a href="/" className="brl-mobile__brand" aria-label="BRL home"><img src={logo} alt="" /><span>BRL<small>RACING LEAGUE</small></span></a><div className="brl-mobile__header-actions">{signedIn && (session?.isDriver || session?.isOwner || session?.isAdmin) && <a href="/notifications" aria-label="Notifications">🔔</a>}{signedIn ? <a className="brl-mobile__profile" href="/career" aria-label="My dashboard">{number ? `#${number}` : "HQ"}</a> : <button type="button" onClick={() => onLoginClick ? onLoginClick() : window.location.assign(`/login?next=${encodeURIComponent(window.location.pathname)}`)}>Log in</button>}</div></header>
     <main id="mobile-content" className="brl-mobile__content">
       <div className="brl-mobile__eyebrow">{team ? brand?.fullName || team : "ONE LEAGUE. ONE COMMUNITY."}</div>
       <div className="brl-mobile__title-row"><h1>{title === "Cup Standings" ? "Race Center" : title}</h1>{teamLogo && <img src={teamLogo} alt={`${team} logo`} />}</div>
-      {signedIn && <div className="brl-mobile__session"><a href="/my-dashboard">{number ? `#${number} ` : ""}{name}<small>{role || "League member"}</small></a>{onLogout && <button type="button" disabled={signingOut} onClick={async () => { setSigningOut(true); setError(""); try { await onLogout(); } catch (failure) { setError(failure.message || "Could not sign out. Try again."); } finally { setSigningOut(false); } }}>{signingOut ? "Signing out…" : "Log out"}</button>}</div>}
+      {signedIn && <div className="brl-mobile__session"><a href="/career">{number ? `#${number} ` : ""}{name}<small>{role || "League member"}</small></a>{onLogout && <button type="button" disabled={signingOut} onClick={async () => { setSigningOut(true); setError(""); try { await onLogout(); } catch (failure) { setError(failure.message || "Could not sign out. Try again."); } finally { setSigningOut(false); } }}>{signingOut ? "Signing out…" : "Log out"}</button>}</div>}
       {error && <p role="alert">{error}</p>}
       <div className="brl-mobile__page">{menuPage ? menu : children}</div>
     </main>
