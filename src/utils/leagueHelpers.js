@@ -46,7 +46,7 @@ export function createEmptySeason(name, roster = getDefaultRoster()) {
 
 export function sanitizeSeason(season, fallbackName = "Season") {
   const rosterSource =
-    Array.isArray(season?.drivers) && season.drivers.length > 0
+    Array.isArray(season?.drivers)
       ? season.drivers
       : getDefaultRoster();
 
@@ -94,6 +94,13 @@ export function sanitizeSeason(season, fallbackName = "Season") {
     offenseMap: season?.offenseMap || {},
     fastestLapMap: season?.fastestLapMap || {},
     raceHistory: history,
+    arcaDrivers: Array.isArray(season?.arcaDrivers) ? season.arcaDrivers : [],
+    arcaRaceHistory: Array.isArray(season?.arcaRaceHistory) ? season.arcaRaceHistory : [],
+    nxsDrivers: Array.isArray(season?.nxsDrivers) ? season.nxsDrivers : [],
+    ctsDrivers: Array.isArray(season?.ctsDrivers) ? season.ctsDrivers : [],
+    xfinityDrivers: Array.isArray(season?.xfinityDrivers) ? season.xfinityDrivers : [],
+    truckDrivers: Array.isArray(season?.truckDrivers) ? season.truckDrivers : [],
+    rosterResetAt: season?.rosterResetAt || null,
   };
 }
 
