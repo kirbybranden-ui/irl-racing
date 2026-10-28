@@ -28,6 +28,7 @@ export function createEmptySeason(name, roster = getDefaultRoster()) {
   return {
     id: makeSeasonId(),
     name: name || "New Season",
+    inSeasonChallengeEnabled: true,
     createdAt: new Date().toISOString(),
     drivers: rebuildDriversFromHistory([], cleanRoster),
     selectedRace: "",
@@ -80,6 +81,7 @@ export function sanitizeSeason(season, fallbackName = "Season") {
   return {
     id: season?.id || makeSeasonId(),
     name: season?.name || fallbackName,
+    inSeasonChallengeEnabled: season?.inSeasonChallengeEnabled !== false,
     createdAt: season?.createdAt || new Date().toISOString(),
     drivers: rebuildDriversFromHistory(history, rosterOnly),
     selectedRace: normalizeTrackName(season?.selectedRace || ""),
