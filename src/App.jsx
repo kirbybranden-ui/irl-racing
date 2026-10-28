@@ -1,3 +1,4 @@
+import MobileShell from "./mobile/MobileShell";
 import MediaCenter from "./components/ai/MediaCenter";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -39,7 +40,7 @@ import DriverFeedbackPage from "./pages/DriverFeedbackPage";
 import OwnerHQPage from "./pages/OwnerHQPage";
 import AdminPortal from "./pages/AdminPortal";
 import PermissionsCenter from "./pages/PermissionsCenter";
-import LeagueMessageCenter from "./pages/LeagueMessageCenter";
+import LeagueMessageCenter, { getMessageCategory } from "./pages/LeagueMessageCenter";
 import InSeasonTournamentPage from "./pages/InSeasonTournamentPage";
 import DriverMarketPage from "./pages/DriverMarketPage";
 import DevelopmentRequestsPage from "./pages/DevelopmentRequestsPage";
@@ -2213,7 +2214,7 @@ function AdminLeagueMessageDashboard({ drivers = [], teams = [] }) {
       return;
     }
 
-    setMessages(filterLeagueMessagesForSession(data || [], currentDriverSession || driverSession || loggedInDriver || mobileSession || {}));
+    setMessages(filterLeagueMessagesForSession(data || [], getLeagueSession() || {}));
     setLoading(false);
   }
 
@@ -3432,7 +3433,7 @@ function MobilePaintSchemeVotesHub({ drivers = [], tracks = [], go, session = nu
     border: "1px solid #334155",
     borderRadius: 14,
     padding: "12px 13px",
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: 900,
     boxSizing: "border-box",
   };
@@ -3467,7 +3468,9 @@ function MobilePaintSchemeVotesHub({ drivers = [], tracks = [], go, session = nu
               type="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              placeholder="Enter driver password"
+              aria-label="Driver password"
+            autoComplete="current-password"
+            placeholder="Enter driver password"
               style={selectInputStyle}
             />
             <button type="submit" style={{ ...mobileActionStyle, background: "#d4af37", color: "#111", borderColor: "#d4af37" }}>
@@ -3967,6 +3970,25 @@ function MobileLoginModal({ drivers = [], onClose, onSuccess }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const modalRef = useRef(null);
+  useEffect(() => {
+    const previousFocus = document.activeElement;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const selector = 'button:not([disabled]), input, select, textarea, a[href], [tabindex="0"]';
+    modalRef.current?.querySelector(selector)?.focus();
+    const handleKey = (event) => {
+      if (event.key === "Escape") { event.preventDefault(); onClose(); }
+      if (event.key !== "Tab") return;
+      const items = [...(modalRef.current?.querySelectorAll(selector) || [])];
+      const first = items[0], last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+    };
+    document.addEventListener("keydown", handleKey);
+    return () => { document.body.style.overflow = previousOverflow; document.removeEventListener("keydown", handleKey); previousFocus?.focus(); };
+  }, [onClose]);
+
   const activeDrivers = useMemo(() => {
     return dedupeDriversByNumber(drivers || [])
       .filter((driver) => !driver.retired && !isInactivePlaceholderDriver(driver))
@@ -4021,7 +4043,7 @@ function MobileLoginModal({ drivers = [], onClose, onSuccess }) {
   };
 
   return createPortal(
-    <div style={{ position: "fixed", inset: 0, background: "rgba(29,29,31,0.42)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", zIndex: 1300, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+    <div ref={modalRef} role="dialog" aria-modal="true" aria-label="Driver login" style={{ position: "fixed", inset: 0, background: "rgba(29,29,31,0.42)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", zIndex: 10000, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
       <div style={{ width: "100%", maxWidth: 480, background: "linear-gradient(180deg, rgba(255,255,255,0.97), rgba(248,250,252,0.95))", borderTop: "1px solid rgba(255,255,255,0.8)", borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: "20px 18px 28px", maxHeight: "88vh", overflowY: "auto", boxShadow: "0 -20px 60px rgba(0,0,0,0.20)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <div>
@@ -4035,7 +4057,7 @@ function MobileLoginModal({ drivers = [], onClose, onSuccess }) {
           {[["login", "Login"], ["register", "Register"]].map(([key, label]) => <button key={key} role="tab" aria-selected={authView === key} type="button" onClick={() => setAuthView(key)} style={{ flex: 1, border: 0, borderBottom: authView === key ? "3px solid #d71920" : "3px solid transparent", padding: 12, background: "transparent", fontWeight: 900 }}>{label}</button>)}
         </div>
         {authView === "register" ? <><p style={{ color: "#4b5563", fontSize: 13 }}>Request to join the league. An admin will review your driver details before login is available.</p><JoinRequestForm /></> : <form onSubmit={loginDriver} style={{ display: "grid", gap: 12 }}>
-          <select value={driverNumber} onChange={(event) => setDriverNumber(event.target.value)} style={modalInputStyle}>
+          <select aria-label="Driver" autoComplete="username" value={driverNumber} onChange={(event) => setDriverNumber(event.target.value)} style={modalInputStyle}>
             <option value="">Select Your Driver</option>
             {activeDrivers.map((driver) => (
               <option key={driver.id || driver.number} value={String(driver.number)}>
@@ -4416,6 +4438,8 @@ function MobileLeagueApp({
   arcaDrivers = [],
   arcaTracks = [],
   paymentCompliance = null,
+  startParkRequests = [],
+  driverRecruitingInterest = [],
   onApplyTeamTransaction = () => {},
 }) {
   const go = (to) => { window.location.href = to; };
@@ -4425,10 +4449,10 @@ function MobileLeagueApp({
   const upcomingRace = getUpcomingRaceByDate(tracks || []);
   const leader = sortedDrivers[0];
   const { access: mobileAccess } = useLeagueAccess();
-  const [mobileSession, setMobileSession] = useState(() => readBclMobileSession() || { mode: "guest", displayName: "Guest" });
+  const [mobileSession, setMobileSession] = useState(() => mobileAccess || { mode: "guest", displayName: "Guest" });
   useEffect(() => { setMobileSession(mobileAccess || { mode: "guest", displayName: "Guest" }); }, [mobileAccess]);
-  const isGuestSession = mobileSession?.mode === "guest";
-  const [showMobileLoginModal, setShowMobileLoginModal] = useState(false);
+  const isGuestSession = !mobileSession?.userId;
+  const [showMobileLoginModal, setShowMobileLoginModal] = useState(() => new URLSearchParams(window.location.search).get("login") === "1");
   const [mobileStandingsTab, setMobileStandingsTab] = useState("drivers");
 
   async function handleMobileLogout() {
@@ -4440,15 +4464,8 @@ function MobileLeagueApp({
   function handleMobileLoginSuccess(session) {
     setMobileSession(session);
     setShowMobileLoginModal(false);
-    // Logging in doesn't change which URL you're on — if you were viewing
-    // someone else's fixed /driver/:number page, that page would keep
-    // showing that same driver regardless of who just logged in. Sending
-    // everyone to "/" (Home) after login ensures you land on your own
-    // profile rather than staying stuck on whichever driver's page you
-    // happened to be testing from.
-    if (path !== "/") {
-      window.location.href = "/";
-    }
+    const redirect = new URLSearchParams(window.location.search).get("redirect");
+    if (redirect?.startsWith("/") && !redirect.startsWith("//")) window.location.assign(redirect);
   }
 
   function getTrackOverview(race) {
@@ -4469,6 +4486,7 @@ function MobileLeagueApp({
     return frame(title, active, <MobileDataFrame>{children}</MobileDataFrame>);
   }
 
+  if (["/owners", "/compare"].includes(path)) return dataFrame("Teams & Drivers", "more", <LeagueComparisonPage drivers={drivers} teams={teams} />);
   if (path === "/files") return dataFrame("Files", "more", <FilesPage />);
   if (path === "/welcome") return dataFrame("Welcome", "home", <WelcomePage />);
   if (path === "/submit-appeal") return dataFrame("Submit Appeal", "more", isGuestSession ? <MobileGuestLockedCard title="Appeals Require Driver Login" go={go} /> : <SubmitAppealPage />);
@@ -4482,7 +4500,7 @@ function MobileLeagueApp({
   if (path === "/public-interviews") return frame("Public Interviews", "more", <PublicInterviewsPage seriesId="cup" />);
   if (["/interviews","/media","/strategy"].includes(path)) return frame("Media Center", "interviews", <MediaCenter strategyOnly={path === "/strategy"}/>);
   if (path === "/contracts") return dataFrame("Contracts", "more", <ContractsPage drivers={drivers} />);
-  if (path === "/driver-market" || path === "/transfer-portal" || path === "/silly-season") return dataFrame("Driver Market", "more", <DriverMarketPage drivers={drivers || []} raceHistory={raceHistory || []} startParkRequests={[]} paintSchemePayouts={[]} supabase={supabase} />);
+  if (path === "/driver-market" || path === "/transfer-portal" || path === "/silly-season") return dataFrame("Driver Market", "more", <DriverMarketPage drivers={drivers || []} raceHistory={raceHistory || []} startParkRequests={startParkRequests} interestRows={driverRecruitingInterest} paintSchemePayouts={[]} supabase={supabase} />);
   if (path === "/development-requests" || path === "/developmental-requests" || path === "/dev-requests") return dataFrame("Development Requests", "more", (
     <DevelopmentRequestsPage
       leagueState={{ drivers: drivers || [], teams: teams || [] }}
@@ -4527,29 +4545,9 @@ function MobileLeagueApp({
     ));
   }
 
-  if (["/owner", "/owners"].includes(path)) {
-    return dataFrame("Owner Login", "more", (
-      <>
-        <MobileHero
-          kicker="Owner Portal"
-          title="Owner Login"
-          subtitle="Full Team HQ access with the same password/login and controls as desktop."
-        />
-        <OwnersPage
-          drivers={drivers}
-          teams={teams}
-          teamBudgets={teamBudgets}
-          raceHistory={raceHistory}
-          seasonName={seasonName}
-          tracks={tracks}
-          paymentCompliance={paymentCompliance}
-          onApplyTeamTransaction={onApplyTeamTransaction}
-        />
-      </>
-    ));
-  }
+  if (path === "/owner") return dataFrame("Owner Portal", "more", <OwnersPage drivers={drivers} teams={teams} teamBudgets={teamBudgets} raceHistory={raceHistory} seasonName={seasonName} tracks={tracks} paymentCompliance={paymentCompliance} onApplyTeamTransaction={onApplyTeamTransaction} />);
 
-  if (["/team-hq", "/hq", "/teamhq"].includes(path)) {
+  if (["/team-hq", "/owner-hq", "/hq", "/teamhq"].includes(path)) {
     return frame("Team HQ", "more", <OwnerHQPage drivers={drivers} teams={teams} seasonName={seasonName} tracks={tracks} go={go} supabase={supabase} />);
   }
 
@@ -4608,12 +4606,12 @@ function MobileLeagueApp({
   if (path.startsWith("/driver/")) {
     const requestedDriverNumber = decodeURIComponent(rawPath.replace(/^\/driver\//i, "").split("/")[0]);
     const isInterviewRoute = /\/interviews\/?$/i.test(rawPath);
-    const leagueSession = getLeagueSession();
-    const isAdminViewing = typeof window !== "undefined" && sessionStorage.getItem("bcl-admin-auth") === "true";
+    const leagueSession = mobileAccess;
+    const isAdminViewing = hasLeagueRole(mobileAccess, "full_admin");
     const isOwnProfile = leagueSession && String(leagueSession.driverNumber) === String(requestedDriverNumber);
 
     if (!isAdminViewing && !isOwnProfile) {
-      return <DriverProfileSignInGate driverNumber={requestedDriverNumber} />;
+      return dataFrame("Driver Profile", "home", <DriverProfileSignInGate driverNumber={requestedDriverNumber} />);
     }
 
     return dataFrame(isInterviewRoute ? "My Interviews" : "Driver Profile", isInterviewRoute ? "interviews" : "home", (
@@ -4637,8 +4635,8 @@ function MobileLeagueApp({
   }
 
   if (path === "/my-dashboard") {
-    const leagueSession = getLeagueSession();
-    const isAdminViewing = typeof window !== "undefined" && sessionStorage.getItem("bcl-admin-auth") === "true";
+    const leagueSession = mobileAccess;
+    const isAdminViewing = hasLeagueRole(mobileAccess, "full_admin");
 
     if (!leagueSession?.driverNumber && !isAdminViewing) {
       return (
@@ -4780,7 +4778,7 @@ function MobileLeagueApp({
 
   if (path === "/" || path === "/standings") {
     return (
-      <MobileLayout title="Budweiser Cup" go={go} active="standings" session={mobileSession} onLogout={handleMobileLogout} onLoginClick={() => setShowMobileLoginModal(true)} showLoginModal={showMobileLoginModal} onCloseLoginModal={() => setShowMobileLoginModal(false)} onLoginSuccess={handleMobileLoginSuccess} drivers={drivers}>
+      <MobileLayout title="Cup Standings" go={go} active="standings" session={mobileSession} onLogout={handleMobileLogout} onLoginClick={() => setShowMobileLoginModal(true)} showLoginModal={showMobileLoginModal} onCloseLoginModal={() => setShowMobileLoginModal(false)} onLoginSuccess={handleMobileLoginSuccess} drivers={drivers}>
         <MobileHero
           kicker={seasonName || "Current Season"}
           title="Cup Standings"
@@ -4890,7 +4888,7 @@ function MobileLeagueApp({
     );
   }
 
-  return dataFrame("Budweiser Cup", "standings", <StandingsPage drivers={drivers} teams={teams} manufacturerStandings={manufacturerStandings} seasonName={seasonName} tracks={tracks} raceHistory={raceHistory} supabase={supabase} />);
+  return frame("Page not found", "more", <MobileCard><p>This page could not be found.</p><MobileAction label="Open all pages" onClick={() => go("/more")} /></MobileCard>);
 }
 
 
@@ -4920,7 +4918,7 @@ function MobileTimelineSpotlightPanel({ tracks = [], drivers = [], go, seasonNam
               Shows the upcoming race paint winner after Wednesday voting closes. If voting ties, all tied winners are shown.
             </p>
           </div>
-          <button type="button" onClick={() => go("/paint-scheme-vote")} style={{ ...mobileActionStyle, width: "auto", padding: "9px 11px", fontSize: 12 }}>
+          <button type="button" onClick={() => go("/paint-scheme-vote")} style={{ ...mobileActionStyle, width: "auto", flexShrink: 0, whiteSpace: "nowrap", padding: "9px 11px", fontSize: 12 }}>
             Vote
           </button>
         </div>
@@ -4934,15 +4932,15 @@ function MobileTimelineSpotlightPanel({ tracks = [], drivers = [], go, seasonNam
         <div style={mobileKickerStyle}>{seasonName || "Season 1"} • Top 20</div>
         <h2 style={{ margin: "4px 0 6px", fontSize: 20 }}>🏆 Bracket Hub</h2>
         <p style={{ margin: 0, color: "#6e6e73", lineHeight: 1.45, fontSize: 13 }}>
-          Mobile now links directly to the in-season bracket. Orly is excluded from the bracket field.
+          Follow the in-season matchups and tournament results.
         </p>
         {topSeed && lastSeed && (
           <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 8, alignItems: "center", fontSize: 12 }}>
-            <div style={{ background: "#0f1319", border: "1px solid #263244", borderRadius: 12, padding: 10 }}>
+            <div style={{ background: "#0f1319", color: "#ffffff", border: "1px solid #263244", borderRadius: 12, padding: 10 }}>
               <strong>#{topSeed.number}</strong><br />{topSeed.name}
             </div>
             <strong style={{ color: "#d4af37" }}>vs</strong>
-            <div style={{ background: "#0f1319", border: "1px solid #263244", borderRadius: 12, padding: 10 }}>
+            <div style={{ background: "#0f1319", color: "#ffffff", border: "1px solid #263244", borderRadius: 12, padding: 10 }}>
               <strong>#{lastSeed.number}</strong><br />{lastSeed.name}
             </div>
           </div>
@@ -5046,7 +5044,7 @@ function MobileLatestNewsPreview({ go }) {
 
     loadPreview();
     return () => { isMounted = false; };
-  }, [accessLoading, verifiedAccess?.userId, verifiedAccess?.roles?.includes("full_admin")]);
+  }, []);
 
   if (!articles.length) return null;
 
@@ -5743,176 +5741,13 @@ function MobileRaceRecapPage({ race, go }) {
   );
 }
 
-function MobileLayout({ title, children, go, active, session = null, onLogout = () => {}, onLoginClick = () => {}, showLoginModal = false, onCloseLoginModal = () => {}, onLoginSuccess = () => {}, drivers = [] }) {
-  const [showMoreSheet, setShowMoreSheet] = useState(false);
-
-  function openDesktopVersion() {
-    if (typeof document !== "undefined") {
-      document.cookie = "bcl-force-desktop=1; path=/; max-age=2592000";
-    }
-    window.location.reload();
-  }
-
-  const leagueSession = getLeagueSession();
-  const driverNumber = leagueSession?.driverNumber || "";
-  const isOwner = Boolean(leagueSession?.isOwner);
-
-  const moreMenuItems = [
-    ...(driverNumber ? [
-      { icon: "👤", label: "My Driver Profile", href: "/my-dashboard" },
-      { icon: "📄", label: "Contracts", href: `/driver/${driverNumber}/contracts` },
-      { icon: "🏎️", label: "Developmental Ride", href: `/driver/${driverNumber}/development` },
-      { icon: "📷", label: "Uploads", href: `/driver/${driverNumber}/upload` },
-      { icon: "📋", label: "Appeals", href: `/driver/${driverNumber}/appeals` },
-      { icon: "🎯", label: "Assignments", href: `/driver/${driverNumber}/assignments` },
-      { icon: "😊", label: "Driver Feedback", href: `/driver/${driverNumber}/feedback` },
-      { icon: "🤝", label: "Team Interest", href: `/driver/${driverNumber}/team-interest` },
-      { icon: "🔄", label: "Transfer Portal", href: `/driver/${driverNumber}/portal` },
-      { icon: "⚙️", label: "Settings", href: `/driver/${driverNumber}/settings` },
-    ] : []),
-    { icon: "🏁", label: "Cup Standings", href: "/" },
-    { icon: "📅", label: "Season Schedule", href: "/schedule" },
-    { icon: "🏢", label: "Teams & Owners", href: "/owners" },
-    { icon: "🔥", label: "Driver Market", href: "/driver-market" },
-    { icon: "📺", label: "Streams", href: "/streams" },
-    { icon: "✉️", label: "Messages", href: "/message-center" },
-    { icon: "🔔", label: "Notifications", href: "/notifications" },
-    { icon: "🎙️", label: "Public Interviews", href: "/public-interviews" },
-    { icon: "🏆", label: "In-Season Bracket", href: "/bracket" },
-    { icon: "🗳️", label: "League Vote", href: "/vote" },
-    { icon: "✍️", label: "Add Story", href: "/submit-story" },
-    ...(isOwner ? [{ icon: "🏢", label: "Team HQ", href: "/team-hq" }] : []),
-    { icon: "💬", label: "League Chat", href: "/chat" },
-    { icon: "🖼️", label: "Files", href: "/files" },
-  ];
-
-  return (
-    <div style={mobileAppStyle}>
-      <header style={mobileTopbarStyle}>
-        <button type="button" onClick={() => go("/")} style={mobileLogoButtonStyle}>🏁</button>
-        <div style={{ minWidth: 0, flex: 1 }}>
-          <strong style={{ fontSize: 17, display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", color: "#fff", fontStyle: "italic", textTransform: "uppercase", letterSpacing: "-.03em" }}>{title}</strong>
-          {session && (
-            <span style={{ display: "block", color: "#b8b9bd", fontSize: 10, fontWeight: 900, textTransform: "uppercase", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-              {session.mode === "guest" ? "Guest View Only" : `#${session.driverNumber} ${session.driverName}`}
-            </span>
-          )}
-        </div>
-        <button type="button" onClick={() => go("/notifications")} style={mobileBellStyle} aria-label="Notifications">🔔</button>
-        {session?.mode === "guest" && (
-          <button type="button" onClick={onLoginClick} style={{ ...mobileBellStyle, background: "#d71920", color: "#fff", border: "1px solid #d71920" }} aria-label="Log in">🔑</button>
-        )}
-      </header>
-      <main style={mobileContentStyle}>
-        {session && (
-          <div style={{ background: "transparent", borderBottom: "1px solid #d6d7d9", padding: "14px 0", marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ color: "#d71920", fontSize: 10, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 1.3 }}>
-                {session.mode === "guest" ? "Guest Access" : "Driver Signed In"}
-              </div>
-              <div style={{ fontSize: 13, fontWeight: 900, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", color: "#1d1d1f" }}>
-                {session.mode === "guest" ? "View-only mode" : `#${session.driverNumber} ${session.driverName}`}
-              </div>
-            </div>
-            {session.mode === "guest" ? (
-              <button type="button" onClick={onLoginClick} style={{ background: "#111216", color: "#fff", border: "1px solid #111216", borderRadius: 2, padding: "8px 14px", fontSize: 12, fontWeight: 900 }}>
-                Log In
-              </button>
-            ) : (
-              <button type="button" onClick={onLogout} style={{ background: "transparent", color: "#111216", border: "1px solid #111216", borderRadius: 2, padding: "8px 10px", fontSize: 12, fontWeight: 900 }}>
-                Log Out
-              </button>
-            )}
-          </div>
-        )}
-        {children}
-        <div style={mobileDesktopSwitchCardStyle}>
-          <div>
-            <div style={{ fontSize: 12, fontWeight: 1000, color: "#9a5a00", letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 4 }}>Display Mode</div>
-            <div style={{ fontSize: 15, fontWeight: 900, color: "#1d1d1f" }}>Mobile Version</div>
-            <div style={{ fontSize: 12, color: "#6e6e73", marginTop: 3 }}>Optimized for phones</div>
-          </div>
-          <button type="button" onClick={openDesktopVersion} style={mobileDesktopSwitchButtonStyle}>
-            🖥 View Desktop
-          </button>
-        </div>
-      </main>
-      <nav style={mobileBottomNavStyle}>
-        <MobileNavButton active={active === "standings" || active === "home"} icon="🏁" label="Home" onClick={() => go("/")} />
-        <MobileNavButton active={active === "news"} icon="📰" label="News" onClick={() => go("/news")} />
-        <MobileNavButton active={active === "votes"} icon="🎨" label="Votes" onClick={() => go("/paint-scheme-vote")} />
-        <MobileNavButton
-          active={active === "interviews"}
-          icon="🎤"
-          label="My Interviews"
-          onClick={() => go(driverNumber ? `/driver/${driverNumber}/interviews` : "/interviews")}
-        />
-        <MobileNavButton active={active === "more" || showMoreSheet} icon="☰" label="More" onClick={() => setShowMoreSheet(true)} />
-      </nav>
-      {showMoreSheet && (
-        <>
-          <button
-            type="button"
-            aria-label="Close menu"
-            onClick={() => setShowMoreSheet(false)}
-            style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.32)", border: "none", zIndex: 99998 }}
-          />
-          <div
-            style={{
-              position: "fixed",
-              left: 0,
-              right: 0,
-              bottom: 0,
-              zIndex: 99999,
-              background: "#f7f7f5",
-              borderTop: "4px solid #d71920",
-              boxShadow: "0 -12px 32px rgba(0,0,0,0.22)",
-              padding: "10px 10px calc(env(safe-area-inset-bottom, 0px) + 14px)",
-              maxHeight: "72vh",
-              overflowY: "auto",
-            }}
-          >
-            <div style={{ width: 40, height: 5, borderRadius: 999, background: "rgba(0,0,0,0.15)", margin: "6px auto 12px" }} />
-            {moreMenuItems.map((item) => (
-              <button
-                key={item.label}
-                type="button"
-                onClick={() => { setShowMoreSheet(false); go(item.href); }}
-                style={{
-                  width: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 14,
-                  textAlign: "left",
-                  background: "transparent",
-                  color: "#1d1d1f",
-                  border: "none",
-                  borderBottom: "1px solid #d6d7d9",
-                  borderRadius: 0,
-                  padding: "13px 12px",
-                  cursor: "pointer",
-                  fontFamily: mobileAppFont,
-                  fontSize: 15,
-                  fontWeight: 700,
-                }}
-              >
-                <span style={{ fontSize: 19, width: 24, textAlign: "center" }}>{item.icon}</span>
-                <span style={{ flex: 1 }}>{item.label}</span>
-              </button>
-            ))}
-          </div>
-        </>
-      )}
-      {showLoginModal && (
-        <MobileLoginModal
-          drivers={drivers}
-          onClose={onCloseLoginModal}
-          onSuccess={onLoginSuccess}
-        />
-      )}
-    </div>
-  );
+function MobileLayout({ title, children, session = null, onLogout, onLoginClick, showLoginModal = false, onCloseLoginModal, onLoginSuccess, drivers = [] }) {
+  return <>
+    <MobileShell title={title} session={session?.userId ? session : null} onLogout={onLogout} onLoginClick={onLoginClick} menuPage={["/more", "/menu"].includes(window.location.pathname.toLowerCase())}>{children}</MobileShell>
+    {showLoginModal && <MobileLoginModal drivers={drivers} onClose={onCloseLoginModal} onSuccess={onLoginSuccess} />}
+  </>;
 }
+
 function MobileNavButton({ icon, label, onClick, active }) { return <button type="button" onClick={onClick} style={{ ...mobileNavButtonStyle, color: active ? "#ffffff" : "#a7a9af" }}><span style={{ fontSize: 20 }}>{icon}</span><span style={{ fontSize: 10 }}>{label}</span></button>; }
 function MobileHero({ kicker, title, subtitle }) { return <section style={mobileHeroStyle}><div style={mobileKickerStyle}>{kicker}</div><h1 style={{ margin: "4px 0", fontSize: 38, lineHeight: .95, color: "#111216", fontStyle: "italic", textTransform: "uppercase", fontWeight: 1000, letterSpacing: "-0.02em" }}>{title}</h1>{subtitle && <p style={{ margin: "8px 0 0", color: "#3a3a3c", lineHeight: 1.4, fontWeight: 600 }}>{subtitle}</p>}</section>; }
 function MobileCard({ children }) { return <section style={mobileCardStyle}>{children}</section>; }
@@ -5922,7 +5757,7 @@ function MobileStandingsList({ drivers, go }) { return <div>{drivers.map((driver
 function MobileSectionTitle({ children }) { return <h2 style={{ fontSize: 16, margin: "20px 2px 10px", color: "#1d1d1f", fontWeight: 950 }}>{children}</h2>; }
 
 
-function MobileDriverProfilePolished({ driver, driverNumber, raceHistory = [], tracks = [], seasons, activeSeason, go }) {
+function MobileDriverProfilePolished({ driver, driverNumber, raceHistory = [], tracks = [], seasons, activeSeason, arcaDrivers = [], arcaTracks = [], go }) {
   const safeDriver = driver || { number: driverNumber, name: `Driver #${driverNumber}`, team: "", manufacturer: "" };
   const teamName = getTeamFullName(safeDriver.team || "Independent");
   const manufacturerLogo = manufacturerLogos[safeDriver.manufacturer] || safeDriver.manufacturerLogo || null;
@@ -6070,8 +5905,8 @@ function MobileDriverProfilePolished({ driver, driverNumber, raceHistory = [], t
     </div>
   );
 }
-function MobileTeamRow({ team, index }) { return <div style={mobileSmallRowStyle}><strong>{index + 1}. {getTeamIdentifier(team.team || team.name)}</strong><span>{team.points || 0} pts</span></div>; }
-function MobileManufacturerRow({ manufacturer, index }) { return <div style={mobileSmallRowStyle}><strong>{index + 1}. {manufacturer.manufacturer || manufacturer.name}</strong><span>{manufacturer.points || 0} pts</span></div>; }
+function MobileTeamRow({ team, index }) { return <a href={`/team/${encodeURIComponent(team.team || team.name)}`} style={{ ...mobileSmallRowStyle, color: "inherit", textDecoration: "none", minHeight: 48 }}><strong>{index + 1}. {getTeamIdentifier(team.team || team.name)}</strong><span>{team.points || 0} pts ↗</span></a>; }
+function MobileManufacturerRow({ manufacturer, index }) { return <a href={`/manufacturer/${encodeURIComponent(manufacturer.manufacturer || manufacturer.name)}`} style={{ ...mobileSmallRowStyle, color: "inherit", textDecoration: "none", minHeight: 48 }}><strong>{index + 1}. {manufacturer.manufacturer || manufacturer.name}</strong><span>{manufacturer.points || 0} pts ↗</span></a>; }
 function MobileRaceCard({ race }) { return <MobileCard><div style={mobileKickerStyle}>Next Race</div><h2 style={{ margin: "4px 0" }}>{race.name || race.track || "Race"}</h2><p style={{ color: "#6e6e73", margin: 0 }}>{race.date || "Date TBA"} • Qualifying 9:15 PM • Race 9:30 PM</p></MobileCard>; }
 
 
@@ -9000,22 +8835,24 @@ export default function App() {
     window.location.pathname = "/standings";
   };
 
+  const accessPage = (page, title = "League access") => isMobileViewport && !forceDesktop
+    ? <MobileShell title={title} session={verifiedAccess} onLogout={logoutOfLeague}>{page}</MobileShell> : page;
   if (path === "/admin-login") {
     if (isAdminAuthenticated) {
-      window.history.replaceState({}, "", "/admin");
+      window.location.replace("/admin");
       return null;
     }
-    return <RoleLogin next="/admin" />;
+    return accessPage(<RoleLogin next="/admin" />, "Admin login");
   }
-  if (path === "/login") return <RoleLogin next={new URLSearchParams(window.location.search).get("next") || "/standings"} />;
-  if (accessLoading && (!canSeeRoute(null,path) || isAdminProtectedPath || ["/race-recorder","/team-hq","/owner","/hq","/teamhq"].includes(path))) return <p>Checking access…</p>;
-  if (!isHydrated && ["/admin","/race-recorder","/owners","/compare"].includes(path)) return <p>Loading league data…</p>;
-  if (path === "/admin" && hasLeagueRole(verifiedAccess, "race_recorder") && !isAdminAuthenticated) return <RaceRecorderPage access={verifiedAccess} drivers={visibleDrivers} tracks={tracks} activeSeasonId={activeSeasonId} />;
+  if (path === "/login") return accessPage(<RoleLogin next={new URLSearchParams(window.location.search).get("next") || "/standings"} />, "Login / Register");
+  if (accessLoading && (!canSeeRoute(null,path) || isAdminProtectedPath || ["/race-recorder","/team-hq","/owner","/hq","/teamhq"].includes(path))) return accessPage(<p role="status">Checking access…</p>);
+  if (!isHydrated && ["/admin","/race-recorder","/owners","/compare"].includes(path)) return accessPage(<p role="status">Loading league data…</p>);
+  if (path === "/admin" && hasLeagueRole(verifiedAccess, "race_recorder") && !isAdminAuthenticated) return accessPage(<RaceRecorderPage access={verifiedAccess} drivers={visibleDrivers} tracks={tracks} activeSeasonId={activeSeasonId} />, "Race Recorder");
   if (["/appeals","/stories"].includes(path) && !isAdminAuthenticated) return <p>Full admin access is required.</p>;
-  if (isAdminProtectedPath && !isAdminAuthenticated) return verifiedAccess?.userId ? <p>Full admin access is required.</p> : <RoleLogin next={path} />;
-  if (path === "/race-recorder") return canSeeRoute(verifiedAccess,path) ? <RaceRecorderPage access={verifiedAccess} drivers={visibleDrivers} tracks={tracks} activeSeasonId={activeSeasonId} /> : <p>Race Recorder access is required.</p>;
-  if (!canSeeRoute(verifiedAccess,path)) return verifiedAccess?.userId ? <p>Your roles do not include access to this page.</p> : <RoleLogin next={path} />;
-  if (["/owners","/compare"].includes(path)) return withUniversalShell(<LeagueComparisonPage drivers={visibleDrivers} teams={teamStandings} />);
+  if (isAdminProtectedPath && !isAdminAuthenticated) return accessPage(verifiedAccess?.userId ? <p>Full admin access is required.</p> : <RoleLogin next={path} />);
+  if (path === "/race-recorder") return accessPage(canSeeRoute(verifiedAccess,path) ? <RaceRecorderPage access={verifiedAccess} drivers={visibleDrivers} tracks={tracks} activeSeasonId={activeSeasonId} /> : <p>Race Recorder access is required.</p>, "Race Recorder");
+  if (!canSeeRoute(verifiedAccess,path)) return accessPage(verifiedAccess?.userId ? <p>Your roles do not include access to this page.</p> : <RoleLogin next={path} />);
+  if ((!isMobileViewport || forceDesktop) && ["/owners","/compare"].includes(path)) return withUniversalShell(<LeagueComparisonPage drivers={visibleDrivers} teams={teamStandings} />);
   if (["/team-hq","/owner","/hq","/teamhq"].includes(path) && !canSeeRoute(verifiedAccess,"/team-hq")) return <p>Owner access is required. <a href="/owners">Compare teams and drivers</a></p>;
 
   // Mobile experience gate — phones use the app shell (with a real Driver
@@ -9046,6 +8883,8 @@ export default function App() {
         arcaDrivers={arcaDrivers}
         arcaTracks={arcaTracks}
         paymentCompliance={paymentComplianceSummary}
+        startParkRequests={startParkRequests}
+        driverRecruitingInterest={driverRecruitingInterest}
         onApplyTeamTransaction={applyOwnerPortalTeamTransaction}
       />
     );
