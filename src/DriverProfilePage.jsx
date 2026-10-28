@@ -1,3 +1,4 @@
+import { useInSeasonChallenge } from "./lib/inSeasonChallenge";
 import { getTeamFullName as currentTeamName } from "./data/teams";
 import BankingPanel from "./components/banking/BankingPanel";
 import { useBankingEnabled } from "./lib/banking";
@@ -1335,6 +1336,7 @@ const EMPTY_OWNER_ASSIGNMENTS = [];
 
 export default function DriverProfilePage({ seasons, activeSeason, tracks = [], ownerDriverAssignments = EMPTY_OWNER_ASSIGNMENTS, loadOwnerDriverAssignments, arcaDrivers = [], arcaTracks = [], driverNumberOverride = "", driverSeriesOverride = "" }) {
   const { access: roleAccess } = useLeagueAccess();
+  const { visible: challengeVisible } = useInSeasonChallenge();
   const bankingEnabled = useBankingEnabled();
   const pathParts = window.location.pathname.split("/");
   
@@ -4075,7 +4077,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
                     { icon: "🔄", label: "Transfer Portal", href: `/driver/${driverNumber}/portal` },
                     { icon: "🌐", label: "Community Events", href: "/community-events" },
                     { icon: "🎨", label: "Paint Scheme Vote", href: "/paint-scheme-vote" },
-                    { icon: "🏆", label: "In-Season Bracket", href: "/bracket" },
+                    ...(challengeVisible ? [{ icon: "🏆", label: "In-Season Bracket", href: "/bracket" }] : []),
                     { icon: "🗳️", label: "League Vote", href: "/vote" },
                     { icon: "✍️", label: "Add Story", href: "/submit-story" },
                     { icon: "⚙️", label: "Settings", href: `/driver/${driverNumber}/settings` },
@@ -4591,7 +4593,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
           <div style={{ fontSize: 13, opacity: 0.7, marginBottom: 14 }}>Vote on paint schemes, track the in-season tournament, weigh in on league ballots, and submit your own stories.</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
             <button style={secondaryButtonStyle} onClick={() => window.location.pathname = "/paint-scheme-vote"}>🎨 Paint Scheme Vote</button>
-            <button style={secondaryButtonStyle} onClick={() => window.location.pathname = "/bracket"}>🏆 In-Season Bracket</button>
+            {challengeVisible && <button style={secondaryButtonStyle} onClick={() => window.location.pathname = "/bracket"}>🏆 In-Season Bracket</button>}
             <button style={secondaryButtonStyle} onClick={() => window.location.pathname = "/vote"}>🗳️ League Vote</button>
             <button style={secondaryButtonStyle} onClick={() => window.location.pathname = "/submit-story"}>✍️ Add Story</button>
           </div>
