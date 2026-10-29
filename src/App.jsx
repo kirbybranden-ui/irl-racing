@@ -8745,11 +8745,12 @@ export default function App() {
     return accessPage(<RoleLogin next="/admin" />, "Admin login");
   }
   if (path === "/login") return accessPage(<RoleLogin next={new URLSearchParams(window.location.search).get("next") || "/standings"} />, "Login / Register");
-  const careerAliases = ["/career", "/contracts", "/driver-market", "/transfer-portal", "/silly-season", "/team-hq", "/owner-hq", "/owner", "/hq", "/teamhq"];
+  const careerAliases = ["/career", "/contracts", "/driver-market", "/transfer-portal", "/silly-season", "/team-hq", "/owner-hq", "/owner", "/hq", "/teamhq", "/manufacturer-hq"];
   if (careerAliases.includes(path) || /^\/driver\/[^/]+\/contracts\/?$/.test(path)) {
     if (accessLoading) return accessPage(<p role="status">Checking account…</p>);
-    if (!verifiedAccess?.userId) return accessPage(<RoleLogin next="/career" />, "Login / Register");
-    return <div className="career-route-shell"><MobileShell title="My Career" session={verifiedAccess} onLogout={logoutOfLeague}><CareerDashboard /></MobileShell></div>;
+    const ownerWorkspace = ["/team-hq", "/owner-hq", "/owner", "/hq", "/teamhq", "/manufacturer-hq"].includes(path);
+    if (!verifiedAccess?.userId) return accessPage(<RoleLogin next={ownerWorkspace ? path : "/career"} />, "Login / Register");
+    return <div className="career-route-shell"><MobileShell title={ownerWorkspace ? "Owner HQ" : "My Career"} session={verifiedAccess} onLogout={logoutOfLeague}><CareerDashboard key={ownerWorkspace ? "owner" : "driver"} workspace={ownerWorkspace ? "owner" : "driver"} seasons={seasons} activeSeasonId={activeSeasonId} leagueReady={isHydrated} /></MobileShell></div>;
   }
 
   if (accessLoading && (!canSeeRoute(null,path) || isAdminProtectedPath || ["/race-recorder","/team-hq","/owner","/hq","/teamhq"].includes(path))) return accessPage(<p role="status">Checking access…</p>);
