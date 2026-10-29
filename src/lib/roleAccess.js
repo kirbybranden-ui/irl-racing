@@ -11,7 +11,7 @@ export function canSeeRoute(access, path) {
 
   if (path.startsWith("/admin") || ["/appeals","/stories"].includes(path)) return hasLeagueRole(access, "full_admin") || (path === "/admin" && hasLeagueRole(access, "race_recorder"));
   if (path === "/race-recorder") return hasLeagueRole(access, "race_recorder") || hasLeagueRole(access, "full_admin");
-  if (["/team-hq", "/owner-hq", "/owner", "/hq", "/teamhq"].includes(path)) return hasLeagueRole(access, "owner") || hasLeagueRole(access, "full_admin");
+  if (["/team-hq", "/owner-hq", "/owner", "/hq", "/teamhq"].includes(path)) return hasLeagueRole(access, "owner") || hasLeagueRole(access, "full_admin") || Boolean(access?.userId && ["owner", "independent"].includes(access?.applicationKind));
   if (["/media", "/strategy", "/welcome", "/contracts", "/message-center", "/notifications", "/submit-appeal", "/chat", "/vote", "/voting", "/submit-story", "/development-requests"].includes(path)) return Boolean(access?.userId);
   return true;
 }
