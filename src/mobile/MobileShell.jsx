@@ -8,7 +8,7 @@ import "./MobileShell.css";
 export const mobileMenuGroups = [
   { title: "Race center", links: [["Cup standings", "/standings"], ["Season schedule", "/schedule"], ["Teams & drivers", "/owners"], ["Driver market", "/driver-market"], ["In-season tournament", "/tournament"], ["Streams", "/streams"]] },
   { title: "Media & community", links: [["News", "/news"], ["Media center & interviews", "/interviews"], ["Public interviews", "/public-interviews"], ["Race strategy", "/strategy"], ["Paint scheme vote", "/paint-scheme-vote"], ["League voting", "/vote"], ["Messages", "/message-center"], ["Notifications", "/notifications"], ["League chat", "/chat"], ["Discord", "/discord"]] },
-  { title: "My league", links: [["My Career", "/career"],["My dashboard", "/my-dashboard"], ["Team HQ", "/team-hq"], ["Development requests", "/development-requests"], ["Submit appeal", "/submit-appeal"], ["Submit story", "/submit-story"], ["Issues & feedback", "/issues"], ["Files", "/files"]] },
+  { title: "My league", links: [["My Career", "/career"],["My dashboard", "/my-dashboard"], ["Owner HQ", "/team-hq"], ["Development requests", "/development-requests"], ["Submit appeal", "/submit-appeal"], ["Submit story", "/submit-story"], ["Issues & feedback", "/issues"], ["Files", "/files"]] },
   { title: "League operations", links: [["Admin operations", "/admin"], ["Permissions", "/admin/permissions"], ["Race recorder", "/race-recorder"], ["Car gallery", "/admin/car-gallery"], ["Interview admin", "/admin/interviews"], ["Voting admin", "/admin/votes"], ["Live control", "/admin/live-control"]] },
 ];
 
@@ -30,7 +30,7 @@ export default function MobileShell({ title = "Budweiser Racing League", childre
   const number = session?.driverNumber;
   const role = (session?.roles || []).map((role) => ROLE_LABELS[role] || role).join(" · ");
   const groups = mobileMenuGroups.map((group) => ({ ...group, links: group.links.filter(([label, href]) => canSeeRoute(session, href) && (!isChallengeRoute(href) || challengeVisible) && (!href.startsWith("/my-") || signedIn) && `${label} ${group.title}`.toLowerCase().includes(query.toLowerCase())) })).filter((group) => group.links.length);
-  const tabs = [["Home", "/", "⌂"], ["Race", "/schedule", "⚑"], ["Media", "/interviews", "◉"], ["My HQ", signedIn ? "/career" : "/login?next=%2Fcareer", "◎"]];
+  const tabs = [["Home", "/", "⌂"], ["Race", "/schedule", "⚑"], ["Media", "/interviews", "◉"], ["My Career", signedIn ? "/career" : "/login?next=%2Fcareer", "◎"]];
   const active = (href) => href === "/" ? ["/", "/standings"].includes(path) : href === "/schedule" ? ["/schedule", "/tracks", "/season-schedule"].includes(path) : href === "/interviews" ? ["/interviews", "/media", "/strategy", "/public-interviews", "/news"].includes(path) : path === href || (href === "/career" && path.startsWith("/driver/"));
 
   useEffect(() => {
