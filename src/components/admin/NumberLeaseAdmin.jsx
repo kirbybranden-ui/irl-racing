@@ -1,3 +1,4 @@
+import CharterAdmin from "../career/CharterControls";
 import React, { useEffect, useState } from "react";
 import { careerRead, careerAction } from "../../lib/career";
 import NumberLeaseCenter from "../career/NumberLeaseCenter";
@@ -24,11 +25,14 @@ export default function NumberLeaseAdmin() {
     finally { setBusy(false); }
   }
   if (!data?.isSuperAdmin) return error ? <p role="alert">Lease administration could not load: {error}</p> : null;
-  return <details className="career">
-    <summary><strong>Super-admin number lease administration</strong></summary>
-    <p>Publish league terms, fund manufacturer programs, review leases and authorize number changes. Team requests and signatures remain in Owner HQ.</p>
+  return <section className="career">
     {error && <p role="alert" className="career-error">{error}</p>}
     {status && <p role="status">{status}</p>}
-    <NumberLeaseCenter admin data={data} owned={[]} busy={busy} run={run} />
-  </details>;
+    <CharterAdmin data={data} busy={busy} run={run}/>
+    <details>
+      <summary><strong>Super-admin number lease administration</strong></summary>
+      <p>Publish league terms, fund manufacturer programs, review leases and authorize number changes. Team requests and signatures remain in Owner HQ.</p>
+      <NumberLeaseCenter admin data={data} owned={[]} busy={busy} run={run} />
+    </details>
+  </section>;
 }
