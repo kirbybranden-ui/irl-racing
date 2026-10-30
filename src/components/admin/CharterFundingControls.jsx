@@ -1,0 +1,10 @@
+import React, {useEffect, useState} from 'react';
+import {bankMoney as money,bankCall} from '../../lib/banking';
+function ChampionRow({charter:c,busy,run}) {
+ const [teamTitle,setTeamTitle]=useState(!!c.team_champion),[driverTitle,setDriverTitle]=useState(!!c.driver_champion);
+ useEffect(()=>{setTeamTitle(!!c.team_champion);setDriverTitle(!!c.driver_champion);},[c.team_champion,c.driver_champion]);
+ return <form onSubmit={e=>{e.preventDefault();run(()=>bankCall('assign_charter',{manufacturer_value:c.manufacturer,slot_value:c.slot,team_value:c.team,team_title:teamTitle,driver_title:driverTitle}),'Championship flags saved.');}}><h4>{c.team} · {c.manufacturer} · {c.tier}</h4><p>Approved car limit: {c.approved_capacity??'Review in charter administration'}. Charter assignments are managed by the super admin.</p><label>Defending team champion<select value={teamTitle?'yes':'no'} onChange={e=>setTeamTitle(e.target.value==='yes')}><option value="no">No</option><option value="yes">Yes</option></select></label><label>Defending driver champion’s team<select value={driverTitle?'yes':'no'} onChange={e=>setDriverTitle(e.target.value==='yes')}><option value="no">No</option><option value="yes">Yes</option></select></label><button disabled={busy}>Save championship flags</button>{c.fundedFunding!=null&&Number(c.plannedFunding)>Number(c.fundedFunding)&&<div><p>Already funded: {money(c.fundedFunding)}. Revised agreement: {money(c.plannedFunding)}.</p><button type="button" disabled={busy} onClick={()=>run(()=>bankCall('apply_charter_funding',{team_value:c.team}),'Reviewed funding difference posted.')}>Apply funding difference</button></div>}</form>;
+}
+export default function CharterFundingControls({charters=[],busy,run}) {
+ return <section aria-label="Manufacturer charter funding"><h3>Charters and defending champions</h3><p>Owners request a car count. The super admin assigns tiers, capacity and alliances under Finance Department → Charter applications & manufacturer alliances. This panel cannot change charter assignments.</p>{charters.filter(c=>c.team).map(c=><ChampionRow key={c.manufacturer+c.slot+c.team} charter={c} busy={busy} run={run}/>)}</section>;
+}
