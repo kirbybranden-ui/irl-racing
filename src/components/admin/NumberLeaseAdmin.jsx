@@ -1,3 +1,4 @@
+import { MemberRegistrationLog } from "../career/JoinDate";
 import CharterAdmin from "../career/CharterControls";
 import React, { useEffect, useState } from "react";
 import { careerRead, careerAction } from "../../lib/career";
@@ -28,6 +29,7 @@ export default function NumberLeaseAdmin() {
   return <section className="career">
     {error && <p role="alert" className="career-error">{error}</p>}
     {status && <p role="status">{status}</p>}
+    <MemberRegistrationLog data={data}/>
     <CharterAdmin data={data} busy={busy} run={run}/>
     <details>
       <summary><strong>Super-admin number lease administration</strong></summary>
