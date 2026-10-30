@@ -1,3 +1,4 @@
+import JoinDate from "./JoinDate";
 import React, { useState } from "react";
 const field=(f,k)=>String(f.get(k)||"");
 const tierMax={premier:4,standard:3,independent:1};
@@ -5,7 +6,7 @@ export function CharterReview({team:t,request,data,busy,run,assignment=false}) {
  const requested=request?.requested_capacity??t.requestedCapacity??t.capacity;
  const [tier,setTier]=useState(t.tier|| (requested===4?"premier":requested===1?"independent":"standard"));
  return <form className="career-form career-card" onSubmit={e=>{e.preventDefault();const f=new FormData(e.currentTarget);run(assignment?"set_charter_alliance":request?"review_charter_capacity":"review_team",{teamId:t.id,id:request?.id,decision:field(f,"decision"),tier,approvedCapacity:Number(f.get("capacity")),alliance:field(f,"alliance"),note:field(f,"note")});}}>
- <h3>{t.name} · {t.manufacturer}</h3><p>Owner: {t.owner_gamertag} · Requested {requested} cars · Approved {t.capacity||0}</p>{request&&<p>{request.reason}</p>}
+ <h3>{t.name} · {t.manufacturer}</h3><p><JoinDate member={data.members.find(m=>m.user_id===t.owner_user)}/></p><p>Owner: {t.owner_gamertag} · Requested {requested} cars · Approved {t.capacity||0}</p>{request&&<p>{request.reason}</p>}
  <label>Admin-assigned charter tier<select name="tier" value={tier} onChange={e=>setTier(e.target.value)}><option value="premier">Premier — maximum 4 cars</option><option value="standard">Standard — maximum 3 cars</option><option value="independent">Independent — maximum 1 car</option></select></label>
  <label>Approved car limit<input key={tier} required readOnly={assignment} name="capacity" type="number" min="1" max={Math.min(requested,tierMax[tier])} defaultValue={assignment?t.capacity:Math.min(requested,tierMax[tier])}/></label>
  <label>Manufacturer alliance level<select name="alliance" defaultValue={t.alliance||"standard"}><option value="standard">Standard support</option><option value="established">Established alliance</option>{tier==="premier"&&<option value="flagship">Flagship partnership</option>}</select></label>
