@@ -1,3 +1,4 @@
+import NumberLeaseAdmin from "../components/admin/NumberLeaseAdmin";
 import InSeasonChallengeControl from "../components/admin/InSeasonChallengeControl";
 import BankingPanel from "../components/banking/BankingPanel";
 import AIMediaAdmin from "../components/ai/AIMediaAdmin";
@@ -2455,6 +2456,7 @@ export default function AdminPortal({
                 <button type="button" onClick={() => setFinanceDepartmentOpen(false)} style={{ border: 0, borderRadius: 999, background: "#ffffff", color: "#111827", width: 46, height: 46, fontSize: 23, fontWeight: 1000, cursor: "pointer", boxShadow: "0 8px 20px rgba(15,23,42,0.12)" }}>×</button>
               </div>
 
+              <NumberLeaseAdmin />
               <BankingPanel admin />
             </div>
           </div>
