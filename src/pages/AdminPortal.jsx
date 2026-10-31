@@ -1,3 +1,5 @@
+import LeagueBudgetAdmin from "../components/admin/LeagueBudgetAdmin";
+import PasswordResetAdmin from "../components/admin/PasswordResetAdmin";
 import NumberLeaseAdmin from "../components/admin/NumberLeaseAdmin";
 import InSeasonChallengeControl from "../components/admin/InSeasonChallengeControl";
 import BankingPanel from "../components/banking/BankingPanel";
@@ -677,6 +679,7 @@ export default function AdminPortal({
     { label: "Human Resources", action: () => openHrDepartment("overview"), primary: true },
     { label: "Race Operations", action: () => openRaceOperations("input"), primary: true },
     { label: "ARCA Series", action: () => openArcaOperations("overview"), primary: true },
+    { label: "League Budget", action: () => openFinanceDepartment("budget"), primary: true },
     { label: "Finance Department", action: () => openFinanceDepartment("overview"), primary: true },
     { label: "Public Relations", action: () => openPublicRelations("overview"), primary: true },
     { label: "Permissions Center", action: () => (window.location.pathname = "/admin/permissions"), primary: true },
@@ -1346,6 +1349,7 @@ export default function AdminPortal({
 
   return (
     <div style={applePageStyle}>
+      <PasswordResetAdmin/>
       {adminMenuOpen && (
         <>
           <button
@@ -2451,13 +2455,19 @@ export default function AdminPortal({
                 <div>
                   <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.8, textTransform: "uppercase", color: "#6b7280" }}>Admin Menu</div>
                   <h1 style={{ margin: "2px 0 0", fontSize: 42, letterSpacing: -1.6 }}>Finance Department</h1>
-                  <p style={{ margin: "6px 0 0", color: "#4b5563", fontWeight: 750 }}>Apple Wallet-style control center for fines, payouts, contracts, team wallets, and money history.</p>
+                  <p style={{ margin: "6px 0 0", color: "#4b5563", fontWeight: 750 }}>League budgets, manufacturer costs, fines, payouts, contracts, and transaction history.</p>
                 </div>
                 <button type="button" onClick={() => setFinanceDepartmentOpen(false)} style={{ border: 0, borderRadius: 999, background: "#ffffff", color: "#111827", width: 46, height: 46, fontSize: 23, fontWeight: 1000, cursor: "pointer", boxShadow: "0 8px 20px rgba(15,23,42,0.12)" }}>×</button>
               </div>
 
-              <NumberLeaseAdmin />
-              <BankingPanel admin />
+              <nav aria-label="Admin finance pages" style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:20}}>
+                <button type="button" aria-pressed={financeAction === "budget"} style={financeSegmentButtonStyle(financeAction === "budget")} onClick={() => setFinanceAction("budget")}>League Budget</button>
+                <button type="button" aria-pressed={financeAction !== "budget"} style={financeSegmentButtonStyle(financeAction !== "budget")} onClick={() => setFinanceAction("overview")}>Banking & approvals</button>
+              </nav>
+              {financeAction === "budget" ? <LeagueBudgetAdmin activeSeasonId={activeSeasonId} /> : <>
+                <NumberLeaseAdmin />
+                <BankingPanel admin />
+              </>}
             </div>
           </div>
         )}
