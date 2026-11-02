@@ -6529,6 +6529,8 @@ export default function App() {
   const [newTrackName, setNewTrackName] = useState("");
   const [newTrackStageCount, setNewTrackStageCount] = useState(2);
   const [pendingDrivers, setPendingDrivers] = useState([]);
+  const [pendingDriverError, setPendingDriverError] = useState("");
+  const canReviewPendingDrivers = hasLeagueRole(verifiedAccess, "full_admin");
   const [featuredVideo, setFeaturedVideo] = useState(null);
   const [manualWatchPicks, setManualWatchPicks] = useState([]);
   const [ownerAssignments, setOwnerAssignments] = useState([]);
@@ -7063,6 +7065,8 @@ export default function App() {
     return () => clearInterval(interval);
   }, []);
   useEffect(() => {
+    if (!canReviewPendingDrivers || !verifiedAccess?.userId) { setPendingDrivers([]);setPendingDriverError("");return; }
+    let live = true, loading = false;
     const normalizeSeriesJoinRequests = () => {
       try {
         const saved = JSON.parse(localStorage.getItem("series_join_requests") || "[]");
@@ -7087,22 +7091,22 @@ export default function App() {
     };
 
     async function loadPendingDrivers() {
-      const localRequests = normalizeSeriesJoinRequests();
-      const { data, error } = await supabase
-        .from("pending_drivers")
-        .select("*")
-        .eq("status", "pending")
-        .order("created_at", { ascending: false });
-      if (!error && data) {
-        setPendingDrivers([...localRequests, ...data]);
-      } else {
-        setPendingDrivers(localRequests);
-      }
+      if (loading) return;
+      loading = true;
+      try {
+        const { data, error } = await supabase.rpc("brl_admin_pending_driver_requests");
+        if (!live) return;
+        if (error) throw error;
+        if (!Array.isArray(data)) throw new Error("The driver-request list returned an unexpected response.");
+        setPendingDrivers([...normalizeSeriesJoinRequests(), ...data]);setPendingDriverError("");
+      } catch (error) {
+        if (live) setPendingDriverError(`Driver requests could not load: ${error.message || "Try signing in again."}`);
+      } finally { loading = false; }
     }
     loadPendingDrivers();
     const interval = setInterval(loadPendingDrivers, 5000);
-    return () => clearInterval(interval);
-  }, []);
+    return () => { live = false;clearInterval(interval); };
+  }, [canReviewPendingDrivers, verifiedAccess?.userId]);
   useEffect(() => {
     loadTickerMessages();
     loadPaymentComplianceData();
@@ -7904,21 +7908,23 @@ export default function App() {
     }
   };
   const rejectPendingDriver = async (pendingDriver) => {
-    if (!window.confirm(`Reject ${pendingDriver.driver_name}?`)) return;
+    if (!canReviewPendingDrivers) { alert("Full admin access is required to reject driver requests.");return; }
+    if (!pendingDriver || !window.confirm(`Reject ${pendingDriver.driver_name || "this driver request"}?`)) return;
+    setPendingDriverError("");
     try {
       if (pendingDriver.request_source === "series_join_requests") {
         const saved = JSON.parse(localStorage.getItem("series_join_requests") || "[]");
         const updated = saved.map((request) => String(request.id) === String(pendingDriver.original_id) ? { ...request, status: "rejected", reviewedAt: new Date().toISOString() } : request);
         localStorage.setItem("series_join_requests", JSON.stringify(updated));
       } else {
-        await supabase
-          .from("pending_drivers")
-          .update({ status: "rejected" })
-          .eq("id", pendingDriver.id);
+        const { data, error } = await supabase.rpc("brl_reject_pending_driver_request", { request_value: String(pendingDriver.id) });
+        if (error) throw error;
+        if (String(data?.id) !== String(pendingDriver.id) || data?.status !== "rejected") throw new Error("The server did not confirm rejection. The request has been kept in the list.");
       }
-      setPendingDrivers((prev) => prev.filter((d) => d.id !== pendingDriver.id));
-    } catch (err) {
-      console.error("Error rejecting driver:", err);
+      setPendingDrivers((prev) => prev.filter((d) => String(d.id) !== String(pendingDriver.id)));
+    } catch (error) {
+      const message = `Could not reject driver request: ${error.message || "Please try again."}`;
+      setPendingDriverError(message);alert(message);
     }
   };
   const updateTrackStageCount = (trackName, newCount) => {
@@ -9185,6 +9191,7 @@ export default function App() {
       patchActiveSeason={patchActiveSeason}
       penaltyMap={penaltyMap}
       pendingDrivers={pendingDrivers}
+      pendingDriverError={pendingDriverError}
       pointsTable={pointsTable}
       positions={positions}
       postResultsDraft={postResultsDraft}
