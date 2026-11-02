@@ -1,0 +1,19 @@
+.career.brl-team-themed{background:linear-gradient(180deg,var(--brl-team-soft),#fff 460px);border-top:5px solid var(--brl-team-accent);padding-left:clamp(16px,3vw,28px);padding-right:clamp(16px,3vw,28px)}
+.career.brl-team-themed>.career-row:first-child{border-bottom:3px solid var(--brl-team-dark);padding-bottom:18px;margin-bottom:18px}
+.career.brl-team-themed .career-kicker{color:var(--brl-team-ink)}
+.career.brl-team-themed .career-card,.career.brl-team-themed .driver-career-hero{border-top-color:var(--brl-team-accent)}
+.career.brl-team-themed .career-notice{border-left-color:var(--brl-team-accent);background:var(--brl-team-soft)}
+.career.brl-team-themed button:not(:disabled):not(.career-link-button):not([aria-pressed]){background:var(--brl-team-accent);color:var(--brl-team-on-accent);border-color:var(--brl-team-accent)}
+.career.brl-team-themed .career-nav button{background:#fff;color:var(--brl-team-ink);border-color:var(--brl-team-border)}
+.career.brl-team-themed .career-nav button[aria-pressed=true]{background:var(--brl-team-dark);color:var(--brl-team-on-dark);border-color:var(--brl-team-dark)}
+.career.brl-team-themed .career-workspace-links a{color:var(--brl-team-ink);border-color:var(--brl-team-border)}
+.career.brl-team-themed .team-build-notice{background:var(--brl-team-soft)}
+.career.brl-team-themed .team-build-notice a{background:var(--brl-team-dark);color:var(--brl-team-on-dark)}
+.career.brl-team-themed .team-identity-strip{display:flex;align-items:center;gap:14px;padding:16px;margin:16px 0 22px;background:var(--brl-team-dark);color:var(--brl-team-on-dark);border-left:6px solid var(--brl-team-accent)}
+.team-identity-strip img{width:64px;height:64px;object-fit:contain;background:#fff;padding:6px;flex-shrink:0}
+.team-identity-strip strong{display:block;font-size:22px;overflow-wrap:anywhere}.team-identity-strip span{display:block;font-size:12px;margin-top:4px;line-height:1.5}
+.brl-driver-themed,.brl-public-team{background:linear-gradient(180deg,var(--brl-team-soft),#f7f7f5 600px)!important}
+.brl-driver-themed .driver-team-hero{border-top:5px solid var(--brl-team-accent)!important;border-left:3px solid var(--brl-team-dark)!important}
+.brl-public-team .public-team-hero{border-top:6px solid var(--brl-team-accent)!important;background:var(--brl-team-dark)!important;color:var(--brl-team-on-dark)!important}
+.public-team-hero-heading{display:flex;align-items:center;gap:20px;flex-wrap:wrap}.public-team-logo{width:100px;height:100px;object-fit:contain;background:#fff;padding:10px;flex-shrink:0}
+@media(max-width:600px){.career.brl-team-themed{padding-left:14px;padding-right:14px}.team-identity-strip img{width:50px;height:50px}.team-identity-strip strong{font-size:18px}.public-team-logo{width:76px;height:76px}}
