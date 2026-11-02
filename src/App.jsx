@@ -6487,7 +6487,7 @@ export default function App() {
     saveQueueRef.current = queued;
     return queued;
   };
-  useEffect(()=>{let live=true;const refresh=async()=>{await saveQueueRef.current.catch(()=>{});const saved=await loadLeagueState();if(!live||!saved)return;const next=normalizeLoadedLeagueState(saved);if(!next)return;loadedRevisionRef.current=saved._revision||null;loadedStateSignatureRef.current=makeLeagueStateSignature(next);setSeasons(next.seasons);setActiveSeasonId(next.activeSeasonId);setTracks(next.tracks);setCustomTeamBranding(next.customTeamBranding);setRegisteredTeams(next.registeredTeams);};window.addEventListener("brl:bank-state-changed",refresh);return()=>{live=false;window.removeEventListener("brl:bank-state-changed",refresh);};},[]);
+  useEffect(()=>{let live=true;const refresh=async()=>{await saveQueueRef.current.catch(()=>{});const saved=await loadLeagueState();if(!live||!saved)return;const next=normalizeLoadedLeagueState(saved);if(!next)return;loadedRevisionRef.current=saved._revision||null;loadedStateSignatureRef.current=makeLeagueStateSignature(next);setSeasons(next.seasons);setActiveSeasonId(next.activeSeasonId);setTracks(next.tracks);applyCustomTeamBranding(next.customTeamBranding);setCustomTeamBranding(next.customTeamBranding);setRegisteredTeams(next.registeredTeams);};window.addEventListener("brl:bank-state-changed",refresh);return()=>{live=false;window.removeEventListener("brl:bank-state-changed",refresh);};},[]);
   const saveScheduleFromAdmin = async (nextTracks) => {
     if (!hasLeagueRole(verifiedAccess, "full_admin")) throw new Error("Full admin access required.");
     if (!remoteLoadedRef.current) throw new Error("Reload league data before saving.");
