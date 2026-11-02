@@ -1,3 +1,5 @@
+import { useTeamTheme } from "./lib/useTeamTheme";
+import "./styles/teamTheme.css";
 import React, { useState } from "react";
 import { getTeamFullName, getTeamIdentifier } from "./data/teams";
 
@@ -70,7 +72,7 @@ function getTrend(currentRank, previousRank) {
   if (!currentRank || !previousRank) return { label: "NEW", color: "#94a3b8" };
   if (currentRank < previousRank) return { label: `▲ +${previousRank - currentRank}`, color: "#4ade80" };
   if (currentRank > previousRank) return { label: `▼ -${currentRank - previousRank}`, color: "#f87171" };
-  return { label: "—", color: "#d4af37" };
+  return { label: "—", color: "#64748b" };
 }
 
 export default function TeamDetailPage({
@@ -82,6 +84,8 @@ export default function TeamDetailPage({
   seasonName = "",
 }) {
   const teamKey = normalize(selectedTeam || initialTeam);
+  const theme = useTeamTheme(selectedTeam || initialTeam);
+  const themedCardStyle = { ...cardStyle, borderTop: `3px solid ${theme.border}` };
   const activeDrivers = realignLeagueDrivers(drivers);
 
   const roster = (teamDrivers.length
@@ -203,13 +207,13 @@ export default function TeamDetailPage({
   const statsB = driverB ? getDriverRaceStats(driverB.id) : null;
 
   return (
-    <div style={pageStyle}>
+    <div className="brl-public-team" data-team-theme={selectedTeam || initialTeam} style={{ ...pageStyle, ...theme.style }}>
       <div style={{ maxWidth: 1200, margin: "0 auto" }}>
         <button
           onClick={() => (window.location.href = "/standings")}
           style={{
-            background: "#2a3140",
-            color: "white",
+            background: theme.dark,
+            color: theme.onDark,
             border: "1px solid #3d4859",
             borderRadius: 10,
             padding: "10px 16px",
@@ -221,15 +225,16 @@ export default function TeamDetailPage({
           ← Back to Standings
         </button>
 
-        <div style={{ ...cardStyle, borderColor: "#d4af37" }}>
+        <div className="public-team-hero" style={{ ...themedCardStyle, borderColor: theme.accent }}>
           <div style={{ fontSize: 13, opacity: 0.72, marginBottom: 6 }}>
             {seasonName}
           </div>
 
-          <div style={{ fontSize: 38, fontWeight: 900 }}>
-            {getTeamFullName(selectedTeam || initialTeam)}
+          <div className="public-team-hero-heading">
+            {theme.logoUrl && <img className="public-team-logo" src={theme.logoUrl} alt={`${getTeamFullName(selectedTeam || initialTeam)} logo`} />}
+            <div style={{ fontSize: "clamp(28px,5vw,38px)", fontWeight: 900 }}>{getTeamFullName(selectedTeam || initialTeam)}</div>
           </div>
-          <div style={{ fontSize: 14, fontWeight: 900, color: "#d71920", letterSpacing: 2 }}>{getTeamIdentifier(selectedTeam || initialTeam)}</div>
+          <div style={{ fontSize: 14, fontWeight: 900, color: theme.onDark, letterSpacing: 2 }}>{getTeamIdentifier(selectedTeam || initialTeam)}</div>
 
           <div style={{ fontSize: 15, opacity: 0.72, marginTop: 6 }}>
             Live Team Analytics • Race Data • Trend Tracking • Driver Comparison
@@ -259,7 +264,7 @@ export default function TeamDetailPage({
             ["FASTEST LAPS", fastestLaps],
             ["PENALTIES", penalties ? `-${penalties}` : 0],
           ].map(([label, value]) => (
-            <div key={label} style={cardStyle}>
+            <div key={label} style={themedCardStyle}>
               <div style={{ fontSize: 12, opacity: 0.7 }}>{label}</div>
               <div
                 style={{
@@ -274,7 +279,7 @@ export default function TeamDetailPage({
           ))}
         </div>
 
-        <div style={cardStyle}>
+        <div style={themedCardStyle}>
           <div style={{ fontSize: 26, fontWeight: 900, marginBottom: 14 }}>
             Team Snapshot
           </div>
@@ -288,7 +293,7 @@ export default function TeamDetailPage({
           >
             <div>
               <div style={{ fontSize: 12, opacity: 0.65 }}>TOP DRIVER</div>
-              <div style={{ fontSize: 22, fontWeight: 900, color: "#d4af37" }}>
+              <div style={{ fontSize: 22, fontWeight: 900, color: theme.ink }}>
                 {topDriver ? `#${topDriver.number} ${topDriver.name}` : "—"}
               </div>
             </div>
@@ -309,7 +314,7 @@ export default function TeamDetailPage({
           </div>
         </div>
 
-        <div style={cardStyle}>
+        <div style={themedCardStyle}>
           <div style={{ fontSize: 26, fontWeight: 900, marginBottom: 14 }}>
             Driver Comparison Tool
           </div>
@@ -393,10 +398,10 @@ export default function TeamDetailPage({
                   ].map(([label, a, b]) => (
                     <tr key={label}>
                       <td style={{ ...tdStyle, fontWeight: 900 }}>{label}</td>
-                      <td style={{ ...tdStyle, color: "#d4af37", fontWeight: 800 }}>
+                      <td style={{ ...tdStyle, color: theme.ink, fontWeight: 800 }}>
                         {a}
                       </td>
-                      <td style={{ ...tdStyle, color: "#d4af37", fontWeight: 800 }}>
+                      <td style={{ ...tdStyle, color: theme.ink, fontWeight: 800 }}>
                         {b}
                       </td>
                     </tr>
@@ -411,7 +416,7 @@ export default function TeamDetailPage({
           )}
         </div>
 
-        <div style={cardStyle}>
+        <div style={themedCardStyle}>
           <div style={{ fontSize: 26, fontWeight: 900, marginBottom: 14 }}>
             Latest Race Results
           </div>
@@ -439,7 +444,7 @@ export default function TeamDetailPage({
                     <tr key={r.driverId}>
                       <td style={tdStyle}>{latestRace?.raceName || "—"}</td>
                       <td style={{ ...tdStyle, fontWeight: 900 }}>#{r.number}</td>
-                      <td style={{ ...tdStyle, fontWeight: 800, color: "#d4af37" }}>
+                      <td style={{ ...tdStyle, fontWeight: 800, color: theme.ink }}>
                         {r.name}
                       </td>
                       <td style={tdStyle}>{r.finishPos ? `P${r.finishPos}` : "—"}</td>
@@ -465,7 +470,7 @@ export default function TeamDetailPage({
           </div>
         </div>
 
-        <div style={cardStyle}>
+        <div style={themedCardStyle}>
           <div style={{ fontSize: 26, fontWeight: 900, marginBottom: 14 }}>
             Drivers
           </div>
@@ -495,7 +500,7 @@ export default function TeamDetailPage({
                     onClick={() => (window.location.href = `/driver/${d.number}`)}
                   >
                     <td style={{ ...tdStyle, fontWeight: 900 }}>#{d.number}</td>
-                    <td style={{ ...tdStyle, fontWeight: 800, color: "#d4af37" }}>
+                    <td style={{ ...tdStyle, fontWeight: 800, color: theme.ink }}>
                       {d.name}
                     </td>
                     <td style={tdStyle}>{d.manufacturer || "—"}</td>
