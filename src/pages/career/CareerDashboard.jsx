@@ -1,3 +1,6 @@
+import { useTeamTheme } from "../../lib/useTeamTheme";
+import { careerTeamCode } from "../../lib/teamTheme";
+import "../../styles/teamTheme.css";
 import TeamBuilder, { OwnerBuildNotice } from "../../components/career/TeamBuilder";
 import JoinDate from "../../components/career/JoinDate";
 import { OwnerCharterRequest } from "../../components/career/CharterControls";
@@ -38,6 +41,10 @@ function OfferForm({ draft, data, onSave, onClose, busy }) {
 export default function CareerDashboard({ workspace = "driver", seasons = [], activeSeasonId = "", leagueReady = false }) {
   const ownerWorkspace = workspace === "owner";
   const [rawData, setData] = useState(null), [error, setError] = useState(""), [status, setStatus] = useState(""), [busy, setBusy] = useState(false), [tab, setTab] = useState(() => window.location.hash.slice(1) || (window.location.pathname.includes("contracts") ? "offers" : window.location.pathname.includes("market") ? "teams" : window.location.pathname === "/manufacturer-hq" ? "funding" : "overview")), [selected, setSelected] = useState(() => new URLSearchParams(window.location.search).get("contract")), [fundingDoc, setFundingDoc] = useState(() => new URLSearchParams(window.location.search).get("funding")), [draft, setDraft] = useState(null), [search, setSearch] = useState("");
+  const themeTeamCode = careerTeamCode(rawData, seasons, activeSeasonId, ownerWorkspace);
+  const themeTeam = (rawData?.teams || []).find(t => t.code === themeTeamCode);
+  const theme = useTeamTheme(themeTeamCode, themeTeam?.owner_profile);
+  const themed = Boolean(themeTeamCode && !["ind", "independent"].includes(themeTeamCode.toLowerCase()));
   function openContract(id) {
     setSelected(id);setFundingDoc(null);
     const url = new URL(window.location.href);url.searchParams.delete("funding");if (id) url.searchParams.set("contract", id);else url.searchParams.delete("contract");window.history.replaceState(null, "", url);
@@ -90,7 +97,8 @@ export default function CareerDashboard({ workspace = "driver", seasons = [], ac
   const doc = data.contracts.find(c => c.id === selected), funding = ownerWorkspace ? data.agreements.find(a => a.id === fundingDoc) : null;
   if (doc && !draft) return <div className="career">{notices}<ContractDocument contract={doc} me={me} isOwner={owned.some(t => t.id === doc.team_id)} isSuperAdmin={ownerWorkspace && root} onBack={() => openContract(null)} onAction={run} onNegotiate={c => setDraft({ prior: c })} busy={busy} numberChanges={data.numberChanges || []} /></div>;
   if (funding) return <div className="career">{notices}<FundingDocument agreement={funding} team={data.teams.find(t => t.id === funding.team_id)} me={me} owner={owned.some(t => t.id === funding.team_id)} busy={busy} onClose={() => openFunding(null)} onSign={signature => run("sign_funding", { id: funding.id, signature })} /></div>;
-  return <main className="career"><div className="career-row"><div><div className="career-kicker">BRL / {ownerWorkspace ? "Team management" : "Driver dashboard"}</div><h1>{ownerWorkspace ? "Owner HQ" : "My Career"}</h1><p><strong>{me.gamertag}</strong> · <Badge value={me.status} /></p></div><div className="career-actions"><a href="/standings">League home ↗</a><button onClick={() => logoutOfLeague().then(() => window.location.assign("/login")).catch(e => setError(e.message))}>Log out</button></div></div>
+  return <main className={`career${themed ? " brl-team-themed" : ""}`} data-team-theme={themeTeamCode || undefined} style={themed ? theme.style : undefined}><div className="career-row"><div><div className="career-kicker">BRL / {ownerWorkspace ? "Team management" : "Driver dashboard"}</div><h1>{ownerWorkspace ? "Owner HQ" : "My Career"}</h1><p><strong>{me.gamertag}</strong> · <Badge value={me.status} /></p></div><div className="career-actions"><a href="/standings">League home ↗</a><button onClick={() => logoutOfLeague().then(() => window.location.assign("/login")).catch(e => setError(e.message))}>Log out</button></div></div>
+    {themed && <section className="team-identity-strip" aria-label="Your team">{theme.logoUrl && <img src={theme.logoUrl} alt={`${themeTeam?.name || theme.fullName} logo`} />}<div><strong>{themeTeam?.name || theme.fullName || themeTeamCode}</strong><span>{ownerWorkspace ? "Owner HQ" : "Driver career"} · {themeTeamCode}{themeTeam?.manufacturer ? ` · ${themeTeam.manufacturer}` : ""}</span></div></section>}
     <div className="career-workspace-links">{ownerWorkspace ? <a href="/career">My Career ↗</a> : ["owner", "independent"].includes(me.kind) || data.isSuperAdmin ? <a href="/team-hq">Owner HQ ↗</a> : manufacturer ? <a href="/manufacturer-hq">Manufacturer HQ ↗</a> : null}</div>
     <nav className="career-nav" aria-label={ownerWorkspace ? "Owner HQ sections" : "Career sections"}>{tabs.map(([key, label]) => <button key={key} aria-pressed={currentTab === key} onClick={() => changeTab(key)}>{label}</button>)}</nav>{notices}
     {currentTab === "overview" && <OwnerBuildNotice teams={myApprovedTeams} onBuild={ownerWorkspace ? () => changeTab("team") : undefined} />}
