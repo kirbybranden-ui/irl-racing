@@ -1,6 +1,8 @@
 import { changeCareerPassword } from "./lib/career";
 import { useInSeasonChallenge } from "./lib/inSeasonChallenge";
 import { getTeamFullName as currentTeamName } from "./data/teams";
+import { useTeamTheme } from "./lib/useTeamTheme";
+import "./styles/teamTheme.css";
 import BankingPanel from "./components/banking/BankingPanel";
 import { useBankingEnabled } from "./lib/banking";
 import MediaCenter from "./components/ai/MediaCenter";
@@ -8,86 +10,14 @@ import { mediaPersonas } from "./lib/aiMedia";
 import { defaultRaces } from "./data/races";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import teamLogoB2J from "./assets/teams/B2J.png";
-import teamLogoMER from "./assets/teams/ME.png";
-import teamLogoMMS from "./assets/teams/MMS.png";
-import teamLogoNLM from "./assets/teams/NLM.png";
-import teamLogoIND from "./assets/teams/IND.png";
-import teamLogo19XI from "./assets/teams/19XI.png";
-import teamLogoBWR from "./assets/teams/BWR.png";
-import teamLogoBXM from "./assets/teams/BXM.png";
-import teamLogoTMS from "./assets/teams/TMS.png";
 import { supabase } from "./lib/supabase";
 import { getLeagueSession, loginToLeague } from "./lib/leagueAuth";
 import { useLeagueAccess, hasLeagueRole } from "./lib/roleAccess";
 import { uploadCarFile, getCarUploads, deleteCarUpload } from "./lib/carUploads";
 // import { ReportIssueModal } from "./components/ReportIssueModal"; // TODO: Uncomment once ReportIssueModal.jsx is in repo
 
-const teamLogos = {
-  "B2J MOTORSPORTS": teamLogoB2J,
-  B2J: teamLogoB2J,
-  "ME RACING": teamLogoMER,
-  MER: teamLogoMER,
-  MMS: teamLogoMMS,
-  NLM: teamLogoNLM,
-  IND: teamLogoIND,
-  Independent: teamLogoIND,
-  "19XI": teamLogo19XI,
-  "19XI Racing": teamLogo19XI,
-  "Big Wheel Racing": teamLogoBWR,
-  BWR: teamLogoBWR,
-  "ME Racing": teamLogoMER,
-  BXM: teamLogoBXM,
-  "BayouX Motorsports": teamLogoBXM,
-  TMS: teamLogoTMS,
-  "Tolbert Motorsports": teamLogoTMS,
-};
-
-const teamFullNames = {
-  B2J: "JA Motorsports",
-    MER: "ME Racing",
-  "B2J MOTORSPORTS": "JA Motorsports",
-  MER: "ME Racing",
-  MMS: "Mayhem Motorsports",
-  NLM: "Nine Line Motorsports",
-    IND: "Independent",
-  Independent: "Independent",
-  "19XI": "19XI Racing",
-  "19XI Racing": "19XI Racing",
-  BWR: "Big Wheel Racing",
-  "Big Wheel Racing": "Big Wheel Racing",
-  "ME Racing": "ME Racing",
-  BXM: "BayouX Motorsports",
-  "BayouX Motorsports": "BayouX Motorsports",
-  TMS: "Tolbert Motorsports",
-  "Tolbert Motorsports": "Tolbert Motorsports",
-};
-
-const teamThemes = {
-  B2J: { accent: "#d4af37", glow: "rgba(212,175,55,0.28)", dark: "#2a230f" },
-  "B2J MOTORSPORTS": { accent: "#d4af37", glow: "rgba(212,175,55,0.28)", dark: "#2a230f" },
-  MER: { accent: "#ef4444", glow: "rgba(239,68,68,0.28)", dark: "#2a1111" },
-  "ME Racing": { accent: "#ef4444", glow: "rgba(239,68,68,0.28)", dark: "#2a1111" },
-  MMS: { accent: "#22c55e", glow: "rgba(34,197,94,0.25)", dark: "#102a16" },
-  NLM: { accent: "#3b82f6", glow: "rgba(59,130,246,0.26)", dark: "#0f1d35" },
-  BWR: { accent: "#f97316", glow: "rgba(249,115,22,0.28)", dark: "#311707" },
-  "Big Wheel Racing": { accent: "#f97316", glow: "rgba(249,115,22,0.28)", dark: "#311707" },
-  "19XI": { accent: "#a855f7", glow: "rgba(168,85,247,0.28)", dark: "#251138" },
-  "19XI Racing": { accent: "#a855f7", glow: "rgba(168,85,247,0.28)", dark: "#251138" },
-  IND: { accent: "#9ca3af", glow: "rgba(156,163,175,0.24)", dark: "#1f2937" },
-  Independent: { accent: "#9ca3af", glow: "rgba(156,163,175,0.24)", dark: "#1f2937" },
-  BXM: { accent: "#2563eb", glow: "rgba(37,99,235,0.28)", dark: "#0f172a" },
-  "BayouX Motorsports": { accent: "#2563eb", glow: "rgba(37,99,235,0.28)", dark: "#0f172a" },
-  TMS: { accent: "#0891b2", glow: "rgba(8,145,178,0.28)", dark: "#052e33" },
-  "Tolbert Motorsports": { accent: "#0891b2", glow: "rgba(8,145,178,0.28)", dark: "#052e33" },
-};
-
 function getTeamFullName(teamAbbr) {
   return currentTeamName(teamAbbr) || "Independent";
-}
-
-function getTeamTheme(teamAbbr) {
-  return teamThemes[teamAbbr] || { accent: "#d4af37", glow: "rgba(212,175,55,0.25)", dark: "#2a230f" };
 }
 
 function money(value) {
@@ -1394,8 +1324,8 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
     };
   }
   
-  const teamTheme = getTeamTheme(driver?.team || arcaDriver?.team);
-  const themedPrimaryButtonStyle = { ...primaryButtonStyle, background: teamTheme.accent };
+  const teamTheme = useTeamTheme(driver?.team || arcaDriver?.team);
+  const themedPrimaryButtonStyle = { ...primaryButtonStyle, background: teamTheme.accent, color: teamTheme.onAccent };
 
   const [isAppealModalOpen, setIsAppealModalOpen] = useState(false);
   // const [isReportingIssue, setIsReportingIssue] = useState(false); // TODO: Uncomment once ReportIssueModal.jsx is in repo
@@ -1856,7 +1786,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
   }, [selectedSeason, driver]);
 
   const championshipPicture = useMemo(() => {
-    if (!selectedSeason || !driver) return { rank: 0, pointsBehindLeader: 0, status: "No Data", color: teamTheme.accent, bg: `${teamTheme.accent}14` };
+    if (!selectedSeason || !driver) return { rank: 0, pointsBehindLeader: 0, status: "No Data", color: teamTheme.ink, bg: `${teamTheme.accent}14` };
     const sorted = [...sanitizedDrivers].sort((a, b) => Number(b.points || 0) - Number(a.points || 0));
     const leader = sorted[0];
     const rank = sorted.findIndex((d) => d.id === driver.id) + 1;
@@ -1864,7 +1794,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
     const pointsBehindLeader = leader ? Math.max(0, Number(leader.points || 0) - Number(driver.points || 0)) : 0;
 
     if (rank === 1) return { rank, pointsBehindLeader, status: "Points Leader", color: "#147d35", bg: "rgba(52,199,89,0.10)" };
-    if (rank <= Math.ceil(totalDrivers * 0.25)) return { rank, pointsBehindLeader, status: "Championship Contender", color: teamTheme.accent, bg: `${teamTheme.accent}14` };
+    if (rank <= Math.ceil(totalDrivers * 0.25)) return { rank, pointsBehindLeader, status: "Championship Contender", color: teamTheme.ink, bg: `${teamTheme.accent}14` };
     if (rank <= Math.ceil(totalDrivers * 0.5)) return { rank, pointsBehindLeader, status: "In the Hunt", color: "#9a5a00", bg: "rgba(255,149,0,0.10)" };
     return { rank, pointsBehindLeader, status: "Needs a Points Run", color: "#c62d24", bg: "rgba(255,59,48,0.08)" };
   }, [selectedSeason, driver, teamTheme]);
@@ -3648,7 +3578,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
 
                       {task.description && <div style={{ opacity: 0.78, fontSize: 13, lineHeight: 1.55, marginBottom: 12 }}>{task.description}</div>}
                       {task.due_race && <div style={{ fontSize: 12, opacity: 0.65, marginBottom: 6 }}>Due: {task.due_race}</div>}
-                      <div style={{ fontSize: 13, fontWeight: 900, color: teamTheme.accent, marginBottom: 12 }}>Reward: {task.reward || "—"}</div>
+                      <div style={{ fontSize: 13, fontWeight: 900, color: teamTheme.ink, marginBottom: 12 }}>Reward: {task.reward || "—"}</div>
 
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                         {status === "Assigned" && <button onClick={() => updateDriverAssignmentStatus(task.id, "Accepted")} style={themedPrimaryButtonStyle}>Accept</button>}
@@ -3690,7 +3620,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
                 <div key={field} style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "baseline" }}>
                     <div style={{ fontWeight: 900 }}>{label}</div>
-                    <div style={{ color: teamTheme.accent, fontWeight: 900 }}>{feedbackForm[field]}/10</div>
+                    <div style={{ color: teamTheme.ink, fontWeight: 900 }}>{feedbackForm[field]}/10</div>
                   </div>
                   <div style={{ opacity: 0.65, fontSize: 12, margin: "6px 0 10px" }}>{help}</div>
                   <input
@@ -3967,9 +3897,9 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
   }
 
   return (
-    <div style={appShellStyle}>
+    <div className="brl-driver-themed" data-team-theme={driver.team} style={{ ...appShellStyle, ...teamTheme.style }}>
       <div style={pageContainerStyle}>
-        <div style={{ ...sectionCardStyle, position: "relative", overflow: "hidden" }}>
+        <div className="driver-team-hero" style={{ ...sectionCardStyle, position: "relative", overflow: "hidden" }}>
           <div style={{ position: "absolute", top: -60, right: -60, width: 220, height: 220, borderRadius: "50%", background: `${teamTheme.accent}18`, pointerEvents: "none" }} />
 
           <div style={{ position: "relative", display: "flex", justifyContent: "flex-end", gap: 10, marginBottom: 18 }}>
@@ -4258,7 +4188,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
               flexShrink: 0,
               padding: 10,
             }}>
-              {teamLogos[driver.team] ? <img src={teamLogos[driver.team]} alt={driver.team} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} /> : <div style={{ fontWeight: 900, fontSize: 13, color: teamTheme.accent, textAlign: "center" }}>{getTeamFullName(driver.team)}</div>}
+              {teamTheme.logoUrl ? <img src={teamTheme.logoUrl} alt={driver.team} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} /> : <div style={{ fontWeight: 900, fontSize: 13, color: teamTheme.ink, textAlign: "center" }}>{getTeamFullName(driver.team)}</div>}
             </div>
 
             <div style={{ flex: "1 1 260px", minWidth: 0 }}>
@@ -4268,7 +4198,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
               <div style={{ fontSize: "clamp(28px, 4vw, 38px)", fontWeight: 950, letterSpacing: "-0.03em", lineHeight: 1.05, marginTop: 2 }}>{driver.name}</div>
 
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
-                <span style={{ display: "inline-flex", padding: "7px 14px", borderRadius: 999, background: `${teamTheme.accent}18`, color: teamTheme.accent, fontSize: 12.5, fontWeight: 1000 }}>
+                <span style={{ display: "inline-flex", padding: "7px 14px", borderRadius: 999, background: `${teamTheme.accent}18`, color: teamTheme.ink, fontSize: 12.5, fontWeight: 1000 }}>
                   {reputation.archetype}
                 </span>
                 {unreadMessages > 0 && (
@@ -4296,7 +4226,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
             <div style={{ textAlign: "right", flexShrink: 0 }}>
               <div style={{ fontSize: 11, fontWeight: 1000, letterSpacing: "0.06em", textTransform: "uppercase", color: "rgba(29,29,31,0.5)" }}>{selectedSeason.name}</div>
               <div style={{ fontSize: 26, fontWeight: 950, letterSpacing: "-0.02em", marginTop: 2 }}>P{driverRanking}</div>
-              <div style={{ fontSize: 13, fontWeight: 800, color: teamTheme.accent }}>{calculatedStats.points} PTS</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: teamTheme.ink }}>{calculatedStats.points} PTS</div>
             </div>
           </div>
         </div>
@@ -4387,7 +4317,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
           </div>
           <div style={{ marginBottom: 16 }}>
             <div style={{ fontSize: 11, color: "#6e6e73", fontWeight: 900, marginBottom: 4, letterSpacing: "0.04em" }}>DRIVER ARCHETYPE</div>
-            <div style={{ fontSize: 22, fontWeight: 950, color: teamTheme.accent }}>{reputation.archetype}</div>
+            <div style={{ fontSize: 22, fontWeight: 950, color: teamTheme.ink }}>{reputation.archetype}</div>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12 }}>
             {[
@@ -4435,7 +4365,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12, marginBottom: 16 }}>
             <div style={{ background: "rgba(0,0,0,0.03)", border: "1px solid rgba(0,0,0,0.06)", borderRadius: 16, padding: 14 }}>
               <div style={{ fontSize: 11, color: "#6e6e73", fontWeight: 900, marginBottom: 4, letterSpacing: "0.04em" }}>RANKING</div>
-              <div style={{ fontSize: 26, fontWeight: 950, color: teamTheme.accent }}>P{driverRanking}</div>
+              <div style={{ fontSize: 26, fontWeight: 950, color: teamTheme.ink }}>P{driverRanking}</div>
             </div>
             <div style={{ background: "rgba(0,0,0,0.03)", border: "1px solid rgba(0,0,0,0.06)", borderRadius: 16, padding: 14 }}>
               <div style={{ fontSize: 11, color: "#6e6e73", fontWeight: 900, marginBottom: 4, letterSpacing: "0.04em" }}>PROJECTION</div>
@@ -4488,7 +4418,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
             ].map(([label, value]) => (
               <div key={label} style={{ background: "rgba(0,0,0,0.03)", border: "1px solid rgba(0,0,0,0.06)", borderRadius: 16, padding: 14 }}>
                 <div style={{ fontSize: 11, color: "#6e6e73", fontWeight: 900, marginBottom: 4, letterSpacing: "0.04em" }}>{label}</div>
-                <div style={{ fontSize: 26, fontWeight: 950, color: teamTheme.accent }}>{value}</div>
+                <div style={{ fontSize: 26, fontWeight: 950, color: teamTheme.ink }}>{value}</div>
                 {label === "BEST RACE" && <div style={{ fontSize: 10.5, color: "#86868b", fontWeight: 700, marginTop: 2 }}>points</div>}
               </div>
             ))}
@@ -4574,7 +4504,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
               {recentForm.map((r, i) => (
                 <div key={`${r.race}-${i}`} style={{ background: "rgba(0,0,0,0.03)", border: "1px solid #2c3440", borderRadius: 8, padding: 10, textAlign: "center" }}>
                   <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>{String(r.race || "Race").split("(")[0].trim().substring(0, 8)}</div>
-                  <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 2, color: teamTheme.accent }}>{r.points}</div>
+                  <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 2, color: teamTheme.ink }}>{r.points}</div>
                   <div style={{ fontSize: 10, opacity: 0.6 }}>P{r.finish || "—"}</div>
                 </div>
               ))}
@@ -4628,7 +4558,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
                       <td style={tdStyle}>{race.dnf ? "DNF" : "—"}</td>
                       <td style={tdStyle}>{race.offense ? `#${race.offenseNumber}` : "—"}</td>
                       <td style={{ ...tdStyle, color: (race.penaltyPoints || 0) > 0 ? "#f87171" : "inherit" }}>{(race.penaltyPoints || 0) > 0 ? `-${race.penaltyPoints}` : "—"}</td>
-                      <td style={{ ...tdStyle, fontWeight: 800, color: teamTheme.accent }}>{race.totalRacePoints || 0}</td>
+                      <td style={{ ...tdStyle, fontWeight: 800, color: teamTheme.ink }}>{race.totalRacePoints || 0}</td>
                     </tr>
                   ))}
                 </tbody>
