@@ -1,3 +1,4 @@
+import { prepareTeamLogo } from "../../lib/teamLogo";
 import React, { useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { money } from "../../lib/career";
@@ -26,12 +27,11 @@ export default function TeamBuilder({ team, data, onSaved, onStep }) {
     const file = event.target.files?.[0];
     if (!file) return;
     setError("");setStatus("");
-    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type) || file.size > 262144) { setError("Choose a PNG, JPEG or WebP logo no larger than 256 KB.");event.target.value = "";return; }
     setReading(true);
     try {
-      const url = await new Promise((resolve, reject) => { const reader = new FileReader();reader.onload = () => resolve(reader.result);reader.onerror = () => reject(new Error("The logo could not be read."));reader.readAsDataURL(file); });
-      await new Promise((resolve, reject) => { const image = new Image();image.onload = resolve;image.onerror = () => reject(new Error("Choose a valid image file."));image.src = url; });
+      const url = await prepareTeamLogo(file);
       set("logoDataUrl", url);
+      setStatus("Logo prepared. Save your team profile to apply it.");
     } catch (failure) { setError(failure.message); } finally { setReading(false); }
   }
   async function save(event) {
@@ -52,11 +52,11 @@ export default function TeamBuilder({ team, data, onSaved, onStep }) {
       <fieldset disabled={busy || reading}><legend>Team identity</legend>
         <label>Team name<input required minLength={3} maxLength={100} value={form.name} onChange={e => set("name", e.target.value)} /></label>
         <label>Team profile<textarea maxLength={800} rows={4} value={form.bio} onChange={e => set("bio", e.target.value)} placeholder="Tell drivers about your team and what you’re building." /></label>
-        <label>Team logo<input type="file" accept="image/png,image/jpeg,image/webp" onChange={readLogo} /></label><p className="career-muted">PNG, JPEG or WebP · up to 256 KB. A logo is optional.</p>
+        <label>Team logo<input type="file" accept="image/png,image/jpeg,image/webp" onChange={readLogo} /></label><p className="career-muted">PNG, JPEG or WebP · up to 20 MB. Larger logos are resized automatically. A logo is optional.</p>
         <div className="career-form-grid"><label>Primary color<input type="color" value={form.accent} onChange={e => set("accent", e.target.value)} /></label><label>Secondary color<input type="color" value={form.dark} onChange={e => set("dark", e.target.value)} /></label></div>
       </fieldset>
       {error && <p role="alert" className="career-error">{error}</p>}{status && <p role="status">{status}</p>}
-      <button disabled={busy || reading}>{reading ? "Reading logo…" : busy ? "Saving team…" : "Save team profile"}</button>
+      <button disabled={busy || reading}>{reading ? "Preparing logo…" : busy ? "Saving team…" : "Save team profile"}</button>
     </form><aside className="team-builder-preview" style={{ borderTopColor: form.accent }} aria-label="Team profile preview">
       <div className="team-builder-mark" style={{ backgroundColor: form.dark }}>{form.logoDataUrl ? <img src={form.logoDataUrl} alt={`${form.name} logo preview`} /> : <strong>{team.code}</strong>}</div>
       <div className="career-kicker">{team.manufacturer} / {team.code}</div><h3>{form.name || "Your team name"}</h3><p>{form.bio || "Your team story starts here."}</p><p>{team.occupied || 0} / {team.capacity} seats filled</p>
