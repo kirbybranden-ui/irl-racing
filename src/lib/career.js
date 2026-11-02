@@ -31,6 +31,7 @@ export function makeCareerSchedule(total, type, firstDate, count = 20) {
 
 export async function changeCareerPassword(password, loginKind) {
   if (String(password).length < 12 || String(password).length > 128) throw new Error("Use a password of 12–128 characters.");
-  const result = loginKind === "legacy" ? await supabase.rpc("brl_change_driver_password", { new_password: password }) : await supabase.auth.updateUser({ password });
+  if (loginKind === "legacy") throw new Error("Use Forgot your password on the login screen. After admin verification you can create a personal password.");
+  const result = await supabase.auth.updateUser({ password });
   if (result.error) throw new Error(result.error.message);
 }
