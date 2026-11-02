@@ -1,3 +1,4 @@
+import { findTeamKey } from "../lib/teamTheme";
 import teamLogoB2J from "../assets/teams/B2J.png";
 import teamLogoMER from "../assets/teams/ME.png";
 import teamLogoNLM from "../assets/teams/NLM.png";
@@ -123,11 +124,19 @@ export const teamBranding = {
   "Tolbert Motorsports": { logo: "TMS", accent: "#0891b2", dark: "#052e33", fullName: "Tolbert Motorsports" },
 };
 
+let brandingRevision = 0;
+const brandingListeners = new Set();
+export const getTeamBrandingRevision = () => brandingRevision;
+export const subscribeTeamBranding = listener => { brandingListeners.add(listener);return () => brandingListeners.delete(listener); };
+export const resolveTeamKey = value => findTeamKey(value, teamBranding, teamFullNames, teamIdentifiers);
+
 // Supabase league_state can override the bundled branding without a redeploy.
 export function applyCustomTeamBranding(entries = {}) {
+  let changed = false;
   for (const [team, details] of Object.entries(entries || {})) {
     const key = String(team || "").trim();
     if (!key || !details || typeof details !== "object") continue;
+    changed = true;
     const suppliedName = String(details.fullName || getTeamFullName(key)).trim();
     const fullName = /^b2j(?: motorsports)?$/i.test(suppliedName) ? "JA Motorsports" : suppliedName;
     const identifier = String(key === "B2J" && fullName.toLowerCase() === "ja motorsports" && (!details.identifier || String(details.identifier).toUpperCase() === "B2J") ? "JAM" : (details.identifier || key)).trim().toUpperCase();
@@ -138,15 +147,18 @@ export function applyCustomTeamBranding(entries = {}) {
     teamIdentifiers[fullName] = identifier;
     teamBranding[key] = { ...getTeamBranding(key), logo: identifier, fullName, accent: details.accent || "#d71920", dark: details.dark || "#111216" };
     teamBranding[fullName] = teamBranding[key];
+    teamBranding[identifier] = teamBranding[key];
   }
+  if (changed) { brandingRevision += 1;for (const listener of brandingListeners) listener(); }
 }
 
 export function getTeamFullName(teamAbbr) {
-  return teamFullNames[teamAbbr] || teamAbbr;
+  const code = resolveTeamKey(teamAbbr);
+  return teamFullNames[code] || teamBranding[code]?.fullName || teamAbbr;
 }
 
 export function getTeamIdentifier(teamKey) {
-  return teamIdentifiers[teamKey] || teamKey;
+  return teamIdentifiers[resolveTeamKey(teamKey)] || teamKey;
 }
 
 export function getTeamBudget(teamAbbr) {
@@ -155,7 +167,7 @@ export function getTeamBudget(teamAbbr) {
 
 export function getTeamBranding(teamName) {
   return (
-    teamBranding[teamName] || {
+    teamBranding[resolveTeamKey(teamName)] || {
       logo: teamName?.charAt(0)?.toUpperCase() || "?",
       accent: "#d4af37",
       dark: "#161a20",
