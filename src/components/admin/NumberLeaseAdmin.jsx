@@ -29,7 +29,7 @@ export default function NumberLeaseAdmin() {
   return <section className="career">
     {error && <p role="alert" className="career-error">{error}</p>}
     {status && <p role="status">{status}</p>}
-    <MemberRegistrationLog data={data}/>
+    <MemberRegistrationLog data={data} busy={busy} run={run}/>
     <CharterAdmin data={data} busy={busy} run={run}/>
     <details>
       <summary><strong>Super-admin number lease administration</strong></summary>
