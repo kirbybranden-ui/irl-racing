@@ -142,6 +142,7 @@ export default function AdminPortal({
   patchActiveSeason,
   penaltyMap,
   pendingDrivers,
+  pendingDriverError = "",
   pointsTable,
   positions,
   postResultsDraft,
@@ -2063,6 +2064,7 @@ export default function AdminPortal({
                   <div id="admin-join-requests" style={{ borderRadius: 24, background: "#ffffff", border: "1px solid #e5e7eb", padding: 16, marginBottom: 14, scrollMarginTop: 24 }}>
                     <h3 style={{ margin: "0 0 6px", fontSize: 21, letterSpacing: -0.4 }}>Pending Driver Requests ({pendingHrRequestCount})</h3>
                     <p style={{ margin: "0 0 12px", color: "#6b7280", fontWeight: 750 }}>All league and series request-to-join submissions feed into this HR queue.</p>
+                    {pendingDriverError && <p role="alert" style={{ color: "#a31820", fontWeight: 800 }}>{pendingDriverError}</p>}
                     {pendingHrRequestCount === 0 ? (
                       <div style={{ borderRadius: 20, padding: 16, background: "#f5f5f7", color: "#6b7280", fontWeight: 850 }}>No pending league join requests right now.</div>
                     ) : (
