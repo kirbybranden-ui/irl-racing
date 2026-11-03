@@ -4204,7 +4204,7 @@ function MobileLeagueApp({
   if (["/owners", "/compare"].includes(path)) return dataFrame("Teams & Drivers", "more", <LeagueComparisonPage drivers={drivers} teams={teams} />);
   if (path === "/files") return dataFrame("Files", "more", <FilesPage />);
   if (path === "/welcome") return dataFrame("Welcome", "home", <WelcomePage />);
-  if (path === "/submit-appeal") return dataFrame("Submit Appeal", "more", isGuestSession ? <MobileGuestLockedCard title="Appeals Require Driver Login" go={go} /> : <SubmitAppealPage />);
+  if (path === "/submit-appeal") return dataFrame("Submit Appeal", "more", isGuestSession ? <MobileGuestLockedCard title="Appeals Require Member Login" go={go} /> : <SubmitAppealPage />);
   if (path === "/submit-story") return dataFrame("Submit Story", "more", isGuestSession ? <MobileGuestLockedCard title="Story Submissions Require Driver Login" go={go} /> : <SubmitStoryPage />);
   if (path === "/appeals") return dataFrame("Appeals", "more", <AppealsPage />);
   if (path === "/issues") return dataFrame("Issues & Feedback", "more", <IssuesRollupPage />);
@@ -6862,15 +6862,18 @@ export default function App() {
     return () => { isMounted = false; };
   }, [accessLoading, verifiedAccess?.userId]);
   useEffect(() => {
+    let active = true;
     async function loadOpenAppeals() {
-      const { count, error } = await supabase
-        .from("appeals")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "Open");
-      if (!error) setOpenAppealCount(count || 0);
+      if (!verifiedAccess?.userId || verifiedAccess?.agreementRequired) { if(active) setOpenAppealCount(0); return; }
+      const { data, error } = await supabase.rpc('brl_appeal_read');
+      if (!error && active) setOpenAppealCount((data?.cases || []).filter(c => !['decided','withdrawn'].includes(c.status)).length);
     }
     loadOpenAppeals();
-  }, []);
+    const timer = setInterval(loadOpenAppeals, 30000);
+    window.addEventListener('brl:appeals-changed', loadOpenAppeals);
+    return () => { active = false; clearInterval(timer); window.removeEventListener('brl:appeals-changed', loadOpenAppeals); };
+  }, [verifiedAccess?.userId, verifiedAccess?.agreementRequired]);
+
   useEffect(() => {
     async function loadOpenStories() {
       const { count, error } = await supabase
@@ -8548,7 +8551,7 @@ export default function App() {
     );
   }
 
-  const adminProtectedPaths = new Set(["/admin", "/admin/permissions", "/appeals", "/admin/stories", "/stories", "/admin/live-control", "/admin/car-gallery", "/admin/arca-car-gallery", "/admin/interviews", "/admin/votes"]);
+  const adminProtectedPaths = new Set(["/admin", "/admin/permissions", "/admin/stories", "/stories", "/admin/live-control", "/admin/car-gallery", "/admin/arca-car-gallery", "/admin/interviews", "/admin/votes"]);
   const isAdminProtectedPath = adminProtectedPaths.has(path) || (path.startsWith("/admin") && path !== "/admin-login");
   const isAdminAuthenticated = hasLeagueRole(verifiedAccess, "full_admin");
   const logoutAdmin = async () => {
@@ -8581,7 +8584,7 @@ export default function App() {
   if (accessLoading && (!canSeeRoute(null,path) || isAdminProtectedPath || ["/race-recorder","/team-hq","/owner","/hq","/teamhq"].includes(path))) return accessPage(<p role="status">Checking access…</p>);
   if (!isHydrated && ["/admin","/race-recorder","/owners","/compare"].includes(path)) return accessPage(<p role="status">Loading league data…</p>);
   if (path === "/admin" && hasLeagueRole(verifiedAccess, "race_recorder") && !isAdminAuthenticated) return accessPage(<RaceRecorderPage access={verifiedAccess} drivers={visibleDrivers} tracks={tracks} activeSeasonId={activeSeasonId} />, "Race Recorder");
-  if (["/appeals","/stories"].includes(path) && !isAdminAuthenticated) return <p>Full admin access is required.</p>;
+  if (["/stories"].includes(path) && !isAdminAuthenticated) return <p>Full admin access is required.</p>;
   if (isAdminProtectedPath && !isAdminAuthenticated) return accessPage(verifiedAccess?.userId ? <p>Full admin access is required.</p> : <RoleLogin next={path} />);
   if (path === "/race-recorder") return accessPage(canSeeRoute(verifiedAccess,path) ? <RaceRecorderPage access={verifiedAccess} drivers={visibleDrivers} tracks={tracks} activeSeasonId={activeSeasonId} /> : <p>Race Recorder access is required.</p>, "Race Recorder");
   if (!canSeeRoute(verifiedAccess,path)) return accessPage(verifiedAccess?.userId ? <p>Your roles do not include access to this page.</p> : <RoleLogin next={path} />);
