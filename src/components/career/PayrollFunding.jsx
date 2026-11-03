@@ -1,0 +1,30 @@
+import React, { useEffect, useState } from "react";
+import { supabase } from "../../lib/supabase";
+import { money } from "../../lib/career";
+import { CostTable } from "./TeamCostBreakdown";
+
+export default function PayrollFunding({ data, busy, run }) {
+  const teams=data.teams.filter(t=>t.status==="approved");
+  const [teamId,setTeamId]=useState(teams[0]?.id||""),[ownerDrives,setOwnerDrives]=useState(true),[franchiseSeats,setFranchiseSeats]=useState(1);
+  const [classification,setClassification]=useState("returning"),[priorAllocation,setPriorAllocation]=useState("0"),[quote,setQuote]=useState(null),[error,setError]=useState("");
+  const [reason,setReason]=useState("Fund required owner, driver and champion salaries plus the approved operating allowance.");
+  const team=teams.find(t=>t.id===teamId),saved=(data.financePlans||[]).find(p=>p.teamId===teamId);
+  const leaseFee=Number(data.leaseSettings?.fee||saved?.leasePerCar||10000);
+  useEffect(()=>{setOwnerDrives(saved?.ownerDrives??true);setFranchiseSeats(team?.capacity===4?1:(saved?.franchiseSeats??0));setClassification(saved?.classification||"new");setPriorAllocation("0");},[teamId,team?.capacity,saved?.ownerDrives,saved?.franchiseSeats,saved?.classification]);
+  useEffect(()=>{
+    let active=true;setQuote(null);setError("");if(!teamId)return;
+    supabase.rpc("brl_team_finance_quote",{payload:{teamId,ownerDrives,franchiseSeats,classification,priorAllocation:Number(priorAllocation),leaseFee}}).then(({data:q,error:e})=>{if(!active)return;if(e)setError(e.message);else setQuote(q);}).catch(e=>{if(active)setError(e.message);});
+    return()=>{active=false;};
+  },[teamId,ownerDrives,franchiseSeats,classification,priorAllocation,leaseFee,data]);
+  const policy=data.fundingPolicy||{};
+  return <><section className="career-card"><h3>Defending champions</h3><form key={`${policy.champion_gamertag}-${policy.champion_salary}`} className="career-form" onSubmit={e=>{e.preventDefault();const f=new FormData(e.currentTarget);run("set_funding_champion",{gamertag:f.get("gamertag"),teamCode:f.get("teamCode"),salary:Number(f.get("salary"))});}}><label>Champion’s exact gamertag<input required minLength={3} name="gamertag" defaultValue={policy.champion_gamertag||"abajack91"}/></label><label>Championship team code<input required minLength={2} name="teamCode" defaultValue={policy.champion_team_code||"NLM"}/></label><label>Required champion salary<input required type="number" min="750000.01" step="0.01" name="salary" defaultValue={policy.champion_salary||1000000}/></label><p>ABA starts at $1M. Use the registered gamertag so the rule follows the correct driver. Changes require fresh funding and owner reviews; signed contracts stay intact.</p><button disabled={busy}>Save season champion policy</button></form></section><section className="career-card"><h2>Complete team funding</h2><p>Owner salary is mandatory. Four-car teams require one franchise driver; three-car teams may choose one. ABA’s champion minimum is included where applicable. Returning teams receive the operating allowance; NLM receives the championship cushion.</p>{!teams.length?<p>Approve a team to prepare its funding.</p>:<form className="career-form" onSubmit={async e=>{e.preventDefault();if(!quote)return;await run("fund_payroll",{teamId,ownerDrives,franchiseSeats,classification,leaseFee,priorAllocation:Number(priorAllocation),planHash:quote.planHash,expectedCredit:quote.newCredit,expectedAllocation:quote.allocation,reason});}}>
+    <label>Approved team<select value={teamId} onChange={e=>setTeamId(e.target.value)}>{teams.map(t=><option key={t.id} value={t.id}>{t.name} · {t.capacity} cars</option>)}</select></label>
+    <label>Team history<select value={classification} onChange={e=>setClassification(e.target.value)}><option value="returning">Returning team · payroll and operations funded</option><option value="new">New team · payroll grant and operating financing</option></select></label>
+    <label className="career-check"><input type="checkbox" checked={ownerDrives} onChange={e=>setOwnerDrives(e.target.checked)}/>Owner occupies one of the driving seats. Owner salary is paid either way.</label>
+    <label>Franchise drivers<select value={franchiseSeats} disabled={team?.capacity===4} onChange={e=>setFranchiseSeats(Number(e.target.value))}>{team?.capacity!==4&&<option value={0}>None · optional for a smaller team</option>}{Number(team?.capacity)>Number(ownerDrives)&&<option value={1}>One · $750,000 minimum; champion {money(data.fundingPolicy?.champion_salary||1000000)}</option>}</select></label>
+    <label>Other earlier opening allocation missing from the ledger<input required type="number" min="0" max="10000000" step="0.01" value={priorAllocation} onChange={e=>setPriorAllocation(e.target.value)}/></label><p>Recorded grants are detected automatically. Do not enter loans, purses or sponsorship as opening grants. Existing higher allocations and ledger history are preserved.</p>
+    {error&&<p role="alert">{error}</p>}{quote&&<><CostTable plan={quote}/><p>Total allocation: <strong>{money(quote.allocation)}</strong> · Already allocated: {money(quote.priorAllocation)} · New treasury transfer: <strong>{money(quote.newCredit)}</strong></p><p>Cash after approval: {money(quote.cashAfter)} · Protected payroll remaining: {money(quote.protectedRemaining)} · Cash outside that reserve: {money(quote.operatingAfter)} before other obligations.</p><p>Owner cost review: {quote.reviewed?"Acknowledged":"Required before spending"}</p></>}
+    <label>Funding reason<textarea required minLength={8} value={reason} onChange={e=>setReason(e.target.value)}/></label><button disabled={busy||!quote||Number(quote.cashAfter)<Number(quote.protectedRemaining)}>{quote?`Approve complete funding · transfer ${money(quote.newCredit)}`:"Loading funding preview…"}</button>
+    {quote&&Number(quote.cashAfter)<Number(quote.protectedRemaining)&&<p role="alert">Earlier spending left a payroll shortfall. Reconcile the ledger before approving; the same startup grant cannot be paid twice.</p>}
+  </form>}</section></>;
+}
