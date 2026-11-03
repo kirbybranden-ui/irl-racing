@@ -1,14 +1,23 @@
 import { supabase } from "./supabase";
 import { refreshLeagueAccess } from "./roleAccess";
-export async function careerRead() {
-  const { data, error } = await supabase.rpc("brl_career_read");
-  if (error) throw new Error(error.message);
+import {createSharedRead} from "./sharedRead";
+const careerReader=createSharedRead({label:"Your applications and agreements",request:async signal=>{
+  const {data,error}=await supabase.rpc("brl_career_read").abortSignal(signal);
+  if(error)throw new Error(error.message);
   return data;
-}
+},validate:data=>{
+  if(!data?.me?.user_id)throw new Error("The dashboard returned no member record. Retry, or contact league administration if this continues.");
+  for(const key of ["teams","members","contracts","requests","obligations","payments","balances","agreements","claims","loans","budgets","numbers"]){if(!Array.isArray(data[key]))throw new Error("The dashboard response is incomplete. League administration should verify the installed career migrations.");}
+  return data;
+}});
+let lastReadUser;
+supabase.auth.onAuthStateChange((event,session)=>{const user=session?.user?.id||null;if(event==="SIGNED_OUT"||(lastReadUser!==undefined&&lastReadUser!==user))careerReader.invalidate();lastReadUser=user;});
+export async function careerRead(){return careerReader.read();}
 export async function careerAction(action, payload) {
   const { data, error } = await supabase.rpc(action === "fund_payroll" ? "brl_fund_payroll" : action === "owner_payroll" ? "brl_owner_payroll_offer" : action === "review_team_finance" ? "brl_review_team_finance" : action === "set_funding_champion" ? "brl_set_funding_champion" : "brl_career_action", ["fund_payroll", "owner_payroll", "review_team_finance", "set_funding_champion"].includes(action) ? { payload } : { action_value: action, payload });
   if (error) throw new Error(error.message);
-  await refreshLeagueAccess();
+  careerReader.invalidate();
+  refreshLeagueAccess().catch(error=>console.warn("Saved career action; permission refresh failed:",error));
   window.dispatchEvent(new Event("brl:bank-state-changed"));
   return data;
 }
