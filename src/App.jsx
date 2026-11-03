@@ -18,6 +18,7 @@ import TeamDetailPage from "./TeamDetailPage";
 import ManufacturerDetailPage from "./ManufacturerDetailPage";
 import WelcomePage from "./WelcomePage";
 import JoinRequestForm from "./components/auth/JoinRequestForm";
+import { readStreamDirectory } from "./lib/memberStreams";
 import RoleLogin from "./components/auth/RoleLogin";
 import RoleManagement from "./pages/RoleManagement";
 import RaceRecorderPage from "./pages/RaceRecorderPage";
@@ -3592,179 +3593,7 @@ function MobilePaintSchemeVotesHub({ drivers = [], tracks = [], go, session = nu
   );
 }
 
-function MobileStreamsPage({ drivers = [], teams = [], manufacturerStandings = [], activeRace = null, selectedTrack = null }) {
-  const [streams, setStreams] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState("all");
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    let isMounted = true;
-    async function loadStreams() {
-      setLoading(true);
-      setError("");
-      try {
-        const { data, error } = await supabase
-          .from("streams")
-          .select("*")
-          .order("sort_order", { ascending: true })
-          .order("driver_number", { ascending: true });
-
-        if (!isMounted) return;
-        if (error) {
-          console.error("Could not load streams:", error);
-          setError("Could not load stream links. Check the streams table and RLS policies.");
-          setStreams([]);
-        } else {
-          setStreams(Array.isArray(data) ? data : []);
-        }
-      } catch (caughtError) {
-        if (!isMounted) return;
-        console.error("Stream page crashed:", caughtError);
-        setError("Could not load stream links.");
-        setStreams([]);
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    }
-    loadStreams();
-    const interval = setInterval(loadStreams, 60000);
-    return () => { isMounted = false; clearInterval(interval); };
-  }, []);
-
-  const fallbackStreams = useMemo(() => {
-    return (drivers || [])
-      .filter((driver) => driver && !driver.retired && !isInactivePlaceholderDriver(driver))
-      .map((driver) => ({
-        id: `driver-${driver.id || driver.number}`,
-        driver_name: driver.name,
-        driver_number: driver.number,
-        team: driver.team,
-        manufacturer: driver.manufacturer,
-        twitch_url: driver.twitch_url || driver.twitch || "",
-        youtube_url: driver.youtube_url || driver.youtube || "",
-        is_live: false,
-      }))
-      .filter((stream) => getStreamTwitchUrl(stream) || getStreamYoutubeUrl(stream));
-  }, [drivers]);
-
-  const sourceStreams = streams.length ? streams : fallbackStreams;
-  const cleanStreams = sourceStreams
-    .map((stream) => {
-      const twitchUrl = getStreamTwitchUrl(stream);
-      const youtubeUrl = getStreamYoutubeUrl(stream);
-      const driverNumber = getStreamDriverNumber(stream);
-      const driverName = getStreamDriverLabel(stream);
-      const rosterDriver = (drivers || []).find((driver) => String(driver.number) === String(driverNumber) || String(driver.name || "").toLowerCase() === String(driverName || "").toLowerCase());
-      return {
-        ...stream,
-        twitchUrl,
-        youtubeUrl,
-        driverNumber: driverNumber || rosterDriver?.number || "",
-        driverName: driverName || rosterDriver?.name || "League Stream",
-        team: stream.team || rosterDriver?.team || "",
-        manufacturer: stream.manufacturer || rosterDriver?.manufacturer || "",
-        isLive: Boolean(stream.is_live || stream.live || stream.status === "live"),
-        isWatchParty: Boolean(stream.watch_party || stream.is_watch_party || stream.featured),
-      };
-    })
-    .filter((stream) => stream.twitchUrl || stream.youtubeUrl);
-
-  const filteredStreams = cleanStreams.filter((stream) => {
-    if (filter === "live") return stream.isLive;
-    if (filter === "twitch") return !!stream.twitchUrl;
-    if (filter === "youtube") return !!stream.youtubeUrl;
-    return true;
-  });
-
-  const watchParty = cleanStreams.find((stream) => stream.isWatchParty) || cleanStreams.find((stream) => stream.isLive) || cleanStreams[0];
-
-  function openStream(url) {
-    if (!url) return;
-    window.open(url, "_blank", "noopener,noreferrer");
-  }
-
-  return (
-    <>
-      <MobileHero
-        kicker="Broadcast Center"
-        title="League Streams"
-        subtitle={activeRace ? `${activeRace.name || activeRace.track || "Race Night"} • Qualifying 9:15 PM • Race 9:30 PM ET` : "Twitch, YouTube, watch party, and driver streams."}
-      />
-
-      {watchParty && (
-        <section style={mobileStreamHeroCardStyle}>
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
-            <div style={mobileKickerStyle}>{watchParty.isLive ? "Live Now" : "Featured Stream"}</div>
-            {watchParty.isLive && <span style={mobileLivePillStyle}>● LIVE</span>}
-          </div>
-          <h2 style={{ margin: "8px 0 6px", fontSize: 26, lineHeight: 1.02 }}>#{watchParty.driverNumber || "BCL"} {watchParty.driverName}</h2>
-          <p style={{ margin: "0 0 14px", color: "#6e6e73", lineHeight: 1.4 }}>{watchParty.team ? getTeamFullName(watchParty.team) : "Budweiser Cup League"}{watchParty.manufacturer ? ` • ${watchParty.manufacturer}` : ""}</p>
-          <div style={mobileStreamButtonGridStyle}>
-            {watchParty.twitchUrl && <button type="button" onClick={() => openStream(watchParty.twitchUrl)} style={mobileTwitchButtonStyle}>Watch Twitch</button>}
-            {watchParty.youtubeUrl && <button type="button" onClick={() => openStream(watchParty.youtubeUrl)} style={mobileYoutubeButtonStyle}>Watch YouTube</button>}
-          </div>
-        </section>
-      )}
-
-      <div style={mobileStreamFilterBarStyle}>
-        {[
-          ["all", "All"],
-          ["live", "Live"],
-          ["twitch", "Twitch"],
-          ["youtube", "YouTube"],
-        ].map(([key, label]) => (
-          <button
-            type="button"
-            key={key}
-            onClick={() => setFilter(key)}
-            style={{ ...mobileStreamFilterChipStyle, background: filter === key ? "#d4af37" : "#121a26", color: filter === key ? "#111" : "#fff", borderColor: filter === key ? "#d4af37" : "#263244" }}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {loading && <MobileCard><p style={{ margin: 0, color: "#6e6e73" }}>Loading stream cards...</p></MobileCard>}
-      {!loading && error && <MobileCard><p style={{ margin: 0, color: "#fca5a5", lineHeight: 1.4 }}>{error}</p></MobileCard>}
-      {!loading && !filteredStreams.length && (
-        <MobileCard>
-          <div style={mobileKickerStyle}>No Streams Found</div>
-          <p style={{ margin: "8px 0 0", color: "#6e6e73", lineHeight: 1.45 }}>No stream links are available for this filter yet. Add Twitch or YouTube links from the full stream manager.</p>
-        </MobileCard>
-      )}
-
-      <div style={mobileStreamListStyle}>
-        {filteredStreams.map((stream, index) => (
-          <article key={stream.id || `${stream.driverNumber}-${stream.driverName}-${index}`} style={mobileStreamCardStyle}>
-            <div style={mobileStreamNumberStyle}>{stream.driverNumber ? `#${stream.driverNumber}` : "BCL"}</div>
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                <h3 style={{ margin: 0, fontSize: 18, lineHeight: 1.08 }}>{stream.driverName}</h3>
-                {stream.isLive && <span style={mobileLivePillSmallStyle}>LIVE</span>}
-              </div>
-              <p style={{ margin: "5px 0 0", color: "#9ca8ba", fontSize: 12, lineHeight: 1.35 }}>{stream.team ? getTeamFullName(stream.team) : "League Stream"}{stream.manufacturer ? ` • ${stream.manufacturer}` : ""}</p>
-              <div style={mobileStreamLinksStyle}>
-                {stream.twitchUrl && <button type="button" onClick={() => openStream(stream.twitchUrl)} style={mobileMiniTwitchButtonStyle}>Twitch</button>}
-                {stream.youtubeUrl && <button type="button" onClick={() => openStream(stream.youtubeUrl)} style={mobileMiniYoutubeButtonStyle}>YouTube</button>}
-              </div>
-            </div>
-          </article>
-        ))}
-      </div>
-
-      <MobileCard>
-        <div style={mobileKickerStyle}>Stream Manager</div>
-        <p style={{ margin: "8px 0 12px", color: "#6e6e73", lineHeight: 1.45 }}>Need to add or edit links? Open the full stream manager in desktop mode.</p>
-        <MobileAction label="Open Full Stream Manager" onClick={() => {
-          if (typeof document !== "undefined") document.cookie = "bcl-force-desktop=1; path=/; max-age=2592000";
-          window.location.href = "/streams";
-        }} />
-      </MobileCard>
-    </>
-  );
-}
-
+function MobileStreamsPage(props) { return <StreamPage {...props}/>; }
 
 function getBclRoleFlagsForDriver(driver = {}, enteredAdminCode = false) {
   const possibleNames = [
@@ -4970,21 +4799,11 @@ function MobileLiveStreamsBanner({ go }) {
   useEffect(() => {
     let isMounted = true;
     async function loadStreams() {
-      const { data, error } = await supabase
-        .from("streams")
-        .select("*")
-        .order("is_live", { ascending: false })
-        .order("sort_order", { ascending: true })
-        .limit(4);
-      if (!isMounted) return;
-      if (error) {
-        setStreams([]);
-        return;
-      }
-      setStreams((data || []).filter((stream) => stream.active !== false));
+      try { const rows=await readStreamDirectory();if(isMounted)setStreams(rows.sort((a,b)=>Number(b.is_live)-Number(a.is_live)||Number(b.featured)-Number(a.featured)).slice(0,4)); } catch { if(isMounted)setStreams([]); }
     }
     loadStreams();
-    return () => { isMounted = false; };
+    const timer=setInterval(loadStreams,60000);window.addEventListener("brl:streams-changed",loadStreams);window.addEventListener("focus",loadStreams);
+    return () => { isMounted = false;clearInterval(timer);window.removeEventListener("brl:streams-changed",loadStreams);window.removeEventListener("focus",loadStreams); };
   }, []);
 
   if (!streams.length) return null;
@@ -4995,7 +4814,7 @@ function MobileLiveStreamsBanner({ go }) {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
         <div>
           <div style={mobileKickerStyle}>Streams</div>
-          <h2 style={{ margin: "2px 0 4px", fontSize: 20 }}>{liveCount ? `${liveCount} Live Now` : "Driver Streams"}</h2>
+          <h2 style={{ margin: "2px 0 4px", fontSize: 20 }}>{liveCount ? `${liveCount} Marked Live` : "Driver Streams"}</h2>
           <p style={{ margin: 0, color: "#6e6e73", fontSize: 12 }}>{streams.slice(0, 3).map((stream) => stream.driver_name || stream.channel_name).filter(Boolean).join(" • ")}</p>
         </div>
         <button type="button" onClick={() => go("/streams")} style={{ background: liveCount ? "#dc2626" : "#111827", color: "white", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 999, padding: "10px 12px", fontWeight: 1000, cursor: "pointer" }}>{liveCount ? "Watch" : "Open"}</button>
