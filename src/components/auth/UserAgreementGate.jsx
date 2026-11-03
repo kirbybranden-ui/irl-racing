@@ -1,9 +1,10 @@
-import React,{useCallback,useEffect,useRef,useState} from "react";
+import React,{useEffect,useRef,useState} from "react";
 import {supabase} from "../../lib/supabase";
 import {refreshLeagueAccess} from "../../lib/roleAccess";
 import {logoutOfLeague} from "../../lib/leagueAuth";
 import {agreementStatus,acceptAgreement,safeAgreementNext} from "../../lib/userAgreement";
 import RoleLogin from "./RoleLogin";
+import {createAgreementSession} from "../../lib/agreementSession";
 import "../../styles/userAgreement.css";
 
 export function AgreementDocument({status}) {
@@ -16,15 +17,30 @@ export function AgreementAcceptanceForm({status,busy,error,onAccept,onDecline}) 
 }
 export default function UserAgreementGate({children}) {
  const [status,setStatus]=useState(null),[error,setError]=useState(""),[busy,setBusy]=useState(false),[archived,setArchived]=useState(null),[copyError,setCopyError]=useState("");
- const serial=useRef(0),mounted=useRef(true);
+ const controller=useRef(null);
+ const [showLoading,setShowLoading]=useState(false);
  const path=window.location.pathname.toLowerCase(),legal=["/user-agreement","/terms","/user-agreement/","/terms/"].includes(path),params=new URLSearchParams(window.location.search),copy=params.get("copy");
- const refresh=useCallback(async()=>{const request=++serial.current;try{const next=await agreementStatus();if(mounted.current&&request===serial.current){setStatus(next);setError("");}}catch(e){if(mounted.current&&request===serial.current){setStatus(null);setError(e.message);}}},[]);
- useEffect(()=>{mounted.current=true;refresh();const {data:{subscription}}=supabase.auth.onAuthStateChange(()=>{++serial.current;setStatus(null);setArchived(null);setTimeout(refresh,0);});const timer=setInterval(refresh,60000);window.addEventListener("focus",refresh);return()=>{mounted.current=false;++serial.current;subscription.unsubscribe();clearInterval(timer);window.removeEventListener("focus",refresh);};},[refresh]);
+ const refresh=()=>controller.current?.refresh();
+ useEffect(()=>{
+  let storage;try{storage=window.sessionStorage;}catch{/* Private mode may disable storage. */}
+  const session=createAgreementSession({storage,legal,getSession:async()=>{const {data,error}=await supabase.auth.getSession();if(error)throw error;return data.session;},readStatus:agreementStatus,onChange:next=>{setStatus(next.status);setError(next.error);}});
+  controller.current=session;session.start();
+  let authTimer;
+  const schedule=()=>{clearTimeout(authTimer);authTimer=setTimeout(()=>session.refresh(),0);};
+  const {data:{subscription}}=supabase.auth.onAuthStateChange((event,current)=>{if(session.authChanged(event,current)){setArchived(null);schedule();}});
+  const onFocus=()=>session.refresh();
+  const onAccess=event=>{if(session.agreementChanged(event.detail))schedule();};
+  const timer=setInterval(onFocus,60000);
+  window.addEventListener("focus",onFocus);window.addEventListener("brl:access-loaded",onAccess);
+  return()=>{session.stop();controller.current=null;clearTimeout(authTimer);subscription.unsubscribe();clearInterval(timer);window.removeEventListener("focus",onFocus);window.removeEventListener("brl:access-loaded",onAccess);};
+ },[legal]);
+ useEffect(()=>{if(status){setShowLoading(false);return;}const timer=setTimeout(()=>setShowLoading(true),200);return()=>clearTimeout(timer);},[Boolean(status)]);
  useEffect(()=>{let live=true;setCopyError("");if(!legal||!copy){setArchived(null);return;}supabase.rpc("brl_agreement_copy",{version_value:copy}).then(({data,error})=>{if(!live)return;if(error)setCopyError(error.message);else setArchived(data);}).catch(e=>{if(live)setCopyError(e.message);});return()=>{live=false;};},[legal,copy,status?.userId]);
- if(!status)return <main className="brl-agreement-shell"><h1>BRL access agreement</h1>{error?<><p role="alert">{error}</p><p>Access remains closed until the current agreement can be verified.</p><button onClick={refresh}>Retry</button><a href="/login">Login</a></>:<p role="status">Checking your agreement status…</p>}</main>;
+ if(!status&&!error&&!showLoading)return <div className="brl-agreement-loading" aria-busy="true" aria-label="Loading account" style={{minHeight:120}}/>;
+ if(!status)return <main className="brl-agreement-shell"><h1>BRL access agreement</h1>{error?<><p role="alert">{error}</p><p>Access remains closed until the current agreement can be verified.</p><button onClick={refresh}>Retry</button><a href="/login">Login</a></>:<p role="status">Loading your account…</p>}</main>;
  if(!status.userId&&!legal)return <div className="brl-agreement-shell"><p>Members must be 18 or older and accept the BRL User Agreement before league access.</p><a href="/user-agreement">Read the agreement before registering</a><RoleLogin next={safeAgreementNext(path+window.location.search)}/></div>;
  if(status.accepted&&!legal)return children;
  if(legal&&copy&&!archived)return <main className="brl-agreement-shell"><h1>Archived agreement copy</h1>{copyError?<p role="alert">{copyError}</p>:<p role="status">Loading the requested version…</p>}<a href="/user-agreement">View the current agreement</a></main>;
  const shown=archived||status;
- return <main className="brl-agreement-shell"><div className="brl-agreement-actions brl-agreement-tools"><a href="/user-agreement">Current agreement</a><button type="button" onClick={()=>window.print()}>Print / Save PDF</button>{status.accepted&&<a href={safeAgreementNext(params.get("next"))}>Return to the league</a>}</div>{copy&&<p className="brl-agreement-notice">Archived copy. It cannot be used to accept the current version. <a href="/user-agreement">Review the current agreement</a>.</p>}<AgreementDocument status={shown}/>{shown.acceptedAt&&<p className="brl-agreement-notice">Your account accepted this version on {new Date(shown.acceptedAt).toLocaleString()}.</p>}{!status.userId?<p className="brl-agreement-notice"><a href="/login">Log in or register</a> to accept for your own account.</p>:!status.accepted&&!copy?<AgreementAcceptanceForm key={`${status.userId}:${status.version}:${status.documentHash}`} status={status} error={error} busy={busy} onDecline={async()=>{setBusy(true);try{await logoutOfLeague();window.location.assign("/login");}catch(e){setError(e.message);setBusy(false);}}} onAccept={async values=>{setBusy(true);setError("");try{await acceptAgreement(status,values);await refreshLeagueAccess();window.location.assign(safeAgreementNext(legal?params.get("next"):path+window.location.search));}catch(e){const message=e.message;await refresh();setError(message);}finally{setBusy(false);}}}/>:status.accepted&&!copy?<p className="brl-agreement-notice">Your acceptance is recorded. <a href={safeAgreementNext(params.get("next"))}>Continue to the league</a>.</p>:null}{status.history?.length>0&&<section className="brl-agreement-history"><h2>Your recorded versions</h2>{status.history.map(h=><p key={h.version}><a href={`/user-agreement?copy=${encodeURIComponent(h.version)}`}>Version {h.version}</a> · {new Date(h.acceptedAt).toLocaleString()}</p>)}</section>}</main>;
+ return <main className="brl-agreement-shell"><div className="brl-agreement-actions brl-agreement-tools"><a href="/user-agreement">Current agreement</a><button type="button" onClick={()=>window.print()}>Print / Save PDF</button>{status.accepted&&<a href={safeAgreementNext(params.get("next"))}>Return to the league</a>}</div>{copy&&<p className="brl-agreement-notice">Archived copy. It cannot be used to accept the current version. <a href="/user-agreement">Review the current agreement</a>.</p>}<AgreementDocument status={shown}/>{shown.acceptedAt&&<p className="brl-agreement-notice">Your account accepted this version on {new Date(shown.acceptedAt).toLocaleString()}.</p>}{!status.userId?<p className="brl-agreement-notice"><a href="/login">Log in or register</a> to accept for your own account.</p>:!status.accepted&&!copy?<AgreementAcceptanceForm key={`${status.userId}:${status.version}:${status.documentHash}`} status={status} error={error} busy={busy} onDecline={async()=>{setBusy(true);try{await logoutOfLeague();window.location.assign("/login");}catch(e){setError(e.message);setBusy(false);}}} onAccept={async values=>{setBusy(true);setError("");try{const receipt=await acceptAgreement(status,values);if(receipt.version!==status.version||receipt.documentHash!==status.documentHash||!controller.current?.recordAcceptance({...status,...receipt}))throw new Error("Your account or agreement changed. Please review the current version again.");await refreshLeagueAccess();window.location.assign(safeAgreementNext(legal?params.get("next"):path+window.location.search));}catch(e){const message=e.message;await refresh();setError(message);}finally{setBusy(false);}}}/>:status.accepted&&!copy?<p className="brl-agreement-notice">Your acceptance is recorded. <a href={safeAgreementNext(params.get("next"))}>Continue to the league</a>.</p>:null}{status.history?.length>0&&<section className="brl-agreement-history"><h2>Your recorded versions</h2>{status.history.map(h=><p key={h.version}><a href={`/user-agreement?copy=${encodeURIComponent(h.version)}`}>Version {h.version}</a> · {new Date(h.acceptedAt).toLocaleString()}</p>)}</section>}</main>;
 }
