@@ -1,42 +1,35 @@
-import TrackGuide from "../components/TrackGuide";
-import { trackKey } from "../utils/trackStrategy";
-import React, { useMemo } from "react";
-import { getSortedTracksByDate, getUpcomingRaceByDate } from "../utils/raceHelpers";
-import { getTrackOverview } from "../data/trackOverview";
-
-export default function SchedulePage({ tracks = [], raceHistory = [], seasons = [], activeSeasonId = "" }) {
-  const sorted = useMemo(() => getSortedTracksByDate(tracks || []), [tracks]);
-  const upcoming = useMemo(() => getUpcomingRaceByDate(tracks || []), [tracks]);
-  const completed = new Set((raceHistory || []).map(r => String(r.raceName || r.track || r.name || r.race || "").toLowerCase()));
-  const selected = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("selected") : "";
-  const selectedTrack = tracks.find(t => t.name === selected);
-  if (selectedTrack) return <TrackGuide track={selectedTrack} seasons={seasons} activeSeasonId={activeSeasonId}/>;
-  return (
-    <div className="brl-schedule-page">
-      <section className="brl-route-hero">
-        <span className="brl-flow-kicker">RACE WEEK</span>
-        <h1>Season Schedule</h1>
-        <p>What's next, what's complete, and every stop on the BRL calendar.</p>
-        {upcoming && <a className="brl-primary-action" href={`#race-${encodeURIComponent(upcoming.name || upcoming.track || "next")}`}>View next race <span>→</span></a>}
-      </section>
-      {upcoming && <section className="brl-next-race-flow">
-        <div><small>NEXT UP</small><h2>{upcoming.name || upcoming.track}</h2><p>{upcoming.date || "Date TBD"}{upcoming.time ? ` • ${upcoming.time}` : ""}</p></div>
-        <strong>{String(sorted.findIndex(t => t === upcoming) + 1).padStart(2,"0")}</strong>
-      </section>}
-      <section className="brl-schedule-flow">
-        {sorted.map((track, index) => {
-          const name = track.name || track.track || `Race ${index + 1}`;
-          const overview = getTrackOverview(track);
-          const isNext = upcoming && String(upcoming.name || upcoming.track) === String(name);
-          const isDone = completed.has(String(name).toLowerCase());
-          return <article id={`race-${encodeURIComponent(name)}`} className={`brl-race-row ${isNext ? "is-next" : ""}`} key={`${name}-${track.date || index}`}>
-            <div className="brl-race-index">{String(index+1).padStart(2,"0")}</div>
-            <div className="brl-race-main"><small>{track.phase || "Regular Season"} · {isNext ? "NEXT RACE" : isDone ? "COMPLETED" : "SCHEDULED"}</small>{overview.imageUrl && <img className="brl-schedule-photo" src={overview.imageUrl} alt={`${name} track`} onError={e=>{e.currentTarget.style.display="none";}}/>}<h3>{name}</h3><a className="brl-guide-link" href={`/schedule?selected=${encodeURIComponent(name)}`}>Track guide &amp; strategy →</a><p>{track.date || "Date TBD"}{track.time ? ` • ${track.time}` : ""}</p></div>
-            <div className="brl-race-meta">{track.eventLabel && <span>{track.eventLabel}</span>}<span>{track.stageCount || 2} stages</span>{overview.type && <span>{overview.type}</span>}{overview.length && <span>{overview.length}</span>}{overview.pitSpeed && <span>Pit {overview.pitSpeed}</span>}</div>
-          </article>;
-        })}
-        {!sorted.length && <div className="brl-empty-state">No schedule has been published yet.</div>}
-      </section>
-    </div>
-  );
+import React,{useMemo,useState} from 'react';
+import TrackGuide from '../components/TrackGuide';
+import {getTrackOverview} from '../data/trackOverview';
+import {buildScheduleView,filterSchedule} from '../utils/scheduleView';
+import '../styles/schedule.css';
+const statusLabels={next:'Next race',scheduled:'Scheduled',completed:'Results posted',date_pending:'Date to be announced',awaiting_results:'Awaiting results'};
+const guideHref=event=>`/schedule?selected=${encodeURIComponent(event.name)}`;
+function TrackPhoto({src,name,featured=false}){const [failed,setFailed]=useState(false);if(!src||failed)return null;return <img className={featured?'schedule-feature-photo':'schedule-track-photo'} src={src} alt={`${name} track`} loading="lazy" decoding="async" width={featured?480:144} height={featured?270:88} onError={()=>setFailed(true)}/>;}
+function EventDate({event}){return <div className="schedule-date">{event.date?<time dateTime={event.date.iso} aria-label={event.date.full}><span>{event.date.month}</span><strong>{event.date.day}</strong><small>{event.date.year}</small></time>:<span className="schedule-date-tba">Date<br/>TBA</span>}</div>;}
+export function ScheduleEventCard({event}){
+ const overview=getTrackOverview(event.track),stages=event.track.stageCount??2;
+ return <article className={`schedule-event schedule-event--${event.status}`} id={event.id} aria-label={`${event.name} — ${statusLabels[event.status]}`}>
+  <EventDate event={event}/><div className="schedule-event-body"><div className="schedule-event-top"><span className="schedule-eyebrow">Event {String(event.index+1).padStart(2,'0')} · {event.phase}</span><span className={`schedule-status schedule-status--${event.status}`}>{statusLabels[event.status]}</span></div><h3>{event.name}</h3>{event.track.eventLabel&&<p className="schedule-event-label">{event.track.eventLabel}</p>}<div className="schedule-event-facts">{event.date&&<span>{event.date.weekday}</span>}{event.track.time&&<span>{event.track.time}</span>}<span>{stages} {Number(stages)===1?'stage':'stages'}</span>{overview.type&&<span>{overview.type}</span>}{overview.length&&<span>{overview.length}</span>}</div><a className="schedule-guide-link" href={guideHref(event)} aria-label={`Track guide and strategy for ${event.name}`}>Track guide &amp; strategy <span aria-hidden="true">→</span></a></div><TrackPhoto src={overview.imageUrl} name={event.name}/>
+ </article>;
+}
+export function ScheduleCalendar({view,seasonName='',initialStatus='all'}){
+ const [status,setStatus]=useState(initialStatus),[phase,setPhase]=useState('all'),[search,setSearch]=useState('');
+ const filtered=filterSchedule(view.events,{status,phase,search}),next=view.next,overview=next?getTrackOverview(next.track):null;
+ const reset=()=>{setStatus('all');setPhase('all');setSearch('');};
+ return <main className="league-schedule"><header className="schedule-header"><div><span className="schedule-eyebrow">Budweiser Racing League</span><h1>Season schedule</h1><p>{seasonName||'League calendar'} <span aria-hidden="true">/</span> Every event. One calendar.</p></div><dl className="schedule-totals" aria-label="Season overview"><div><dt>Events</dt><dd>{view.events.length}</dd></div><div><dt>Results posted</dt><dd>{view.completed}</dd></div><div><dt>Upcoming</dt><dd>{view.upcoming}</dd></div></dl></header>
+ {next&&<section className="schedule-feature" aria-labelledby="schedule-next-title"><div className="schedule-feature-copy"><div className="schedule-feature-kicker"><span className="schedule-status schedule-status--next">Next race</span><span>Event {String(next.index+1).padStart(2,'0')} · {next.phase}</span></div><h2 id="schedule-next-title">{next.name}</h2>{next.track.eventLabel&&<p className="schedule-feature-label">{next.track.eventLabel}</p>}<p className="schedule-feature-date"><time dateTime={next.date.iso}>{next.date.full}</time>{next.track.time&&<> · {next.track.time}</>}</p><div className="schedule-feature-facts">{overview.type&&<span>{overview.type}</span>}{overview.length&&<span>{overview.length}</span>}<span>{next.track.stageCount??2} {Number(next.track.stageCount??2)===1?'stage':'stages'}</span></div><a className="schedule-feature-link" href={guideHref(next)}>Prepare for this race <span aria-hidden="true">→</span></a></div><TrackPhoto src={overview.imageUrl} name={next.name} featured/></section>}
+ <section className="schedule-calendar" aria-labelledby="schedule-calendar-title"><div className="schedule-section-header"><div><h2 id="schedule-calendar-title">Race calendar</h2><p>Published dates, event status and track preparation.</p></div><p className="schedule-result-count" role="status" aria-live="polite">{filtered.length} of {view.events.length} {view.events.length===1?'event':'events'}</p></div>
+ <div className="schedule-toolbar"><nav className="schedule-filter-tabs" aria-label="Filter races by status">{[['all','All events'],['upcoming','Upcoming'],['completed','Results posted'],...(view.events.some(e=>e.status==='awaiting_results')?[['awaiting_results','Awaiting results']]:[])].map(([value,label])=><button type="button" key={value} aria-pressed={status===value} onClick={()=>setStatus(value)}>{label}</button>)}</nav><div className="schedule-filter-fields"><label><span>Find an event</span><input type="search" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Track or event name"/></label>{view.phases.length>1&&<label><span>Season phase</span><select value={phase} onChange={e=>setPhase(e.target.value)}><option value="all">All phases</option>{view.phases.map(value=><option key={value} value={value}>{value}</option>)}</select></label>}</div></div>
+ <div className="schedule-events">{filtered.map(event=><ScheduleEventCard key={`${event.name}-${event.track.date||'tba'}-${event.index}`} event={event}/>)}{!view.events.length?<div className="schedule-empty"><h3>Schedule coming soon</h3><p>The league has not published any events yet.</p></div>:!filtered.length?<div className="schedule-empty"><h3>No matching events</h3><p>Try another track name, phase or status.</p><button type="button" onClick={reset}>Show all events</button></div>:null}</div>
+ <p className="schedule-footnote">Dates and event details reflect the published league schedule. A past date is marked “Awaiting results” until a result is recorded.</p></section>
+ </main>;
+}
+export default function SchedulePage({tracks=[],raceHistory=[],seasons=[],activeSeasonId=''}){
+ const view=useMemo(()=>buildScheduleView(tracks,raceHistory),[tracks,raceHistory]);
+ const selected=typeof window!=='undefined'?new URLSearchParams(window.location.search).get('selected'):'';
+ const selectedTrack=(Array.isArray(tracks)?tracks:[]).find(t=>t&&(t.name||t.track)===selected);
+ if(selectedTrack)return <TrackGuide track={selectedTrack} seasons={seasons} activeSeasonId={activeSeasonId}/>;
+ const season=(Array.isArray(seasons)?seasons:[]).find(s=>s.id===activeSeasonId)||(Array.isArray(seasons)?seasons[0]:null);
+ return <ScheduleCalendar view={view} seasonName={season?.name||''}/>;
 }
