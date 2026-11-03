@@ -1,3 +1,5 @@
+import AppealsWorkspace from "./components/appeals/AppealsWorkspace";
+import { readAppeals, appealLabels } from "./lib/appeals";
 import { changeCareerPassword } from "./lib/career";
 import { useInSeasonChallenge } from "./lib/inSeasonChallenge";
 import { getTeamFullName as currentTeamName } from "./data/teams";
@@ -757,327 +759,6 @@ function InterviewAnswerCard({ interview, onAnswered, accent = "#007aff" }) {
 }
 
 
-function AppealModal({ isOpen, onClose, selectedSeason, driverNumber, arcaDrivers, allDrivers, tracks, arcaTracks }) {
-  const [requester, setRequester] = useState("");
-  const [track, setTrack] = useState("");
-  const [description, setDescription] = useState("");
-  const [videoUrl, setVideoUrl] = useState("");
-  const [series, setSeries] = useState("cup");
-  const [submitting, setSubmitting] = useState(false);
-  const [cloudinaryReady, setCloudinaryReady] = useState(false);
-  const widgetRef = useRef(null);
-
-  const trackOptions = useMemo(() => {
-    const source = series === "arca" ? arcaTracks : tracks;
-    return (Array.isArray(source) ? source : [])
-      .map((t) => t?.name || t?.track || t)
-      .filter(Boolean);
-  }, [series, tracks, arcaTracks]);
-
-  // Check if driver runs in both series
-  const inCup = (allDrivers || []).some(d => String(d.number) === String(driverNumber));
-  const inArca = (arcaDrivers || []).some(d => String(d.number) === String(driverNumber));
-  const runsInBothSeries = inCup && inArca;
-
-  // If only in ARCA, force series to ARCA
-  useEffect(() => {
-    if (!inCup && inArca) {
-      setSeries("arca");
-    }
-  }, [inCup, inArca]);
-
-  async function handleSubmit() {
-    if (!requester.trim() || !track.trim() || !description.trim()) {
-      alert("Please fill in all required fields.");
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      const { error } = await supabase.from("appeals").insert({
-        requester: requester.trim(),
-        track: track.trim(),
-        description: description.trim(),
-        evidence_url: videoUrl || null,
-        status: "Open",
-        series: series,
-        created_at: new Date().toISOString(),
-      });
-
-      if (error) throw error;
-      alert("✅ Appeal submitted successfully!");
-      setRequester("");
-      setTrack("");
-      setDescription("");
-      setVideoUrl("");
-      setSeries("cup");
-      onClose();
-    } catch (err) {
-      console.error("Appeal submission error:", err);
-      alert(`Failed to submit appeal: ${err?.message || err?.code || "Unknown error"}`);
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  useEffect(() => {
-    if (window.cloudinary) {
-      setCloudinaryReady(true);
-      return;
-    }
-    const existing = document.getElementById("cloudinary-widget-script");
-    if (existing) return;
-    const script = document.createElement("script");
-    script.id = "cloudinary-widget-script";
-    script.src = "https://widget.cloudinary.com/v2.0/global/all.js";
-    script.async = true;
-    script.onload = () => setCloudinaryReady(true);
-    script.onerror = () => console.error("Cloudinary widget failed to load");
-    document.body.appendChild(script);
-  }, []);
-
-  useEffect(() => {
-    if (!cloudinaryReady || !window.cloudinary) return;
-    widgetRef.current = window.cloudinary.createUploadWidget(
-      {
-        cloudName: "dpu05oykz",
-        uploadPreset: "dpu05oykz",
-        resourceType: "video",
-        folder: "appeal-evidence",
-        maxFileSize: 200000000,
-        clientAllowedFormats: ["mp4", "mov", "avi", "mkv", "webm"],
-      },
-      (error, result) => {
-        if (error) {
-          console.error("Upload error:", error);
-          alert("Upload failed: " + (error.message || "Unknown error"));
-          return;
-        }
-        if (result?.event === "success") {
-          setVideoUrl(result.info.secure_url);
-          alert("✅ Video uploaded successfully!");
-        }
-      }
-    );
-  }, [cloudinaryReady]);
-
-  if (!isOpen) return null;
-
-  const appealInputStyle = {
-    width: "100%",
-    background: "rgba(255,255,255,0.72)",
-    color: "#1d1d1f",
-    border: "1px solid rgba(0,0,0,0.08)",
-    borderRadius: 14,
-    padding: "11px 13px",
-    boxSizing: "border-box",
-    fontFamily: appleFont,
-    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.6)",
-  };
-
-  return createPortal(
-    <div style={{
-      position: "fixed",
-      inset: 0,
-      background: "rgba(29,29,31,0.42)",
-      backdropFilter: "blur(6px)",
-      WebkitBackdropFilter: "blur(6px)",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      zIndex: 1000,
-      padding: 20,
-      fontFamily: appleFont,
-    }}>
-      <div style={{
-        background: "linear-gradient(180deg, rgba(255,255,255,0.94), rgba(248,250,252,0.92))",
-        border: "1px solid rgba(255,255,255,0.8)",
-        borderRadius: 30,
-        padding: "clamp(20px, 4vw, 30px)",
-        maxWidth: 540,
-        width: "100%",
-        boxShadow: "0 30px 90px rgba(0,0,0,0.28)",
-        maxHeight: "90vh",
-        overflowY: "auto",
-        color: "#1d1d1f",
-      }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 22 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <div style={{
-              width: 44,
-              height: 44,
-              borderRadius: 16,
-              background: "linear-gradient(135deg, #ff6482 0%, #ff3b30 60%, #b91c1c 100%)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 20,
-              boxShadow: "0 12px 26px rgba(255,59,48,0.28)",
-              flexShrink: 0,
-            }}>
-              📋
-            </div>
-            <h2 style={{ margin: 0, fontSize: 22, fontWeight: 1000, letterSpacing: "-0.03em" }}>File an Appeal</h2>
-          </div>
-          <button
-            onClick={onClose}
-            style={{
-              background: "rgba(0,0,0,0.05)",
-              border: "none",
-              borderRadius: 999,
-              width: 32,
-              height: 32,
-              color: "#1d1d1f",
-              fontSize: 18,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flexShrink: 0,
-            }}
-          >
-            ×
-          </button>
-        </div>
-
-        <div style={{ marginBottom: 16 }}>
-          <label style={{ display: "block", marginBottom: 7, fontWeight: 900, fontSize: 13 }}>Requester Driver *</label>
-          <select style={appealInputStyle} value={requester} onChange={(e) => setRequester(e.target.value)}>
-            <option value="">-- Select Driver --</option>
-            {(allDrivers || []).map((d) => <option key={d.id} value={`${d.number} - ${d.name}`}>#{d.number} {d.name}</option>)}
-          </select>
-        </div>
-
-        <div style={{ marginBottom: 16 }}>
-          <label style={{ display: "block", marginBottom: 7, fontWeight: 900, fontSize: 13 }}>Track *</label>
-          <select style={appealInputStyle} value={track} onChange={(e) => setTrack(e.target.value)}>
-            <option value="">-- Select Track --</option>
-            {trackOptions.map((t) => <option key={t} value={t}>{t}</option>)}
-          </select>
-        </div>
-
-        {runsInBothSeries && (
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: "block", marginBottom: 7, fontWeight: 900, fontSize: 13 }}>Series *</label>
-            <div style={{ display: "flex", gap: 10 }}>
-              <button
-                type="button"
-                onClick={() => setSeries("cup")}
-                style={{
-                  flex: 1,
-                  padding: "11px 12px",
-                  borderRadius: 999,
-                  border: series === "cup" ? "1px solid rgba(212,175,55,0.5)" : "1px solid rgba(0,0,0,0.08)",
-                  background: series === "cup" ? "rgba(212,175,55,0.14)" : "rgba(255,255,255,0.7)",
-                  color: series === "cup" ? "#9a5a00" : "#1d1d1f",
-                  fontWeight: 900,
-                  fontFamily: appleFont,
-                  cursor: "pointer",
-                }}
-              >
-                🏁 Cup Series
-              </button>
-              <button
-                type="button"
-                onClick={() => setSeries("arca")}
-                style={{
-                  flex: 1,
-                  padding: "11px 12px",
-                  borderRadius: 999,
-                  border: series === "arca" ? "1px solid rgba(52,199,89,0.5)" : "1px solid rgba(0,0,0,0.08)",
-                  background: series === "arca" ? "rgba(52,199,89,0.14)" : "rgba(255,255,255,0.7)",
-                  color: series === "arca" ? "#147d35" : "#1d1d1f",
-                  fontWeight: 900,
-                  fontFamily: appleFont,
-                  cursor: "pointer",
-                }}
-              >
-                🏎️ ARCA Series
-              </button>
-            </div>
-          </div>
-        )}
-
-        <div style={{ marginBottom: 16 }}>
-          <label style={{ display: "block", marginBottom: 7, fontWeight: 900, fontSize: 13 }}>Description *</label>
-          <textarea style={{ ...appealInputStyle, minHeight: 120, resize: "vertical" }} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Describe what happened and who was involved..." />
-        </div>
-
-        <div style={{ marginBottom: 20 }}>
-          <label style={{ display: "block", marginBottom: 7, fontWeight: 900, fontSize: 13 }}>Video Evidence (Optional)</label>
-          <button
-            type="button"
-            onClick={() => {
-              if (!cloudinaryReady || !widgetRef.current) {
-                alert("Upload widget is still loading. Try again in a moment.");
-                return;
-              }
-              widgetRef.current.open();
-            }}
-            style={{
-              width: "100%",
-              boxSizing: "border-box",
-              background: "rgba(255,255,255,0.7)",
-              color: "#1d1d1f",
-              border: "1px solid rgba(0,0,0,0.10)",
-              borderRadius: 999,
-              padding: "12px 18px",
-              fontWeight: 900,
-              fontFamily: appleFont,
-              cursor: "pointer",
-              opacity: cloudinaryReady ? 1 : 0.55,
-            }}
-            disabled={!cloudinaryReady}
-          >
-            {videoUrl ? "✅ Video uploaded" : cloudinaryReady ? "📹 Upload Video" : "⏳ Loading uploader..."}
-          </button>
-          {videoUrl && <div style={{ marginTop: 8, fontSize: 11.5, color: "#6e6e73", fontWeight: 700, wordBreak: "break-all" }}>{videoUrl}</div>}
-        </div>
-
-        <div style={{ display: "flex", gap: 12 }}>
-          <button
-            onClick={handleSubmit}
-            disabled={submitting}
-            style={{
-              flex: 1,
-              border: 0,
-              borderRadius: 999,
-              padding: "13px 18px",
-              background: "linear-gradient(135deg, #ff6482 0%, #ff3b30 60%, #b91c1c 100%)",
-              color: "#ffffff",
-              fontWeight: 1000,
-              fontSize: 14,
-              cursor: submitting ? "default" : "pointer",
-              opacity: submitting ? 0.7 : 1,
-              boxShadow: "0 14px 32px rgba(255,59,48,0.26)",
-              fontFamily: appleFont,
-            }}
-          >
-            {submitting ? "Submitting..." : "📤 Submit Appeal"}
-          </button>
-          <button
-            onClick={onClose}
-            disabled={submitting}
-            style={{
-              border: "1px solid rgba(0,0,0,0.10)",
-              borderRadius: 999,
-              padding: "13px 18px",
-              background: "rgba(255,255,255,0.7)",
-              color: "#1d1d1f",
-              fontWeight: 900,
-              fontFamily: appleFont,
-              cursor: "pointer",
-            }}
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-    </div>,
-    document.body
-  );
-}
-
 function DriverTransferPortalPanel({ driver, driverNumber, teamTheme, standingsRoute }) {
   const [entry, setEntry] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -1329,7 +1010,6 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
   const teamTheme = useTeamTheme(driver?.team || arcaDriver?.team);
   const themedPrimaryButtonStyle = { ...primaryButtonStyle, background: teamTheme.accent, color: teamTheme.onAccent };
 
-  const [isAppealModalOpen, setIsAppealModalOpen] = useState(false);
   // const [isReportingIssue, setIsReportingIssue] = useState(false); // TODO: Uncomment once ReportIssueModal.jsx is in repo
   const [myAppeals, setMyAppeals] = useState([]);
   const [carUploads, setCarUploads] = useState([]);
@@ -1704,13 +1384,13 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
 
     (myAppeals || []).forEach((appeal) => {
       const status = String(appeal?.status || "Open").toLowerCase();
-      if (!["closed", "resolved", "denied", "approved"].includes(status)) {
+      if (!["decided", "withdrawn", "closed", "resolved", "denied", "approved"].includes(status)) {
         items.push({
           id: `appeal-${appeal.id || appeal.track || Math.random()}`,
           icon: "📋",
           title: "Appeal Still Open",
-          detail: `${appeal.track || "Track"} • ${appeal.status || "Open"}`,
-          href: `/driver/${driverNumber}/appeals`,
+          detail: `${appeal.title || "Appeal"} • ${appealLabels[appeal.status] || appeal.status}`,
+          href: "/appeals",
           priority: 9,
         });
       }
@@ -2000,25 +1680,17 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
   }, [selectedSeason, driver]);
 
   useEffect(() => {
+    let active = true;
     async function fetchMyAppeals() {
-      const { data, error } = await supabase.from("appeals").select("*").order("created_at", { ascending: false });
-      if (error) {
-        console.error("Appeals fetch error:", error);
-        return;
-      }
-      const mine = (data || []).filter((a) => {
-        if (!a.requester) return false;
-        const byNumber = a.requester.startsWith(`${driverNumber} - `);
-        const byName = driver?.name && a.requester.toLowerCase().includes(driver.name.toLowerCase());
-        return byNumber || byName;
-      });
-      setMyAppeals(mine);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { if (active) setMyAppeals([]); return; }
+      try { const result = await readAppeals(); if (active) setMyAppeals(result.cases.filter(c => c.appellant === result.userId)); } catch { if (active) setMyAppeals([]); }
     }
-
     fetchMyAppeals();
-    const interval = setInterval(fetchMyAppeals, 5000);
-    return () => clearInterval(interval);
-  }, [driverNumber, driver?.name]);
+    const interval = setInterval(fetchMyAppeals, 30000);
+    window.addEventListener('brl:appeals-changed', fetchMyAppeals);
+    return () => { active = false; clearInterval(interval); window.removeEventListener('brl:appeals-changed', fetchMyAppeals); };
+  }, []);
 
   useEffect(() => {
     if (!driver?.id) return;
@@ -2969,7 +2641,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
     ["future_confidence", "Future Confidence", "Do you believe this team can win?"],
   ];
 
-  const protectedDriverPages = ["contracts", "upload", "interviews", "appeals", "feedback", "assignments", "messages", "team-interest", "start-park", "settings", "development", "portal"];
+  const protectedDriverPages = ["contracts", "upload", "interviews", "feedback", "assignments", "messages", "team-interest", "start-park", "settings", "development", "portal"];
 
   if (protectedDriverPages.includes(subPage) && !isDriverAuthorized) {
     return (
@@ -3411,72 +3083,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
   }
 
   if (subPage === "appeals") {
-    return (
-      <div style={appShellStyle}>
-        <div style={pageContainerStyle}>
-          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20, flexWrap: "wrap" }}>
-            <button onClick={() => window.location.pathname = `/driver/${driverNumber}`} style={secondaryButtonStyle}>← Back to Profile</button>
-            <div>
-              <div style={{ fontSize: 22, fontWeight: 900 }}>{driver ? `#${driver.number} ${driver.name}` : `Driver #${driverNumber}`} — Appeals</div>
-              <div style={{ fontSize: 13, opacity: 0.6, marginTop: 2 }}>{myAppeals.length} appeal{myAppeals.length !== 1 ? "s" : ""} total</div>
-            </div>
-          </div>
-
-          <div style={{ marginBottom: 20 }}>
-            <button onClick={() => setIsAppealModalOpen(true)} style={themedPrimaryButtonStyle}>📋 File New Appeal</button>
-            {/* <button onClick={() => setIsReportingIssue(true)} style={{ ...themedPrimaryButtonStyle, marginLeft: 12 }}>🐛 Report Issue</button> */}
-            {/* TODO: Uncomment once ReportIssueModal.jsx is in repo */}
-          </div>
-
-          {myAppeals.length === 0 ? (
-            <div style={{ ...sectionCardStyle, opacity: 0.7 }}>No appeals submitted yet.</div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              {myAppeals.map((appeal) => {
-                const statusConfig = {
-                  Open: { color: "#3b82f6", bg: "#0f1d35", border: "#1e3a6e", icon: "🕐" },
-                  Approved: { color: "#22c55e", bg: "#0e2918", border: "#1a5c30", icon: "✅" },
-                  Denied: { color: "#ef4444", bg: "#2a0e0e", border: "#6b1a1a", icon: "❌" },
-                }[appeal.status] || { color: "#888", bg: "#111", border: "#333", icon: "?" };
-
-                return (
-                  <div key={appeal.id} style={{ background: statusConfig.bg, border: `1px solid ${statusConfig.border}`, borderRadius: 14, padding: 18 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <span style={{ fontSize: 20 }}>{statusConfig.icon}</span>
-                        <span style={{ fontWeight: 800, fontSize: 16 }}>{appeal.track}</span>
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <span style={{ background: statusConfig.color, color: "white", borderRadius: 8, padding: "3px 12px", fontSize: 12, fontWeight: 800 }}>{appeal.status}</span>
-                        <span style={{ fontSize: 12, opacity: 0.5 }}>{new Date(appeal.created_at).toLocaleDateString()}</span>
-                      </div>
-                    </div>
-                    <div style={{ fontSize: 14, opacity: 0.8, lineHeight: 1.6 }}>{appeal.description}</div>
-                    {appeal.evidence_url && <div style={{ marginTop: 10 }}><video controls width="100%" style={{ maxWidth: 480, borderRadius: 8 }} src={appeal.evidence_url} /></div>}
-                    {appeal.admin_notes && (
-                      <div style={{ marginTop: 12, background: "rgba(0,0,0,0.3)", borderRadius: 8, padding: "12px 16px", borderLeft: `3px solid ${statusConfig.color}` }}>
-                        <div style={{ fontSize: 11, fontWeight: 800, opacity: 0.7, marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5 }}>League Determination</div>
-                        <div style={{ fontSize: 14, lineHeight: 1.6 }}>{appeal.admin_notes}</div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        <AppealModal isOpen={isAppealModalOpen} onClose={() => setIsAppealModalOpen(false)} selectedSeason={selectedSeason} driverNumber={driverNumber} arcaDrivers={arcaDrivers} allDrivers={sanitizedDrivers} tracks={tracks} arcaTracks={arcaTracks} />
-        {/* <ReportIssueModal
-          isOpen={isReportingIssue}
-          onClose={() => setIsReportingIssue(false)}
-          driverNumber={driverNumber}
-          driverName={driver?.name || ""}
-          series={isArcaDriver ? "arca" : "cup"}
-        /> */}
-        {/* TODO: Uncomment once ReportIssueModal.jsx is in repo */}
-      </div>
-    );
+    return <div style={appShellStyle}><div style={pageContainerStyle}><a href={`/driver/${driverNumber}`}>← Back to Profile</a><AppealsWorkspace /></div></div>;
   }
 
   const standingsRoute = isArcaDriver ? "/series/arca/standings" : "/standings";
@@ -3983,7 +3590,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
                 <span style={{ width: 20, height: 2, borderRadius: 999, background: "#111827" }} />
                 <span style={{ width: 20, height: 2, borderRadius: 999, background: "#111827" }} />
                 {myAppeals.length > 0 && (
-                  <span style={{ position: "absolute", top: -6, right: -6, background: myAppeals.some((a) => a.status !== "Open") ? "#34c759" : "#007aff", color: "white", borderRadius: 99, minWidth: 18, height: 18, padding: "0 4px", fontSize: 10.5, fontWeight: 900, display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #fff" }}>{myAppeals.length}</span>
+                  <span style={{ position: "absolute", top: -6, right: -6, background: myAppeals.some((a) => a.status === "decided") ? "#34c759" : "#007aff", color: "white", borderRadius: 99, minWidth: 18, height: 18, padding: "0 4px", fontSize: 10.5, fontWeight: 900, display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #fff" }}>{myAppeals.length}</span>
                 )}
               </button>
 
@@ -4011,7 +3618,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
                     ...(isArcaDriver ? [] : [{ icon: "🏎️", label: "Developmental Ride", href: `/driver/${driverNumber}/development` }]),
                     { icon: "📷", label: "Uploads", href: `/driver/${driverNumber}/upload` },
                     { icon: "🎙️", label: "Interviews", href: `/driver/${driverNumber}/interviews` },
-                    { icon: "📋", label: "Appeals", href: `/driver/${driverNumber}/appeals`, badge: myAppeals.length > 0 ? myAppeals.length : null, badgeColor: myAppeals.some((a) => a.status !== "Open") ? "#34c759" : "#007aff" },
+                    { icon: "📋", label: "Appeals", href: "/appeals", badge: myAppeals.length > 0 ? myAppeals.length : null, badgeColor: myAppeals.some((a) => a.status === "decided") ? "#34c759" : "#007aff" },
                     { icon: "🎯", label: "Assignments", href: `/driver/${driverNumber}/assignments` },
                     { icon: "😊", label: "Driver Feedback", href: `/driver/${driverNumber}/feedback` },
                     { icon: "🤝", label: "Team Interest", href: `/driver/${driverNumber}/team-interest` },
@@ -4592,7 +4199,6 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
         )}
       </div>
 
-      <AppealModal isOpen={isAppealModalOpen} onClose={() => setIsAppealModalOpen(false)} selectedSeason={selectedSeason} driverNumber={driverNumber} arcaDrivers={arcaDrivers} allDrivers={sanitizedDrivers} tracks={tracks} arcaTracks={arcaTracks} />
     </div>
   );
 }
