@@ -6,11 +6,11 @@ export function hasLeagueRole(access, role) { return access?.roles?.includes(rol
 export function canManageTeam(access, team) { return hasLeagueRole(access, "full_admin") || (hasLeagueRole(access, "owner") && access?.ownedTeams?.includes(team)); }
 export function canSeeRoute(access, path) {
   if (access?.agreementRequired && !["/login","/user-agreement","/terms"].includes(path)) return false;
-  if (path === "/career") return Boolean(access?.userId);
+  if (["/career", "/appeals", "/submit-appeal"].includes(path) || /^\/driver\/[^/]+\/appeals\/?$/.test(path)) return Boolean(access?.userId);
   const applicant = access?.userId && !access.isDriver && !access.isOwner && !access.isAdmin;
   if (applicant && ["/media", "/strategy", "/interviews", "/welcome", "/message-center", "/notifications", "/submit-appeal", "/chat", "/vote", "/league-vote", "/voting", "/paint-scheme-vote", "/submit-story", "/development-requests", "/developmental-requests", "/dev-requests"].includes(path)) return false;
 
-  if (path.startsWith("/admin") || ["/appeals","/stories"].includes(path)) return hasLeagueRole(access, "full_admin") || (path === "/admin" && hasLeagueRole(access, "race_recorder"));
+  if (path.startsWith("/admin") || ["/stories"].includes(path)) return hasLeagueRole(access, "full_admin") || (path === "/admin" && hasLeagueRole(access, "race_recorder"));
   if (path === "/race-recorder") return hasLeagueRole(access, "race_recorder") || hasLeagueRole(access, "full_admin");
   if (["/team-hq", "/owner-hq", "/owner", "/hq", "/teamhq"].includes(path)) return hasLeagueRole(access, "owner") || hasLeagueRole(access, "full_admin") || Boolean(access?.userId && ["owner", "independent"].includes(access?.applicationKind));
   if (["/media", "/strategy", "/welcome", "/contracts", "/message-center", "/notifications", "/submit-appeal", "/chat", "/vote", "/voting", "/submit-story", "/development-requests"].includes(path)) return Boolean(access?.userId);
