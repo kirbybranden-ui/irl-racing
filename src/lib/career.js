@@ -6,7 +6,7 @@ export async function careerRead() {
   return data;
 }
 export async function careerAction(action, payload) {
-  const { data, error } = await supabase.rpc("brl_career_action", { action_value: action, payload });
+  const { data, error } = await supabase.rpc(action === "fund_payroll" ? "brl_fund_payroll" : action === "owner_payroll" ? "brl_owner_payroll_offer" : action === "review_team_finance" ? "brl_review_team_finance" : action === "set_funding_champion" ? "brl_set_funding_champion" : "brl_career_action", ["fund_payroll", "owner_payroll", "review_team_finance", "set_funding_champion"].includes(action) ? { payload } : { action_value: action, payload });
   if (error) throw new Error(error.message);
   await refreshLeagueAccess();
   window.dispatchEvent(new Event("brl:bank-state-changed"));
