@@ -2,19 +2,19 @@ import { supabase } from "./supabase";
 
 const ROW_KEY = "irl-league";
 
-export async function loadLeagueState() {
-  if (!supabase) return null;
-
-  const { data, error } = await supabase.rpc("brl_read_league");
-
-  if (error) {
-    console.error("Load error:", error);
-    return null;
-  }
-
-  return data || null;
+import {createSharedRead} from "./sharedRead";
+const leagueReader=createSharedRead({label:"League data",request:async signal=>{
+  const {data,error}=await supabase.rpc("brl_read_league").abortSignal(signal);
+  if(error)throw new Error(error.message);
+  return data||null;
+}});
+let lastReadUser;
+supabase.auth.onAuthStateChange((event,session)=>{const user=session?.user?.id||null;if(event==="SIGNED_OUT"||(lastReadUser!==undefined&&lastReadUser!==user))leagueReader.invalidate();lastReadUser=user;});
+if(typeof window!=="undefined")window.addEventListener("brl:bank-state-changed",()=>leagueReader.invalidate());
+export async function loadLeagueState({throwOnError=false}={}){
+  if(!supabase)return null;
+  try{return await leagueReader.read();}catch(error){console.error("Load error:",error);if(throwOnError)throw error;return null;}
 }
-
 export async function saveLeagueState(state, expectedRevision=null) {
   if (!supabase) throw new Error("Supabase is unavailable.");
 
@@ -27,6 +27,7 @@ export async function saveLeagueState(state, expectedRevision=null) {
     throw error;
   }
   if(!data)throw new Error("League data changed on the server. Reload before saving to protect bank and roster updates.");
+  leagueReader.invalidate();
   setTimeout(()=>window.dispatchEvent(new Event("brl:bank-state-changed")),50);
   return data.updated_at;
 }
