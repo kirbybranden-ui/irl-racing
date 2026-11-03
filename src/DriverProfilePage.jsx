@@ -3,6 +3,8 @@ import { useInSeasonChallenge } from "./lib/inSeasonChallenge";
 import { getTeamFullName as currentTeamName } from "./data/teams";
 import { useTeamTheme } from "./lib/useTeamTheme";
 import "./styles/teamTheme.css";
+import MemberStreamSettings from "./components/streams/MemberStreamSettings";
+import DriverStreamLinks from "./components/streams/DriverStreamLinks";
 import BankingPanel from "./components/banking/BankingPanel";
 import { useBankingEnabled } from "./lib/banking";
 import MediaCenter from "./components/ai/MediaCenter";
@@ -3299,6 +3301,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
           </div>
 
           {passwordManagerCard}
+          {String(roleAccess?.driverId)===String(driver.id)&&<MemberStreamSettings/>}
         </div>
       </div>
     );
@@ -3899,6 +3902,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
   return (
     <div className="brl-driver-themed" data-team-theme={driver.team} style={{ ...appShellStyle, ...teamTheme.style }}>
       <div style={pageContainerStyle}>
+        <DriverStreamLinks driverId={driver.id} isSelf={String(roleAccess?.driverId)===String(driver.id)}/>
         <div className="driver-team-hero" style={{ ...sectionCardStyle, position: "relative", overflow: "hidden" }}>
           <div style={{ position: "absolute", top: -60, right: -60, width: 220, height: 220, borderRadius: "50%", background: `${teamTheme.accent}18`, pointerEvents: "none" }} />
 
