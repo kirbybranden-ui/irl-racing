@@ -6295,6 +6295,8 @@ export default function App() {
   const [arcaSelectedRace, setArcaSelectedRace] = useState(null);
   const backupFileInputRef = useRef(null);
   const [isHydrated, setIsHydrated] = useState(false);
+  const [leagueLoadError, setLeagueLoadError] = useState("");
+  const [leagueLoadAttempt, setLeagueLoadAttempt] = useState(0);
   const loadedStateSignatureRef = useRef("");
   const saveQueueRef = useRef(Promise.resolve());
   const loadedRevisionRef = useRef(null);
@@ -6817,16 +6819,18 @@ export default function App() {
     if (accessLoading) return;
     let isMounted = true;
     setIsHydrated(false);
+    setLeagueLoadError("");
     remoteLoadedRef.current = false;
 
     async function hydrateFromSupabase() {
       try {
-        const savedState = await loadLeagueState();
+        const savedState = await loadLeagueState({throwOnError:true});
         if (!isMounted) return;
 
         const normalizedState = normalizeLoadedLeagueState(savedState);
 
         if (normalizedState) {
+          setLeagueLoadError("");
           loadedRevisionRef.current = savedState?._revision || null;
           remoteLoadedRef.current = true;
           applyCustomTeamBranding(normalizedState.customTeamBranding);
@@ -6836,31 +6840,19 @@ export default function App() {
           setActiveSeasonId(normalizedState.activeSeasonId);
           setTracks(normalizedState.tracks);
           loadedStateSignatureRef.current = makeLeagueStateSignature(normalizedState);
+          setIsHydrated(true);
         } else {
-          // Emergency only: this keeps the app usable if Supabase is empty or unreachable,
-          // but it does NOT automatically write defaults back over the real saved points.
-          const fallbackState = loadInitialLeagueState();
-          setSeasons(fallbackState.seasons || []);
-          setActiveSeasonId(fallbackState.activeSeasonId || "");
-          setTracks(fallbackState.tracks || defaultRaces);
-          loadedStateSignatureRef.current = makeLeagueStateSignature(fallbackState);
+          throw new Error("No saved league data was returned. Retry loading; do not reset league data.");
         }
       } catch (error) {
-        console.error("Supabase load failed. Defaults were NOT saved over league points:", error);
-        if (!isMounted) return;
-        const fallbackState = loadInitialLeagueState();
-        setSeasons(fallbackState.seasons || []);
-        setActiveSeasonId(fallbackState.activeSeasonId || "");
-        setTracks(fallbackState.tracks || defaultRaces);
-        loadedStateSignatureRef.current = makeLeagueStateSignature(fallbackState);
-      } finally {
-        if (isMounted) setIsHydrated(true);
+        console.error("League data could not be loaded; saved data was not changed:",error);
+        if(isMounted)setLeagueLoadError(error.message||"League data could not be loaded.");
       }
     }
 
     hydrateFromSupabase();
     return () => { isMounted = false; };
-  }, [accessLoading, verifiedAccess?.userId]);
+  }, [accessLoading, verifiedAccess?.userId, leagueLoadAttempt]);
   useEffect(() => {
     let active = true;
     async function loadOpenAppeals() {
@@ -8581,6 +8573,7 @@ export default function App() {
     return <div className="career-route-shell"><MobileShell title={ownerWorkspace ? "Owner HQ" : "My Career"} session={verifiedAccess} onLogout={logoutOfLeague}><CareerDashboard key={ownerWorkspace ? "owner" : "driver"} workspace={ownerWorkspace ? "owner" : "driver"} seasons={seasons} activeSeasonId={activeSeasonId} leagueReady={isHydrated} /></MobileShell></div>;
   }
 
+  if(leagueLoadError&&!isHydrated&&!["/appeals","/submit-appeal","/streams","/user-agreement","/terms"].includes(path))return accessPage(<section style={{maxWidth:720,margin:"32px auto",padding:24,background:"white",color:"#16191f",border:"1px solid #d6d9df",borderRadius:10}}><h1>League data could not load</h1><p role="alert">{leagueLoadError}</p><p>Your saved results, teams and balances have not been changed.</p><button type="button" onClick={()=>setLeagueLoadAttempt(attempt=>attempt+1)}>Retry loading league data</button></section>);
   if (accessLoading && (!canSeeRoute(null,path) || isAdminProtectedPath || ["/race-recorder","/team-hq","/owner","/hq","/teamhq"].includes(path))) return accessPage(<p role="status">Checking access…</p>);
   if (!isHydrated && ["/admin","/race-recorder","/owners","/compare"].includes(path)) return accessPage(<p role="status">Loading league data…</p>);
   if (path === "/admin" && hasLeagueRole(verifiedAccess, "race_recorder") && !isAdminAuthenticated) return accessPage(<RaceRecorderPage access={verifiedAccess} drivers={visibleDrivers} tracks={tracks} activeSeasonId={activeSeasonId} />, "Race Recorder");
