@@ -73,12 +73,12 @@ export default function CareerDashboard({ workspace = "driver", seasons = [], ac
     window.addEventListener("hashchange", sync);window.addEventListener("popstate", sync);
     return () => { window.removeEventListener("hashchange", sync);window.removeEventListener("popstate", sync); };
   }, []);
-  const load = useCallback(async () => { const next = await careerRead();setData(next);return next; }, []);
-  useEffect(() => { let live = true;const refresh = () => careerRead().then(next => { if (live) setData(next); }).catch(e => { if (live) setError(e.message); });refresh();window.addEventListener("focus", refresh);return () => { live = false;window.removeEventListener("focus", refresh); }; }, []);
+  const load = useCallback(async () => { const next = await careerRead();setData(next);setError("");return next; }, []);
+  useEffect(() => { let live = true;const refresh = () => careerRead().then(next => { if (live) { setData(next);setError(""); } }).catch(e => { if (live) setError(e.message); });refresh();window.addEventListener("focus", refresh);return () => { live = false;window.removeEventListener("focus", refresh); }; }, []);
   useEffect(() => {
     if (!["owner", "independent"].includes(rawData?.me?.kind) || rawData?.me?.status !== "applicant") return;
     let live = true;
-    const timer = setInterval(() => careerRead().then(next => { if (live) setData(next); }).catch(e => { if (live) setError(e.message); }), 20000);
+    const timer = setInterval(() => careerRead().then(next => { if (live) { setData(next);setError(""); } }).catch(e => { if (live) setError(e.message); }), 20000);
     return () => { live = false;clearInterval(timer); };
   }, [ownerWorkspace, rawData?.me?.kind, rawData?.me?.status]);
   async function run(action, payload) { setBusy(true);setError("");setStatus("");try { const result = await careerAction(action, payload);await load();setStatus("Saved successfully.");return result; } catch (failure) { setError(failure.message);return null; } finally { setBusy(false); } }
@@ -91,7 +91,7 @@ export default function CareerDashboard({ workspace = "driver", seasons = [], ac
     balances: rawData.balances.filter(b => b.kind === "driver" && String(b.subject) === String(rawData.me.driver_id)),
     agreements: [], claims: [], loans: [], budgets: [],
   };
-  if (!data) return <div className="career"><h1>League applications</h1>{error ? <><p role="alert" className="career-error">{error}</p><button onClick={() => { setError("");load().catch(e => setError(e.message)); }}>Retry</button><p><a href="/login">Sign in / Register</a></p></> : <p role="status">Loading your applications and agreements…</p>}</div>;
+  if (!data) return <div className="career"><h1>{ownerWorkspace?"Owner HQ":"My Career"}</h1>{error ? <><p role="alert" className="career-error">{error}</p><button onClick={() => { setError("");load().catch(e => setError(e.message)); }}>Retry</button><p><a href="/login">Sign in / Register</a></p></> : <p role="status">Loading your applications and agreements…</p>}</div>;
   const me = data.me, root = ownerWorkspace && data.isSuperAdmin, owned = ownerWorkspace ? data.teams.filter(t => t.owner_user === me.user_id && t.status === "approved") : [], owner = owned.length > 0;
   const restrictedOwner = ownerWorkspace && me.kind !== "driver" && ["applicant", "rejected"].includes(me.status);
   const manufacturer = (data.manufacturerRoles || []).length > 0;
