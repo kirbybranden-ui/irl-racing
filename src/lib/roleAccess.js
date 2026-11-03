@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
+import {createSharedRead} from "./sharedRead";
 
 export const ROLE_LABELS = { driver: "Driver", owner: "Owner", race_recorder: "Race Recorder", full_admin: "Full Admin" };
 export function hasLeagueRole(access, role) { return access?.roles?.includes(role) === true; }
@@ -17,25 +18,30 @@ export function canSeeRoute(access, path) {
   return true;
 }
 
-let accessGeneration = 0;
-supabase.auth.onAuthStateChange(() => { accessGeneration += 1; });
-
-export async function refreshLeagueAccess() {
-  const generation = accessGeneration;
-  const { data: { session } } = await supabase.auth.getSession();
-  let access = null;
-  if (session) {
-    const { data, error } = await supabase.rpc("brl_my_access");
-    if (error) throw error;
-    access = data;
-  }
-  if (generation !== accessGeneration) return null;
-  if (access?.userId) {
-    localStorage.setItem("bcl-league-session", JSON.stringify(access));
-    localStorage.setItem("bcl-mobile-session-v1", JSON.stringify(access));
-  }
-  else { localStorage.removeItem("bcl-league-session"); localStorage.removeItem("bcl-mobile-session-v1"); }
-  window.dispatchEvent(new CustomEvent("brl:access-loaded", { detail: access }));
+let accessGeneration=0,lastAccessUser,publishedAccess;
+const accessReader=createSharedRead({label:"Account permissions",request:async signal=>{
+  const {data:{session},error:sessionError}=await supabase.auth.getSession();
+  if(sessionError)throw sessionError;
+  if(!session)return null;
+  const {data,error}=await supabase.rpc("brl_my_access").abortSignal(signal);
+  if(error)throw error;
+  return data;
+}});
+supabase.auth.onAuthStateChange((event,session)=>{
+  const user=session?.user?.id||null;
+  if(event==="SIGNED_OUT"||(lastAccessUser!==undefined&&lastAccessUser!==user)){accessGeneration++;accessReader.invalidate();publishedAccess=undefined;}
+  lastAccessUser=user;
+});
+export async function refreshLeagueAccess(){
+  const generation=accessGeneration,access=await accessReader.read();
+  if(generation!==accessGeneration)return null;
+  if(access===publishedAccess)return access;
+  publishedAccess=access;
+  try{
+    if(access?.userId){localStorage.setItem("bcl-league-session",JSON.stringify(access));localStorage.setItem("bcl-mobile-session-v1",JSON.stringify(access));}
+    else{localStorage.removeItem("bcl-league-session");localStorage.removeItem("bcl-mobile-session-v1");}
+  }catch{/* The verified in-memory access still works if browser storage is blocked. */}
+  window.dispatchEvent(new CustomEvent("brl:access-loaded",{detail:access}));
   window.dispatchEvent(new Event("brl:session-changed"));
   return access;
 }
