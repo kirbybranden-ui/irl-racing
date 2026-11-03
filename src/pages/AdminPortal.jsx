@@ -2397,7 +2397,7 @@ export default function AdminPortal({
                 <div style={walletLightCardStyle}>
                   <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Appeals</div>
                   <h2 style={{ margin: "3px 0 0", fontSize: 26, letterSpacing: -0.6 }}>Board Appeal Queue</h2>
-                  <p style={{ color: "#4b5563", fontWeight: 750 }}>Open appeals remain managed by the appeals page, but HR now owns the people/discipline view.</p>
+                  <p style={{ color: "#4b5563", fontWeight: 750 }}>Use the appeals center to record rulings, verify filings, appoint an independent panel, and track decisions and corrections.</p>
                   <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", marginTop: 16 }}>
                     <div style={{ padding: "14px 18px", borderRadius: 20, background: "#ffffff", border: "1px solid #e5e7eb", fontWeight: 1000 }}>{openAppealCount || 0} open appeals</div>
                     <button type="button" onClick={() => (window.location.pathname = "/appeals")} style={adminPrimaryButtonStyle}>Open Appeals</button>
