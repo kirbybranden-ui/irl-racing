@@ -367,7 +367,7 @@ export default function PaintSchemeVotePage({ drivers = [], tracks = [] }) {
       <div style={pageContainerStyle}>
         <button onClick={() => (window.location.pathname = "/standings")} style={secondaryButtonStyle}>← Back to Standings</button>
 
-        <div style={{ ...sectionCardStyle, marginTop: 18, borderLeft: `4px solid ${ORANGE}` }}>
+        <div data-brl-surface="section" style={{ ...sectionCardStyle, marginTop: 18, borderLeft: `4px solid ${ORANGE}` }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: ORANGE, letterSpacing: 1, textTransform: "uppercase" }}>Budweiser Cup League</div>
           <h1 style={{ margin: "6px 0 6px", fontSize: 34, fontWeight: 700, letterSpacing: -0.8, color: TEXT_PRIMARY }}>🎨 Paint Scheme Vote</h1>
           <div style={{ color: TEXT_SECONDARY, lineHeight: 1.6, fontSize: 14.5 }}>
@@ -375,7 +375,7 @@ export default function PaintSchemeVotePage({ drivers = [], tracks = [] }) {
           </div>
         </div>
 
-        <div style={sectionCardStyle}>
+        <div data-brl-surface="section" style={sectionCardStyle}>
           <h2 style={{ marginTop: 0, fontSize: 20, fontWeight: 600, letterSpacing: -0.3, color: TEXT_PRIMARY }}>Official Rules</h2>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: 10 }}>
             {[
@@ -393,7 +393,7 @@ export default function PaintSchemeVotePage({ drivers = [], tracks = [] }) {
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 16 }}>
-          <div style={sectionCardStyle}>
+          <div data-brl-surface="section" style={sectionCardStyle}>
             <h2 style={{ marginTop: 0, fontSize: 19, fontWeight: 600, letterSpacing: -0.3, color: TEXT_PRIMARY, display: "flex", alignItems: "center" }}>
               <StepBadge number={1} color={BLUE} /> Select Vote Week
             </h2>
@@ -406,7 +406,7 @@ export default function PaintSchemeVotePage({ drivers = [], tracks = [] }) {
             </button>
           </div>
 
-          <div style={sectionCardStyle}>
+          <div data-brl-surface="section" style={sectionCardStyle}>
             <h2 style={{ marginTop: 0, fontSize: 19, fontWeight: 600, letterSpacing: -0.3, color: TEXT_PRIMARY, display: "flex", alignItems: "center" }}>
               <StepBadge number={2} color={PURPLE} /> Unlock Driver Profile
             </h2>
@@ -434,7 +434,7 @@ export default function PaintSchemeVotePage({ drivers = [], tracks = [] }) {
         {status && <div style={{ ...sectionCardStyle, background: "rgba(52,199,89,0.08)", border: `1px solid ${GREEN}55`, color: GREEN, fontWeight: 700 }}>{status}</div>}
         {error && <div style={{ ...sectionCardStyle, background: "rgba(255,59,48,0.08)", border: `1px solid ${RED}55`, color: RED, fontWeight: 700 }}>{error}</div>}
 
-        <div style={sectionCardStyle}>
+        <div data-brl-surface="section" style={sectionCardStyle}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap", marginBottom: 16 }}>
             <div>
               <h2 style={{ margin: 0, fontSize: 19, fontWeight: 600, letterSpacing: -0.3, color: TEXT_PRIMARY, display: "flex", alignItems: "center" }}>
