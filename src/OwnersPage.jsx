@@ -3426,7 +3426,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
           </div>
         </div>
 
-        <div style={{ ...sectionCardStyle, borderColor: isAuthorized ? "#d4af37" : "#3d4859" }}>
+        <div data-brl-surface="section" style={{ ...sectionCardStyle, borderColor: isAuthorized ? "#d4af37" : "#3d4859" }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16, alignItems: "end" }}>
             <div>
               <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>TEAM HQ · <a href="/compare">Compare teams & drivers</a></div>
@@ -3457,7 +3457,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
         </div>
 
         {!isAuthorized ? (
-          <div style={{ ...sectionCardStyle, textAlign: "center", padding: 34 }}>
+          <div data-brl-surface="section" style={{ ...sectionCardStyle, textAlign: "center", padding: 34 }}>
             <div style={{ fontSize: 28, fontWeight: 900, marginBottom: 8 }}>Locked Team HQ</div>
             <div style={{ opacity: 0.72 }}>Unlock your team to view contracts, roster, budget, morale, manufacturer support, rivalries, and franchise value.</div>
           </div>
@@ -3509,7 +3509,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
             </div>
 
             </>}
-            <div style={{ ...sectionCardStyle, marginBottom: 20 }}>
+            <div data-brl-surface="section" style={{ ...sectionCardStyle, marginBottom: 20 }}>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 {hqTabs.map(([tab, label]) => (
                   <button key={tab} onClick={() => setActiveHqTab(tab)} style={tabButtonStyle(tab)}>{label}</button>
@@ -3518,7 +3518,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
             </div>
 
             {!showBanking && activeHqTab === "tasks" && (
-              <div style={sectionCardStyle}>
+              <div data-brl-surface="section" style={sectionCardStyle}>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start", marginBottom: 16 }}>
                   <div>
                     <h2 style={{ margin: 0 }}>✅ Owner Tasks</h2>
@@ -3597,7 +3597,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
             )}
 
             {activeHqTab === "assignments" && (
-              <div style={sectionCardStyle}>
+              <div data-brl-surface="section" style={sectionCardStyle}>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start", marginBottom: 16 }}>
                   <div>
                     <h2 style={{ margin: 0 }}>🏁 Driver Assignment Center</h2>
@@ -3783,7 +3783,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
 
 
             {!showBanking && activeHqTab === "transfers" && (
-              <div style={sectionCardStyle}>
+              <div data-brl-surface="section" style={sectionCardStyle}>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start", marginBottom: 16 }}>
                   <div>
                     <h2 style={{ margin: 0 }}>💰 Team Deals & Transfers</h2>
@@ -3989,7 +3989,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
             )}
 
             {!showBanking && activeHqTab === "numbers" && (
-              <div style={sectionCardStyle}>
+              <div data-brl-surface="section" style={sectionCardStyle}>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start", marginBottom: 16 }}>
                   <div>
                     <h2 style={{ margin: 0 }}>🔢 Number Pool</h2>
@@ -4064,7 +4064,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
             )}
 
             {activeHqTab === "interest" && (
-              <div style={sectionCardStyle}>
+              <div data-brl-surface="section" style={sectionCardStyle}>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start", marginBottom: 16 }}>
                   <div>
                     <h2 style={{ margin: 0 }}>🤝 Team Interest</h2>
@@ -4119,7 +4119,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
             )}
 
             {activeHqTab === "recruiting" && (
-              <div style={sectionCardStyle}>
+              <div data-brl-surface="section" style={sectionCardStyle}>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start", marginBottom: 16 }}>
                   <div>
                     <h2 style={{ margin: 0 }}>🎯 Recruiting Board</h2>
@@ -4156,7 +4156,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
             )}
 
             {activeHqTab === "portal" && (
-              <div style={sectionCardStyle}>
+              <div data-brl-surface="section" style={sectionCardStyle}>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start", marginBottom: 16 }}>
                   <div>
                     <h2 style={{ margin: 0 }}>🔄 Transfer Portal</h2>
@@ -4222,7 +4222,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
             )}
 
             {activeHqTab === "messages" && (
-              <div style={sectionCardStyle}>
+              <div data-brl-surface="section" style={sectionCardStyle}>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start", marginBottom: 16 }}>
                   <div>
                     <h2 style={{ margin: 0 }}>📩 Team Message Center</h2>
@@ -4308,7 +4308,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
             )}
 
             {activeHqTab === "overview" && (
-              <div style={{ ...sectionCardStyle, borderColor: "#d4af37" }}>
+              <div data-brl-surface="section" style={{ ...sectionCardStyle, borderColor: "#d4af37" }}>
                 <h2 style={{ marginTop: 0 }}>Team HQ Overview</h2>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 12 }}>
                   <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 16 }}><div style={{ opacity: 0.65, fontSize: 12 }}>Owner Power Rank</div><div style={{ fontSize: 30, fontWeight: 900 }}>#{myOwnerRank}</div></div>
@@ -4320,7 +4320,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
             )}
 
             {activeHqTab === "morale" && (
-              <div style={sectionCardStyle}>
+              <div data-brl-surface="section" style={sectionCardStyle}>
                 <h2 style={{ marginTop: 0 }}>Driver Morale</h2>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 14 }}><div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14 }}><div style={{ opacity: 0.65, fontSize: 12 }}>Avg Happiness</div><div style={{ fontSize: 26, fontWeight: 900 }}>{submittedHappinessAverage ?? "—"}/10</div></div><div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14 }}><div style={{ opacity: 0.65, fontSize: 12 }}>Avg Leadership</div><div style={{ fontSize: 26, fontWeight: 900 }}>{submittedLeadershipAverage ?? "—"}/10</div></div><div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14 }}><div style={{ opacity: 0.65, fontSize: 12 }}>Avg Communication</div><div style={{ fontSize: 26, fontWeight: 900 }}>{submittedCommunicationAverage ?? "—"}/10</div></div></div><div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse" }}><thead><tr><th style={thStyle}>Driver</th><th style={thStyle}>Morale</th><th style={thStyle}>Happiness</th><th style={thStyle}>Communication</th><th style={thStyle}>Leadership</th><th style={thStyle}>Latest Note</th><th style={thStyle}>Owner Action</th></tr></thead><tbody>
                   {selected.drivers.map((driver) => { const feedback = latestFeedbackByDriverNumber.get(String(driver.number || "").trim()); const feedbackMorale = feedbackScoreToMorale(feedback?.team_happiness); const score = feedbackMorale ?? Math.max(40, Math.min(100, teamMoraleScore + (Number(driver.points || 0) > 0 ? 5 : 0) - (Number(driver.dnfs || 0) * 5))); const status = score >= 80 ? "Happy" : score >= 65 ? "Neutral" : score >= 50 ? "Frustrated" : "At Risk"; return (
@@ -4331,7 +4331,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
             )}
 
             {!showBanking && activeHqTab === "manufacturer" && (
-              <div style={sectionCardStyle}>
+              <div data-brl-surface="section" style={sectionCardStyle}>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 14, flexWrap: "wrap", alignItems: "flex-start", marginBottom: 16 }}>
                   <div>
                     <h2 style={{ margin: 0 }}>Manufacturer Contract</h2>
@@ -4376,7 +4376,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
             )}
 
             {activeHqTab === "development" && (
-              <div style={sectionCardStyle}>
+              <div data-brl-surface="section" style={sectionCardStyle}>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start", marginBottom: 16 }}>
                   <div>
                     <h2 style={{ margin: 0 }}>Development Center</h2>
@@ -4509,7 +4509,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
             )}
 
             {activeHqTab === "rivalries" && (
-              <div style={sectionCardStyle}>
+              <div data-brl-surface="section" style={sectionCardStyle}>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
                   <div>
                     <h2 style={{ marginTop: 0, marginBottom: 6 }}>Team Rivalries</h2>
@@ -4634,7 +4634,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
             )}
 
             {activeHqTab === "media" && (
-              <div style={sectionCardStyle}>
+              <div data-brl-surface="section" style={sectionCardStyle}>
                 <h2 style={{ marginTop: 0 }}>Owner Media Pressure</h2>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
                   <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 16 }}><div style={{ opacity: 0.65 }}>Fan Approval</div><div style={{ fontSize: 26, fontWeight: 900 }}>{Math.max(35, 100 - mediaPressureScore + selected.wins * 8)}/100</div></div>
@@ -4645,7 +4645,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
             )}
 
             {activeHqTab === "value" && (
-              <div style={sectionCardStyle}>
+              <div data-brl-surface="section" style={sectionCardStyle}>
                 <h2 style={{ marginTop: 0 }}>Franchise Value</h2>
                 <div style={{ fontSize: 42, fontWeight: 900, color: "#d4af37" }}>{money(franchiseValue)}</div>
                 <p style={{ opacity: 0.72 }}>Value is estimated from team budget, points, wins, top 3s, roster size, active contracts, and morale.</p>
@@ -4653,7 +4653,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
             )}
 
             {activeHqTab === "rankings" && (
-              <div style={sectionCardStyle}>
+              <div data-brl-surface="section" style={sectionCardStyle}>
                 <h2 style={{ marginTop: 0 }}>Owner Power Rankings</h2>
                 <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse" }}><thead><tr><th style={thStyle}>Rank</th><th style={thStyle}>Team</th><th style={thStyle}>Owner Score</th>{!showBanking && <th style={thStyle}>Budget</th>}<th style={thStyle}>Points</th><th style={thStyle}>Wins</th></tr></thead><tbody>
                   {ownerPowerRankings.map((item, index) => (
@@ -4665,7 +4665,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
 
             {!showBanking && activeHqTab === "contracts" && (
               <>
-            <div style={{ ...sectionCardStyle, borderColor: "#b42318" }}>
+            <div data-brl-surface="section" style={{ ...sectionCardStyle, borderColor: "#b42318" }}>
               <h2 style={{ marginTop: 0 }}>🚨 Contract Termination / Driver Release</h2>
               <div style={{ opacity: 0.74, lineHeight: 1.6 }}>
                 Owners can terminate their own active contracts. A paid termination deducts remaining salary plus buyout from the team account and moves the driver to Independent / free agency. A for-cause request sends the issue to the Board without deducting money immediately.
@@ -4673,7 +4673,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
               {contractError && <div style={{ marginTop: 12, color: "#f87171", fontWeight: 900 }}>{contractError}</div>}
               {contractMessage && <div style={{ marginTop: 12, color: "#4ade80", fontWeight: 900 }}>{contractMessage}</div>}
             </div>
-            <div style={{ ...sectionCardStyle, borderColor: "#d4af37" }}>
+            <div data-brl-surface="section" style={{ ...sectionCardStyle, borderColor: "#d4af37" }}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
                 <div>
                   <h2 style={{ marginTop: 0, marginBottom: 6 }}>Active League Contracts</h2>
@@ -4750,7 +4750,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
               )}
             </div>
 
-            <div style={{ ...sectionCardStyle, borderColor: "#d4af37" }}>
+            <div data-brl-surface="section" style={{ ...sectionCardStyle, borderColor: "#d4af37" }}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", alignItems: "center", marginBottom: 16 }}>
                 <div>
                   <h2 style={{ margin: 0 }}>Pay Independent Driver</h2>
@@ -4844,7 +4844,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
               </div>
             </div>
 
-            <div style={{ ...sectionCardStyle, borderColor: "#d4af37" }}>
+            <div data-brl-surface="section" style={{ ...sectionCardStyle, borderColor: "#d4af37" }}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", alignItems: "center", marginBottom: 16 }}>
                 <div>
                   <h2 style={{ margin: 0 }}>Generate Contract Offer</h2>
@@ -4989,7 +4989,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
               </>
             )}
 
-            <div style={sectionCardStyle}>
+            <div data-brl-surface="section" style={sectionCardStyle}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
                 <div>
                   <h2 style={{ marginTop: 0, marginBottom: 6 }}>Technical Alliance Requests</h2>
@@ -5068,7 +5068,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
               )}
             </div>
 
-            <div style={sectionCardStyle}>
+            <div data-brl-surface="section" style={sectionCardStyle}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
                 <div>
                   <h2 style={{ marginTop: 0, marginBottom: 6 }}>Active League Contracts</h2>
@@ -5143,7 +5143,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
               )}
             </div>
 
-            <div style={sectionCardStyle}>
+            <div data-brl-surface="section" style={sectionCardStyle}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
                 <div>
                   <h2 style={{ marginTop: 0, marginBottom: 6 }}>My Contract Offers</h2>
@@ -5191,7 +5191,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
               )}
             </div>
 
-            <div style={sectionCardStyle}>
+            <div data-brl-surface="section" style={sectionCardStyle}>
               <h2 style={{ marginTop: 0 }}>My Team Roster</h2>
               <div style={{ overflowX: "auto" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -5227,7 +5227,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
               </div>
             </div>
 
-            <div style={sectionCardStyle}>
+            <div data-brl-surface="section" style={sectionCardStyle}>
               <h2 style={{ marginTop: 0 }}>My Race Financials</h2>
               {selected.raceRows.length === 0 ? (
                 <div style={{ opacity: 0.72 }}>No race financial data yet for {getTeamFullName(selected.team)}.</div>
@@ -5263,7 +5263,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
               )}
             </div>
 
-            <div style={sectionCardStyle}>
+            <div data-brl-surface="section" style={sectionCardStyle}>
               <h2 style={{ marginTop: 0 }}>My Team Finance Rules</h2>
               <div style={{ opacity: 0.72, marginBottom: 12 }}>Starting money now follows your roster-size rule: 1 driver = $300,000 · 2 drivers = $700,000 · 3 drivers = $1,000,000 · 4 drivers = $1,500,000.</div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10 }}>
