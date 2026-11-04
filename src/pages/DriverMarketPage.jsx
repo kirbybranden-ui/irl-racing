@@ -407,7 +407,7 @@ function DriverMarketCard({ driver, raceStats, paintStats, interestRows, reSignR
   const actionLabel = mode === "recruiting" ? "Show Interest" : "Add to Recruiting Board";
 
   return (
-    <div style={{ ...sectionCardStyle, padding: 0, overflow: "hidden" }}>
+    <div data-brl-surface="section" style={{ ...sectionCardStyle, padding: 0, overflow: "hidden" }}>
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
@@ -619,7 +619,7 @@ function TeamGradesPanel({ teamPrestigeRows = [] }) {
 
   if (!rows.length) {
     return (
-      <div style={sectionCardStyle}>
+      <div data-brl-surface="section" style={sectionCardStyle}>
         <div style={{ color: "#6e6e73", fontSize: 11, fontWeight: 900, letterSpacing: "0.04em" }}>TEAM PRESTIGE</div>
         <p style={{ color: "#6e6e73", fontSize: 13, fontWeight: 700, marginTop: 8, marginBottom: 0 }}>Prestige tiers haven't been calculated yet this season — check back soon.</p>
       </div>
@@ -633,7 +633,7 @@ function TeamGradesPanel({ teamPrestigeRows = [] }) {
         {rows.map((team) => {
           const tierStyle = prestigeTierColors[team.tier] || prestigeTierColors.Developing;
           return (
-            <div key={team.team} style={sectionCardStyle}>
+            <div data-brl-surface="section" key={team.team} style={sectionCardStyle}>
               <div style={{ color: "#6e6e73", fontSize: 11, fontWeight: 900, letterSpacing: "0.04em" }}>TEAM PRESTIGE</div>
               <h3 style={{ margin: "6px 0", fontSize: 20, fontWeight: 950, color: "#1d1d1f" }}>{getTeamFullName(team.team)}</h3>
               <span style={{ display: "inline-block", fontSize: 11.5, fontWeight: 950, letterSpacing: "0.04em", borderRadius: 999, padding: "4px 12px", background: tierStyle.bg, color: tierStyle.color }}>{team.tier || "Developing"}</span>
@@ -786,7 +786,7 @@ export default function DriverMarketPage({
   return (
     <div style={appShellStyle}>
       <div style={pageContainerStyle}>
-        <div style={sectionCardStyle}>
+        <div data-brl-surface="section" style={sectionCardStyle}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", alignItems: "center" }}>
             <div>
               <div style={{ color: "#9a5a00", fontSize: 12, fontWeight: 950, letterSpacing: "0.06em" }}>2026 SILLY SEASON</div>
@@ -799,7 +799,7 @@ export default function DriverMarketPage({
           </div>
         </div>
 
-        <div style={{ ...sectionCardStyle, padding: 6, display: "flex", gap: 4, flexWrap: "wrap" }}>
+        <div data-brl-surface="section" style={{ ...sectionCardStyle, padding: 6, display: "flex", gap: 4, flexWrap: "wrap" }}>
           {MARKET_TABS.map((tab) => (
             <button
               key={tab}
@@ -824,7 +824,7 @@ export default function DriverMarketPage({
           ))}
         </div>
 
-        <div style={sectionCardStyle}>
+        <div data-brl-surface="section" style={sectionCardStyle}>
           <div style={{ display: "grid", gridTemplateColumns: "minmax(220px, 1fr) auto", gap: 12, alignItems: "center" }}>
             <input value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="Search driver, number, team, manufacturer..." style={inputStyle} />
             <button type="button" onClick={() => setShowAll((value) => !value)} style={secondaryButtonStyle}>
@@ -835,7 +835,7 @@ export default function DriverMarketPage({
 
         {activeTab === "Overview" && (
           <div style={{ display: "grid", gap: 16 }}>
-            <div style={sectionCardStyle}>
+            <div data-brl-surface="section" style={sectionCardStyle}>
               <h2 style={{ marginTop: 0, fontSize: 18, fontWeight: 950 }}>Top Market Drivers</h2>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 12 }}>
                 {topDrivers.map((driver) => {
@@ -880,7 +880,7 @@ export default function DriverMarketPage({
               </div>
             </div>
 
-            <div style={sectionCardStyle}>
+            <div data-brl-surface="section" style={sectionCardStyle}>
               <h2 style={{ marginTop: 0, fontSize: 18, fontWeight: 950 }}>Coming Due</h2>
               <p style={{ marginTop: 0, color: "#6e6e73", fontSize: 13, fontWeight: 700 }}>Drivers whose contracts are expiring and eligible to enter the portal.</p>
               {marketDrivers.filter(isExpiringDriver).length === 0 ? (
@@ -897,7 +897,7 @@ export default function DriverMarketPage({
               )}
             </div>
 
-            <div style={sectionCardStyle}>
+            <div data-brl-surface="section" style={sectionCardStyle}>
               <h2 style={{ marginTop: 0, fontSize: 18, fontWeight: 950 }}>In the Portal</h2>
               <p style={{ marginTop: 0, color: "#6e6e73", fontSize: 13, fontWeight: 700 }}>Drivers actively testing the market. Owners can add these drivers to their recruiting board, or sign them directly from Team HQ.</p>
               {portalEntries.length === 0 ? (
@@ -988,7 +988,7 @@ export default function DriverMarketPage({
         )}
 
         {activeTab === "Contracts" && (
-          <div style={sectionCardStyle}>
+          <div data-brl-surface="section" style={sectionCardStyle}>
             <h2 style={{ marginTop: 0, fontSize: 18, fontWeight: 950 }}>Contract Rules</h2>
             <p style={{ color: "#3a3a3c", lineHeight: 1.6, fontWeight: 600, fontSize: 14 }}>
               Owners may register interest and pitch their team during the season. Official new contracts remain locked until the offseason.
@@ -1004,7 +1004,7 @@ export default function DriverMarketPage({
         )}
 
         {activeTab === "History" && (
-          <div style={sectionCardStyle}>
+          <div data-brl-surface="section" style={sectionCardStyle}>
             <h2 style={{ marginTop: 0, fontSize: 18, fontWeight: 950 }}>Driver Market History</h2>
             <p style={{ color: "#3a3a3c", lineHeight: 1.6, fontWeight: 600, fontSize: 14 }}>
               This area will track signings, previous teams, contract moves, re-signings, and signing day history once the first offseason market opens.
