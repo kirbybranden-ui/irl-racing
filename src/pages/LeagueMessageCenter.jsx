@@ -116,7 +116,7 @@ function LeagueMessageCenterLandingPage({ drivers = [] }) {
           </div>
         </div>
 
-        <form onSubmit={unlockMessageCenter} style={sectionCardStyle}>
+        <form data-brl-surface="section" onSubmit={unlockMessageCenter} style={sectionCardStyle}>
           <h2 style={{ marginTop: 0 }}>Driver Login Required</h2>
           <p style={{ opacity: 0.72, lineHeight: 1.5 }}>
             Drivers can see message counts publicly, but must unlock their profile before reading or sending messages.
@@ -155,7 +155,7 @@ function LeagueMessageCenterLandingPage({ drivers = [] }) {
           {error && <div style={{ color: "#f87171", fontWeight: 900, marginTop: 12 }}>{error}</div>}
         </form>
 
-        <div style={sectionCardStyle}>
+        <div data-brl-surface="section" style={sectionCardStyle}>
           <h2 style={{ marginTop: 0 }}>Message Counts</h2>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 10 }}>
             {activeDrivers.map((driver) => {
@@ -377,7 +377,7 @@ export default function LeagueMessageCenter({ drivers = [], session: suppliedSes
             </p>
           </div>
 
-          <form onSubmit={loginMessageCenter} style={sectionCardStyle}>
+          <form data-brl-surface="section" onSubmit={loginMessageCenter} style={sectionCardStyle}>
             <h2 style={{ marginTop: 0 }}>Open Message Center</h2>
             <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "repeat(auto-fit, minmax(240px, 1fr))", gap: 12, alignItems: "end" }}>
               <div>
@@ -445,7 +445,7 @@ export default function LeagueMessageCenter({ drivers = [], session: suppliedSes
         {error && <div style={{ color: "#f87171", marginBottom: 12, fontWeight: 900 }}>{error}</div>}
 
         <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "minmax(320px, 0.9fr) minmax(360px, 1.1fr)", gap: 16, alignItems: "start" }}>
-          <div style={sectionCardStyle}>
+          <div data-brl-surface="section" style={sectionCardStyle}>
             <h2 style={{ marginTop: 0 }}>Inbox ({visibleMessages.length})</h2>
             {loading && <div style={{ opacity: 0.72 }}>Loading messages...</div>}
             {!loading && visibleMessages.length === 0 && <div style={{ opacity: 0.72 }}>No messages in this mailbox.</div>}
@@ -481,7 +481,7 @@ export default function LeagueMessageCenter({ drivers = [], session: suppliedSes
             </div>
           </div>
 
-          <div style={sectionCardStyle}>
+          <div data-brl-surface="section" style={sectionCardStyle}>
             {!selectedMessage ? (
               <div style={{ opacity: 0.72 }}>Select a message to read or reply.</div>
             ) : (
