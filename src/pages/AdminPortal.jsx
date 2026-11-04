@@ -1,3 +1,4 @@
+import AdminWorkspaceNav from "../components/admin/AdminWorkspaceNav";
 import LeagueBudgetAdmin from "../components/admin/LeagueBudgetAdmin";
 import PasswordResetAdmin from "../components/admin/PasswordResetAdmin";
 import NumberLeaseAdmin from "../components/admin/NumberLeaseAdmin";
@@ -11,6 +12,7 @@ import { teamLogos, getTeamBranding, getTeamIdentifier } from "../data/teams";
 // import { IssuesRollup } from "../components/IssuesRollup"; // TODO: Uncomment once IssuesRollup.jsx is in repo
 
 export default function AdminPortal({
+  access,
   currentSession,
   onSaveInSeasonChallenge,
   approveRaceSubmission,
@@ -687,7 +689,7 @@ export default function AdminPortal({
     { label: "Community Events", action: () => (window.location.pathname = "/community-events"), primary: true },
     { label: "Issues", action: () => (window.location.pathname = "/admin/issues") },
     { label: "Settings", action: openSettings, primary: true },
-    { label: "Streams", action: () => (window.location.pathname = "/streams") },
+    { label: "Streams", action: () => (window.location.pathname = "/admin/broadcasts") },
     { label: "Logout", action: logoutAdmin, danger: true },
   ];
 
@@ -760,7 +762,7 @@ export default function AdminPortal({
       icon: "🛡️",
       value: "IAM",
       meta: "Roles and access",
-      text: "Assign executive, staff, owner, driver, series, and team permissions.",
+      text: "Assign existing league roles and manufacturer appointments.",
       action: () => (window.location.pathname = "/admin/permissions"),
       gradient: "linear-gradient(135deg, #5856d6 0%, #007aff 48%, #32ade6 100%)",
     },
@@ -1456,7 +1458,7 @@ export default function AdminPortal({
           </div>
         </div>
 
-        {!workspaceOpen && <section style={{ padding: "16px 0", marginBottom: 20 }}><a href="/career#approvals" style={{ fontWeight: 900, color: "#b71923" }}>Owner applications, contracts & league funding →</a><p style={{ margin: "8px 0 0", fontSize: 13 }}>Super-admin approvals, signed number purchases, seat applications, negotiations, and payment claims.</p></section>}
+        {!workspaceOpen && <AdminWorkspaceNav access={access} home embedded/>}
 
         {!workspaceOpen && currentSession?.roles?.includes("full_admin") && <InSeasonChallengeControl key={activeSeason?.id} season={activeSeason} onSave={onSaveInSeasonChallenge} />}
 
@@ -2400,7 +2402,7 @@ export default function AdminPortal({
                   <p style={{ color: "#4b5563", fontWeight: 750 }}>Use the appeals center to record rulings, verify filings, appoint an independent panel, and track decisions and corrections.</p>
                   <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", marginTop: 16 }}>
                     <div style={{ padding: "14px 18px", borderRadius: 20, background: "#ffffff", border: "1px solid #e5e7eb", fontWeight: 1000 }}>{openAppealCount || 0} open appeals</div>
-                    <button type="button" onClick={() => (window.location.pathname = "/appeals")} style={adminPrimaryButtonStyle}>Open Appeals</button>
+                    <button type="button" onClick={() => (window.location.pathname = "/admin/appeals")} style={adminPrimaryButtonStyle}>Open Appeals</button>
                   </div>
                 </div>
               )}
