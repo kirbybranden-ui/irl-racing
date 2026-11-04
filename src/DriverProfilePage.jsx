@@ -880,9 +880,9 @@ function DriverTransferPortalPanel({ driver, driverNumber, teamTheme, standingsR
         </div>
 
         {loading ? (
-          <div style={sectionCardStyle}>Loading...</div>
+          <div data-brl-surface="section" style={sectionCardStyle}>Loading...</div>
         ) : entry ? (
-          <div style={sectionCardStyle}>
+          <div data-brl-surface="section" style={sectionCardStyle}>
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
               <div style={{ width: 36, height: 36, borderRadius: 12, background: "rgba(52,199,89,0.14)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17 }}>🔄</div>
               <div>
@@ -914,7 +914,7 @@ function DriverTransferPortalPanel({ driver, driverNumber, teamTheme, standingsR
             </form>
           </div>
         ) : (
-          <div style={sectionCardStyle}>
+          <div data-brl-surface="section" style={sectionCardStyle}>
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
               <div style={{ width: 36, height: 36, borderRadius: 12, background: `${teamTheme.accent}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17 }}>🔄</div>
               <div>
@@ -2655,7 +2655,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
             </div>
           </div>
 
-          <div style={{ ...sectionCardStyle, borderColor: teamTheme.accent }}>
+          <div data-brl-surface="section" style={{ ...sectionCardStyle, borderColor: teamTheme.accent }}>
             <h2 style={{ marginTop: 0 }}>🔒 Driver Access Locked</h2>
             <div style={{ fontSize: 14, opacity: 0.72, lineHeight: 1.6, marginBottom: 16 }}>
               Enter the private driver access code for #{driver.number} {driver.name}. This keeps other people from answering interviews, submitting happiness feedback, viewing assignments, reading messages, uploading files, or managing contracts.
@@ -2685,7 +2685,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
   }
 
   const passwordManagerCard = isDriverAuthorized ? (
-    <div style={{ ...sectionCardStyle, borderColor: teamTheme.accent }}>
+    <div data-brl-surface="section" style={{ ...sectionCardStyle, borderColor: teamTheme.accent }}>
       <h2 style={{ marginTop: 0 }}>🔑 Driver Password</h2>
       <p style={{ opacity: 0.72, lineHeight: 1.5 }}>
         Change your driver profile password here. This same password can also unlock your owner/team page if you are assigned as a team owner.
@@ -2731,7 +2731,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
             {isDriverAuthorized && <button onClick={lockDriverContracts} style={{ ...secondaryButtonStyle, marginLeft: "auto" }}>Lock Driver Access</button>}
           </div>
 
-          <form onSubmit={submitTeamInterest} style={{ ...sectionCardStyle, borderColor: teamTheme.accent }}>
+          <form data-brl-surface="section" onSubmit={submitTeamInterest} style={{ ...sectionCardStyle, borderColor: teamTheme.accent }}>
             <h2 style={{ marginTop: 0 }}>🤝 Express Interest in a Team</h2>
             <p style={{ opacity: 0.72, lineHeight: 1.5 }}>
               This sends a private interest card to the selected team owner inside Team HQ. It does not change your current team or contract.
@@ -2777,7 +2777,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
             {teamInterestError && <div style={{ background: "rgba(255,59,48,0.10)", border: "1px solid rgba(255,59,48,0.28)", borderRadius: 14, padding: 12, marginTop: 14, color: "#c62d24", fontWeight: 700, fontSize: 13.5 }}>{teamInterestError}</div>}
           </form>
 
-          <div style={sectionCardStyle}>
+          <div data-brl-surface="section" style={sectionCardStyle}>
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
               <div style={{ width: 36, height: 36, borderRadius: 12, background: `${teamTheme.accent}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>📋</div>
               <h2 style={{ margin: 0, fontSize: 19, fontWeight: 950 }}>My Team Interest History</h2>
@@ -2830,11 +2830,11 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
           </div>
 
           {isArcaDriver ? (
-            <div style={sectionCardStyle}>
+            <div data-brl-surface="section" style={sectionCardStyle}>
               <div style={{ color: "#6e6e73", fontWeight: 700 }}>Developmental ride requests are only available for Cup Series drivers.</div>
             </div>
           ) : (
-        <div style={sectionCardStyle}>
+        <div data-brl-surface="section" style={sectionCardStyle}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
             <div style={{ width: 36, height: 36, borderRadius: 12, background: `${teamTheme.accent}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>🏎️</div>
             <div>
@@ -2959,7 +2959,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
             </div>
           </div>
 
-          <div style={sectionCardStyle}>
+          <div data-brl-surface="section" style={sectionCardStyle}>
             <h2 style={{ marginTop: 0, marginBottom: 14 }}>⚙️ Account</h2>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", marginBottom: 6 }}>
               <div style={{ background: isDriverAuthorized ? "rgba(52,199,89,0.12)" : "rgba(0,0,0,0.05)", color: isDriverAuthorized ? "#147d35" : "#6e6e73", border: `1px solid ${isDriverAuthorized ? "rgba(52,199,89,0.25)" : "rgba(0,0,0,0.08)"}`, borderRadius: 999, padding: "9px 14px", fontSize: 12, fontWeight: 900 }}>
@@ -3001,7 +3001,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
             {isDriverAuthorized && <button onClick={lockDriverContracts} style={{ ...secondaryButtonStyle, marginLeft: "auto" }}>Lock Driver Access</button>}
           </div>
 
-          <form onSubmit={sendDriverMessage} style={{ ...sectionCardStyle, borderColor: teamTheme.accent }}>
+          <form data-brl-surface="section" onSubmit={sendDriverMessage} style={{ ...sectionCardStyle, borderColor: teamTheme.accent }}>
             <h2 style={{ marginTop: 0 }}>✉️ Send Direct Message</h2>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, marginBottom: 12 }}>
               <div>
@@ -3027,7 +3027,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
             {messageError && <div style={{ color: "#f87171", marginTop: 12, fontWeight: 800 }}>{messageError}</div>}
           </form>
 
-          <div style={sectionCardStyle}>
+          <div data-brl-surface="section" style={sectionCardStyle}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
               <div>
                 <h2 style={{ margin: 0 }}>📩 Inbox</h2>
@@ -3092,7 +3092,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
     return (
       <div style={appShellStyle}>
         <div style={pageContainerStyle}>
-          <div style={sectionCardStyle}>
+          <div data-brl-surface="section" style={sectionCardStyle}>
             <button onClick={() => window.location.pathname = standingsRoute} style={secondaryButtonStyle}>← Back to Standings</button>
             <div style={{ marginTop: 16, marginBottom: 16, fontWeight: 700 }}>No season data loaded.</div>
             <div style={{ opacity: 0.75 }}>Try refreshing the page or returning to standings.</div>
@@ -3107,7 +3107,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
     return (
       <div style={appShellStyle}>
         <div style={pageContainerStyle}>
-          <div style={sectionCardStyle}>
+          <div data-brl-surface="section" style={sectionCardStyle}>
             <button onClick={() => window.location.pathname = standingsRoute} style={secondaryButtonStyle}>← Back to Standings</button>
             <div style={{ marginTop: 16, marginBottom: 16, fontWeight: 700 }}>Driver #{driverNumber} not found in {selectedSeason?.name}</div>
             <div style={{ opacity: 0.75 }}>Check the standings page to select a valid driver.</div>
@@ -3129,7 +3129,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
             </div>
           </div>
 
-          <div style={{ ...sectionCardStyle, borderColor: teamTheme.accent }}>
+          <div data-brl-surface="section" style={{ ...sectionCardStyle, borderColor: teamTheme.accent }}>
             <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", flexWrap: "wrap", marginBottom: 16 }}>
               <div>
                 <h2 style={{ margin: 0 }}>🎯 Team Assignments</h2>
@@ -3219,7 +3219,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
             </div>
           </div>
 
-          <form onSubmit={submitDriverFeedback} style={{ ...sectionCardStyle, borderColor: teamTheme.accent }}>
+          <form data-brl-surface="section" onSubmit={submitDriverFeedback} style={{ ...sectionCardStyle, borderColor: teamTheme.accent }}>
             <h2 style={{ marginTop: 0, marginBottom: 4 }}>😊 Driver Happiness Survey</h2>
             <div style={{ fontSize: 13, opacity: 0.65, marginBottom: 16 }}>
               Rate your team experience from 1–10. These ratings feed the Team HQ morale system for {getTeamFullName(driver.team)}.
@@ -3287,7 +3287,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
             </div>
           </div>
 
-          <div style={{ ...sectionCardStyle, borderColor: isDriverAuthorized ? teamTheme.accent : "#2c3440" }}>
+          <div data-brl-surface="section" style={{ ...sectionCardStyle, borderColor: isDriverAuthorized ? teamTheme.accent : "#2c3440" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
               <div>
                 <h2 style={{ margin: 0 }}>📄 Driver Contract Portal</h2>
@@ -3456,7 +3456,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
             </div>
           </div>
 
-          <div style={{ ...sectionCardStyle, borderColor: teamTheme.accent }}>
+          <div data-brl-surface="section" style={{ ...sectionCardStyle, borderColor: teamTheme.accent }}>
             <h2 style={{ marginTop: 0, marginBottom: 4 }}>🚗 Upload Center</h2>
             <div style={{ fontSize: 13, opacity: 0.65, marginBottom: 16 }}>Upload your car photo or video for each race week. Files appear in the admin gallery.</div>
 
@@ -3858,14 +3858,14 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
             { label: "DNFs", value: calculatedStats.dnfs },
             { label: "PENALTIES", value: calculatedStats.totalPenalties ? `-${calculatedStats.totalPenalties}` : "0" },
           ].map((stat) => (
-            <div key={stat.label} style={{ ...statBoxStyle, border: stat.label === "POINTS" ? `1px solid ${teamTheme.accent}44` : statBoxStyle.border, boxShadow: stat.label === "POINTS" ? `0 14px 30px ${teamTheme.glow}` : statBoxStyle.boxShadow }}>
+            <div data-brl-surface="stat" key={stat.label} style={{ ...statBoxStyle, border: stat.label === "POINTS" ? `1px solid ${teamTheme.accent}44` : statBoxStyle.border, boxShadow: stat.label === "POINTS" ? `0 14px 30px ${teamTheme.glow}` : statBoxStyle.boxShadow }}>
               <div style={{ fontSize: 11, color: "#6e6e73", fontWeight: 900, marginBottom: 6, letterSpacing: "0.04em" }}>{stat.label}</div>
               <div style={{ fontSize: 26, fontWeight: 950, color: stat.label === "POINTS" ? teamTheme.accent : "#1d1d1f" }}>{stat.value}</div>
             </div>
           ))}
         </div>
 
-        <div style={sectionCardStyle}>
+        <div data-brl-surface="section" style={sectionCardStyle}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap", marginBottom: 16 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <div style={{ width: 36, height: 36, borderRadius: 12, background: `${teamTheme.accent}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>🎨</div>
@@ -3921,7 +3921,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
           </div>
         </div>
 
-        <div style={sectionCardStyle}>
+        <div data-brl-surface="section" style={sectionCardStyle}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
             <div style={{ width: 36, height: 36, borderRadius: 12, background: `${teamTheme.accent}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>🔥</div>
             <h2 style={{ margin: 0, fontSize: 19, fontWeight: 950 }}>Driver Reputation</h2>
@@ -3949,7 +3949,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
           </div>
         </div>
         {unlockedAchievements.length > 0 && (
-          <div style={sectionCardStyle}>
+          <div data-brl-surface="section" style={sectionCardStyle}>
             <h3 style={{ marginTop: 0, marginBottom: 14, fontSize: 17, fontWeight: 950 }}>Achievements</h3>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
               {unlockedAchievements.map((a) => (
@@ -3962,13 +3962,13 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
           </div>
         )}
         {driver.notes && (
-          <div style={{ ...sectionCardStyle, borderLeft: `4px solid ${teamTheme.accent}` }}>
+          <div data-brl-surface="section" style={{ ...sectionCardStyle, borderLeft: `4px solid ${teamTheme.accent}` }}>
             <h3 style={{ marginTop: 0, marginBottom: 8, fontSize: 16, fontWeight: 950 }}>Admin Notes</h3>
             <div style={{ fontSize: 14, lineHeight: 1.6, color: "#3a3a3c", fontWeight: 600 }}>{driver.notes}</div>
           </div>
         )}
 
-          <div style={sectionCardStyle}>
+          <div data-brl-surface="section" style={sectionCardStyle}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
             <div style={{ width: 36, height: 36, borderRadius: 12, background: `${teamTheme.accent}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>📈</div>
             <h2 style={{ margin: 0, fontSize: 19, fontWeight: 950 }}>Season Overview</h2>
@@ -4003,7 +4003,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
           )}
         </div>
 
-        <div style={sectionCardStyle}>
+        <div data-brl-surface="section" style={sectionCardStyle}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
             <div style={{ width: 36, height: 36, borderRadius: 12, background: `${teamTheme.accent}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>🏁</div>
             <h2 style={{ margin: 0, fontSize: 19, fontWeight: 950 }}>Championship Points Picture</h2>
@@ -4016,7 +4016,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
           </div>
         </div>
 
-        <div style={sectionCardStyle}>
+        <div data-brl-surface="section" style={sectionCardStyle}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
             <div style={{ width: 36, height: 36, borderRadius: 12, background: `${teamTheme.accent}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>🏆</div>
             <h2 style={{ margin: 0, fontSize: 19, fontWeight: 950 }}>Personal Records</h2>
@@ -4036,7 +4036,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
           </div>
         </div>
 
-        <div style={sectionCardStyle}>
+        <div data-brl-surface="section" style={sectionCardStyle}>
           <h2 style={{ marginTop: 0, marginBottom: 14 }}>Current Streaks</h2>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12 }}>
             <div style={{ background: streaks.currentWins > 0 ? "rgba(52,199,89,0.10)" : "rgba(0,0,0,0.03)", border: `1px solid ${streaks.currentWins > 0 ? "rgba(52,199,89,0.35)" : "rgba(0,0,0,0.08)"}`, borderRadius: 16, padding: 14 }}><div style={{ fontSize: 11, color: "#6e6e73", fontWeight: 900, marginBottom: 4 }}>WIN STREAK 🏆</div><div style={{ fontSize: 26, fontWeight: 950, color: "#1d1d1f" }}>{streaks.currentWins}</div><div style={{ fontSize: 11, color: "#6e6e73", fontWeight: 700 }}>Best: {streaks.longestWins}</div></div>
@@ -4045,7 +4045,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
           </div>
         </div>
 
-        <div style={sectionCardStyle}>
+        <div data-brl-surface="section" style={sectionCardStyle}>
           <h2 style={{ marginTop: 0, marginBottom: 14 }}>Career Stats All Seasons</h2>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12 }}>
             {[
@@ -4062,7 +4062,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
           </div>
         </div>
 
-        <div style={sectionCardStyle}>
+        <div data-brl-surface="section" style={sectionCardStyle}>
           <h2 style={{ marginTop: 0, marginBottom: 14 }}>Consistency Analysis</h2>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
             <div style={{ background: "rgba(0,0,0,0.03)", border: "1px solid #2c3440", borderRadius: 10, padding: 12 }}><div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>AVERAGE FINISH</div><div style={{ fontSize: 24, fontWeight: 800 }}>P{consistencyRating.avg}</div></div>
@@ -4071,7 +4071,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
         </div>
 
         {trackStats.best && (
-          <div style={sectionCardStyle}>
+          <div data-brl-surface="section" style={sectionCardStyle}>
             <h2 style={{ marginTop: 0, marginBottom: 14 }}>Track Performance</h2>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
               <div style={{ background: "rgba(52,199,89,0.10)", border: "1px solid rgba(52,199,89,0.30)", borderRadius: 16, padding: 14 }}><div style={{ fontSize: 11, fontWeight: 900, marginBottom: 4, color: "#147d35" }}>BEST TRACK 🏁</div><div style={{ fontSize: 16, fontWeight: 900, marginBottom: 4, color: "#1d1d1f" }}>{trackStats.best[0]}</div><div style={{ fontSize: 12, color: "#3a3a3c", fontWeight: 600 }}>{trackStats.best[1].points} pts in {trackStats.best[1].races} races</div></div>
@@ -4081,7 +4081,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
         )}
 
         {teamStats && (
-          <div style={sectionCardStyle}>
+          <div data-brl-surface="section" style={sectionCardStyle}>
             <h2 style={{ marginTop: 0, marginBottom: 14 }}>Teammate Comparison</h2>
             <div style={{ fontSize: 13, opacity: 0.7, marginBottom: 10 }}>{getTeamFullName(driver.team)}</div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
@@ -4092,7 +4092,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
         )}
 
         {achievementProgress.length > 0 && (
-          <div style={sectionCardStyle}>
+          <div data-brl-surface="section" style={sectionCardStyle}>
             <h2 style={{ marginTop: 0, marginBottom: 14 }}>Achievement Progress</h2>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {achievementProgress.map((a) => {
@@ -4109,7 +4109,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
         )}
 
         {recentForm.length > 0 && (
-          <div style={sectionCardStyle}>
+          <div data-brl-surface="section" style={sectionCardStyle}>
             <h2 style={{ marginTop: 0, marginBottom: 14 }}>Recent Form Last 5 Races</h2>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(100px, 1fr))", gap: 10 }}>
               {recentForm.map((r, i) => (
@@ -4123,7 +4123,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
           </div>
         )}
 
-        <div style={sectionCardStyle}>
+        <div data-brl-surface="section" style={sectionCardStyle}>
           <h2 style={{ marginTop: 0, marginBottom: 14 }}>🎬 Replay Theater / Media Hub</h2>
           <div style={{ fontSize: 13, opacity: 0.7, marginBottom: 14 }}>Driver highlights, uploaded car media, interviews, and race-week content will live here.</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
@@ -4136,7 +4136,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
           </div>
         </div>
 
-        <div style={sectionCardStyle}>
+        <div data-brl-surface="section" style={sectionCardStyle}>
           <h2 style={{ marginTop: 0, marginBottom: 14 }}>League Participation</h2>
           <div style={{ fontSize: 13, opacity: 0.7, marginBottom: 14 }}>Vote on paint schemes, track the in-season tournament, weigh in on league ballots, and submit your own stories.</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
@@ -4147,7 +4147,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
           </div>
         </div>
 
-        <div style={sectionCardStyle}>
+        <div data-brl-surface="section" style={sectionCardStyle}>
           <h2 style={{ marginTop: 0, marginBottom: 16 }}>Race-by-Race Breakdown</h2>
           {raceBreakdown.length === 0 ? (
             <div style={{ opacity: 0.75 }}>No races entered yet.</div>
@@ -4179,7 +4179,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
         </div>
 
         {offenseLog.length > 0 && (
-          <div style={sectionCardStyle}>
+          <div data-brl-surface="section" style={sectionCardStyle}>
             <h2 style={{ marginTop: 0, marginBottom: 16 }}>Offense History</h2>
             <div style={{ overflowX: "auto" }}>
               <table style={tableStyle}>
