@@ -1,3 +1,6 @@
+import AdminWorkspaceNav from "./components/admin/AdminWorkspaceNav";
+import LeagueBroadcastSettings from "./components/streams/LeagueBroadcastSettings";
+import {canEnterAdminPortal,canUseAdminRoute} from "./lib/adminPortalAccess";
 import CareerDashboard from "./pages/career/CareerDashboard";
 import AccountDialog from "./components/auth/AccountDialog";
 import { publishChallengeSetting, useInSeasonChallenge } from "./lib/inSeasonChallenge";
@@ -4220,7 +4223,7 @@ function MobileLeagueApp({
     <DevelopmentRequestsPage
       leagueState={{ drivers: drivers || [], teams: teams || [] }}
       currentUser={mobileSession}
-      isAdmin={Boolean(mobileSession?.isAdmin || mobileSession?.role === "admin" || mobileSession?.mode === "admin")}
+      isAdmin={false}
       supabase={supabase}
       go={go}
     />
@@ -5032,7 +5035,6 @@ function MobileFeatureHub({ go, drivers = [], teams = [], manufacturerStandings 
     {
       title: "Owner / Driver Tools",
       items: [
-        { icon: "🏁", label: "Race Recorder", desc: "Enter results for full admin review", path: "/race-recorder" },
         { icon: "🔐", label: "Owner Login", desc: "Open the full owner portal", path: "/owner" },
         { icon: "🏢", label: "Team HQ", desc: "Owner login and full team controls", path: "/hq" },
         { icon: "📑", label: "Contracts", desc: "Contracts, offers, and driver agreements", path: "/contracts" },
@@ -5045,7 +5047,7 @@ function MobileFeatureHub({ go, drivers = [], teams = [], manufacturerStandings 
         { icon: "📝", label: "Submit Story", desc: "Send a story to league media", path: "/submit-story" },
         { icon: "⚖️", label: "Submit Appeal", desc: "File an appeal from mobile", path: "/submit-appeal" },
         { icon: "📁", label: "Files", desc: "League files and uploads", path: "/files" },
-        { icon: "🛠", label: "Admin Portal", desc: "Opens the protected desktop admin portal", path: "/admin-login", desktop: true },
+        { icon: "🛠", label: "Admin Portal", desc: "League staff tools for your assigned roles", path: "/admin" },
       ],
     },
   ];
@@ -8558,13 +8560,22 @@ export default function App() {
   const accessPage = (page, title = "League access") => isMobileViewport && !forceDesktop
     ? <MobileShell title={title} session={verifiedAccess} onLogout={logoutOfLeague}>{page}</MobileShell> : page;
   if (path === "/admin-login") {
-    if (isAdminAuthenticated) {
+    if (canEnterAdminPortal(verifiedAccess)) {
       window.location.replace("/admin");
       return null;
     }
     return accessPage(<RoleLogin next="/admin" />, "Admin login");
   }
   if (path === "/login") return accessPage(<RoleLogin next={new URLSearchParams(window.location.search).get("next") || "/standings"} />, "Login / Register");
+  // Old bookmarks lead to the single staff entry point without changing record IDs.
+  const legacyAdminPath = {"/race-recorder":"/admin/race-recorder", "/manufacturer-hq":"/admin/support", "/stories":"/admin/stories"}[path];
+  if (legacyAdminPath) { window.location.replace(legacyAdminPath + window.location.search + window.location.hash);return null; }
+  if (["/career","/team-hq","/owner-hq","/owner","/hq","/teamhq"].includes(path) && ["#budgets","#approvals"].includes(window.location.hash)) {window.location.replace("/admin/funding"+window.location.search+window.location.hash);return null;}
+  const adminPage = children => <AdminWorkspaceNav access={verifiedAccess}>{children}</AdminWorkspaceNav>;
+  if(isAdminProtectedPath){
+    if(accessLoading)return accessPage(<p role="status">Checking portal permissions…</p>);
+    if(!canUseAdminRoute(verifiedAccess,path))return accessPage(verifiedAccess?.userId?<section><h1>Admin Portal</h1><p>Your assigned roles do not include this workspace.</p><a href="/admin">Return to Admin Portal</a></section>:<RoleLogin next={path}/>);
+  }
   const careerAliases = ["/career", "/contracts", "/driver-market", "/transfer-portal", "/silly-season", "/team-hq", "/owner-hq", "/owner", "/hq", "/teamhq", "/manufacturer-hq"];
   if (careerAliases.includes(path) || /^\/driver\/[^/]+\/contracts\/?$/.test(path)) {
     if (accessLoading) return accessPage(<p role="status">Checking account…</p>);
@@ -8576,9 +8587,18 @@ export default function App() {
   if(leagueLoadError&&!isHydrated&&!["/appeals","/submit-appeal","/streams","/user-agreement","/terms"].includes(path))return accessPage(<section style={{maxWidth:720,margin:"32px auto",padding:24,background:"white",color:"#16191f",border:"1px solid #d6d9df",borderRadius:10}}><h1>League data could not load</h1><p role="alert">{leagueLoadError}</p><p>Your saved results, teams and balances have not been changed.</p><button type="button" onClick={()=>setLeagueLoadAttempt(attempt=>attempt+1)}>Retry loading league data</button></section>);
   if (accessLoading && (!canSeeRoute(null,path) || isAdminProtectedPath || ["/race-recorder","/team-hq","/owner","/hq","/teamhq"].includes(path))) return accessPage(<p role="status">Checking access…</p>);
   if (!isHydrated && ["/admin","/race-recorder","/owners","/compare"].includes(path)) return accessPage(<p role="status">Loading league data…</p>);
-  if (path === "/admin" && hasLeagueRole(verifiedAccess, "race_recorder") && !isAdminAuthenticated) return accessPage(<RaceRecorderPage access={verifiedAccess} drivers={visibleDrivers} tracks={tracks} activeSeasonId={activeSeasonId} />, "Race Recorder");
+  if(path === "/admin" && !isAdminAuthenticated)return <AdminWorkspaceNav access={verifiedAccess} home/>;
   if (["/stories"].includes(path) && !isAdminAuthenticated) return <p>Full admin access is required.</p>;
-  if (isAdminProtectedPath && !isAdminAuthenticated) return accessPage(verifiedAccess?.userId ? <p>Full admin access is required.</p> : <RoleLogin next={path} />);
+  if (["/admin/funding","/admin/support","/admin/manufacturer-leases","/admin/appointments"].includes(path)) {
+    const defaultTab={"/admin/funding":"overview","/admin/support":"funding","/admin/manufacturer-leases":"leases","/admin/appointments":"appointments"}[path];
+    return adminPage(<CareerDashboard key={path} workspace="admin" initialTab={defaultTab} seasons={seasons} activeSeasonId={activeSeasonId} leagueReady={isHydrated}/>);
+  }
+  if(path==="/admin/appeals")return adminPage(<AppealsPage staffMode/>);
+  if(path==="/admin/broadcasts")return adminPage(<LeagueBroadcastSettings/>);
+  if(path==="/admin/race-recorder")return !isHydrated?accessPage(<p role="status">Loading league data…</p>):adminPage(<RaceRecorderPage access={verifiedAccess} drivers={visibleDrivers} tracks={tracks} activeSeasonId={activeSeasonId}/>);
+  if(path==="/admin/messages")return adminPage(<LeagueMessageCenter drivers={visibleDrivers} session={verifiedAccess} staffMode/>);
+  if(path==="/admin/development-requests")return adminPage(<DevelopmentRequestsPage leagueState={{drivers:visibleDrivers,teams:teamStandings}} currentUser={verifiedAccess} isAdmin supabase={supabase} go={to=>{window.location.href=to;}}/>);
+  if(path==="/admin/driver-market")return adminPage(<DriverMarketPage drivers={visibleDrivers} raceHistory={raceHistory} startParkRequests={startParkRequests} interestRows={driverRecruitingInterest} supabase={supabase} staffMode/>);
   if (path === "/race-recorder") return accessPage(canSeeRoute(verifiedAccess,path) ? <RaceRecorderPage access={verifiedAccess} drivers={visibleDrivers} tracks={tracks} activeSeasonId={activeSeasonId} /> : <p>Race Recorder access is required.</p>, "Race Recorder");
   if (!canSeeRoute(verifiedAccess,path)) return accessPage(verifiedAccess?.userId ? <p>Your roles do not include access to this page.</p> : <RoleLogin next={path} />);
   if ((!isMobileViewport || forceDesktop) && ["/owners","/compare"].includes(path)) return withUniversalShell(<LeagueComparisonPage drivers={visibleDrivers} teams={teamStandings} />);
@@ -8635,13 +8655,13 @@ export default function App() {
   if (path === "/submit-story") return <SubmitStoryPage />;
   if (path === "/appeals") return <AppealsPage />;
   if (path === "/issues") return <IssuesRollupPage />;
-  if (path === "/admin/issues") return <IssuesPage isAdmin={true} />;
+  if (path === "/admin/issues") return adminPage(<IssuesPage isAdmin={true} />);
   if (path === "/admin/permissions") {
-    return <RoleManagement />;
+    return adminPage(<RoleManagement access={verifiedAccess}/>);
   }
-  if (path === "/admin/stories" || path === "/stories") return <StoriesAdminPage />;
+  if (path === "/admin/stories" || path === "/stories") return adminPage(<StoriesAdminPage />);
   if (path === "/admin/live-control") {
-  return <LiveControlPanel />;
+  return adminPage(<LiveControlPanel />);
 }
   if (path === "/streams" || path === "/stream") {
   // Build next race from the schedule date and roll after 10:00 PM Eastern on race day.
@@ -8729,7 +8749,7 @@ export default function App() {
   }
 
   if (path === "/admin/car-gallery") {
-    return (
+    return adminPage(
       <CarGalleryPage
         drivers={drivers}
         tracks={tracks}
@@ -8739,7 +8759,7 @@ export default function App() {
     );
   }
   if (path === "/admin/arca-car-gallery") {
-    return (
+    return adminPage(
       <CarGalleryPage
         drivers={activeSeason?.arcaDrivers || arcaDrivers}
         tracks={arcaTracks}
@@ -8748,8 +8768,8 @@ export default function App() {
       />
     );
   }
-  if (path === "/admin/interviews") return <InterviewsPage drivers={drivers} arcaDrivers={activeSeason?.arcaDrivers || arcaDrivers} tracks={tracks} arcaTracks={arcaTracks} seasons={seasons} activeSeasonId={activeSeasonId} />;
-  if (path === "/admin/votes") return <AdminVotingPage drivers={visibleDrivers} />;
+  if (path === "/admin/interviews") return adminPage(<InterviewsPage drivers={drivers} arcaDrivers={activeSeason?.arcaDrivers || arcaDrivers} tracks={tracks} arcaTracks={arcaTracks} seasons={seasons} activeSeasonId={activeSeasonId} />);
+  if (path === "/admin/votes") return adminPage(<AdminVotingPage drivers={visibleDrivers} />);
   // Team detail page
   if (path.startsWith("/team/")) {
     const abbr = decodeURIComponent(rawPath.replace(/^\/team\//i, "").split("/")[0]);
@@ -8860,7 +8880,7 @@ export default function App() {
         isAdmin: isAdminAuthenticated,
         series: isAdminAuthenticated ? "cup" : "guest",
       }}
-      isAdmin={isAdminAuthenticated}
+      isAdmin={false}
       supabase={supabase}
       go={(to) => { window.location.href = to; }}
     />
@@ -8877,6 +8897,7 @@ export default function App() {
   }
   return (
     <AdminPortal
+      access={verifiedAccess}
       onSaveInSeasonChallenge={saveInSeasonChallenge}
       customTeamBranding={customTeamBranding}
       onCreateTeam={createLeagueTeam}
