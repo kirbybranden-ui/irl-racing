@@ -682,6 +682,7 @@ export default function AdminPortal({
     { label: "Human Resources", action: () => openHrDepartment("overview"), primary: true },
     { label: "Race Operations", action: () => openRaceOperations("input"), primary: true },
     { label: "ARCA Series", action: () => openArcaOperations("overview"), primary: true },
+    { label: "Complete team funding", action: () => window.location.assign("/admin/funding#budgets"), primary: true },
     { label: "League Budget", action: () => openFinanceDepartment("budget"), primary: true },
     { label: "Finance Department", action: () => openFinanceDepartment("overview"), primary: true },
     { label: "Public Relations", action: () => openPublicRelations("overview"), primary: true },
