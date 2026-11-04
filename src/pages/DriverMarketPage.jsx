@@ -657,6 +657,7 @@ export default function DriverMarketPage({
   interestRows = [],
   reSignRows = [],
   supabase = null,
+  staffMode = false,
 }) {
   const [activeTab, setActiveTab] = useState("Overview");
   const [filter, setFilter] = useState("");
@@ -666,7 +667,7 @@ export default function DriverMarketPage({
   const [portalEntries, setPortalEntries] = useState([]);
   const [portalDeadline, setPortalDeadline] = useState(null);
   const [deadlineInput, setDeadlineInput] = useState("");
-  const isAdmin = typeof window !== "undefined" && sessionStorage.getItem("bcl-admin-auth") === "true";
+  const isAdmin = staffMode;
 
   React.useEffect(() => {
     if (!supabase) return;
