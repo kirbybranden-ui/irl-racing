@@ -99,7 +99,7 @@ export default function CareerDashboard({ workspace = "driver", seasons = [], ac
   const canOpenOwner = owner || root || applicationOwner || manufacturer;
   const tabs = ownerWorkspace ? restrictedOwner ? [["overview", "Ownership application"], ["appeals", "Appeals"], ["account", "Account"]] : [
     ["overview", "Team overview"], ...(owner || root ? [["team", "Team setup"], ["requests", "Seat applications"], ["offers", "Driver contracts"], ["requirements", "Driver requirements"], ["payments", "Driver payments"]] : []),
-    ...(owner || root || manufacturer ? [["leases", "Number leases"], ["funding", manufacturer && !owner && !root ? "Manufacturer contracts" : "Funding & claims"]] : []),
+    ...(owner || root || manufacturer ? [["leases", "Number leases"], ["funding", "Manufacturer support"]] : []),
     ...(root ? [["budgets", "Team budgets"], ["approvals", "Super-admin approvals"]] : []), ["streams", "My streams"], ["appeals", "Appeals"], ["account", "Account"],
   ] : [["overview", "Overview"], ["stats", "My stats"], ["money", "My money"], ["offers", "My contracts"], ["requests", "My seat requests"], ["teams", "Shop teams"], ["requirements", "My requirements"], ["streams", "My streams"], ["appeals", "Appeals"], ["account", "Account"]];
   const currentTab = tabs.some(([key]) => key === tab) ? tab : "overview";
