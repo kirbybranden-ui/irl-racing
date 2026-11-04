@@ -111,7 +111,7 @@ export default function AdminVotingPage({ drivers = [] }) {
   return (
     <div style={appShellStyle}>
       <div style={pageContainerStyle}>
-        <div style={sectionCardStyle}>
+        <div data-brl-surface="section" style={sectionCardStyle}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
             <div>
               <h1 style={{ margin: 0 }}>Admin Voting Control</h1>
@@ -125,7 +125,7 @@ export default function AdminVotingPage({ drivers = [] }) {
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "minmax(320px, 440px) 1fr", gap: 18, alignItems: "start" }}>
-          <form onSubmit={createVote} style={sectionCardStyle}>
+          <form data-brl-surface="section" onSubmit={createVote} style={sectionCardStyle}>
             <h2 style={{ marginTop: 0 }}>Create New Vote</h2>
             <div style={{ display: "grid", gap: 12 }}>
               <input value={form.title} onChange={(event) => updateForm("title", event.target.value)} placeholder="Vote title" style={inputStyle} />
@@ -143,7 +143,7 @@ export default function AdminVotingPage({ drivers = [] }) {
             {error && <div style={{ color: "#f87171", marginTop: 12, fontWeight: 900 }}>{error}</div>}
           </form>
 
-          <div style={sectionCardStyle}>
+          <div data-brl-surface="section" style={sectionCardStyle}>
             <h2 style={{ marginTop: 0 }}>Vote Results</h2>
             <div style={{ display: "grid", gap: 14 }}>
               {votes.map((vote) => {
