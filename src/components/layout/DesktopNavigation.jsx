@@ -10,7 +10,7 @@ const groups = [
   { title: "League", links: [["League Home", "/"], ["Cup Standings", "/standings"], ["Race Schedule", "/schedule"], ["Results & Race History", "/standings#results"], ["In Season Tournament", "/tournament"], ["Streams", "/streams"]] },
   { title: "Paddock", links: [["Teams & Owners", "/owners"], ["Driver Market", "/driver-market"], ["Development Requests", "/development-requests"], ["Paint Scheme Vote", "/paint-scheme-vote"]] },
   { title: "Media & Community", links: [["News", "/news"], ["Interviews", "/public-interviews"], ["League Voting", "/vote"], ["League Chat", "/chat"], ["Messages", "/message-center"], ["Notifications", "/notifications"], ["Discord", "/discord"]] },
-  { title: "My League", links: [["My Career", "/career"],["My Profile", "/welcome"], ["User Agreement", "/user-agreement"], ["Owner HQ", "/team-hq"], ["Submit Appeal", "/submit-appeal"], ["Submit Story", "/submit-story"], ["Issues & Feedback", "/issues"], ["Files", "/files"], ["Admin Operations", "/admin"], ["Admin Permissions", "/admin/permissions"], ["Admin Car Gallery", "/admin/car-gallery"], ["Admin Interviews", "/admin/interviews"], ["Admin Voting", "/admin/votes"], ["Live Control", "/admin/live-control"]] },
+  { title: "My League", links: [["My Career", "/career"],["My Profile", "/welcome"], ["User Agreement", "/user-agreement"], ["Owner HQ", "/team-hq"], ["Submit Appeal", "/submit-appeal"], ["Submit Story", "/submit-story"], ["Issues & Feedback", "/issues"], ["Files", "/files"], ["Admin Portal", "/admin"]] },
 ];
 
 export default function DesktopNavigation() {
@@ -53,7 +53,6 @@ export default function DesktopNavigation() {
     </div>
     {open && <div id="brl-all-pages" className="brl-desktop-header__panel">
       {groups.map(group => <section key={group.title}><h2>{group.title}</h2>{group.links.filter(([,href]) => canSeeRoute(access,href) && (!isChallengeRoute(href) || challengeVisible)).map(([label, href]) => <a key={`${label}-${href}`} href={href} className={path === href ? "active" : ""}>{label}<span aria-hidden="true">↗</span></a>)}</section>)}
-      {(hasLeagueRole(access,"race_recorder") || hasLeagueRole(access,"full_admin")) && <section><h2>Race Operations</h2><a href="/race-recorder">Record Race Data</a></section>}
       <section><h2>Account & team</h2><a href={profile}>{session?.driverNumber ? "Driver profile" : "Login / Register"}<span>↗</span></a>{session?.team && <a href={`/team/${encodeURIComponent(session.team)}`}>{session.team} page<span>↗</span></a>}{session && <button className="brl-desktop-header__signout" type="button" onClick={signOut} disabled={signingOut}>{signingOut ? "Signing out…" : "Log out"} <span>↗</span></button>}</section>
       {logoutError && <p role="alert">{logoutError}</p>}
     </div>}
