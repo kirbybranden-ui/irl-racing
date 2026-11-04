@@ -253,7 +253,7 @@ export default function TeamTransfersPanel({ currentTeam, allTeams = [], current
   }
 
   return (
-    <div style={sectionCardStyle}>
+    <div data-brl-surface="section" style={sectionCardStyle}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
         <div>
           <h2 style={{ margin: 0 }}>💰 Team Transfers</h2>
