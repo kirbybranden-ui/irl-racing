@@ -290,7 +290,7 @@ function DriverPortalCard({ driver, raceStats, paintStats, interestRows, reSignR
   const leader = board[0];
 
   return (
-    <div style={{ ...sectionCardStyle, border: "1px solid rgba(212,175,55,0.35)" }}>
+    <div data-brl-surface="section" style={{ ...sectionCardStyle, border: "1px solid rgba(212,175,55,0.35)" }}>
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(230px, 320px)", gap: 16 }}>
         <div>
           <div style={{ color: "#d4af37", fontSize: 12, fontWeight: 1000, letterSpacing: 1.4 }}>TRANSFER PORTAL ELIGIBLE</div>
@@ -410,7 +410,7 @@ export default function TransferPortalPage({
           </div>
         </div>
 
-        <div style={sectionCardStyle}>
+        <div data-brl-surface="section" style={sectionCardStyle}>
           <div style={{ display: "grid", gridTemplateColumns: "minmax(220px, 1fr) auto", gap: 12, alignItems: "center" }}>
             <input value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="Search driver, number, team, manufacturer..." style={inputStyle} />
             <button type="button" onClick={() => setShowAll((value) => !value)} style={primaryButtonStyle}>
@@ -424,7 +424,7 @@ export default function TransferPortalPage({
 
         <div style={{ display: "grid", gap: 16 }}>
           {portalDrivers.length === 0 ? (
-            <div style={sectionCardStyle}>No expiring drivers found yet. Mark contracts as expiring, or use Preview All Drivers.</div>
+            <div data-brl-surface="section" style={sectionCardStyle}>No expiring drivers found yet. Mark contracts as expiring, or use Preview All Drivers.</div>
           ) : (
             portalDrivers.map((driver) => {
               const number = cleanNumber(driver.number);
