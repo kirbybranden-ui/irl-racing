@@ -117,7 +117,7 @@ export default function FilesPage() {
   return (
     <div style={appShellStyle}>
       <div style={pageContainerStyle}>
-        <div style={{ ...sectionCardStyle, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+        <div data-brl-surface="section" style={{ ...sectionCardStyle, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
           <div>
             <h1 style={{ margin: 0 }}>League Documents</h1>
             <div style={{ opacity: 0.72, marginTop: 4 }}>Shared file storage for league admins.</div>
@@ -138,7 +138,7 @@ export default function FilesPage() {
           </div>
         )}
 
-        <div style={sectionCardStyle}>
+        <div data-brl-surface="section" style={sectionCardStyle}>
           {loading ? (
             <div style={{ opacity: 0.75 }}>Loading files...</div>
           ) : files.length === 0 ? (
