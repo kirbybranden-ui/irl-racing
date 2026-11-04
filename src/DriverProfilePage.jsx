@@ -16,7 +16,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "./lib/supabase";
 import { getLeagueSession, loginToLeague } from "./lib/leagueAuth";
-import { useLeagueAccess, hasLeagueRole } from "./lib/roleAccess";
+import { useLeagueAccess } from "./lib/roleAccess";
 import { uploadCarFile, getCarUploads, deleteCarUpload } from "./lib/carUploads";
 // import { ReportIssueModal } from "./components/ReportIssueModal"; // TODO: Uncomment once ReportIssueModal.jsx is in repo
 
@@ -1115,7 +1115,7 @@ export default function DriverProfilePage({ seasons, activeSeason, tracks = [], 
   }
 
   const driverAccessKey = driver ? String(driver.number) : String(driverNumber);
-  const isDriverAuthorized = Boolean(roleAccess?.userId) && (String(roleAccess.driverNumber) === driverAccessKey || hasLeagueRole(roleAccess, "full_admin"));
+  const isDriverAuthorized = Boolean(roleAccess?.userId) && (String(roleAccess.driverNumber) === driverAccessKey);
   const authorizedDriver = sanitizedDrivers.find((item) => String(item.number) === String(authorizedDriverNumber)) || null;
   const messageRecipientOptions = useMemo(() => {
     return sanitizedDrivers
