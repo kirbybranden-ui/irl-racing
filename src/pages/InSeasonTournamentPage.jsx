@@ -471,7 +471,7 @@ function TournamentBracket({ drivers = [], raceHistory = [] }) {
           </div>
         )}
 
-        <div style={sectionCardStyle}>
+        <div data-brl-surface="section" style={sectionCardStyle}>
           <h2 style={{ marginTop: 0, fontSize: 20, fontWeight: 600, letterSpacing: -0.3, color: TEXT_PRIMARY }}>Tournament Schedule</h2>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 10 }}>
             {TOURNAMENT_RACES.map((item) => (
@@ -486,7 +486,7 @@ function TournamentBracket({ drivers = [], raceHistory = [] }) {
 
         {rounds.map((round, roundIndex) => (
           <div key={round.title}>
-            <div style={sectionCardStyle}>
+            <div data-brl-surface="section" style={sectionCardStyle}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
                 <div>
                   <div style={{ color: GOLD, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.8 }}>
