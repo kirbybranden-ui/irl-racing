@@ -189,7 +189,7 @@ export default function CarGalleryPage({ drivers = [], tracks = [], seriesId = "
   return (
     <div style={appShellStyle}>
       <div style={pageContainerStyle}>
-        <div style={sectionCardStyle}>
+        <div data-brl-surface="section" style={sectionCardStyle}>
           <button onClick={() => window.history.back()} style={{ ...secondaryButtonStyle, marginBottom: 12 }}>
             ← Back to Admin
           </button>
@@ -197,7 +197,7 @@ export default function CarGalleryPage({ drivers = [], tracks = [], seriesId = "
           <p style={{ opacity: 0.75, marginTop: 4 }}>View and manage {seriesId === "arca" ? "ARCA" : "Cup"} car uploads from drivers for each race week.</p>
         </div>
 
-        <div style={sectionCardStyle}>
+        <div data-brl-surface="section" style={sectionCardStyle}>
           <h2 style={{ marginTop: 0, marginBottom: 16 }}>Filters</h2>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
             <div>
@@ -258,19 +258,19 @@ export default function CarGalleryPage({ drivers = [], tracks = [], seriesId = "
         </div>
 
         {loadError ? (
-          <div style={{ ...sectionCardStyle, borderColor: "#b42318" }}>
+          <div data-brl-surface="section" style={{ ...sectionCardStyle, borderColor: "#b42318" }}>
             <div style={{ color: "#f87171", fontWeight: 700, marginBottom: 8 }}>Failed to load uploads</div>
             <div style={{ fontSize: 13, opacity: 0.8 }}>{loadError}</div>
             <button onClick={loadUploads} style={{ ...primaryButtonStyle, marginTop: 12 }}>Retry</button>
           </div>
         ) : loading ? (
-          <div style={sectionCardStyle}>Loading car uploads...</div>
+          <div data-brl-surface="section" style={sectionCardStyle}>Loading car uploads...</div>
         ) : filteredUploads.length === 0 ? (
-          <div style={sectionCardStyle}>
+          <div data-brl-surface="section" style={sectionCardStyle}>
             <div style={{ opacity: 0.75, textAlign: "center", padding: 40 }}>No car uploads found.</div>
           </div>
         ) : (
-          <div style={sectionCardStyle}>
+          <div data-brl-surface="section" style={sectionCardStyle}>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
               {filteredUploads.map(upload => {
                 const driver = drivers.find(d => String(d.id) === String(upload.driver_id));
