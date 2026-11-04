@@ -6,14 +6,14 @@ export function canUseAdminRoute(access, path) {
   if (!canEnterAdminPortal(access)) return false;
   if (path === "/admin") return true;
   if (path === "/admin/race-recorder") return isFullAdmin(access) || access.roles?.includes("race_recorder") === true;
-  if (["/admin/support", "/admin/manufacturer-leases"].includes(path)) return isSupportStaff(access);
-  if (["/admin/funding", "/admin/appointments", "/admin/broadcasts"].includes(path)) return access.isSuperAdmin === true;
+  if (["/admin/support"].includes(path)) return isSupportStaff(access);
+  if (["/admin/funding", "/admin/appointments", "/admin/broadcasts", "/admin/manufacturer-leases"].includes(path)) return access.isSuperAdmin === true;
   return isFullAdmin(access);
 }
 export const ADMIN_WORKSPACES = [
   ["Admin home", "/admin"], ["Roles & permissions", "/admin/permissions"],
   ["Team funding & approvals", "/admin/funding"], ["Manufacturer support", "/admin/support"],
-  ["Manufacturer leases", "/admin/manufacturer-leases"], ["Staff appointments", "/admin/appointments"],
+  ["Number leases", "/admin/manufacturer-leases"], ["Staff appointments", "/admin/appointments"],
   ["Appeals administration", "/admin/appeals"], ["League broadcasts", "/admin/broadcasts"],
   ["Race recorder", "/admin/race-recorder"], ["Development requests", "/admin/development-requests"],
   ["Car gallery", "/admin/car-gallery"], ["Interview administration", "/admin/interviews"],
