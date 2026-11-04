@@ -1396,7 +1396,7 @@ export default function AdminPortal({
       )}
       <div style={appleContainerStyle}>
         {/* Header */}
-        <div style={{ ...appleCardStyle, marginBottom: 22, padding: 22 }}>
+        <div data-brl-surface="section" style={{ ...appleCardStyle, marginBottom: 22, padding: 22 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 18, flexWrap: "wrap" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
               <div style={{ width: 62, height: 62, borderRadius: 18, background: "linear-gradient(135deg, #111827, #3b4252)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 18px 35px rgba(15,23,42,0.18)", overflow: "hidden" }}>
@@ -1568,7 +1568,7 @@ export default function AdminPortal({
                       ["📰", "Stories", `${openStoryCount || 0} open stories`, "stories"],
                       ["🎤", "Interviews", "Pre-race and post-race media", "interviews"],
                     ].map(([icon, title, text, tab]) => (
-                      <button key={title} type="button" onClick={() => setPublicRelationsTab(tab)} style={{ ...prCardStyle, textAlign: "left", cursor: "pointer" }}>
+                      <button data-brl-surface="section" key={title} type="button" onClick={() => setPublicRelationsTab(tab)} style={{ ...prCardStyle, textAlign: "left", cursor: "pointer" }}>
                         <div style={prIconStyle}>{icon}</div>
                         <div style={{ fontSize: 20, fontWeight: 1000, marginTop: 14, letterSpacing: -0.4 }}>{title}</div>
                         <div style={{ color: "#6b7280", fontWeight: 750, marginTop: 6, lineHeight: 1.45 }}>{text}</div>
@@ -1579,7 +1579,7 @@ export default function AdminPortal({
               )}
 
               {publicRelationsTab === "ticker" && (
-                <div style={prCardStyle}>
+                <div data-brl-surface="section" style={prCardStyle}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap", marginBottom: 14 }}>
                     <div>
                       <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Ticker Promotions</div>
@@ -1645,7 +1645,7 @@ export default function AdminPortal({
               )}
 
               {publicRelationsTab === "winner" && (
-                <div style={prCardStyle}>
+                <div data-brl-surface="section" style={prCardStyle}>
                   <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Board Winner Spotlight</div>
                   <h2 style={{ margin: "3px 0 14px", fontSize: 28, letterSpacing: -0.7 }}>Previous Race Winner Post</h2>
                   <PreviousRaceWinnerAdminPanel
@@ -1660,7 +1660,7 @@ export default function AdminPortal({
               )}
 
               {publicRelationsTab === "media" && (
-                <div style={prCardStyle}>
+                <div data-brl-surface="section" style={prCardStyle}>
                   <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Featured Media</div>
                   <h2 style={{ margin: "3px 0 6px", fontSize: 28, letterSpacing: -0.7 }}>Photos & Videos</h2>
                   <p style={{ margin: "0 0 16px", color: "#4b5563", fontWeight: 700 }}>Post the media the board wants featured: race hype videos, winner photos, paint scheme images, promo graphics, and recap clips.</p>
@@ -1750,7 +1750,7 @@ export default function AdminPortal({
               )}
 
               {publicRelationsTab === "carGallery" && (
-                <div style={prCardStyle}>
+                <div data-brl-surface="section" style={prCardStyle}>
                   <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Car Gallery</div>
                   <h2 style={{ margin: "3px 0 6px", fontSize: 28, letterSpacing: -0.7 }}>Public Car Gallery</h2>
                   <p style={{ color: "#4b5563", fontWeight: 750 }}>Manage the league car gallery from Public Relations. Public viewers can still see media on the public pages, but the board controls the gallery here.</p>
@@ -1763,7 +1763,7 @@ export default function AdminPortal({
               )}
 
               {publicRelationsTab === "watch" && (
-                <div style={prCardStyle}>
+                <div data-brl-surface="section" style={prCardStyle}>
                   <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Ones to Watch</div>
                   <h2 style={{ margin: "3px 0 6px", fontSize: 28, letterSpacing: -0.7 }}>Race Weekend Storylines</h2>
                   <p style={{ margin: "0 0 16px", color: "#4b5563", fontWeight: 700 }}>Choose the drivers the board wants promoted on the standings page. Manual picks override the automatic watch list.</p>
@@ -1826,7 +1826,7 @@ export default function AdminPortal({
               )}
 
               {publicRelationsTab === "stories" && (
-                <div style={prCardStyle}>
+                <div data-brl-surface="section" style={prCardStyle}>
                   <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Stories</div>
                   <h2 style={{ margin: "3px 0 6px", fontSize: 28, letterSpacing: -0.7 }}>Board Story Desk</h2>
                   <p style={{ color: "#4b5563", fontWeight: 750 }}>Review, write, and publish stories from the board workspace.</p>
@@ -1963,7 +1963,7 @@ export default function AdminPortal({
                       ["Contracts", financeContracts?.length || 0],
                       ["Join Requests", pendingHrRequestCount],
                     ].map(([label, value]) => (
-                      <div key={label} style={{ ...walletLightCardStyle, padding: 18 }}>
+                      <div data-brl-surface="section" key={label} style={{ ...walletLightCardStyle, padding: 18 }}>
                         <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.2, textTransform: "uppercase", color: "#6b7280" }}>{label}</div>
                         <div style={{ fontSize: 34, fontWeight: 1000, letterSpacing: -1, marginTop: 8 }}>{value}</div>
                       </div>
@@ -1980,7 +1980,7 @@ export default function AdminPortal({
                       ["📑", "Contracts", "View driver contracts, statuses, salary records, and team obligations.", "contracts"],
                       ["➕", "Add / Approve Drivers", "Add new drivers and approve pending signup requests directly inside HR.", "drivers"],
                     ].map(([icon, title, text, tab]) => (
-                      <button key={title} type="button" onClick={() => setHrTab(tab)} style={{ ...prCardStyle, textAlign: "left", cursor: "pointer" }}>
+                      <button data-brl-surface="section" key={title} type="button" onClick={() => setHrTab(tab)} style={{ ...prCardStyle, textAlign: "left", cursor: "pointer" }}>
                         <div style={prIconStyle}>{icon}</div>
                         <div style={{ fontSize: 21, fontWeight: 1000, marginTop: 14, letterSpacing: -0.4 }}>{title}</div>
                         <div style={{ color: "#6b7280", fontWeight: 750, marginTop: 6, lineHeight: 1.45 }}>{text}</div>
@@ -1991,7 +1991,7 @@ export default function AdminPortal({
               )}
 
               {hrTab === "drivers" && (
-                <div style={walletLightCardStyle}>
+                <div data-brl-surface="section" style={walletLightCardStyle}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
                     <div>
                       <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Driver Assignments</div>
@@ -2152,7 +2152,7 @@ export default function AdminPortal({
               )}
 
               {hrTab === "owners" && (
-                <div style={walletLightCardStyle}>
+                <div data-brl-surface="section" style={walletLightCardStyle}>
                   <section style={{ borderTop: "3px solid #111216", padding: "20px 0", marginBottom: 22 }}>
                     <h2 style={{ margin: "0 0 6px" }}>Create Team</h2>
                     <p style={{ margin: "0 0 16px", color: "#4b5563" }}>Stand up a team before adding its drivers. Assign an existing driver as owner now or later.</p>
@@ -2256,7 +2256,7 @@ export default function AdminPortal({
               )}
 
               {hrTab === "access" && (
-                <div style={walletLightCardStyle}>
+                <div data-brl-surface="section" style={walletLightCardStyle}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
                     <div>
                       <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Access & Security</div>
@@ -2396,7 +2396,7 @@ export default function AdminPortal({
               )}
 
               {hrTab === "appeals" && (
-                <div style={walletLightCardStyle}>
+                <div data-brl-surface="section" style={walletLightCardStyle}>
                   <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Appeals</div>
                   <h2 style={{ margin: "3px 0 0", fontSize: 26, letterSpacing: -0.6 }}>Board Appeal Queue</h2>
                   <p style={{ color: "#4b5563", fontWeight: 750 }}>Use the appeals center to record rulings, verify filings, appoint an independent panel, and track decisions and corrections.</p>
@@ -2408,7 +2408,7 @@ export default function AdminPortal({
               )}
 
               {hrTab === "issues" && (
-                <div style={walletLightCardStyle}>
+                <div data-brl-surface="section" style={walletLightCardStyle}>
                   <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Issues & Feedback</div>
                   <h2 style={{ margin: "3px 0 0", fontSize: 26, letterSpacing: -0.6 }}>Driver Issues Tracker</h2>
                   <p style={{ color: "#4b5563", fontWeight: 750 }}>Review and resolve driver-reported bugs, feature requests, and feedback.</p>
@@ -2421,7 +2421,7 @@ export default function AdminPortal({
               )}
 
               {hrTab === "contracts" && (
-                <div style={walletLightCardStyle}>
+                <div data-brl-surface="section" style={walletLightCardStyle}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
                     <div>
                       <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Contracts</div>
