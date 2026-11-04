@@ -59,7 +59,7 @@ export function OfferForm({ draft, data, onSave, onClose, busy }) {
 export default function CareerDashboard({ workspace = "driver", initialTab, seasons = [], activeSeasonId = "", leagueReady = false }) {
   const ownerWorkspace = workspace === "owner", adminWorkspace = workspace === "admin";
   const [rawData, setData] = useState(null), [error, setError] = useState(""), [status, setStatus] = useState(""), [busy, setBusy] = useState(false), [tab, setTab] = useState(() => window.location.hash.slice(1) || initialTab || (window.location.pathname.includes("contracts") ? "offers" : window.location.pathname.includes("market") ? "teams" : window.location.pathname === "/manufacturer-hq" ? "funding" : "overview")), [selected, setSelected] = useState(() => new URLSearchParams(window.location.search).get("contract")), [fundingDoc, setFundingDoc] = useState(() => new URLSearchParams(window.location.search).get("funding")), [draft, setDraft] = useState(null), [search, setSearch] = useState("");
-  const themeTeamCode = careerTeamCode(rawData, seasons, activeSeasonId, ownerWorkspace);
+  const themeTeamCode = adminWorkspace ? "" : careerTeamCode(rawData, seasons, activeSeasonId, ownerWorkspace);
   const themeTeam = (rawData?.teams || []).find(t => t.code === themeTeamCode);
   const theme = useTeamTheme(themeTeamCode, themeTeam?.owner_profile);
   const themed = Boolean(themeTeamCode && !["ind", "independent"].includes(themeTeamCode.toLowerCase()));
@@ -72,10 +72,10 @@ export default function CareerDashboard({ workspace = "driver", initialTab, seas
     const url = new URL(window.location.href);url.searchParams.delete("contract");if (id) url.searchParams.set("funding", id);else url.searchParams.delete("funding");window.history.replaceState(null, "", url);
   }
   useEffect(() => {
-    const sync = () => { setTab(window.location.hash.slice(1) || "overview");setSelected(new URLSearchParams(window.location.search).get("contract"));setFundingDoc(new URLSearchParams(window.location.search).get("funding")); };
+    const sync = () => { setTab(window.location.hash.slice(1) || initialTab || "overview");setSelected(new URLSearchParams(window.location.search).get("contract"));setFundingDoc(new URLSearchParams(window.location.search).get("funding")); };
     window.addEventListener("hashchange", sync);window.addEventListener("popstate", sync);
     return () => { window.removeEventListener("hashchange", sync);window.removeEventListener("popstate", sync); };
-  }, []);
+  }, [initialTab]);
   const load = useCallback(async () => { const next = await careerRead();setData(next);setError("");return next; }, []);
   useEffect(() => { let live = true;const refresh = () => careerRead().then(next => { if (live) { setData(next);setError(""); } }).catch(e => { if (live) setError(e.message); });refresh();window.addEventListener("focus", refresh);return () => { live = false;window.removeEventListener("focus", refresh); }; }, []);
   useEffect(() => {
@@ -86,7 +86,7 @@ export default function CareerDashboard({ workspace = "driver", initialTab, seas
   }, [ownerWorkspace, rawData?.me?.kind, rawData?.me?.status]);
   async function run(action, payload) { setBusy(true);setError("");setStatus("");try { const result = await careerAction(action, payload);await load();setStatus("Saved successfully.");return result; } catch (failure) { setError(failure.message);return null; } finally { setBusy(false); } }
   const data=careerWorkspaceData(rawData,workspace);
-  if (!data) return <div className="career"><h1>{ownerWorkspace?"Owner HQ":"My Career"}</h1>{error ? <><p role="alert" className="career-error">{error}</p><button onClick={() => { setError("");load().catch(e => setError(e.message)); }}>Retry</button><p><a href="/login">Sign in / Register</a></p></> : <p role="status">Loading your applications and agreements…</p>}</div>;
+  if (!data) return <div className="career"><h1>{adminWorkspace?"League administration":ownerWorkspace?"Owner HQ":"My Career"}</h1>{error ? <><p role="alert" className="career-error">{error}</p><button onClick={() => { setError("");load().catch(e => setError(e.message)); }}>Retry</button><p><a href="/login">Sign in / Register</a></p></> : <p role="status">Loading your applications and agreements…</p>}</div>;
   const me = data.me, root = adminWorkspace && data.isSuperAdmin, owned = ownerWorkspace ? data.teams.filter(t => t.owner_user === me.user_id && t.status === "approved") : [], owner = owned.length > 0;
   const restrictedOwner = ownerWorkspace && me.kind !== "driver" && ["applicant", "rejected"].includes(me.status);
   const manufacturer = (data.manufacturerRoles || []).length > 0;
@@ -111,7 +111,7 @@ export default function CareerDashboard({ workspace = "driver", initialTab, seas
   return <main className={`career${themed ? " brl-team-themed" : ""}`} data-team-theme={themeTeamCode || undefined} style={themed ? theme.style : undefined}><div className="career-row"><div><div className="career-kicker">BRL / {adminWorkspace ? "League administration" : ownerWorkspace ? "Team management" : "Driver dashboard"}</div><h1>{adminWorkspace ? "League administration" : ownerWorkspace ? "Owner HQ" : "My Career"}</h1><p><strong>{me.gamertag}</strong> · <Badge value={me.status} /></p></div><div className="career-actions"><a href="/standings">League home ↗</a><button onClick={() => logoutOfLeague().then(() => window.location.assign("/login")).catch(e => setError(e.message))}>Log out</button></div></div>
     {themed && <section className="team-identity-strip" aria-label="Your team">{theme.logoUrl && <img src={theme.logoUrl} alt={`${themeTeam?.name || theme.fullName} logo`} />}<div><strong>{themeTeam?.name || theme.fullName || themeTeamCode}</strong><span>{ownerWorkspace ? "Owner HQ" : "Driver career"} · {themeTeamCode}{themeTeam?.manufacturer ? ` · ${themeTeam.manufacturer}` : ""}</span></div></section>}
     <div className="career-workspace-links">{rawData.isSuperAdmin || (rawData.manufacturerRoles||[]).length ? <a href="/admin">Admin Portal ↗</a> : null}{ownerWorkspace ? <a href="/career">My Career ↗</a> : ["owner", "independent"].includes(me.kind) || data.isSuperAdmin ? <a href="/team-hq">Owner HQ ↗</a> : manufacturer ? <a href="/admin/support">Manufacturer staff ↗</a> : null}</div>
-    <nav className="career-nav" aria-label={ownerWorkspace ? "Owner HQ sections" : "Career sections"}>{tabs.map(([key, label]) => <button key={key} aria-pressed={currentTab === key} onClick={() => changeTab(key)}>{label}</button>)}</nav>{notices}
+    <nav className="career-nav" aria-label={adminWorkspace ? "League administration sections" : ownerWorkspace ? "Owner HQ sections" : "Career sections"}>{tabs.map(([key, label]) => <button key={key} aria-pressed={currentTab === key} onClick={() => changeTab(key)}>{label}</button>)}</nav>{notices}
     {ownerWorkspace && ["overview","leases","offers","payments"].includes(currentTab) && owned.map(t=><TeamCostBreakdown key={t.id} data={data} team={t} busy={busy} run={run}/>)}
     {adminWorkspace && currentTab === "overview" && <section className="career-card"><h2>League staff workspace</h2><p>Manage team funding, loans, independent contracts, number administration and manufacturer support here. Owner signatures and team operations remain in Owner HQ.</p></section>}
     {currentTab === "overview" && !adminWorkspace && <OwnerBuildNotice teams={myApprovedTeams} onBuild={ownerWorkspace ? () => changeTab("team") : undefined} />}
