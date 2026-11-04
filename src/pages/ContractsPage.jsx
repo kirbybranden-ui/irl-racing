@@ -216,7 +216,7 @@ function LegacyContractsPage({ drivers = [] }) {
           </div>
         </div>
 
-        <div style={sectionCardStyle}>
+        <div data-brl-surface="section" style={sectionCardStyle}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, flexWrap: "wrap", marginBottom: 16 }}>
             <div>
               <div style={{ fontSize: 12, fontWeight: 900, color: "#d4af37", letterSpacing: 1 }}>LEAGUE-FUNDED INDEPENDENTS</div>
@@ -294,7 +294,7 @@ function LegacyContractsPage({ drivers = [] }) {
           )}
         </div>
 
-        <div style={sectionCardStyle}>
+        <div data-brl-surface="section" style={sectionCardStyle}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, flexWrap: "wrap", marginBottom: 16 }}>
             <div>
               <div style={{ fontSize: 12, fontWeight: 900, color: "#d4af37", letterSpacing: 1 }}>SIGNED / ACCEPTED DEALS</div>
@@ -358,7 +358,7 @@ function LegacyContractsPage({ drivers = [] }) {
           )}
         </div>
 
-        <div style={sectionCardStyle}>
+        <div data-brl-surface="section" style={sectionCardStyle}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, flexWrap: "wrap", marginBottom: 16 }}>
             <div>
               <div style={{ fontSize: 12, fontWeight: 900, color: "#d4af37", letterSpacing: 1 }}>FREE AGENTS / NO ACTIVE DEAL</div>
