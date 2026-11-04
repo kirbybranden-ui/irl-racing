@@ -1024,7 +1024,7 @@ function MemorialDayPage({ drivers = [] }) {
           </div>
         </div>
 
-        <form onSubmit={submitTribute} style={sectionCardStyle}>
+        <form data-brl-surface="section" onSubmit={submitTribute} style={sectionCardStyle}>
           <h2 style={{ marginTop: 0 }}>Submit Driver Tribute</h2>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14 }}>
             <div>
@@ -1068,7 +1068,7 @@ function MemorialDayPage({ drivers = [] }) {
           </div>
         </form>
 
-        <div style={sectionCardStyle}>
+        <div data-brl-surface="section" style={sectionCardStyle}>
           <h2 style={{ marginTop: 0 }}>Tribute Wall</h2>
           {tributes.length === 0 ? (
             <div style={{ opacity: 0.72 }}>No tributes submitted yet.</div>
@@ -2071,7 +2071,7 @@ function AdminLeagueMessageComposer({ drivers = [], teams = [] }) {
   }
 
   return (
-    <div style={{ ...sectionCardStyle, border: "1px solid #d4af37" }}>
+    <div data-brl-surface="section" style={{ ...sectionCardStyle, border: "1px solid #d4af37" }}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start", marginBottom: 16 }}>
         <div>
           <h2 style={{ margin: 0 }}>📢 League Message Center Sender</h2>
@@ -2299,7 +2299,7 @@ function AdminLeagueMessageDashboard({ drivers = [], teams = [] }) {
   }, []);
 
   return (
-    <div style={{ ...sectionCardStyle, border: "1px solid #3d4859" }}>
+    <div data-brl-surface="section" style={{ ...sectionCardStyle, border: "1px solid #3d4859" }}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start", marginBottom: 16 }}>
         <div>
           <h2 style={{ margin: 0 }}>📬 Admin Message Dashboard</h2>
@@ -2316,11 +2316,11 @@ function AdminLeagueMessageDashboard({ drivers = [], teams = [] }) {
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10, marginBottom: 14 }}>
-        <div style={statBoxStyle}><div style={{ opacity: 0.65, fontSize: 12, fontWeight: 900 }}>TOTAL</div><div style={{ fontSize: 24, fontWeight: 900 }}>{summary.total}</div></div>
-        <div style={statBoxStyle}><div style={{ opacity: 0.65, fontSize: 12, fontWeight: 900 }}>UNREAD</div><div style={{ fontSize: 24, fontWeight: 900, color: "#f87171" }}>{summary.unread}</div></div>
-        <div style={statBoxStyle}><div style={{ opacity: 0.65, fontSize: 12, fontWeight: 900 }}>OWNERS / TEAMS</div><div style={{ fontSize: 24, fontWeight: 900 }}>{summary.owners}</div></div>
-        <div style={statBoxStyle}><div style={{ opacity: 0.65, fontSize: 12, fontWeight: 900 }}>DRIVERS</div><div style={{ fontSize: 24, fontWeight: 900 }}>{summary.drivers}</div></div>
-        <div style={statBoxStyle}><div style={{ opacity: 0.65, fontSize: 12, fontWeight: 900 }}>BROADCASTS</div><div style={{ fontSize: 24, fontWeight: 900 }}>{summary.broadcasts}</div></div>
+        <div data-brl-surface="stat" style={statBoxStyle}><div style={{ opacity: 0.65, fontSize: 12, fontWeight: 900 }}>TOTAL</div><div style={{ fontSize: 24, fontWeight: 900 }}>{summary.total}</div></div>
+        <div data-brl-surface="stat" style={statBoxStyle}><div style={{ opacity: 0.65, fontSize: 12, fontWeight: 900 }}>UNREAD</div><div style={{ fontSize: 24, fontWeight: 900, color: "#f87171" }}>{summary.unread}</div></div>
+        <div data-brl-surface="stat" style={statBoxStyle}><div style={{ opacity: 0.65, fontSize: 12, fontWeight: 900 }}>OWNERS / TEAMS</div><div style={{ fontSize: 24, fontWeight: 900 }}>{summary.owners}</div></div>
+        <div data-brl-surface="stat" style={statBoxStyle}><div style={{ opacity: 0.65, fontSize: 12, fontWeight: 900 }}>DRIVERS</div><div style={{ fontSize: 24, fontWeight: 900 }}>{summary.drivers}</div></div>
+        <div data-brl-surface="stat" style={statBoxStyle}><div style={{ opacity: 0.65, fontSize: 12, fontWeight: 900 }}>BROADCASTS</div><div style={{ fontSize: 24, fontWeight: 900 }}>{summary.broadcasts}</div></div>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10, marginBottom: 14 }}>
@@ -2669,8 +2669,8 @@ function StoriesAdminPage() {
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 18 }}>
-          <div style={statBoxStyle}><div style={{ opacity: 0.65, fontSize: 12 }}>OPEN STORIES</div><div style={{ fontSize: 30, fontWeight: 900 }}>{openStories.length}</div></div>
-          <div style={statBoxStyle}><div style={{ opacity: 0.65, fontSize: 12 }}>TOTAL SUBMITTED</div><div style={{ fontSize: 30, fontWeight: 900 }}>{stories.length}</div></div>
+          <div data-brl-surface="stat" style={statBoxStyle}><div style={{ opacity: 0.65, fontSize: 12 }}>OPEN STORIES</div><div style={{ fontSize: 30, fontWeight: 900 }}>{openStories.length}</div></div>
+          <div data-brl-surface="stat" style={statBoxStyle}><div style={{ opacity: 0.65, fontSize: 12 }}>TOTAL SUBMITTED</div><div style={{ fontSize: 30, fontWeight: 900 }}>{stories.length}</div></div>
         </div>
 
         {storyLoadError && (
@@ -2680,12 +2680,12 @@ function StoriesAdminPage() {
         )}
 
         {loading ? (
-          <div style={sectionCardStyle}>Loading stories...</div>
+          <div data-brl-surface="section" style={sectionCardStyle}>Loading stories...</div>
         ) : stories.length === 0 ? (
-          <div style={sectionCardStyle}>No stories submitted yet.</div>
+          <div data-brl-surface="section" style={sectionCardStyle}>No stories submitted yet.</div>
         ) : (
           stories.map((story) => (
-            <div key={story.id} style={{ ...sectionCardStyle, borderColor: String(story.status || "Open") === "Open" ? "#d4af37" : "#2c3440" }}>
+            <div data-brl-surface="section" key={story.id} style={{ ...sectionCardStyle, borderColor: String(story.status || "Open") === "Open" ? "#d4af37" : "#2c3440" }}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 14, flexWrap: "wrap", marginBottom: 10 }}>
                 <div>
                   <div style={{ fontSize: 22, fontWeight: 900 }}>{story.title || "Untitled Story"}</div>
@@ -2778,7 +2778,7 @@ function DiscordPage() {
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 18 }}>
-          <div style={sectionCardStyle}>
+          <div data-brl-surface="section" style={sectionCardStyle}>
             <h2 style={{ marginTop: 0 }}>League Discord Rules</h2>
             <div style={{ display: "grid", gap: 10 }}>
               {rules.map((rule, index) => (
@@ -2789,7 +2789,7 @@ function DiscordPage() {
             </div>
           </div>
 
-          <div style={sectionCardStyle}>
+          <div data-brl-surface="section" style={sectionCardStyle}>
             <h2 style={{ marginTop: 0 }}>Suggested Voice Channels</h2>
             <div style={{ display: "grid", gap: 10 }}>
               {voiceChannels.map((channel) => (
@@ -4980,7 +4980,7 @@ function MobileWeekendRecap({ raceHistory = [], tracks = [], drivers = [], go })
       </div>
 
       <div style={{ display: "grid", gap: 12 }}>
-        <article style={{ ...mobileCardStyle, marginBottom: 0, padding: 0, overflow: "hidden" }}>
+        <article data-brl-surface="section" style={{ ...mobileCardStyle, marginBottom: 0, padding: 0, overflow: "hidden" }}>
           <div style={{ background: "linear-gradient(135deg, rgba(34,197,94,0.25), rgba(15,23,42,0.96))", padding: 14, borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
             <div style={{ color: "#86efac", fontSize: 11, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase" }}>🏁 Last Race Winner</div>
             <h3 style={{ margin: "6px 0 2px", fontSize: 24, lineHeight: 1.05 }}>{lastRaceName}</h3>
@@ -5338,7 +5338,7 @@ function MobileRaceResultCard({ race, go }) {
     .sort((a, b) => Number(a.finishPos) - Number(b.finishPos))
     .slice(0, 5);
   return (
-    <button
+    <button data-brl-surface="section"
       type="button"
       onClick={() => go && go(`/race/${encodeURIComponent(race.raceName)}`)}
       style={{ ...mobileCardStyle, width: "100%", textAlign: "left", border: mobileCardStyle.border, cursor: go ? "pointer" : "default", fontFamily: mobileAppFont }}
@@ -5390,19 +5390,19 @@ function MobileRaceRecapPage({ race, go }) {
       <MobileHero kicker="Race Recap" title={race.raceName} subtitle={winner ? `Winner: #${winner.number} ${winner.name}` : "Full results"} />
 
       <div style={mobileStatGridStyle}>
-        <div style={mobileStatCardStyle}>
+        <div data-brl-surface="stat" style={mobileStatCardStyle}>
           <div style={{ fontSize: 11, color: "#6e6e73", fontWeight: 900, marginBottom: 4, letterSpacing: 0.4 }}>WINNER</div>
           <div style={{ fontSize: 16, fontWeight: 950, color: "#1d1d1f" }}>{winner ? `#${winner.number} ${winner.name}` : "—"}</div>
         </div>
-        <div style={mobileStatCardStyle}>
+        <div data-brl-surface="stat" style={mobileStatCardStyle}>
           <div style={{ fontSize: 11, color: "#6e6e73", fontWeight: 900, marginBottom: 4, letterSpacing: 0.4 }}>FASTEST LAP</div>
           <div style={{ fontSize: 16, fontWeight: 950, color: "#1d1d1f" }}>{fastestLapDriver ? `#${fastestLapDriver.number} ${fastestLapDriver.name}` : "—"}</div>
         </div>
-        <div style={mobileStatCardStyle}>
+        <div data-brl-surface="stat" style={mobileStatCardStyle}>
           <div style={{ fontSize: 11, color: "#6e6e73", fontWeight: 900, marginBottom: 4, letterSpacing: 0.4 }}>FINISHERS</div>
           <div style={{ fontSize: 22, fontWeight: 950, color: "#1d1d1f" }}>{sortedResults.length - dnfCount}</div>
         </div>
-        <div style={mobileStatCardStyle}>
+        <div data-brl-surface="stat" style={mobileStatCardStyle}>
           <div style={{ fontSize: 11, color: "#6e6e73", fontWeight: 900, marginBottom: 4, letterSpacing: 0.4 }}>DNFs</div>
           <div style={{ fontSize: 22, fontWeight: 950, color: "#1d1d1f" }}>{dnfCount}</div>
         </div>
@@ -5411,7 +5411,7 @@ function MobileRaceRecapPage({ race, go }) {
       <MobileSectionTitle>Full Results</MobileSectionTitle>
       <div style={{ display: "grid", gap: 8 }}>
         {sortedResults.map((r) => (
-          <div key={`${race.raceName}-${r.driverId}`} style={{ ...mobileCardStyle, marginBottom: 0, padding: 12 }}>
+          <div data-brl-surface="section" key={`${race.raceName}-${r.driverId}`} style={{ ...mobileCardStyle, marginBottom: 0, padding: 12 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
                 <div style={{
@@ -5460,9 +5460,9 @@ function MobileLayout({ title, children, session = null, onLogout, onLoginClick,
 
 function MobileNavButton({ icon, label, onClick, active }) { return <button type="button" onClick={onClick} style={{ ...mobileNavButtonStyle, color: active ? "#ffffff" : "#a7a9af" }}><span style={{ fontSize: 20 }}>{icon}</span><span style={{ fontSize: 10 }}>{label}</span></button>; }
 function MobileHero({ kicker, title, subtitle }) { return <section style={mobileHeroStyle}><div style={mobileKickerStyle}>{kicker}</div><h1 style={{ margin: "4px 0", fontSize: 38, lineHeight: .95, color: "#111216", fontStyle: "italic", textTransform: "uppercase", fontWeight: 1000, letterSpacing: "-0.02em" }}>{title}</h1>{subtitle && <p style={{ margin: "8px 0 0", color: "#3a3a3c", lineHeight: 1.4, fontWeight: 600 }}>{subtitle}</p>}</section>; }
-function MobileCard({ children }) { return <section style={mobileCardStyle}>{children}</section>; }
+function MobileCard({ children }) { return <section data-brl-surface="section" style={mobileCardStyle}>{children}</section>; }
 function MobileAction({ label, onClick, secondary = false }) { return <button type="button" onClick={onClick} style={{ ...mobileActionStyle, background: secondary ? "#111827" : "#d4af37", color: secondary ? "#ffffff" : "#111111", borderColor: secondary ? "#263244" : "#d4af37" }}>{label}</button>; }
-function MobileStatGrid({ items }) { return <div style={mobileStatGridStyle}>{items.map(([label, value]) => <div key={label} style={mobileStatCardStyle}><div style={{ color: "#6e6e73", fontSize: 11, fontWeight: 900, textTransform: "uppercase" }}>{label}</div><strong style={{ fontSize: 20 }}>{value}</strong></div>)}</div>; }
+function MobileStatGrid({ items }) { return <div style={mobileStatGridStyle}>{items.map(([label, value]) => <div data-brl-surface="stat" key={label} style={mobileStatCardStyle}><div style={{ color: "#6e6e73", fontSize: 11, fontWeight: 900, textTransform: "uppercase" }}>{label}</div><strong style={{ fontSize: 20 }}>{value}</strong></div>)}</div>; }
 function MobileStandingsList({ drivers, go }) { return <div>{drivers.map((driver, index) => <button type="button" key={`${driver.number}-${driver.name}`} onClick={() => go(`/driver/${driver.number}`)} style={mobileDriverCardStyle}><div style={mobileRankStyle}>{index + 1}</div><div style={{ minWidth: 0 }}><strong style={{ display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>#{driver.number} {driver.name}</strong><span style={{ color: "#6e6e73", fontSize: 12 }}>{getTeamIdentifier(driver.team || "Independent")} • {driver.manufacturer || ""}</span></div><div style={mobilePointsStyle}>{driver.points || 0}<span style={{ display: "block", fontSize: 10, color: "#6e6e73" }}>PTS</span></div></button>)}</div>; }
 function MobileSectionTitle({ children }) { return <h2 style={{ fontSize: 16, margin: "20px 2px 10px", color: "#1d1d1f", fontWeight: 950 }}>{children}</h2>; }
 
@@ -8613,7 +8613,7 @@ export default function App() {
   const mobileExcludedPaths = path.startsWith("/admin") || path.startsWith("/overlay") || path.startsWith("/series");
   if (isMobileViewport && !forceDesktop && !mobileExcludedPaths) {
     if (!isHydrated) {
-      return <div style={appShellStyle}><div style={pageContainerStyle}><div style={sectionCardStyle}>Loading mobile league data...</div></div></div>;
+      return <div style={appShellStyle}><div style={pageContainerStyle}><div data-brl-surface="section" style={sectionCardStyle}>Loading mobile league data...</div></div></div>;
     }
 
     return (
@@ -8696,7 +8696,7 @@ export default function App() {
     return (
       <div style={appShellStyle}>
         <div style={pageContainerStyle}>
-          <div style={sectionCardStyle}>
+          <div data-brl-surface="section" style={sectionCardStyle}>
             <h2 style={{ marginTop: 0 }}>Driver Feedback Moved</h2>
             <div style={{ opacity: 0.75, lineHeight: 1.6 }}>
               Driver feedback now lives inside each protected driver profile so only the driver can submit morale ratings.
@@ -8710,7 +8710,7 @@ export default function App() {
     );
   }
   // Loading gate — all routes below this need Supabase data
-  if (!isHydrated) return <div style={appShellStyle}><div style={pageContainerStyle}><div style={sectionCardStyle}>Loading league data...</div></div></div>;
+  if (!isHydrated) return <div style={appShellStyle}><div style={pageContainerStyle}><div data-brl-surface="section" style={sectionCardStyle}>Loading league data...</div></div></div>;
 
   // Development series pages. These do not remove any existing Cup routes.
   // ARCA interviews
