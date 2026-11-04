@@ -111,7 +111,7 @@ export default function DriverFeedbackPage({ drivers = [] }) {
           </div>
         </div>
 
-        <form onSubmit={submitFeedback} style={sectionCardStyle}>
+        <form data-brl-surface="section" onSubmit={submitFeedback} style={sectionCardStyle}>
           <label style={{ display: "block", fontSize: 12, fontWeight: 900, opacity: 0.75, marginBottom: 8 }}>SELECT DRIVER</label>
           <select value={form.driver_id} onChange={(event) => updateField("driver_id", event.target.value)} style={inputStyle}>
             <option value="">Choose your driver</option>
