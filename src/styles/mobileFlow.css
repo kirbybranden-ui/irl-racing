@@ -1,0 +1,76 @@
+/* Vertical mobile flow: retain every value, label and action rather than clipping a wide desktop layout. */
+@media screen and (max-width:768px){
+  [data-brl-theme="raceway"] body{overflow-wrap:anywhere}
+  [data-brl-theme="raceway"] #root{width:100%;min-width:0;max-width:100%}
+  [data-brl-theme="raceway"] :is(main,section,article,form,fieldset){min-width:0;max-width:100%}
+  [data-brl-theme="raceway"] :is(img,video,iframe,canvas){max-width:100%}
+  [data-brl-theme="raceway"] :is(input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]),select,textarea){min-width:0!important;max-width:100%!important;font-size:16px!important;box-sizing:border-box}
+  [data-brl-theme="raceway"] :is(button,a[role=button]){max-width:100%;white-space:normal;overflow-wrap:anywhere;min-height:44px}
+  [data-brl-theme="raceway"] :is(.career-table-wrap,.bank-scroll,.budget-scroll,.bcl-mobile-data-frame,.brl-mobile__page .bcl-mobile-data-frame){
+    overflow:visible!important;max-width:100%!important;min-width:0!important;width:100%!important;
+  }
+  [data-brl-theme="raceway"] :is(.career,.brl-mobile__page,.admin-workspaces,.brl-migrated-page) [style*="grid-template-columns"]:not(nav):not([role=navigation]):not([style*="position: fixed"]){grid-template-columns:minmax(0,1fr)!important}
+  [data-brl-theme="raceway"] :is(.career,.brl-mobile__page,.admin-workspaces) [style*="display: flex"]:not([style*="flex-direction: column"]){flex-wrap:wrap;min-width:0}
+  [data-brl-theme="raceway"] :is(.career-nav,.support-tabs,.comparison-mode,.schedule-filter-tabs,.brl-bank nav){flex-wrap:wrap!important;overflow:visible!important;width:100%;gap:4px 14px}
+  [data-brl-theme="raceway"] :is(.comparison-selectors,.comparison-page .comparison-selectors,.schedule-filter-fields,.league-schedule .schedule-filter-fields,.bank-fields,.career-form-grid,.member-stream-filters,.budget-treasury){grid-template-columns:minmax(0,1fr)}
+  [data-brl-theme="raceway"] .comparison-page .comparison-metric{grid-template-columns:minmax(70px,.9fr) repeat(2,minmax(0,1fr))}
+  [data-brl-theme="raceway"] .comparison-page .comparison-entry{min-width:0}
+  [data-brl-theme="raceway"] :is(.comparison-page .comparison-entry-name strong,.comparison-page .comparison-metric strong){overflow-wrap:anywhere;white-space:normal}
+  [data-brl-theme="raceway"] .schedule-filter-fields :is(input,select){width:100%}
+  /* Keep paper documents as documents; let their cells wrap inside the page. */
+  [data-brl-theme="raceway"] :is(.agreement-paper,.brl-agreement-paper) table{min-width:0!important;width:100%!important;table-layout:fixed}
+  [data-brl-theme="raceway"] :is(.agreement-paper,.brl-agreement-paper) :is(th,td){white-space:normal!important;overflow-wrap:anywhere;padding:8px 4px}
+  [data-brl-theme="raceway"] table{min-width:0!important;max-width:100%!important;width:100%!important;table-layout:fixed;white-space:normal!important}
+  [data-brl-theme="raceway"] table[data-brl-mobile-table="flow"]{display:block;min-width:0!important;width:100%!important;border:0;border-radius:0;background:transparent}
+  [data-brl-theme="raceway"] table[data-brl-mobile-table="flow"] :is(tbody,tfoot){display:block;width:100%}
+  [data-brl-theme="raceway"] table[data-brl-mobile-table="flow"]:not([data-brl-mobile-interactive-head="true"]) thead,
+  [data-brl-theme="raceway"] table[data-brl-mobile-table="flow"]:not([data-brl-mobile-interactive-head="true"]) [data-brl-mobile-heading]{
+    position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;
+    overflow:hidden!important;clip-path:inset(50%);white-space:nowrap!important;border:0!important;
+  }
+  [data-brl-theme="raceway"] table[data-brl-mobile-table="flow"] :is(tbody,tfoot)>tr:not([data-brl-mobile-heading]){
+    display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 20px;padding:20px 0;
+    border:0;border-bottom:1px solid var(--brl-rule);background:transparent;width:100%;min-width:0;
+  }
+  [data-brl-theme="raceway"] table[data-brl-mobile-table="flow"] tr>:is(td,th){
+    display:block;width:auto!important;min-width:0!important;max-width:100%!important;height:auto!important;
+    border:0!important;padding:0!important;background:transparent;white-space:normal!important;
+    overflow-wrap:anywhere;text-align:left!important;font-size:14px;letter-spacing:normal;text-transform:none;
+  }
+  [data-brl-theme="raceway"] table[data-brl-mobile-table="flow"] tr>:is(td,th):first-child{grid-column:1/-1;font-weight:850}
+  [data-brl-theme="raceway"] table[data-brl-mobile-table="flow"] [data-brl-mobile-span="full"]{grid-column:1/-1}
+  [data-brl-theme="raceway"] table[data-brl-mobile-table="flow"] [data-brl-mobile-label]::before{
+    content:attr(data-brl-mobile-label);display:block;font-size:10px;font-weight:750;letter-spacing:.07em;
+    text-transform:uppercase;color:var(--brl-muted);margin-bottom:5px;line-height:1.5;
+  }
+  [data-brl-theme="raceway"] table[data-brl-mobile-table="flow"] [data-brl-mobile-label=""]::before{display:none}
+  [data-brl-theme="raceway"] table[data-brl-mobile-table="flow"] :is(td,th) :is(input:not([type=checkbox]):not([type=radio]),select,textarea){width:100%!important;min-width:0!important;max-width:100%!important}
+  [data-brl-theme="raceway"] table[data-brl-mobile-table="flow"] :is(td,th)>div{min-width:0!important;max-width:100%!important;white-space:normal!important;flex-wrap:wrap!important}
+  [data-brl-theme="raceway"] .budget-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  [data-brl-theme="raceway"] :is(.career .design-terms table,.manufacturer-support .design-terms table){table-layout:auto}
+  [data-brl-theme="raceway"] .admin-workspaces .career table{min-width:0}
+}
+@media screen and (max-width:350px){
+  [data-brl-theme="raceway"] table[data-brl-mobile-table="flow"] :is(tbody,tfoot)>tr:not([data-brl-mobile-heading]){grid-template-columns:minmax(0,1fr)}
+}
+/* Desktop and print retain native table layout; no column or value is deleted. */
+@media screen and (max-width:768px){
+  [data-brl-theme="raceway"] #root :is(div,nav,header,footer,ul,ol){min-width:0;max-width:100%}
+  [data-brl-theme="raceway"] #root [style*="min-width"]{min-width:0!important}
+  [data-brl-theme="raceway"] #root pre{white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word}
+  [data-brl-theme="raceway"] .brl-mobile__session{flex-wrap:wrap}
+  [data-brl-theme="raceway"] .brl-mobile__title-row{min-width:0}
+  [data-brl-theme="raceway"] .brl-mobile__title-row h1{min-width:0;overflow-wrap:anywhere}
+  [data-brl-theme="raceway"] .brl-bank header select{width:100%}
+}
+@media screen and (max-width:768px){
+  [data-brl-theme="raceway"] table[data-brl-mobile-table="flow"] colgroup{display:none}
+  [data-brl-theme="raceway"] table[data-brl-mobile-table="flow"] caption{display:block;width:100%;text-align:left;margin-bottom:8px}
+}
+
+@media screen and (max-width:768px){
+  /* Sorting buttons, filters and select-all controls in headings stay visible. */
+  [data-brl-theme="raceway"] table[data-brl-mobile-interactive-head="true"] thead{display:block;position:static!important;width:100%;border-bottom:1px solid var(--brl-rule)}
+  [data-brl-theme="raceway"] table[data-brl-mobile-interactive-head="true"] [data-brl-mobile-heading]{display:flex;flex-wrap:wrap;gap:12px 20px;padding:16px 0;width:100%}
+  [data-brl-theme="raceway"] table[data-brl-mobile-interactive-head="true"] [data-brl-mobile-heading]>th{flex:1 1 120px;min-height:44px}
+}
