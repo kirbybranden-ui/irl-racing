@@ -222,7 +222,7 @@ export default function LeagueChatPage({ drivers = [] }) {
         </div>
 
         {!authorizedDriver ? (
-          <form onSubmit={unlockChat} style={sectionCardStyle}>
+          <form data-brl-surface="section" onSubmit={unlockChat} style={sectionCardStyle}>
             <h2 style={{ marginTop: 0 }}>🔒 Driver Login Required</h2>
             <p style={{ opacity: 0.74, lineHeight: 1.5 }}>Choose your driver and enter your driver profile password before posting in League Chat.</p>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12, alignItems: "end" }}>
@@ -244,7 +244,7 @@ export default function LeagueChatPage({ drivers = [] }) {
             {loginError && <div style={{ color: "#f87171", marginTop: 12, fontWeight: 900 }}>{loginError}</div>}
           </form>
         ) : (
-          <div style={sectionCardStyle}>
+          <div data-brl-surface="section" style={sectionCardStyle}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
               <div>
                 <div style={{ fontSize: 13, opacity: 0.72 }}>POSTING AS</div>
@@ -273,7 +273,7 @@ export default function LeagueChatPage({ drivers = [] }) {
           </div>
         )}
 
-        <div style={sectionCardStyle}>
+        <div data-brl-surface="section" style={sectionCardStyle}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
             <h2 style={{ margin: 0 }}>League Room</h2>
             <button type="button" onClick={loadMessages} style={secondaryButtonStyle}>{loading ? "Refreshing..." : "Refresh"}</button>
