@@ -51,7 +51,7 @@ function renderTeamBadge(team, size = 44) {
 }
 
 function MobileCard({ children }) {
-  return <section style={mobileCardStyle}>{children}</section>;
+  return <section data-brl-surface="section" style={mobileCardStyle}>{children}</section>;
 }
 
 function MobileAction({ label, onClick, secondary = false }) {
@@ -85,7 +85,7 @@ function MobileStatGrid({ items }) {
   return (
     <div style={mobileStatGridStyle}>
       {items.map(([label, value]) => (
-        <div key={label} style={mobileStatCardStyle}>
+        <div data-brl-surface="stat" key={label} style={mobileStatCardStyle}>
           <div style={{ color: "#aab3c2", fontSize: 11, fontWeight: 900, textTransform: "uppercase" }}>{label}</div>
           <strong style={{ fontSize: 20 }}>{value}</strong>
         </div>
