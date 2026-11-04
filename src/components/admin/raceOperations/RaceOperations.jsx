@@ -105,7 +105,7 @@ export default function RaceOperations({
         </nav>
 
         {raceOperationsTab === "overview" && (
-          <div style={adminReadableCardStyle}>
+          <div data-brl-surface="section" style={adminReadableCardStyle}>
             <h2 style={{ marginTop: 0 }}>Race Operations Hub</h2>
             <div style={{ opacity: 0.78 }}>Choose a tile above. Track Management, Race Input, Voting, and Previous Race Results are tucked away until you need them, keeping this page focused for race night.</div>
           </div>
