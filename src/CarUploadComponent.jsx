@@ -66,7 +66,7 @@ export default function CarUploadSection({ driver, tracks }) {
 
   if (!nextRace) {
     return (
-      <div style={sectionCardStyle}>
+      <div data-brl-surface="section" style={sectionCardStyle}>
         <h2 style={{ marginTop: 0 }}>📸 Car Upload</h2>
         <div style={{ opacity: 0.75 }}>
           No upcoming race scheduled yet. Check back soon!
@@ -76,7 +76,7 @@ export default function CarUploadSection({ driver, tracks }) {
   }
 
   return (
-    <div style={sectionCardStyle}>
+    <div data-brl-surface="section" style={sectionCardStyle}>
       <h2 style={{ marginTop: 0, marginBottom: 8 }}>📸 Upload Car Photos & Videos</h2>
       <div style={{ fontSize: 13, opacity: 0.8, marginBottom: 16 }}>
         Race of the Week: <strong>{nextRace.name}</strong> ({new Date(nextRace.date).toLocaleDateString()})
