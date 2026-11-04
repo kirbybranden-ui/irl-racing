@@ -8590,7 +8590,7 @@ export default function App() {
   if(path === "/admin" && !isAdminAuthenticated)return <AdminWorkspaceNav access={verifiedAccess} home/>;
   if (["/stories"].includes(path) && !isAdminAuthenticated) return <p>Full admin access is required.</p>;
   if (["/admin/funding","/admin/support","/admin/manufacturer-leases","/admin/appointments"].includes(path)) {
-    const defaultTab={"/admin/funding":"overview","/admin/support":"funding","/admin/manufacturer-leases":"leases","/admin/appointments":"appointments"}[path];
+    const defaultTab={"/admin/funding":"budgets","/admin/support":"funding","/admin/manufacturer-leases":"leases","/admin/appointments":"appointments"}[path];
     return adminPage(<CareerDashboard key={path} workspace="admin" initialTab={defaultTab} seasons={seasons} activeSeasonId={activeSeasonId} leagueReady={isHydrated}/>);
   }
   if(path==="/admin/appeals")return adminPage(<AppealsPage staffMode/>);
