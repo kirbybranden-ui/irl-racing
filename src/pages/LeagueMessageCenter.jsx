@@ -189,7 +189,7 @@ function LeagueMessageCenterLandingPage({ drivers = [] }) {
   );
 }
 
-export default function LeagueMessageCenter({ drivers = [], session: suppliedSession = null, mobile = false, go = null }) {
+export default function LeagueMessageCenter({ drivers = [], session: suppliedSession = null, mobile = false, go = null, staffMode = false }) {
   const [session, setSession] = useState(() => suppliedSession || readBclMobileSession());
   const [driverNumber, setDriverNumber] = useState("");
   const [password, setPassword] = useState("");
@@ -208,7 +208,8 @@ export default function LeagueMessageCenter({ drivers = [], session: suppliedSes
       .sort((a, b) => Number(a.number || 9999) - Number(b.number || 9999));
   }, [drivers]);
 
-  const currentUser = getCurrentUserFromSession(session || {});
+  const personalSession = staffMode || !session ? session : {...session,roles:(session.roles||[]).filter(r=>r!=="full_admin"),role:session.isOwner?"owner":"driver",mode:session.isOwner?"owner":"driver",isAdmin:false};
+  const currentUser = getCurrentUserFromSession(personalSession || {});
   const isGuest = !session || currentUser.isGuest;
 
   useEffect(() => {
@@ -263,7 +264,7 @@ export default function LeagueMessageCenter({ drivers = [], session: suppliedSes
       return;
     }
 
-    const allowed = filterLeagueMessagesForSession(data || [], session);
+    const allowed = filterLeagueMessagesForSession(data || [], personalSession);
     setMessages(allowed);
   }
 
