@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
 import {createSharedRead} from "./sharedRead";
+import {canUseAdminRoute} from "./adminPortalAccess";
 
 export const ROLE_LABELS = { driver: "Driver", owner: "Owner", race_recorder: "Race Recorder", full_admin: "Full Admin" };
 export function hasLeagueRole(access, role) { return access?.roles?.includes(role) === true; }
@@ -11,7 +12,10 @@ export function canSeeRoute(access, path) {
   const applicant = access?.userId && !access.isDriver && !access.isOwner && !access.isAdmin;
   if (applicant && ["/media", "/strategy", "/interviews", "/welcome", "/message-center", "/notifications", "/submit-appeal", "/chat", "/vote", "/league-vote", "/voting", "/paint-scheme-vote", "/submit-story", "/development-requests", "/developmental-requests", "/dev-requests"].includes(path)) return false;
 
-  if (path.startsWith("/admin") || ["/stories"].includes(path)) return hasLeagueRole(access, "full_admin") || (path === "/admin" && hasLeagueRole(access, "race_recorder"));
+  if (path === "/admin-login") return true;
+  if (path.startsWith("/admin")) return canUseAdminRoute(access, path);
+  if (path === "/stories") return canUseAdminRoute(access, "/admin/stories");
+  if (path === "/manufacturer-hq") return canUseAdminRoute(access, "/admin/support");
   if (path === "/race-recorder") return hasLeagueRole(access, "race_recorder") || hasLeagueRole(access, "full_admin");
   if (["/team-hq", "/owner-hq", "/owner", "/hq", "/teamhq"].includes(path)) return hasLeagueRole(access, "owner") || hasLeagueRole(access, "full_admin") || Boolean(access?.userId && ["owner", "independent"].includes(access?.applicationKind));
   if (["/media", "/strategy", "/welcome", "/contracts", "/message-center", "/notifications", "/submit-appeal", "/chat", "/vote", "/voting", "/submit-story", "/development-requests"].includes(path)) return Boolean(access?.userId);
@@ -23,7 +27,7 @@ const accessReader=createSharedRead({label:"Account permissions",request:async s
   const {data:{session},error:sessionError}=await supabase.auth.getSession();
   if(sessionError)throw sessionError;
   if(!session)return null;
-  const {data,error}=await supabase.rpc("brl_my_access").abortSignal(signal);
+  const {data,error}=await supabase.rpc("brl_portal_access").abortSignal(signal);
   if(error)throw error;
   return data;
 }});
