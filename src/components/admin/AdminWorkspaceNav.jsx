@@ -1,9 +1,15 @@
-import React from "react";
-import { ADMIN_WORKSPACES, canUseAdminRoute } from "../../lib/adminPortalAccess";
-import "../../styles/adminWorkspaces.css";
-export default function AdminWorkspaceNav({access, children, home = false, embedded = false}) {
-  const links = ADMIN_WORKSPACES.filter(([,path]) => canUseAdminRoute(access,path));
-  return <div className={`admin-workspaces${embedded?" admin-workspaces--embedded":""}`}>{!embedded&&<header className="admin-workspaces-header"><a href="/admin">BRL / Admin Portal</a><a href="/career">My Career ↗</a></header>}
-    {home ? <main><h1>{embedded?"League workspaces":"Admin Portal"}</h1><p>Your assigned roles determine which workspaces are available. Each action keeps its existing league approval requirements.</p><nav className="admin-workspace-grid" aria-label="Admin workspaces">{links.filter(([,path])=>path!=="/admin").map(([label,path])=><a key={path} href={path}>{label}<span>Open workspace ↗</span></a>)}</nav></main> : <><details className="admin-workspace-menu"><summary>Admin workspaces</summary><nav aria-label="Admin workspaces">{links.map(([label,path])=><a key={path} href={path}>{label}</a>)}</nav></details>{children}</>}
-  </div>;
+import React,{useState} from 'react';
+import {ADMIN_GROUPS,visibleAdminTasks,adminTaskForLocation} from '../../lib/adminNavigation';
+import {useLeagueAccess} from '../../lib/roleAccess';
+import '../../styles/adminWorkspaces.css';
+export default function AdminWorkspaceNav({access,children,home=false,embedded=false,currentTask,onNavigate}){
+ const [search,setSearch]=useState(''),[menu,setMenu]=useState(false);
+ const {error:connectionError}=useLeagueAccess();
+ const tasks=visibleAdminTasks(access,search),active= currentTask||adminTaskForLocation(typeof window==='undefined'?'/admin':window.location.pathname,typeof window==='undefined'?'':window.location.search)?.id||'home';
+ const navigate=(event,t)=>{if(onNavigate&&t.path.startsWith('/admin?task=')&&!event.metaKey&&!event.ctrlKey&&!event.shiftKey&&!event.altKey&&event.button===0){event.preventDefault();onNavigate(t.id);}setMenu(false);};
+ const navigation=<><label className="admin-search">Find a tool<input type="search" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search tools…"/></label><nav aria-label="Admin workspaces">{ADMIN_GROUPS.map(group=>{const rows=tasks.filter(t=>t.group===group);return rows.length?<section key={group}><h2>{group}</h2>{rows.map(t=><a key={t.id} href={t.path} aria-current={active===t.id?'page':undefined} onClick={e=>navigate(e,t)}>{t.label}</a>)}</section>:null;})}{!tasks.length&&<p role="status">No tools match your search.</p>}</nav></>;
+ if(embedded)return <div className="admin-workspaces--embedded">{navigation}</div>;
+ return <div className="admin-workspaces"><header className="admin-workspaces-header"><a className="admin-brand" href="/admin"><span>BRL / League operations</span><strong>Admin Portal</strong></a><div className="admin-header-actions"><a href="/standings">League home</a><a href="/career">My Career</a><button aria-expanded={menu} aria-controls="admin-tool-navigation" onClick={()=>setMenu(!menu)}>{menu?'Close tools':'Browse tools'}</button></div></header>
+ {connectionError&&<div role="status" className="admin-connection">Connection interrupted. Your sign-in has not been cleared. Some tools may be temporarily unavailable. <button onClick={()=>window.dispatchEvent(new Event('brl:retry-access'))}>Retry connection</button></div>}
+ <div className="admin-workspace-layout"><aside id="admin-tool-navigation" className={menu?'admin-sidebar is-open':'admin-sidebar'}>{navigation}</aside><div className="admin-content" id="admin-workspace-content"><div className="admin-breadcrumb"><a href="/admin">Admin Portal</a><span aria-hidden="true"> / </span><span>{adminTaskForLocation(typeof window==='undefined'?'/admin':window.location.pathname,typeof window==='undefined'?'':window.location.search)?.label||'Workspace'}</span></div>{home?<main><div className="admin-page-intro"><p className="admin-eyebrow">League operations</p><h1>Choose your workspace</h1><p>Your assigned roles determine which tools are available.</p></div><div className="admin-task-directory">{tasks.filter(t=>t.id!=='home').map(t=><a key={t.id} href={t.path}><strong>{t.label} →</strong><span>{t.description}</span></a>)}</div></main>:children}</div></div></div>;
 }
