@@ -1,3 +1,4 @@
+import NumberLeaseAdmin from "./components/admin/NumberLeaseAdmin";
 import AdminWorkspaceNav from "./components/admin/AdminWorkspaceNav";
 import LeagueBroadcastSettings from "./components/streams/LeagueBroadcastSettings";
 import {canEnterAdminPortal,canUseAdminRoute} from "./lib/adminPortalAccess";
@@ -8572,6 +8573,7 @@ export default function App() {
   if (legacyAdminPath) { window.location.replace(legacyAdminPath + window.location.search + window.location.hash);return null; }
   if (["/career","/team-hq","/owner-hq","/owner","/hq","/teamhq"].includes(path) && ["#budgets","#approvals"].includes(window.location.hash)) {window.location.replace("/admin/funding"+window.location.search+window.location.hash);return null;}
   const adminPage = children => <AdminWorkspaceNav access={verifiedAccess}>{children}</AdminWorkspaceNav>;
+  if(accessError&&!verifiedAccess?.userId&&(isAdminProtectedPath||!canSeeRoute(null,path)||["/career","/team-hq","/owner-hq","/owner","/hq","/teamhq"].includes(path)))return accessPage(<section className="admin-connection"><h1>Connection interrupted</h1><p role="alert">{accessError}</p><p>Account verification is retrying. This error has not signed you out.</p><button onClick={()=>window.dispatchEvent(new Event("brl:retry-access"))}>Retry connection</button></section>);
   if(isAdminProtectedPath){
     if(accessLoading)return accessPage(<p role="status">Checking portal permissions…</p>);
     if(!canUseAdminRoute(verifiedAccess,path))return accessPage(verifiedAccess?.userId?<section><h1>Admin Portal</h1><p>Your assigned roles do not include this workspace.</p><a href="/admin">Return to Admin Portal</a></section>:<RoleLogin next={path}/>);
@@ -8589,10 +8591,11 @@ export default function App() {
   if (!isHydrated && ["/admin","/race-recorder","/owners","/compare"].includes(path)) return accessPage(<p role="status">Loading league data…</p>);
   if(path === "/admin" && !isAdminAuthenticated)return <AdminWorkspaceNav access={verifiedAccess} home/>;
   if (["/stories"].includes(path) && !isAdminAuthenticated) return <p>Full admin access is required.</p>;
-  if (["/admin/funding","/admin/support","/admin/manufacturer-leases","/admin/appointments"].includes(path)) {
-    const defaultTab={"/admin/funding":"budgets","/admin/support":"funding","/admin/manufacturer-leases":"leases","/admin/appointments":"appointments"}[path];
+  if (["/admin/contracts","/admin/funding","/admin/support","/admin/appointments"].includes(path)) {
+    const defaultTab={"/admin/contracts":"offers","/admin/funding":"budgets","/admin/support":"funding","/admin/manufacturer-leases":"leases","/admin/appointments":"appointments"}[path];
     return adminPage(<CareerDashboard key={path} workspace="admin" initialTab={defaultTab} seasons={seasons} activeSeasonId={activeSeasonId} leagueReady={isHydrated}/>);
   }
+  if(path==="/admin/manufacturer-leases")return adminPage(<NumberLeaseAdmin/>);
   if(path==="/admin/appeals")return adminPage(<AppealsPage staffMode/>);
   if(path==="/admin/broadcasts")return adminPage(<LeagueBroadcastSettings/>);
   if(path==="/admin/race-recorder")return !isHydrated?accessPage(<p role="status">Loading league data…</p>):adminPage(<RaceRecorderPage access={verifiedAccess} drivers={visibleDrivers} tracks={tracks} activeSeasonId={activeSeasonId}/>);
