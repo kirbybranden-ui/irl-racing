@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
 import {createSharedRead} from "./sharedRead";
+import {accessAfterFailure,identityChanged} from "./accessContinuity";
 import {canUseAdminRoute} from "./adminPortalAccess";
 
 export const ROLE_LABELS = { driver: "Driver", owner: "Owner", race_recorder: "Race Recorder", full_admin: "Full Admin" };
@@ -33,7 +34,10 @@ const accessReader=createSharedRead({label:"Account permissions",request:async s
 }});
 supabase.auth.onAuthStateChange((event,session)=>{
   const user=session?.user?.id||null;
-  if(event==="SIGNED_OUT"||(lastAccessUser!==undefined&&lastAccessUser!==user)){accessGeneration++;accessReader.invalidate();publishedAccess=undefined;}
+  if(event==="SIGNED_OUT"||(lastAccessUser!==undefined&&lastAccessUser!==user)){accessGeneration++;accessReader.invalidate();publishedAccess=undefined;
+    try{localStorage.removeItem("bcl-league-session");localStorage.removeItem("bcl-mobile-session-v1");}catch{/* Storage may be unavailable. */}
+    if(typeof window!=="undefined")window.dispatchEvent(new CustomEvent("brl:access-loaded",{detail:null}));
+  }
   lastAccessUser=user;
 });
 export async function refreshLeagueAccess(){
@@ -53,14 +57,29 @@ export async function refreshLeagueAccess(){
 export function useLeagueAccess() {
   const [state, setState] = useState({ access: null, loading: true, error: "" });
   useEffect(() => {
-    let active = true;
-    const update = (event) => { if (active) setState({ access: event.detail || null, loading: false, error: "" }); };
-    const refresh = () => refreshLeagueAccess().catch((error) => { if (active) setState({ access: null, loading: false, error: error.message }); });
+    let active = true, identity=lastAccessUser??publishedAccess?.userId??null, retryTimer, attempts=0;
+    const update = (event) => { if (active) {attempts=0;clearTimeout(retryTimer);setState({ access: event.detail || null, loading: false, error: "" });} };
+    const refresh = () => {
+      clearTimeout(retryTimer);
+      const expectedIdentity=identity;
+      return refreshLeagueAccess().catch((error) => {
+        if (!active||expectedIdentity!==identity) return;
+        setState(previous=>accessAfterFailure(previous.access,identity,error));
+        // Bounded backoff; no sign-out or credential clearing on network/RPC failure.
+        retryTimer=setTimeout(refresh,Math.min(30000,2000*2**Math.min(attempts++,4)));
+      });
+    };
     window.addEventListener("brl:access-loaded", update);
     window.addEventListener("focus", refresh);
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => { setTimeout(refresh, 0); });
+    window.addEventListener("brl:retry-access",refresh);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event,session) => {
+      const changed=identityChanged(identity,event,session);identity=session?.user?.id||null;
+      if(changed&&active){clearTimeout(retryTimer);setState({access:null,loading:event!=="SIGNED_OUT",error:""});}
+      // Never await an auth operation inside the Supabase callback.
+      clearTimeout(retryTimer);retryTimer=setTimeout(refresh,0);
+    });
     refresh();
-    return () => { active = false; subscription.unsubscribe(); window.removeEventListener("brl:access-loaded", update); window.removeEventListener("focus", refresh); };
+    return () => { active = false;clearTimeout(retryTimer);subscription.unsubscribe();window.removeEventListener("brl:access-loaded", update);window.removeEventListener("focus", refresh);window.removeEventListener("brl:retry-access",refresh); };
   }, []);
   return state;
 }
