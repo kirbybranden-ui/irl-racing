@@ -12,7 +12,7 @@ export function canUseAdminRoute(access, path) {
 }
 export const ADMIN_WORKSPACES = [
   ["Admin home", "/admin"], ["Roles & permissions", "/admin/permissions"],
-  ["Team funding & approvals", "/admin/funding"], ["Manufacturer support", "/admin/support"],
+  ["Funding center", "/admin/funding"], ["Manufacturer support", "/admin/support"],
   ["Number leases", "/admin/manufacturer-leases"], ["Staff appointments", "/admin/appointments"],
   ["Appeals administration", "/admin/appeals"], ["League broadcasts", "/admin/broadcasts"],
   ["Race recorder", "/admin/race-recorder"], ["Development requests", "/admin/development-requests"],
