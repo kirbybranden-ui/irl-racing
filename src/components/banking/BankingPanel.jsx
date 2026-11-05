@@ -8,6 +8,7 @@ const displayText=value=>String(value||'').replace(/\bB2J(?: Motorsports)?\b/gi,
 const accountName=account=>account?.kind==='team'?getTeamFullName(account.subject):displayText(account?.name);
 const date=value=>value?new Date(value).toLocaleString():'';
 export default function BankingPanel({team='',driverId='',admin=false,initialTab='ledger'}) {
+ const [showHistorical,setShowHistorical]=useState(false);
  const [accounts,setAccounts]=useState([]),[selected,setSelected]=useState(''),[data,setData]=useState(null),[tab,setTab]=useState(initialTab==='transfers'?'requests':initialTab),[error,setError]=useState(''),[status,setStatus]=useState(''),[busy,setBusy]=useState(false),[settings,setSettings]=useState(null),[roster,setRoster]=useState([]),[season,setSeason]=useState(''),[pending,setPending]=useState([]),[filter,setFilter]=useState(''),[loaded,setLoaded]=useState(false);
  useEffect(()=>setTab(initialTab==='transfers'?'requests':initialTab),[initialTab]);
  const [offer,setOffer]=useState({driver:'',role:'driver',total:250000,method:'three',dates:['','',''],weeks:20,share:0});
@@ -18,13 +19,17 @@ export default function BankingPanel({team='',driverId='',admin=false,initialTab
   let accountQuery=supabase.from('brl_bank_accounts').select('id,kind,subject,name');
   if(!admin)accountQuery=team?accountQuery.eq('kind','team').eq('subject',team):accountQuery.eq('kind','driver').eq('subject',String(driverId));
   const {data:rows,error:err}=await accountQuery.order('name');if(err)throw new Error('Install the league banking SQL first. '+err.message);
-  const visible=(rows||[]).filter(a=>a.kind!=='external').filter(a=>admin||team?(admin||a.kind==='team'&&a.subject===team):(a.kind==='driver'&&a.subject===String(driverId)));
-  setLoaded(true);setAccounts(visible);const id=visible.some(a=>a.id===selected)?selected:visible[0]?.id||'';setSelected(id);setData(id?await bankCall('read',{account:id}):null);
+  const {data:state,error:stateError}=await supabase.from('league_state').select('data').eq('season_name','irl-league').single();if(stateError)throw stateError;
+  const seasonId=state?.data?.activeSeasonId;if(!seasonId)throw new Error('Current season is unavailable. Refresh before selecting an account.');
+  const current=state.data.seasons?.find(s=>s.id===seasonId);setSeason(seasonId);setRoster(current?.drivers||[]);
+  const {data:currentTeams,error:teamsError}=await supabase.from('brl_career_teams').select('code').eq('season_id',seasonId).eq('status','approved');if(teamsError)throw teamsError;
+  const teamCodes=new Set((currentTeams||[]).map(t=>String(t.code))),driverIds=new Set((current?.drivers||[]).map(d=>String(d.id)));
+  const visible=(rows||[]).filter(a=>a.kind!=='external').filter(a=>admin||(team?a.kind==='team'&&a.subject===team:a.kind==='driver'&&a.subject===String(driverId))).filter(a=>!admin||showHistorical||a.kind==='treasury'||a.kind==='manufacturer'||(a.kind==='team'&&teamCodes.has(String(a.subject)))||(a.kind==='driver'&&driverIds.has(String(a.subject))));
+  setLoaded(true);setAccounts(visible);const id=visible.some(a=>a.id===selected)?selected:(visible.find(a=>admin&&a.kind==='treasury')||visible[0])?.id||'';setSelected(id);setData(id?await bankCall('read',{account:id}):null);
   const {data:cfg}=await supabase.from('brl_bank_settings').select('*').eq('id',true).single();setSettings(cfg);
   const {data:pool}=await supabase.from('number_pool').select('*').order('number');setNumbers(pool||[]);
-  const {data:state}=await supabase.from('league_state').select('data').eq('season_name','irl-league').single();setSeason(state?.data?.activeSeasonId||'');const current=state?.data?.seasons?.find(s=>s.id===state?.data?.activeSeasonId);setRoster(current?.drivers||[]);
   if(admin){const {data:cases,error:e}=await supabase.from('brl_bank_cases').select('*').eq('status','pending').order('created_at');if(e)throw e;setPending(cases||[]);}
- },[selected,team,driverId,admin]);
+ },[selected,team,driverId,admin,showHistorical]);
  useEffect(()=>{let live=true;const refresh=()=>load().catch(e=>{if(live)setError(e.message);});refresh();const timer=setInterval(refresh,15000);return()=>{live=false;clearInterval(timer);};},[load]);
  async function run(fn,message='Saved.') {if(busy)return;setBusy(true);setError('');setStatus('');try{await fn();await load();setStatus(message);}catch(e){setError(e.message);}finally{setBusy(false);}}
  const a=data?.account,owner=a?.kind==='team',driver=a?.kind==='driver';
@@ -33,7 +38,7 @@ export default function BankingPanel({team='',driverId='',admin=false,initialTab
  async function createOffer(e){e.preventDefault();await run(()=>bankCall('offer',{season_value:season,team_value:a.subject,driver_value:offer.driver,role_value:offer.role,total_value:Number(offer.total),method:offer.method,payment_schedule:makePaySchedule(offer.total,offer.method,offer.dates,offer.weeks),share:Number(offer.share)/100}),'Offer sent. Funds are reserved when the driver accepts.');}
  async function sendRequest(e){e.preventDefault();await run(()=>bankCall('request',{team_value:owner?a.subject:contracts.find(c=>c.id===request.contract)?.team,kind_value:driver?'buyout':request.kind,reason_value:request.reason,amount_value:Number(request.amount||0),details:{contract_id:request.contract,chapter:request.chapter,destination_team:request.destination}}),'Request sent for admin review.');}
  return <section className="brl-bank" aria-label="League banking">
-  <header><div><small>BRL FINANCIAL CENTER</small><h2>{accountName(a)||'Team banking'}</h2><p>Payments, agreements and a complete transaction history.</p></div><select aria-label="Bank account" value={selected} onChange={e=>setSelected(e.target.value)}>{accounts.map(row=><option key={row.id} value={row.id}>{accountName(row)} · {row.kind}</option>)}</select></header>
+  <header><div><small>BRL FINANCIAL CENTER</small><h2>{accountName(a)||'Team banking'}</h2><p>Payments, agreements and a complete transaction history.</p></div>{admin&&<label><input type="checkbox" checked={showHistorical} onChange={e=>{setShowHistorical(e.target.checked);setSelected('');setData(null);}}/> Include historical accounts</label>}<select aria-label="Bank account" value={selected} onChange={e=>setSelected(e.target.value)}>{accounts.map(row=><option key={row.id} value={row.id}>{accountName(row)} · {row.kind}</option>)}</select></header>
   {error&&<p role="alert" className="bank-error">{error}</p>}{status&&<p role="status">{status}</p>}
   {settings?.enabled===false&&<p className="bank-banner">Banking is paused. Balances and transaction history remain available. Automatic payments are paused.</p>}
   {!a&&!error&&<p>{loaded?'Your team account has not been prepared yet. Contact league administration to set it up.':'Loading account…'}</p>}
