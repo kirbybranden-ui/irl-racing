@@ -26,8 +26,8 @@ export function DesignTerms({ terms: t }) {
 }
 export function BudgetCenter({ data, busy, run }) {
   const deadline = data.rules.loanDeadlineSeason === data.seasonId ? data.rules.loanDeadline : null;
-  return <><PayrollFunding data={data} busy={busy} run={run}/><h2>League financing controls</h2><p><strong>League treasury: {money(data.balances.find(b=>b.kind==="treasury")?.balance)}</strong></p><p>The complete funding planner replaces manual startup releases and includes the required salary and operating breakdown.</p>
-    <form className="career-form career-card" onSubmit={e => {e.preventDefault();const f=new FormData(e.currentTarget);run("set_finance_deadline",{deadline:new Date(field(f,"deadline")).toISOString()});}}><h3>Regular-season loan deadline</h3><p>0% until this pre-Chase deadline. Unpaid principal receives one 10% charge; no compounding. The deadline locks after the first season loan is funded.</p><label>Pre-Chase repayment deadline (your local time)<input required name="deadline" type="datetime-local" /></label>{deadline && <p>Current deadline: {new Date(deadline).toLocaleString()}</p>}<button disabled={busy}>Save season deadline</button></form>
+  return <><PayrollFunding data={data} busy={busy} run={run}/><details className="funding-details"><summary>Loan repayment deadline</summary>
+    <form className="career-form career-card" onSubmit={e => {e.preventDefault();const f=new FormData(e.currentTarget);run("set_finance_deadline",{deadline:new Date(field(f,"deadline")).toISOString()});}}><h3>Regular-season loan deadline</h3><p>0% until this pre-Chase deadline. Unpaid principal receives one 10% charge; no compounding. The deadline locks after the first season loan is funded.</p><label>Pre-Chase repayment deadline (your local time)<input required name="deadline" type="datetime-local" /></label>{deadline && <p>Current deadline: {new Date(deadline).toLocaleString()}</p>}<button disabled={busy}>Save season deadline</button></form></details>
     
   </>;
 }
