@@ -16,7 +16,7 @@ export default function InSeasonChallengeControl({ season, onSave }) {
         finally { setBusy(false); }
       }} style={{ minHeight: 46, padding: "12px 20px", border: 0, borderRadius: 4, fontWeight: 900, background: enabled ? "#111216" : "#d71920", color: "#fff", cursor: busy ? "wait" : "pointer" }}>{busy ? "Saving…" : `Turn ${enabled ? "Off" : "On"}`}</button>
     </div>
-    <p style={{ margin: "12px 0 0", color: "#686b70", fontSize: 13, lineHeight: 1.5 }}>Controls challenge access and links on mobile and desktop. Race results are kept when it is off.</p>
+    <p style={{ margin: "12px 0 0", color: "#686b70", fontSize: 13, lineHeight: 1.5 }}>Off by default. Turn on to show the tournament on the mobile homepage and in mobile/desktop navigation. Turning it off hides the tournament without deleting results.</p>
     {status && <p role="status" style={{ margin: "10px 0 0", fontSize: 13 }}>{status}</p>}
     {error && <p role="alert" style={{ margin: "10px 0 0", color: "#b91c1c" }}>{error}</p>}
   </section>;
