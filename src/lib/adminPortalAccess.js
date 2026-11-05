@@ -7,7 +7,7 @@ export function canUseAdminRoute(access, path) {
   if (path === "/admin") return true;
   if (path === "/admin/race-recorder") return isFullAdmin(access) || access.roles?.includes("race_recorder") === true;
   if (["/admin/support"].includes(path)) return isSupportStaff(access);
-  if (["/admin/funding", "/admin/appointments", "/admin/broadcasts", "/admin/manufacturer-leases"].includes(path)) return access.isSuperAdmin === true;
+  if (["/admin/contracts", "/admin/funding", "/admin/appointments", "/admin/broadcasts", "/admin/manufacturer-leases"].includes(path)) return access.isSuperAdmin === true;
   return isFullAdmin(access);
 }
 export const ADMIN_WORKSPACES = [
