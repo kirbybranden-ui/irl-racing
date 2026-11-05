@@ -14,7 +14,7 @@ let lastReadUser;
 supabase.auth.onAuthStateChange((event,session)=>{const user=session?.user?.id||null;if(event==="SIGNED_OUT"||(lastReadUser!==undefined&&lastReadUser!==user))careerReader.invalidate();lastReadUser=user;});
 export async function careerRead(){return careerReader.read();}
 export async function careerAction(action, payload) {
-  const { data, error } = action === "prepare_support" ? await supabase.rpc("brl_support_prepare",{payload}) : await supabase.rpc(action === "fund_payroll" ? "brl_fund_payroll" : action === "owner_payroll" ? "brl_owner_payroll_offer" : action === "review_team_finance" ? "brl_review_team_finance" : action === "set_funding_champion" ? "brl_set_funding_champion" : "brl_career_action", ["fund_payroll", "owner_payroll", "review_team_finance", "set_funding_champion"].includes(action) ? { payload } : { action_value: action, payload });
+  const { data, error } = ["fund_treasury","reconcile_funding"].includes(action) ? await supabase.rpc("brl_funding_console_action",{action_value:action,payload}) : action === "prepare_support" ? await supabase.rpc("brl_support_prepare",{payload}) : await supabase.rpc(action === "fund_payroll" ? "brl_fund_payroll" : action === "owner_payroll" ? "brl_owner_payroll_offer" : action === "review_team_finance" ? "brl_review_team_finance" : action === "set_funding_champion" ? "brl_set_funding_champion" : "brl_career_action", ["fund_payroll", "owner_payroll", "review_team_finance", "set_funding_champion"].includes(action) ? { payload } : { action_value: action, payload });
   if (error) throw new Error(error.message);
   careerReader.invalidate();
   refreshLeagueAccess().catch(error=>console.warn("Saved career action; permission refresh failed:",error));
