@@ -533,6 +533,7 @@ export default function AdminPortal({
   }
 
   function openFinanceDepartment(section = "overview") {
+    if (access?.isSuperAdmin && ["overview", "budget"].includes(section)) { window.location.assign("/admin/funding#budgets"); return; }
     closeWorkspace();
     setFinanceDepartmentOpen(true);
     setFinanceAction(section);
