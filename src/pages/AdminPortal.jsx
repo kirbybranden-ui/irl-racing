@@ -1,3 +1,5 @@
+import AdminHome from "../components/admin/AdminHome";
+import {ADMIN_TASKS,visibleAdminTasks} from "../lib/adminNavigation";
 import AdminWorkspaceNav from "../components/admin/AdminWorkspaceNav";
 import LeagueBudgetAdmin from "../components/admin/LeagueBudgetAdmin";
 import PasswordResetAdmin from "../components/admin/PasswordResetAdmin";
@@ -292,8 +294,9 @@ export default function AdminPortal({
   const [adminMessagesOpen, setAdminMessagesOpen] = useState(false);
   const [adminComposerOpen, setAdminComposerOpen] = useState(false);
   const [adminUnreadMessages, setAdminUnreadMessages] = useState([]);
-  const [openIssueCount, setOpenIssueCount] = useState(0);
+  const [openIssueCount, setOpenIssueCount] = useState(null);
   const [adminMessagesLoading, setAdminMessagesLoading] = useState(false);
+  const [adminMessageCountReady,setAdminMessageCountReady]=useState(false);
   const [adminMessagesError, setAdminMessagesError] = useState("");
   const [financeTransactions, setFinanceTransactions] = useState([]);
   const [financeLoading, setFinanceLoading] = useState(false);
@@ -331,8 +334,11 @@ export default function AdminPortal({
   }, []);
 
   const isAdminMobile = adminViewportWidth < 760;
-  const workspaceOpen = quickAddDriverOpen || publicRelationsOpen || hrDepartmentOpen || raceOperationsOpen || financeDepartmentOpen || settingsOpen || adminMessagesOpen || arcaOperationsOpen;
+  const [portalTask,setPortalTask]=useState("");
+  const [auxiliaryTask,setAuxiliaryTask]=useState("");
+  const workspaceOpen = Boolean(auxiliaryTask) || quickAddDriverOpen || publicRelationsOpen || hrDepartmentOpen || raceOperationsOpen || financeDepartmentOpen || settingsOpen || adminMessagesOpen || arcaOperationsOpen;
   function closeWorkspace() {
+    setAuxiliaryTask("");
     setQuickAddDriverOpen(false);
     setPublicRelationsOpen(false);
     setHrDepartmentOpen(false);
@@ -455,11 +461,13 @@ export default function AdminPortal({
     if (error) {
       console.error("Could not load admin unread messages:", error);
       setAdminMessagesError("Could not load unread messages. Check league_messages select policy.");
+      setAdminMessageCountReady(false);
       setAdminUnreadMessages([]);
       setAdminMessagesLoading(false);
       return;
     }
 
+    setAdminMessageCountReady(true);
     setAdminUnreadMessages(data || []);
     setAdminMessagesLoading(false);
   }
@@ -669,7 +677,6 @@ export default function AdminPortal({
 
   useEffect(() => {
     loadAdminUnreadMessages();
-    loadFinanceDepartment();
     loadOpenIssueCount();
     const interval = setInterval(() => {
       loadAdminUnreadMessages();
@@ -1352,161 +1359,74 @@ export default function AdminPortal({
   };
 
 
+
+  const joinRequestsPanel = (<div id="admin-join-requests" style={{ borderRadius: 24, background: "#ffffff", border: "1px solid #e5e7eb", padding: 16, marginBottom: 14, scrollMarginTop: 24 }}>
+                    <h3 style={{ margin: "0 0 6px", fontSize: 21, letterSpacing: -0.4 }}>Pending Driver Requests ({pendingHrRequestCount})</h3>
+                    <p style={{ margin: "0 0 12px", color: "#6b7280", fontWeight: 750 }}>All league and series request-to-join submissions feed into this HR queue.</p>
+                    {pendingDriverError && <p role="alert" style={{ color: "#a31820", fontWeight: 800 }}>{pendingDriverError}</p>}
+                    {pendingHrRequestCount === 0 ? (
+                      <div style={{ borderRadius: 20, padding: 16, background: "#f5f5f7", color: "#6b7280", fontWeight: 850 }}>No pending league join requests right now.</div>
+                    ) : (
+                      <div style={{ display: "grid", gap: 10 }}>
+                        {(pendingDrivers || []).map((d) => (
+                          <div key={d.id} style={{ ...walletTransactionRowStyle, alignItems: isAdminMobile ? "flex-start" : "center", flexDirection: isAdminMobile ? "column" : "row" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                              <div style={walletIconStyle}>#{d.car_number || "?"}</div>
+                              <div>
+                                <div style={{ fontWeight: 1000 }}>{d.driver_name || "Pending Driver"}</div>
+                                <div style={{ color: "#6b7280", fontWeight: 750, fontSize: 13 }}>{d.series_name || "League"} · {d.manufacturer || "Manufacturer TBD"} · {d.team_name || "Team TBD"}</div>
+                                {d.requested_owner && <div style={{ color: "#a31820", fontWeight: 900, fontSize: 13, marginTop: 4 }}>OWNER REQUEST · {getRequestOwner(d) ? `Current owner: #${getRequestOwner(d).owner_driver_number} ${getRequestOwner(d).owner_driver_name}` : "No owner currently assigned"}</div>}
+                                {d.requested_owner && !getRequestTeamKey(d) && <div style={{ color: "#a31820", fontSize: 12 }}>Create this team before granting owner access.</div>}
+                              </div>
+                            </div>
+                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginLeft: isAdminMobile ? 0 : "auto" }}>
+                              <button onClick={() => approvePendingDriver(d, false)} style={{ ...primaryButtonStyle, padding: "8px 12px", fontSize: 12 }}>Approve Driver</button>
+                              {d.requested_owner && <button disabled={!getRequestTeamKey(d)} onClick={() => approvePendingDriver(d, true)} style={{ ...adminSecondaryButtonStyle, padding: "8px 12px", fontSize: 12, opacity: getRequestTeamKey(d) ? 1 : 0.5 }}>Approve Driver + Owner</button>}
+                              <button onClick={() => rejectPendingDriver(d)} style={{ ...dangerButtonStyle, padding: "8px 12px", fontSize: 12 }}>Reject</button>
+                            </div>
+                          </div>
+                        ))}
+                        {pendingSeriesJoinRequests.map((request) => (
+                          <div key={request.id} style={{ ...walletTransactionRowStyle, alignItems: isAdminMobile ? "flex-start" : "center", flexDirection: isAdminMobile ? "column" : "row" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                              <div style={walletIconStyle}>#{request.preferredNumber || "?"}</div>
+                              <div>
+                                <div style={{ fontWeight: 1000 }}>{request.username || request.gamertag || "Pending League Request"}</div>
+                                <div style={{ color: "#6b7280", fontWeight: 750, fontSize: 13 }}>{request.seriesName || request.seriesId || "Series TBD"} · {request.preferredTeam || "Team TBD"} · {request.role || "Driver"}</div>
+                                {request.notes && <div style={{ color: "#4b5563", fontWeight: 700, fontSize: 13, marginTop: 4 }}>{request.notes}</div>}
+                              </div>
+                            </div>
+                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginLeft: isAdminMobile ? 0 : "auto" }}>
+                              <button onClick={() => updateSeriesJoinRequestStatus(request.id, "approved")} style={{ ...primaryButtonStyle, padding: "8px 12px", fontSize: 12 }}>Approve</button>
+                              <button onClick={() => updateSeriesJoinRequestStatus(request.id, "denied")} style={{ ...dangerButtonStyle, padding: "8px 12px", fontSize: 12 }}>Deny</button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>);
+  function goAdminHome(){closeWorkspace();setPortalTask('');window.history.pushState(null,'','/admin');}
+  function navigatePortalTask(id,writeHistory=true){
+    const task=visibleAdminTasks(access).find(t=>t.id===id);
+    if(!task||!task.path.startsWith('/admin?task='))return;
+    closeWorkspace();setPortalTask(id);
+    const actions={'add-driver':()=>setQuickAddDriverOpen(true),join:()=>setAuxiliaryTask('join'),roster:()=>openHrDepartment('drivers'),owners:()=>openHrDepartment('owners'),access:()=>openHrDepartment('access'),tracks:()=>openRaceOperations('tracks'),drafts:()=>openRaceOperations('drafts'),'race-history':()=>openRaceOperations('history'),arca:()=>openArcaOperations('races'),banking:()=>openFinanceDepartment('transactions'),contracts:()=>openFinanceDepartment('contracts'),ticker:()=>openPublicRelations('ticker'),winner:()=>openPublicRelations('winner'),media:()=>openPublicRelations('media'),watch:()=>openPublicRelations('watch'),settings:openSettings};
+    if(actions[id])actions[id]();else setAuxiliaryTask(id);
+    if(writeHistory)window.history.pushState(null,'',task.path);
+  }
+  useEffect(()=>{
+    const sync=()=>{const id=new URLSearchParams(window.location.search).get('task');if(id)navigatePortalTask(id,false);else{closeWorkspace();setPortalTask('');}};
+    sync();window.addEventListener('popstate',sync);return()=>window.removeEventListener('popstate',sync);
+  },[access?.userId]);
   return (
-    <div style={applePageStyle}>
-      <PasswordResetAdmin/>
-      {adminMenuOpen && (
-        <>
-          <button
-            type="button"
-            aria-label="Close admin menu"
-            onClick={() => setAdminMenuOpen(false)}
-            style={adminMenuBackdropStyle}
-          />
-          <div style={adminMenuPanelStyle}>
-            <div style={{ padding: "8px 10px 12px", borderBottom: "1px solid #e5e7eb", marginBottom: 8 }}>
-              <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.5, textTransform: "uppercase", color: "#6b7280" }}>Admin Menu</div>
-              <div style={{ fontSize: 20, fontWeight: 1000, color: "#111827" }}>League Control</div>
-            </div>
-
-            <div style={{ display: "grid", gap: 6 }}>
-              {adminMenuItems.map((item) => (
-                <button
-                  key={item.label}
-                  type="button"
-                  onClick={() => {
-                    setAdminMenuOpen(false);
-                    item.action?.();
-                  }}
-                  style={{
-                    border: 0,
-                    borderRadius: 14,
-                    background: item.primary ? "#111827" : item.danger ? "#fff1f2" : "#f8fafc",
-                    color: item.primary ? "#ffffff" : item.danger ? "#b42318" : "#111827",
-                    padding: "12px 14px",
-                    textAlign: "left",
-                    fontWeight: 900,
-                    cursor: "pointer",
-                  }}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </>
-      )}
-      <div style={appleContainerStyle}>
-        {/* Header */}
-        <div data-brl-surface="section" style={{ ...appleCardStyle, marginBottom: 22, padding: 22 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 18, flexWrap: "wrap" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-              <div style={{ width: 62, height: 62, borderRadius: 18, background: "linear-gradient(135deg, #111827, #3b4252)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 18px 35px rgba(15,23,42,0.18)", overflow: "hidden" }}>
-                <img src={logo} alt="League Logo" style={{ height: 50, objectFit: "contain" }} />
-              </div>
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 2, textTransform: "uppercase", opacity: 0.62 }}>Budweiser Motorsports</div>
-                <div style={{ fontSize: 34, fontWeight: 1000, letterSpacing: -1, fontStyle: "italic", textTransform: "uppercase" }}>Admin Portal</div>
-                <div style={{ opacity: 0.68, marginTop: 2 }}>Season {activeSeason?.name || "2"} · league operations</div>
-              </div>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <button
-                type="button"
-                aria-label="Go to standings home page"
-                onClick={goStandings}
-                style={{ ...adminMessageIconButtonStyle, background: "linear-gradient(180deg, #ffd60a 0%, #ff9f0a 100%)", boxShadow: "0 16px 38px rgba(255,159,10,0.30)" }}
-                title="Home / Standings"
-              >
-                🏠
-              </button>
-
-              <button
-                type="button"
-                aria-label="Exit Admin Portal"
-                onClick={() => (window.location.pathname = "/")}
-                style={{ ...adminMessageIconButtonStyle, background: "linear-gradient(180deg, #ff453a 0%, #b91c1c 100%)", boxShadow: "0 16px 38px rgba(255,69,58,0.30)" }}
-                title="Exit Admin Portal"
-              >
-                🚪
-              </button>
-
-              <button
-                type="button"
-                aria-label="Open admin messages"
-                onClick={openAdminMessages}
-                style={adminMessageIconButtonStyle}
-                title="Messages"
-              >
-                💬
-                {adminUnreadCount > 0 && <span style={adminMessageBadgeStyle}>{adminUnreadCount > 99 ? "99+" : adminUnreadCount}</span>}
-              </button>
-
-              <div style={{ position: "relative" }}>
-                <button
-                  type="button"
-                  aria-label="Open admin menu"
-                  onClick={() => setAdminMenuOpen((open) => !open)}
-                  style={adminMenuButtonStyle}
-                >
-                  <span style={adminMenuLineStyle} />
-                  <span style={adminMenuLineStyle} />
-                  <span style={adminMenuLineStyle} />
-                </button>
-
-
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {!workspaceOpen && <AdminWorkspaceNav access={access} home embedded/>}
-
-        {!workspaceOpen && currentSession?.roles?.includes("full_admin") && <InSeasonChallengeControl key={activeSeason?.id} season={activeSeason} onSave={onSaveInSeasonChallenge} />}
-
-        {!workspaceOpen && <section style={{ background: "#f7f7f5", borderTop: "4px solid #d71920", padding: isAdminMobile ? "22px 4px" : "30px 8px", marginBottom: 28 }}>
-          <div style={{ color: "#d71920", fontSize: 11, fontWeight: 1000, letterSpacing: 2, textTransform: "uppercase" }}>BRL / Operations</div>
-          <h1 style={{ margin: "6px 0", color: "#111216", fontSize: isAdminMobile ? 36 : 52, fontStyle: "italic", textTransform: "uppercase", letterSpacing: -1.5, lineHeight: 1 }}>Race Control</h1>
-          <p style={{ margin: "8px 0 22px", color: "#4b5563", fontWeight: 700 }}>Choose a task. Each shortcut opens the working screen directly.</p>
-
-          <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "repeat(2, minmax(0, 1fr))" : "repeat(4, minmax(0, 1fr))", borderTop: "2px solid #111216" }}>
-            {[
-              ["Add Driver", "New roster entry", () => { closeWorkspace(); setQuickAddDriverOpen(true); }],
-              ["Join Requests", `${pendingHrRequestCount} pending`, () => { openHrDepartment("drivers"); requestAnimationFrame(() => setTimeout(() => document.getElementById("admin-join-requests")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50)); }],
-              ["Access Codes", "Drivers & owners", () => openHrDepartment("access")],
-              ["Appeals", `${openAppealCount || 0} open`, () => openHrDepartment("appeals")],
-              ["Race Input", selectedRace || "Select race", () => openRaceOperations("input")],
-              ["Saved Drafts", `${(raceDrafts || []).length} drafts`, () => openRaceOperations("drafts")],
-              ["Tracks", `${(tracks || []).length} tracks`, () => openRaceOperations("tracks")],
-              ["Race History", `${raceHistory.length} posted`, () => openRaceOperations("history")],
-              ["Contracts", "Review offers", () => openFinanceDepartment("contracts")],
-              ["Transactions", "Payments & fines", () => openFinanceDepartment("transactions")],
-              ["Ticker", "Publish updates", () => openPublicRelations("ticker")],
-              ["Winner Spotlight", "Feature winner", () => openPublicRelations("winner")],
-              ["Interviews", "Review & post", () => openPublicRelations("interviews")],
-              ["Messages", `${adminUnreadCount} unread`, openAdminMessages],
-              ["Settings", "Seasons & backups", openSettings],
-            ].map(([label, detail, action]) => (
-              <button key={label} type="button" onClick={action} style={{ minWidth: 0, minHeight: 92, padding: "16px 12px", textAlign: "left", cursor: "pointer", background: "transparent", border: 0, borderBottom: "1px solid #cfd0d2", borderRight: "1px solid #cfd0d2", color: "#111216", fontFamily: "inherit" }}>
-                <strong style={{ display: "block", fontSize: isAdminMobile ? 15 : 18, lineHeight: 1.1, textTransform: "uppercase" }}>{label} <span style={{ color: "#d71920" }}>↗</span></strong>
-                <span style={{ display: "block", marginTop: 8, fontSize: 12, color: "#666970", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{detail}</span>
-              </button>
-            ))}
-          </div>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 20 }}>
-            {[
-              ["Teams & Logos", () => openHrDepartment("owners")],
-              ["Voting", () => openRaceOperations("voting")],
-              ["Issues", () => (window.location.pathname = "/admin/issues")],
-              ["Permissions", () => (window.location.pathname = "/admin/permissions")],
-              ["Stories", () => openPublicRelations("stories")],
-            ].map(([label, action]) => <button key={label} type="button" onClick={action} style={{ ...adminSecondaryButtonStyle, borderRadius: 2 }}>{label} ↗</button>)}
-          </div>
-        </section>}
-
-        {workspaceOpen && <button type="button" onClick={closeWorkspace} style={{ ...adminSecondaryButtonStyle, borderRadius: 2, marginBottom: 18 }}>← Admin Home</button>}
-        <RaceApprovalQueue drivers={visibleDrivers || drivers || []} tracks={tracks || []} onApprove={approveRaceSubmission} />
-
+    <AdminWorkspaceNav access={access} currentTask={portalTask||'home'} onNavigate={navigatePortalTask}>
+      <div className="admin-legacy-workspace">
+        {!workspaceOpen && <AdminHome access={access} seasonName={activeSeason?.name} pendingDrivers={pendingHrRequestCount} unread={adminMessageCountReady?adminUnreadCount:null} issues={openIssueCount}/>}
+        {workspaceOpen && <header className="admin-section-toolbar"><h1>{ADMIN_TASKS.find(t=>t.id===portalTask)?.label||'League workspace'}</h1><button type="button" onClick={goAdminHome}>← Overview</button></header>}
+        {auxiliaryTask==='join'&&joinRequestsPanel}
+        {auxiliaryTask==='passwords'&&<PasswordResetAdmin/>}
+        {auxiliaryTask==='race-reviews'&&<RaceApprovalQueue drivers={visibleDrivers || drivers || []} tracks={tracks || []} onApprove={approveRaceSubmission}/>}
+        {auxiliaryTask==='challenge'&&<InSeasonChallengeControl key={activeSeason?.id} season={activeSeason} onSave={onSaveInSeasonChallenge}/>}
         {quickAddDriverOpen && <section style={{ borderTop: "4px solid #d71920", padding: "24px 0", maxWidth: 900 }}>
           <div style={{ color: "#d71920", fontSize: 11, fontWeight: 1000, letterSpacing: 2, textTransform: "uppercase" }}>Human Resources / Roster</div>
           <h2 style={{ margin: "6px 0 18px", fontSize: isAdminMobile ? 32 : 44, fontStyle: "italic", textTransform: "uppercase" }}>Add Driver</h2>
@@ -1530,11 +1450,11 @@ export default function AdminPortal({
                   <h1 style={prTitleStyle}>Public Relations</h1>
                   <p style={{ margin: "6px 0 0", color: "#4b5563", fontWeight: 750, maxWidth: 760 }}>Board posting center for ticker promos, previous race winner spotlights, featured media, Ones to Watch, stories, and interviews.</p>
                 </div>
-                <button type="button" onClick={() => setPublicRelationsOpen(false)} style={{ flex: "0 0 auto", border: 0, borderRadius: 999, background: "#ffffff", color: "#111827", width: isAdminMobile ? 42 : 46, height: isAdminMobile ? 42 : 46, fontSize: 23, fontWeight: 1000, cursor: "pointer", boxShadow: "0 8px 20px rgba(15,23,42,0.12)" }}>×</button>
+                <button type="button" onClick={goAdminHome} style={{ flex: "0 0 auto", border: 0, borderRadius: 999, background: "#ffffff", color: "#111827", width: isAdminMobile ? 42 : 46, height: isAdminMobile ? 42 : 46, fontSize: 23, fontWeight: 1000, cursor: "pointer", boxShadow: "0 8px 20px rgba(15,23,42,0.12)" }}>×</button>
               </div>
 
 
-              <div style={prTabBarStyle}>
+              <div data-admin-tabs style={prTabBarStyle}>
                 {[
                   ["overview", "PR Home"],
                   ["ticker", "Ticker"],
@@ -1937,7 +1857,7 @@ export default function AdminPortal({
                   <h1 style={{ margin: "2px 0 0", fontSize: isAdminMobile ? 34 : 42, letterSpacing: -1.6 }}>Human Resources</h1>
                   <p style={{ margin: "6px 0 0", color: "#4b5563", fontWeight: 750 }}>People operations for drivers, owners, assignments, access, appeals, and contracts.</p>
                 </div>
-                <button type="button" onClick={() => setHrDepartmentOpen(false)} style={{ border: 0, borderRadius: 999, background: "#ffffff", color: "#111827", width: 46, height: 46, fontSize: 23, fontWeight: 1000, cursor: "pointer", boxShadow: "0 8px 20px rgba(15,23,42,0.12)" }}>×</button>
+                <button type="button" onClick={goAdminHome} style={{ border: 0, borderRadius: 999, background: "#ffffff", color: "#111827", width: 46, height: 46, fontSize: 23, fontWeight: 1000, cursor: "pointer", boxShadow: "0 8px 20px rgba(15,23,42,0.12)" }}>×</button>
               </div>
 
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 18 }}>
@@ -2065,51 +1985,7 @@ export default function AdminPortal({
                     </div>
                   </div>
 
-                  <div id="admin-join-requests" style={{ borderRadius: 24, background: "#ffffff", border: "1px solid #e5e7eb", padding: 16, marginBottom: 14, scrollMarginTop: 24 }}>
-                    <h3 style={{ margin: "0 0 6px", fontSize: 21, letterSpacing: -0.4 }}>Pending Driver Requests ({pendingHrRequestCount})</h3>
-                    <p style={{ margin: "0 0 12px", color: "#6b7280", fontWeight: 750 }}>All league and series request-to-join submissions feed into this HR queue.</p>
-                    {pendingDriverError && <p role="alert" style={{ color: "#a31820", fontWeight: 800 }}>{pendingDriverError}</p>}
-                    {pendingHrRequestCount === 0 ? (
-                      <div style={{ borderRadius: 20, padding: 16, background: "#f5f5f7", color: "#6b7280", fontWeight: 850 }}>No pending league join requests right now.</div>
-                    ) : (
-                      <div style={{ display: "grid", gap: 10 }}>
-                        {(pendingDrivers || []).map((d) => (
-                          <div key={d.id} style={{ ...walletTransactionRowStyle, alignItems: isAdminMobile ? "flex-start" : "center", flexDirection: isAdminMobile ? "column" : "row" }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                              <div style={walletIconStyle}>#{d.car_number || "?"}</div>
-                              <div>
-                                <div style={{ fontWeight: 1000 }}>{d.driver_name || "Pending Driver"}</div>
-                                <div style={{ color: "#6b7280", fontWeight: 750, fontSize: 13 }}>{d.series_name || "League"} · {d.manufacturer || "Manufacturer TBD"} · {d.team_name || "Team TBD"}</div>
-                                {d.requested_owner && <div style={{ color: "#a31820", fontWeight: 900, fontSize: 13, marginTop: 4 }}>OWNER REQUEST · {getRequestOwner(d) ? `Current owner: #${getRequestOwner(d).owner_driver_number} ${getRequestOwner(d).owner_driver_name}` : "No owner currently assigned"}</div>}
-                                {d.requested_owner && !getRequestTeamKey(d) && <div style={{ color: "#a31820", fontSize: 12 }}>Create this team before granting owner access.</div>}
-                              </div>
-                            </div>
-                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginLeft: isAdminMobile ? 0 : "auto" }}>
-                              <button onClick={() => approvePendingDriver(d, false)} style={{ ...primaryButtonStyle, padding: "8px 12px", fontSize: 12 }}>Approve Driver</button>
-                              {d.requested_owner && <button disabled={!getRequestTeamKey(d)} onClick={() => approvePendingDriver(d, true)} style={{ ...adminSecondaryButtonStyle, padding: "8px 12px", fontSize: 12, opacity: getRequestTeamKey(d) ? 1 : 0.5 }}>Approve Driver + Owner</button>}
-                              <button onClick={() => rejectPendingDriver(d)} style={{ ...dangerButtonStyle, padding: "8px 12px", fontSize: 12 }}>Reject</button>
-                            </div>
-                          </div>
-                        ))}
-                        {pendingSeriesJoinRequests.map((request) => (
-                          <div key={request.id} style={{ ...walletTransactionRowStyle, alignItems: isAdminMobile ? "flex-start" : "center", flexDirection: isAdminMobile ? "column" : "row" }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                              <div style={walletIconStyle}>#{request.preferredNumber || "?"}</div>
-                              <div>
-                                <div style={{ fontWeight: 1000 }}>{request.username || request.gamertag || "Pending League Request"}</div>
-                                <div style={{ color: "#6b7280", fontWeight: 750, fontSize: 13 }}>{request.seriesName || request.seriesId || "Series TBD"} · {request.preferredTeam || "Team TBD"} · {request.role || "Driver"}</div>
-                                {request.notes && <div style={{ color: "#4b5563", fontWeight: 700, fontSize: 13, marginTop: 4 }}>{request.notes}</div>}
-                              </div>
-                            </div>
-                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginLeft: isAdminMobile ? 0 : "auto" }}>
-                              <button onClick={() => updateSeriesJoinRequestStatus(request.id, "approved")} style={{ ...primaryButtonStyle, padding: "8px 12px", fontSize: 12 }}>Approve</button>
-                              <button onClick={() => updateSeriesJoinRequestStatus(request.id, "denied")} style={{ ...dangerButtonStyle, padding: "8px 12px", fontSize: 12 }}>Deny</button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  <p><button onClick={()=>navigatePortalTask("join")}>Review driver applications · {pendingHrRequestCount}</button></p>
 
                   {editingDriverId && (
                     <div style={{ borderRadius: 24, background: "#ffffff", border: "1px solid #e5e7eb", padding: 16, marginBottom: 14 }}>
@@ -2463,7 +2339,7 @@ export default function AdminPortal({
                   <h1 style={{ margin: "2px 0 0", fontSize: 42, letterSpacing: -1.6 }}>Finance Department</h1>
                   <p style={{ margin: "6px 0 0", color: "#4b5563", fontWeight: 750 }}>League budgets, manufacturer costs, fines, payouts, contracts, and transaction history.</p>
                 </div>
-                <button type="button" onClick={() => setFinanceDepartmentOpen(false)} style={{ border: 0, borderRadius: 999, background: "#ffffff", color: "#111827", width: 46, height: 46, fontSize: 23, fontWeight: 1000, cursor: "pointer", boxShadow: "0 8px 20px rgba(15,23,42,0.12)" }}>×</button>
+                <button type="button" onClick={goAdminHome} style={{ border: 0, borderRadius: 999, background: "#ffffff", color: "#111827", width: 46, height: 46, fontSize: 23, fontWeight: 1000, cursor: "pointer", boxShadow: "0 8px 20px rgba(15,23,42,0.12)" }}>×</button>
               </div>
 
               <nav aria-label="Admin finance pages" style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:20}}>
@@ -2472,7 +2348,7 @@ export default function AdminPortal({
               </nav>
               {financeAction === "budget" ? <LeagueBudgetAdmin activeSeasonId={activeSeasonId} /> : <>
                 <NumberLeaseAdmin />
-                <BankingPanel admin />
+                <BankingPanel admin initialTab={financeAction === "contracts" ? "contracts" : "ledger"}/>
               </>}
             </div>
           </div>
@@ -2489,7 +2365,7 @@ export default function AdminPortal({
                   <h1 style={{ margin: "2px 0 0", fontSize: isAdminMobile ? 34 : 42, letterSpacing: -1.6 }}>Settings</h1>
                   <p style={{ margin: "6px 0 0", color: "#4b5563", fontWeight: 750 }}>Season Manager, backup controls, export tools, and data upload/restore live here.</p>
                 </div>
-                <button type="button" onClick={() => setSettingsOpen(false)} style={{ border: 0, borderRadius: 999, background: "#ffffff", color: "#111827", width: 46, height: 46, fontSize: 23, fontWeight: 1000, cursor: "pointer", boxShadow: "0 8px 20px rgba(15,23,42,0.12)" }}>×</button>
+                <button type="button" onClick={goAdminHome} style={{ border: 0, borderRadius: 999, background: "#ffffff", color: "#111827", width: 46, height: 46, fontSize: 23, fontWeight: 1000, cursor: "pointer", boxShadow: "0 8px 20px rgba(15,23,42,0.12)" }}>×</button>
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "minmax(320px, 0.9fr) minmax(420px, 1.2fr)", gap: 16, alignItems: "start" }}>
@@ -2564,7 +2440,7 @@ export default function AdminPortal({
               <aside style={appleMessagesSidebarStyle}>
                 <div style={appleMessagesTitleRowStyle}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <button type="button" aria-label="Close messages" onClick={() => setAdminMessagesOpen(false)} style={{ ...appleMessagesTrafficButtonStyle, background: "#ff5f57" }} />
+                    <button type="button" aria-label="Close messages" onClick={goAdminHome} style={{ ...appleMessagesTrafficButtonStyle, background: "#ff5f57" }} />
                     <span style={{ ...appleMessagesTrafficButtonStyle, background: "#ffbd2e" }} />
                     <span style={{ ...appleMessagesTrafficButtonStyle, background: "#28c840" }} />
                   </div>
@@ -2620,7 +2496,7 @@ export default function AdminPortal({
                     <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#8a8a8e" }}>Admin Communication</div>
                     <h2 style={{ margin: "2px 0 0", fontSize: 32, letterSpacing: -1 }}>{adminComposerOpen ? "Create Message" : "Unread Inbox"}</h2>
                   </div>
-                  <button type="button" onClick={() => setAdminMessagesOpen(false)} style={{ border: 0, borderRadius: 999, background: "#f2f2f7", color: "#111827", width: 42, height: 42, fontSize: 20, fontWeight: 1000, cursor: "pointer" }}>×</button>
+                  <button type="button" onClick={goAdminHome} style={{ border: 0, borderRadius: 999, background: "#f2f2f7", color: "#111827", width: 42, height: 42, fontSize: 20, fontWeight: 1000, cursor: "pointer" }}>×</button>
                 </div>
 
                 {adminComposerOpen ? (
@@ -2669,7 +2545,7 @@ export default function AdminPortal({
                   <h1 style={{ margin: "2px 0 0", fontSize: isAdminMobile ? 34 : 42, letterSpacing: -1.6 }}>ARCA Series</h1>
                   <p style={{ margin: "6px 0 0", color: "#4b5563", fontWeight: 750 }}>Manage ARCA race schedule, drivers, tracks, and results.</p>
                 </div>
-                <button type="button" onClick={() => setArcaOperationsOpen(false)} style={{ border: 0, borderRadius: 999, background: "#ffffff", color: "#111827", width: 46, height: 46, fontSize: 23, fontWeight: 1000, cursor: "pointer", boxShadow: "0 8px 20px rgba(15,23,42,0.12)" }}>×</button>
+                <button type="button" onClick={goAdminHome} style={{ border: 0, borderRadius: 999, background: "#ffffff", color: "#111827", width: 46, height: 46, fontSize: 23, fontWeight: 1000, cursor: "pointer", boxShadow: "0 8px 20px rgba(15,23,42,0.12)" }}>×</button>
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: isAdminMobile ? "1fr" : "repeat(3, minmax(180px, 1fr))", gap: 14, marginBottom: 18 }}>
@@ -3154,7 +3030,7 @@ export default function AdminPortal({
 
         {/* Race Operations moved out of Admin Home. Use the Race Operations menu item. */}
       </div>
-    </div>
+    </AdminWorkspaceNav>
   );
 
 }
