@@ -1,3 +1,4 @@
+import {careerRead} from "../../lib/career";
 import CharterFundingControls from "./CharterFundingControls";
 import React,{useCallback,useEffect,useState} from 'react';
 import {supabase} from '../../lib/supabase';
@@ -22,7 +23,8 @@ export default function BankingPanel({team='',driverId='',admin=false,initialTab
   const {data:state,error:stateError}=await supabase.from('league_state').select('data').eq('season_name','irl-league').single();if(stateError)throw stateError;
   const seasonId=state?.data?.activeSeasonId;if(!seasonId)throw new Error('Current season is unavailable. Refresh before selecting an account.');
   const current=state.data.seasons?.find(s=>s.id===seasonId);setSeason(seasonId);setRoster(current?.drivers||[]);
-  const {data:currentTeams,error:teamsError}=await supabase.from('brl_career_teams').select('code').eq('season_id',seasonId).eq('status','approved');if(teamsError)throw teamsError;
+  const career=admin&&!showHistorical?await careerRead():null;
+  const currentTeams=(career?.teams||[]).filter(t=>t.status==='approved'&&(!t.season_id||t.season_id===seasonId));
   const teamCodes=new Set((currentTeams||[]).map(t=>String(t.code))),driverIds=new Set((current?.drivers||[]).map(d=>String(d.id)));
   const visible=(rows||[]).filter(a=>a.kind!=='external').filter(a=>admin||(team?a.kind==='team'&&a.subject===team:a.kind==='driver'&&a.subject===String(driverId))).filter(a=>!admin||showHistorical||a.kind==='treasury'||a.kind==='manufacturer'||(a.kind==='team'&&teamCodes.has(String(a.subject)))||(a.kind==='driver'&&driverIds.has(String(a.subject))));
   setLoaded(true);setAccounts(visible);const id=visible.some(a=>a.id===selected)?selected:(visible.find(a=>admin&&a.kind==='treasury')||visible[0])?.id||'';setSelected(id);setData(id?await bankCall('read',{account:id}):null);
