@@ -34,7 +34,7 @@ import { AppShell } from "./components/layout/AppShell";
 import SchedulePage from "./pages/SchedulePage";
 import { supabase } from "./lib/supabase";
 import CarGalleryPage from "./CarGalleryPage";
-import PaintSchemeVotePage from "./PaintSchemeVotePage";
+
 import InterviewsPage from "./pages/InterviewsPage";
 import PublicInterviewsPage from "./pages/PublicInterviewsPage";
 import NewsPage from "./NewsPage";
@@ -1247,9 +1247,8 @@ function shouldShowPreviousPaintWinner(date = new Date()) {
 }
 
 function shouldShowPreviousRaceWinnerSpotlight(date = new Date()) {
-  // Race winner owns the main spotlight from race start Saturday night
-  // until the next paint scheme winner is revealed Wednesday night.
-  return !isPaintWinnerSpotlightWindow(date);
+  // The race winner remains visible throughout the week.
+  return true;
 }
 
 function getPaintWinnerRaceForCurrentWeek(tracks = [], date = new Date()) {
@@ -1287,165 +1286,11 @@ function isPaintImageUploadForStandings(upload) {
   return fileType.startsWith("image/") || url.match(/\.(jpg|jpeg|png|gif|webp)(\?|$)/i);
 }
 
-function PaintSchemeWinnerStandingsCard({ tracks = [], drivers = [] }) {
-  const [winners, setWinners] = useState([]);
-  const [raceName, setRaceName] = useState("");
-  const [loading, setLoading] = useState(true);
 
-  const spotlightRace = useMemo(() => getPaintWinnerRaceForCurrentWeek(tracks), [JSON.stringify((tracks || []).map((track) => ({ name: track?.name, date: track?.date }))) ]);
-  const spotlightRaceName = spotlightRace?.name || "";
-  const driversKeyForPaintWinner = useMemo(() => JSON.stringify((drivers || []).map((driver) => ({ id: driver?.id, number: driver?.number, name: driver?.name, team: driver?.team }))), [drivers]);
-  const showWinnerWindow = shouldShowPreviousPaintWinner();
-
-  useEffect(() => {
-    let isMounted = true;
-
-    async function loadWinner() {
-      if (!showWinnerWindow) {
-        if (isMounted) {
-          setWinners([]);
-          setRaceName("");
-          setLoading(false);
-        }
-        return;
-      }
-
-      if (!spotlightRaceName) {
-        if (isMounted) {
-          setWinners([]);
-          setRaceName("");
-          setLoading(false);
-        }
-        return;
-      }
-
-      const [{ data: uploadData, error: uploadError }, { data: voteData, error: voteError }] = await Promise.all([
-        supabase.from("car_uploads").select("*").order("uploaded_at", { ascending: false }),
-        supabase.from("paint_scheme_votes").select("*").order("created_at", { ascending: false }),
-      ]);
-
-      if (uploadError || voteError) {
-        console.error("Could not load upcoming paint scheme winner:", uploadError || voteError);
-        if (isMounted) {
-          setWinners([]);
-          setRaceName("");
-          setLoading(false);
-        }
-        return;
-      }
-
-      const raceUploads = (uploadData || [])
-        .filter((upload) => isPaintImageUploadForStandings(upload))
-        .filter((upload) => normalizeTrackName(getPaintUploadRaceForStandings(upload)) === normalizeTrackName(spotlightRaceName));
-
-      if (raceUploads.length === 0) {
-        if (isMounted) {
-          setWinners([]);
-          setRaceName(spotlightRaceName);
-          setLoading(false);
-        }
-        return;
-      }
-
-      const counts = new Map();
-      (voteData || []).forEach((vote) => {
-        const key = String(vote.upload_id || vote.voted_upload_id || vote.paint_scheme_id || vote.car_upload_id || "");
-        counts.set(key, (counts.get(key) || 0) + 1);
-      });
-
-      const sorted = [...raceUploads].sort((a, b) => {
-        const voteDiff = (counts.get(String(b.id)) || 0) - (counts.get(String(a.id)) || 0);
-        if (voteDiff !== 0) return voteDiff;
-        return new Date(b.uploaded_at || 0) - new Date(a.uploaded_at || 0);
-      });
-
-      const topVoteCount = counts.get(String(sorted[0]?.id)) || 0;
-
-      if (topVoteCount <= 0) {
-        if (isMounted) {
-          setWinners([]);
-          setRaceName(spotlightRaceName);
-          setLoading(false);
-        }
-        return;
-      }
-
-      const winningUploads = sorted.filter((upload) => (counts.get(String(upload.id)) || 0) === topVoteCount);
-      const enrichedWinners = winningUploads.map((winningUpload) => {
-        const driver = (drivers || []).find((item) => String(item.id) === String(winningUpload.driver_id));
-        return {
-          ...winningUpload,
-          voteCount: counts.get(String(winningUpload.id)) || 0,
-          driverLabel: driver ? `#${driver.number} ${driver.name}` : winningUpload.driver_name || winningUpload.uploader_name || "Unknown Driver",
-          teamLabel: driver?.team || winningUpload.team || winningUpload.team_key || "—",
-          imageUrl: winningUpload.image_url || winningUpload.file_url || "",
-        };
-      });
-
-      if (isMounted) {
-        setWinners(enrichedWinners);
-        setRaceName(spotlightRaceName);
-        setLoading(false);
-      }
-    }
-
-    loadWinner();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [spotlightRaceName, showWinnerWindow, driversKeyForPaintWinner]);
-
-  if (loading || winners.length === 0) return null;
-
-  return (
-    <div
-      style={{
-        background: "linear-gradient(135deg, rgba(212,175,55,0.18), rgba(15,23,42,0.96))",
-        border: "1px solid #d4af37",
-        borderRadius: 18,
-        padding: 16,
-        marginBottom: 20,
-        boxShadow: "0 12px 30px rgba(0,0,0,0.24)",
-        display: "grid",
-        gridTemplateColumns: winners.length > 1 ? "minmax(220px, 420px) 1fr" : "minmax(180px, 320px) 1fr",
-        gap: 18,
-        alignItems: "center",
-      }}
-    >
-      <div style={{ borderRadius: 14, overflow: "hidden", background: "#0f1319", border: "1px solid rgba(255,255,255,0.12)" }}>
-        <div style={{ display: "grid", gridTemplateColumns: winners.length > 1 ? "1fr 1fr" : "1fr", gap: winners.length > 1 ? 8 : 0 }}>
-          {winners.map((winner) => (
-            <img key={winner.id} src={winner.imageUrl} alt={winner.driverLabel} style={{ width: "100%", height: 190, objectFit: "cover", display: "block", borderRadius: winners.length > 1 ? 10 : 0 }} />
-          ))}
-        </div>
-      </div>
-
-      <div>
-        <div style={{ color: "#d4af37", fontSize: 12, fontWeight: 900, letterSpacing: 1.6, textTransform: "uppercase" }}>
-          Upcoming Race Paint Winner
-        </div>
-        <div style={{ fontSize: 30, fontWeight: 900, marginTop: 6 }}>
-          🎨 Paint Scheme of the Week
-        </div>
-        <div style={{ fontSize: 20, fontWeight: 900, marginTop: 8 }}>
-          {winners.map((winner) => winner.driverLabel).join(" + ")}
-        </div>
-        <div style={{ opacity: 0.75, marginTop: 4 }}>
-          {raceName} • {winners.length > 1 ? "Tie winners" : winners[0]?.teamLabel} • {winners[0]?.voteCount || 0} votes
-        </div>
-        <div style={{ opacity: 0.62, fontSize: 12, marginTop: 10 }}>
-          Paint winner spotlight runs Wednesday 11:59 PM ET through Saturday 9:30 PM ET.
-        </div>
-      </div>
-    </div>
-  );
-}
 
 
 function PreviousRaceWinnerStandingsCard() {
   const [winner, setWinner] = useState(null);
-  const showRaceWinnerWindow = shouldShowPreviousRaceWinnerSpotlight();
 
   useEffect(() => {
     let isMounted = true;
@@ -3161,441 +3006,7 @@ function getStreamYoutubeUrl(stream = {}) {
 }
 
 
-function MobilePaintSchemeVotesHub({ drivers = [], tracks = [], go, session = null }) {
-  const [uploads, setUploads] = useState([]);
-  const [votes, setVotes] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
-  const [selectedTrack, setSelectedTrack] = useState("");
-  const [driverNumber, setDriverNumber] = useState("");
-  const [password, setPassword] = useState("");
-  const [loggedInDriver, setLoggedInDriver] = useState(null);
-  const [selectedUploadId, setSelectedUploadId] = useState("");
-  const [submitting, setSubmitting] = useState(false);
 
-  const activeDrivers = useMemo(() => {
-    return dedupeDriversByNumber(drivers || [])
-      .filter((driver) => !driver.retired && !isInactivePlaceholderDriver(driver))
-      .sort((a, b) => Number(a.number || 9999) - Number(b.number || 9999));
-  }, [drivers]);
-
-  useEffect(() => {
-    if (session?.mode !== "driver") return;
-    const number = String(session.driverNumber || "").trim();
-    if (!number) return;
-    const rosterDriver = activeDrivers.find((driver) => String(driver.number) === number) || {};
-    setLoggedInDriver({
-      ...rosterDriver,
-      number,
-      driver_number: number,
-      name: session.driverName || rosterDriver.name || `#${number}`,
-      team: session.team || rosterDriver.team || "",
-      manufacturer: session.manufacturer || rosterDriver.manufacturer || "",
-    });
-    setDriverNumber(number);
-  }, [session, activeDrivers]);
-
-  async function loadPaintData() {
-    setLoading(true);
-    setError("");
-    const [{ data: uploadRows, error: uploadError }, { data: voteRows, error: voteError }] = await Promise.all([
-      supabase.from("car_uploads").select("*").order("uploaded_at", { ascending: false }),
-      supabase.from("paint_scheme_votes").select("*").order("created_at", { ascending: false }),
-    ]);
-
-    if (uploadError || voteError) {
-      console.error("Could not load mobile paint scheme voting data:", uploadError || voteError);
-      setError("Could not load paint schemes. Check car_uploads, paint_scheme_votes, and RLS policies.");
-      setUploads([]);
-      setVotes([]);
-    } else {
-      setUploads(uploadRows || []);
-      setVotes(voteRows || []);
-    }
-    setLoading(false);
-  }
-
-  useEffect(() => {
-    loadPaintData();
-  }, []);
-
-  const normalizeTrack = (value) => String(value || "").trim().toLowerCase();
-  const uploadTrackName = (upload) => getPaintUploadRaceForStandings(upload) || upload.race_name || upload.race || upload.track_name || upload.track || "Current Week";
-  const uploadImageUrl = (upload) => upload.image_url || upload.file_url || upload.secure_url || upload.url || upload.photo_url || "";
-  const uploadDriverNumber = (upload, rosterDriver) => String(rosterDriver?.number || upload.driver_number || upload.car_number || upload.number || "").trim();
-
-  const paintEntries = useMemo(() => {
-    const voteCounts = new Map();
-    (votes || []).forEach((vote) => {
-      const key = String(vote.upload_id || vote.voted_upload_id || vote.paint_scheme_id || vote.car_upload_id || "").trim();
-      if (!key) return;
-      voteCounts.set(key, (voteCounts.get(key) || 0) + 1);
-    });
-
-    return (uploads || [])
-      .filter((upload) => isPaintImageUploadForStandings(upload))
-      .map((upload) => {
-        const rosterDriver = activeDrivers.find((driver) => String(driver.id) === String(upload.driver_id) || String(driver.number) === String(upload.driver_number || upload.car_number || upload.number));
-        const imageUrl = uploadImageUrl(upload);
-        const driverNumberValue = uploadDriverNumber(upload, rosterDriver);
-        const driverName = rosterDriver?.name || upload.driver_name || upload.uploader_name || upload.name || (driverNumberValue ? `#${driverNumberValue}` : "Unknown Driver");
-        return {
-          ...upload,
-          imageUrl,
-          trackName: uploadTrackName(upload),
-          driverNumberValue,
-          driverName,
-          driverLabel: driverNumberValue ? `#${driverNumberValue} ${driverName}` : driverName,
-          teamLabel: getTeamFullName(rosterDriver?.team || upload.team || upload.team_key || "Independent"),
-          manufacturerLabel: rosterDriver?.manufacturer || upload.manufacturer || "",
-          voteCount: voteCounts.get(String(upload.id)) || 0,
-          uploadedAt: upload.uploaded_at || upload.created_at || "",
-        };
-      })
-      .filter((entry) => entry.imageUrl)
-      .sort((a, b) => Number(b.voteCount || 0) - Number(a.voteCount || 0) || new Date(b.uploadedAt || 0) - new Date(a.uploadedAt || 0));
-  }, [uploads, votes, activeDrivers]);
-
-  const trackOptions = useMemo(() => {
-    const seen = new Set();
-    const options = [];
-    const add = (name) => {
-      const clean = String(name || "").trim();
-      if (!clean) return;
-      const key = normalizeTrack(clean);
-      if (seen.has(key)) return;
-      seen.add(key);
-      options.push(clean);
-    };
-    (tracks || []).forEach((track) => add(track?.name));
-    (paintEntries || []).forEach((entry) => add(entry.trackName));
-    return options;
-  }, [tracks, paintEntries]);
-
-  useEffect(() => {
-    if (selectedTrack || !trackOptions.length) return;
-    const spotlightRace = getPaintWinnerRaceForCurrentWeek(tracks);
-    const preferred = trackOptions.find((option) => normalizeTrack(option) === normalizeTrack(spotlightRace?.name));
-    setSelectedTrack(preferred || trackOptions[0]);
-  }, [trackOptions, selectedTrack, tracks]);
-
-  const visibleEntries = useMemo(() => {
-    return (paintEntries || []).filter((entry) => !selectedTrack || normalizeTrack(entry.trackName) === normalizeTrack(selectedTrack));
-  }, [paintEntries, selectedTrack]);
-
-  const selectedEntry = visibleEntries.find((entry) => String(entry.id) === String(selectedUploadId)) || null;
-
-  const existingPaintVote = useMemo(() => {
-    if (!loggedInDriver || !selectedTrack) return null;
-    const number = String(loggedInDriver.number || loggedInDriver.driver_number || "").trim();
-    return (votes || []).find((vote) => {
-      const voteDriverNumber = String(vote.driver_number || vote.voter_driver_number || vote.car_number || "").trim();
-      const voteRace = vote.race_name || vote.race || vote.track_name || vote.track || "";
-      return voteDriverNumber === number && normalizeTrack(voteRace) === normalizeTrack(selectedTrack);
-    }) || null;
-  }, [loggedInDriver, selectedTrack, votes]);
-
-  const existingVoteUploadId = existingPaintVote
-    ? String(existingPaintVote.upload_id || existingPaintVote.voted_upload_id || existingPaintVote.paint_scheme_id || existingPaintVote.car_upload_id || "").trim()
-    : "";
-  const driverAlreadyVoted = Boolean(existingPaintVote);
-  const selectedIsCurrentVote = selectedEntry && existingVoteUploadId && String(selectedEntry.id) === existingVoteUploadId;
-  const isPaintVoteAdmin = Boolean(loggedInDriver?.isAdmin || session?.mode === "admin" || session?.isAdmin);
-
-  function isOwnPaintScheme(entry) {
-    if (!loggedInDriver || !entry) return false;
-    const voterNumber = String(loggedInDriver.number || loggedInDriver.driver_number || "").trim();
-    const paintNumber = String(entry.driverNumberValue || entry.driver_number || entry.car_number || entry.number || "").trim();
-    return Boolean(voterNumber && paintNumber && voterNumber === paintNumber);
-  }
-
-  const selectedIsOwnPaintScheme = selectedEntry ? isOwnPaintScheme(selectedEntry) : false;
-
-  const voteAuditRows = useMemo(() => {
-    const entriesById = new Map((paintEntries || []).map((entry) => [String(entry.id), entry]));
-    return (votes || [])
-      .filter((vote) => normalizeTrack(vote.race_name || vote.race || vote.track_name || vote.track) === normalizeTrack(selectedTrack))
-      .map((vote) => {
-        const votedId = String(vote.upload_id || vote.voted_upload_id || vote.paint_scheme_id || vote.car_upload_id || "").trim();
-        const entry = entriesById.get(votedId) || {};
-        return {
-          id: vote.id || `${vote.driver_number || vote.voter_driver_number || "voter"}-${votedId}`,
-          voterNumber: String(vote.driver_number || vote.voter_driver_number || vote.car_number || "").trim(),
-          voterName: vote.driver_name || vote.voter_driver_name || "Unknown voter",
-          selectedNumber: entry.driverNumberValue || vote.selected_driver_number || "",
-          selectedName: entry.driverName || vote.selected_driver_name || "Unknown scheme",
-          team: entry.teamLabel || "",
-          createdAt: vote.updated_at || vote.created_at || "",
-          selfVote: String(vote.driver_number || vote.voter_driver_number || "").trim() && String(entry.driverNumberValue || vote.selected_driver_number || "").trim() && String(vote.driver_number || vote.voter_driver_number || "").trim() === String(entry.driverNumberValue || vote.selected_driver_number || "").trim(),
-        };
-      })
-      .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
-  }, [votes, selectedTrack, paintEntries]);
-
-  async function handleLogin(event) {
-    event.preventDefault();
-    setError("");
-    setMessage("");
-
-    const number = String(driverNumber || "").trim();
-    const code = String(password || "").trim();
-    if (!number || !code) {
-      setError("Select your driver and enter your driver password.");
-      return;
-    }
-
-    const { data, error: accessError } = await supabase
-      .from("driver_access_codes")
-      .select("*")
-      .eq("driver_number", number)
-      .limit(10);
-
-    if (accessError) {
-      console.error("Could not verify paint vote login:", accessError);
-      setError("Could not verify access. Check driver_access_codes select policy and columns.");
-      return;
-    }
-
-    const enteredCode = code.toUpperCase();
-    const match = (data || []).find((row) => {
-      const rowNumber = String(row.driver_number ?? row.car_number ?? "").trim();
-      const possibleCodes = [row.code, row.access_code, row.password, row.driver_password]
-        .map((value) => String(value ?? "").trim().toUpperCase())
-        .filter(Boolean);
-      return rowNumber === number && possibleCodes.includes(enteredCode) && row.active !== false;
-    });
-
-    const adminMatch = enteredCode === "BCLADMINPASSWORD2026";
-    if (!match && !adminMatch) {
-      setError("Invalid car number or driver password.");
-      return;
-    }
-
-    const rosterDriver = activeDrivers.find((driver) => String(driver.number) === number) || {};
-    const authRow = match || {};
-    setLoggedInDriver({
-      ...authRow,
-      ...rosterDriver,
-      number,
-      driver_number: number,
-      name: rosterDriver.name || authRow.driver_name || authRow.name || `#${number}`,
-      team: rosterDriver.team || authRow.team || "",
-      manufacturer: rosterDriver.manufacturer || authRow.manufacturer || "",
-      isAdmin: adminMatch,
-    });
-    setMessage(adminMatch ? `Admin QC mode unlocked as #${number}.` : `Logged in as #${number}. Select a paint scheme and cast your vote.`);
-  }
-
-  async function castVote(entry) {
-    setError("");
-    setMessage("");
-    if (session?.mode === "guest") return setError("Guest access is view-only. Log in as a driver to vote.");
-    if (!loggedInDriver) return setError("Log in before casting a vote.");
-    if (!entry) return setError("Select a paint scheme before voting.");
-    if (isOwnPaintScheme(entry)) return setError("You cannot vote for your own paint scheme.");
-
-    const currentVoteId = existingVoteUploadId;
-    if (currentVoteId && String(currentVoteId) === String(entry.id)) {
-      return setMessage(`Your current vote is already ${entry.driverLabel}.`);
-    }
-
-    setSubmitting(true);
-    const driverNum = String(loggedInDriver.number || loggedInDriver.driver_number || "").trim();
-    const driverName = loggedInDriver.name || loggedInDriver.driver_name || `#${driverNum}`;
-    const raceName = selectedTrack || entry.trackName || "Current Week";
-
-    const payload = {
-      voter_id: `${driverNum}-${raceName}`,
-      upload_id: String(entry.id || ""),
-      race_name: raceName,
-      voter_driver_number: driverNum,
-      voter_driver_name: driverName,
-      voted_driver_number: String(entry.driverNumberValue || entry.driverNumber || ""),
-      voted_driver_name: entry.driverName || entry.driverLabel || "",
-      voted_team: entry.team || entry.teamName || entry.displayTeam || "Independent",
-    };
-
-    const { error: voteError } = existingPaintVote?.id
-      ? await supabase.from("paint_scheme_votes").update(payload).eq("id", existingPaintVote.id)
-      : await supabase.from("paint_scheme_votes").insert(payload);
-
-    setSubmitting(false);
-
-    if (voteError) {
-      console.error("Could not submit/change paint scheme vote:", voteError);
-      setError(`Could not submit vote: ${voteError?.message || "Check paint_scheme_votes columns and RLS policies."}`);
-      return;
-    }
-
-    setSelectedUploadId("");
-    setMessage(`${existingPaintVote?.id ? "Vote changed" : "Vote submitted"} for ${entry.driverLabel}.`);
-    await loadPaintData();
-  }
-
-  const selectInputStyle = {
-    width: "100%",
-    minHeight: 48,
-    background: "#020617",
-    color: "#fff",
-    border: "1px solid #334155",
-    borderRadius: 14,
-    padding: "12px 13px",
-    fontSize: 16,
-    fontWeight: 900,
-    boxSizing: "border-box",
-  };
-
-  return (
-    <div style={{ paddingBottom: 92 }}>
-      <MobileHero
-        kicker="Paint Scheme Vote"
-        title="Scheme of the Week"
-        subtitle={session?.mode === "guest" ? "Guest mode can view schemes and results. Log in as a driver to cast or change a vote." : "Pick a track, then tap a paint scheme to cast or change your vote."}
-      />
-
-      <MobileCard>
-        <div style={mobileKickerStyle}>Driver Login</div>
-        {session?.mode === "guest" ? (
-          <div style={{ marginTop: 10, background: "#07111f", border: "1px solid #263244", borderRadius: 16, padding: 14 }}>
-            <div style={{ color: "#fbbf24", fontSize: 11, fontWeight: 1000, textTransform: "uppercase" }}>Guest View Only</div>
-            <div style={{ color: "#6e6e73", fontSize: 13, marginTop: 6, lineHeight: 1.45 }}>You can view paint schemes and results, but you must log in as a driver to cast or change a vote.</div>
-            <button type="button" onClick={() => { clearBclMobileSession(); window.location.reload(); }} style={{ ...mobileActionStyle, marginTop: 12, background: "#d4af37", color: "#111", borderColor: "#d4af37" }}>Driver Login</button>
-          </div>
-        ) : !loggedInDriver ? (
-          <form onSubmit={handleLogin} style={{ display: "grid", gap: 12, marginTop: 10 }}>
-            <select value={driverNumber} onChange={(event) => setDriverNumber(event.target.value)} style={selectInputStyle}>
-              <option value="">Select Your Driver</option>
-              {activeDrivers.map((driver) => (
-                <option key={driver.id || driver.number} value={String(driver.number)}>
-                  #{driver.number} — {driver.name} ({getTeamFullName(driver.team)})
-                </option>
-              ))}
-            </select>
-            <input
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              aria-label="Driver password"
-            autoComplete="current-password"
-            placeholder="Enter driver password"
-              style={selectInputStyle}
-            />
-            <button type="submit" style={{ ...mobileActionStyle, background: "#d4af37", color: "#111", borderColor: "#d4af37" }}>
-              Log In To Vote
-            </button>
-          </form>
-        ) : (
-          <div style={{ marginTop: 10, background: "#07111f", border: "1px solid #263244", borderRadius: 16, padding: 14 }}>
-            <div style={{ color: "#4ade80", fontSize: 11, fontWeight: 1000, textTransform: "uppercase" }}>{isPaintVoteAdmin ? "Signed In • Vote QC" : "Signed In"}</div>
-            <div style={{ fontSize: 22, fontWeight: 1000, marginTop: 4 }}>#{loggedInDriver.number} {loggedInDriver.name}</div>
-            <div style={{ color: "#6e6e73", fontSize: 13, marginTop: 3 }}>{getTeamFullName(loggedInDriver.team || "Independent")} • {loggedInDriver.manufacturer || ""}</div>
-            <button type="button" onClick={() => { setLoggedInDriver(null); setPassword(""); setMessage("Logged out."); }} style={{ ...mobileActionStyle, marginTop: 12, background: "#111827", color: "#fff", borderColor: "#263244" }}>Log Out</button>
-          </div>
-        )}
-        {message && <div style={{ color: "#4ade80", fontWeight: 900, marginTop: 12, lineHeight: 1.35 }}>{message}</div>}
-        {error && <div style={{ color: "#f87171", fontWeight: 900, marginTop: 12, lineHeight: 1.35 }}>{error}</div>}
-      </MobileCard>
-
-      <MobileCard>
-        <div style={mobileKickerStyle}>Track</div>
-        <select value={selectedTrack} onChange={(event) => { setSelectedTrack(event.target.value); setSelectedUploadId(""); }} style={{ ...selectInputStyle, marginTop: 10 }}>
-          {trackOptions.length === 0 && <option value="">Current Week</option>}
-          {trackOptions.map((track) => <option key={track} value={track}>{track}</option>)}
-        </select>
-      </MobileCard>
-
-      <MobileStatGrid items={[
-        ["Track", selectedTrack || "—"],
-        ["Entries", visibleEntries.length],
-        ["Votes", (votes || []).filter((vote) => normalizeTrack(vote.race_name || vote.race || vote.track_name || vote.track) === normalizeTrack(selectedTrack)).length],
-        ["Status", driverAlreadyVoted ? "Vote Can Be Changed" : "Open"],
-      ]} />
-
-      {isPaintVoteAdmin && (
-        <MobileCard>
-          <div style={mobileKickerStyle}>Vote QC</div>
-          <div style={{ color: "#6e6e73", fontSize: 13, lineHeight: 1.4, marginTop: 6 }}>
-            Shows who voted and which paint scheme they picked for the selected track. Self-votes are blocked going forward.
-          </div>
-          <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
-            {voteAuditRows.length === 0 ? (
-              <div style={{ color: "#94a3b8", fontSize: 13 }}>No votes found for this track yet.</div>
-            ) : voteAuditRows.map((row) => (
-              <div key={row.id} style={{ background: row.selfVote ? "rgba(185,28,28,0.22)" : "#07111f", border: row.selfVote ? "1px solid #ef4444" : "1px solid #263244", borderRadius: 14, padding: 12 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
-                  <div>
-                    <div style={{ color: "#fff", fontWeight: 1000 }}>#{row.voterNumber || "—"} {row.voterName}</div>
-                    <div style={{ color: "#6e6e73", fontSize: 12, marginTop: 3 }}>voted for #{row.selectedNumber || "—"} {row.selectedName}</div>
-                    {row.team && <div style={{ color: "#64748b", fontSize: 11, marginTop: 3 }}>{row.team}</div>}
-                  </div>
-                  <div style={{ color: row.selfVote ? "#fca5a5" : "#facc15", fontSize: 11, fontWeight: 1000, textTransform: "uppercase", textAlign: "right" }}>
-                    {row.selfVote ? "Self Vote" : "OK"}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </MobileCard>
-      )}
-
-      {loading && <MobileCard>Loading paint schemes...</MobileCard>}
-      {!loading && !visibleEntries.length && <MobileCard>No paint schemes found for this track yet.</MobileCard>}
-
-      <MobileSectionTitle>Choose Paint Scheme</MobileSectionTitle>
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        {visibleEntries.map((entry) => {
-          const selected = String(entry.id) === String(selectedUploadId);
-          const ownScheme = isOwnPaintScheme(entry);
-          return (
-            <article key={entry.id} style={{ background: selected ? "#18213a" : "#111827", border: selected ? "2px solid #d4af37" : "1px solid #263244", borderRadius: 20, overflow: "hidden", boxShadow: "0 12px 26px rgba(0,0,0,0.24)", opacity: ownScheme ? 0.72 : 1 }}>
-              <button
-                type="button"
-                onClick={() => setSelectedUploadId(entry.id)}
-                style={{ width: "100%", border: "none", background: "transparent", color: "#fff", padding: 0, textAlign: "left" }}
-              >
-                <img src={entry.imageUrl} alt={entry.driverLabel} style={{ width: "100%", maxHeight: 250, objectFit: "cover", display: "block" }} />
-                <div style={{ padding: 14 }}>
-                  <div style={{ color: "#d4af37", fontSize: 11, fontWeight: 1000, textTransform: "uppercase", letterSpacing: 1 }}>{entry.trackName}</div>
-                  <div style={{ fontSize: 21, fontWeight: 1000, marginTop: 5 }}>{entry.driverLabel}</div>
-                  <div style={{ color: "#6e6e73", fontSize: 12, marginTop: 4 }}>{entry.teamLabel} • {entry.manufacturerLabel || "—"}</div>
-                  <div style={{ color: "#facc15", fontWeight: 1000, marginTop: 8 }}>{entry.voteCount} votes</div>
-                  {ownScheme && <div style={{ color: "#f87171", fontSize: 12, fontWeight: 1000, marginTop: 6 }}>Own paint scheme — voting disabled</div>}
-                </div>
-              </button>
-              {loggedInDriver && selected && (
-                <div style={{ padding: "0 14px 14px" }}>
-                  <button
-                    type="button"
-                    disabled={submitting || selectedIsCurrentVote || ownScheme}
-                    onClick={() => castVote(entry)}
-                    style={{
-                      ...mobileActionStyle,
-                      background: selectedIsCurrentVote || ownScheme ? "#334155" : "#d4af37",
-                      color: selectedIsCurrentVote || ownScheme ? "#cbd5e1" : "#111",
-                      borderColor: selectedIsCurrentVote || ownScheme ? "#475569" : "#d4af37",
-                      opacity: submitting ? 0.7 : 1,
-                    }}
-                  >
-                    {ownScheme
-                      ? "Cannot Vote For Own Scheme"
-                      : selectedIsCurrentVote
-                        ? "Current Vote"
-                        : submitting
-                          ? "Submitting..."
-                          : driverAlreadyVoted
-                            ? `Change Vote to ${entry.driverLabel}`
-                            : `Cast Vote for ${entry.driverLabel}`}
-                  </button>
-                </div>
-              )}
-            </article>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
 
 function MobileStreamsPage(props) { return <StreamPage {...props}/>; }
 
@@ -4213,7 +3624,7 @@ function MobileLeagueApp({
   if (path === "/appeals") return dataFrame("Appeals", "more", <AppealsPage />);
   if (path === "/issues") return dataFrame("Issues & Feedback", "more", <IssuesRollupPage />);
   if (path === "/news") return frame("News", "news", <NewsPage />);
-  if (path === "/paint-scheme-vote") return frame("Paint Scheme Votes", "votes", <PaintSchemeVotePage drivers={drivers} tracks={tracks} />);
+  if (path === "/paint-scheme-vote") return frame("Paint voting ended", "more", <PaintVotingRetired/>);
   if (path === "/vote" || path === "/league-vote" || path === "/voting") return dataFrame("League Vote", "more", <LeagueVotingPage drivers={drivers} />);
   if (path === "/notifications") return dataFrame("Notifications", "more", <NotificationsPage />);
   if (path === "/public-interviews") return frame("Public Interviews", "more", <PublicInterviewsPage seriesId="cup" />);
@@ -4611,9 +4022,11 @@ function MobileLeagueApp({
 }
 
 
+function PaintVotingRetired(){return <section style={{padding:24}}><h1>Paint voting has ended</h1><p>The paint-scheme competition and winner spotlights are no longer part of the league.</p><a href="/standings">Return to league home</a></section>;}
+
 function MobileTimelineSpotlightPanel({ tracks = [], drivers = [], go, seasonName = "" }) {
   const { visible: challengeVisible } = useInSeasonChallenge();
-  const upcomingRace = getPaintWinnerRaceForCurrentWeek(tracks || []);
+
   const bracketDrivers = useMemo(() => {
     return [...(drivers || [])]
       .filter((driver) => driver && !isRemovedLeagueDriver(driver))
@@ -4628,25 +4041,6 @@ function MobileTimelineSpotlightPanel({ tracks = [], drivers = [], go, seasonNam
 
   return (
     <>
-      <MobileSectionTitle>Race Week Spotlight</MobileSectionTitle>
-      <MobileCard>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
-          <div>
-            <div style={mobileKickerStyle}>Paint Winner Window</div>
-            <h2 style={{ margin: "4px 0 6px", fontSize: 20 }}>🎨 {upcomingRace?.name || "Upcoming Race"}</h2>
-            <p style={{ margin: 0, color: "#6e6e73", lineHeight: 1.45, fontSize: 13 }}>
-              Shows the upcoming race paint winner after Wednesday voting closes. If voting ties, all tied winners are shown.
-            </p>
-          </div>
-          <button type="button" onClick={() => go("/paint-scheme-vote")} style={{ ...mobileActionStyle, width: "auto", flexShrink: 0, whiteSpace: "nowrap", padding: "9px 11px", fontSize: 12 }}>
-            Vote
-          </button>
-        </div>
-      </MobileCard>
-      <div style={{ marginTop: 10 }}>
-        <PaintSchemeWinnerStandingsCard tracks={tracks} drivers={drivers} />
-      </div>
-
       {challengeVisible && <>
       <MobileSectionTitle>In-Season Tournament</MobileSectionTitle>
       <MobileCard>
@@ -4828,10 +4222,7 @@ function MobileLiveStreamsBanner({ go }) {
 }
 
 function MobileWeekendRecap({ raceHistory = [], tracks = [], drivers = [], go }) {
-  const [paintWinner, setPaintWinner] = useState(null);
-  const [paintLoading, setPaintLoading] = useState(true);
   const [savedRaceWinner, setSavedRaceWinner] = useState(null);
-  const showRaceWinnerWindow = shouldShowPreviousRaceWinnerSpotlight();
 
   useEffect(() => {
     let isMounted = true;
@@ -4874,85 +4265,7 @@ function MobileWeekendRecap({ raceHistory = [], tracks = [], drivers = [], go })
       null;
   }, [lastRace]);
 
-  const paintRaceName = useMemo(() => {
-    return getPreviousCompletedRaceForPaintWinner(tracks)?.name || lastRace?.raceName || lastRace?.name || "";
-  }, [tracks, lastRace]);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    async function loadMobilePaintWinner() {
-      setPaintLoading(true);
-
-      const [{ data: uploadData, error: uploadError }, { data: voteData, error: voteError }] = await Promise.all([
-        supabase.from("car_uploads").select("*").order("uploaded_at", { ascending: false }),
-        supabase.from("paint_scheme_votes").select("*").order("created_at", { ascending: false }),
-      ]);
-
-      if (!isMounted) return;
-
-      if (uploadError || voteError) {
-        console.error("Could not load mobile paint scheme winner:", uploadError || voteError);
-        setPaintWinner(null);
-        setPaintLoading(false);
-        return;
-      }
-
-      const uploads = (uploadData || [])
-        .filter((upload) => isPaintImageUploadForStandings(upload))
-        .filter((upload) => {
-          const uploadRace = getPaintUploadRaceForStandings(upload);
-          return paintRaceName ? uploadRace === paintRaceName : true;
-        });
-
-      const counts = new Map();
-      (voteData || []).forEach((vote) => {
-        if (paintRaceName && vote.race_name && vote.race_name !== paintRaceName) return;
-        const key = String(vote.upload_id || vote.voted_upload_id || "");
-        if (!key) return;
-        counts.set(key, (counts.get(key) || 0) + 1);
-      });
-
-      const ranked = uploads
-        .map((upload) => ({
-          ...upload,
-          voteCount: counts.get(String(upload.id)) || 0,
-          imageUrl: upload.image_url || upload.file_url || "",
-        }))
-        .sort((a, b) => {
-          const voteDiff = Number(b.voteCount || 0) - Number(a.voteCount || 0);
-          if (voteDiff !== 0) return voteDiff;
-          return new Date(b.uploaded_at || b.created_at || 0) - new Date(a.uploaded_at || a.created_at || 0);
-        });
-
-      const winningUpload = ranked[0] || null;
-      if (!winningUpload) {
-        setPaintWinner(null);
-        setPaintLoading(false);
-        return;
-      }
-
-      const driver = (drivers || []).find((item) => String(item.id) === String(winningUpload.driver_id));
-      setPaintWinner({
-        ...winningUpload,
-        driverLabel: driver ? `#${driver.number} ${driver.name}` : winningUpload.driver_name || winningUpload.uploader_name || "Unknown Driver",
-        teamLabel: driver?.team || winningUpload.team || winningUpload.team_key || "—",
-        manufacturerLabel: driver?.manufacturer || winningUpload.manufacturer || "",
-      });
-      setPaintLoading(false);
-    }
-
-    loadMobilePaintWinner();
-    return () => {
-      isMounted = false;
-    };
-  }, [paintRaceName, JSON.stringify((drivers || []).map((driver) => ({ id: driver?.id, number: driver?.number, name: driver?.name, team: driver?.team, manufacturer: driver?.manufacturer })))]);
-
-  // Once the paint scheme winner posts Wednesday night, the previous race winner should disappear.
-  // The Bristol/upcoming race paint winner card below owns the home-page spotlight until race start.
-  if (!showRaceWinnerWindow) return null;
-
-  if (!lastRaceWinner && !savedRaceWinner && !paintWinner && !paintLoading) return null;
+  if (!lastRaceWinner && !savedRaceWinner) return null;
 
   const savedWinnerMediaUrl = savedRaceWinner?.media_url || savedRaceWinner?.mediaUrl || "";
   const savedWinnerMediaType = savedRaceWinner?.media_type || savedRaceWinner?.mediaType || "";
@@ -5574,7 +4887,6 @@ function MobileDriverProfilePolished({ driver, driverNumber, raceHistory = [], t
       <MobileSectionTitle>Quick Actions</MobileSectionTitle>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }}>
         <MobileAction label="🎤 Interviews" onClick={() => go("/interviews")} />
-        <MobileAction label="🎨 Paint Vote" onClick={() => go("/paint-scheme-vote")} />
         <MobileAction label="💬 Messages" onClick={() => go("/message-center")} secondary />
         <MobileAction label="📺 Streams" onClick={() => go("/streams")} secondary />
       </div>
@@ -6456,6 +5768,7 @@ export default function App() {
 
   // ─── Computed values (must be before all hooks) ───────────────────────────
   const activeSeason = seasons.find((s) => s.id === activeSeasonId) || seasons[0] || null;
+  useEffect(()=>{publishChallengeSetting(isHydrated && activeSeason?.id===activeSeasonId && activeSeason?.inSeasonChallengeEnabled===true);},[isHydrated,activeSeasonId,activeSeason?.inSeasonChallengeEnabled]);
   const withUniversalShell = (page, themedTeam = "") => {
     const session = getLeagueSession();
     const teamName = themedTeam || session?.team || session?.teamName || "";
@@ -7044,61 +6357,9 @@ export default function App() {
       return { ...season, drivers: nextDrivers };
     }));
   }
-  async function loadPaintSchemePayoutPreview(raceNameOverride = paintPayoutRace) {
-    const raceName = raceNameOverride || getPreviousCompletedRaceForPaintWinner(tracks)?.name || selectedRace || "";
-    setPaintPayoutRace(raceName);
-    setPaintPayoutStatus("");
-    setPaintPayoutError("");
-    setPaintPayoutRows([]);
+  
 
-    if (!raceName) {
-      setPaintPayoutError("Select a race first.");
-      return [];
-    }
-
-    setPaintPayoutLoading(true);
-    const [{ data: uploadData, error: uploadError }, { data: voteData, error: voteError }] = await Promise.all([
-      supabase.from("car_uploads").select("*").order("uploaded_at", { ascending: false }),
-      supabase.from("paint_scheme_votes").select("*").eq("race_name", raceName).order("created_at", { ascending: false }),
-    ]);
-    setPaintPayoutLoading(false);
-
-    if (uploadError || voteError) {
-      console.error("Could not load paint scheme payout preview:", uploadError || voteError);
-      setPaintPayoutError("Could not load paint scheme uploads/votes. Check car_uploads, paint_scheme_votes, and RLS policies.");
-      return [];
-    }
-
-    const raceUploads = (uploadData || [])
-      .filter((upload) => isPaintImageUploadForStandings(upload))
-      .filter((upload) => getPaintUploadRaceForStandings(upload) === raceName);
-
-    const counts = new Map();
-    (voteData || []).forEach((vote) => {
-      const key = String(vote.upload_id || vote.voted_upload_id || "");
-      counts.set(key, (counts.get(key) || 0) + 1);
-    });
-
-    const deadline = getNextFridayMidnightDeadline(new Date());
-    const rankedUploads = raceUploads
-      .map((upload) => ({ ...upload, voteCount: counts.get(String(upload.id)) || 0 }))
-      .sort((a, b) => {
-        const voteDiff = Number(b.voteCount || 0) - Number(a.voteCount || 0);
-        if (voteDiff !== 0) return voteDiff;
-        return new Date(getPaintUploadUpdatedAt(b) || 0) - new Date(getPaintUploadUpdatedAt(a) || 0);
-      });
-
-    const ineligibleCount = rankedUploads.filter((upload) => !isPaintUploadEligibleForPayout(upload, deadline)).length;
-    const rows = buildPaintSchemePayoutRows(rankedUploads, visibleDrivers, deadline, activeSeason?.paintSchemePayouts || []);
-    setPaintPayoutRows(rows);
-    if (!rows.length) setPaintPayoutStatus(`No eligible paint scheme uploads found for ${raceName}. Uploads must be updated by Friday at 12:00 AM ET.`);
-    else if (ineligibleCount > 0) setPaintPayoutStatus(`${ineligibleCount} paint scheme upload(s) missed the Friday 12:00 AM ET deadline and were excluded from payout.`);
-    return rows;
-  }
-
-  async function awardPaintSchemePayouts() {
-    setPaintPayoutError("Paint schemes are recognition only. Driver payments require a contract or an owner-approved bonus in Team HQ.");
-  }
+  
 
   const clearInputs = () => {
     patchActiveSeason({ selectedRace: "", positions: {}, stage1: {}, stage2: {}, stage3: {}, dnfMap: {}, startParkMap: {}, offenseMap: {}, fastestLapMap: {}, penaltyMap: {}, resultNotesMap: {} });
@@ -8690,7 +7951,7 @@ export default function App() {
   if (path === "/schedule" || path === "/tracks" || path === "/season-schedule") return withLeagueStatusWidget(<SchedulePage tracks={tracks} raceHistory={raceHistory} seasons={seasons} activeSeasonId={activeSeasonId} />);
   if (["/media","/strategy"].includes(path)) return withUniversalShell(<MediaCenter strategyOnly={path === "/strategy"}/>);
   if (path === "/news") return withLeagueStatusWidget(<NewsPage />);
-  if (path === "/paint-scheme-vote") return withLeagueStatusWidget(<PaintSchemeVotePage drivers={visibleDrivers} tracks={tracks} />);
+  if (path === "/paint-scheme-vote") return withLeagueStatusWidget(<PaintVotingRetired/>);
   if (path === "/vote" || path === "/league-vote" || path === "/voting") return <LeagueVotingPage drivers={visibleDrivers} />;
   if (path === "/notifications") return withLeagueStatusWidget(<NotificationsPage />);
   if ((!isMobileViewport || forceDesktop) && path === "/discord") return <DiscordPage />;
@@ -8931,7 +8192,6 @@ export default function App() {
       addTrack={addTrack}
       appShellStyle={appShellStyle}
       approvePendingDriver={approvePendingDriver}
-      awardPaintSchemePayouts={awardPaintSchemePayouts}
       backupFileInputRef={backupFileInputRef}
       cancelEditDriver={cancelEditDriver}
       clearDriverAccessCode={clearDriverAccessCode}
@@ -8995,7 +8255,6 @@ export default function App() {
       latestWinner={latestWinner}
       loadDriverAccessCodes={loadDriverAccessCodes}
       loadManualWatchPicks={loadManualWatchPicks}
-      loadPaintSchemePayoutPreview={loadPaintSchemePayoutPreview}
       loadResultsDraft={loadResultsDraft}
       loadTickerMessages={loadTickerMessages}
       logo={logo}
@@ -9022,11 +8281,6 @@ export default function App() {
       ownerAssignments={ownerAssignments}
       ownerPortalTeams={ownerPortalTeams}
       pageContainerStyle={pageContainerStyle}
-      paintPayoutError={paintPayoutError}
-      paintPayoutLoading={paintPayoutLoading}
-      paintPayoutRace={paintPayoutRace}
-      paintPayoutRows={paintPayoutRows}
-      paintPayoutStatus={paintPayoutStatus}
       patchActiveSeason={patchActiveSeason}
       penaltyMap={penaltyMap}
       pendingDrivers={pendingDrivers}
@@ -9079,7 +8333,6 @@ export default function App() {
       setNewSeasonName={setNewSeasonName}
       setNewTrackName={setNewTrackName}
       setNewTrackStageCount={setNewTrackStageCount}
-      setPaintPayoutRace={setPaintPayoutRace}
       setRenameSeasonName={setRenameSeasonName}
       setSelectedOwnerDriverNumber={setSelectedOwnerDriverNumber}
       setSelectedOwnerTeam={setSelectedOwnerTeam}
