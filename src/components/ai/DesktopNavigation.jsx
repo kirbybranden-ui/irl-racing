@@ -7,7 +7,7 @@ import "./DesktopNavigation.css";
 // Keep this list aligned with the public and protected routes in App.jsx.
 const groups = [
   { title: "League", links: [["League Home", "/"], ["Cup Standings", "/standings"], ["Race Schedule", "/schedule"], ["Results & Race History", "/standings#results"], ["In Season Tournament", "/tournament"], ["Streams", "/streams"]] },
-  { title: "Paddock", links: [["Teams & Owners", "/owners"], ["Driver Market", "/driver-market"], ["Contracts", "/contracts"], ["Development Requests", "/development-requests"], ["Paint Scheme Vote", "/paint-scheme-vote"]] },
+  { title: "Paddock", links: [["Teams & Owners", "/owners"], ["Driver Market", "/driver-market"], ["Contracts", "/contracts"], ["Development Requests", "/development-requests"]] },
   { title: "Media & Community", links: [["News", "/news"], ["Interviews", "/public-interviews"], ["League Voting", "/vote"], ["League Chat", "/chat"], ["Messages", "/message-center"], ["Notifications", "/notifications"], ["Discord", "/discord"]] },
   { title: "My League", links: [["My Profile", "/welcome"], ["My Media Interviews", "/media"], ["Strategy Desk", "/strategy"], ["Owner HQ", "/team-hq"], ["Submit Appeal", "/submit-appeal"], ["Submit Story", "/submit-story"], ["Issues & Feedback", "/issues"], ["Files", "/files"], ["Admin Operations", "/admin"], ["Admin Permissions", "/admin/permissions"], ["Admin Car Gallery", "/admin/car-gallery"], ["Admin Interviews", "/admin/interviews"], ["Admin Voting", "/admin/votes"], ["Live Control", "/admin/live-control"]] },
 ];
