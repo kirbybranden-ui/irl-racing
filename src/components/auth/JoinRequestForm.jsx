@@ -15,9 +15,10 @@ export default function JoinRequestForm() {
       const { data, error: failure } = await supabase.functions.invoke("brl-register", { body: { adultConfirmed: form.adultConfirmed, gamertag: form.gamertag.trim(), kind: form.kind, team: { code: form.code.trim().toUpperCase(), name: form.name.trim(), manufacturer: form.manufacturer, requestedCapacity: form.kind === "independent" ? 1 : Number(form.requestedCapacity) } } });
       if (failure) throw new Error(await functionError(failure, "Registration failed."));
       if (data?.error) throw new Error(data.error);
+      if (!data?.registered && !data?.session) throw new Error("The server did not confirm your application. Please retry; do not assume it was submitted.");
       if (data?.ticket) storePasswordTicket(form.gamertag, data.ticket);
       if (data?.session) { const { error: sessionError } = await supabase.auth.setSession(data.session);if (sessionError) throw sessionError;await refreshLeagueAccess();window.location.assign("/career"); }
-      else setStatus(data?.message || "Registered. Sign in using your gamertag.");
+      else setStatus(`${data.message || "Application received. Awaiting league review."}${data.ticket?.id ? ` Application reference: ${data.ticket.id}` : ""}`);
     } catch (failure) { setError(failure.message); } finally { setBusy(false); }
   }}>
     <p className="career-notice">Use your racing-platform <strong>gamertag as your name</strong>, exactly as it appears in the game. It identifies you on applications, the roster, contracts, and signatures. Do not enter your legal name in this field.</p>
