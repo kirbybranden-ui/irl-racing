@@ -2115,7 +2115,7 @@ export default function AdminPortal({
                           <div style={{ fontSize: 12, fontWeight: 1000, opacity: 0.75, letterSpacing: 1.3 }}>{getTeamIdentifier(team)}</div>
                           <div style={{ fontSize: 22, fontWeight: 1000, marginTop: 8 }}>{getTeamFullName(team)}</div>
                           <div style={{ marginTop: 10, borderRadius: 18, padding: "10px 12px", background: "rgba(255,255,255,0.13)", fontWeight: 900 }}>
-                            Owner: {assignment?.owner_driver_name ? `#${assignment.owner_driver_number} ${assignment.owner_driver_name}` : "Not assigned"}
+                            Owner: {assignment?.owner_driver_name ? `${assignment.owner_driver_number && String(assignment.owner_driver_number).toLowerCase() !== "null" ? `#${assignment.owner_driver_number} ` : ""}${assignment.owner_driver_name}` : "Not assigned"}
                           </div>
                           <div style={{ opacity: 0.82, fontWeight: 800, marginTop: 10 }}>{teamDrivers.length} team drivers</div>
                           <div style={{ marginTop: 10, fontSize: 13, opacity: 0.82 }}>{teamDrivers.map((driver) => `#${driver.number} ${driver.name}`).join(" · ") || "No drivers assigned"}</div>
