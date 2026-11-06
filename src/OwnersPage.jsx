@@ -223,7 +223,7 @@ const MIN_CONTRACT_LENGTH = 1;
 const OWNER_MINIMUM_SALARY = 500000;
 const FRANCHISE_MINIMUM_SALARY = 750000;
 // Season 2 champion policy; change through the admin funding policy for future seasons.
-const SEASON_2_CHAMPION_GAMERTAGS = ["abajack9", "abajack91"];
+const SEASON_2_CHAMPION_GAMERTAGS = ["abajack91"];
 const SEASON_2_CHAMPION_MINIMUM_SALARY = 1000000;
 const DEFAULT_CONTRACT_FORM = {
   driver_name: "",
