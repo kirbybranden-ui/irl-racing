@@ -1941,19 +1941,19 @@ export default function AdminPortal({
                           };
                           const tierStyle = tierColors[row.tier] || tierColors.Developing;
                           return (
-                            <div key={row.team} style={{ ...walletTransactionRowStyle, alignItems: isAdminMobile ? "flex-start" : "center", flexDirection: isAdminMobile ? "column" : "row" }}>
-                              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                                <div style={{ fontSize: 11, fontWeight: 1000, letterSpacing: 1, textTransform: "uppercase", borderRadius: 999, padding: "4px 10px", background: tierStyle.bg, color: tierStyle.color }}>{row.tier}</div>
-                                <div>
-                                  <div style={{ fontWeight: 1000 }}>{row.teamName}</div>
-                                  <div style={{ color: "#6b7280", fontWeight: 750, fontSize: 13 }}>{row.manufacturer} · #{row.manufacturerRank} of manufacturer · {row.driverCount} drivers</div>
+                            <div key={row.team} style={{ ...walletTransactionRowStyle, gridTemplateColumns: isAdminMobile ? "minmax(0, 1fr)" : "minmax(0, 1fr) auto", alignItems: "center", columnGap: 24, rowGap: 10 }}>
+                              <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 12, minWidth: 0 }}>
+                                <div style={{ flexShrink: 0, whiteSpace: "nowrap", fontSize: 11, fontWeight: 1000, letterSpacing: 1, textTransform: "uppercase", borderRadius: 999, padding: "4px 10px", background: tierStyle.bg, color: tierStyle.color }}>{row.tier}</div>
+                                <div style={{ minWidth: 0, flex: "1 1 180px" }}>
+                                  <div style={{ fontWeight: 1000, overflowWrap: "break-word" }}>{row.teamName}</div>
+                                  <div style={{ color: "#6b7280", fontWeight: 750, fontSize: 13, overflowWrap: "break-word" }}>{row.manufacturer} · #{row.manufacturerRank} of manufacturer · {row.driverCount} drivers</div>
                                 </div>
                               </div>
-                              <div style={{ display: "flex", gap: 16, marginLeft: isAdminMobile ? 0 : "auto", fontSize: 13, color: "#374151", fontWeight: 800 }}>
-                                <span>Score: {row.compositeScore}</span>
-                                <span>Perf: {row.performanceScore}</span>
-                                <span>Interviews: {row.interviewScore}</span>
-                                <span>Uploads: {row.uploadScore}</span>
+                              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 16px", minWidth: 0, fontSize: 13, color: "#374151", fontWeight: 800 }}>
+                                <span style={{ whiteSpace: "nowrap" }}>Score: {row.compositeScore}</span>
+                                <span style={{ whiteSpace: "nowrap" }}>Perf: {row.performanceScore}</span>
+                                <span style={{ whiteSpace: "nowrap" }}>Interviews: {row.interviewScore}</span>
+                                <span style={{ whiteSpace: "nowrap" }}>Uploads: {row.uploadScore}</span>
                               </div>
                             </div>
                           );
