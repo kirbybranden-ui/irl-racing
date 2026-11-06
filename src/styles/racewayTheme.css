@@ -143,3 +143,209 @@
 @media(prefers-reduced-motion:reduce){[data-brl-theme="raceway"] *,[data-brl-theme="raceway"] *::before,[data-brl-theme="raceway"] *::after{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
 /* Printed signed documents retain their document styles and page layout. */
 @media print{[data-brl-theme="raceway"]{--brl-paper:#fff}[data-brl-theme="raceway"] [data-brl-surface]{box-shadow:none!important}}
+
+
+/* ====================================================================
+   BRL SEASON 2 | RACING IDENTITY 1.0
+   Presentation only. No changes to permissions, contracts or finances.
+   ==================================================================== */
+:root[data-brl-theme="raceway"] {
+  --brl-paper:#0a0d12;--brl-ink:#f1f4f8;--brl-muted:#a1a9b5;
+  --brl-rule:#303844;--brl-red:#ed222d;--brl-red-dark:#ff4a53;
+  --brl-flow-accent:#d568ff;--brl-flow-stripe:#d43aff;
+  --brl-racing-bg:#090b0f;--brl-racing-panel:#151a21;
+  --brl-racing-elevated:#1b222b;--brl-racing-border:#36414e;
+  --brl-racing-purple:#bc35ee;--brl-racing-red:#f02b34;
+  color-scheme:dark;
+}
+[data-brl-theme="raceway"] body,
+[data-brl-theme="raceway"] #root,
+[data-brl-theme="raceway"] .brl-shell,
+[data-brl-theme="raceway"] .brl-page,
+[data-brl-theme="raceway"] .brl-mobile,
+[data-brl-theme="raceway"] .admin-workspaces,
+[data-brl-theme="raceway"] .career-route-shell {
+  background-color:var(--brl-racing-bg)!important;
+  color:var(--brl-ink)!important;
+}
+[data-brl-theme="raceway"] body {
+  background-image:radial-gradient(ellipse 1050px 650px at 105% 10%,#8d103122,transparent 72%),
+  radial-gradient(ellipse 650px 500px at -15% 50%,#7717a511,transparent 65%);
+  background-attachment:fixed;
+}
+/* Racing header: crisp, compact and still using the existing real links. */
+[data-brl-theme="raceway"] .brl-desktop-header,
+[data-brl-theme="raceway"] .brl-mobile__header,
+[data-brl-theme="raceway"] .brl-shell__topbar {
+  background:linear-gradient(110deg,#06080c,#13171d 60%,#08090d)!important;
+  border-bottom:1px solid #3a202c!important;
+  box-shadow:0 5px 25px #0008!important;
+}
+[data-brl-theme="raceway"] .brl-desktop-header__row {
+  border-bottom:3px solid transparent!important;
+  border-image:linear-gradient(90deg,var(--brl-racing-red) 0 26%,var(--brl-racing-purple) 26% 45%,transparent 45% 100%) 1!important;
+}
+[data-brl-theme="raceway"] .brl-desktop-header__panel {background:#10141b!important;border-color:var(--brl-racing-red)!important}
+[data-brl-theme="raceway"] .brl-desktop-header__quick a.active {color:#fff!important;border-bottom-color:var(--brl-racing-red)!important}
+[data-brl-theme="raceway"] .brl-desktop-header__quick a:hover {color:#e6b7ff!important}
+/* Identity banners with no fabricated team logos or sponsor placements. */
+[data-brl-theme="raceway"] .career,
+[data-brl-theme="raceway"] .admin-workspaces,
+[data-brl-theme="raceway"] .appeals-workspace,
+[data-brl-theme="raceway"] .member-stream-directory {color:var(--brl-ink)!important}
+[data-brl-theme="raceway"] .career h1,
+[data-brl-theme="raceway"] .admin-workspaces h1,
+[data-brl-theme="raceway"] .brl-mobile__title-row h1 {
+  color:#fff!important;text-shadow:0 3px 22px #0008;
+}
+[data-brl-theme="raceway"] .career :is(h2,h3),
+[data-brl-theme="raceway"] .admin-workspaces :is(h2,h3,h4),
+[data-brl-theme="raceway"] :is(.brl-shell,.brl-page) :is(h2,h3) {color:#f5f7fa}
+[data-brl-theme="raceway"] :is(.career-kicker,.brl-flow-kicker,.schedule-eyebrow,.budget-eyebrow,.member-stream-kicker){color:#d86bff!important}
+[data-brl-theme="raceway"] .career>.career-row:first-child {
+  border:1px solid #303540!important;border-top:3px solid var(--brl-racing-red)!important;
+  border-radius:16px!important;
+  padding:clamp(18px,3vw,35px)!important;
+  background:linear-gradient(108deg,#181f27 0%,#10141a 70%,#341321 150%)!important;
+  box-shadow:0 18px 42px #0005!important;
+}
+[data-brl-theme="raceway"] .career>.career-row:first-child:after {left:24px;bottom:-2px;background:var(--brl-racing-purple)}
+[data-brl-theme="raceway"] .career>.career-row:first-child p {color:#c8d0da}
+[data-brl-theme="raceway"] .team-identity-strip,
+[data-brl-theme="raceway"] .career.brl-team-themed .team-identity-strip {
+  display:flex;align-items:center;gap:15px;
+  background:linear-gradient(115deg,#222a35,#171b24 68%,#2a1b2b)!important;
+  border:1px solid var(--brl-racing-border)!important;
+  border-left:4px solid var(--brl-team-accent,#c038f4)!important;
+  border-radius:13px!important;padding:14px 18px!important;
+  color:#fff!important;box-shadow:0 12px 26px #0004;
+}
+[data-brl-theme="raceway"] .team-identity-strip strong {color:#fff}
+[data-brl-theme="raceway"] .team-identity-strip span {color:#bfc9d7}
+[data-brl-theme="raceway"] .team-identity-strip img {background:#080b11;border:1px solid #34404b;border-radius:9px;padding:5px;object-fit:contain}
+[data-brl-theme="raceway"] .career-workspace-links a {color:#e2b3f9!important;border-color:#63416f!important;background:#211628!important;border-radius:8px!important;padding:9px 13px!important}
+[data-brl-theme="raceway"] .career-workspace-links a:hover {background:#3a1a4b!important}
+/* Tabs are accessible and visually stateful. */
+[data-brl-theme="raceway"] :is(.career-nav,.support-tabs,.comparison-mode,.schedule-filter-tabs,.brl-bank nav) {border-bottom-color:#39404b!important}
+[data-brl-theme="raceway"] :is(.career-nav,.support-tabs,.comparison-mode,.schedule-filter-tabs,.brl-bank nav) button {
+  color:#b9c2ce!important;background:transparent!important;border-color:transparent!important;
+  border-radius:0!important;font-weight:800!important;
+}
+[data-brl-theme="raceway"] :is(.career-nav,.support-tabs,.comparison-mode,.schedule-filter-tabs,.brl-bank nav) button:hover {color:white!important}
+[data-brl-theme="raceway"] :is(.career-nav,.support-tabs,.comparison-mode,.schedule-filter-tabs,.brl-bank nav) button[aria-pressed="true"] {
+  color:#edb5ff!important;border-bottom-color:#c634fa!important;
+}
+/* Calm, layered racing surfaces; no heavy 1998-style bevels. */
+[data-brl-theme="raceway"] [data-brl-surface="section"],
+[data-brl-theme="raceway"] :is(.career-card,.career-compose,.comparison-page .comparison-panel,.support-offer,.support-tool,.member-stream-card,.member-stream-settings,.driver-stream-links,.appeal-card,.appeal-policy,.budget-program,.brl-bank,.team-builder,.team-builder-preview,.brl-ai-start,.brl-ai-history),
+[data-brl-theme="raceway"] :is(.admin-workspace-menu,.admin-workspace-grid a) {
+  background:linear-gradient(145deg,#1b2129,#12171e)!important;
+  color:#eef2f8!important;border:1px solid var(--brl-racing-border)!important;
+  border-radius:14px!important;
+  box-shadow:0 12px 32px #0003!important;
+  padding:clamp(16px,2.5vw,24px)!important;
+  min-width:0;
+}
+[data-brl-theme="raceway"] .career-card {margin-bottom:16px!important}
+[data-brl-theme="raceway"] .career-compose {border-top:3px solid #c83afa!important}
+[data-brl-theme="raceway"] [data-brl-surface="section"] {margin-bottom:16px!important}
+[data-brl-theme="raceway"] [data-brl-surface="stat"],
+[data-brl-theme="raceway"] :is(.driver-career-stats>div,.budget-stats article,.bank-balances>div) {
+  background:#202733!important;border:1px solid #394450!important;
+  border-radius:11px!important;padding:16px!important;box-shadow:none!important;
+}
+[data-brl-theme="raceway"] [data-brl-surface="tool"] {
+  color:#f3f5fb!important;background:#1a222b!important;border:1px solid #384651!important;
+  border-radius:10px!important;padding:16px!important;
+}
+[data-brl-theme="raceway"] .driver-career-stats strong,
+[data-brl-theme="raceway"] .budget-stats strong {color:#fff}
+[data-brl-theme="raceway"] :is(.career-muted,.career-empty,.driver-career-stats span,.admin-workspace-grid span),
+[data-brl-theme="raceway"] .career p:not(.career-error):not(.career-status) {color:#b7c0cd}
+[data-brl-theme="raceway"] .career :is(strong,b) {color:#f6f7fa}
+[data-brl-theme="raceway"] :is(.career-notice,.support-task-note,.support-review-note,.appeal-eligibility,.bank-banner,.brl-ai-notice) {
+  background:#251a30!important;border-left:3px solid #b638f4!important;
+  color:#eee3fa!important;border-radius:0 9px 9px 0!important;padding:13px 15px!important;
+}
+[data-brl-theme="raceway"] .career-status {background:#17372a!important;color:#b8f0d0!important;border:1px solid #347354!important;border-radius:8px}
+[data-brl-theme="raceway"] .career-error {color:#ff8089!important}
+[data-brl-theme="raceway"] .career-badge {color:#f5f6fb;background:#3d2b4c;border-color:#614471;border-radius:99px}
+[data-brl-theme="raceway"] .career-badge--ready {background:#153b2c;color:#baf7d2;border-color:#387858}
+/* Forms, including complex admin tools. */
+[data-brl-theme="raceway"] .career :is(input:not([type=checkbox]):not([type=radio]),select,textarea),
+[data-brl-theme="raceway"] .admin-workspaces :is(input:not([type=checkbox]):not([type=radio]):not([type=color]):not([type=range]),select,textarea),
+[data-brl-theme="raceway"] .brl-shell :is(input:not([type=checkbox]):not([type=radio]),select,textarea) {
+  background:#0c1118!important;color:#f4f6fb!important;border:1px solid #536071!important;
+  border-radius:9px!important;min-height:44px;
+  box-shadow:none!important;
+}
+[data-brl-theme="raceway"] :is(.career,.admin-workspaces,.brl-shell) :is(input,select,textarea):focus-visible {
+  border-color:#cd65ff!important;outline:2px solid #b53cf466!important;outline-offset:1px;
+}
+[data-brl-theme="raceway"] :is(.career,.admin-workspaces,.brl-shell) :is(input,textarea)::placeholder {color:#8c97a7;opacity:1}
+[data-brl-theme="raceway"] :is(.career,.admin-workspaces,.brl-shell) :is(label,legend) {color:#e0e5ee}
+[data-brl-theme="raceway"] :is(.career,.admin-workspaces,.brl-shell) :is(input,select):disabled {opacity:.58;cursor:not-allowed}
+[data-brl-theme="raceway"] :is(.career,.admin-workspaces,.brl-shell) select option {background:#12171d;color:#fff}
+/* Action buttons: keep existing event handlers; restyle visual layer only. */
+[data-brl-theme="raceway"] .career button:not(.career-nav button),
+[data-brl-theme="raceway"] .admin-workspaces button:not(nav button):not(.admin-task-directory button),
+[data-brl-theme="raceway"] .brl-shell .brl-primary-action {
+  background:linear-gradient(125deg,#a621d5,#cc34fb)!important;
+  color:#fff!important;border:1px solid #d35dff!important;
+  border-radius:9px!important;box-shadow:0 5px 15px #8100a228!important;
+  min-height:42px;
+}
+[data-brl-theme="raceway"] :is(.career,.admin-workspaces) button:hover:not(:disabled):not(.career-nav button) {
+  filter:brightness(1.12);opacity:1!important;
+}
+[data-brl-theme="raceway"] :is(.career,.admin-workspaces) button:disabled {opacity:.47!important;box-shadow:none!important}
+[data-brl-theme="raceway"] .career-link-button {background:transparent!important;color:#edb1ff!important;border:0!important;box-shadow:none!important}
+/* Operations and data density. */
+[data-brl-theme="raceway"] :is(.career,.admin-workspaces,.brl-bank) table {background:#131820;color:#eef1f6;border-collapse:separate;border-spacing:0}
+[data-brl-theme="raceway"] :is(.career,.admin-workspaces,.brl-bank) thead {background:#242d38}
+[data-brl-theme="raceway"] :is(.career,.admin-workspaces,.brl-bank) :is(th,td) {border-bottom:1px solid #374350;color:#dce3ed}
+[data-brl-theme="raceway"] :is(.career,.admin-workspaces,.brl-bank) tr:hover td {background:#212b35}
+[data-brl-theme="raceway"] .admin-workspace-grid a {text-decoration:none!important}
+[data-brl-theme="raceway"] .admin-workspace-grid a:hover {border-color:#b83ee8!important;background:#282033!important;color:#fff!important}
+[data-brl-theme="raceway"] .admin-workspace-grid a::after {color:#cc60fd!important}
+[data-brl-theme="raceway"] .admin-workspace-menu {padding:18px!important;margin-bottom:20px}
+/* Public navigation and primary route continuity. */
+[data-brl-theme="raceway"] .brl-route-hero,
+[data-brl-theme="raceway"] .brl-next-race-flow {border-color:#394550}
+[data-brl-theme="raceway"] .brl-route-hero p,
+[data-brl-theme="raceway"] .brl-next-race-flow p {color:#b9c2ce}
+[data-brl-theme="raceway"] .brl-next-race-flow>strong {color:#242c37}
+[data-brl-theme="raceway"] .brl-race-row:hover {background:#1b222a}
+[data-brl-theme="raceway"] .brl-primary-action {color:#fff!important}
+/* Legal signature documents and printed contracts must remain paper white. */
+[data-brl-theme="raceway"] .agreement-paper,
+[data-brl-theme="raceway"] .brl-agreement-paper {
+  background:#fff!important;color:#141414!important;box-shadow:0 14px 45px #0008!important;
+}
+[data-brl-theme="raceway"] .agreement-paper *,
+[data-brl-theme="raceway"] .brl-agreement-paper * {color:inherit}
+[data-brl-theme="raceway"] .agreement-paper :is(h1,h2,h3),
+[data-brl-theme="raceway"] .brl-agreement-paper :is(h1,h2,h3) {color:#141414!important;text-shadow:none!important}
+[data-brl-theme="raceway"] .agreement-paper :is(input,textarea),
+[data-brl-theme="raceway"] .brl-agreement-paper :is(input,textarea) {background:white!important;color:#141414!important;border-color:#777!important}
+/* Mobile: real layouts, not sideways, clipped desktop panels. */
+@media (max-width:768px){
+  [data-brl-theme="raceway"] .career {padding:16px 0 90px!important}
+  [data-brl-theme="raceway"] .career>.career-row:first-child {padding:18px!important}
+  [data-brl-theme="raceway"] .career-nav {gap:3px 12px!important}
+  [data-brl-theme="raceway"] .career-nav button {min-height:44px!important}
+  [data-brl-theme="raceway"] .career-card {padding:16px!important}
+  [data-brl-theme="raceway"] .brl-mobile__content {padding:18px 14px 100px!important}
+  [data-brl-theme="raceway"] .admin-workspaces {padding:15px!important}
+  [data-brl-theme="raceway"] .admin-workspace-grid {grid-template-columns:minmax(0,1fr)!important;gap:12px!important}
+  [data-brl-theme="raceway"] .admin-workspace-menu nav {grid-template-columns:minmax(0,1fr)!important}
+  [data-brl-theme="raceway"] .career-form-grid {grid-template-columns:minmax(0,1fr)!important}
+  [data-brl-theme="raceway"] .brl-mobile__tabs {background:#111721!important;border-top:1px solid #5c2a64!important}
+  [data-brl-theme="raceway"] .brl-mobile__tabs [aria-current="page"] {color:#fff!important}
+}
+/* Native PDF/print contract output must stay legible. */
+@media print {
+  :root[data-brl-theme="raceway"] {--brl-paper:#fff;--brl-ink:#161616;color-scheme:light}
+  [data-brl-theme="raceway"] :is(body,#root,.agreement-paper,.brl-agreement-paper) {background:#fff!important;color:#111!important;box-shadow:none!important}
+  [data-brl-theme="raceway"] :is(.career,.admin-workspaces) {background:#fff!important}
+}
