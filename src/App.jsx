@@ -45,7 +45,7 @@ import ContractsPage from "./pages/ContractsPage";
 import LeagueVotingPage from "./pages/LeagueVotingPage";
 import AdminVotingPage from "./pages/AdminVotingPage";
 import DriverFeedbackPage from "./pages/DriverFeedbackPage";
-import OwnerHQPage from "./pages/OwnerHQPage";
+import UnifiedTeamHQPage from "./pages/UnifiedTeamHQPage";
 import AdminPortal from "./pages/AdminPortal";
 import PermissionsCenter from "./pages/PermissionsCenter";
 import LeagueMessageCenter, { getMessageCategory } from "./pages/LeagueMessageCenter";
@@ -3678,7 +3678,7 @@ function MobileLeagueApp({
   if (path === "/owner") return dataFrame("Owner Portal", "more", <OwnersPage drivers={drivers} teams={teams} teamBudgets={teamBudgets} raceHistory={raceHistory} seasonName={seasonName} tracks={tracks} paymentCompliance={paymentCompliance} onApplyTeamTransaction={onApplyTeamTransaction} />);
 
   if (["/team-hq", "/owner-hq", "/hq", "/teamhq"].includes(path)) {
-    return frame("Team HQ", "more", <OwnerHQPage drivers={drivers} teams={teams} seasonName={seasonName} tracks={tracks} go={go} supabase={supabase} />);
+    return frame("Team HQ", "more", <UnifiedTeamHQPage drivers={drivers} teams={teams} seasonName={seasonName} tracks={tracks} go={go} />);
   }
 
   if (path.startsWith("/race/")) {
@@ -8111,24 +8111,14 @@ export default function App() {
       visibleDrivers.find(d => String(d.number) === String(requestedDriverNumber))?.team || leagueSession?.team || "Independent"
     );
   }
-  if (["/owners", "/owner", "/team-hq", "/hq", "/teamhq"].includes(path)) return withUniversalShell(
-    <>
-      <OwnersPage
-        drivers={visibleDrivers}
-        teams={teamStandings}
-        teamBudgets={teamBudgets}
-        raceHistory={raceHistory}
-        seasonName={activeSeason?.name || ""}
-        tracks={tracks}
-        paymentCompliance={paymentComplianceSummary}
-        onApplyTeamTransaction={applyOwnerPortalTeamTransaction}
-      />
-      <div style={{ ...appShellStyle, padding: "0 20px 20px" }}>
-        <div style={{ maxWidth: 1400, margin: "0 auto" }}>
-          <PaymentCompliancePanel mode="team" />
-        </div>
-      </div>
-    </>
+  if (["/owners", "/owner", "/team-hq", "/owner-hq", "/hq", "/teamhq"].includes(path)) return withUniversalShell(
+    <UnifiedTeamHQPage
+      drivers={visibleDrivers} teams={teamStandings} teamBudgets={teamBudgets}
+      raceHistory={raceHistory} seasonName={activeSeason?.name || ""} tracks={tracks}
+      paymentCompliance={paymentComplianceSummary}
+      onApplyTeamTransaction={applyOwnerPortalTeamTransaction}
+      go={go} PaymentCompliancePanel={PaymentCompliancePanel}
+    />
   );
   if (path === "/contracts") return withLeagueStatusWidget(<ContractsPage drivers={visibleDrivers} />);
   if (path === "/memorial-day") return withLeagueStatusWidget(<MemorialDayPage drivers={visibleDrivers} />);
