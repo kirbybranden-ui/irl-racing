@@ -17,6 +17,16 @@ export default function ContractDocument({ contract: c, onBack, me, isOwner, isS
   const t = c.terms, closed = !["offered", "partially_signed"].includes(c.status) || new Date(c.expires_at) <= new Date();
   const canOwner = c.kind === "independent" ? isSuperAdmin : isOwner;
   const canDriver = me?.user_id === c.driver_user;
+  const fixedOwnerAgreement = t.mandatoryOwnerDriver === true || t.mandatoryOwnerDriver === "true" || t.existingOwnerPayroll === true || t.existingOwnerPayroll === "true";
+  const jointOwnerDriver = fixedOwnerAgreement && canOwner && canDriver;
+  const acceptBothRoles = async (signature, consent) => {
+    const base = { id: c.id, signature, consent, version: c.version, termsHash: c.terms_hash };
+    if (!c.owner_signature) {
+      const result = await onAction("sign_contract", { ...base, party: "owner" });
+      if (!result) return;
+    }
+    if (!c.driver_signature) await onAction("sign_contract", { ...base, party: "driver" });
+  };
   return <div className="career-document-view">
     <div className="career-document-tools"><button onClick={onBack}>← Back to offers</button><button onClick={() => window.print()}>Print / Save PDF</button><span>{c.status.replaceAll("_", " ")} · Version {c.version}</span></div>
     <article className="agreement-paper" aria-label="Contract document">
@@ -34,7 +44,7 @@ export default function ContractDocument({ contract: c, onBack, me, isOwner, isS
       <section><h2>Acceptance and signatures</h2><p>By typing their registered gamertag and confirming acceptance, each party accepts the document version identified here.</p><div className="agreement-signatures"><Signature value={c.owner_signature} label={c.kind === "independent" ? "League / Super admin" : "Team owner"} /><Signature value={c.driver_signature} label="Driver" /></div></section>
       <footer>Document fingerprint: {c.terms_hash}<br />Issued {new Date(c.created_at).toLocaleString()} · Offer expires {new Date(c.expires_at).toLocaleString()}</footer>
     </article>
-    {!closed && <section className="career-document-tools career-signing"><h2>Review and sign this version</h2>{canOwner && !c.owner_signature && <SignForm label={c.kind === "independent" ? "Sign as super admin" : "Sign as owner"} gamertag={me.gamertag} busy={busy} onSign={(signature, consent) => onAction("sign_contract", { id: c.id, party: "owner", signature, consent, version: c.version, termsHash: c.terms_hash })} />}{canDriver && !c.driver_signature && <SignForm label="Sign as driver" gamertag={me.gamertag} busy={busy} onSign={(signature, consent) => onAction("sign_contract", { id: c.id, party: "driver", signature, consent, version: c.version, termsHash: c.terms_hash })} />}{(canOwner || canDriver) && <div className="career-actions"><button onClick={() => onNegotiate(c)}>Propose changes / Negotiate</button><button disabled={busy} onClick={() => onAction("decline_contract", { id: c.id, version: c.version, termsHash: c.terms_hash })}>Decline this offer</button></div>}</section>}
+    {!closed && <section className="career-document-tools career-signing"><h2>Review and sign this version</h2>{jointOwnerDriver && (!c.owner_signature || !c.driver_signature) && <><p>This is your required owner-driver agreement. You are both the team owner and the driver. One acceptance signs your two designated blocks; the league verifies activation after both signatures are recorded.</p><SignForm label="Accept as owner and driver" gamertag={me.gamertag} busy={busy} onSign={acceptBothRoles} /></>}{!jointOwnerDriver && canOwner && !c.owner_signature && <SignForm label={c.kind === "independent" ? "Sign as super admin" : "Sign as owner"} gamertag={me.gamertag} busy={busy} onSign={(signature, consent) => onAction("sign_contract", { id: c.id, party: "owner", signature, consent, version: c.version, termsHash: c.terms_hash })} />}{!jointOwnerDriver && canDriver && !c.driver_signature && <SignForm label="Sign as driver" gamertag={me.gamertag} busy={busy} onSign={(signature, consent) => onAction("sign_contract", { id: c.id, party: "driver", signature, consent, version: c.version, termsHash: c.terms_hash })} />}{(canOwner || canDriver) && !fixedOwnerAgreement && <div className="career-actions"><button onClick={() => onNegotiate(c)}>Propose changes / Negotiate</button><button disabled={busy} onClick={() => onAction("decline_contract", { id: c.id, version: c.version, termsHash: c.terms_hash })}>Decline this offer</button></div>}</section>}
   </div>;
 }
 export function FundingDocument({ agreement: a, team, me, owner, onSign, busy, onClose }) {
