@@ -221,6 +221,10 @@ const checkboxLabelStyle = { display: "flex", gap: 8, alignItems: "center", back
 const MIN_DRIVER_SALARY = 250000;
 const MIN_CONTRACT_LENGTH = 1;
 const OWNER_MINIMUM_SALARY = 500000;
+const FRANCHISE_MINIMUM_SALARY = 750000;
+// Season 2 champion policy; change through the admin funding policy for future seasons.
+const SEASON_2_CHAMPION_GAMERTAG = "abajack9";
+const SEASON_2_CHAMPION_MINIMUM_SALARY = 1000000;
 const DEFAULT_CONTRACT_FORM = {
   driver_name: "",
   driver_number: "",
@@ -3215,6 +3219,13 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
     const winBonus = Number(contractForm.win_bonus) || 0;
     const selectedDriver = drivers.find((driver) => driver.name === contractForm.driver_name);
     const isOwnerDriver = selectedDriver && String(selectedDriver.name || "").toLowerCase() === String(ownerNames[safeSelectedTeam] || "").toLowerCase();
+    const normalizedDriverName = String(contractForm.driver_name || "").trim().toLowerCase();
+    const isSeasonChampion = normalizedDriverName === SEASON_2_CHAMPION_GAMERTAG;
+    const requiredSalary = Math.max(
+      MIN_DRIVER_SALARY,
+      isOwnerDriver ? OWNER_MINIMUM_SALARY : 0,
+      isSeasonChampion ? SEASON_2_CHAMPION_MINIMUM_SALARY : 0,
+    );
     const totalImmediateCost = salary + signingBonus;
 
     if (!contractForm.driver_name.trim()) {
@@ -3222,13 +3233,8 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
       return;
     }
 
-    if (salary < MIN_DRIVER_SALARY) {
-      setContractError("Minimum driver salary is $250,000.");
-      return;
-    }
-
-    if (isOwnerDriver && salary < OWNER_MINIMUM_SALARY) {
-      setContractError("Owner-drivers must take a minimum salary of $500,000.");
+    if (!Number.isFinite(salary) || salary < requiredSalary) {
+      setContractError(`This driver requires a minimum salary of ${money(requiredSalary)}${isSeasonChampion ? " as the defending champion" : isOwnerDriver ? " as an owner-driver" : ""}. You may offer any higher amount.`);
       return;
     }
 
@@ -4887,7 +4893,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
 
                 <div>
                   <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.7, marginBottom: 8 }}>SALARY</div>
-                  <input type="number" min={250000} value={contractForm.salary} onChange={(event) => updateContractField("salary", event.target.value)} style={inputStyle} />
+                  <input type="number" min={0} step={1000} value={contractForm.salary} onChange={(event) => updateContractField("salary", event.target.value)} style={inputStyle} />
                 </div>
 
                 <div>
@@ -4974,7 +4980,7 @@ export default function OwnersPage({ drivers = [], teams = [], raceHistory = [],
               <div style={{ background: "#0f1319", border: "1px solid #2c3440", borderRadius: 14, padding: 14, marginTop: 14, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
                 <div><strong>Immediate Cost:</strong> {money((Number(contractForm.salary) || 0) + (Number(contractForm.signing_bonus) || 0))}</div>
                 <div><strong>Max Buyout:</strong> {money((Number(contractForm.salary) || 0) * 1.5)}</div>
-                <div><strong>Min Salary:</strong> {money(MIN_DRIVER_SALARY)}</div>
+                <div><strong>Min Salary:</strong> {money(Math.max(MIN_DRIVER_SALARY, String(contractForm.driver_name || "").trim().toLowerCase() === SEASON_2_CHAMPION_GAMERTAG ? SEASON_2_CHAMPION_MINIMUM_SALARY : 0, String(contractForm.driver_name || "").trim().toLowerCase() === String(ownerNames[safeSelectedTeam] || "").trim().toLowerCase() ? OWNER_MINIMUM_SALARY : 0))}</div>
                 <div><strong>Min Length:</strong> {MIN_CONTRACT_LENGTH} season</div>
               </div>
 
