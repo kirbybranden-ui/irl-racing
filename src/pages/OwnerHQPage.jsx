@@ -478,16 +478,6 @@ export default function OwnerHQPage({ drivers = [], teams = [], seasonName = "",
       />
 
       <MobileCard>
-        <MobileAction
-          label="Open Full Owner Portal"
-          onClick={() => safeGo(go, "/owner")}
-        />
-        <div style={{ marginTop: 10, color: "#aab3c2", fontSize: 12, lineHeight: 1.45 }}>
-          Manage contracts, roster, and finances in the full owner portal.
-        </div>
-      </MobileCard>
-
-      <MobileCard>
         <label style={{ display: "block", color: "#aab3c2", fontSize: 11, fontWeight: 1000, textTransform: "uppercase", marginBottom: 8 }}>
           Select Team
         </label>
@@ -519,7 +509,6 @@ export default function OwnerHQPage({ drivers = [], teams = [], seasonName = "",
               ...(!showBanking?[["Budget", money(getTeamBudget(currentTeam.team))]]:[]),
             ]} />
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              <MobileAction label="Open Full HQ" onClick={() => safeGo(go, "/owner")} secondary />
               <MobileAction label="Team Page" onClick={() => safeGo(go, `/team/${encodeURIComponent(currentTeam.team)}`)} />
             </div>
           </MobileCard>
