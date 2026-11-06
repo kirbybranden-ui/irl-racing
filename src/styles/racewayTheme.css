@@ -349,3 +349,147 @@
   [data-brl-theme="raceway"] :is(body,#root,.agreement-paper,.brl-agreement-paper) {background:#fff!important;color:#111!important;box-shadow:none!important}
   [data-brl-theme="raceway"] :is(.career,.admin-workspaces) {background:#fff!important}
 }
+
+
+/* ================================================================
+   BRL RACING IDENTITY 2.0 — OPEN FLOW, NOT A STACK OF CARDS
+   Deliberately last so it supersedes the earlier boxed styling.
+   Pure CSS presentation update; no application or data changes.
+   ================================================================ */
+:root[data-brl-theme="raceway"] {
+  --brl-racing-bg:#0d1015;
+  --brl-racing-panel:#11151b;
+  --brl-racing-border:#303741;
+  --brl-rule:#343942;
+}
+/* Use one continuous canvas instead of nested "panels within panels". */
+[data-brl-theme="raceway"] :is(.career,.admin-workspaces,.brl-page,.brl-mobile__content,.career-route-shell){
+  background:transparent!important;
+}
+[data-brl-theme="raceway"] .career>.career-row:first-child {
+  background:transparent!important;
+  border:0!important;
+  border-bottom:1px solid var(--brl-rule)!important;
+  border-radius:0!important;
+  padding:clamp(16px,2.5vw,28px) 0 30px!important;
+  box-shadow:none!important;
+  margin-bottom:26px!important;
+}
+[data-brl-theme="raceway"] .career>.career-row:first-child::after {
+  left:0!important;bottom:-2px!important;width:90px!important;height:3px!important;
+  background:linear-gradient(90deg,#f22b36,#b93be9)!important;
+}
+/* Brand strip: inline identity plus a vertical racing accent, not a framed tile. */
+[data-brl-theme="raceway"] :is(.team-identity-strip,.career.brl-team-themed .team-identity-strip) {
+  background:transparent!important;
+  border:0!important;
+  border-left:3px solid var(--brl-team-accent,#c038f4)!important;
+  border-radius:0!important;
+  box-shadow:none!important;
+  padding:6px 0 6px 17px!important;
+  margin-block:18px 26px!important;
+}
+[data-brl-theme="raceway"] .team-identity-strip img {
+  background:transparent!important;
+  border:0!important;
+  border-radius:0!important;
+  padding:0!important;
+}
+/* Sections are separated by breathing room and subtle rules. */
+[data-brl-theme="raceway"] [data-brl-surface="section"],
+[data-brl-theme="raceway"] :is(.career-card,.comparison-page .comparison-panel,.comparison-page .comparison-roster-card,
+  .support-offer,.support-tool,.member-stream-card,.member-stream-settings,.driver-stream-links,
+  .appeal-card,.appeal-policy,.budget-program,.brl-bank,.team-builder,.team-builder-preview,
+  .brl-ai-start,.brl-ai-history,.career-compose,.career-signing,.budget-edit),
+[data-brl-theme="raceway"] :is(.admin-workspace-menu,.admin-workspace-grid a) {
+  background:transparent!important;
+  background-image:none!important;
+  border:0!important;
+  border-top:1px solid var(--brl-rule)!important;
+  border-radius:0!important;
+  box-shadow:none!important;
+  padding:clamp(18px,2.4vw,28px) 0!important;
+  margin-bottom:12px!important;
+  color:var(--brl-ink)!important;
+}
+[data-brl-theme="raceway"] .career-compose {
+  border-top:2px solid #a635d9!important;
+  margin-top:22px!important;
+}
+[data-brl-theme="raceway"] [data-brl-surface="section"]{margin-bottom:12px!important}
+[data-brl-theme="raceway"] :is([data-brl-surface="stat"],[data-brl-surface="tool"],
+ .driver-career-stats>div,.budget-stats article,.bank-balances>div) {
+  background:transparent!important;
+  background-image:none!important;
+  border:0!important;
+  border-bottom:1px solid var(--brl-rule)!important;
+  border-radius:0!important;
+  padding:15px 6px 17px 0!important;
+  box-shadow:none!important;
+  min-height:unset!important;
+}
+[data-brl-theme="raceway"] :is(.career-grid,.career-offer-compare,.member-stream-grid,.comparison-rosters) {
+  gap:16px 30px!important;
+}
+/* Links and navigation underline instead of boxed pills. */
+[data-brl-theme="raceway"] .career-workspace-links a,
+[data-brl-theme="raceway"] .admin-workspace-grid a {
+  background:transparent!important;
+  border:0!important;
+  border-bottom:1px solid var(--brl-rule)!important;
+  border-radius:0!important;
+  box-shadow:none!important;
+  padding:12px 4px 12px 0!important;
+  color:#d9adf3!important;
+}
+[data-brl-theme="raceway"] .admin-workspace-grid a {color:var(--brl-ink)!important;padding:20px 25px 20px 0!important}
+[data-brl-theme="raceway"] .admin-workspace-grid a:hover {background:transparent!important;color:#e6a7ff!important;border-color:#b338dd!important}
+[data-brl-theme="raceway"] .admin-workspace-menu {padding:12px 0!important}
+[data-brl-theme="raceway"] :is(.career-nav,.support-tabs,.comparison-mode,.schedule-filter-tabs,.brl-bank nav){
+  padding:8px 0 0!important;margin-bottom:20px!important;
+  border-bottom:1px solid var(--brl-rule)!important;
+}
+/* Detail tables use flat rows and readable numbers, not an outer table card. */
+[data-brl-theme="raceway"] :is(.career,.admin-workspaces,.brl-bank) table {
+  background:transparent!important;
+  border-collapse:collapse!important;
+}
+[data-brl-theme="raceway"] :is(.career,.admin-workspaces,.brl-bank) thead {background:transparent!important}
+[data-brl-theme="raceway"] :is(.career,.admin-workspaces,.brl-bank) :is(th,td) {
+  background:transparent!important;border-bottom:1px solid var(--brl-rule)!important;
+  padding-block:12px;
+}
+[data-brl-theme="raceway"] :is(.career,.admin-workspaces,.brl-bank) th {color:#dca0fa!important}
+/* Keep inputs usable. Borders belong on fields and actions, not section containers. */
+[data-brl-theme="raceway"] :is(.career,.admin-workspaces) :is(input:not([type=checkbox]):not([type=radio]),select,textarea) {
+  background:#12171e!important;
+  border:1px solid #485260!important;
+  border-radius:7px!important;
+  box-shadow:none!important;
+}
+[data-brl-theme="raceway"] :is(.career,.admin-workspaces) button:not(.career-nav button):not(nav button) {
+  border-radius:7px!important;
+  box-shadow:none!important;
+}
+/* Secondary information is an inline note with a rule, never another tile. */
+[data-brl-theme="raceway"] :is(.career-notice,.support-task-note,.support-review-note,.appeal-eligibility,.bank-banner,.brl-ai-notice){
+  background:transparent!important;
+  border:0!important;
+  border-left:2px solid #aa3ad4!important;
+  border-radius:0!important;
+  padding:8px 0 8px 15px!important;
+}
+/* Admin menu and nested presentation scaffolds should not be opaque white blocks. */
+[data-brl-theme="raceway"] :is(.admin-workspace-menu,.admin-workspace-menu nav,.admin-workspace-grid,.admin-workspace-grid a){background-color:transparent!important}
+/* Accent for page content rather than a border on every section. */
+[data-brl-theme="raceway"] :is(.career-card,.support-offer,.support-tool,.appeal-card,.admin-workspace-grid a) h3 {letter-spacing:-.025em}
+/* Mobile uses the same editorial flow; no enclosed stack. */
+@media(max-width:768px){
+  [data-brl-theme="raceway"] .career>.career-row:first-child{padding:14px 0 25px!important}
+  [data-brl-theme="raceway"] :is(.career-card,.career-compose,[data-brl-surface="section"],.admin-workspace-menu){padding:18px 0!important}
+  [data-brl-theme="raceway"] .admin-workspace-grid{gap:0!important}
+  [data-brl-theme="raceway"] .brl-mobile__content{padding:20px 16px 90px!important}
+}
+/* Contracts presented for reading and signing remain paper-white. */
+[data-brl-theme="raceway"] :is(.agreement-paper,.brl-agreement-paper){background:#fff!important;color:#111!important}
+@media print { [data-brl-theme="raceway"] :is(.career-card,.career-compose,[data-brl-surface="section"]){border-color:#ddd!important;color:#111!important} }
