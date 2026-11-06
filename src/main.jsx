@@ -6,7 +6,6 @@ import DesktopNavigation from "./components/layout/DesktopNavigation.jsx";
 import "./styles/brlGlobalTheme.css";
 import "./styles/racewayTheme.css";
 import "./styles/mobileFlow.css";
-import "./styles/brlSeason2Flow.css";
 import MobileTableFlow from "./components/layout/MobileTableFlow";
 
 document.documentElement.dataset.brlTheme = "raceway";
