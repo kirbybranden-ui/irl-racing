@@ -20,7 +20,7 @@ import ContractDocument, { FundingDocument, SignForm } from "../../components/ca
 import "../../styles/career.css";
 const isAbaChampion = (gamertag, policyGamertag) => {
   const normalize = value => String(value || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-  return ["abajack9", "abajack91", policyGamertag].some(name => name && normalize(gamertag) === normalize(name));
+  return ["abajack91"].some(name => name && normalize(gamertag) === normalize(name));
 };
 const contractSalaryError = ({ salary, role, champion }) => {
   if (salary === "" || salary === null || salary === undefined || !Number.isFinite(Number(salary))) return "Enter the driver's base salary before submitting the contract.";
