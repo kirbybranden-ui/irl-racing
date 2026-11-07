@@ -21,6 +21,15 @@ export async function careerAction(action, payload) {
   if(action!=="prepare_support")window.dispatchEvent(new Event("brl:bank-state-changed"));
   return data;
 }
+export async function claimOwnerDriverNumber(teamId,number){
+  const {data,error}=await supabase.rpc("brl_owner_claim_leased_number",{
+    p_team_id:teamId,p_number:number
+  });
+  if(error)throw new Error(error.message);
+  careerReader.invalidate();
+  window.dispatchEvent(new Event("brl:bank-state-changed"));
+  return data;
+}
 export async function functionError(error, fallback) {
   if (error?.context) { try { const body = await error.context.json(); if (body.error) return body.error; } catch { /* fall through */ } }
   return error?.message || fallback;
