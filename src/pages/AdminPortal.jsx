@@ -296,6 +296,8 @@ export default function AdminPortal({
   const [financeError, setFinanceError] = useState("");
   const [financeDepartmentOpen, setFinanceDepartmentOpen] = useState(false);
   const [publicRelationsOpen, setPublicRelationsOpen] = useState(false);
+  // Featured Media series selection belongs to this admin form.
+  const [videoSeries, setVideoSeries] = useState("cup");
   const [publicRelationsTab, setPublicRelationsTab] = useState("overview");
   const [hrDepartmentOpen, setHrDepartmentOpen] = useState(false);
   const [hrTab, setHrTab] = useState("overview");
