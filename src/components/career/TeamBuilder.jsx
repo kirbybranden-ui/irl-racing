@@ -65,7 +65,7 @@ export default function TeamBuilder({ team, data, onSaved, onStep }) {
       <li><strong>{profile.savedAt ? "Profile saved" : "Save your team profile"}</strong><p>Choose your name, colors, and optional logo above.</p></li>
       <li><strong>Arrange team funding</strong><p>Balance {money(account?.balance)} · available {money(account?.available)}. Opening budgets and league loans require league approval.</p><button type="button" onClick={() => document.getElementById(`team-finance-${team.id}`)?.scrollIntoView({ behavior: "smooth" })}>View funding & loan options</button></li>
       <li><strong>Lease your numbers</strong><p>{numbers.length ? `Active leases: ${numbers.map(n => `#${n.number}`).join(", ")}.` : "No active number leases yet."} Your team must lease and fund its numbers each season.</p><button type="button" onClick={() => onStep("leases")}>Open number leases</button></li>
-      <li><strong>{team.ready ? "Ready to recruit" : "Complete the league’s recruiting requirements"}</strong><p>{team.ready ? "Review driver seat applications and prepare contracts for your approved car limit." : "The league checks approval, available funds, active leases, and payment compliance before recruiting."}</p><button type="button" disabled={!team.ready} onClick={() => onStep("requests")}>Review seat applications</button></li>
+      <li><strong>{"Applications open for approved teams"}</strong><p>{"Drivers may apply now. Review their applications; funding, leases, and contract terms are checked before roster activation."}</p><button type="button" onClick={() => onStep("requests")}>Review seat applications</button></li>
     </ol>
   </section>;
 }
