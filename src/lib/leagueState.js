@@ -1,33 +1,26 @@
-import { supabase } from "./supabase";
+-- BRL performance: non-destructive lookup indexes for account and ownership checks.
+-- These do not bypass any security policy or alter any account/financial data.
+-- Run in Supabase SQL Editor once. Existing equivalent constraints/indexes are preserved.
 
-const ROW_KEY = "irl-league";
+CREATE INDEX IF NOT EXISTS brl_perf_owner_assignment_driver
+  ON public.team_owner_assignments (owner_driver_id) WHERE owner_driver_id IS NOT NULL;
 
-import {createSharedRead} from "./sharedRead";
-const leagueReader=createSharedRead({label:"League data",retries:1,request:async signal=>{
-  const {data,error}=await supabase.rpc("brl_read_league").abortSignal(signal);
-  if(error)throw new Error(error.message);
-  return data||null;
-}});
-let lastReadUser;
-supabase.auth.onAuthStateChange((event,session)=>{const user=session?.user?.id||null;if(event==="SIGNED_OUT"||(lastReadUser!==undefined&&lastReadUser!==user))leagueReader.invalidate();lastReadUser=user;});
-if(typeof window!=="undefined")window.addEventListener("brl:bank-state-changed",()=>leagueReader.invalidate());
-export async function loadLeagueState({throwOnError=false}={}){
-  if(!supabase)return null;
-  try{return await leagueReader.read();}catch(error){console.error("Load error:",error);if(throwOnError)throw error;return null;}
-}
-export async function saveLeagueState(state, expectedRevision=null) {
-  if (!supabase) throw new Error("Supabase is unavailable.");
+CREATE INDEX IF NOT EXISTS brl_perf_manufacturer_reps_user
+  ON public.brl_manufacturer_reps (user_id);
 
-  let query=supabase.from("league_state").update({data:state,updated_at:new Date().toISOString()}).eq("season_name",ROW_KEY);
-  if(expectedRevision)query=query.eq("updated_at",expectedRevision);
-  const {data,error}=await query.select("updated_at").maybeSingle();
+CREATE INDEX IF NOT EXISTS brl_perf_accounts_active_identity
+  ON public.brl_accounts (auth_user_id) WHERE active = true;
 
-  if (error) {
-    console.error("Save error:", error);
-    throw error;
-  }
-  if(!data)throw new Error("League data changed on the server. Reload before saving to protect bank and roster updates.");
-  leagueReader.invalidate();
-  setTimeout(()=>window.dispatchEvent(new Event("brl:bank-state-changed")),50);
-  return data.updated_at;
-}
+CREATE INDEX IF NOT EXISTS brl_perf_career_teams_owner_active
+  ON public.brl_career_teams (owner_user, season_id, code)
+  WHERE status = 'approved';
+
+ANALYZE public.team_owner_assignments;
+ANALYZE public.brl_manufacturer_reps;
+ANALYZE public.brl_accounts;
+ANALYZE public.brl_career_teams;
+
+-- Show confirmation without exposing member data.
+SELECT indexname FROM pg_indexes
+WHERE schemaname='public' AND indexname LIKE 'brl_perf_%'
+ORDER BY indexname;
