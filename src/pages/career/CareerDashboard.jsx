@@ -109,7 +109,30 @@ export default function CareerDashboard({ workspace = "driver", initialTab, seas
     return () => { window.removeEventListener("hashchange", sync);window.removeEventListener("popstate", sync); };
   }, [initialTab]);
   const load = useCallback(async () => { const next = await careerRead();setData(next);setError("");return next; }, []);
-  useEffect(() => { let live = true;const refresh = () => careerRead().then(next => { if (live) { setData(next);setError(""); } }).catch(e => { if (live) setError(e.message); });refresh();window.addEventListener("focus", refresh);return () => { live = false;window.removeEventListener("focus", refresh); }; }, []);
+  // Keep the owner workspace mounted when the shared career RPC is slow.
+  // A temporary database timeout is NOT a logout or an account-registration failure.
+  // Retry the read with bounded backoff; do not refetch on every mobile focus event.
+  useEffect(() => {
+    let live = true;
+    let retryTimer;
+    let failures = 0;
+    const refresh = async () => {
+      try {
+        const next = await careerRead();
+        if (!live) return;
+        failures = 0;
+        setData(next);
+        setError("");
+      } catch (failure) {
+        if (!live) return;
+        setError(failure?.message || "Career data is temporarily unavailable.");
+        const delay = Math.min(60000, 4000 * (2 ** Math.min(failures++, 4)));
+        retryTimer = window.setTimeout(refresh, delay);
+      }
+    };
+    refresh();
+    return () => { live = false; window.clearTimeout(retryTimer); };
+  }, []);
   useEffect(() => {
     if (!["owner", "independent"].includes(rawData?.me?.kind) || rawData?.me?.status !== "applicant") return;
     let live = true;
@@ -118,7 +141,7 @@ export default function CareerDashboard({ workspace = "driver", initialTab, seas
   }, [ownerWorkspace, rawData?.me?.kind, rawData?.me?.status]);
   async function run(action, payload) { setBusy(true);setError("");setStatus("");try { const result = await careerAction(action, payload);await load();setStatus("Saved successfully.");return result; } catch (failure) { setError(failure.message);return null; } finally { setBusy(false); } }
   const data=careerWorkspaceData(rawData,workspace);
-  if (!data) return <div className="career"><h1>{adminWorkspace?"League administration":ownerWorkspace?"Owner HQ":"My Career"}</h1>{error ? <><p role="alert" className="career-error">{error}</p><button onClick={() => { setError("");load().catch(e => setError(e.message)); }}>Retry</button><p><a href="/login">Sign in / Register</a></p></> : <p role="status">Loading your applications and agreements…</p>}</div>;
+  if (!data) return <div className="career"><h1>{adminWorkspace?"League administration":ownerWorkspace?"Owner HQ":"My Career"}</h1>{error ? <><p role="alert" className="career-error">{error}</p><p role="status">Reconnecting automatically. Your account is still signed in.</p><button onClick={() => { setError("");load().catch(e => setError(e.message)); }}>Retry now</button></> : <p role="status">Loading your applications and agreements…</p>}</div>;
   const me = data.me, root = adminWorkspace && data.isSuperAdmin, owned = ownerWorkspace ? data.teams.filter(t => t.owner_user === me.user_id && t.status === "approved") : [], owner = owned.length > 0;
   const restrictedOwner = ownerWorkspace && me.kind !== "driver" && ["applicant", "rejected"].includes(me.status);
   const manufacturer = (data.manufacturerRoles || []).length > 0;
