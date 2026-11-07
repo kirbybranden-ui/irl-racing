@@ -6,6 +6,7 @@ import CareerDashboard from "./pages/career/CareerDashboard";
 import AccountDialog from "./components/auth/AccountDialog";
 import { publishChallengeSetting, useInSeasonChallenge } from "./lib/inSeasonChallenge";
 import MobileShell from "./mobile/MobileShell";
+import HomepageFeaturedPhoto from "./components/home/HomepageFeaturedPhoto";
 import MediaCenter from "./components/ai/MediaCenter";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -3915,6 +3916,7 @@ function MobileLeagueApp({
           subtitle={upcomingRace ? `Next race: ${upcomingRace.name || upcomingRace.track || "TBA"} • 9:30 PM ET` : "Results, race news, and the championship picture."}
         />
         <LeagueTicker page="standings" />
+        <HomepageFeaturedPhoto loadFromDatabase />
         <MobileWeekendRecap raceHistory={raceHistory} tracks={tracks} drivers={drivers} go={go} />
         <button
           type="button"
