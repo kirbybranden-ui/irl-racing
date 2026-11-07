@@ -1,6 +1,6 @@
 import "../../styles/numberLeases.css";
 import React, { useState } from "react";
-import { money } from "../../lib/career";
+import { money, claimOwnerDriverNumber } from "../../lib/career";
 import { Signature } from "./ContractDocument";
 const text = (f,k) => String(f.get(k)||"");
 const date = value => value ? new Date(value).toLocaleString() : "—";
@@ -37,6 +37,37 @@ export function InitialAssignments({data,owned,busy,onAssign}) {
  const numbers=(data.numbers||[]).filter(n=>n.activeLease&&owned.some(t=>t.id===n.team_id));
  return <section className="career-card"><h2>Assign your team’s numbers</h2><p>Choose an unassigned leased number when preparing a driver’s contract. You choose the initial number; it becomes assigned when the signed contract activates. Once assigned, changing that driver’s number requires approval.</p>{numbers.map(n=>{const team=data.teams.find(t=>t.id===n.team_id),driver=data.members.find(m=>m.user_id===n.assigned_user),requests=(data.requests||[]).filter(r=>r.team_id===n.team_id&&r.status==="approved"&&!(data.numbers||[]).some(x=>x.activeLease&&x.assigned_user===r.driver_user));return <div className="lease-assignment-row" key={n.id}><div><strong>#{n.number} · {team?.name}</strong><p>{n.assigned_user?`Assigned to ${driver?.gamertag||"driver"} — number changes require approval.`:"Available to assign to an approved driver."}</p></div>{!n.assigned_user&&onAssign&&<><label>Approved seat applicant<select value={selections[n.id]||""} onChange={e=>setSelections(v=>({...v,[n.id]:e.target.value}))}><option value="">Choose driver</option>{requests.map(r=><option key={r.id} value={r.id}>{data.members.find(m=>m.user_id===r.driver_user)?.gamertag||"Approved driver"}</option>)}</select></label><button disabled={busy||!selections[n.id]} onClick={()=>onAssign({teamId:n.team_id,number:n.number,requestId:selections[n.id]})}>Prepare contract with #{n.number}</button>{!requests.length&&<p className="career-muted">Approve a driver’s seat application first. Required owner salary setup remains under Driver contracts.</p>}</>}</div>;})}{!numbers.length&&<p>Your paid, approved number leases will appear here.</p>}</section>;
 }
+function OwnerNumberSelection({data,owned,onCompleted}) {
+ const [teamId,setTeamId]=useState(owned[0]?.id || "");
+ const [number,setNumber]=useState("");
+ const [saving,setSaving]=useState(false);
+ const [message,setMessage]=useState("");
+ const team=owned.find(t=>t.id===teamId);
+ const account=data.me;
+ const myAssignment=(data.numbers||[]).find(n=>n.team_id===teamId && n.activeLease && n.assigned_user===account.user_id);
+ const options=(data.numbers||[]).filter(n=>n.team_id===teamId && n.activeLease && !n.assigned_user);
+ async function choose(e){
+  e.preventDefault();setMessage("");setSaving(true);
+  try {
+   const result=await claimOwnerDriverNumber(teamId,Number(number));
+   setMessage(`You are now listed as #${result.number} for ${result.team}.`);
+   setNumber("");await onCompleted();
+  }catch(error){setMessage(error.message||"Could not assign this number.");}
+  finally{setSaving(false);}
+ }
+ if(!owned.length)return null;
+ return <section className="career-card"><h2>Choose your owner-driver car number</h2>
+  <p>Once your team leases a number and the league activates that lease, select which available team number you will drive. No separate owner contract or signature is required.</p>
+  <form className="career-form" onSubmit={choose}>
+   <label>Your approved team<select value={teamId} onChange={e=>{setTeamId(e.target.value);setNumber("");setMessage("");}}>{owned.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label>
+   {myAssignment ? <p><strong>Assigned: #{myAssignment.number} — {team?.name}</strong>. Changes require league approval.</p> : <>
+    <label>Available paid team number<select required value={number} onChange={e=>setNumber(e.target.value)}><option value="">Choose your number</option>{options.map(n=><option key={n.id} value={n.number}>#{n.number}</option>)}</select></label>
+    <button disabled={saving||!number||!options.length}>{saving?"Assigning…":"Drive this number"}</button>
+    {!options.length&&<p>Lease a number above and wait for its approval before choosing your driving number.</p>}
+   </>}
+  </form>{message&&<p role="status" className="career-notice">{message}</p>}
+ </section>;
+}
 export default function NumberLeaseCenter({data:sourceData,owned=[],busy,run,admin=false,staffMode=false,onAssign}) {
  const data={...sourceData,isSuperAdmin:admin&&sourceData.isSuperAdmin,manufacturerRoles:[]};
  const [doc,setDoc]=useState(null);
@@ -45,7 +76,7 @@ export default function NumberLeaseCenter({data:sourceData,owned=[],busy,run,adm
  if(staffMode&&!admin)return <section className="career-card"><h2>Number leases</h2><p>Owners request available numbers through Owner HQ. Requests are forwarded to the league for approval.</p></section>;
  if(selected)return <div className="career-document-view"><div className="career-document-tools"><button onClick={()=>setDoc(null)}>← Number leases</button><button onClick={()=>window.print()}>Print / Save PDF</button></div><LeaseDocument lease={selected} team={data.teams.find(t=>t.id===selected.team_id)}/></div>;
  const legacyDutyIds=new Set((data.leases||[]).filter(l=>l.terms?.workflow!=="owner-request-v1").map(l=>l.id)),legacyDuties=(data.leaseDuties||[]).filter(d=>legacyDutyIds.has(d.lease_id));
- return <><FinancialSummary data={data} busy={busy} run={run}/>{owned.length>0&&<LeaseRequest data={data} owned={owned} busy={busy} run={run}/>}<LeaseQueue data={data} owned={owned} busy={busy} run={run} onDocument={setDoc}/>{owned.length>0&&<InitialAssignments data={data} owned={owned} busy={busy} onAssign={onAssign}/>}<NumberChanges data={data} owned={owned} busy={busy} run={run}/>{legacyDuties.length>0&&<details className="career-card"><summary>Existing signed manufacturer duties</summary><Duties data={{...data,leaseDuties:legacyDuties}} owned={owned} root={data.isSuperAdmin} busy={busy} run={run}/>{data.isSuperAdmin&&(data.leases||[]).filter(l=>legacyDutyIds.has(l.id)).map(l=><LegacyLeaseRecovery key={l.id} lease={l} data={data} busy={busy} run={run}/>)}</details>}</>;
+ return <><FinancialSummary data={data} busy={busy} run={run}/>{owned.length>0&&<OwnerNumberSelection data={data} owned={owned} onCompleted={()=>window.location.reload()}/>} {owned.length>0&&<LeaseRequest data={data} owned={owned} busy={busy} run={run}/>}<LeaseQueue data={data} owned={owned} busy={busy} run={run} onDocument={setDoc}/>{owned.length>0&&<InitialAssignments data={data} owned={owned} busy={busy} onAssign={onAssign}/>}<NumberChanges data={data} owned={owned} busy={busy} run={run}/>{legacyDuties.length>0&&<details className="career-card"><summary>Existing signed manufacturer duties</summary><Duties data={{...data,leaseDuties:legacyDuties}} owned={owned} root={data.isSuperAdmin} busy={busy} run={run}/>{data.isSuperAdmin&&(data.leases||[]).filter(l=>legacyDutyIds.has(l.id)).map(l=><LegacyLeaseRecovery key={l.id} lease={l} data={data} busy={busy} run={run}/>)}</details>}</>;
 }
 function NumberChanges({data,owned,busy,run}) {
  const root=data.isSuperAdmin,teams=data.teams.filter(t=>t.status==="approved"&&(root||owned.some(o=>o.id===t.id)||(data.manufacturerRoles||[]).includes(t.manufacturer))),[teamId,setTeamId]=useState(teams[0]?.id||"");
