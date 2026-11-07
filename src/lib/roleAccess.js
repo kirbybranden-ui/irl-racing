@@ -24,7 +24,9 @@ export function canSeeRoute(access, path) {
 }
 
 let accessGeneration=0,lastAccessUser,publishedAccess;
-const accessReader=createSharedRead({label:"Account permissions",request:async signal=>{
+let lastSuccessfulVerificationAt=0;
+const ACCESS_RECHECK_MS=60000;
+const accessReader=createSharedRead({label:"Account permissions",retries:1,request:async signal=>{
   const {data:{session},error:sessionError}=await supabase.auth.getSession();
   if(sessionError)throw sessionError;
   if(!session)return null;
@@ -37,7 +39,7 @@ const accessReader=createSharedRead({label:"Account permissions",request:async s
 }});
 supabase.auth.onAuthStateChange((event,session)=>{
   const user=session?.user?.id||null;
-  if(event==="SIGNED_OUT"||(lastAccessUser!==undefined&&lastAccessUser!==user)){accessGeneration++;accessReader.invalidate();publishedAccess=undefined;
+  if(event==="SIGNED_OUT"||(lastAccessUser!==undefined&&lastAccessUser!==user)){accessGeneration++;accessReader.invalidate();publishedAccess=undefined;lastSuccessfulVerificationAt=0;
     try{localStorage.removeItem("bcl-league-session");localStorage.removeItem("bcl-mobile-session-v1");}catch{/* Storage may be unavailable. */}
     if(typeof window!=="undefined")window.dispatchEvent(new CustomEvent("brl:access-loaded",{detail:null}));
   }
@@ -48,6 +50,7 @@ export async function refreshLeagueAccess(){
   if(generation!==accessGeneration)return null;
   if(access===publishedAccess)return access;
   publishedAccess=access;
+  lastSuccessfulVerificationAt=Date.now();
   try{
     if(access?.userId){localStorage.setItem("bcl-league-session",JSON.stringify(access));localStorage.setItem("bcl-mobile-session-v1",JSON.stringify(access));}
     else{localStorage.removeItem("bcl-league-session");localStorage.removeItem("bcl-mobile-session-v1");}
@@ -62,10 +65,18 @@ export function useLeagueAccess() {
   useEffect(() => {
     let active = true, identity=lastAccessUser??publishedAccess?.userId??null, retryTimer, attempts=0;
     const update = (event) => { if (active) {attempts=0;clearTimeout(retryTimer);setState({ access: event.detail || null, loading: false, error: "" });} };
-    const refresh = () => {
+    const refresh = (force=false) => {
+      // A focus, visibility or token-refresh event is NOT a reason to query
+      // the same unchanged permissions again every few seconds.
+      if(!force && publishedAccess?.userId===identity && Date.now()-lastSuccessfulVerificationAt<ACCESS_RECHECK_MS)return Promise.resolve(publishedAccess);
       clearTimeout(retryTimer);
       const expectedIdentity=identity;
-      return refreshLeagueAccess().catch((error) => {
+      return refreshLeagueAccess().then(access=>{
+        if(active && expectedIdentity===identity){
+          setState(previous=>previous.access===access&&!previous.loading&&!previous.error?previous:{access:access||null,loading:false,error:""});
+        }
+        return access;
+      }).catch((error) => {
         if (!active||expectedIdentity!==identity) return;
         setState(previous=>accessAfterFailure(previous.access,identity,error));
         // Bounded backoff; no sign-out or credential clearing on network/RPC failure.
@@ -73,17 +84,23 @@ export function useLeagueAccess() {
       });
     };
     window.addEventListener("brl:access-loaded", update);
-    window.addEventListener("focus", refresh);
+    const onFocus=()=>refresh();
+    window.addEventListener("focus", onFocus);
     const onVisibility = () => { if (document.visibilityState === "visible") refresh(); };
     document.addEventListener("visibilitychange", onVisibility);
-    window.addEventListener("brl:retry-access",refresh);
+    const onRetry=()=>refresh(true);
+    window.addEventListener("brl:retry-access",onRetry);
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event,session) => {
       const changed=identityChanged(identity,event,session);identity=session?.user?.id||null;
       if(changed&&active){clearTimeout(retryTimer);setState({access:null,loading:event!=="SIGNED_OUT",error:""});}
       // Never await an auth operation inside the Supabase callback.
-      clearTimeout(retryTimer);retryTimer=setTimeout(refresh,0);
+      // TOKEN_REFRESHED and repeated SIGNED_IN for the same user do not
+      // revoke or rebuild the permission screen.
+      if(changed||(!publishedAccess&&event!=="TOKEN_REFRESHED")){
+        clearTimeout(retryTimer);retryTimer=setTimeout(()=>refresh(true),0);
+      }
     });
-    refresh();
+    refresh(true);
     return () => { active = false;clearTimeout(retryTimer);subscription.unsubscribe();window.removeEventListener("brl:access-loaded", update);window.removeEventListener("focus", refresh);document.removeEventListener("visibilitychange",onVisibility);window.removeEventListener("brl:retry-access",refresh); };
   }, []);
   return state;
