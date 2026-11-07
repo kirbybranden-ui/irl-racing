@@ -3,7 +3,7 @@ import { supabase } from "./supabase";
 const ROW_KEY = "irl-league";
 
 import {createSharedRead} from "./sharedRead";
-const leagueReader=createSharedRead({label:"League data",request:async signal=>{
+const leagueReader=createSharedRead({label:"League data",retries:1,request:async signal=>{
   const {data,error}=await supabase.rpc("brl_read_league").abortSignal(signal);
   if(error)throw new Error(error.message);
   return data||null;
