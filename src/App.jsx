@@ -7865,7 +7865,20 @@ export default function App() {
     }
     return accessPage(<RoleLogin next="/admin" />, "Admin login");
   }
-  if (path === "/login") return accessPage(<RoleLogin next={new URLSearchParams(window.location.search).get("next") || "/standings"} />, "Login / Register");
+  if (path === "/login") {
+    const requestedNext = new URLSearchParams(window.location.search).get("next") || "/career";
+    const destination = requestedNext.startsWith("/") && !requestedNext.startsWith("//") && !["/login", "/admin-login"].includes(requestedNext.split("?")[0]) ? requestedNext : "/career";
+    // A bookmarked /login URL must not ask an already-authenticated member
+    // for a password again. Wait for Supabase session hydration first.
+    if (accessLoading) return accessPage(<p role="status">Restoring your saved BRL login…</p>, "Restoring session");
+    if (verifiedAccess?.userId) {
+      const target = verifiedAccess.agreementRequired ? `/user-agreement?next=${encodeURIComponent(destination)}` : destination;
+      window.location.replace(target);
+      return null;
+    }
+    if (accessError) return accessPage(<section className="admin-connection"><h1>Connection interrupted</h1><p role="alert">{accessError}</p><p>Your login could not be verified. Retry without signing out.</p><button type="button" onClick={() => window.dispatchEvent(new Event("brl:retry-access"))}>Retry connection</button></section>, "Connection interrupted");
+    return accessPage(<RoleLogin next={destination} />, "Login / Register");
+  }
   // Old bookmarks lead to the single staff entry point without changing record IDs.
   const legacyAdminPath = {"/race-recorder":"/admin/race-recorder", "/manufacturer-hq":"/admin/support", "/stories":"/admin/stories"}[path];
   if (legacyAdminPath) { window.location.replace(legacyAdminPath + window.location.search + window.location.hash);return null; }
