@@ -13,10 +13,13 @@ export function createAgreementSession({storage,getSession,readStatus,onChange,l
   const {userId,version,documentHash,gamertag,acceptedAt}=status;
   try{storage?.setItem(agreementReceiptKey,JSON.stringify({userId,version,documentHash,gamertag,acceptedAt,accepted:true}));}catch{/* Continue with in-memory status. */}
  }
- function identify(userId){
+ function identify(userId,{signedOut=false}={}){
   if(identity===userId)return false;
   const previous=identity;identity=userId;++epoch;inFlight=null;
-  if(previous!==undefined)clearReceipt();
+  // A transient INITIAL_SESSION(null) must never erase the receipt accepted on
+  // a previous visit. A real SIGNED_OUT or switch to another signed-in user
+  // does invalidate it. A receipt alone never authenticates anybody.
+  if(signedOut||(previous&&userId&&previous!==userId))clearReceipt();
   publish({status:!legal?cached(userId):null,error:''});
   return true;
  }
@@ -50,7 +53,10 @@ export function createAgreementSession({storage,getSession,readStatus,onChange,l
   refresh,
   authChanged(event,session){
    if(!running)return false;
-   const changed=identify(session?.user?.id||null);
+   // Supabase can report INITIAL_SESSION(null) while restoring a session.
+   // Do not discard a known account during that startup transition.
+   if(event!=='SIGNED_OUT'&&!session?.user?.id&&identity)return false;
+   const changed=identify(session?.user?.id||null,{signedOut:event==='SIGNED_OUT'});
    // INITIAL_SESSION, SIGNED_IN and TOKEN_REFRESHED for the same account must not blank the app.
    return changed||(!state.status&&event!=='TOKEN_REFRESHED');
   },
