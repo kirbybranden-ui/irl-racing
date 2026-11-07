@@ -22,7 +22,20 @@ export default function UserAgreementGate({children}) {
  const path=window.location.pathname.toLowerCase(),legal=["/user-agreement","/terms","/user-agreement/","/terms/"].includes(path),params=new URLSearchParams(window.location.search),copy=params.get("copy");
  const refresh=()=>controller.current?.refresh();
  useEffect(()=>{
-  let storage;try{storage=window.sessionStorage;}catch{/* Private mode may disable storage. */}
+  // The receipt is non-secret metadata, not an access token. Keep it across
+  // browser restarts; the server still verifies the current agreement version.
+  let storage;
+  try {
+    storage=window.localStorage;
+    // Preserve a receipt accepted before this update, if one exists.
+    const key='brl-agreement-receipt-v1';
+    if (!storage.getItem(key)) {
+      const previous=window.sessionStorage?.getItem(key);
+      if (previous) storage.setItem(key,previous);
+    }
+  } catch {
+    try {storage=window.sessionStorage;} catch {/* Private browsing: in-memory only. */}
+  }
   const session=createAgreementSession({storage,legal,getSession:async()=>{const {data,error}=await supabase.auth.getSession();if(error)throw error;return data.session;},readStatus:agreementStatus,onChange:next=>{setStatus(next.status);setError(next.error);}});
   controller.current=session;session.start();
   let authTimer;
