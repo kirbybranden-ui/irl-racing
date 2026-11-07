@@ -30,6 +30,9 @@ const accessReader=createSharedRead({label:"Account permissions",request:async s
   if(!session)return null;
   const {data,error}=await supabase.rpc("brl_portal_access").abortSignal(signal);
   if(error)throw error;
+  // A missing access response for an authenticated Supabase session is a
+  // verification problem, not proof that the member logged out.
+  if (!data || !data.userId) throw new Error('League account verification is temporarily unavailable. Your saved login has not been cleared.');
   return data;
 }});
 supabase.auth.onAuthStateChange((event,session)=>{
@@ -71,6 +74,8 @@ export function useLeagueAccess() {
     };
     window.addEventListener("brl:access-loaded", update);
     window.addEventListener("focus", refresh);
+    const onVisibility = () => { if (document.visibilityState === "visible") refresh(); };
+    document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("brl:retry-access",refresh);
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event,session) => {
       const changed=identityChanged(identity,event,session);identity=session?.user?.id||null;
@@ -79,7 +84,7 @@ export function useLeagueAccess() {
       clearTimeout(retryTimer);retryTimer=setTimeout(refresh,0);
     });
     refresh();
-    return () => { active = false;clearTimeout(retryTimer);subscription.unsubscribe();window.removeEventListener("brl:access-loaded", update);window.removeEventListener("focus", refresh);window.removeEventListener("brl:retry-access",refresh); };
+    return () => { active = false;clearTimeout(retryTimer);subscription.unsubscribe();window.removeEventListener("brl:access-loaded", update);window.removeEventListener("focus", refresh);document.removeEventListener("visibilitychange",onVisibility);window.removeEventListener("brl:retry-access",refresh); };
   }, []);
   return state;
 }
