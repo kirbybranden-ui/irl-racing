@@ -3572,7 +3572,7 @@ function MobileLeagueApp({
   driverRecruitingInterest = [],
   onApplyTeamTransaction = () => {},
 }) {
-  const go = (to) => { window.location.href = to; };
+  const go = (to) => { window.dispatchEvent(new CustomEvent("brl:navigate", { detail: to })); };
   const sortedDrivers = [...drivers].sort((a, b) => (b.points || 0) - (a.points || 0) || (b.wins || 0) - (a.wins || 0));
   const sortedTeams = [...teams].sort((a, b) => (b.points || 0) - (a.points || 0));
   const sortedManufacturers = [...manufacturerStandings].sort((a, b) => (b.points || 0) - (a.points || 0));
@@ -5574,6 +5574,43 @@ function AppleSeriesPortalLanding() {
 }
 
 export default function App() {
+  // Mobile internal navigation must not remount the entire application.
+  // Otherwise every tab change resets league hydration and re-reads Supabase.
+  const [, setNavigationRevision] = useState(0);
+  useEffect(() => {
+    const renderCurrentRoute = () => setNavigationRevision(revision => revision + 1);
+    const navigate = (destination) => {
+      if (typeof destination !== "string" || !destination.startsWith("/") || destination.startsWith("//")) return;
+      const url = new URL(destination, window.location.origin);
+      if (url.origin !== window.location.origin) return;
+      if (url.pathname === window.location.pathname && url.search === window.location.search && url.hash === window.location.hash) return;
+      window.history.pushState(null, "", url.pathname + url.search + url.hash);
+      renderCurrentRoute();
+      window.scrollTo({ top: 0, behavior: "instant" });
+    };
+    const onMobileLink = (event) => {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      if (!window.matchMedia("(max-width: 768px)").matches || document.cookie.includes("bcl-force-desktop=1")) return;
+      const anchor = event.target instanceof Element ? event.target.closest("a[href]") : null;
+      if (!anchor || anchor.target && anchor.target !== "_self" || anchor.hasAttribute("download")) return;
+      const destination = new URL(anchor.href, window.location.href);
+      if (destination.origin !== window.location.origin || !["http:", "https:"].includes(destination.protocol)) return;
+      if (destination.pathname === window.location.pathname && destination.search === window.location.search && destination.hash) return;
+      // Files and API/auth callbacks require a real browser navigation.
+      if (/\.[a-z0-9]{2,6}$/i.test(destination.pathname) || destination.pathname.startsWith("/auth/")) return;
+      event.preventDefault();
+      navigate(destination.pathname + destination.search + destination.hash);
+    };
+    const onProgrammaticNavigation = event => navigate(event.detail);
+    window.addEventListener("popstate", renderCurrentRoute);
+    window.addEventListener("brl:navigate", onProgrammaticNavigation);
+    document.addEventListener("click", onMobileLink);
+    return () => {
+      window.removeEventListener("popstate", renderCurrentRoute);
+      window.removeEventListener("brl:navigate", onProgrammaticNavigation);
+      document.removeEventListener("click", onMobileLink);
+    };
+  }, []);
   const { access: verifiedAccess, loading: accessLoading, error: accessError } = useLeagueAccess();
   useEffect(() => {
     const session = getLeagueSession();
