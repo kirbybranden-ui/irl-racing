@@ -1,10 +1,28 @@
 import React, {useEffect,useState} from "react";
 import JoinRequestForm from "./JoinRequestForm";
 import {loginToLeague} from "../../lib/leagueAuth";
+import {supabase} from "../../lib/supabase";
 import {passwordAction,savedPasswordTicket,storePasswordTicket,forgetPasswordTicket} from "../../lib/passwordRecovery";
 import "../../styles/career.css";
 export default function RoleLogin({next="/career"}) {
+ const [restoring,setRestoring]=useState(true);
  const [register,setRegister]=useState(false),[legacy,setLegacy]=useState(false),[identity,setIdentity]=useState(""),[password,setPassword]=useState(""),[confirm,setConfirm]=useState(""),[mode,setMode]=useState("password"),[ticket,setTicket]=useState(null),[ticketStatus,setTicketStatus]=useState(""),[busy,setBusy]=useState(false),[checking,setChecking]=useState(false),[error,setError]=useState(""),[status,setStatus]=useState("");
+ useEffect(()=>{
+  let live=true;
+  // Supabase is the authentication authority. Reopen with a real saved
+  // session: continue to the requested page without asking for a password.
+  // A cached gamertag or agreement receipt is never treated as a login.
+  supabase.auth.getSession().then(({data,error})=>{
+    if(!live)return;
+    if(!error&&data?.session?.user?.id){
+      const destination=next.startsWith('/')&&!next.startsWith('//')?next:'/career';
+      window.location.replace(destination);
+      return;
+    }
+    setRestoring(false);
+  }).catch(()=>{if(live)setRestoring(false);});
+  return()=>{live=false;};
+ },[next]);
  useEffect(()=>{
   if(legacy||register||identity.trim().length<3){setMode("password");setTicket(null);setTicketStatus("");return;}
   let live=true;setChecking(true);setPassword("");setConfirm("");setTicketStatus("");const saved=savedPasswordTicket(identity);setTicket(saved);
@@ -15,6 +33,7 @@ export default function RoleLogin({next="/career"}) {
  async function request(){setBusy(true);setError("");try{if(ticket&&!['expired','rejected','completed'].includes(ticketStatus)){await check();return;}const d=await passwordAction({action:"request",gamertag:identity});setTicket(storePasswordTicket(identity,d));setTicketStatus("pending");setStatus(d.message);}catch(e){setError(e.message);}finally{setBusy(false);}}
  const setup=mode==="setup"&&ticket&&['approved','completing'].includes(ticketStatus);
  const waiting=ticket&&['pending','revoking','waiting_for_acceptance'].includes(ticketStatus);
+ if(restoring)return <main className="career-auth"><p role="status">Restoring your saved login…</p></main>;
  return <main className="career-auth"><nav className="career-actions" aria-label="Account access"><button aria-pressed={!register} onClick={()=>setRegister(false)}>Login</button><button aria-pressed={register} onClick={()=>setRegister(true)}>Register</button></nav>
  {register?<><h1>Join the league</h1><JoinRequestForm/></>:<><h1>League login</h1><form className="career-form" onSubmit={async e=>{e.preventDefault();if(checking||mode==="pending"||(mode==="setup"&&!setup))return;setBusy(true);setError("");setStatus("");try{
   if(setup){if(password!==confirm)throw Error("Passwords do not match.");const done=await passwordAction({action:"complete",...ticket,password});forgetPasswordTicket(identity);setTicket(null);setTicketStatus("");setMode("password");setPassword("");setConfirm("");setStatus(done.message);return;}
