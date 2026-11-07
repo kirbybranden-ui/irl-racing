@@ -1,5 +1,6 @@
 import { supabase } from "../lib/supabase";
 import React, { useEffect, useMemo, useState } from "react";
+import HomepageFeaturedPhoto from "../components/home/HomepageFeaturedPhoto";
 import { createPortal } from "react-dom";
 import JoinRequestForm from "../components/auth/JoinRequestForm";
 import { getLeagueSession, loginToLeague, logoutOfLeague, isBiometricAvailable, hasAnyDriverBiometricCredential, hasBiometricCredentialForDriver, registerDriverBiometric, loginWithBiometric } from "../lib/leagueAuth";
@@ -1465,7 +1466,8 @@ function StandingsPage({ seriesId = "cup", drivers = [], teams = [], manufacture
         </section>
 
         <AppUpdateBanner page="standings" />
-        {featuredVideo && (
+        {seriesId === "cup" && <HomepageFeaturedPhoto media={featuredVideo} />}
+        {featuredVideo && !/\.(?:png|jpe?g|webp|gif|avif)(?:[?#]|$)/i.test(String(featuredVideo.file_path || featuredVideo.video_url || "")) && (
           <section style={{ ...glassCard, overflow: "hidden", marginBottom: 18 }}>
             <div style={{ padding: 18, display: "flex", alignItems: "center", gap: 12, borderBottom: "1px solid rgba(15,23,42,0.08)" }}>
               <span style={{ fontSize: 20 }}>🎬</span>
