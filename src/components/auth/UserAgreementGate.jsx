@@ -22,28 +22,28 @@ export default function UserAgreementGate({children}) {
  const path=window.location.pathname.toLowerCase(),legal=["/user-agreement","/terms","/user-agreement/","/terms/"].includes(path),params=new URLSearchParams(window.location.search),copy=params.get("copy");
  const refresh=()=>controller.current?.refresh();
  useEffect(()=>{
-  // The receipt is non-secret metadata, not an access token. Keep it across
-  // browser restarts; the server still verifies the current agreement version.
+  // A non-secret agreement receipt belongs in persistent device storage, not
+  // sessionStorage (which disappears when an iOS app/browser is closed).
   let storage;
   try {
     storage=window.localStorage;
-    // Preserve a receipt accepted before this update, if one exists.
     const key='brl-agreement-receipt-v1';
     if (!storage.getItem(key)) {
       const previous=window.sessionStorage?.getItem(key);
       if (previous) storage.setItem(key,previous);
     }
   } catch {
-    try {storage=window.sessionStorage;} catch {/* Private browsing: in-memory only. */}
+    try { storage=window.sessionStorage; } catch { /* Storage disabled. */ }
   }
   const session=createAgreementSession({storage,legal,getSession:async()=>{const {data,error}=await supabase.auth.getSession();if(error)throw error;return data.session;},readStatus:agreementStatus,onChange:next=>{setStatus(next.status);setError(next.error);}});
   controller.current=session;session.start();
   let authTimer;
   const schedule=()=>{clearTimeout(authTimer);authTimer=setTimeout(()=>session.refresh(),0);};
   const {data:{subscription}}=supabase.auth.onAuthStateChange((event,current)=>{if(session.authChanged(event,current)){setArchived(null);schedule();}});
-  const onFocus=()=>session.refresh();
+  let lastFocusCheck=Date.now();
+  const onFocus=()=>{const now=Date.now();if(now-lastFocusCheck>=300000){lastFocusCheck=now;session.refresh();}};
   const onAccess=event=>{if(session.agreementChanged(event.detail))schedule();};
-  const timer=setInterval(onFocus,60000);
+  const timer=setInterval(onFocus,300000);
   window.addEventListener("focus",onFocus);window.addEventListener("brl:access-loaded",onAccess);
   return()=>{session.stop();controller.current=null;clearTimeout(authTimer);subscription.unsubscribe();clearInterval(timer);window.removeEventListener("focus",onFocus);window.removeEventListener("brl:access-loaded",onAccess);};
  },[legal]);
