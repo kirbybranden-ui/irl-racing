@@ -6171,40 +6171,43 @@ export default function App() {
   useEffect(() => {
     if (accessLoading) return;
     let isMounted = true;
-    setIsHydrated(false);
+    let retryTimer;
+    let retries = 0;
+    // On account changes, fresh server data is required before saving.
+    // A failed read must never be mistaken for an empty league.
     setLeagueLoadError("");
     remoteLoadedRef.current = false;
+    setIsHydrated(false);
 
     async function hydrateFromSupabase() {
       try {
         const savedState = await loadLeagueState({throwOnError:true});
         if (!isMounted) return;
-
         const normalizedState = normalizeLoadedLeagueState(savedState);
-
-        if (normalizedState) {
-          setLeagueLoadError("");
-          loadedRevisionRef.current = savedState?._revision || null;
-          remoteLoadedRef.current = true;
-          applyCustomTeamBranding(normalizedState.customTeamBranding);
-          setCustomTeamBranding(normalizedState.customTeamBranding);
-          setRegisteredTeams(normalizedState.registeredTeams);
-          setSeasons(normalizedState.seasons);
-          setActiveSeasonId(normalizedState.activeSeasonId);
-          setTracks(normalizedState.tracks);
-          loadedStateSignatureRef.current = makeLeagueStateSignature(normalizedState);
-          setIsHydrated(true);
-        } else {
-          throw new Error("No saved league data was returned. Retry loading; do not reset league data.");
-        }
+        if (!normalizedState) throw new Error("No saved league data was returned. The league database has not been modified.");
+        loadedRevisionRef.current = savedState?._revision || null;
+        remoteLoadedRef.current = true;
+        applyCustomTeamBranding(normalizedState.customTeamBranding);
+        setCustomTeamBranding(normalizedState.customTeamBranding);
+        setRegisteredTeams(normalizedState.registeredTeams);
+        setSeasons(normalizedState.seasons);
+        setActiveSeasonId(normalizedState.activeSeasonId);
+        setTracks(normalizedState.tracks);
+        loadedStateSignatureRef.current = makeLeagueStateSignature(normalizedState);
+        setLeagueLoadError("");
+        setIsHydrated(true);
       } catch (error) {
-        console.error("League data could not be loaded; saved data was not changed:",error);
-        if(isMounted)setLeagueLoadError(error.message||"League data could not be loaded.");
+        if (!isMounted) return;
+        console.error("League read failed; retrying without changing saved data:", error);
+        setLeagueLoadError(error?.message || "League data is temporarily unavailable.");
+        // Read-only automatic retry; no user action or reload required.
+        const delay = Math.min(30000, 2500 * 2 ** Math.min(retries++, 4));
+        retryTimer = setTimeout(hydrateFromSupabase, delay);
       }
     }
 
     hydrateFromSupabase();
-    return () => { isMounted = false; };
+    return () => { isMounted = false; clearTimeout(retryTimer); };
   }, [accessLoading, verifiedAccess?.userId, leagueLoadAttempt]);
   useEffect(() => {
     let active = true;
@@ -6228,7 +6231,7 @@ export default function App() {
       if (!error) setOpenStoryCount(count || 0);
     }
     loadOpenStories();
-    const interval = setInterval(loadOpenStories, 5000);
+    const interval = setInterval(() => { if (document.visibilityState === "visible") loadOpenStories(); }, 30000);
     return () => clearInterval(interval);
   }, []);
   useEffect(() => {
@@ -6271,7 +6274,7 @@ export default function App() {
       } finally { loading = false; }
     }
     loadPendingDrivers();
-    const interval = setInterval(loadPendingDrivers, 5000);
+    const interval = setInterval(() => { if (document.visibilityState === "visible") loadPendingDrivers(); }, 20000);
     return () => { live = false;clearInterval(interval); };
   }, [canReviewPendingDrivers, verifiedAccess?.userId]);
   useEffect(() => {
@@ -7897,7 +7900,7 @@ export default function App() {
     return <div className="career-route-shell"><MobileShell title={ownerWorkspace ? "Owner HQ" : "My Career"} session={verifiedAccess} onLogout={logoutOfLeague}><CareerDashboard key={ownerWorkspace ? "owner" : "driver"} workspace={ownerWorkspace ? "owner" : "driver"} seasons={seasons} activeSeasonId={activeSeasonId} leagueReady={isHydrated} /></MobileShell></div>;
   }
 
-  if(leagueLoadError&&!isHydrated&&!["/appeals","/submit-appeal","/streams","/user-agreement","/terms"].includes(path))return accessPage(<section style={{maxWidth:720,margin:"32px auto",padding:24,background:"white",color:"#16191f",border:"1px solid #d6d9df",borderRadius:10}}><h1>League data could not load</h1><p role="alert">{leagueLoadError}</p><p>Your saved results, teams and balances have not been changed.</p><button type="button" onClick={()=>setLeagueLoadAttempt(attempt=>attempt+1)}>Retry loading league data</button></section>);
+  if(leagueLoadError&&!isHydrated&&!["/appeals","/submit-appeal","/streams","/user-agreement","/terms"].includes(path))return accessPage(<section style={{maxWidth:720,margin:"32px auto",padding:24,background:"white",color:"#16191f",border:"1px solid #d6d9df",borderRadius:10}}><h1>Reconnecting to league data</h1><p role="status">A background retry is underway.</p><p role="alert">{leagueLoadError}</p><p>Your saved results, teams and balances have not been changed.</p><button type="button" onClick={()=>setLeagueLoadAttempt(attempt=>attempt+1)}>Retry loading league data</button></section>);
   if (accessLoading && (!canSeeRoute(null,path) || isAdminProtectedPath || ["/race-recorder","/team-hq","/owner","/hq","/teamhq"].includes(path))) return accessPage(<p role="status">Checking access…</p>);
   if (!isHydrated && ["/admin","/race-recorder","/owners","/compare"].includes(path)) return accessPage(<p role="status">Loading league data…</p>);
   if(path === "/admin" && !isAdminAuthenticated)return <AdminWorkspaceNav access={verifiedAccess} home/>;
