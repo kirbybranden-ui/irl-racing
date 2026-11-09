@@ -66,6 +66,11 @@ export function OfferForm({ draft, data, onSave, onClose, busy }) {
   const targetMember = data.members.find(m=>m.user_id===driverUser);
   const champion = isAbaChampion(targetMember?.gamertag,data.fundingPolicy?.champion_gamertag);
   const salaryFloor = champion ? Math.max(1000000, Number(data.fundingPolicy?.champion_salary || 0)) : role === "owner" ? 500000 : role === "franchise" ? 750000 : 250000;
+  // The owner salary input is intentionally read-only. Use the SAME effective value
+  // for rendering, validation, the payment schedule and the saved contract.
+  // Otherwise choosing the owner as the approved applicant leaves f.salary empty
+  // even while the screen visibly displays $500,000.
+  const effectiveSalary = role === "owner" ? 500000 : f.salary;
 
   const showFailure = message => {
     setValidationError(message);
@@ -84,10 +89,10 @@ export function OfferForm({ draft, data, onSave, onClose, busy }) {
     }
     setValidationError("");
     if (!independent || ownerPayroll) {
-      const error = contractSalaryError({salary:f.salary,role,champion});
+      const error = contractSalaryError({salary:effectiveSalary,role,champion});
       if (error) { showFailure(error);return; }
-      if (Number(f.salary) < salaryFloor) { showFailure(`League rules require at least ${money(salaryFloor)} for this driver. You entered ${money(Number(f.salary))}.`);return; }
-      if (role === "owner" && Number(f.salary) !== 500000) {showFailure("Required owner-driver salary is fixed at $500,000 for Season 2.");return;}
+      if (Number(effectiveSalary) < salaryFloor) { showFailure(`League rules require at least ${money(salaryFloor)} for this driver. You entered ${money(Number(effectiveSalary))}.`);return; }
+      if (role === "owner" && Number(effectiveSalary) !== 500000) {showFailure("Required owner-driver salary is fixed at $500,000 for Season 2.");return;}
       if (role === "owner" && (Number(f.bonus)!==0 || Number(f.buyout)!==0)) {showFailure("Mandatory owner-driver contracts cannot include signing bonuses or buyouts.");return;}
       if (role !== "owner" && (f.buyout === "" || !Number.isFinite(Number(f.buyout)) || Number(f.buyout)<0 || Number(f.buyout)>Number(f.salary)*1.5)) {showFailure(`Buyout must be between $0 and ${money(Number(f.salary)*1.5)}.`);return;}
       if (!Number.isInteger(Number(f.seasons)) || Number(f.seasons)<1 || Number(f.seasons)>5) {showFailure("Contract length must be between 1 and 5 seasons.");return;}
@@ -96,9 +101,9 @@ export function OfferForm({ draft, data, onSave, onClose, busy }) {
     if (!independent && !ownerPayroll && !draft.prior && !f.requestId) {showFailure("Select an approved driver application before creating the offer.");return;}
     if (!ownerManagement && (!f.number || !numbers.some(n=>Number(n.number)===Number(f.number))) && !draft.prior) {showFailure("Select a currently available team-leased car number.");return;}
     let schedule;
-    try { schedule = independent && !ownerPayroll ? [] : makeCareerSchedule(f.salary, f.scheduleType, f.firstPayment, f.paymentCount); }
+    try { schedule = independent && !ownerPayroll ? [] : makeCareerSchedule(effectiveSalary, role === "owner" ? "lump" : f.scheduleType, role === "owner" ? dateToday() : f.firstPayment, f.paymentCount); }
     catch (error) { showFailure(error.message || "Invalid payment schedule.");return; }
-    const request = { action: ownerPayroll ? "owner_payroll" : draft.prior ? "counter_contract" : "offer_contract", payload: { id: draft.prior?.id, teamId: f.teamId, requestId: f.requestId, message: f.message, terms: { number: Number(f.number), driverRole: role, salary: independent && !ownerPayroll ? 0 : role === "owner" ? 500000 : Number(f.salary), bonus: independent || role === "owner" ? 0 : Number(f.bonus), buyout: independent || role === "owner" ? 0 : Number(f.buyout), seasons: Number(f.seasons), startsOn: f.startsOn, endsOn: f.endsOn, scheduleType: f.scheduleType, schedule, mediaRequirements: f.mediaRequirements, manufacturerRequirements: f.manufacturerRequirements, sponsorRequirements: f.sponsorRequirements } } };
+    const request = { action: ownerPayroll ? "owner_payroll" : draft.prior ? "counter_contract" : "offer_contract", payload: { id: draft.prior?.id, teamId: f.teamId, requestId: f.requestId, message: f.message, terms: { number: Number(f.number), driverRole: role, salary: independent && !ownerPayroll ? 0 : role === "owner" ? 500000 : Number(f.salary), bonus: independent || role === "owner" ? 0 : Number(f.bonus), buyout: independent || role === "owner" ? 0 : Number(f.buyout), seasons: Number(f.seasons), startsOn: f.startsOn, endsOn: f.endsOn, scheduleType: role === "owner" ? "lump" : f.scheduleType, schedule, mediaRequirements: f.mediaRequirements, manufacturerRequirements: f.manufacturerRequirements, sponsorRequirements: f.sponsorRequirements } } };
     submitLock.current = true;
     setSubmissionState("submitting");
     try {
@@ -114,9 +119,9 @@ export function OfferForm({ draft, data, onSave, onClose, busy }) {
     {!draft.prior && <><label>Team<select required value={f.teamId} onChange={e => update("teamId", e.target.value)}><option value="">Choose team</option>{teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select></label>{!independent && !ownerPayroll && <label>Approved applicant<select required value={f.requestId} onChange={e => update("requestId", e.target.value)}><option value="">Choose approved seat request</option>{requests.map(r => <option key={r.id} value={r.id}>{data.members.find(m => m.user_id === r.driver_user)?.gamertag || r.driver_user}</option>)}</select></label>}</>}
     {!ownerManagement && <label>Assign a team-leased number<select required value={f.number} onChange={e => update("number", e.target.value)}><option value="">Choose number</option>{numbers.map(n => <option key={n.id} value={n.number}>#{n.number} — leased by this team</option>)}</select></label>}
     {(!independent || ownerPayroll) && <div className="career-notice" aria-live="polite"><strong>Contract classification:</strong> {champion ? "Defending champion" : role === "owner" ? "Owner-driver" : role === "franchise" ? "Franchise driver" : "Base driver"}. <strong>League minimum: {money(salaryFloor)}.</strong> Classification is determined by league records, not selected in this form.</div>}
-    {(!independent || ownerPayroll) && <div className="career-form-grid"><label>Base compensation — full contract total<input type="number" step="0.01" min="0" disabled={role === "owner"} placeholder={role === "owner" ? "Required owner salary" : "Enter salary amount"} value={role === "owner" ? 500000 : f.salary} onChange={e => update("salary", e.target.value)} /></label><label>Immediate signing bonus<input disabled={role === "owner"} required type="number" min="0" step="0.01" value={f.bonus} onChange={e => update("bonus", e.target.value)} /></label><label>Buyout amount<input required type="number" min="0" step="0.01" placeholder="Enter buyout amount" disabled={role === "owner"} value={role === "owner" ? 0 : f.buyout} onChange={e => update("buyout", e.target.value)} /></label><label>Seasons<input required type="number" min="1" max="5" value={f.seasons} onChange={e => update("seasons", e.target.value)} /></label></div>}
+    {(!independent || ownerPayroll) && <div className="career-form-grid"><label>Base compensation — full contract total<input type="number" step="0.01" min="0" disabled={role === "owner"} placeholder={role === "owner" ? "Required owner salary" : "Enter salary amount"} value={effectiveSalary} onChange={e => update("salary", e.target.value)} /></label><label>Immediate signing bonus<input disabled={role === "owner"} required type="number" min="0" step="0.01" value={f.bonus} onChange={e => update("bonus", e.target.value)} /></label><label>Buyout amount<input required type="number" min="0" step="0.01" placeholder="Enter buyout amount" disabled={role === "owner"} value={role === "owner" ? 0 : f.buyout} onChange={e => update("buyout", e.target.value)} /></label><label>Seasons<input required type="number" min="1" max="5" value={f.seasons} onChange={e => update("seasons", e.target.value)} /></label></div>}
     <div className="career-form-grid"><label>Effective date<input required type="date" value={f.startsOn} onChange={e => update("startsOn", e.target.value)} /></label><label>End date<input required type="date" value={f.endsOn} onChange={e => update("endsOn", e.target.value)} /></label></div>
-    {(!independent || ownerPayroll) && <><label>Salary payment schedule<select value={f.scheduleType} onChange={e => update("scheduleType", e.target.value)}><option value="lump">One payment</option><option value="three">Three installments, 28 days apart</option><option value="weekly">Weekly installments</option></select></label><div className="career-form-grid"><label>First salary payment<input required type="date" value={f.firstPayment} onChange={e => update("firstPayment", e.target.value)} /></label>{f.scheduleType === "weekly" && <label>Number of weekly payments<input required type="number" min="1" max="52" value={f.paymentCount} onChange={e => update("paymentCount", e.target.value)} /></label>}</div></>}
+    {(!independent || ownerPayroll) && <>{role === "owner" ? <p className="career-notice">Owner salary: one immediate payment of {money(500000)} when the agreement activates. No installments.</p> : <><label>Salary payment schedule<select value={f.scheduleType} onChange={e => update("scheduleType", e.target.value)}><option value="lump">One payment</option><option value="three">Three installments, 28 days apart</option><option value="weekly">Weekly installments</option></select></label><div className="career-form-grid"><label>First salary payment<input required type="date" value={f.firstPayment} onChange={e => update("firstPayment", e.target.value)} /></label>{f.scheduleType === "weekly" && <label>Number of weekly payments<input required type="number" min="1" max="52" value={f.paymentCount} onChange={e => update("paymentCount", e.target.value)} /></label>}</div></>}</>}
     <p className="career-notice">League media requirements remain mandatory in every contract. Salary and bonuses are paid by the owner; pending league funding claims do not count as available cash.</p>
     {[["mediaRequirements", "Media obligations — tasks, deadlines and proof"], ["manufacturerRequirements", "Manufacturer obligations"], ["sponsorRequirements", "Sponsor names, placements, appearances, deadlines and proof"], ["message", "Negotiation message / agreed notes"]].map(([key, label]) => <label key={key}>{label}<textarea required={key !== "message"} minLength={key === "message" ? 0 : 10} value={f[key]} onChange={e => update(key, e.target.value)} /></label>)}
     <div ref={feedbackRef} role="status" aria-live="polite">
@@ -205,8 +210,8 @@ export default function CareerDashboard({ workspace = "driver", initialTab, seas
     const terms = {
       number: eligibleSeat.number ? Number(eligibleSeat.number) : null,
       salary: 500000, bonus: 0, buyout: 0, seasons: 1,
-      startsOn: start, endsOn: end, scheduleType: "three",
-      schedule: makeCareerSchedule(500000, "three", start),
+      startsOn: start, endsOn: end, scheduleType: "lump",
+      schedule: makeCareerSchedule(500000, "lump", start),
       mediaRequirements: "Complete league-required pre-race and post-race interviews by published deadlines; submit evidence as required.",
       manufacturerRequirements: "Race the team-approved manufacturer, including all required branding and league eligibility rules.",
       sponsorRequirements: "Follow each team-approved sponsor placement and race obligation; submit dated verification as required."
