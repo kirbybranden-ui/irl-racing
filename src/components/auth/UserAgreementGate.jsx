@@ -35,7 +35,7 @@ export default function UserAgreementGate({children}) {
   } catch {
     try { storage=window.sessionStorage; } catch { /* Storage disabled. */ }
   }
-  const session=createAgreementSession({storage,legal,getSession:async()=>{const {data,error}=await supabase.auth.getSession();if(error)throw error;return data.session;},readStatus:agreementStatus,onChange:next=>{setStatus(next.status);setError(next.error);}});
+  const session=createAgreementSession({storage,legal,getSession:async()=>{let result;for(let attempt=0;attempt<3;attempt++){result=await supabase.auth.getSession();if(result.error)throw result.error;if(result.data?.session)return result.data.session;if(attempt<2)await new Promise(resolve=>setTimeout(resolve,300*(attempt+1)));}return result?.data?.session||null;},readStatus:agreementStatus,onChange:next=>{setStatus(next.status);setError(next.error);}});
   controller.current=session;session.start();
   let authTimer;
   const schedule=()=>{clearTimeout(authTimer);authTimer=setTimeout(()=>session.refresh(),0);};
