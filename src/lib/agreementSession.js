@@ -41,8 +41,14 @@ export function createAgreementSession({storage,getSession,readStatus,onChange,l
     remember(next);publish({status:next,error:''});return next;
    }catch(error){
     if(!running||ticket!==epoch)return;
+    // A temporary server/network/RPC failure must not sign out a user or
+    // turn a verified, previously accepted account into the login form.
+    // Keep access continuity while the server is unavailable; protected data
+    // still requires Supabase authorization and RLS.
     if(state.status?.accepted&&!/jwt|token.*expired|not authenticated|account changed|invalid.*session/i.test(error.message))return;
-    clearReceipt();publish({status:null,error:error.message});
+    // Do not erase a legitimate receipt on server errors. Only an explicit
+    // logout or account switch invalidates locally stored continuity data.
+    publish({status:null,error:error.message});
    }finally{if(inFlight?.epoch===ticket)inFlight=null;}
   })();
   inFlight={epoch:ticket,promise};return promise;
