@@ -183,6 +183,8 @@ Deno.serve(async request=>{
     const bearer=request.headers.get("Authorization")?.replace(/^Bearer\s+/i,"")||"";
     const {data:{user},error}=await admin.auth.getUser(bearer);
     if(error||!user)return reply(401,{error:"Log in as a driver to use the media desk."});
+    const agreement=await admin.rpc("brl_agreement_user_accepted",{user_value:user.id});
+    if(agreement.error||agreement.data!==true)return reply(403,{error:"Accept the current BRL User Agreement in the league app before using media services."});
     const account=check(await admin.from("brl_accounts").select("driver_id,driver_name,roles,active").eq("auth_user_id",user.id).single());
     if(!account.active)return reply(403,{error:"This driver account is inactive."});
     const fullAdmin=account.roles.includes("full_admin");
