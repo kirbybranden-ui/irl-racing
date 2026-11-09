@@ -13,7 +13,7 @@ import NumberLeaseCenter from "../../components/career/NumberLeaseCenter";
 import DriverCareerSummary from "../../components/career/DriverCareerSummary";
 import { FundingCenter, BudgetCenter, LoanRepayments, LoanApproval } from "../../components/career/TeamFunding";
 import TeamCostBreakdown from "../../components/career/TeamCostBreakdown";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { careerAction, careerRead, changeCareerPassword, makeCareerSchedule, money } from "../../lib/career";
 import { logoutOfLeague } from "../../lib/leagueAuth";
 import ContractDocument, { FundingDocument, SignForm } from "../../components/career/ContractDocument";
@@ -52,7 +52,10 @@ export function OfferForm({ draft, data, onSave, onClose, busy }) {
     c.driver_user === initialDriver && c.team_id === (draft.teamId || draft.prior?.team_id) && c.terms?.driverRole === "franchise");
   const [f, setF] = useState({ teamId: draft.teamId || draft.prior?.team_id || "", requestId: draft.requestId || "", number: initial.number || draft.number || "", driverRole: initial.driverRole || (initialChampion || priorFranchise ? "franchise" : "driver"), salary: initial.salary ?? (ownerPayroll ? 500000 : draft.independent ? 0 : ""), bonus: initial.bonus || 0, buyout: initial.buyout ?? (draft.independent || ownerPayroll ? 0 : ""), seasons: initial.seasons || 1, startsOn: initial.startsOn || dateToday(), endsOn: initial.endsOn || dateAfter(365), scheduleType: initial.scheduleType || "three", firstPayment: initial.schedule?.[0]?.due_at?.slice(0, 10) || dateToday(), paymentCount: initial.schedule?.length || 20, mediaRequirements: initial.mediaRequirements || "Complete all required pre-race and post-race interviews by league deadlines. Submit dated evidence to the owner for review. No separate interview bonus is earned.", manufacturerRequirements: initial.manufacturerRequirements || "Race the team-approved manufacturer and vehicle. Display required manufacturer branding and avoid competing manufacturer promotions without prior written approval.", sponsorRequirements: initial.sponsorRequirements || "Use the owner-approved sponsor scheme on the agreed race dates, retain required logo placement, and submit dated paint/promotion evidence. Conflicting sponsors require prior written approval. Specific sponsors and dates must be listed here before signing.", message: "" });
   const [validationError, setValidationError] = useState("");
-  const update = (key, value) => { setValidationError("");setF(current => ({ ...current, [key]: value })); };
+  const [submissionState, setSubmissionState] = useState("idle");
+  const submitLock = useRef(false);
+  const feedbackRef = useRef(null);
+  const update = (key, value) => { setValidationError("");setSubmissionState("idle");setF(current => ({ ...current, [key]: value })); };
   const teams = data.teams.filter(t => t.owner_user === data.me.user_id || data.isSuperAdmin);
   const team = data.teams.find(t => t.id === f.teamId), independent = team?.tier === "independent";
   const numbers = ownerPayroll ? (data.ownerPayrollSeats || []).filter(n=>n.teamId===f.teamId).map(n=>({...n,id:n.teamId})) : data.numbers.filter(n => n.team_id === f.teamId && n.activeLease && !n.assigned_user);
@@ -64,17 +67,50 @@ export function OfferForm({ draft, data, onSave, onClose, busy }) {
   const champion = isAbaChampion(targetMember?.gamertag,data.fundingPolicy?.champion_gamertag);
   const salaryFloor = champion ? Math.max(1000000, Number(data.fundingPolicy?.champion_salary || 0)) : role === "owner" ? 500000 : role === "franchise" ? 750000 : 250000;
 
-  return <section className="career-compose"><div className="career-row"><h2>{draft.prior ? "Submit a new proposal" : independent ? "Independent ride agreement" : "Prepare a contract offer"}</h2><button onClick={onClose}>Cancel</button></div><p className="career-muted">Each proposal creates a separate version. Both parties must review and sign the same final version. Buyout cap: 1.5 × total base compensation.</p><form className="career-form" onSubmit={e => { e.preventDefault();setValidationError("");
+  const showFailure = message => {
+    setValidationError(message);
+    setSubmissionState("error");
+    window.requestAnimationFrame(() => feedbackRef.current?.scrollIntoView({behavior:"smooth",block:"center"}));
+  };
+  const submitOffer = async e => {
+    e.preventDefault();
+    if (submitLock.current || busy) return;
+    const form=e.currentTarget;
+    if (!form.checkValidity()) {
+      const invalid = form.querySelector(":invalid");
+      showFailure(`Complete the required field: ${invalid?.closest("label")?.textContent?.trim() || "contract information"}.`);
+      invalid?.focus();
+      return;
+    }
+    setValidationError("");
     if (!independent || ownerPayroll) {
       const error = contractSalaryError({salary:f.salary,role,champion});
-      if (error) { setValidationError(error);return; }
-      if (Number(f.salary) < salaryFloor) { setValidationError(`League rules require at least ${money(salaryFloor)} for this driver. You entered ${money(Number(f.salary))}.`);return; }
-      if (role === "owner" && Number(f.salary) !== 500000) {setValidationError("Required owner-driver salary is fixed at $500,000 for Season 2.");return;}
-      if (role === "owner" && (Number(f.bonus)!==0 || Number(f.buyout)!==0)) {setValidationError("Mandatory owner-driver contracts cannot include signing bonuses or buyouts.");return;}
-      if (role !== "owner" && (f.buyout === "" || !Number.isFinite(Number(f.buyout)) || Number(f.buyout)<0 || Number(f.buyout)>Number(f.salary)*1.5)) {setValidationError(`Buyout must be between $0 and ${money(Number(f.salary)*1.5)}.`);return;}
-      if (!Number.isInteger(Number(f.seasons)) || Number(f.seasons)<1 || Number(f.seasons)>5) {setValidationError("Contract length must be between 1 and 5 seasons.");return;}
+      if (error) { showFailure(error);return; }
+      if (Number(f.salary) < salaryFloor) { showFailure(`League rules require at least ${money(salaryFloor)} for this driver. You entered ${money(Number(f.salary))}.`);return; }
+      if (role === "owner" && Number(f.salary) !== 500000) {showFailure("Required owner-driver salary is fixed at $500,000 for Season 2.");return;}
+      if (role === "owner" && (Number(f.bonus)!==0 || Number(f.buyout)!==0)) {showFailure("Mandatory owner-driver contracts cannot include signing bonuses or buyouts.");return;}
+      if (role !== "owner" && (f.buyout === "" || !Number.isFinite(Number(f.buyout)) || Number(f.buyout)<0 || Number(f.buyout)>Number(f.salary)*1.5)) {showFailure(`Buyout must be between $0 and ${money(Number(f.salary)*1.5)}.`);return;}
+      if (!Number.isInteger(Number(f.seasons)) || Number(f.seasons)<1 || Number(f.seasons)>5) {showFailure("Contract length must be between 1 and 5 seasons.");return;}
     }
-    let schedule;try { schedule = independent && !ownerPayroll ? [] : makeCareerSchedule(f.salary, f.scheduleType, f.firstPayment, f.paymentCount); } catch (error) { onSave(null, error);return; }onSave({ action: ownerPayroll ? "owner_payroll" : draft.prior ? "counter_contract" : "offer_contract", payload: { id: draft.prior?.id, teamId: f.teamId, requestId: f.requestId, message: f.message, terms: { number: Number(f.number), driverRole: role, salary: independent && !ownerPayroll ? 0 : role === "owner" ? 500000 : Number(f.salary), bonus: independent || role === "owner" ? 0 : Number(f.bonus), buyout: independent || role === "owner" ? 0 : Number(f.buyout), seasons: Number(f.seasons), startsOn: f.startsOn, endsOn: f.endsOn, scheduleType: f.scheduleType, schedule, mediaRequirements: f.mediaRequirements, manufacturerRequirements: f.manufacturerRequirements, sponsorRequirements: f.sponsorRequirements } } }); }}>
+    if (f.endsOn <= f.startsOn) { showFailure("The contract end date must be after its effective date.");return; }
+    if (!independent && !ownerPayroll && !draft.prior && !f.requestId) {showFailure("Select an approved driver application before creating the offer.");return;}
+    if (!ownerManagement && (!f.number || !numbers.some(n=>Number(n.number)===Number(f.number))) && !draft.prior) {showFailure("Select a currently available team-leased car number.");return;}
+    let schedule;
+    try { schedule = independent && !ownerPayroll ? [] : makeCareerSchedule(f.salary, f.scheduleType, f.firstPayment, f.paymentCount); }
+    catch (error) { showFailure(error.message || "Invalid payment schedule.");return; }
+    const request = { action: ownerPayroll ? "owner_payroll" : draft.prior ? "counter_contract" : "offer_contract", payload: { id: draft.prior?.id, teamId: f.teamId, requestId: f.requestId, message: f.message, terms: { number: Number(f.number), driverRole: role, salary: independent && !ownerPayroll ? 0 : role === "owner" ? 500000 : Number(f.salary), bonus: independent || role === "owner" ? 0 : Number(f.bonus), buyout: independent || role === "owner" ? 0 : Number(f.buyout), seasons: Number(f.seasons), startsOn: f.startsOn, endsOn: f.endsOn, scheduleType: f.scheduleType, schedule, mediaRequirements: f.mediaRequirements, manufacturerRequirements: f.manufacturerRequirements, sponsorRequirements: f.sponsorRequirements } } };
+    submitLock.current = true;
+    setSubmissionState("submitting");
+    try {
+      // onSave resolves only after the server action finishes, not after a subsequent dashboard reload.
+      const result=await onSave(request);
+      if (!result?.ok) {
+        showFailure(result?.message || "The contract was not confirmed. Refresh your offers before attempting again to avoid duplicates.");
+      } else setSubmissionState("saved");
+    } catch(error) { showFailure(error?.message || "The contract could not be confirmed. Refresh your offers before retrying."); }
+    finally { submitLock.current = false; }
+  };
+  return <section className="career-compose"><div className="career-row"><h2>{draft.prior ? "Submit a new proposal" : independent ? "Independent ride agreement" : "Prepare a contract offer"}</h2><button type="button" onClick={onClose}>Cancel</button></div><p className="career-muted">Each proposal creates a separate version. Both parties must review and sign the same final version. Buyout cap: 1.5 × total base compensation.</p><form className="career-form" noValidate onSubmit={submitOffer}>
     {!draft.prior && <><label>Team<select required value={f.teamId} onChange={e => update("teamId", e.target.value)}><option value="">Choose team</option>{teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select></label>{!independent && !ownerPayroll && <label>Approved applicant<select required value={f.requestId} onChange={e => update("requestId", e.target.value)}><option value="">Choose approved seat request</option>{requests.map(r => <option key={r.id} value={r.id}>{data.members.find(m => m.user_id === r.driver_user)?.gamertag || r.driver_user}</option>)}</select></label>}</>}
     {!ownerManagement && <label>Assign a team-leased number<select required value={f.number} onChange={e => update("number", e.target.value)}><option value="">Choose number</option>{numbers.map(n => <option key={n.id} value={n.number}>#{n.number} — leased by this team</option>)}</select></label>}
     {(!independent || ownerPayroll) && <div className="career-notice" aria-live="polite"><strong>Contract classification:</strong> {champion ? "Defending champion" : role === "owner" ? "Owner-driver" : role === "franchise" ? "Franchise driver" : "Base driver"}. <strong>League minimum: {money(salaryFloor)}.</strong> Classification is determined by league records, not selected in this form.</div>}
@@ -83,9 +119,12 @@ export function OfferForm({ draft, data, onSave, onClose, busy }) {
     {(!independent || ownerPayroll) && <><label>Salary payment schedule<select value={f.scheduleType} onChange={e => update("scheduleType", e.target.value)}><option value="lump">One payment</option><option value="three">Three installments, 28 days apart</option><option value="weekly">Weekly installments</option></select></label><div className="career-form-grid"><label>First salary payment<input required type="date" value={f.firstPayment} onChange={e => update("firstPayment", e.target.value)} /></label>{f.scheduleType === "weekly" && <label>Number of weekly payments<input required type="number" min="1" max="52" value={f.paymentCount} onChange={e => update("paymentCount", e.target.value)} /></label>}</div></>}
     <p className="career-notice">League media requirements remain mandatory in every contract. Salary and bonuses are paid by the owner; pending league funding claims do not count as available cash.</p>
     {[["mediaRequirements", "Media obligations — tasks, deadlines and proof"], ["manufacturerRequirements", "Manufacturer obligations"], ["sponsorRequirements", "Sponsor names, placements, appearances, deadlines and proof"], ["message", "Negotiation message / agreed notes"]].map(([key, label]) => <label key={key}>{label}<textarea required={key !== "message"} minLength={key === "message" ? 0 : 10} value={f[key]} onChange={e => update(key, e.target.value)} /></label>)}
-    {validationError && <p role="alert" className="career-error">{validationError}</p>}
+    <div ref={feedbackRef} role="status" aria-live="polite">
+      {validationError && <p role="alert" className="career-error" style={{padding:"12px",borderLeft:"4px solid #b91c1c",margin:"12px 0"}}>{validationError}</p>}
+      {submissionState === "submitting" && <p>Submitting contract to the league… Do not submit again.</p>}
+    </div>
     {champion&&<p className="career-notice">The defending champion must receive at least {money(salaryFloor)}. This salary cannot be reduced to a base-driver salary.</p>}
-    <button disabled={busy}>Create version for review and signatures</button>
+    <button type="submit" disabled={busy || submissionState === "submitting"}>{submissionState === "submitting" ? "Submitting contract…" : "Create version for review and signatures"}</button>
   </form></section>;
 }
 export default function CareerDashboard({ workspace = "driver", initialTab, seasons = [], activeSeasonId = "", leagueReady = false }) {
@@ -109,39 +148,29 @@ export default function CareerDashboard({ workspace = "driver", initialTab, seas
     return () => { window.removeEventListener("hashchange", sync);window.removeEventListener("popstate", sync); };
   }, [initialTab]);
   const load = useCallback(async () => { const next = await careerRead();setData(next);setError("");return next; }, []);
-  // Keep the owner workspace mounted when the shared career RPC is slow.
-  // A temporary database timeout is NOT a logout or an account-registration failure.
-  // Retry the read with bounded backoff; do not refetch on every mobile focus event.
-  useEffect(() => {
-    let live = true;
-    let retryTimer;
-    let failures = 0;
-    const refresh = async () => {
-      try {
-        const next = await careerRead();
-        if (!live) return;
-        failures = 0;
-        setData(next);
-        setError("");
-      } catch (failure) {
-        if (!live) return;
-        setError(failure?.message || "Career data is temporarily unavailable.");
-        const delay = Math.min(60000, 4000 * (2 ** Math.min(failures++, 4)));
-        retryTimer = window.setTimeout(refresh, delay);
-      }
-    };
-    refresh();
-    return () => { live = false; window.clearTimeout(retryTimer); };
-  }, []);
+  useEffect(() => { let live = true;const refresh = () => careerRead().then(next => { if (live) { setData(next);setError(""); } }).catch(e => { if (live) setError(e.message); });refresh();window.addEventListener("focus", refresh);return () => { live = false;window.removeEventListener("focus", refresh); }; }, []);
   useEffect(() => {
     if (!["owner", "independent"].includes(rawData?.me?.kind) || rawData?.me?.status !== "applicant") return;
     let live = true;
     const timer = setInterval(() => careerRead().then(next => { if (live) { setData(next);setError(""); } }).catch(e => { if (live) setError(e.message); }), 20000);
     return () => { live = false;clearInterval(timer); };
   }, [ownerWorkspace, rawData?.me?.kind, rawData?.me?.status]);
-  async function run(action, payload) { setBusy(true);setError("");setStatus("");try { const result = await careerAction(action, payload);await load();setStatus("Saved successfully.");return result; } catch (failure) { setError(failure.message);return null; } finally { setBusy(false); } }
+  async function run(action, payload) {
+    setBusy(true);setError("");setStatus("");
+    try {
+      const result = await careerAction(action, payload);
+      // A successful write must never be reported as failed because a later read times out.
+      setStatus("Saved successfully.");
+      try { await load(); } catch (refreshError) {
+        setStatus("Saved successfully. The updated dashboard could not refresh yet; please refresh the page to see it.");
+        console.warn("BRL: contract action saved; dashboard refresh failed",refreshError);
+      }
+      return result;
+    } catch (failure) { setError(failure?.message || "Action failed; check current records before retrying.");return null; }
+    finally { setBusy(false); }
+  }
   const data=careerWorkspaceData(rawData,workspace);
-  if (!data) return <div className="career"><h1>{adminWorkspace?"League administration":ownerWorkspace?"Owner HQ":"My Career"}</h1>{error ? <><p role="alert" className="career-error">{error}</p><p role="status">Reconnecting automatically. Your account is still signed in.</p><button onClick={() => { setError("");load().catch(e => setError(e.message)); }}>Retry now</button></> : <p role="status">Loading your applications and agreements…</p>}</div>;
+  if (!data) return <div className="career"><h1>{adminWorkspace?"League administration":ownerWorkspace?"Owner HQ":"My Career"}</h1>{error ? <><p role="alert" className="career-error">{error}</p><button onClick={() => { setError("");load().catch(e => setError(e.message)); }}>Retry</button><p><a href="/login">Sign in / Register</a></p></> : <p role="status">Loading your applications and agreements…</p>}</div>;
   const me = data.me, root = adminWorkspace && data.isSuperAdmin, owned = ownerWorkspace ? data.teams.filter(t => t.owner_user === me.user_id && t.status === "approved") : [], owner = owned.length > 0;
   const restrictedOwner = ownerWorkspace && me.kind !== "driver" && ["applicant", "rejected"].includes(me.status);
   const manufacturer = (data.manufacturerRoles || []).length > 0;
@@ -203,12 +232,30 @@ export default function CareerDashboard({ workspace = "driver", initialTab, seas
     {currentTab === "overview" && !adminWorkspace && <OwnerBuildNotice teams={myApprovedTeams} onBuild={ownerWorkspace ? () => changeTab("team") : undefined} />}
     {!ownerWorkspace && !adminWorkspace && ["overview", "stats", "money"].includes(currentTab) && <DriverCareerSummary data={data} seasons={seasons} seasonId={activeSeasonId} leagueReady={leagueReady} section={currentTab} onTab={changeTab} onContract={openContract} />}
 
-    {draft && <OfferForm key={draft.prior?.id || `${draft.teamId}-${draft.requestId}`} draft={draft} data={data} busy={busy} onClose={() => setDraft(null)} onSave={async (value, failure) => { if (failure) { setError(failure.message);return; }const result = await run(value.action, value.payload);if (result) { setDraft(null);openContract(result.id); } }} />}
-    {ownerWorkspace && currentTab === "overview" && <>{!data.teams.some(t=>t.owner_user===me.user_id) && (data.previousTeams||[]).filter((t,i,all)=>all.findIndex(x=>x.code===t.code)===i).map(t=><section className="career-card" key={t.id}><h2>Renew {t.name} for this season</h2><p>Previous team approval and number use do not renew automatically. Submit your current-season ownership application, then sign and fund new number leases.</p><button disabled={busy} onClick={()=>run("renew_team_application",{previousTeamId:t.id})}>Request renewed team approval</button></section>)}<section className="career-card"><h2>{restrictedOwner ? "Your ownership application" : "Your team operations"}</h2><p>{"Manage your team’s roster, active number leases, driver contracts, payroll and funding. Only the super admin approves ownership and independent rides. Approved teams can receive seat requests immediately; funding and number leasing are required before driver contract activation."}</p><p className="career-notice">Your registered name is your racing-platform gamertag: <strong>{me.gamertag}</strong>. Use this same gamertag to sign documents.</p>{!restrictedOwner && <div className="career-actions"><button onClick={() => changeTab("offers")}>Manage driver contracts</button>{owner && <button onClick={() => changeTab("team")}>Set up my team</button>}{me.driverNumber && <a href={`/driver/${me.driverNumber}`}>Open my driver profile ↗</a>}</div>}</section>{data.teams.filter(t => t.owner_user === me.user_id).map(t => <section key={t.id} className="career-card"><h2>{t.name}</h2><Badge value={t.status} /><p>{t.manufacturer} · {t.status==="approved"?`${t.tier} · ${t.capacity} approved cars`:`${t.requestedCapacity||1} cars requested · charter unassigned`}</p><p>{t.review_note || (t.status === "pending" ? "Waiting for super-admin review. Team operations are locked." : t.ready ? "Team can accept applications and prepare contracts." : "Seat applications are open. Complete funding and active number leases before activating new drivers.")}</p>{["pending", "rejected"].includes(t.status) && <form className="career-form" onSubmit={e => { e.preventDefault();const f = new FormData(e.currentTarget);run("revise_application", { name: f.get("name"), code: f.get("code"), manufacturer: f.get("manufacturer"), requestedCapacity: Number(f.get("requestedCapacity")) }); }}><h3>Correct / resubmit application</h3><label>Team name<input name="name" required defaultValue={t.name} /></label><label>Team code<input name="code" required pattern="[A-Za-z0-9_-]{2,20}" defaultValue={t.code} /></label><label>Manufacturer<select name="manufacturer" defaultValue={t.manufacturer}><option>Toyota</option><option>Ford</option><option>Chevrolet</option></select></label><label>Requested number of cars<select name="requestedCapacity" defaultValue={t.requestedCapacity||1}>{(me.kind==="independent"?[1]:[1,2,3,4]).map(n=><option key={n} value={n}>{n}</option>)}</select></label><p>The super admin assigns your charter tier and alliance.</p><button disabled={busy}>Submit revised application for approval</button></form>}</section>)}</>}
+    {draft && <OfferForm key={draft.prior?.id || `${draft.teamId}-${draft.requestId}`} draft={draft} data={data} busy={busy} onClose={() => setDraft(null)} onSave={async value => {
+      // Save once and report the actual server result to the form.
+      // Do not dismiss the form when the write fails or is unconfirmed.
+      setBusy(true);setError("");setStatus("");
+      try {
+        const result = await careerAction(value.action, value.payload);
+        setStatus("Contract offer created successfully.");
+        setDraft(null);
+        if (result?.id) openContract(result.id);
+        // Refresh only AFTER success. A slow read cannot turn a saved offer into a failure.
+        careerRead().then(setData).catch(error => {
+          console.warn("BRL: saved offer but refresh failed",error);
+          setStatus("Contract saved. The list is still refreshing; reopen Driver Contracts shortly.");
+        });
+        return {ok:true};
+      } catch(error) {
+        return {ok:false,message:error?.message || "The server did not confirm the offer. Review pending contracts before retrying."};
+      } finally { setBusy(false); }
+    }} />}
+    {ownerWorkspace && currentTab === "overview" && <>{!data.teams.some(t=>t.owner_user===me.user_id) && (data.previousTeams||[]).filter((t,i,all)=>all.findIndex(x=>x.code===t.code)===i).map(t=><section className="career-card" key={t.id}><h2>Renew {t.name} for this season</h2><p>Previous team approval and number use do not renew automatically. Submit your current-season ownership application, then sign and fund new number leases.</p><button disabled={busy} onClick={()=>run("renew_team_application",{previousTeamId:t.id})}>Request renewed team approval</button></section>)}<section className="career-card"><h2>{restrictedOwner ? "Your ownership application" : "Your team operations"}</h2><p>{"Manage your team’s roster, active number leases, driver contracts, payroll and funding. Only the super admin approves ownership and independent rides. Recruiting stays closed until approval, funding and active number leases are complete."}</p><p className="career-notice">Your registered name is your racing-platform gamertag: <strong>{me.gamertag}</strong>. Use this same gamertag to sign documents.</p>{!restrictedOwner && <div className="career-actions"><button onClick={() => changeTab("offers")}>Manage driver contracts</button>{owner && <button onClick={() => changeTab("team")}>Set up my team</button>}{me.driverNumber && <a href={`/driver/${me.driverNumber}`}>Open my driver profile ↗</a>}</div>}</section>{data.teams.filter(t => t.owner_user === me.user_id).map(t => <section key={t.id} className="career-card"><h2>{t.name}</h2><Badge value={t.status} /><p>{t.manufacturer} · {t.status==="approved"?`${t.tier} · ${t.capacity} approved cars`:`${t.requestedCapacity||1} cars requested · charter unassigned`}</p><p>{t.review_note || (t.status === "pending" ? "Waiting for super-admin review. Team operations are locked." : t.ready ? "Team is ready to recruit." : "Complete funding and active number leases before signing drivers.")}</p>{["pending", "rejected"].includes(t.status) && <form className="career-form" onSubmit={e => { e.preventDefault();const f = new FormData(e.currentTarget);run("revise_application", { name: f.get("name"), code: f.get("code"), manufacturer: f.get("manufacturer"), requestedCapacity: Number(f.get("requestedCapacity")) }); }}><h3>Correct / resubmit application</h3><label>Team name<input name="name" required defaultValue={t.name} /></label><label>Team code<input name="code" required pattern="[A-Za-z0-9_-]{2,20}" defaultValue={t.code} /></label><label>Manufacturer<select name="manufacturer" defaultValue={t.manufacturer}><option>Toyota</option><option>Ford</option><option>Chevrolet</option></select></label><label>Requested number of cars<select name="requestedCapacity" defaultValue={t.requestedCapacity||1}>{(me.kind==="independent"?[1]:[1,2,3,4]).map(n=><option key={n} value={n}>{n}</option>)}</select></label><p>The super admin assigns your charter tier and alliance.</p><button disabled={busy}>Submit revised application for approval</button></form>}</section>)}</>}
     {currentTab === "streams" && <MemberStreamSettings/>}
     {currentTab === "appeals" && <AppealsWorkspace/>}
     {currentTab === "account" && <form className="career-form career-card" onSubmit={async e => { e.preventDefault();const f = new FormData(e.currentTarget), password = String(f.get("password"));if (password !== f.get("confirm")) { setError("Passwords do not match.");return; }setBusy(true);setError("");try { await changeCareerPassword(password, me.login_kind);setStatus("Login password updated."); } catch (failure) { setError(failure.message); } finally { setBusy(false); } }}><h3>Account password</h3><p><JoinDate member={me}/></p><label>New password<input type="password" name="password" required minLength={12} maxLength={128} autoComplete="new-password" /></label><label>Confirm new password<input type="password" name="confirm" required minLength={12} maxLength={128} autoComplete="new-password" /></label><button disabled={busy}>Change login password</button></form>}
-    {currentTab === "teams" && <><label>Find a team<input className="career-search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Team name or manufacturer" /></label><div className="career-grid" style={{ marginTop: 20 }}>{data.teams.filter(t => t.status === "approved" && `${t.name} ${t.manufacturer}`.toLowerCase().includes(search.toLowerCase())).map(t => <section className="career-card" key={t.id}><div className="career-kicker">{t.manufacturer} / {t.tier}</div><h2>{t.name}</h2>{t.owner_profile?.logoDataUrl && <img className="team-market-logo" src={t.owner_profile.logoDataUrl} alt={`${t.name} logo`} />}<p>Owner: {t.owner_gamertag}</p>{t.owner_profile?.bio && <p>{t.owner_profile.bio}</p>}<p>{t.occupied}/{t.capacity} seats occupied · {t.reserved} reserved offers</p><Badge value="approved" /><p className="career-muted">{t.ready ? "Accepting seat applications. Funding and number leasing are already in place." : "Accepting seat applications. The team must complete funding and number leasing before activating a driver contract."}</p>{t.tier !== "independent" && <form className="career-form" onSubmit={async e => { e.preventDefault();const form = new FormData(e.currentTarget);await run("request_seat", { teamId: t.id, message: form.get("message") }); }}><label>Introduce yourself<textarea name="message" maxLength={2000} placeholder="Experience, availability, and what you want in a team" /></label><button disabled={busy || t.owner_user === me.user_id || t.occupied + t.reserved >= t.capacity || data.requests.some(r => r.team_id === t.id && ["pending", "approved", "signed"].includes(r.status))}>Request a seat</button></form>}{t.tier === "independent" && <p>Independent team: super-admin approval only.</p>}</section>)}</div>{!data.teams.some(t => t.status === "approved") && <p className="career-empty">No approved teams yet. Check back after owner approvals.</p>}</>}
+    {currentTab === "teams" && <><label>Find a team<input className="career-search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Team name or manufacturer" /></label><div className="career-grid" style={{ marginTop: 20 }}>{data.teams.filter(t => t.status === "approved" && `${t.name} ${t.manufacturer}`.toLowerCase().includes(search.toLowerCase())).map(t => <section className="career-card" key={t.id}><div className="career-kicker">{t.manufacturer} / {t.tier}</div><h2>{t.name}</h2>{t.owner_profile?.logoDataUrl && <img className="team-market-logo" src={t.owner_profile.logoDataUrl} alt={`${t.name} logo`} />}<p>Owner: {t.owner_gamertag}</p>{t.owner_profile?.bio && <p>{t.owner_profile.bio}</p>}<p>{t.occupied}/{t.capacity} seats occupied · {t.reserved} reserved offers</p><Badge value={t.ready ? "approved" : "setup required"} /><p className="career-muted">{t.ready ? "Approved, funded and holds a paid seasonal lease." : "Applications open once funding and number agreements are established."}</p>{t.tier !== "independent" && <form className="career-form" onSubmit={async e => { e.preventDefault();const form = new FormData(e.currentTarget);await run("request_seat", { teamId: t.id, message: form.get("message") }); }}><label>Introduce yourself<textarea name="message" maxLength={2000} placeholder="Experience, availability, and what you want in a team" /></label><button disabled={busy || me.status === "active" || !t.ready || t.occupied + t.reserved >= t.capacity || data.requests.some(r => r.team_id === t.id && ["pending", "approved", "signed"].includes(r.status))}>Request a seat</button></form>}{t.tier === "independent" && <p>Independent team: super-admin approval only.</p>}</section>)}</div>{!data.teams.some(t => t.status === "approved") && <p className="career-empty">No approved teams yet. Check back after owner approvals.</p>}</>}
     {currentTab === "requests" && <>{data.requests.length === 0 && <p className="career-empty">No seat requests yet.</p>}{data.requests.map(r => <section className="career-card" key={r.id}><div className="career-row"><h2>{teamName(r.team_id)} · {memberName(r.driver_user)}</h2><Badge value={r.status} /></div><p>{r.message || "No introductory message."}</p>{r.review_note && <p>Owner response: {r.review_note}</p>}{owned.some(t => t.id === r.team_id) && r.status === "pending" && <Review busy={busy} onSubmit={values => run("review_seat", { id: r.id, ...values })} />}{owned.some(t => t.id === r.team_id) && r.status === "approved" && <button onClick={() => { changeTab("offers");setDraft({ teamId: r.team_id, requestId: r.id }); }}>Prepare a contract</button>}{r.driver_user === me.user_id && r.status === "pending" && <button disabled={busy} onClick={() => run("withdraw_seat", { id: r.id })}>Withdraw request</button>}</section>)}</>}
     {currentTab === "offers" && <>{!ownerWorkspace && !adminWorkspace && myApprovedTeams.length > 0 && <p className="career-notice">Owner-driver agreements are tied to this same account. You never need to submit a seat request to yourself. Open your agreement to review and sign the owner and driver signature blocks.</p>}{owner && <><button onClick={() => setDraft({ teamId: owned[0].id })}>Create contract offer</button>{(data.ownerPayrollSeats || []).filter(s=>owned.some(t=>t.id===s.teamId)).map(s=><button key={s.teamId} onClick={()=>setDraft({teamId:s.teamId,number:s.number,management:s.management,ownerPayroll:true})}>Set up required owner salary · {data.teams.find(t=>t.id===s.teamId)?.name}</button>)}</>}<p className="career-muted">Compare compensation, requirements, manufacturer, term, and buyout. Select a document to review, negotiate, decline, or sign. Every revised proposal needs fresh signatures.</p><div className="career-offer-compare">{data.contracts.map(c => <section key={c.id} className="career-card"><div className="career-kicker">{c.terms.manufacturer} / #{c.terms.number}</div><h2>{c.terms.teamName}</h2><p>{c.terms.driverGamertag} · Version {c.version}</p><Badge value={new Date(c.expires_at) <= new Date() && ["offered", "partially_signed"].includes(c.status) ? "expired" : c.status} /><dl><dt>Base compensation</dt><dd>{money(c.terms.salary)}</dd><dt>Signing bonus / Buyout</dt><dd>{money(c.terms.bonus)} / {money(c.terms.buyout)}</dd><dt>Term</dt><dd>{c.terms.seasons} season(s) · {c.terms.startsOn} – {c.terms.endsOn}</dd></dl><p className="career-muted">{c.terms.note}</p><button onClick={() => openContract(c.id)}>Review document & requirements</button></section>)}</div>{!ownerWorkspace && !adminWorkspace && missingOwnerAgreements.map(t => <section className="career-card" key={`owner-agreement-${t.id}`}>
       <div className="career-kicker">Required owner-driver agreement</div>
