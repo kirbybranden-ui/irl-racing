@@ -32,6 +32,31 @@ export function publicContext(state: any, trackCatalog: any, raceName = "") {
   return { seasonId: season.id, seasonName: season.name, seasonStartedAt: season.createdAt, drivers: roster, tracks, recentRaces: history.slice(-6), selectedRace: history.find((r: any) => r.raceName === raceName) || null, track: track ? { ...pick(track, ["name", "date", "stageCount", "phase", "eventLabel"]), facts } : null, raceSettings: { distancePercent: 50, fuelConsumptionMultiplier: 3, tireWearMultiplier: 3 }, seasonRaceCount: history.length };
 }
 
+// Deterministic server-side assignments. Drivers cannot choose or override the reporter.
+// Championship credentials are an explicit exception to the current-season-only rule.
+export function assignMediaReporter(driver: any, context: any, previousPersona = "") {
+  const name = String(driver?.name || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  const team = String(driver?.team || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const wins = Number(driver?.wins || 0);
+  // ABAJACK91 is the reigning BRL champion and retains the top media assignment.
+  if (name === "abajack91" || name === "aba" && String(driver?.number) === "9") return "champion";
+  const safePrevious = ["champion", "fan", "straight", "story", "driver", "grid", "pit", "banter"].includes(previousPersona)
+    ? previousPersona : "";
+  const elite = ["champion", "fan", "straight"];
+  const established = ["story", "driver", "grid", "pit", "banter"];
+  // A winner gains top-tier coverage based on this season's actual published results.
+  if (wins > 0) return safePrevious && elite.includes(safePrevious) ? safePrevious : "fan";
+  // Before winners, returning high-profile teams receive preferred coverage.
+  const isPrestigious = ["NLM", "BXM", "19XI", "JAM1", "JAM"].includes(team);
+  if (isPrestigious) return safePrevious && elite.includes(safePrevious) ? safePrevious : "straight";
+  if (safePrevious && established.includes(safePrevious)) return safePrevious;
+  // Stable assignment per driver, so repeated interviews don't randomly change hosts.
+  const seed = String(driver?.id || driver?.name || "");
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) hash = (Math.imul(hash, 31) + seed.charCodeAt(i)) | 0;
+  return established[(hash >>> 0) % established.length];
+}
+
 export function exactQuotes(requested: any[], sources: any[]) {
   if (!Array.isArray(requested) || requested.length > 6) throw new Error("Invalid quote list.");
   return requested.map(q => {
@@ -52,7 +77,7 @@ export function validateArticle(output: any, sources: any[]) {
 // Interview continuity helpers used by brl-media/index.ts.
 // Keep these exports in sync with the function's imports.
 export function reporterMemory(sessions: any[] = []) {
-  return sessions.filter(s => s.status === "completed" && ["pre", "post"].includes(s.kind)).slice(0, 2).map(s => ({
+  return sessions.filter(s => s.status === "completed" && ["pre", "post"].includes(s.kind)).slice(0, 6).map(s => ({
     race: s.race_name, kind: s.kind,
     messages: (s.messages || []).filter((m: any) => ["user", "assistant"].includes(m.role)).slice(-7)
       .map((m: any) => ({ role: m.role, text: String(m.text || "").slice(0, 700), reporter: m.reporter_id || s.persona })),
@@ -60,18 +85,10 @@ export function reporterMemory(sessions: any[] = []) {
   }));
 }
 
-export function reporterChoices(session: any, userTurns: number) {
+export function reporterChoices(session: any, _userTurns: number) {
+  // Keep the assigned reporter throughout this interview; storylines grow across races.
   const current = personalities.find(p => p.id === session.persona) || personalities[0];
-  if (session.kind === "strategy" || userTurns < 1 || userTurns >= 3) return [current];
-  const speakers = new Set((session.messages || []).filter((m: any) => m.role === "assistant")
-    .map((m: any) => m.reporter_id || session.persona));
-  if (speakers.size > 1) return [current];
-  const pool = personalities.filter(p => p.id !== "crew");
-  const index = pool.findIndex(p => p.id === current.id);
-  const alternate = current.id === "pit"
-    ? pool.find(p => p.id === "driver")
-    : pool[(index + 1) % pool.length];
-  return alternate && alternate.id !== current.id ? [current, alternate] : [current];
+  return [current];
 }
 
 export function validateReporterResponse(output: any, session: any, userTurns: number) {
