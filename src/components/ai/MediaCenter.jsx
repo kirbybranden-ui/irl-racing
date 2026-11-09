@@ -11,7 +11,6 @@ export default function MediaCenter({ strategyOnly = false }) {
   const [enabled, setEnabled] = useState(false);
   const [race, setRace] = useState("");
   const [kind, setKind] = useState(strategyOnly ? "strategy" : "pre");
-  const [persona, setPersona] = useState("pit");
   const [selected, setSelected] = useState(null);
   const [answer, setAnswer] = useState("");
   const [error, setError] = useState("");
@@ -74,7 +73,7 @@ export default function MediaCenter({ strategyOnly = false }) {
     if (lock.current) return;
     lock.current = true; syncUntil.current = Date.now() + 120000; setBusy(true); setError("");
     try {
-      const result = await callMedia(type === "start" ? { action: type, raceName: race, kind, persona } : { action: type, sessionId: selected.id, version: selected.version, ...(type === "answer" ? { answer } : {}) });
+      const result = await callMedia(type === "start" ? { action: type, raceName: race, kind } : { action: type, sessionId: selected.id, version: selected.version, ...(type === "answer" ? { answer } : {}) });
       setSelected(result.session); setAnswer("");
       setSessions(previous => [result.session, ...previous.filter(s => s.id !== result.session.id)]);
     } catch (e) { setError(e.message); await load(); }
@@ -93,7 +92,7 @@ export default function MediaCenter({ strategyOnly = false }) {
       <form className="brl-ai-start" onSubmit={e => { e.preventDefault(); action("start"); }}>
         <label>Race<select value={race} onChange={e => setRace(e.target.value)} disabled={busy}>{(state?.tracks || []).map(t => <option key={t.name} value={t.name}>{t.name} · {t.date}</option>)}</select></label>
         {!strategyOnly && <label>Conversation<select value={kind} onChange={e => setKind(e.target.value)} disabled={busy}><option value="pre">Pre-race interview</option><option value="post">Post-race interview</option><option value="strategy">Strategy & car handling</option></select></label>}
-        {kind !== "strategy" && <label>Interviewer<select value={persona} onChange={e => setPersona(e.target.value)} disabled={busy}>{mediaPersonas.filter(p => p[0] !== "crew").map(p => <option key={p[0]} value={p[0]}>{p[1]} · {p[2]}</option>)}</select></label>}
+        {kind !== "strategy" && <p className="brl-ai-notice">Your interviewer is assigned by BRL based on championship standing, race wins, team profile, and prior interviews. Reporter relationships develop across the season.</p>}
         <button disabled={busy || !enabled || !race || (kind === "post" && !activeSeason?.raceHistory?.some(r => r.raceName === race))}>{busy ? "Connecting…" : "Start / continue conversation"}</button>
         {kind === "post" && !activeSeason?.raceHistory?.some(r => r.raceName === race) && <small>Post-race interviews open after the admin publishes results.</small>}
       </form>
