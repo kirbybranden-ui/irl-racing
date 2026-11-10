@@ -345,25 +345,21 @@ export default function AdminPortal({
   }
   const adminUnreadCount = adminUnreadMessages.length;
 
-  // Season 2 owner numbers come from CURRENT Career assignments, not legacy
-  // owner-assignment rows (which may have a blank owner_driver_number).
+  // Use the Season 2 Career records for owner identity and number assignments.
+  // The racing UI season ID may differ from the Career season ID.
   const [careerOwnerNumbers, setCareerOwnerNumbers] = useState([]);
 
   useEffect(() => {
     if (!supabase || !hrDepartmentOpen || hrTab !== "owners") return undefined;
     let cancelled = false;
-    const seasonId = String(activeSeasonId || activeSeason?.id || "").trim();
-    if (!seasonId) {
-      setCareerOwnerNumbers([]);
-      return undefined;
-    }
+    const careerSeasonId = "season-2-1790801575252";
 
     async function loadCareerOwnerNumbers() {
       try {
         const teamsResult = await supabase
           .from("brl_career_teams")
           .select("id, code, owner_user")
-          .eq("season_id", seasonId)
+          .eq("season_id", careerSeasonId)
           .eq("status", "approved");
         if (teamsResult.error) throw teamsResult.error;
         const teams = teamsResult.data || [];
@@ -385,15 +381,17 @@ export default function AdminPortal({
         if (membersResult.error) throw membersResult.error;
 
         const members = membersResult.data || [];
-        const assignments = (numbersResult.data || []).flatMap((number) => {
-          const team = teams.find((item) =>
-            String(item.id) === String(number.team_id) &&
-            item.owner_user &&
-            String(item.owner_user) === String(number.assigned_user)
-          );
-          if (!team) return [];
+        const assignments = teams.map((team) => {
           const member = members.find((item) => String(item.user_id) === String(team.owner_user));
-          return [{ team: team.code, gamertag: member?.gamertag || "", number: number.number }];
+          const number = (numbersResult.data || []).find((item) =>
+            String(item.team_id) === String(team.id) &&
+            String(item.assigned_user) === String(team.owner_user)
+          );
+          return {
+            team: team.code,
+            gamertag: member?.gamertag || "",
+            number: number?.number ?? null,
+          };
         });
         if (!cancelled) setCareerOwnerNumbers(assignments);
       } catch (error) {
@@ -404,7 +402,7 @@ export default function AdminPortal({
 
     loadCareerOwnerNumbers();
     return () => { cancelled = true; };
-  }, [supabase, hrDepartmentOpen, hrTab, activeSeasonId, activeSeason?.id]);
+  }, [supabase, hrDepartmentOpen, hrTab]);
 
   const formatNumberedDriver = (name, number) => {
     const displayName = String(name ?? "").trim();
@@ -2181,21 +2179,16 @@ export default function AdminPortal({
                     {(ownerPortalTeams || []).map((team) => {
                       const teamDrivers = (visibleDrivers || []).filter((driver) => driver.team === team);
                       const assignment = (ownerAssignments || []).find((item) => String(item.team) === String(team));
-                      const ownerName = String(assignment?.owner_driver_name || "").trim();
-                      const ownerNameKey = ownerName.toLowerCase();
                       const teamCodes = [String(team).toLowerCase(), String(getTeamIdentifier(team)).toLowerCase()];
-                      const careerNumber = careerOwnerNumbers.find((item) =>
-                        String(item.gamertag).toLowerCase() === ownerNameKey &&
+                      const careerOwner = careerOwnerNumbers.find((item) =>
                         teamCodes.includes(String(item.team).toLowerCase())
-                      ) || careerOwnerNumbers.find((item) =>
-                        String(item.gamertag).toLowerCase() === ownerNameKey
                       );
-                      // The current racing roster is a safe fallback while the
-                      // Career assignment loads. Never use an old Season 1 number.
+                      const ownerName = String(careerOwner?.gamertag || assignment?.owner_driver_name || "").trim();
+                      const ownerNameKey = ownerName.toLowerCase();
                       const rosterOwner = teamDrivers.find((driver) =>
                         String(driver.name || "").trim().toLowerCase() === ownerNameKey
                       );
-                      const ownerNumber = careerNumber?.number ?? rosterOwner?.number ?? null;
+                      const ownerNumber = careerOwner?.number ?? rosterOwner?.number ?? null;
                       return (
                         <div key={team} style={{ borderRadius: 26, padding: 18, color: "white", background: "linear-gradient(135deg, #1c1c1e, #3a3a3c)", boxShadow: "0 16px 38px rgba(15,23,42,0.16)" }}>
                           <div style={{ fontSize: 12, fontWeight: 1000, opacity: 0.75, letterSpacing: 1.3 }}>{getTeamIdentifier(team)}</div>
