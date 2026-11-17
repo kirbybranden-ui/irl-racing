@@ -3679,7 +3679,7 @@ function MobileLeagueApp({
   if (path === "/owner") return dataFrame("Owner Portal", "more", <OwnersPage drivers={drivers} teams={teams} teamBudgets={teamBudgets} raceHistory={raceHistory} seasonName={seasonName} tracks={tracks} paymentCompliance={paymentCompliance} onApplyTeamTransaction={onApplyTeamTransaction} />);
 
   if (["/team-hq", "/owner-hq", "/hq", "/teamhq"].includes(path)) {
-    return frame("Team HQ", "more", <UnifiedTeamHQPage drivers={drivers} teams={teams} seasonName={seasonName} tracks={tracks} go={go} />);
+    return frame("Team HQ", "more", <UnifiedTeamHQPage drivers={drivers} teams={teams} raceHistory={raceHistory} teamBudgets={teamBudgets} seasonName={seasonName} tracks={tracks} go={go} />);
   }
 
   if (path.startsWith("/race/")) {
