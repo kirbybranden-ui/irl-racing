@@ -1,41 +1,168 @@
-.brl-performance-page{max-width:1400px;margin:0 auto;padding:0 20px 36px;color:#f4f6fa}
-.brl-performance-hero{display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:18px;background:linear-gradient(125deg,#151b29,#2b1621 72%,#9d1630);border:1px solid #374052;border-radius:20px;padding:25px;margin-bottom:14px}
-.brl-performance-kicker{text-transform:uppercase;font-size:11px;font-weight:900;letter-spacing:.15em;color:#f4b6c2}
-.brl-performance-hero h2{font-size:clamp(26px,4vw,42px);line-height:1.1;margin:8px 0}
-.brl-performance-hero p{color:#d7dbe4;margin:0;max-width:550px}
-.brl-performance-controls{display:flex;flex-wrap:wrap;gap:12px}
-.brl-performance-controls label{display:flex;flex-direction:column;gap:5px;color:#e4e7ec;font-size:12px;font-weight:800}
-.brl-performance-controls select{min-width:175px;max-width:100%;border-radius:9px;border:1px solid #596173;background:#171e2c;color:#fff;padding:10px 12px;font:inherit}
-.brl-performance-context{margin:0 0 16px;color:inherit;opacity:.8;font-size:13px}
-.brl-performance-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:0 0 24px}
-.brl-performance-metric{background:#171e2b;color:#fff;border:1px solid #384353;border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:5px;min-width:0}
-.brl-performance-metric span{font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.07em;color:#bdc6d4}
-.brl-performance-metric strong{font-size:clamp(20px,2.5vw,30px);line-height:1.2}
-.brl-performance-metric small{font-size:11px;color:#aeb8c9}
-.brl-performance-section-heading h3,.brl-performance-detail h3{margin:0 0 5px;font-size:23px}
-.brl-performance-section-heading p{margin:0 0 12px;font-size:13px;opacity:.8}
-.brl-performance-table-wrap{overflow-x:auto;max-width:100%;border:1px solid #394352;border-radius:14px;background:#141b27;margin-bottom:20px}
-.brl-performance-table{width:100%;border-collapse:collapse;min-width:760px;color:#f5f6f9;font-size:13px}
-.brl-performance-table th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#bdc6d4;background:#202a3a;padding:13px 11px;white-space:nowrap}
-.brl-performance-table td{padding:13px 11px;border-top:1px solid #303b4b;white-space:nowrap}
-.brl-performance-table tr.is-selected{background:#312332}
-.brl-performance-driver-button{border:0;background:none;color:#fff;display:flex;align-items:center;gap:10px;text-align:left;cursor:pointer;padding:0}
-.brl-performance-driver-button:hover strong{text-decoration:underline}
-.brl-performance-driver-button span:last-child{display:flex;flex-direction:column;gap:3px}
-.brl-performance-driver-button small{color:#c6b1c0;font-size:10px}
-.brl-performance-rank{display:grid;place-items:center;border-radius:50%;background:#c8102e;width:27px;height:27px;flex:none;font-weight:900}
-.brl-performance-detail{background:#121a27;border:1px solid #3c4657;border-radius:18px;padding:22px;margin-top:18px}
-.brl-performance-detail-heading{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:18px}
-.brl-performance-detail-heading>span{color:#b8c2d1;font-size:13px}
-.brl-performance-summary-detail{margin-bottom:20px}
-.brl-performance-detail h4{font-size:15px;margin:20px 0 10px}
-.brl-performance-trend{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
-.brl-performance-trend-item{border:1px solid #354052;background:#1d2737;border-radius:11px;padding:12px;display:flex;flex-direction:column;gap:8px;min-width:0}
-.brl-performance-trend-item>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:#c2cbd8}
-.brl-performance-trend-item>strong{font-size:19px}
-.brl-performance-trend-track{height:5px;border-radius:99px;background:#455064;overflow:hidden}
-.brl-performance-trend-track>div{height:100%;background:#d7193f;border-radius:99px}
-.brl-performance-empty{max-width:1400px;margin:12px auto;padding:26px;border:1px solid #6c7584;border-radius:14px;background:#202939;color:#fff}
-.brl-performance-note{color:#e2c9a2;font-size:13px;line-height:1.5}
-.brl-performance-footnote{font-size:12px;line-height:1.6;opacity:.75;margin-top:14px}
-@media(max-width:760px){.brl-performance-page{padding:0 12px 24px}.brl-performance-hero{padding:18px}.brl-performance-summary{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.brl-performance-metric{padding:12px}.brl-performance-detail{padding:14px}.brl-performance-controls{width:100%}.brl-performance-controls label{flex:1;min-width:130px}.brl-performance-controls select{min-width:0;width:100%}}
+/* BRL Owner HQ / Driver Performance
+   Native career-dashboard treatment: clean white panels, thin rules,
+   compact data tables, and the current team's accent from teamTheme.css.
+   This file is intentionally scoped to the performance page. */
+.brl-performance-page{
+  --performance-accent:var(--brl-team-accent,#b71923);
+  --performance-ink:var(--brl-team-ink,#9d1823);
+  --performance-soft:var(--brl-team-soft,#faf1f2);
+  --performance-border:#dedfdf;
+  width:100%;max-width:none;margin:0;padding:0 0 36px;
+  color:#111216;font-family:var(--brl-font,Arial,sans-serif);
+}
+.brl-performance-hero{
+  display:flex;align-items:end;justify-content:space-between;flex-wrap:wrap;
+  gap:16px;padding:4px 0 20px;margin:0 0 14px;
+  border:0;border-bottom:1px solid var(--performance-border);
+  border-radius:0;background:transparent;color:#111216;
+}
+.brl-performance-kicker{
+  color:var(--performance-ink);font-size:10px;letter-spacing:.16em;
+  line-height:1.5;font-weight:900;text-transform:uppercase;
+}
+.career .brl-performance-hero h2{
+  color:#111216;font-size:clamp(22px,3vw,28px);font-style:normal;
+  line-height:1.2;letter-spacing:-.035em;text-transform:none;margin:4px 0 7px;
+}
+.brl-performance-hero p{color:#62666b;font-size:13px;line-height:1.55;margin:0;max-width:620px}
+.brl-performance-controls{display:flex;flex-wrap:wrap;gap:12px;align-items:end}
+.brl-performance-controls label{
+  display:flex;flex-direction:column;gap:5px;color:#383b40;
+  font-size:11px;line-height:1.3;font-weight:800;
+}
+.brl-performance-controls select{
+  width:185px;max-width:100%;min-height:40px;padding:8px 12px;
+  border:1px solid #bfc2c6;border-radius:3px;
+  background:#fff;color:#111216;font:600 12px var(--brl-font,Arial,sans-serif);
+}
+.brl-performance-controls select:focus-visible,
+.brl-performance-driver-button:focus-visible{outline:2px solid var(--performance-accent);outline-offset:3px}
+.brl-performance-context{
+  color:#62666b;font-size:12px;line-height:1.5;margin:0 0 18px;
+}
+.brl-performance-context strong{color:#111216}
+.brl-performance-summary{
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:12px;margin:0 0 28px;
+}
+.brl-performance-metric{
+  display:flex;flex-direction:column;gap:6px;min-width:0;
+  padding:16px 16px 15px;background:#fff;color:#111216;
+  border:1px solid var(--performance-border);border-top:3px solid var(--performance-accent);
+  border-radius:3px;box-shadow:none;
+}
+.brl-performance-metric span{
+  color:#62666b;font-size:10px;font-weight:900;
+  text-transform:uppercase;letter-spacing:.07em;line-height:1.35;
+}
+.brl-performance-metric strong{
+  color:#111216;font-size:clamp(21px,2.4vw,29px);font-weight:900;
+  line-height:1.15;font-variant-numeric:tabular-nums;
+}
+.brl-performance-metric small{color:#73777c;font-size:11px;line-height:1.4}
+.brl-performance-section-heading{margin:0 0 12px}
+.career .brl-performance-section-heading h3,
+.career .brl-performance-detail h3{
+  color:#111216;font-size:18px;font-weight:900;letter-spacing:-.025em;
+  line-height:1.3;margin:0 0 5px;
+}
+.brl-performance-section-heading p{color:#62666b;font-size:12px;line-height:1.5;margin:0}
+.brl-performance-table-wrap{
+  overflow-x:auto;max-width:100%;background:#fff;
+  border:1px solid var(--performance-border);border-radius:3px;
+  margin:0 0 22px;
+}
+.career .brl-performance-table{
+  min-width:790px;width:100%;border-collapse:collapse;
+  color:#111216;font-size:12px;font-variant-numeric:tabular-nums;
+}
+.career .brl-performance-table th{
+  padding:12px 11px;background:#f4f4f3;color:#4f5358;
+  font-size:10px;font-weight:900;letter-spacing:.075em;
+  line-height:1.35;text-align:left;text-transform:uppercase;
+  white-space:nowrap;border-bottom:1px solid var(--performance-border);
+}
+.career .brl-performance-table td{
+  padding:13px 11px;border-top:1px solid #e7e7e7;
+  color:#24262a;line-height:1.4;white-space:nowrap;
+}
+.brl-performance-table tbody tr:first-child td{border-top:0}
+.brl-performance-table tbody tr:hover{background:#faf9f9}
+.brl-performance-table tbody tr.is-selected{background:var(--performance-soft)}
+.brl-performance-table tbody tr.is-selected td:first-child{box-shadow:inset 3px 0 var(--performance-accent)}
+/* CareerDashboard's general button rules must not turn these into filled buttons. */
+.career .brl-performance-driver-button,
+.career.brl-team-themed .brl-performance-driver-button:not(:disabled):not(.career-link-button):not([aria-pressed]){
+  display:flex;align-items:center;gap:10px;text-align:left;
+  min-height:32px;padding:0;border:0;border-radius:0;
+  color:#111216;background:transparent;box-shadow:none;cursor:pointer;
+}
+.career .brl-performance-driver-button:hover strong{text-decoration:underline;text-decoration-color:var(--performance-accent);text-underline-offset:3px}
+.brl-performance-driver-button span:last-child{display:flex;flex-direction:column;gap:2px}
+.brl-performance-driver-button strong{font-size:12px;font-weight:850;color:#111216}
+.brl-performance-driver-button small{font-size:10px;color:#74787c;font-weight:500}
+.brl-performance-rank{
+  display:grid;place-items:center;flex:none;width:24px;height:26px;
+  border-radius:0;background:transparent;color:var(--performance-ink);
+  font-size:12px;font-weight:900;
+}
+.brl-performance-detail{
+  margin:24px 0 0;padding:22px 0 0;
+  border:0;border-top:2px solid var(--performance-accent);
+  border-radius:0;background:transparent;color:#111216;
+}
+.brl-performance-detail-heading{
+  display:flex;justify-content:space-between;align-items:center;
+  flex-wrap:wrap;gap:12px;margin:0 0 18px;
+}
+.brl-performance-detail-heading>span{color:#62666b;font-size:12px}
+.brl-performance-summary-detail{margin:0 0 24px}
+.career .brl-performance-detail h4{
+  color:#111216;font-size:14px;font-weight:900;
+  margin:22px 0 12px;line-height:1.35;
+}
+.brl-performance-trend{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));
+  gap:10px;margin:0 0 24px;
+}
+.brl-performance-trend-item{
+  display:flex;flex-direction:column;gap:8px;min-width:0;
+  padding:12px;border:1px solid var(--performance-border);
+  border-radius:3px;background:#fff;color:#111216;
+}
+.brl-performance-trend-item>span{
+  color:#62666b;font-size:11px;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;
+}
+.brl-performance-trend-item>strong{font-size:18px;font-weight:900}
+.brl-performance-trend-track{height:4px;border-radius:0;background:#e9e9e9;overflow:hidden}
+.brl-performance-trend-track>div{height:100%;border-radius:0;background:var(--performance-accent)}
+.brl-performance-empty{
+  margin:12px 0;padding:20px;
+  border:1px solid var(--performance-border);
+  border-left:3px solid var(--performance-accent);
+  border-radius:3px;background:#fff;color:#33373b;font-size:13px;
+}
+.brl-performance-note{
+  margin:12px 0 20px;padding:12px 14px;
+  border-left:3px solid var(--performance-accent);
+  background:var(--performance-soft);color:#404349;
+  font-size:12px;line-height:1.6;
+}
+.brl-performance-footnote{
+  margin:22px 0 0;padding:14px 0 0;
+  border-top:1px solid var(--performance-border);
+  color:#73777c;font-size:11px;line-height:1.65;
+}
+@media(max-width:800px){
+  .brl-performance-summary{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .brl-performance-controls{width:100%}
+  .brl-performance-controls label{flex:1;min-width:150px}
+  .brl-performance-controls select{width:100%}
+}
+@media(max-width:480px){
+  .brl-performance-hero{gap:14px;padding-bottom:16px}
+  .brl-performance-metric{padding:12px}
+  .brl-performance-trend{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .brl-performance-detail{padding-top:18px}
+}
