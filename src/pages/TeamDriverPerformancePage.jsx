@@ -61,7 +61,7 @@ export default function TeamDriverPerformancePage({ drivers = [], teams = [], ra
 
   return <section className="brl-performance-page" aria-label="Team driver performance">
     <div className="brl-performance-hero">
-      <div><div className="brl-performance-kicker">BRL / Owner HQ / Driver Performance</div><h2>Know your lineup.</h2><p>Compare every driver on your team using official current-season Cup race results.</p></div>
+      <div><div className="brl-performance-kicker">OWNER HQ / TEAM ANALYTICS</div><h2>Driver performance</h2><p>Compare your roster using official current-season Cup results, consistency and points production.</p></div>
       <div className="brl-performance-controls">
         {authorizedTeams.length > 1 && <label>Team<select value={teamCode} onChange={(e) => { setRequestedTeam(e.target.value); setSelectedDriver(""); }}>{authorizedTeams.map((code) => <option key={code} value={code}>{getTeamFullName(code)} ({code})</option>)}</select></label>}
         <label>Rank by<select value={sort} onChange={(e) => setSort(e.target.value)}>{SORTS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
@@ -75,7 +75,7 @@ export default function TeamDriverPerformancePage({ drivers = [], teams = [], ra
       <Metric label="Top 5 finishes" value={sum("top5")} sub="All team drivers" />
     </div>
     {!performance.length ? <div className="brl-performance-empty">No active Cup drivers are listed for this team in the current season.</div> : <>
-      <div className="brl-performance-section-heading"><div><h3>Driver leaderboard</h3><p>Rankings change with the selected metric. Select a driver for a race-by-race breakdown.</p></div></div>
+      <div className="brl-performance-section-heading"><div><h3>Driver leaderboard</h3><p>Sort by performance metric. Select a driver to review individual race results.</p></div></div>
       <div className="brl-performance-table-wrap"><table className="brl-performance-table"><thead><tr><th>Driver</th><th>Pts</th><th>Starts</th><th>Pts / start</th><th>Avg finish</th><th>Last 5</th><th>Wins</th><th>Top 5</th><th>DNF</th></tr></thead><tbody>{ordered.map((d, index) => <tr key={d.id} className={detail?.id === d.id ? "is-selected" : ""}><td><button type="button" className="brl-performance-driver-button" onClick={() => setSelectedDriver(d.id)} aria-pressed={detail?.id === d.id}><span className="brl-performance-rank">{index + 1}</span><span><strong>#{d.number ?? "—"} {d.name}</strong><small>View race breakdown</small></span></button></td><td>{integer(d.points)}</td><td>{d.starts}</td><td>{number(d.pointsPerStart)}</td><td>{number(d.avgFinish)}</td><td>{number(d.recentAvg)}</td><td>{d.wins}</td><td>{d.top5}</td><td>{d.dnfs}</td></tr>)}</tbody></table></div>
       {racesRecorded === 0 && <p className="brl-performance-note">No official race results have been recorded for this season. Season standings points may be visible, but averages and per-race statistics will appear as results are posted.</p>}
       {detail && <div className="brl-performance-detail" key={`${teamCode}-${detail.id}`}>
