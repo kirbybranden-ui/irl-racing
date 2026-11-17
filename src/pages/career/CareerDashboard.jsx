@@ -11,6 +11,7 @@ import JoinDate from "../../components/career/JoinDate";
 import { OwnerCharterRequest } from "../../components/career/CharterControls";
 import NumberLeaseCenter from "../../components/career/NumberLeaseCenter";
 import DriverCareerSummary from "../../components/career/DriverCareerSummary";
+import TeamDriverPerformancePage from "../TeamDriverPerformancePage";
 import { FundingCenter, BudgetCenter, LoanRepayments, LoanApproval } from "../../components/career/TeamFunding";
 import TeamCostBreakdown from "../../components/career/TeamCostBreakdown";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -140,7 +141,7 @@ export function OfferForm({ draft, data, onSave, onClose, busy }) {
     <button type="submit" disabled={busy || submissionState === "submitting"}>{submissionState === "submitting" ? "Submitting contract…" : "Create version for review and signatures"}</button>
   </form></section>;
 }
-export default function CareerDashboard({ workspace = "driver", initialTab, seasons = [], activeSeasonId = "", leagueReady = false }) {
+export default function CareerDashboard({ workspace = "driver", initialTab, seasons = [], activeSeasonId = "", leagueReady = false, drivers = [], raceHistory = [], seasonName = "" }) {
   const ownerWorkspace = workspace === "owner", adminWorkspace = workspace === "admin";
   const [rawData, setData] = useState(null), [error, setError] = useState(""), [status, setStatus] = useState(""), [busy, setBusy] = useState(false), [tab, setTab] = useState(() => window.location.hash.slice(1) || initialTab || (window.location.pathname.includes("contracts") ? "offers" : window.location.pathname.includes("market") ? "teams" : window.location.pathname === "/manufacturer-hq" ? "funding" : "overview")), [selected, setSelected] = useState(() => new URLSearchParams(window.location.search).get("contract")), [fundingDoc, setFundingDoc] = useState(() => new URLSearchParams(window.location.search).get("funding")), [draft, setDraft] = useState(null), [search, setSearch] = useState("");
   const themeTeamCode = adminWorkspace ? "" : careerTeamCode(rawData, seasons, activeSeasonId, ownerWorkspace);
@@ -210,7 +211,7 @@ export default function CareerDashboard({ workspace = "driver", initialTab, seas
   const applicationOwner = ["owner", "independent"].includes(me.kind);
   const canOpenOwner = owner || root || applicationOwner || manufacturer;
   const tabs = adminWorkspace ? (root && ["/admin/funding","/admin/contracts","/admin/appointments","/admin/support"].includes(window.location.pathname) ? [[initialTab||"budgets",{"budgets":"Funding center","offers":"Driver contracts","appointments":"Staff appointments","funding":"Manufacturer support"}[initialTab||"budgets"]]] : root ? [["overview","Staff overview"],["budgets","Team budgets"],["approvals","Loan approvals"],["team","Independent rides"],["offers","Driver contracts"],["requirements","Contract requirements"],["leases","Number administration"],["funding","Manufacturer support"],["appointments","Staff appointments"]] : manufacturer ? [["funding","Manufacturer support"]] : []) : ownerWorkspace ? restrictedOwner ? [["overview", "Ownership application"], ["appeals", "Appeals"], ["account", "Account"]] : [
-    ["overview", "Team overview"], ...(owner || root ? [["team", "Team setup"], ["requests", "Seat applications"], ["offers", "Driver contracts"], ["requirements", "Driver requirements"], ["payments", "Driver payments"]] : []),
+    ["overview", "Team overview"], ...(owner || root ? [["performance", "Driver performance"], ["team", "Team setup"], ["requests", "Seat applications"], ["offers", "Driver contracts"], ["requirements", "Driver requirements"], ["payments", "Driver payments"]] : []),
     ...(owner || root || manufacturer ? [["leases", "Number leases"], ["funding", "Manufacturer support"]] : []),
     ...(root ? [["budgets", "Team budgets"], ["approvals", "Super-admin approvals"]] : []), ["streams", "My streams"], ["appeals", "Appeals"], ["account", "Account"],
   ] : [["overview", "Overview"], ["stats", "My stats"], ["money", "My money"], ["offers", "My contracts"], ["requests", "My seat requests"], ["teams", "Shop teams"], ["requirements", "My requirements"], ["streams", "My streams"], ["appeals", "Appeals"], ["account", "Account"]];
@@ -264,6 +265,7 @@ export default function CareerDashboard({ workspace = "driver", initialTab, seas
     {adminWorkspace && currentTab === "overview" && <section className="career-card"><h2>League staff workspace</h2><p>Manage team funding, loans, independent contracts, number administration and manufacturer support here. Owner signatures and team operations remain in Owner HQ.</p></section>}
     {currentTab === "overview" && !adminWorkspace && <OwnerBuildNotice teams={myApprovedTeams} onBuild={ownerWorkspace ? () => changeTab("team") : undefined} />}
     {!ownerWorkspace && !adminWorkspace && ["overview", "stats", "money"].includes(currentTab) && <DriverCareerSummary data={data} seasons={seasons} seasonId={activeSeasonId} leagueReady={leagueReady} section={currentTab} onTab={changeTab} onContract={openContract} />}
+    {ownerWorkspace && currentTab === "performance" && (owner || root) && <TeamDriverPerformancePage drivers={drivers} teams={data.teams} raceHistory={raceHistory} seasonName={seasonName} />}
 
     {draft && <OfferForm key={draft.prior?.id || `${draft.teamId}-${draft.requestId}`} draft={draft} data={data} busy={busy} onClose={() => setDraft(null)} onSave={async value => {
       // Save once and report the actual server result to the form.
