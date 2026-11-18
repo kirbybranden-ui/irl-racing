@@ -1,5 +1,7 @@
 import MemberApplications from "../components/admin/MemberApplications";
 import AdminHome from "../components/admin/AdminHome";
+import SeasonStartControl from "../components/admin/SeasonStartControl";
+import "../styles/ownerFinancial.css";
 import {ADMIN_TASKS,visibleAdminTasks} from "../lib/adminNavigation";
 import AdminWorkspaceNav from "../components/admin/AdminWorkspaceNav";
 import LeagueBudgetAdmin from "../components/admin/LeagueBudgetAdmin";
@@ -1489,6 +1491,7 @@ export default function AdminPortal({
         {auxiliaryTask==='passwords'&&<PasswordResetAdmin/>}
         {auxiliaryTask==='race-reviews'&&<RaceApprovalQueue drivers={visibleDrivers || drivers || []} tracks={tracks || []} onApprove={approveRaceSubmission}/>}
         {auxiliaryTask==='challenge'&&<InSeasonChallengeControl key={activeSeason?.id} season={activeSeason} onSave={onSaveInSeasonChallenge}/>}
+        {auxiliaryTask==='season-start' && <SeasonStartControl access={access} tracks={tracks} activeSeasonId={activeSeasonId}/> }
         {quickAddDriverOpen && <section style={{ borderTop: "4px solid #d71920", padding: "24px 0", maxWidth: 900 }}>
           <div style={{ color: "#d71920", fontSize: 11, fontWeight: 1000, letterSpacing: 2, textTransform: "uppercase" }}>Human Resources / Roster</div>
           <h2 style={{ margin: "6px 0 18px", fontSize: isAdminMobile ? 32 : 44, fontStyle: "italic", textTransform: "uppercase" }}>Add Driver</h2>
