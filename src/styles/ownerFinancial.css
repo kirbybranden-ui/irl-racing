@@ -1,0 +1,15 @@
+.brl-season-start,.brl-financial-suspension{max-width:960px;margin:20px 0;padding:24px;border:1px solid var(--brl-border,rgba(125,125,125,.25));border-radius:18px;background:var(--brl-surface,rgba(128,128,128,.055));color:inherit}
+.brl-season-start h2,.brl-financial-suspension h2{margin:6px 0 12px}
+.brl-season-start__eyebrow{font-size:.78rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;opacity:.7}
+.brl-season-start label{display:flex;flex-direction:column;gap:8px;max-width:580px;font-weight:700}
+.brl-season-start select{min-height:44px;padding:10px;border:1px solid #9ca3af;border-radius:9px;background:var(--brl-input-bg,#fff);color:var(--brl-input-color,#111)}
+.brl-season-start button,.brl-financial-suspension button{margin-top:12px;padding:11px 17px;border:0;border-radius:9px;background:#1d4ed8;color:white;font-weight:700;cursor:pointer}
+.brl-season-start button:disabled,.brl-financial-suspension button:disabled{opacity:.5;cursor:not-allowed}
+.brl-season-start__locked{padding:15px;border:1px solid #64748b;border-radius:12px}
+.brl-season-start__error,.brl-financial-suspension__error{color:#b91c1c;font-weight:700}
+.brl-season-start__success{color:#15803d;font-weight:700}
+.brl-season-start__footnote{font-size:.86rem;opacity:.8}
+.brl-financial-suspension__bills{width:100%;border-collapse:collapse;margin-top:16px}
+.brl-financial-suspension__bills th,.brl-financial-suspension__bills td{text-align:left;padding:12px 8px;border-bottom:1px solid #9ca3af66}
+.brl-financial-suspension__links{display:flex;gap:16px;flex-wrap:wrap;margin-top:20px}
+@media(max-width:620px){.brl-season-start,.brl-financial-suspension{padding:16px}.brl-financial-suspension__bills{display:block;overflow-x:auto}}
