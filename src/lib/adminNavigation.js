@@ -13,6 +13,7 @@ export const ADMIN_TASKS=[
  task('record','Record a race','Prepare and submit race results.','Race operations','/admin/race-recorder'),
  task('race-reviews','Race approvals','Inspect submissions and publish approved results.','Race operations','/admin?task=race-reviews','/admin/permissions'),
  task('tracks','Schedule & tracks','Manage the current race schedule.','Race operations','/admin?task=tracks','/admin/permissions'),
+ task('season-start','Official season start','Select the first points-paying Daytona race and configure owner payroll.','League settings','/admin?task=season-start','/admin/funding'),
  task('drafts','Race drafts','Resume saved race input.','Race operations','/admin?task=drafts','/admin/permissions'),
  task('race-history','Results & history','Review or correct published races.','Race operations','/admin?task=race-history','/admin/permissions'),
  task('appeals','Appeals','Manage cases, panels and decisions.','Race operations','/admin/appeals'),
@@ -42,3 +43,4 @@ export const ADMIN_TASKS=[
 ];
 export function visibleAdminTasks(access,search='') {const needle=search.trim().toLowerCase();return ADMIN_TASKS.filter(t=>canUseAdminRoute(access,t.permission)&&(!needle||`${t.label} ${t.description} ${t.group}`.toLowerCase().includes(needle)));}
 export function adminTaskForLocation(path,search=''){const id=new URLSearchParams(search).get('task');return ADMIN_TASKS.find(t=>path==='/admin'&&id?t.id===id:t.path===path);}
+ß
