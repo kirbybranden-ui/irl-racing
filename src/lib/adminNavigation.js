@@ -43,4 +43,3 @@ export const ADMIN_TASKS=[
 ];
 export function visibleAdminTasks(access,search='') {const needle=search.trim().toLowerCase();return ADMIN_TASKS.filter(t=>canUseAdminRoute(access,t.permission)&&(!needle||`${t.label} ${t.description} ${t.group}`.toLowerCase().includes(needle)));}
 export function adminTaskForLocation(path,search=''){const id=new URLSearchParams(search).get('task');return ADMIN_TASKS.find(t=>path==='/admin'&&id?t.id===id:t.path===path);}
-ß
