@@ -2379,7 +2379,7 @@ export default function AdminPortal({
                     <div>
                       <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7280" }}>Contracts</div>
                       <h2 style={{ margin: "3px 0 0", fontSize: 26, letterSpacing: -0.6 }}>Contract Records</h2>
-                      <p style={{ margin: "6px 0 0", color: "#4b5563", fontWeight: 700 }}>HR owns contract status. Finance still handles payments and money movement.</p>
+                      <p style={{ margin: "6px 0 0", color: "#4b5563", fontWeight: 700 }}>HR owns contract status. Finance still handles payments and money movement.</p><p><a href="/admin/contracts" style={{fontWeight:900}}>Open Season 2 contract management →</a> · <a href="/admin/contracts#requests" style={{fontWeight:900}}>Manage seat assignments →</a></p>
                     </div>
                     <button type="button" onClick={loadFinanceContracts} style={adminSecondaryButtonStyle}>Refresh Contracts</button>
                   </div>
