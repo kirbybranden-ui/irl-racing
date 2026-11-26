@@ -1,3 +1,5 @@
+import OwnerVoting from "../components/OwnerVoting";
+import {useLeagueAccess} from "../lib/roleAccess";
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
 import {
@@ -13,7 +15,7 @@ import {
   tdStyle,
 } from "../styles/sharedStyles";
 
-export default function AdminVotingPage({ drivers = [] }) {
+function PublicVotingPage({ drivers = [] }) {
   const [votes, setVotes] = useState([]);
   const [options, setOptions] = useState([]);
   const [responses, setResponses] = useState([]);
@@ -187,3 +189,11 @@ export default function AdminVotingPage({ drivers = [] }) {
   );
 }
 
+
+export default function AdminVotingPage(props) {
+ const {access,loading}=useLeagueAccess();
+ const [tab,setTab]=useState('owner');
+ if(loading) return <p role="status">Checking voting permissions…</p>;
+ if(!access?.isSuperAdmin) return <PublicVotingPage {...props}/>;
+ return <section className="admin-voting-center"><header className="admin-page-intro"><p className="admin-eyebrow">Governance</p><h1>Voting center</h1><p>Choose confidential owner voting or the existing public league voting system.</p></header><nav aria-label="Voting system" className="admin-voting-tabs"><button type="button" aria-pressed={tab==='owner'} onClick={()=>setTab('owner')}>Owner voting</button><button type="button" aria-pressed={tab==='public'} onClick={()=>setTab('public')}>Public voting</button></nav>{tab==='owner'?<OwnerVoting admin/>:<PublicVotingPage {...props}/>}</section>;
+}
