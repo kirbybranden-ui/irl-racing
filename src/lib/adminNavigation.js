@@ -1,6 +1,6 @@
 import {canUseAdminRoute} from './adminPortalAccess';
 const task=(id,label,description,group,path,permission=path)=>({id,label,description,group,path,permission});
-export const ADMIN_GROUPS=['Overview','People & access','Race operations','Funding & teams','Media & communications','League settings'];
+export const ADMIN_GROUPS=['Overview','People & access','Race operations','Funding & teams','Media & communications','Governance','League settings'];
 export const ADMIN_TASKS=[
  task('home','Overview','Requests, priorities and quick actions.','Overview','/admin'),
  task('join','Join requests','Review driver applications and roster access.','People & access','/admin?task=join','/admin/permissions'),
@@ -34,7 +34,7 @@ export const ADMIN_TASKS=[
  task('watch','Ones to watch','Manage editorial driver picks.','Media & communications','/admin?task=watch','/admin/permissions'),
  task('gallery','Car gallery','Review car artwork and uploads.','Media & communications','/admin/car-gallery'),
  task('interviews','Interviews','Manage pre-race and post-race interviews.','Media & communications','/admin/interviews'),
- task('votes','Voting','Manage league voting.','Media & communications','/admin/votes'),
+ task('votes','Voting center','Confidential owner polls and public league voting.','Governance','/admin/votes'),
  task('broadcasts','League broadcasts','Manage official stream information.','Media & communications','/admin/broadcasts'),
  task('settings','Seasons & backups','Existing league settings, import and backups.','League settings','/admin?task=settings','/admin/permissions'),
  task('challenge','In-season challenge','Turn the current season challenge on or off.','League settings','/admin?task=challenge','/admin/permissions'),
