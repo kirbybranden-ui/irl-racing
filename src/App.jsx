@@ -29,7 +29,7 @@ import RoleManagement from "./pages/RoleManagement";
 import RaceRecorderPage from "./pages/RaceRecorderPage";
 import LeagueComparisonPage from "./pages/LeagueComparisonPage";
 import { useLeagueAccess, hasLeagueRole, canSeeRoute } from "./lib/roleAccess";
-import { buildSubmissionRace } from "./utils/raceSubmissionHelpers";
+import { buildSeason2SubmissionRace, buildSubmissionRace } from "./utils/raceSubmissionHelpers";
 import FoundationPreviewPage from "./pages/FoundationPreviewPage";
 import { AppShell } from "./components/layout/AppShell";
 import SchedulePage from "./pages/SchedulePage";
@@ -7144,6 +7144,7 @@ export default function App() {
     const raceEditingName = approvalId ? null : editingRaceName;
     if (!hasLeagueRole(verifiedAccess, "full_admin")) throw new Error("Full admin approval is required.");
     if (!activeSeason) return;
+    if (activeSeasonId === "season-2-1790801575252" && !approvalId) throw new Error("Use the Season 2 Race Recorder and approval queue to publish results.");
     const raceToPost = draftOverride || buildRaceFromCurrentInputs();
     if (!raceToPost.raceName.trim()) { alert("Please select a race."); return; }
     if (raceHistory.some((r) => r.raceName === raceToPost.raceName && raceEditingName !== raceToPost.raceName)) { alert("That race has already been entered."); return; }
@@ -7194,7 +7195,7 @@ export default function App() {
       raceSnapshot: updatedRace,
     });
 
-    downloadLeagueBackupFile(automaticBackupPayload, raceEditingName ? "auto-edit-race-results" : "auto-post-race-results");
+    if (activeSeasonId !== "season-2-1790801575252") downloadLeagueBackupFile(automaticBackupPayload, raceEditingName ? "auto-edit-race-results" : "auto-post-race-results");
 
     const backupResult = await createRaceDataBackup({
       seasonSnapshot: updatedSeason,
@@ -7229,7 +7230,7 @@ export default function App() {
     if (checkError) throw checkError;
     if (latest.status !== "pending") throw new Error("This submission has already been reviewed.");
     const stageCount = Number(tracks.find((track) => track.name === submission.race_name)?.stageCount || 2);
-    const race = buildSubmissionRace(submission, drivers, stageCount, raceHistory);
+    const race = activeSeasonId === "season-2-1790801575252" ? buildSeason2SubmissionRace(submission, visibleDrivers, tracks.find(t=>t.name===submission.race_name)) : buildSubmissionRace(submission, drivers, stageCount, raceHistory);
     const posted = await submitResults(race, submission.id);
     if (!posted) throw new Error("Race was not published.");
 
@@ -7914,11 +7915,11 @@ export default function App() {
   if(path==="/admin/manufacturer-leases")return adminPage(<NumberLeaseAdmin/>);
   if(path==="/admin/appeals")return adminPage(<AppealsPage staffMode/>);
   if(path==="/admin/broadcasts")return adminPage(<LeagueBroadcastSettings/>);
-  if(path==="/admin/race-recorder")return !isHydrated?accessPage(<p role="status">Loading league data…</p>):adminPage(<RaceRecorderPage access={verifiedAccess} drivers={visibleDrivers} tracks={tracks} activeSeasonId={activeSeasonId}/>);
+  if(path==="/admin/race-recorder")return !isHydrated?accessPage(<p role="status">Loading league data…</p>):adminPage(<RaceRecorderPage access={verifiedAccess} drivers={visibleDrivers} tracks={tracks} activeSeasonId={activeSeasonId} raceHistory={raceHistory}/>);
   if(path==="/admin/messages")return adminPage(<LeagueMessageCenter drivers={visibleDrivers} session={verifiedAccess} staffMode/>);
   if(path==="/admin/development-requests")return adminPage(<DevelopmentRequestsPage leagueState={{drivers:visibleDrivers,teams:teamStandings}} currentUser={verifiedAccess} isAdmin supabase={supabase} go={to=>{window.location.href=to;}}/>);
   if(path==="/admin/driver-market")return adminPage(<DriverMarketPage drivers={visibleDrivers} raceHistory={raceHistory} startParkRequests={startParkRequests} interestRows={driverRecruitingInterest} supabase={supabase} staffMode/>);
-  if (path === "/race-recorder") return accessPage(canSeeRoute(verifiedAccess,path) ? <RaceRecorderPage access={verifiedAccess} drivers={visibleDrivers} tracks={tracks} activeSeasonId={activeSeasonId} /> : <p>Race Recorder access is required.</p>, "Race Recorder");
+  if (path === "/race-recorder") return accessPage(canSeeRoute(verifiedAccess,path) ? <RaceRecorderPage access={verifiedAccess} drivers={visibleDrivers} tracks={tracks} activeSeasonId={activeSeasonId} raceHistory={raceHistory} /> : <p>Race Recorder access is required.</p>, "Race Recorder");
   if (!canSeeRoute(verifiedAccess,path)) return accessPage(verifiedAccess?.userId ? <p>Your roles do not include access to this page.</p> : <RoleLogin next={path} />);
   if ((!isMobileViewport || forceDesktop) && ["/owners","/compare"].includes(path)) return withUniversalShell(<LeagueComparisonPage drivers={visibleDrivers} teams={teamStandings} />);
   if (["/team-hq","/owner","/hq","/teamhq"].includes(path) && !canSeeRoute(verifiedAccess,"/team-hq")) return <p>Owner access is required. <a href="/owners">Compare teams and drivers</a></p>;
