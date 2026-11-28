@@ -631,7 +631,7 @@ function downloadCsv(filename, rows = []) {
   URL.revokeObjectURL(url);
 }
 
-function StandingsPage({ seriesId = "cup", drivers = [], teams = [], manufacturerStandings = [], seasonName = "", tracks = [], raceHistory = [], arcaDrivers = [], arcaRaceHistory = [], driverAccessCodes = [], supabase: providedSupabase = null }) {
+function StandingsPage({ season2Championship = null, seriesId = "cup", drivers = [], teams = [], manufacturerStandings = [], seasonName = "", tracks = [], raceHistory = [], arcaDrivers = [], arcaRaceHistory = [], driverAccessCodes = [], supabase: providedSupabase = null }) {
   const supabase = providedSupabase || appSupabase;
   const [standingsTab, setStandingsTab] = useState(seriesId === "arca" ? "arca-drivers" : "drivers");
   const [scheduleOpen, setScheduleOpen] = useState(false);
@@ -877,10 +877,11 @@ function StandingsPage({ seriesId = "cup", drivers = [], teams = [], manufacture
   }, [seriesId, supabase, drivers, arcaDrivers]);
 
   const activeDrivers = useMemo(() => {
+    if (season2Championship && seriesId === "cup") return season2Championship.drivers;
     return dedupeDriversByNumber(drivers || [])
       .filter((driver) => !isInactivePlaceholderDriver(driver))
       .sort((a, b) => b.points - a.points || b.wins - a.wins || b.top3 - a.top3 || a.name.localeCompare(b.name));
-  }, [drivers]);
+  }, [drivers, season2Championship, seriesId]);
 
   const sorted = activeDrivers;
 
@@ -904,10 +905,12 @@ function StandingsPage({ seriesId = "cup", drivers = [], teams = [], manufacture
 
   const teamRows = useMemo(() => {
     const sourceTeams = Array.isArray(teams) ? teams : [];
+    if(season2Championship) return sourceTeams;
     return [...sourceTeams].sort((a, b) => (b.points || 0) - (a.points || 0) || (b.wins || 0) - (a.wins || 0));
-  }, [teams]);
+  }, [teams, season2Championship]);
 
   const manufacturerRows = useMemo(() => {
+    if(season2Championship) return manufacturerStandings;
     if (Array.isArray(manufacturerStandings) && manufacturerStandings.length > 0) {
       return [...manufacturerStandings].sort((a, b) => (b.points || 0) - (a.points || 0) || String(a.manufacturer || "").localeCompare(String(b.manufacturer || "")));
     }
@@ -922,7 +925,7 @@ function StandingsPage({ seriesId = "cup", drivers = [], teams = [], manufacture
       mfrs[mfr].drivers += 1;
     });
     return Object.values(mfrs).sort((a, b) => b.points - a.points || b.wins - a.wins || a.manufacturer.localeCompare(b.manufacturer));
-  }, [manufacturerStandings, drivers]);
+  }, [manufacturerStandings, drivers, season2Championship]);
 
   const autoOnesToWatch = sorted
     .filter((driver) => !driver.retired && !isInactivePlaceholderDriver(driver))
@@ -1110,6 +1113,7 @@ function StandingsPage({ seriesId = "cup", drivers = [], teams = [], manufacture
             {driver.retired && <span style={{ fontSize: 11, borderRadius: 999, padding: "3px 8px", background: "#fff7ed", color: "#c2410c", fontWeight: 900 }}>R</span>}
           </div>
           <div style={{ marginTop: 5, fontSize: 13, color: "#6e6e73", fontWeight: 720 }}>{getTeamFullName(driver.team)} • {driver.manufacturer || "—"}</div>
+          {season2Championship && <div style={{fontSize:12,marginTop:7,color:"#52525b"}}>Earned {driver.earnedPoints} · Dropped {driver.droppedPoints} · Regular {driver.regularPoints}{driver.chaseSeed ? ` · Chase seed ${driver.chaseSeed} (${driver.seedPoints})` : ""} · Attendance {driver.attendanceEligible ? `${Math.round(driver.attendanceRate*100)}%` : "—"}</div>}
           <div style={{ marginTop: 7, height: 5, borderRadius: 999, background: "#e5e7eb", overflow: "hidden" }}>
             <div style={{ width: `${leader?.points ? Math.max(4, Math.min(100, (Number(driver.points || 0) / Number(leader.points || 1)) * 100)) : 0}%`, height: "100%", borderRadius: 999, background: brand.accent }} />
           </div>
@@ -1624,7 +1628,10 @@ function StandingsPage({ seriesId = "cup", drivers = [], teams = [], manufacture
               <div style={{ color: "#6e6e73", fontWeight: 850 }}>{sorted.length} active drivers • {totalPoints} points awarded</div>
             </div>
             <div style={{ display: "grid", gap: 10, overflowX: "auto", paddingBottom: 2 }}>
-              {sorted.map((driver, index) => <DriverRow key={driver.id || driver.number} driver={driver} index={index} />)}
+              {season2Championship?.regularChampion && <p style={{fontWeight:800}}>Regular-season champion: {season2Championship.regularChampion.name} · {season2Championship.regularChampion.points} pts</p>}
+              {season2Championship?.cupChampion && <p style={{fontWeight:800}}>Cup Series champion: {season2Championship.cupChampion.name} · {season2Championship.cupChampion.points} pts</p>}
+              {season2Championship?.unresolved && season2Championship.regularCompleted === tracks.filter(t=>t.phase === "Regular Season").length && <p role="alert">Exact points and finishing-record tie requires a ruling before Chase reseeding.</p>}
+              {sorted.map((driver, index) => <React.Fragment key={driver.id || driver.number}>{season2Championship && index===16 && <div style={{background:"#a71920",color:"white",padding:8,textAlign:"center",fontWeight:900}}>CHASE CUTLINE — TOP 16</div>}<DriverRow driver={driver} index={index} /></React.Fragment>)}
             </div>
           </section>
         )}
