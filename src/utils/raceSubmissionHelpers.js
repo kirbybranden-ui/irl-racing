@@ -1,3 +1,4 @@
+import {finalizeDraft} from "./raceDraft.mjs";
 import { pointsTable, stagePointsTable, offensePenaltyPoints } from "../data/points";
 
 export function validateRaceEntries(entries, drivers, stageCount = 2) {
@@ -38,4 +39,20 @@ export function buildSubmissionRace(submission, drivers, stageCount, history = [
       totalRacePoints:entry.dnf?0:finishPoints+stageScores.reduce((sum,value)=>sum+value,0)+fastestLapPoints-offensePenalty-manualPenaltyPoints,
       isWin:!entry.dnf&&finishPos===1,isTop3:!entry.dnf&&finishPos<=3,isTop5:!entry.dnf&&finishPos<=5,notes:String(entry.notes||"").slice(0,1000),dnfReason:entry.dnf?String(entry.dnfReason||"Unknown"):null };
   }).sort((left,right)=>left.finishPos-right.finishPos) };
+}
+
+// Season 2 keeps attendance separate from starters so the legacy bank never pays an absentee.
+export function buildSeason2SubmissionRace(submission, drivers, track) {
+ const entries=submission.entries;
+ if(!track || !entries.length || entries.some(e=>e.recorderVersion!==2))throw Error('Use the Season 2 recorder.');
+ const stages=Number(entries[0].stageCount);
+ if(entries.some(e=>Number(e.stageCount)!==stages))throw Error('Inconsistent stage count');
+ const eligible=drivers.filter(d=>!d.retired&&!d.isSubstitute&&!d.partTime&&!d.isPartTime&&!d.isGuest);
+ const byId=new Map(eligible.map(d=>[String(d.id),d]));
+ const rows=finalizeDraft(entries,eligible.map(d=>d.id),stages).map(r=>{
+  const d=byId.get(String(r.driverId));
+  if(String(d.number)!==String(r.number)||d.team!==r.team||d.manufacturer!==r.manufacturer)throw Error('Roster changed since submission; reject and resubmit.');
+  return {...r,driverId:d.id,name:d.name,number:d.number,team:d.team,manufacturer:d.manufacturer,dnf:r.status==='dnf',startPark:false,manualPenaltyPoints:r.penaltyPoints,isWin:r.status==='finished'&&r.finishPos===1,isTop3:r.status==='finished'&&r.finishPos<=3,isTop5:r.status==='finished'&&r.finishPos<=5};
+ });
+ return {raceName:track.name,stageCount:stages,phase:track.phase,raceDate:track.date,recorderVersion:2,attendance:rows,results:rows.filter(r=>r.started),savedAt:new Date().toISOString()};
 }
