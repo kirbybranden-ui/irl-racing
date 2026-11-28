@@ -1,3 +1,4 @@
+import DriverNumberAssignment from "./DriverNumberAssignment";
 import { MemberRegistrationLog } from "../career/JoinDate";
 import CharterAdmin from "../career/CharterControls";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -41,6 +42,7 @@ export default function NumberLeaseAdmin() {
       <summary><strong>Number lease administration · {(data.leases||[]).filter(l=>l.status==="requested"&&l.terms?.workflow==="owner-request-v1").length} pending</strong></summary>
       <p>Review number requests, approve the team charge, and review driver number-change requests. Owners choose initial numbers through their driver contracts.</p>
       <DirectLease data={data} busy={busy} run={run}/>
+      <DriverNumberAssignment/>
       <NumberLeaseCenter admin data={data} owned={[]} busy={busy} run={run} />
     </details>
   </section>;
