@@ -1,3 +1,4 @@
+import { championship, SEASON2, rankCompare } from "./utils/season2Championship.mjs";
 import NumberLeaseAdmin from "./components/admin/NumberLeaseAdmin";
 import AdminWorkspaceNav from "./components/admin/AdminWorkspaceNav";
 import LeagueBroadcastSettings from "./components/streams/LeagueBroadcastSettings";
@@ -5840,6 +5841,7 @@ export default function App() {
       ? { ...driver, manufacturer, manufacturerLogo: manufacturerLogos[manufacturer] || null }
       : driver;
   });
+  const season2Championship = useMemo(() => activeSeasonId === SEASON2 ? championship(drivers.filter(d=>!isInactivePlaceholderDriver(d)), activeSeason?.raceHistory || [], tracks) : null, [activeSeasonId, activeSeason, tracks, registeredTeams]);
   const visibleDrivers = drivers.filter((d) => !isInactivePlaceholderDriver(d));
   const activeDrivers = visibleDrivers.filter((d) => !d.retired);
   const ownerPortalTeams = useMemo(() => {
@@ -6589,6 +6591,11 @@ export default function App() {
     resetEditorStates();
   };
   const teamStandings = useMemo(() => {
+    if (season2Championship) {
+      const map = new Map(season2Championship.teams.map(t=>[t.team,t]));
+      for (const team of Object.keys(registeredTeams).filter(k=>!registeredTeams[k]?.deleted&&!['Independent','IND'].includes(k))) if(!map.has(team)) map.set(team,{team,points:0,wins:0,top3:0,top5:0});
+      return [...map.values()].map(t=>({...t,budget:getTeamBudget(t.team),manufacturer:registeredTeams[t.team]?.manufacturer||'',drivers:visibleDrivers.filter(d=>!d.retired&&d.team===t.team).length})).sort((a,b)=>rankCompare(a,b)||a.team.localeCompare(b.team));
+    }
     const teams = {};
     for (const team of Object.keys(registeredTeams).filter((key) => !registeredTeams[key]?.deleted)) {
       teams[team] = { team, points: 0, wins: 0, top3: 0, top5: 0, drivers: 0, budget: getTeamBudget(team), manufacturer: registeredTeams[team]?.manufacturer || "" };
@@ -6607,8 +6614,9 @@ export default function App() {
       }
     }
     return Object.values(teams).sort((a, b) => b.points - a.points || b.wins - a.wins || b.top3 - a.top3 || a.team.localeCompare(b.team));
-  }, [visibleDrivers, registeredTeams, raceHistory]);
+  }, [visibleDrivers, registeredTeams, raceHistory, season2Championship]);
   const manufacturerStandings = useMemo(() => {
+    if(season2Championship){const map=new Map(season2Championship.manufacturers.map(m=>[m.manufacturer,m]));for(const d of visibleDrivers)if(d.manufacturer&&!map.has(d.manufacturer))map.set(d.manufacturer,{manufacturer:d.manufacturer,points:0,wins:0,top3:0,top5:0});return [...map.values()].map(m=>({...m,drivers:visibleDrivers.filter(d=>!d.retired&&d.manufacturer===m.manufacturer).length})).sort((a,b)=>rankCompare(a,b)||a.manufacturer.localeCompare(b.manufacturer));}
     const mfrs = {};
     for (const d of visibleDrivers) {
       const mfr = d.manufacturer || "Unknown";
@@ -6617,7 +6625,7 @@ export default function App() {
       mfrs[mfr].top3 += d.top3 || 0; mfrs[mfr].top5 += d.top5 || 0; mfrs[mfr].drivers += 1;
     }
     return Object.values(mfrs).sort((a, b) => b.points - a.points || b.wins - a.wins || b.top3 - a.top3 || a.manufacturer.localeCompare(b.manufacturer));
-  }, [visibleDrivers]);
+  }, [visibleDrivers, season2Championship]);
   const sortedDrivers = [...visibleDrivers].sort((a, b) => b.points - a.points || b.wins - a.wins || b.top3 - a.top3 || a.name.localeCompare(b.name));
   const currentLeader = sortedDrivers[0] || null;
   const latestRace = raceHistory.length > 0 ? raceHistory[raceHistory.length - 1] : null;
@@ -7223,6 +7231,7 @@ export default function App() {
     return true;
   };
   const approveRaceSubmission = async (submission) => {
+    if (activeSeasonId === SEASON2) throw new Error("Season 2 publication is locked until the validated database scoring migration is installed. Drafts are safe.");
     if (!hasLeagueRole(verifiedAccess, "full_admin")) throw new Error("Full admin required.");
     if (String(submission.season_id) !== String(activeSeasonId)) throw new Error("Switch to the submitted season before approving.");
     if (raceHistory.some((race) => race.raceName === submission.race_name)) throw new Error("This race is already published. Review it in Race Operations.");
@@ -8056,7 +8065,9 @@ export default function App() {
     return (
       <StandingsPage
         seriesId={seriesId}
-        drivers={seriesId === "arca" ? arcaStandingsPageDrivers : visibleDrivers}
+        drivers={seriesId === "arca" ? arcaStandingsPageDrivers : seriesId === "cup" ? (season2Championship?.drivers || visibleDrivers) : visibleDrivers}
+        season2Championship={seriesId === "cup" ? season2Championship : null}
+        manufacturerStandings={seriesId === "cup" ? manufacturerStandings : []}
         teams={seriesId === "arca" ? [] : teamStandings}
         tracks={seriesId === "arca" ? arcaTracks : tracks}
         raceHistory={seriesId === "arca" ? (activeSeason?.arcaRaceHistory || []) : raceHistory}
@@ -8200,10 +8211,10 @@ export default function App() {
       <InSeasonTournamentPage drivers={visibleDrivers} raceHistory={raceHistory} />
     );
   }
-  if (path === "/" || path === "/standings") return withLeagueStatusWidget(<StandingsPage drivers={visibleDrivers} teams={teamStandings} manufacturerStandings={manufacturerStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} supabase={supabase} driverAccessCodes={driverAccessCodes} />);
+  if (path === "/" || path === "/standings") return withLeagueStatusWidget(<StandingsPage drivers={season2Championship?.drivers || visibleDrivers} season2Championship={season2Championship} teams={teamStandings} manufacturerStandings={manufacturerStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} supabase={supabase} driverAccessCodes={driverAccessCodes} />);
   if (path === "/overlay/ticker" || viewMode === "overlay-ticker") return <TickerOverlay drivers={visibleDrivers} teams={teamStandings} raceHistory={raceHistory} preview={viewMode === "overlay-ticker"} seasonName={activeSeason?.name || ""} />;
   if (path !== "/admin") {
-    return withLeagueStatusWidget(<StandingsPage drivers={visibleDrivers} teams={teamStandings} manufacturerStandings={manufacturerStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} supabase={supabase} driverAccessCodes={driverAccessCodes} />);
+    return withLeagueStatusWidget(<StandingsPage drivers={season2Championship?.drivers || visibleDrivers} season2Championship={season2Championship} teams={teamStandings} manufacturerStandings={manufacturerStandings} seasonName={activeSeason?.name || ""} tracks={tracks} raceHistory={raceHistory} supabase={supabase} driverAccessCodes={driverAccessCodes} />);
   }
   return (
     <AdminPortal
