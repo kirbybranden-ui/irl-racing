@@ -1,3 +1,4 @@
+import IndependentAssignmentDrafts from "../components/admin/IndependentAssignmentDrafts";
 import MemberApplications from "../components/admin/MemberApplications";
 import AdminHome from "../components/admin/AdminHome";
 import SeasonStartControl from "../components/admin/SeasonStartControl";
@@ -1487,6 +1488,7 @@ export default function AdminPortal({
       <div className="admin-legacy-workspace">
         {!workspaceOpen && <AdminHome access={access} seasonName={activeSeason?.name} pendingDrivers={pendingHrRequestCount} unread={adminMessageCountReady?adminUnreadCount:null} issues={openIssueCount}/>}
         {workspaceOpen && <header className="admin-section-toolbar"><h1>{ADMIN_TASKS.find(t=>t.id===portalTask)?.label||'League workspace'}</h1><button type="button" data-variant="secondary" onClick={goAdminHome}>← Overview</button></header>}
+        {auxiliaryTask==='independent' && access?.isSuperAdmin === true && <IndependentAssignmentDrafts supabase={supabase}/>}
         {auxiliaryTask==='join'&&<><MemberApplications/>{joinRequestsPanel}</>}
         {auxiliaryTask==='passwords'&&<PasswordResetAdmin/>}
         {auxiliaryTask==='race-reviews'&&<RaceApprovalQueue drivers={visibleDrivers || drivers || []} tracks={tracks || []} onApprove={approveRaceSubmission}/>}
