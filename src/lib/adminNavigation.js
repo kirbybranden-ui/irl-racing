@@ -6,6 +6,7 @@ export const ADMIN_TASKS=[
  task('join','Join requests','Review driver applications and roster access.','People & access','/admin?task=join','/admin/permissions'),
  task('add-driver','Add a driver','Add an approved roster entry.','People & access','/admin?task=add-driver','/admin/permissions'),
  task('roster','Drivers & roster','Manage current drivers and assignments.','People & access','/admin?task=roster','/admin/permissions'),
+ task('independent','Independent assignments','Prepare temporary and permanent independent driver assignments.','People & access','/admin?task=independent','/admin/contracts'),
  task('owners','Teams & ownership','Team identity and owner assignments.','People & access','/admin?task=owners','/admin/permissions'),
  task('passwords','Password resets','Verify member requests before enabling a reset.','People & access','/admin?task=passwords','/admin/permissions'),
  task('roles','Roles & permissions','Assign existing league roles.','People & access','/admin/permissions'),
