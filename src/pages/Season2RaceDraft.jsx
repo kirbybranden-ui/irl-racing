@@ -1,28 +1,58 @@
-import {supabase} from '../lib/supabase';
-import React,{useState,useMemo,useEffect} from 'react';
-import {emptyRow,finalizeDraft,chooseRace,seasonId} from '../utils/raceDraft.mjs';
-import {scoreEntry} from '../utils/season2RaceScoring.mjs';
-const statuses=[['unmarked','Unmarked'],['finished','Finished'],['dnf','DNF'],['did_not_start','Present — DNS'],['absent','Absent']];
-const fields=['finishPos','stage1Pos','stage2Pos','stage3Pos'];
-const box={padding:16,border:'1px solid #555',borderRadius:12,marginBottom:12};
-export default function Season2RaceDraft({drivers=[],tracks=[],raceHistory=[],activeSeasonId,access}){
- const eligible=useMemo(()=>drivers.filter(d=>!d.retired&&!d.isSubstitute&&!d.partTime&&!d.isPartTime&&!d.isGuest),[drivers]);
- const [race,setRace]=useState(''),[draft,setDraft]=useState(null),[step,setStep]=useState(0),[query,setQuery]=useState(''),[team,setTeam]=useState(''),[sort,setSort]=useState('name'),[desc,setDesc]=useState(false),[message,setMessage]=useState(''),[busy,setBusy]=useState(false);
- const posted=new Set(raceHistory.map(r=>r.raceName));const track=tracks.find(t=>t.name===race);
- const key=`brl-race-draft-v1:${access?.userId}:${activeSeasonId}:${race}`;
- const rosterKey=JSON.stringify(eligible.map(d=>[String(d.id),d.number,d.team,d.manufacturer]).sort());
- useEffect(()=>{if(!race)setRace(chooseRace(tracks,raceHistory));},[tracks,raceHistory,race]);
- useEffect(()=>{if(!track||!access?.userId)return;let saved=null;try{saved=JSON.parse(localStorage.getItem(key));}catch{};setDraft(saved?.rosterKey===rosterKey&&saved?.race===race?saved:{race,rosterKey,stages:Number(track.stageCount),rows:eligible.map(emptyRow)});setStep(0);setMessage(saved&&saved.rosterKey!==rosterKey?'Roster changed. Previous draft not restored.':'');},[key,rosterKey,track?.stageCount]);
- useEffect(()=>{if(draft?.race===race&&draft.rosterKey===rosterKey&&access?.userId){try{localStorage.setItem(key,JSON.stringify(draft));}catch{setMessage('Draft could not be saved on this device.');}}},[draft,key,race,rosterKey]);
- if(activeSeasonId!==seasonId)return <p>Season 2 only.</p>;
- if(!track||!draft||draft.race!==race)return <main style={box}><h1>Race Control</h1><select value={race} onChange={e=>setRace(e.target.value)}><option value="">Choose scheduled race</option>{tracks.filter(t=>!posted.has(t.name)).map(t=><option key={t.name}>{t.name}</option>)}</select></main>;
- const rows=draft.rows,stages=draft.stages;const byId=new Map(eligible.map(d=>[String(d.id),d]));
- const update=(id,k,v)=>{setMessage('');setDraft(old=>({...old,rows:old.rows.map(r=>{if(r.driverId!==id)return ['pole','fastestLap'].includes(k)&&v?{...r,[k]:false}:r;let next={...r,[k]:v};if(k==='status'&&!['finished','dnf'].includes(v)){fields.forEach(f=>next[f]='');next.fastestLap=false;if(v==='absent'||v==='unmarked')next.pole=false;}if(k==='status'&&v==='dnf')next.fastestLap=false;return next;})}));};
- const points=r=>{if(r.status==='unmarked'||(['finished','dnf'].includes(r.status)&&!r.finishPos))return null;try{return scoreEntry(r,stages).totalRacePoints;}catch{return null;}};
- const val=r=>sort==='points'?points(r):sort==='name'?byId.get(r.driverId)?.name:sort==='team'?byId.get(r.driverId)?.team:sort==='number'?Number(byId.get(r.driverId)?.number):r[sort]===''||r[sort]==null?null:Number(r[sort]);
- const shown=rows.filter(r=>{const d=byId.get(r.driverId);return d&&(!team||d.team===team)&&(`${d.name} #${d.number}`.toLowerCase().includes(query.toLowerCase()));}).sort((a,b)=>{let x=val(a),y=val(b);if(x==null&&y!=null)return 1;if(y==null&&x!=null)return -1;let c=x==null?0:typeof x==='string'?x.localeCompare(y,undefined,{sensitivity:'base'}):x-y;return (desc?-c:c)||byId.get(a.driverId).name.localeCompare(byId.get(b.driverId).name,undefined,{sensitivity:'base'});});
- const starters=rows.filter(r=>['finished','dnf'].includes(r.status));const used=starters.map(r=>Number(r.finishPos)).filter(Boolean);const missing=Array.from({length:starters.length},(_,i)=>i+1).filter(i=>!used.includes(i));const duplicates=used.filter((n,i)=>used.indexOf(n)!==i);
- const submit=async()=>{setBusy(true);try{if(posted.has(race))throw Error('Race already published');const result=finalizeDraft(rows,eligible.map(d=>d.id),stages);if(!window.confirm('Submit official results for full admin approval? Unmarked drivers will be absent.'))return;const {error}=await supabase.from('brl_race_submissions').insert({season_id:activeSeasonId,race_name:race,submitted_by:access.userId,entries:result.map(r=>({...r,recorderVersion:2,stageCount:stages,driverName:byId.get(r.driverId).name,number:byId.get(r.driverId).number,team:byId.get(r.driverId).team,manufacturer:byId.get(r.driverId).manufacturer}))});if(error)throw error;setMessage('Submitted for full admin approval. Official standings remain unchanged until approval.');}catch(e){setMessage(e.message);}finally{setBusy(false);}};
- const review=()=>{try{const result=finalizeDraft(rows,eligible.map(d=>d.id),stages);setDraft(old=>({...old,rows:result}));setStep(3);setMessage('Draft validated. Unmarked drivers classified absent. Ready to submit for approval.');}catch(e){setMessage(e.message);}};
- return <main style={{maxWidth:1200,margin:'24px auto',padding:16}}><p>BRL RACE CONTROL · SEASON 2</p><h1>{track.name}</h1><p>{track.phase} · {stages} scoring stages</p><details style={box}><summary>Change race / settings</summary><select value={race} onChange={e=>setRace(e.target.value)}>{tracks.filter(t=>!posted.has(t.name)||t.name===race).map(t=><option key={t.name}>{t.name}</option>)}</select><label> Stages <select value={stages} onChange={e=>{const n=Number(e.target.value);if(n<stages&&!confirm('Remove results for unused stages?'))return;setDraft(old=>({...old,stages:n,rows:old.rows.map(r=>({...r,...(n<3?{stage3Pos:''}:{}),...(n<2?{stage2Pos:''}:{})}))}));}}>{[1,2,3].map(n=><option key={n}>{n}</option>)}</select></label></details><p>Drafts save automatically on this device. Official standings update after full admin approval.</p><div style={box}>{['Attendance','Qualifying & stages','Final results','Review'].map((s,i)=><button key={s} onClick={()=>setStep(i)} disabled={step===i}>{s}</button>)}</div><div style={box}><input placeholder="Search driver or number" value={query} onChange={e=>setQuery(e.target.value)}/><select value={team} onChange={e=>setTeam(e.target.value)}><option value="">All teams</option>{[...new Set(eligible.map(d=>d.team).filter(Boolean))].sort().map(t=><option key={t}>{t}</option>)}</select><select value={sort} onChange={e=>setSort(e.target.value)}>{[['name','Driver A–Z'],['number','Car number'],['team','Team'],['finishPos','Finish'],...fields.slice(1,stages+1).map((f,i)=>[f,`Stage ${i+1}`]),['points','Points']].map(([v,l])=><option key={v} value={v}>{l}</option>)}</select><button onClick={()=>setDesc(!desc)}>{desc?'Descending':'Ascending'}</button><button onClick={()=>{setQuery('');setTeam('');setSort('name');setDesc(false);}}>Clear filters</button></div><p>{rows.filter(r=>r.status==='unmarked').length} unmarked (absent on finalization) · {starters.filter(r=>!r.finishPos).length} missing finishes · Missing positions: {missing.join(', ')||'None'} · Duplicates: {[...new Set(duplicates)].join(', ')||'None'}</p><div style={{overflowX:'auto'}}><table style={{width:'100%',minWidth:650}}><thead><tr><th>Driver</th><th>Team</th><th>Attendance</th>{step===1&&<><th>Pole</th>{fields.slice(1,stages+1).map((f,i)=><th key={f}>Stage {i+1}</th>)}</>}{step>=2&&<><th>Finish</th><th>Fast lap</th><th>Penalty</th><th>Points</th></>}</tr></thead><tbody>{shown.map(r=>{const d=byId.get(r.driverId),started=['finished','dnf'].includes(r.status);return <tr key={r.driverId}><td>#{d.number} {d.name}</td><td>{d.team}</td><td><select value={r.status} onChange={e=>update(r.driverId,'status',e.target.value)}>{statuses.map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></td>{step===1&&<><td><input type="checkbox" checked={r.pole} disabled={['unmarked','absent'].includes(r.status)} onChange={e=>update(r.driverId,'pole',e.target.checked)}/></td>{fields.slice(1,stages+1).map(f=><td key={f}><input type="number" min="1" max="10" style={{width:60}} disabled={!started} value={r[f]} onChange={e=>update(r.driverId,f,e.target.value)}/></td>)}</>}{step>=2&&<><td><input type="number" min="1" max="40" style={{width:60}} disabled={!started} value={r.finishPos??''} onChange={e=>update(r.driverId,'finishPos',e.target.value)}/></td><td><input type="checkbox" disabled={r.status!=='finished'} checked={r.fastestLap} onChange={e=>update(r.driverId,'fastestLap',e.target.checked)}/></td><td><input type="number" min="0" style={{width:70}} value={r.penaltyPoints} onChange={e=>update(r.driverId,'penaltyPoints',e.target.value)}/></td><td>{points(r)??'—'}</td></>}</tr>})}</tbody></table></div><button onClick={review} disabled={busy||posted.has(race)}>Validate and review</button>{step===3&&<button onClick={submit} disabled={busy||posted.has(race)}>{busy?"Submitting…":"Submit for approval"}</button>}{message&&<p role="status">{message}</p>}</main>;
+/* Scoped to the Season 2 recorder; no global theme changes. */
+.brl-race-draft .brl-race-steps,
+.brl-race-draft .brl-race-filters {
+  display: grid;
+  align-items: stretch;
+  gap: 12px;
+}
+.brl-race-draft .brl-race-steps {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.brl-race-draft .brl-race-filters {
+  grid-template-columns: minmax(0, 1.6fr) repeat(4, minmax(0, 1fr));
+}
+.brl-race-draft .brl-race-steps > button,
+.brl-race-draft .brl-race-filters > :is(input, select, button),
+.brl-race-draft .brl-race-settings-fields select {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  margin: 0;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 14px;
+}
+.brl-race-draft .brl-race-steps > button,
+.brl-race-draft .brl-race-filters > button { font-weight: 700; white-space: normal; }
+.brl-race-draft .brl-race-steps > button:disabled { opacity: 1; background: #b91c1c; color: white; }
+.brl-race-draft select {
+  border: 1px solid #b8b8b8;
+  border-radius: 6px;
+  background: #fff;
+  color: #17191c;
+}
+.brl-race-draft td select {
+  min-height: 40px;
+  min-width: 150px;
+  padding: 8px 10px;
+  font-size: 14px;
+}
+.brl-race-draft .brl-race-settings-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: end;
+  margin-top: 16px;
+}
+.brl-race-draft .brl-race-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
+.brl-race-draft .brl-race-actions > button { min-height: 44px; margin: 0; padding: 10px 20px; }
+@media (max-width: 1100px) {
+  .brl-race-draft .brl-race-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .brl-race-draft .brl-race-filters > input { grid-column: 1 / -1; }
+}
+@media (max-width: 650px) {
+  .brl-race-draft .brl-race-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .brl-race-draft .brl-race-settings-fields { grid-template-columns: minmax(0, 1fr); }
+  .brl-race-draft .brl-race-actions > button { flex: 1 1 100%; }
 }
