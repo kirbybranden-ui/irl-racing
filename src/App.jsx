@@ -7231,7 +7231,21 @@ export default function App() {
     return true;
   };
   const approveRaceSubmission = async (submission) => {
-    if (activeSeasonId === SEASON2) throw new Error("Season 2 publication is locked until the validated database scoring migration is installed. Drafts are safe.");
+    if (activeSeasonId === SEASON2) {
+      if (!hasLeagueRole(verifiedAccess, "full_admin")) throw new Error("Full admin required.");
+      if (String(submission.season_id) !== String(activeSeasonId)) throw new Error("Switch to the submitted season before approving.");
+      await saveQueueRef.current;
+      const { data: saved, error } = await supabase.rpc("brl_s2_publish", { p_submission: submission.id, p_revision: loadedRevisionRef.current });
+      if (error) throw error;
+      const next = normalizeLoadedLeagueState(saved);
+      if (!next || !saved?._revision) throw new Error("Race was published but the response could not be loaded. Reload before taking further action.");
+      loadedRevisionRef.current = saved._revision;
+      loadedStateSignatureRef.current = makeLeagueStateSignature(next);
+      setSeasons(next.seasons); setActiveSeasonId(next.activeSeasonId); setTracks(next.tracks);
+      applyCustomTeamBranding(next.customTeamBranding); setCustomTeamBranding(next.customTeamBranding); setRegisteredTeams(next.registeredTeams);
+      window.dispatchEvent(new Event("brl:bank-state-changed"));
+      return true;
+    }
     if (!hasLeagueRole(verifiedAccess, "full_admin")) throw new Error("Full admin required.");
     if (String(submission.season_id) !== String(activeSeasonId)) throw new Error("Switch to the submitted season before approving.");
     if (raceHistory.some((race) => race.raceName === submission.race_name)) throw new Error("This race is already published. Review it in Race Operations.");
